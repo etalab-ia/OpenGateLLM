@@ -18,7 +18,7 @@ from app.utils.exceptions import (
     InsufficientPermissionException,
     InvalidAPIKeyException,
     InvalidAuthenticationSchemeException,
-    RateLimitExceeded,
+    RateLimitExceeded, ModelNotFoundException,
 )
 from app.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
