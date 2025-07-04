@@ -51,9 +51,29 @@ async def audio_transcriptions(
     if language != "":
         payload["language"] = language.value
 
-    response = await client.forward_request(method="POST", files={"file": (file.filename, file_content, file.content_type)}, data=payload)
+    async def handler(client):
+        payload = {
+            "model": client.model,
+            "response_format": response_format,
+            "temperature": temperature,
+            "timestamp_granularities": timestamp_granularities,
+        }
 
-    if response_format == "text":
-        return PlainTextResponse(content=response.text)
+        if language != "":
+            payload["language"] = language.value
 
-    return JSONResponse(content=AudioTranscription(**response.json()).model_dump(), status_code=response.status_code)
+        response = await client.forward_request(method="POST",
+                                                files={"file": (file.filename, file_content, file.content_type)},
+                                                data=payload)
+
+        if response_format == "text":
+            return PlainTextResponse(content=response.text)
+
+        return JSONResponse(content=AudioTranscription(**response.json()).model_dump(),
+                            status_code=response.status_code)
+
+
+    return await global_context.models(model=model).safe_client_access(
+        endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS,
+        handler=handler
+    )
