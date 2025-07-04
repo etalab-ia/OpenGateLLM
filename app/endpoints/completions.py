@@ -19,7 +19,8 @@ async def completions(request: Request, body: CompletionRequest) -> JSONResponse
     client = model.get_client(endpoint=ENDPOINT__COMPLETIONS)
     response = await client.forward_request(method="POST", json=body.model_dump())
 
-    return await global_context.models(model=body.model).safe_client_access(
+    model = await global_context.models(model=body.model)
+    return await model.safe_client_access(
         endpoint=ENDPOINT__COMPLETIONS,
         handler=handler
     )
