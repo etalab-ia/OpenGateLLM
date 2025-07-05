@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from asyncio import Lock
 from itertools import cycle
 import time
-from typing import Callable, Union, Any, Awaitable
+from typing import Callable, Union, Awaitable
 import inspect
 
 from app.clients.model import BaseModelClient as ModelClient
@@ -76,7 +76,9 @@ class BaseModelRouter(ABC):
         """
         Adds a new client.
         """
-        pass
+        # async with self._lock:
+        #     self._clients.append(client)
+
 
     async def delete_client(self, api_url: str) -> bool:
         """
@@ -88,13 +90,31 @@ class BaseModelRouter(ABC):
         """
         async with self._lock:
             client = None
+            costs = []
+            max_context_lengths = []
+
             for c in self._clients:
                 if c.api_url == api_url:
                     client = c
-                    break
+                else:
+                    if c.max_context_length is not None:
+                        max_context_lengths.append(c.max_context_length)
+
+                    costs.append(c.costs)
+
+            if client is None:
+                return len(self._clients) > 0
 
             await client.lock.acquire()
             self._clients.remove(client)
+
+            self.max_context_length = min(max_context_lengths) if max_context_lengths else None
+            self._cycle = cycle(self._clients)
+
+            prompt_tokens = max(costs.prompt_tokens for costs in costs)
+            completion_tokens = max(costs.completion_tokens for costs in costs)
+            self.costs = ModelCosts(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens)
+
             client.lock.release()
             return len(self._clients) > 0
 
