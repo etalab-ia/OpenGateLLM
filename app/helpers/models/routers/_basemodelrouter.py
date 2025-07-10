@@ -71,6 +71,13 @@ class BaseModelRouter(ABC):
         """
         pass
 
+    async def get_clients(self):
+        """
+        Return the current list of ModelClient thread-safely.
+        """
+        async with self._lock:
+            return self._clients
+
     async def add_client(self, client: ModelClient):
         """
         Adds a new client.
