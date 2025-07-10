@@ -91,7 +91,7 @@ class BaseModelRouter(ABC):
 
             # consistency checks
 
-            if client.vector_size != self._vector_size:
+            if client.vector_size != self.vector_size:
                 raise ValueError("All embeddings models in the same model group must have the same vector size.")
 
             if client.max_context_length is not None:

@@ -95,7 +95,7 @@ class ModelRegistry:
         model_type: ModelType = None,
         aliases: List[str] = None,
         routing_strategy: RoutingStrategy = RoutingStrategy.ROUND_ROBIN,
-        owner: str = "albert-api",
+        owner: str = "Albert API",
         **__
     ):
         """
