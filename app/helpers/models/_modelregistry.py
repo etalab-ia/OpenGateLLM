@@ -123,7 +123,7 @@ class ModelRegistry:
             owned_by=owner,
             aliases=aliases,
             routing_strategy=routing_strategy,
-            clients=[model_client],
+            providers=[model_client],
         )
         self._routers[router_id] = router
 
