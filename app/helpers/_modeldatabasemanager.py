@@ -18,7 +18,7 @@ class ModelDatabaseManager:
     @staticmethod
     async def get_routers(session: AsyncSession, configuration: Configuration, dependencies: SimpleNamespace):
         routers = []
-        # Get all ModelRouter rows and cnvert it from a list of 1-dimensional vectors to a list of ModelRouters
+        # Get all ModelRouter rows and convert it from a list of 1-dimensional vectors to a list of ModelRouters
         db_routers = [row[0] for row in (await session.execute(select(ModelRouterTable))).fetchall()]
 
         if not db_routers:
@@ -162,17 +162,7 @@ class ModelDatabaseManager:
         await session.commit()
 
     @staticmethod
-    async def delete_alias(session: AsyncSession, router_name: str, alias: str):
-        alias_result = (
-            await session.execute(select(ModelRouterAliasTable)
-                                  .where(ModelRouterAliasTable.router_name == router_name)
-                                  .where(ModelRouterAliasTable.alias == alias))).fetchall()
-
-        assert alias_result, "tried to delete non-existing alias"
-        await session.execute(delete(ModelRouterAliasTable)
-                                .where(ModelRouterAliasTable.router_name == router_name)
-                                .where(ModelRouterAliasTable.alias == alias))
-    
+    async def delete_alias(session: AsyncSession, router_name: str, alias_identifier):
+        await session.execute(delete(ModelRouterAliasTable).where(ModelRouterAliasTable.model_router_name == router_name))
+        
         await session.commit()
-    
-
