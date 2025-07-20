@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from asyncio import Lock
+from fastapi import HTTPException
 from itertools import cycle
 import time
 from typing import Callable, Union, Awaitable
@@ -149,7 +150,7 @@ class BaseModelRouter(ABC):
                     costs.append(c.costs)
 
             if client is None:
-                return len(self._clients) > 0
+                raise HTTPException(status_code=404, detail=f"Model with name \"{name}\" and URL \"{api_url}\" not found")
 
             await client.lock.acquire()
             self._clients.remove(client)
