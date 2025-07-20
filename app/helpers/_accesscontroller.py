@@ -30,6 +30,13 @@ from app.utils.variables import (
     ENDPOINT__OCR,
     ENDPOINT__RERANK,
     ENDPOINT__SEARCH,
+    ENDPOINT__TOKENS,
+    ENDPOINT__USERS_ME,
+    ENDPOINT__MODEL_ADD,
+    ENDPOINT__MODEL_DELETE,
+    ENDPOINT__ALIAS_ADD,
+    ENDPOINT__ALIAS_DELETE,
+    ENDPOINT__ROUTERS,
 )
 
 logger = logging.getLogger(__name__)
@@ -105,6 +112,19 @@ class AccessController:
 
         if request.url.path.endswith(ENDPOINT__SEARCH) and request.method == "POST":
             await self._check_search_post(user=user, role=role, limits=limits, request=request)
+
+        if request.url.path.endswith(ENDPOINT__TOKENS) and request.method == "POST":
+            await self._check_tokens_post(user=user, role=role, limits=limits, request=request)
+
+        if request.url.path.endswith(ENDPOINT__ROUTERS) and request.method == "GET" or (
+            (
+                request.url.path.endswith(ENDPOINT__MODEL_ADD) or
+                request.url.path.endswith(ENDPOINT__MODEL_DELETE) or
+                request.url.path.endswith(ENDPOINT__ALIAS_ADD) or
+                request.url.path.endswith(ENDPOINT__ALIAS_DELETE)
+            ) and request.method == "POST"
+        ):
+            await self._check_provider(user=user, role=role, limits=limits, request=request)
 
         return user
 
@@ -320,6 +340,19 @@ class AccessController:
         )
 
         await self._check_budget(user=user, model=global_context.document_manager.vector_store_model.name)
+
+    async def _check_tokens_post(self, user: User, role: Role, limits: Dict[str, UserModelLimits], request: Request) -> None:
+        body = await self._safely_parse_body(request)
+
+        # if the token is for another user, we don't check the expiration date
+        if body.get("user") and PermissionType.CREATE_USER not in role.permissions:
+            raise InsufficientPermissionException("Missing permission to create token for another user.")
+
+    async def _check_provider(self, user: User, role: Role, limit: Dict[str, UserModelLimits], request: Request) -> None:
+        body = await self._safely_parse_body(request)
+
+        if body.get("user") and PermissionType.PROVIDE_MODELS not in role.permissions:
+            raise InsufficientPermissionException("Missing permission to interact with provider's endpoints.")
 
     async def _safely_parse_body(self, request: Request) -> Dict:
         """Safely parse request body as JSON or form data, handling encoding errors."""
