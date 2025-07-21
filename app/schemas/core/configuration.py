@@ -73,7 +73,6 @@ def custom_validation_error(url: Optional[str] = None):
 
         cls.__init__ = new_init
         return cls
-
     return decorator
 
 
