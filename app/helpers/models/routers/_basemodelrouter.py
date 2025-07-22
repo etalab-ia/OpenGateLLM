@@ -123,11 +123,9 @@ class BaseModelRouter(ABC):
                 else:
                     self.max_context_length = min(self.max_context_length, client.max_context_length)
 
-            self._cycle = cycle(self._clients)
-            prompt_tokens = max(self.costs.prompt_tokens, client.costs.prompt_tokens)
-            completion_tokens = max(self.costs.completion_tokens, client.costs.completion_tokens)
-            self.costs = ModelCosts(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens)
-            # TODO: add to DB (with lock, in case delete is called right after)
+            self._cycle = cycle(self._providers)
+            self.cost_prompt_tokens = max(self.cost_prompt_tokens, client.cost_prompt_tokens)
+            self.cost_completion_tokens = max(self.cost_completion_tokens, client.cost_completion_tokens)
 
     async def delete_client(self, api_url: str, name: str) -> bool:
         """
@@ -174,7 +172,6 @@ class BaseModelRouter(ABC):
             self.costs = ModelCosts(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens)
 
             client.lock.release()
-            # TODO: remove from DB
             return True
 
     async def add_alias(self, alias: str):
