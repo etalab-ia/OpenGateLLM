@@ -19,7 +19,6 @@ class BaseModelRouter(ABC):
         aliases: list[str],
         routing_strategy: str,
         providers: list[ModelClient],
-        from_config: bool = False,
         *args,
         **kwargs,
     ) -> None:
@@ -51,7 +50,6 @@ class BaseModelRouter(ABC):
         self.max_context_length = max_context_length
         self.cost_prompt_tokens = prompt_tokens
         self.cost_completion_tokens = completion_tokens
-        self.from_config = from_config
 
         self._vector_size = vector_sizes[0]
         self._routing_strategy = routing_strategy
