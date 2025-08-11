@@ -17,6 +17,7 @@ CMD [ -d "node_modules" ] && yarn start --host 0.0.0.0 --poll 1000 || yarn insta
 
 FROM deps AS prod
 ARG DOCUSAURUS_BASE_URL
+ARG ALBERT_API_URL
 WORKDIR /opt/docusaurus
 COPY . /opt/docusaurus/
 RUN yarn build

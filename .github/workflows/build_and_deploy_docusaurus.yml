@@ -59,6 +59,7 @@ jobs:
             type=registry,ref=${{ env.APP_IMAGE_NAME }}:cache,mode=max
           build-args: |
             DOCUSAURUS_BASE_URL=/documentation/
+            ALBERT_API_URL=https://albert.api.dev.etalab.gouv.fr
           outputs: type=registry
           provenance: false
 
