@@ -292,14 +292,13 @@ class RedisDependency(ConfigBaseModel):
 
 
 class ProConnect(ConfigBaseModel):
-    client_id: str = Field(default="")
-    client_secret: str = Field(default="")
-    # OpenID Connect discovery endpoint for server metadata
-    server_metadata_url: str = Field(default="https://identite-sandbox.proconnect.gouv.fr/.well-known/openid-configuration")
-    redirect_uri: str = Field(default="https://albert.api.etalab.gouv.fr/v1/oauth2/callback")
-    scope: str = Field(default="openid email given_name usual_name siret organizational_unit belonging_population chorusdt")
+    client_id: str = Field(default="", description="Client ID for the ProConnect application.")  # fmt: off
+    client_secret: str = Field(default="", description="Client secret for the ProConnect application.")  # fmt: off
+    server_metadata_url: str = Field(default="https://identite-sandbox.proconnect.gouv.fr/.well-known/openid-configuration", description="OpenID Connect discovery endpoint for server metadata.")  # fmt: off
+    redirect_uri: str = Field(default="https://albert.api.etalab.gouv.fr/v1/oauth2/callback", description="Redirect URI for the ProConnect application.")  # fmt: off
+    scope: str = Field(default="openid email given_name usual_name siret organizational_unit belonging_population chorusdt", description="Scope for the ProConnect application.")  # fmt: off
     allowed_domains: str = Field(default="localhost,gouv.fr", description="List of allowed domains for OAuth2 login. This is used to restrict the domains that can use the OAuth2 login flow.")  # fmt: off
-    default_role: str = Field(default="Freemium", description="Default role assigned to users when they log in for the first time.")
+    default_role: str = Field(default="Freemium", description="Default role assigned to users when they log in for the first time.")  # fmt: off
 
 
 @custom_validation_error(url="https://github.com/etalab-ia/albert-api/blob/main/docs/configuration.md#dependencies")
@@ -407,7 +406,7 @@ class Settings(ConfigBaseModel):
     mcp_max_iterations: int = Field(default=2, ge=2, description="Maximum number of iterations for MCP agents in `/v1/agents/completions` endpoint.")  # fmt: off
 
     # auth
-    auth_master_key: constr(strip_whitespace=True, min_length=1) = Field(default="changeme", required=False, description="Master key for the API. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys.")  # fmt: off
+    auth_master_key: constr(strip_whitespace=True, min_length=1) = Field(default="changeme", required=False, description="Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys.")  # fmt: off
     auth_max_token_expiration_days: Optional[int] = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
 
     # rate_limiting
@@ -432,9 +431,6 @@ class Settings(ConfigBaseModel):
     # session
     session_secret_key: Optional[str] = Field(default=None, description='Secret key for session middleware. If not provided, the master key will be used.', examples=["knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM"])  # fmt: off
 
-    # oauth2
-    oauth2_encryption_key: Optional[str] = Field(default=None, description="Secret key for encrypting between API and Playground. If not provided, the master key will be used.", examples=["changeme"])  # fmt: off
-
     front_url: str = Field(default="http://localhost:8501", description="Front-end URL for the application.")
 
     @model_validator(mode="after")
@@ -442,9 +438,9 @@ class Settings(ConfigBaseModel):
         if values.session_secret_key is None:
             logging.warning("Session secret key not provided, using master key.")  # fmt: off
             values.session_secret_key = values.auth_master_key
-        if values.oauth2_encryption_key is None:
-            logging.warning("OAuth2 encryption key not provided, using master key.")  # fmt: off
-            values.oauth2_encryption_key = values.auth_master_key
+
+        if len(values.auth_master_key) < 32:
+            logging.warning("Auth master key is too short for production, it should be at least 32 characters.")  # fmt: off
 
         return values
 

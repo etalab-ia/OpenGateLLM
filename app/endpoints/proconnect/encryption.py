@@ -1,9 +1,10 @@
 import base64
-import hashlib
 import json
 import logging
 import time
 
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
 from cryptography.fernet import Fernet
 from fastapi import HTTPException
 
@@ -12,16 +13,16 @@ from app.utils.configuration import configuration
 logger = logging.getLogger(__name__)
 
 
-def get_fernet():
+def get_fernet(key: str):
     """
-    Initialize Fernet encryption using the OAuth2 encryption key from configuration
+    Initialize Fernet encryption using the OAuth2 encryption key from master key.
     """
     try:
-        # Use the provided key - it should be 32 url-safe base64-encoded bytes
-        key_bytes = hashlib.sha256(data=configuration.settings.oauth2_encryption_key.encode()).digest()
-        key = base64.urlsafe_b64encode(key_bytes)
+        kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=b"salt", iterations=310000)
+        key = base64.urlsafe_b64encode(kdf.derive(key.encode("utf-8")))
 
         return Fernet(key)
+
     except Exception as e:
         logger.error(f"Failed to initialize Fernet encryption: {e}")
         raise HTTPException(status_code=500, detail="Encryption initialization failed")
@@ -35,7 +36,7 @@ def encrypt_redirect_data(app_token: str, token_id: str, proconnect_token: str) 
     * proconnect_token: The ProConnect token for OAuth2 session to be used for logout
     """
     try:
-        fernet = get_fernet()
+        fernet = get_fernet(key=configuration.settings.auth_master_key)
         data = {"app_token": app_token, "token_id": token_id, "proconnect_token": proconnect_token, "timestamp": int(time.time())}
 
         json_data = json.dumps(data)
@@ -58,7 +59,7 @@ def decrypt_playground_data(encrypted_token: str, ttl: int = 300) -> dict:
         Dictionary containing decrypted data
     """
     try:
-        fernet = get_fernet()
+        fernet = get_fernet(key=configuration.settings.auth_master_key)
         encrypted_data = base64.urlsafe_b64decode(encrypted_token.encode())
         decrypted_data = fernet.decrypt(encrypted_data, ttl=ttl)
         data = json.loads(decrypted_data.decode())

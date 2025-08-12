@@ -46,47 +46,55 @@ help:
 	@echo "╚██████╔╝██║     ███████╗██║ ╚████║╚██████╔╝██║  ██║   ██║   ███████╗███████╗███████╗██║ ╚═╝ ██║"
 	@echo " ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚══════╝╚══════╝╚═╝     ╚═╝"
 	@echo ""
+	@echo "┌─────────────────────────────────────────────────────────────────┐"
+	@echo "│                        🚀 Services ready                        │"
+	@echo "├─────────────────────────────────────────────────────────────────┤"
+
+	@if [ "$(service)" = "api" ]; then \
+		echo "│ ▶️  API URL: http://localhost:8080                               │"; \
+	elif [ "$(service)" = "playground" ]; then \
+		echo "│ ▶️  Playground URL: http://localhost:8501                        │"; \
+	elif [ "$(service)" = "both" ]; then \
+		echo "│ ▶️  API URL: http://localhost:8080                               │"; \
+		echo "│ ▶️  Playground URL: http://localhost:8501                        │"; \
+	fi
+	@if [ "$(command)" = "quickstart" ]; then \
+		echo "│ ⏸️  Execute 'make quickstart action=down' to stop services       │"; \
+	elif [ "$(command)" = "start" ]; then \
+		echo "│ ⏸️   Press Ctrl+C to stop all services                           │"; \
+	fi
+	@echo "└─────────────────────────────────────────────────────────────────┘"
+	@echo ""
 
 .start:
 	@if [ "$(service)" = "api" ]; then \
-		$(MAKE) .banner; \
-		echo "┌─────────────────────────────────────────────────────────────────┐"; \
-		echo "│                        🚀 Services ready                        │"; \
-		echo "├─────────────────────────────────────────────────────────────────┤"; \
-		echo "│ ▶️  API URL: http://localhost:8080                               │"; \
-		echo "│ ⏸️  Press Ctrl+C to stop all services                            │"; \
-		echo "└─────────────────────────────────────────────────────────────────┘"; \
-		echo ""; \
-		bash -c 'set -a; . $(env); GUNICORN_CMD_ARGS="--reload --log-level debug --access-logfile - --error-logfile -" ./scripts/startup_api.sh'; \
+		$(MAKE) .banner command=start; \
+		$(MAKE) .start-api; \
 		wait; \
 	elif [ "$(service)" = "playground" ]; then \
-		$(MAKE) .banner; \
-		echo "┌─────────────────────────────────────────────────────────────────┐"; \
-		echo "│                        🚀 Services ready                        │"; \
-		echo "├─────────────────────────────────────────────────────────────────┤"; \
-		echo "│ ▶️  Playground URL: http://localhost:8081                        │"; \
-		echo "│ ⏸️  Press Ctrl+C to stop all services                            │"; \
-		echo "└─────────────────────────────────────────────────────────────────┘"; \
-		echo ""; \
-		bash -c 'set -a; . $(env); STREAMLIT_CMD_ARGS="--server.port 8081" ./scripts/startup_ui.sh'; \
+		$(MAKE) .banner command=start; \
+		$(MAKE) .start-playground; \
 		wait; \
 	elif [ "$(service)" = "both" ]; then \
-		$(MAKE) .banner; \
-		echo "┌─────────────────────────────────────────────────────────────────┐"; \
-		echo "│                        🚀 Services ready                        │"; \
-		echo "├─────────────────────────────────────────────────────────────────┤"; \
-		echo "│ ▶️  API URL: http://localhost:8080                               │"; \
-		echo "│ ▶️  Playground URL: http://localhost:8081                        │"; \
-		echo "│ ⏸️  Press Ctrl+C to stop all services                            │"; \
-		echo "└─────────────────────────────────────────────────────────────────┘"; \
-		echo ""; \
-		bash -c 'set -a; . $(env); GUNICORN_CMD_ARGS="--reload --log-level debug --access-logfile - --error-logfile -" ./scripts/startup_api.sh' & \
-		bash -c 'set -a; . $(env); STREAMLIT_CMD_ARGS="--server.port 8081" ./scripts/startup_ui.sh' & \
+		$(MAKE) .banner command=start; \
+		$(MAKE) .start-api & \
+		$(MAKE) .start-playground & \
 		wait; \
 	else \
 		echo "❌ Error: service must be 'api' or 'playground' or 'both'"; \
 		exit 1; \
 	fi
+
+
+
+.start-api:
+	@mkdir -p ~/.streamlit/
+	@echo "[general]"  > ~/.streamlit/credentials.toml
+	@echo "email = \"\""  >> ~/.streamlit/credentials.toml
+	@bash -c 'set -a; . $(env); GUNICORN_CMD_ARGS="--reload --log-level debug --access-logfile - --error-logfile -" ./scripts/startup_api.sh'
+
+.start-playground:
+	@bash -c 'set -a; . $(env); ./scripts/startup_ui.sh'
 
 .docker-compose:
 	@if [ "$(action)" = "up" ]; then \
@@ -96,7 +104,6 @@ help:
 	elif [ "$(action)" = "down" ]; then \
 		docker compose --env-file $(env) --file $(compose) down; \
 	fi
-	
 
 .check-service-status:
 	@echo "🐳 Checking if $(service) container is running..."; \
@@ -130,7 +137,6 @@ dev:
 
 	@# Start services
 	@services=$$(docker compose --file $(compose) config --services | grep -v -E '^(api|playground)$$' | tr '\n' ' '); \
-	echo "🔄 Starting services: $$services"; \
 	echo "🚀 Starting services with $(env) file and $(compose) file"; \
 	if [ "$(service)" = "api" ]; then \
 		trap 'echo "🛑 Stopping all services..."; kill $$(jobs -p) 2>/dev/null; $(MAKE) .docker-compose env=$(env) compose=$(compose) action=down; exit' INT TERM; \
@@ -153,6 +159,7 @@ dev:
 		echo "Use 'make help' for more information."; \
 		exit 1; \
 	fi
+	
 
 # quickstart -----------------------------------------------------------------------------------------------------------------------------------------
 quickstart:
@@ -178,15 +185,7 @@ quickstart:
 	if [ "$(action)" = "up" ]; then \
 		$(MAKE) .docker-compose env=$(env) compose=$(compose) action=up; \
 		if $(MAKE) --silent .check-service-status service=api env=$(env) compose=$(compose) && $(MAKE) --silent .check-service-status service=playground env=$(env) compose=$(compose); then \
-			$(MAKE) .banner; \
-			echo "┌─────────────────────────────────────────────────────────────────┐"; \
-			echo "│                        🚀 Services ready                        │"; \
-			echo "├─────────────────────────────────────────────────────────────────┤"; \
-			echo "│ ▶️  API URL: http://localhost:8080                               │"; \
-			echo "│ ▶️  Playground URL: http://localhost:8081                        │"; \
-			echo "│ ⏸️  Execute 'make quickstart action=down' to stop services       │"; \
-			echo "└─────────────────────────────────────────────────────────────────┘"; \
-			echo ""; \
+			$(MAKE) .banner command=quickstart service=both; \
 		fi; \
 	elif [ "$(action)" = "down" ]; then \
 		$(MAKE) .docker-compose env=$(env) compose=$(compose) action=down; \

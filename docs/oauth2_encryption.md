@@ -33,7 +33,7 @@ oauth2:
 ```yaml
 playground:
   api_url: http://localhost:8000
-  oauth2_encryption_key: YOUR_GENERATED_KEY_HERE  # Same key as the backend
+  auth_encryption_key: YOUR_GENERATED_KEY_HERE  # Same key as the backend
 ```
 
 ## Security

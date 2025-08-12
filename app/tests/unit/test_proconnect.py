@@ -1,31 +1,17 @@
-import pytest
+import base64
 import json
 import time
-import base64
 from unittest.mock import AsyncMock, MagicMock, patch
+
 from fastapi import HTTPException, Request
 from fastapi.responses import RedirectResponse
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.endpoints.proconnect import (
-    oauth2_login,
-    oauth2_callback,
-    generate_redirect_url,
-    logout,
-)
-from app.endpoints.proconnect.encryption import (
-    get_fernet,
-    encrypt_redirect_data,
-)
-from app.endpoints.proconnect.token import (
-    get_jwks_keys,
-    verify_jwt_signature,
-    perform_proconnect_logout,
-)
-from app.endpoints.proconnect.user import (
-    retrieve_user_info,
-    create_user,
-)
+from app.endpoints.proconnect import generate_redirect_url, logout, oauth2_callback, oauth2_login
+from app.endpoints.proconnect.encryption import encrypt_redirect_data, get_fernet
+from app.endpoints.proconnect.token import get_jwks_keys, perform_proconnect_logout, verify_jwt_signature
+from app.endpoints.proconnect.user import create_user, retrieve_user_info
 from app.schemas.auth import OAuth2LogoutRequest, User
 from app.sql.models import User as UserTable
 
@@ -98,37 +84,12 @@ class TestProConnect:
         return user
 
     @patch("app.endpoints.proconnect.encryption.configuration")
-    def test_get_fernet_with_default_key(self, mock_config):
-        """Test Fernet initialization with default 'changeme' key"""
-        mock_config.settings.encryption_key = "changeme"
-
-        with patch("app.endpoints.proconnect.encryption.logger") as mock_logger:
-            fernet = get_fernet()
-
-            assert fernet is not None
-            mock_logger.warning.assert_called_once()
-            assert "Using default encryption key" in mock_logger.warning.call_args[0][0]
-
-    @patch("app.endpoints.proconnect.encryption.configuration")
     def test_get_fernet_with_custom_key(self, mock_config):
         """Test Fernet initialization with custom key"""
         # Generate a proper 32-byte key
-        key = base64.urlsafe_b64encode(b"0" * 32).decode()
-        mock_config.settings.encryption_key = key
 
-        fernet = get_fernet()
+        fernet = get_fernet(key="test_key_for_encryption_purposes_32")
         assert fernet is not None
-
-    @patch("app.endpoints.proconnect.encryption.configuration")
-    def test_get_fernet_invalid_key(self, mock_config):
-        """Test Fernet initialization with invalid key"""
-        mock_config.dependencies.proconnect.encryption_key = "invalid_key"
-
-        with pytest.raises(HTTPException) as exc_info:
-            get_fernet()
-
-        assert exc_info.value.status_code == 500
-        assert "Encryption initialization failed" in exc_info.value.detail
 
     @patch("app.endpoints.proconnect.encryption.get_fernet")
     def test_encrypt_redirect_data_success(self, mock_get_fernet):

@@ -142,7 +142,7 @@ Add the following to your UI `config.yml`:
 ```yaml
 playground:
   api_url: "http://localhost:8000"  # Albert API base URL
-  oauth2_encryption_key: "YOUR_GENERATED_KEY_HERE"  # Same key as backend
+  auth_encryption_key: "YOUR_GENERATED_KEY_HERE"  # Same key as backend
   proconnect_enabled: true
 ```
 

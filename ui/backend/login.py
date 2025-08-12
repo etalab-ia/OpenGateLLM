@@ -1,5 +1,4 @@
 import base64
-import hashlib
 import json
 import logging
 import secrets
@@ -8,6 +7,8 @@ import time
 
 import bcrypt
 from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from pydantic import BaseModel
 import requests
 from sqlalchemy import insert, select
@@ -32,21 +33,16 @@ class User(BaseModel):
     user: dict
 
 
-def get_fernet():
+def get_fernet(key: str):
     """
-    Initialize Fernet encryption using the OAuth2 encryption key from configuration
+    Initialize Fernet encryption using the OAuth2 encryption key from master key.
     """
     try:
-        # If the key is "changeme", generate a proper key
-        if configuration.playground.encryption_key == "changeme":
-            # Generate a consistent key from the default string for development
-            key_bytes = hashlib.sha256("changeme".encode()).digest()
-            key = base64.urlsafe_b64encode(key_bytes)
-        else:
-            # Use the provided key - it should be 32 url-safe base64-encoded bytes
-            key = configuration.playground.encryption_key.encode()
+        kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=b"salt", iterations=310000)
+        key = base64.urlsafe_b64encode(kdf.derive(key_material=key.encode("utf-8")))
 
         return Fernet(key)
+
     except Exception as e:
         st.error(f"Failed to initialize encryption: {e}")
         return None
@@ -63,7 +59,7 @@ def encrypt_playground_data(user_id: int) -> str:
         Base64 encoded encrypted token
     """
     try:
-        fernet = get_fernet()
+        fernet = get_fernet(key=configuration.playground.auth_master_key)
         if not fernet:
             raise Exception("Failed to initialize encryption")
 
@@ -82,7 +78,7 @@ def decrypt_oauth_token(encrypted_token: str) -> dict:
     Decrypt OAuth2 redirect token with TTL validation
     """
     try:
-        fernet = get_fernet()
+        fernet = get_fernet(key=configuration.playground.auth_master_key)
         if not fernet:
             return None
 
@@ -166,7 +162,7 @@ def login(user_name: str, user_password: str, session: Session, proconnect_token
         response = requests.get(url=playground_login_url, params={"encrypted_token": encrypted_token}, timeout=10)
 
         if response.status_code != 200:
-            st.error(f"Failed to get API key: {response.json().get('detail', 'Unknown error')}")
+            st.error(f"Failed to get API key: {response.json().get("detail", "Unknown error")}")
             st.stop()
 
         login_data = response.json()

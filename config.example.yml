@@ -52,7 +52,6 @@ dependencies:
 # ---------------------------------- settings -----------------------------------
 settings:
   # session_secret_key: # optional
-  # oauth2_encryption_key: # optional
 
   # disabled_routers: # optional - default: [] - values: ["agents", "audio", "chat", "chunks", "collections", "completions", "documents", "embeddings", "files", "models", "ocr", "parse", "rerank", "roles", "search", "tokens", "users", "usage"]
 
@@ -95,7 +94,18 @@ playground:
   postgres:
     url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-localhost}:${POSTGRES_PORT:-5432}/playground
   
-  # oauth2_encryption_key: # optional - default: master key
-  # proconnect_enabled: ${PROCONNECT_ENABLED:-False}  # Enable or disable ProConnect integration
-  # auth_master_username: master # optional - default: master
-  # auth_master_key: changeme # optional - default: changeme
+
+
+  # auth_master_username: # optional - default: master
+  # auth_master_key: # optional - default: changeme
+  # auth_max_token_expiration_days: # optional - default: None, ex: 365
+  # home_url: # optional - default: http://localhost:8501
+  # page_icon: # optional - default: https://github.com/etalab-ia/opengatellm/blob/main/docs/assets/logo.png?raw=true
+  # menu_items: # optional - default: MenuItems()
+  #   get_help: # optional - default: None
+  #   report_a_bug: # optional - default: None
+  #   about: # optional - default: None
+  # logo: # optional - default: https://github.com/etalab-ia/opengatellm/blob/main/docs/assets/logo.png?raw=true
+  # cache_ttl: # optional - default: 1800  # 30 minutes
+  # default_model: # optional - default: None
+  # proconnect_enabled: # optional - default: False

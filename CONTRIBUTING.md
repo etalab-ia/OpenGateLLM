@@ -24,7 +24,7 @@ It is recommended to use a Python [virtualenv](https://docs.python.org/3/library
 2. Create a *env* file based on the example environment file *[env.example](./env.example)*
 
   ```bash
-  cp env.example .env
+  cp .env.example .env
   ```
 
 3. Replace host names variables by `localhost` like this:

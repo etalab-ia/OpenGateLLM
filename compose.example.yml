@@ -27,7 +27,7 @@ services:
       - "POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}"
       - "TZ=Europe/Paris"
     ports:
-      - 8081:8501
+      - 8501:8501
     volumes:
       - "./${CONFIG_FILE:-config.yml}:/config.yml:ro"
     depends_on:
