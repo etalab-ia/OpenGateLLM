@@ -21,7 +21,7 @@ jobs:
     name: Build and push from ${{ github.ref_name }}/${{ github.sha }}
     runs-on: ubuntu-latest
     env:
-      APP_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/docusaurus
+      APP_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/docs
       IMAGE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || 'latest' }}
     outputs:
       commit_title: ${{ steps.get_head_commit_title.outputs.title }}

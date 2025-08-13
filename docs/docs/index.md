@@ -18,7 +18,7 @@ Albert API, porté par l'[OPI de la DINUM](https://www.numerique.gouv.fr/dinum/)
 
 Consultez la [documentation](https://albert.api.etalab.gouv.fr/documentation) ou déployez rapidement votre instance via le [guide de déploiement](deployment.md).
 
-[Contribuez au projet !](getting-started/CONTRIBUTING.md)
+[Contribuez au projet !](getting-started/contributing/outside-docker.mdx)
 
 <div className="container">
   <div className="row">

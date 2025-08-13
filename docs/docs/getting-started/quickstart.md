@@ -1,62 +1,55 @@
 # 🚀 Quickstart
 
-Deploy OpenGateLLM quickly with Docker connected to our own free model and start using it:
-
+You can run OpenGateLLM without any configuration with Docker.
 ```bash
-git clone git@github.com:etalab-ia/OpenGateLLM.git
-cd OpenGateLLM
 make quickstart
 ```
 
-ℹ️ **Info :** It will copy the `config.example.yml` and `.env.example` files into `config.yml` and `.env` files if they don't already exist.
+:::note
+It will copy these three files if they don't already exist:
+- `config.example.yml`      -> `config.yml`
+- `.env.example`            -> `.env`
+- `compose.example.yml`     -> `compose.yml`
+:::
 
-Test the API:
+:::tip
+Use `make help` to see all available commands.
+:::
 
-```bash
+OpenGateLLM is running at its most basic version, with the following features:
+- an api connected to our free model: `albert-testbed`
+- an user interface
+- user and roles management
+
+:::info
+| | |
+|----------|-------------|
+| API URL | http://localhost:8080   |
+| Playground URL | http://localhost:8081/playground |
+| Master user | master |
+| Master user password | changeme |
+| Master API key | changeme |
+:::
+
+
+You can test that the API is running with:
+
+```bash 
 curl -X POST "http://localhost:8080/v1/chat/completions" \
 -H "Content-Type: application/json" \
 -H "Authorization: Bearer changeme" \
 -d '{"model": "albert-testbed", "messages": [{"role": "user", "content": "Hello, how are you?"}]}'
 ```
 
-The default master API key is `changeme`.
+:::warning
+`albert-testbed` is a gemma3 model, running on cpu. It is not meant for production use, only dev purposes.
+:::
 
-## User interface
 
-A user interface is available at: http://localhost:8081/playground
+### Create a first user
 
-> User: master
->
-> Password: changeme
-
-## Create a first user
-
+You can create a non-admin user with the following command:
 ```bash
 make create-user
 ```
-
-## Configure your models and add features
-
-With configuration file, you can connect to your own models and add addtionnal services to OpenGateLLM.
-Start by creating a configuration file and a .env dedicated:
-
-```bash
-cp config.example.yml config.yml
-cp .env.example .env
-```
-
-Check the [configuration documentation](configuration.md) to configure your configuration file.
-
-Vou can then set your environment variables in .env according to your needs.
-
-You can run the services you need by running:
-
-```bash
-docker compose --env-file .env up <services_you_need> --detach
-```
-
-For instance:
-
-```bash
-docker compose --env-file .env up api playground postgres redis elasticsearch secretiveshell --detach
-```
+The default created user will be `me` and its password `changeme`.

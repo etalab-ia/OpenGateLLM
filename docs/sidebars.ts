@@ -39,7 +39,23 @@ const sidebars: SidebarsConfig = {
       label: 'Getting Started',
       items: [
         'getting-started/quickstart',
-        'getting-started/CONTRIBUTING',
+        {
+            type: 'category',
+            label: 'Contributing',
+            items:  [
+                    'getting-started/contributing/outside-docker',
+                    'getting-started/contributing/inside-docker',
+                    'getting-started/contributing/commit',
+                    ],
+        },
+        {
+            type: 'category',
+            label: 'Advanded Features',
+            items:  [
+                    'getting-started/advanced-features/rag',
+                    'getting-started/advanced-features/mcp',
+                    ],
+        },
         'getting-started/config',
         'getting-started/configuration',
       ],
