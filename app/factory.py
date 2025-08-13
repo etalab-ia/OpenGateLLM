@@ -68,6 +68,7 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
 
     # Set up database dependency
     # If no db_func provided, the depends module will fall back to default
+    from app.endpoints.admin import users, roles, tokens
     from app.endpoints import (
         agents,
         audio,
@@ -83,11 +84,8 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
         ocr,
         parse,
         rerank,
-        roles,
         search,
-        tokens,
         usage,
-        users,
     )
     from app.helpers._accesscontroller import AccessController
 
