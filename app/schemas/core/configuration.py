@@ -12,7 +12,7 @@ from pydantic_settings import BaseSettings
 import yaml
 
 from app.schemas.models import ModelType
-from app.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, ROUTERS
+from app.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, ROUTER__ADMIN, ROUTER__AUTH, ROUTERS
 
 # utils ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -378,6 +378,7 @@ class Tokenizer(str, Enum):
 class Settings(ConfigBaseModel):
     # other
     disabled_routers: List[Routers] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["agents", "embeddings"]])  # fmt: off
+    hidden_routers: List[Routers] = Field(default_factory=list, description="Routers are enabled but hidden in the swagger and the documentation of the API.", examples=[["admin"]])  # fmt: off
 
     # metrics
     metrics_retention_ms: int = Field(default=40000, ge=1, description="Retention time for metrics in milliseconds.")  # fmt: off
@@ -434,13 +435,19 @@ class Settings(ConfigBaseModel):
     front_url: str = Field(default="http://localhost:8501", description="Front-end URL for the application.")
 
     @model_validator(mode="after")
-    def validate_secret_keys(cls, values) -> Any:
+    def validate_model(cls, values) -> Any:
         if values.session_secret_key is None:
             logging.warning("Session secret key not provided, using master key.")  # fmt: off
             values.session_secret_key = values.auth_master_key
 
         if len(values.auth_master_key) < 32:
             logging.warning("Auth master key is too short for production, it should be at least 32 characters.")  # fmt: off
+
+        if ROUTER__ADMIN not in values.hidden_routers:
+            logging.warning("Admin router should be hidden in production.")  # fmt: off
+
+        if ROUTER__AUTH not in values.hidden_routers:
+            logging.warning("Auth router should be hidden in production.")  # fmt: off
 
         return values
 

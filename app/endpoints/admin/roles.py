@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.helpers._accesscontroller import AccessController
 from app.schemas.admin.roles import PermissionType, Role, RoleRequest, Roles, RolesResponse, RoleUpdateRequest
 from app.sql.session import get_db_session
-from app.utils.configuration import configuration
 from app.utils.context import global_context
 from app.utils.variables import ENDPOINT__ADMIN_ROLES
 
@@ -17,7 +16,6 @@ router = APIRouter()
 @router.post(
     path=ENDPOINT__ADMIN_ROLES,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.CREATE_ROLE]))],
-    include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=201,
     response_model=RolesResponse,
 )
@@ -40,7 +38,6 @@ async def create_role(
 @router.delete(
     path=ENDPOINT__ADMIN_ROLES + "/{role}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.DELETE_ROLE]))],
-    include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=204,
 )
 async def delete_role(
@@ -60,7 +57,6 @@ async def delete_role(
 @router.patch(
     path=ENDPOINT__ADMIN_ROLES + "/{role:path}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.UPDATE_ROLE]))],
-    include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=204,
 )
 async def update_role(
@@ -87,7 +83,6 @@ async def update_role(
 @router.get(
     path=ENDPOINT__ADMIN_ROLES + "/{role:path}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.READ_ROLE]))],
-    include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=200,
     response_model=Role,
 )
@@ -108,7 +103,6 @@ async def get_role(
 @router.get(
     path=ENDPOINT__ADMIN_ROLES,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.READ_ROLE]))],
-    include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=200,
     response_model=Roles,
 )
@@ -124,7 +118,11 @@ async def get_roles(
     Get all roles.
     """
     data = await global_context.identity_access_manager.get_roles(
-        session=session, offset=offset, limit=limit, order_by=order_by, order_direction=order_direction
+        session=session,
+        offset=offset,
+        limit=limit,
+        order_by=order_by,
+        order_direction=order_direction,
     )
 
     return JSONResponse(content=Roles(data=data).model_dump(), status_code=200)
