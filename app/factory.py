@@ -11,11 +11,10 @@ from app.endpoints import proconnect
 from app.schemas.auth import PermissionType
 from app.schemas.core.context import RequestContext
 from app.schemas.usage import Usage
-from app.utils.context import generate_request_id, request_context
 from app.sql.session import set_get_db_func
+from app.utils.context import generate_request_id, request_context
 from app.utils.hooks_decorator import hooks
 from app.utils.variables import (
-    ROUTER__USAGE,
     ROUTER__AGENTS,
     ROUTER__AUDIO,
     ROUTER__AUTH,
@@ -33,6 +32,7 @@ from app.utils.variables import (
     ROUTER__PARSE,
     ROUTER__RERANK,
     ROUTER__SEARCH,
+    ROUTER__USAGE,
     ROUTER__USERS,
     ROUTER__OAUTH2,
 )
@@ -44,9 +44,8 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
     """Create FastAPI application."""
     if db_func is not None:
         set_get_db_func(db_func)
-    from app.utils.lifespan import lifespan
-
     from app.utils.configuration import configuration
+    from app.utils.lifespan import lifespan
 
     if configuration.dependencies.sentry:
         logger.info("Initializing Sentry SDK.")
@@ -86,6 +85,7 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
         rerank,
         roles,
         search,
+        tokens,
         usage,
         users,
     )
@@ -123,6 +123,8 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
     if ROUTER__AUTH not in configuration.settings.disabled_routers:
         add_hooks(router=roles.router)
         app.include_router(router=roles.router, tags=[ROUTER__AUTH.title()])
+        add_hooks(router=tokens.router)
+        app.include_router(router=tokens.router, tags=[ROUTER__AUTH.title()])
 
     if ROUTER__CHAT not in configuration.settings.disabled_routers:
         add_hooks(router=chat.router)
