@@ -6,7 +6,7 @@ from coredis import ConnectionPool
 from limits import RateLimitItemPerDay, RateLimitItemPerMinute
 from limits.aio import storage, strategies
 
-from app.schemas.auth import LimitType
+from app.schemas.admin.roles import LimitType
 from app.schemas.core.configuration import LimitingStrategy
 
 logger = logging.getLogger(__name__)

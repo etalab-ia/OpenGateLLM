@@ -1,8 +1,8 @@
-import logging
-from urllib.parse import urlparse
 import base64
 import json
+import logging
 import time
+from urllib.parse import urlparse
 
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request, Security
@@ -10,15 +10,16 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.helpers._accesscontroller import AccessController
-from app.utils.context import global_context, request_context
-from app.schemas.auth import OAuth2LogoutRequest, User
+from app.schemas.admin.tokens import OAuth2LogoutRequest
+from app.schemas.admin.users import User
 from app.sql.session import get_db_session
 from app.utils.configuration import configuration
+from app.utils.context import global_context, request_context
 from app.utils.variables import ROUTER__OAUTH2
 
-from .encryption import encrypt_redirect_data, decrypt_playground_data
+from .encryption import decrypt_playground_data, encrypt_redirect_data
 from .token import perform_proconnect_logout
-from .user import retrieve_user_info, create_user
+from .user import create_user, retrieve_user_info
 
 logger = logging.getLogger(__name__)
 

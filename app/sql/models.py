@@ -3,7 +3,7 @@ from http import HTTPMethod
 from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import backref, declarative_base, relationship
 
-from app.schemas.auth import LimitType, PermissionType
+from app.schemas.admin.roles import LimitType, PermissionType
 from app.schemas.collections import CollectionVisibility
 
 Base = declarative_base()

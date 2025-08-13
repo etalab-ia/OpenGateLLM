@@ -12,7 +12,8 @@ from app.endpoints.proconnect import generate_redirect_url, logout, oauth2_callb
 from app.endpoints.proconnect.encryption import encrypt_redirect_data, get_fernet
 from app.endpoints.proconnect.token import get_jwks_keys, perform_proconnect_logout, verify_jwt_signature
 from app.endpoints.proconnect.user import create_user, retrieve_user_info
-from app.schemas.auth import OAuth2LogoutRequest, User
+from app.schemas.admin.tokens import OAuth2LogoutRequest
+from app.schemas.admin.users import User
 from app.sql.models import User as UserTable
 
 

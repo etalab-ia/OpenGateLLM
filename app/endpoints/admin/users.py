@@ -5,14 +5,8 @@ from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.helpers._accesscontroller import AccessController
-from app.schemas.auth import (
-    PermissionType,
-    User,
-    UserRequest,
-    Users,
-    UsersResponse,
-    UserUpdateRequest,
-)
+from app.schemas.admin.roles import PermissionType
+from app.schemas.admin.users import User, UserRequest, Users, UsersResponse, UserUpdateRequest
 from app.sql.session import get_db_session
 from app.utils.configuration import configuration
 from app.utils.context import global_context, request_context

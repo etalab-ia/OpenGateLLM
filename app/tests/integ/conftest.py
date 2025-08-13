@@ -18,7 +18,7 @@ import vcr.stubs.httpx_stubs
 
 from app.clients.vector_store import BaseVectorStoreClient as VectorStoreClient
 from app.factory import create_app
-from app.schemas.auth import LimitType, PermissionType
+from app.schemas.admin.roles import LimitType, PermissionType
 from app.sql.models import Base
 from app.utils.configuration import configuration
 from app.utils.variables import ENDPOINT__MODELS, ENDPOINT__ADMIN_ROLES, ENDPOINT__ADMIN_TOKENS, ENDPOINT__ADMIN_USERS

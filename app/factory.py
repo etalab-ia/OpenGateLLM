@@ -7,7 +7,7 @@ import sentry_sdk
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.endpoints import proconnect
-from app.schemas.auth import PermissionType
+from app.schemas.admin.roles import PermissionType
 from app.schemas.core.context import RequestContext
 from app.schemas.usage import Usage
 from app.sql.session import set_get_db_func
@@ -32,6 +32,7 @@ from app.utils.variables import (
     ROUTER__PARSE,
     ROUTER__RERANK,
     ROUTER__SEARCH,
+    ROUTER__TOKENS,
     ROUTER__USAGE,
 )
 
@@ -82,9 +83,12 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
         parse,
         rerank,
         search,
+        tokens,
         usage,
     )
-    from app.endpoints.admin import roles, tokens, users
+    from app.endpoints.admin import roles as admin_roles
+    from app.endpoints.admin import tokens as admin_tokens
+    from app.endpoints.admin import users as admin_users
     from app.helpers._accesscontroller import AccessController
 
     def add_hooks(router: APIRouter) -> None:
@@ -108,14 +112,14 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
         return await call_next(request)
 
     # Routers
-    add_hooks(router=roles.router)
-    app.include_router(router=roles.router, tags=[ROUTER__ADMIN.title()], prefix="/v1")
+    add_hooks(router=admin_roles.router)
+    app.include_router(router=admin_roles.router, tags=[ROUTER__ADMIN.title()], prefix="/v1")
 
-    add_hooks(router=tokens.router)
-    app.include_router(router=tokens.router, tags=[ROUTER__ADMIN.title()], prefix="/v1")
+    add_hooks(router=admin_tokens.router)
+    app.include_router(router=admin_tokens.router, tags=[ROUTER__ADMIN.title()], prefix="/v1")
 
-    add_hooks(router=users.router)
-    app.include_router(router=users.router, tags=[ROUTER__ADMIN.title()], prefix="/v1")
+    add_hooks(router=admin_users.router)
+    app.include_router(router=admin_users.router, tags=[ROUTER__ADMIN.title()], prefix="/v1")
 
     if ROUTER__AGENTS not in configuration.settings.disabled_routers:
         add_hooks(router=agents.router)
@@ -177,6 +181,10 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
     if ROUTER__SEARCH not in configuration.settings.disabled_routers:
         add_hooks(router=search.router)
         app.include_router(router=search.router, tags=[ROUTER__SEARCH.title()], prefix="/v1")
+
+    if ROUTER__TOKENS not in configuration.settings.disabled_routers:
+        add_hooks(router=tokens.router)
+        app.include_router(router=tokens.router, tags=[ROUTER__TOKENS.title()], prefix="/v1")
 
     if ROUTER__USAGE not in configuration.settings.disabled_routers:
         add_hooks(router=usage.router)

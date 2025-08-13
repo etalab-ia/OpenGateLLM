@@ -8,7 +8,9 @@ from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
-from app.schemas.auth import Limit, PermissionType, Role, Token, User
+from app.schemas.admin.roles import Limit, PermissionType, Role
+from app.schemas.admin.tokens import Token
+from app.schemas.admin.users import User
 from app.sql.models import Limit as LimitTable
 from app.sql.models import Permission as PermissionTable
 from app.sql.models import Role as RoleTable
@@ -451,7 +453,7 @@ class IdentityAccessManager:
     async def get_tokens(
         self,
         session: AsyncSession,
-        user_id: int,
+        user_id: Optional[int] = None,
         token_id: Optional[int] = None,
         exclude_expired: bool = False,
         offset: int = 0,
@@ -471,7 +473,10 @@ class IdentityAccessManager:
             .offset(offset=offset)
             .limit(limit=limit)
             .order_by(text(f"{order_by} {order_direction}"))
-        ).where(TokenTable.user_id == user_id)
+        )
+
+        if user_id is not None:
+            statement = statement.where(TokenTable.user_id == user_id)
 
         if token_id is not None:
             statement = statement.where(TokenTable.id == token_id)

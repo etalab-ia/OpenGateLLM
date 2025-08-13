@@ -7,7 +7,7 @@ import pytest
 from redis import Redis
 
 from app.helpers._usagetokenizer import UsageTokenizer
-from app.schemas.auth import LimitType
+from app.schemas.admin.roles import LimitType
 from app.utils.configuration import configuration
 from app.utils.variables import (
     ENDPOINT__CHAT_COMPLETIONS,

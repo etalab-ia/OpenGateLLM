@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from app.schemas.auth import PermissionType
+from app.schemas.admin.roles import PermissionType
 from app.utils.variables import ENDPOINT__ADMIN_ROLES
 
 
