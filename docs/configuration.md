@@ -13,8 +13,7 @@ Refer to the [configuration example file](../../../config.example.yml) for an ex
 ## Settings
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
-| auth_encryption_key | string | Secret key for encrypting between API and Playground. If not provided, the master key will be used. |  | None |  | changeme |
-| auth_master_key | string | Master key for the API. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. | False | changeme |  |  |
+| auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. | False | changeme |  |  |
 | auth_max_token_expiration_days | integer | Maximum number of days for a token to be valid. |  | None |  |  |
 | disabled_routers | array | Disabled routers to limits services of the API. |  |  | • agents<br/>• audio<br/>• auth<br/>• chat<br/>• chunks<br/>• collections<br/>• completions<br/>• deepsearch<br/>• ... | ['agents', 'embeddings'] |
 | front_url | string | Front-end URL for the application. |  | http://localhost:8501 |  |  |
@@ -128,12 +127,12 @@ See https://github.com/SecretiveShell/MCP-Bridge for more information.
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | allowed_domains | string | List of allowed domains for OAuth2 login. This is used to restrict the domains that can use the OAuth2 login flow. |  | localhost,gouv.fr |  |  |
-| client_id | string |  |  |  |  |  |
-| client_secret | string |  |  |  |  |  |
+| client_id | string | Client ID for the ProConnect application. |  |  |  |  |
+| client_secret | string | Client secret for the ProConnect application. |  |  |  |  |
 | default_role | string | Default role assigned to users when they log in for the first time. |  | Freemium |  |  |
-| redirect_uri | string |  |  | https://albert.api.etalab.gouv.fr/v1/oauth2/callback |  |  |
-| scope | string |  |  | openid email given_name usual_name siret organizational_unit belonging_population chorusdt |  |  |
-| server_metadata_url | string |  |  | https://identite-sandbox.proconnect.gouv.fr/.well-known/openid-configuration |  |  |
+| redirect_uri | string | Redirect URI for the ProConnect application. |  | https://albert.api.etalab.gouv.fr/v1/oauth2/callback |  |  |
+| scope | string | Scope for the ProConnect application. |  | openid email given_name usual_name siret organizational_unit belonging_population chorusdt |  |  |
+| server_metadata_url | string | OpenID Connect discovery endpoint for server metadata. |  | https://identite-sandbox.proconnect.gouv.fr/.well-known/openid-configuration |  |  |
 
 <br>
 
