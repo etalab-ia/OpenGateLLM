@@ -8,8 +8,8 @@ from app.helpers._accesscontroller import AccessController
 from app.schemas.admin.roles import PermissionType, Role, RoleRequest, Roles, RolesResponse, RoleUpdateRequest
 from app.sql.session import get_db_session
 from app.utils.configuration import configuration
-from app.utils.context import global_context, request_context
-from app.utils.variables import ENDPOINT__ADMIN_ROLES, ENDPOINT__ADMIN_ROLES_ME
+from app.utils.context import global_context
+from app.utils.variables import ENDPOINT__ADMIN_ROLES
 
 router = APIRouter()
 
@@ -82,23 +82,6 @@ async def update_role(
     )
 
     return Response(status_code=204)
-
-
-@router.get(
-    path=ENDPOINT__ADMIN_ROLES_ME,
-    dependencies=[Security(dependency=AccessController())],
-    include_in_schema=configuration.settings.log_level == "DEBUG",
-    status_code=200,
-    response_model=Role,
-)
-async def get_current_role(request: Request, session: AsyncSession = Depends(get_db_session)) -> JSONResponse:
-    """
-    Get the current role.
-    """
-
-    roles = await global_context.identity_access_manager.get_roles(session=session, role_id=request_context.get().role_id)
-
-    return JSONResponse(content=roles[0].model_dump(), status_code=200)
 
 
 @router.get(

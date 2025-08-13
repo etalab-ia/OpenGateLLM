@@ -6,11 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.helpers._accesscontroller import AccessController
 from app.schemas.admin.roles import PermissionType
-from app.schemas.admin.users import User, UserRequest, Users, UsersResponse, UserUpdateRequest
+from app.schemas.admin.users import UserRequest, Users, UsersResponse, UserUpdateRequest
 from app.sql.session import get_db_session
 from app.utils.configuration import configuration
-from app.utils.context import global_context, request_context
-from app.utils.variables import ENDPOINT__ADMIN_USERS, ENDPOINT__ADMIN_USERS_ME
+from app.utils.context import global_context
+from app.utils.variables import ENDPOINT__ADMIN_USERS
 
 router = APIRouter()
 
@@ -80,23 +80,6 @@ async def update_user(
     )
 
     return Response(status_code=204)
-
-
-@router.get(
-    path=ENDPOINT__ADMIN_USERS_ME,
-    dependencies=[Security(dependency=AccessController())],
-    include_in_schema=configuration.settings.log_level == "DEBUG",
-    status_code=200,
-    response_model=User,
-)
-async def get_current_user(request: Request, session: AsyncSession = Depends(get_db_session)) -> JSONResponse:
-    """
-    Get the current user.
-    """
-
-    users = await global_context.identity_access_manager.get_users(session=session, user_id=request_context.get().user_id)
-
-    return JSONResponse(content=users[0].model_dump(), status_code=200)
 
 
 @router.get(

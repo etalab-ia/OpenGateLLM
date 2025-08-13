@@ -6,7 +6,6 @@ from prometheus_fastapi_instrumentator import Instrumentator
 import sentry_sdk
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.endpoints import proconnect
 from app.schemas.admin.roles import PermissionType
 from app.schemas.core.context import RequestContext
 from app.schemas.usage import Usage
@@ -17,6 +16,7 @@ from app.utils.variables import (
     ROUTER__ADMIN,
     ROUTER__AGENTS,
     ROUTER__AUDIO,
+    ROUTER__AUTH,
     ROUTER__CHAT,
     ROUTER__CHUNKS,
     ROUTER__COLLECTIONS,
@@ -70,6 +70,7 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
     from app.endpoints import (
         agents,
         audio,
+        auth,
         chat,
         chunks,
         collections,
@@ -81,6 +82,7 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
         models,
         ocr,
         parse,
+        proconnect,
         rerank,
         search,
         tokens,
@@ -128,6 +130,10 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
     if ROUTER__AUDIO not in configuration.settings.disabled_routers:
         add_hooks(router=audio.router)
         app.include_router(router=audio.router, tags=[ROUTER__AUDIO.title()], prefix="/v1")
+
+    if ROUTER__AUTH not in configuration.settings.disabled_routers:
+        add_hooks(router=auth.router)
+        app.include_router(router=auth.router, tags=[ROUTER__AUTH.title()], prefix="/v1")
 
     if ROUTER__CHAT not in configuration.settings.disabled_routers:
         add_hooks(router=chat.router)

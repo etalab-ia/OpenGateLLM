@@ -5,12 +5,12 @@ from typing import Annotated, Dict, List, Optional
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.admin.roles import Limit, LimitType, PermissionType, Role
 from app.schemas.admin.users import User
 from app.schemas.collections import CollectionVisibility
-from pydantic import BaseModel
 from app.sql.session import get_db_session
 from app.utils.context import global_context, request_context
 from app.utils.exceptions import (
@@ -21,10 +21,9 @@ from app.utils.exceptions import (
     RateLimitExceeded,
 )
 from app.utils.variables import (
-    ENDPOINT__ADMIN_ROLES_ME,
     ENDPOINT__ADMIN_TOKENS,
-    ENDPOINT__ADMIN_USERS_ME,
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
+    ENDPOINT__AUTH_ME,
     ENDPOINT__CHAT_COMPLETIONS,
     ENDPOINT__COLLECTIONS,
     ENDPOINT__EMBEDDINGS,
@@ -69,13 +68,8 @@ class AccessController:
     ) -> User:  # fmt: off
         user, role, limits, token_id = await self._check_api_key(api_key=api_key, session=session)
 
-        # invalid token if user is expired, except for /v1/admin/roles/me and /v1/admin/users/me endpoints
-        if (
-            user.expires_at
-            and user.expires_at < time.time()
-            and not request.url.path.endswith(ENDPOINT__ADMIN_ROLES_ME)
-            and not request.url.path.endswith(ENDPOINT__ADMIN_USERS_ME)
-        ):
+        # invalid token if user is expired, except for /v1/auth/me endpoint
+        if user.expires_at and user.expires_at < time.time() and not request.url.path.endswith(ENDPOINT__AUTH_ME):
             raise InvalidAPIKeyException()
 
         await self._check_permissions(role=role)

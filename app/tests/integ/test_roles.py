@@ -10,15 +10,14 @@ from app.helpers._usagetokenizer import UsageTokenizer
 from app.schemas.admin.roles import LimitType
 from app.utils.configuration import configuration
 from app.utils.variables import (
+    ENDPOINT__ADMIN_ROLES,
+    ENDPOINT__ADMIN_TOKENS,
+    ENDPOINT__ADMIN_USERS,
+    ENDPOINT__AUTH_ME,
     ENDPOINT__CHAT_COMPLETIONS,
     ENDPOINT__COLLECTIONS,
     ENDPOINT__MODELS,
-    ENDPOINT__ADMIN_ROLES,
-    ENDPOINT__ADMIN_ROLES_ME,
     ENDPOINT__SEARCH,
-    ENDPOINT__ADMIN_TOKENS,
-    ENDPOINT__ADMIN_USERS,
-    ENDPOINT__ADMIN_USERS_ME,
 )
 
 
@@ -145,11 +144,8 @@ class TestAuth:
         response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_id}")
         assert response.status_code == 200, response.text
 
-        # Check that /admin/users/me and /admin/roles/me endpoints return 200 for expired user
-        response = client.get(url=f"/v1{ENDPOINT__ADMIN_USERS_ME}", headers=headers)
-        assert response.status_code == 200, response.text
-
-        response = client.get(url=f"/v1{ENDPOINT__ADMIN_ROLES_ME}", headers=headers)
+        # Check that /auth/me endpoint return 200 for expired user
+        response = client.get(url=f"/v1{ENDPOINT__AUTH_ME}", headers=headers)
         assert response.status_code == 200, response.text
 
     def test_create_token_after_max_token_expiration_days(self, client: TestClient, roles: tuple[dict, dict]):
