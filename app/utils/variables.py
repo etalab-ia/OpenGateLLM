@@ -1,6 +1,11 @@
 DEFAULT_APP_NAME = "Albert API"
 DEFAULT_TIMEOUT = 300
 
+ENDPOINT__ADMIN_ROLES = "/roles"
+ENDPOINT__ADMIN_ROLES_ME = "/roles/me"
+ENDPOINT__ADMIN_TOKENS = "/tokens"
+ENDPOINT__ADMIN_USERS = "/users"
+ENDPOINT__ADMIN_USERS_ME = "/users/me"
 ENDPOINT__AGENTS_COMPLETIONS = "/agents/completions"
 ENDPOINT__AGENTS_TOOLS = "/agents/tools"
 ENDPOINT__AUDIO_TRANSCRIPTIONS = "/audio/transcriptions"
@@ -15,14 +20,8 @@ ENDPOINT__MODELS = "/models"
 ENDPOINT__OCR = "/ocr-beta"
 ENDPOINT__PARSE = "/parse-beta"
 ENDPOINT__RERANK = "/rerank"
-ENDPOINT__ROLES = "/roles"
-ENDPOINT__ROLES_ME = "/roles/me"
 ENDPOINT__SEARCH = "/search"
-ENDPOINT__TOKENS = "/tokens"
-ENDPOINT__USERS = "/users"
-ENDPOINT__USERS_ME = "/users/me"
 ENDPOINT__USAGE = "/usage"
-
 
 ENDPOINTS = [value for name, value in locals().items() if name.startswith("ENDPOINT__")]
 

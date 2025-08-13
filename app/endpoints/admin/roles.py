@@ -9,13 +9,13 @@ from app.schemas.auth import PermissionType, Role, RoleRequest, Roles, RolesResp
 from app.sql.session import get_db_session
 from app.utils.configuration import configuration
 from app.utils.context import global_context, request_context
-from app.utils.variables import ENDPOINT__ROLES, ENDPOINT__ROLES_ME
+from app.utils.variables import ENDPOINT__ADMIN_ROLES, ENDPOINT__ADMIN_ROLES_ME
 
 router = APIRouter()
 
 
 @router.post(
-    path=ENDPOINT__ROLES,
+    path=ENDPOINT__ADMIN_ROLES,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.CREATE_ROLE]))],
     include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=201,
@@ -38,7 +38,7 @@ async def create_role(
 
 
 @router.delete(
-    path=ENDPOINT__ROLES + "/{role}",
+    path=ENDPOINT__ADMIN_ROLES + "/{role}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.DELETE_ROLE]))],
     include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=204,
@@ -58,7 +58,7 @@ async def delete_role(
 
 
 @router.patch(
-    path=ENDPOINT__ROLES + "/{role:path}",
+    path=ENDPOINT__ADMIN_ROLES + "/{role:path}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.UPDATE_ROLE]))],
     include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=204,
@@ -85,7 +85,7 @@ async def update_role(
 
 
 @router.get(
-    path=ENDPOINT__ROLES_ME,
+    path=ENDPOINT__ADMIN_ROLES_ME,
     dependencies=[Security(dependency=AccessController())],
     include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=200,
@@ -102,7 +102,7 @@ async def get_current_role(request: Request, session: AsyncSession = Depends(get
 
 
 @router.get(
-    path=ENDPOINT__ROLES + "/{role:path}",
+    path=ENDPOINT__ADMIN_ROLES + "/{role:path}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.READ_ROLE]))],
     include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=200,
@@ -123,7 +123,7 @@ async def get_role(
 
 
 @router.get(
-    path=ENDPOINT__ROLES,
+    path=ENDPOINT__ADMIN_ROLES,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.READ_ROLE]))],
     include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=200,

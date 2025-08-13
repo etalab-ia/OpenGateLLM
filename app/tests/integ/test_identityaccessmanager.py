@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from app.schemas.auth import PermissionType
-from app.utils.variables import ENDPOINT__ROLES
+from app.utils.variables import ENDPOINT__ADMIN_ROLES
 
 
 @pytest.mark.usefixtures("client")
@@ -20,7 +20,7 @@ class TestIdentityAccessManager:
         }
 
         # Create role via API
-        response = client.post_with_permissions(url=ENDPOINT__ROLES, json=role_data)
+        response = client.post_with_permissions(url=ENDPOINT__ADMIN_ROLES, json=role_data)
         assert response.status_code == 201, response.text
         role_id = response.json()["id"]
 
@@ -34,11 +34,11 @@ class TestIdentityAccessManager:
         }
 
         # Update role via API
-        response = client.patch_with_permissions(url=f"{ENDPOINT__ROLES}/{role_id}", json=updated_role_data)
+        response = client.patch_with_permissions(url=f"{ENDPOINT__ADMIN_ROLES}/{role_id}", json=updated_role_data)
         assert response.status_code == 204, response.text
 
         # Fetch the updated role
-        response = client.get_with_permissions(url=f"{ENDPOINT__ROLES}/{role_id}")
+        response = client.get_with_permissions(url=f"{ENDPOINT__ADMIN_ROLES}/{role_id}")
         assert response.status_code == 200, response.text
         updated_role = response.json()
 

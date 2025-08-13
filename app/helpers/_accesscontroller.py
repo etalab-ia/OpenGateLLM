@@ -27,10 +27,10 @@ from app.utils.variables import (
     ENDPOINT__FILES,
     ENDPOINT__OCR,
     ENDPOINT__RERANK,
-    ENDPOINT__ROLES_ME,
+    ENDPOINT__ADMIN_ROLES_ME,
     ENDPOINT__SEARCH,
-    ENDPOINT__TOKENS,
-    ENDPOINT__USERS_ME,
+    ENDPOINT__ADMIN_TOKENS,
+    ENDPOINT__ADMIN_USERS_ME,
 )
 
 logger = logging.getLogger(__name__)
@@ -61,8 +61,8 @@ class AccessController:
         if (
             user.expires_at
             and user.expires_at < time.time()
-            and not request.url.path.endswith(ENDPOINT__ROLES_ME)
-            and not request.url.path.endswith(ENDPOINT__USERS_ME)
+            and not request.url.path.endswith(ENDPOINT__ADMIN_ROLES_ME)
+            and not request.url.path.endswith(ENDPOINT__ADMIN_USERS_ME)
         ):
             raise InvalidAPIKeyException()
 
@@ -101,7 +101,7 @@ class AccessController:
         if request.url.path.endswith(ENDPOINT__SEARCH) and request.method == "POST":
             await self._check_search_post(user=user, role=role, limits=limits, request=request)
 
-        if request.url.path.endswith(ENDPOINT__TOKENS) and request.method == "POST":
+        if request.url.path.endswith(ENDPOINT__ADMIN_TOKENS) and request.method == "POST":
             await self._check_tokens_post(user=user, role=role, limits=limits, request=request)
 
         return user

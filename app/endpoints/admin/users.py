@@ -16,13 +16,13 @@ from app.schemas.auth import (
 from app.sql.session import get_db_session
 from app.utils.configuration import configuration
 from app.utils.context import global_context, request_context
-from app.utils.variables import ENDPOINT__USERS, ENDPOINT__USERS_ME
+from app.utils.variables import ENDPOINT__ADMIN_USERS, ENDPOINT__ADMIN_USERS_ME
 
 router = APIRouter()
 
 
 @router.post(
-    path=ENDPOINT__USERS,
+    path=ENDPOINT__ADMIN_USERS,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.CREATE_USER]))],
     include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=201,
@@ -43,7 +43,7 @@ async def create_user(
 
 
 @router.delete(
-    path=ENDPOINT__USERS + "/{user:path}",
+    path=ENDPOINT__ADMIN_USERS + "/{user:path}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.DELETE_USER]))],
     include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=204,
@@ -62,7 +62,7 @@ async def delete_user(
 
 
 @router.patch(
-    path=ENDPOINT__USERS + "/{user:path}",
+    path=ENDPOINT__ADMIN_USERS + "/{user:path}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.UPDATE_USER]))],
     include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=204,
@@ -89,7 +89,7 @@ async def update_user(
 
 
 @router.get(
-    path=ENDPOINT__USERS_ME,
+    path=ENDPOINT__ADMIN_USERS_ME,
     dependencies=[Security(dependency=AccessController())],
     include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=200,
@@ -106,7 +106,7 @@ async def get_current_user(request: Request, session: AsyncSession = Depends(get
 
 
 @router.get(
-    path=ENDPOINT__USERS + "/{user:path}",
+    path=ENDPOINT__ADMIN_USERS + "/{user:path}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.READ_USER]))],
     include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=200,
@@ -124,7 +124,7 @@ async def get_user(
 
 
 @router.get(
-    path=ENDPOINT__USERS,
+    path=ENDPOINT__ADMIN_USERS,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.READ_USER]))],
     include_in_schema=configuration.settings.log_level == "DEBUG",
     status_code=200,
