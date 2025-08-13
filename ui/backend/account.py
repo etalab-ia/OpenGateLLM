@@ -45,7 +45,7 @@ def change_password(current_password: str, new_password: str, confirm_password: 
 
 def create_token(name: str, expires_at: int):
     response = requests.post(
-        url=f"{configuration.playground.api_url}/tokens",
+        url=f"{configuration.playground.api_url}/v1/admin/tokens",
         json={"name": name, "expires_at": expires_at},
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
@@ -83,7 +83,7 @@ def delete_token(token_id: int):
         return
 
     response = requests.delete(
-        url=f"{configuration.playground.api_url}/tokens/{token_id}", headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"}
+        url=f"{configuration.playground.api_url}/v1/admin/tokens/{token_id}", headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"}
     )
     if response.status_code == 204:
         st.toast("Delete succeed", icon="✅")

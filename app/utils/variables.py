@@ -1,11 +1,11 @@
 DEFAULT_APP_NAME = "Albert API"
 DEFAULT_TIMEOUT = 300
 
-ENDPOINT__ADMIN_ROLES = "/roles"
-ENDPOINT__ADMIN_ROLES_ME = "/roles/me"
-ENDPOINT__ADMIN_TOKENS = "/tokens"
-ENDPOINT__ADMIN_USERS = "/users"
-ENDPOINT__ADMIN_USERS_ME = "/users/me"
+ENDPOINT__ADMIN_ROLES = "/admin/roles"
+ENDPOINT__ADMIN_ROLES_ME = "/admin/roles/me"
+ENDPOINT__ADMIN_TOKENS = "/admin/tokens"
+ENDPOINT__ADMIN_USERS = "/admin/users"
+ENDPOINT__ADMIN_USERS_ME = "/admin/users/me"
 ENDPOINT__AGENTS_COMPLETIONS = "/agents/completions"
 ENDPOINT__AGENTS_TOOLS = "/agents/tools"
 ENDPOINT__AUDIO_TRANSCRIPTIONS = "/audio/transcriptions"
@@ -25,6 +25,7 @@ ENDPOINT__USAGE = "/usage"
 
 ENDPOINTS = [value for name, value in locals().items() if name.startswith("ENDPOINT__")]
 
+ROUTER__ADMIN = "admin"
 ROUTER__AGENTS = "agents"
 ROUTER__AUDIO = "audio"
 ROUTER__AUTH = "auth"
@@ -42,7 +43,6 @@ ROUTER__PARSE = "parse"
 ROUTER__RERANK = "rerank"
 ROUTER__SEARCH = "search"
 ROUTER__USAGE = "usage"
-ROUTER__USERS = "users"
 ROUTER__MULTIAGENTS = "multiagents"
 ROUTER__OAUTH2 = "oauth2"
 ROUTER__DEEPSEARCH = "deepsearch"

@@ -53,7 +53,7 @@ if __name__ == "__main__":
     limits.append({"model": "web-search", "type": "tpd", "value": None})
 
     response = requests.post(
-        url=f"{args.api_url}/roles",
+        url=f"{args.api_url}/v1/admin/roles",
         headers=headers,
         json={
             "name": "admin",
@@ -77,12 +77,12 @@ if __name__ == "__main__":
     role_id = response.json()["id"]
 
     # Create a new admin user
-    response = requests.post(url=f"{args.api_url}/users", headers=headers, json={"name": "admin", "role": role_id})
+    response = requests.post(url=f"{args.api_url}/v1/admin/users", headers=headers, json={"name": "admin", "role": role_id})
     assert response.status_code == 201, response.text
     user_id = response.json()["id"]
 
     # Create a new token for the admin user
-    response = requests.post(url=f"{args.api_url}/tokens", headers=headers, json={"name": "admin", "user": user_id})
+    response = requests.post(url=f"{args.api_url}/v1/admin/tokens", headers=headers, json={"name": "admin", "user": user_id})
     assert response.status_code == 201, response.text
 
     api_key = response.json()["token"]

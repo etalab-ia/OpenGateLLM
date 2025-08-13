@@ -6,7 +6,6 @@ from prometheus_fastapi_instrumentator import Instrumentator
 import sentry_sdk
 from starlette.middleware.sessions import SessionMiddleware
 
-
 from app.endpoints import proconnect
 from app.schemas.auth import PermissionType
 from app.schemas.core.context import RequestContext
@@ -15,9 +14,9 @@ from app.sql.session import set_get_db_func
 from app.utils.context import generate_request_id, request_context
 from app.utils.hooks_decorator import hooks
 from app.utils.variables import (
+    ROUTER__ADMIN,
     ROUTER__AGENTS,
     ROUTER__AUDIO,
-    ROUTER__AUTH,
     ROUTER__CHAT,
     ROUTER__CHUNKS,
     ROUTER__COLLECTIONS,
@@ -28,13 +27,12 @@ from app.utils.variables import (
     ROUTER__FILES,
     ROUTER__MODELS,
     ROUTER__MONITORING,
+    ROUTER__OAUTH2,
     ROUTER__OCR,
     ROUTER__PARSE,
     ROUTER__RERANK,
     ROUTER__SEARCH,
     ROUTER__USAGE,
-    ROUTER__USERS,
-    ROUTER__OAUTH2,
 )
 
 logger = logging.getLogger(__name__)
@@ -68,7 +66,6 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
 
     # Set up database dependency
     # If no db_func provided, the depends module will fall back to default
-    from app.endpoints.admin import users, roles, tokens
     from app.endpoints import (
         agents,
         audio,
@@ -87,6 +84,7 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
         search,
         usage,
     )
+    from app.endpoints.admin import roles, tokens, users
     from app.helpers._accesscontroller import AccessController
 
     def add_hooks(router: APIRouter) -> None:
@@ -110,6 +108,15 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
         return await call_next(request)
 
     # Routers
+    add_hooks(router=roles.router)
+    app.include_router(router=roles.router, tags=[ROUTER__ADMIN.title()], prefix="/v1")
+
+    add_hooks(router=tokens.router)
+    app.include_router(router=tokens.router, tags=[ROUTER__ADMIN.title()], prefix="/v1")
+
+    add_hooks(router=users.router)
+    app.include_router(router=users.router, tags=[ROUTER__ADMIN.title()], prefix="/v1")
+
     if ROUTER__AGENTS not in configuration.settings.disabled_routers:
         add_hooks(router=agents.router)
         app.include_router(router=agents.router, tags=[ROUTER__AGENTS.title()], prefix="/v1")
@@ -117,12 +124,6 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
     if ROUTER__AUDIO not in configuration.settings.disabled_routers:
         add_hooks(router=audio.router)
         app.include_router(router=audio.router, tags=[ROUTER__AUDIO.title()], prefix="/v1")
-
-    if ROUTER__AUTH not in configuration.settings.disabled_routers:
-        add_hooks(router=roles.router)
-        app.include_router(router=roles.router, tags=[ROUTER__AUTH.title()])
-        add_hooks(router=tokens.router)
-        app.include_router(router=tokens.router, tags=[ROUTER__AUTH.title()])
 
     if ROUTER__CHAT not in configuration.settings.disabled_routers:
         add_hooks(router=chat.router)
@@ -180,10 +181,6 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
     if ROUTER__USAGE not in configuration.settings.disabled_routers:
         add_hooks(router=usage.router)
         app.include_router(router=usage.router, tags=[ROUTER__USAGE.title()], prefix="/v1")
-
-    if ROUTER__USERS not in configuration.settings.disabled_routers:
-        add_hooks(router=users.router)
-        app.include_router(router=users.router, tags=[ROUTER__USERS.title()])
 
     # DEPRECATED LEGACY ENDPOINTS
     if ROUTER__COMPLETIONS not in configuration.settings.disabled_routers:

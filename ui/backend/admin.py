@@ -14,7 +14,7 @@ from ui.configuration import configuration
 
 def create_role(name: str, permissions: list, limits: list):
     response = requests.post(
-        url=f"{configuration.playground.api_url}/roles",
+        url=f"{configuration.playground.api_url}/v1/admin/roles",
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
         json={"name": name, "permissions": permissions, "limits": limits},
     )
@@ -31,7 +31,7 @@ def create_role(name: str, permissions: list, limits: list):
 
 def delete_role(role: int):
     response = requests.delete(
-        url=f"{configuration.playground.api_url}/roles/{role}",
+        url=f"{configuration.playground.api_url}/v1/admin/roles/{role}",
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
     if response.status_code != 204:
@@ -47,7 +47,7 @@ def delete_role(role: int):
 
 def update_role(role: int, name: Optional[str] = None, permissions: Optional[list] = None, limits: Optional[list] = None):
     response = requests.patch(
-        url=f"{configuration.playground.api_url}/roles/{role}",
+        url=f"{configuration.playground.api_url}/v1/admin/roles/{role}",
         json={"name": name, "permissions": permissions, "limits": limits},
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
@@ -78,7 +78,7 @@ def create_user(name: str, password: str, role: int, expires_at: Optional[int] =
         return
 
     response = requests.post(
-        url=f"{configuration.playground.api_url}/users",
+        url=f"{configuration.playground.api_url}/v1/admin/users",
         json={"name": name, "role": role, "expires_at": expires_at, "budget": budget},
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
@@ -91,7 +91,7 @@ def create_user(name: str, password: str, role: int, expires_at: Optional[int] =
 
     # create token
     response = requests.post(
-        url=f"{configuration.playground.api_url}/tokens",
+        url=f"{configuration.playground.api_url}/v1/admin/tokens",
         json={"user": user_id, "name": "playground"},
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
@@ -123,7 +123,7 @@ def create_user(name: str, password: str, role: int, expires_at: Optional[int] =
 
 def delete_user(user: int):
     response = requests.delete(
-        url=f"{configuration.playground.api_url}/users/{user}", headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"}
+        url=f"{configuration.playground.api_url}/v1/admin/users/{user}", headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"}
     )
     if response.status_code != 204:
         st.toast(response.json()["detail"], icon="❌")
@@ -152,7 +152,7 @@ def update_user(
         return
 
     response = requests.patch(
-        url=f"{configuration.playground.api_url}/users/{user}",
+        url=f"{configuration.playground.api_url}/v1/admin/users/{user}",
         json={"name": name, "role": role, "expires_at": expires_at, "budget": budget},
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
@@ -178,7 +178,7 @@ def update_user(
 def refresh_playground_api_key(user: int):
     # create token
     response = requests.post(
-        url=f"{configuration.playground.api_url}/tokens",
+        url=f"{configuration.playground.api_url}/v1/admin/tokens",
         json={"user": user, "name": "playground"},
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )

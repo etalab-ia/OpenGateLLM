@@ -57,7 +57,7 @@ class AccessController:
     ) -> User:  # fmt: off
         user, role, limits, token_id = await self._check_api_key(api_key=api_key, session=session)
 
-        # invalid token if user is expired, except for /v1/roles/me and /v1/users/me endpoints
+        # invalid token if user is expired, except for /v1/admin/roles/me and /v1/admin/users/me endpoints
         if (
             user.expires_at
             and user.expires_at < time.time()

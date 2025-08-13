@@ -92,15 +92,15 @@ If value is `None`, the limit is not applied.
 ### Managing Roles
 
 The API provides endpoints to:
-- Create roles (POST `/v1/roles`)
-- View roles (GET `/v1/roles`, GET `/v1/roles/{role_id}`)
-- Update roles (PATCH `/v1/roles/{role_id}`)
-- Delete roles (DELETE `/v1/roles/{role_id}`)
+- Create roles (POST `/v1/admin/roles`)
+- View roles (GET `/v1/admin/roles`, GET `/v1/admin/roles/{role_id}`)
+- Update roles (PATCH `/v1/admin/roles/{role_id}`)
+- Delete roles (DELETE `/v1/admin/roles/{role_id}`)
 
 *Example role creation:*
 
 ```json
-POST /v1/roles
+POST /v1/admin/roles
 {
   "name": "Admin",
   "default": false,
@@ -128,15 +128,15 @@ Users represent entities that can access the API.
 ### Managing Users
 
 The API provides endpoints to:
-- Create users (POST `/v1/users`)
-- View users (GET `/v1/users`, GET `/v1/users/{user_id}`)
-- Update users (PATCH `/v1/users/{user_id}`)
-- Delete users (DELETE `/v1/users/{user_id}`)
+- Create users (POST `/v1/admin/users`)
+- View users (GET `/v1/admin/users`, GET `/v1/admin/users/{user_id}`)
+- Update users (PATCH `/v1/admin/users/{user_id}`)
+- Delete users (DELETE `/v1/admin/users/{user_id}`)
 
 *Example user creation:*
 
 ```json
-POST /v1/users
+POST /v1/admin/users
 {
   "name": "john_doe",
   "role": 1,
@@ -157,14 +157,14 @@ Tokens are the API keys used to authenticate requests.
 
 The API provides endpoints to:
 
-- Create tokens (POST `/v1/tokens`)
-- View tokens (GET `/v1/tokens`, GET `/v1/tokens/{token_id}`)
-- Delete tokens (DELETE `/v1/tokens/{token_id}`)
+- Create tokens (POST `/v1/admin/tokens`)
+- View tokens (GET `/v1/admin/tokens`, GET `/v1/admin/tokens/{token_id}`)
+- Delete tokens (DELETE `/v1/admin/tokens/{token_id}`)
 
 Example token creation:
 
 ```json
-POST /v1/tokens
+POST /v1/admin/tokens
 {
   "name": "Development API Key",
   "expires_at": 1704067200  // Optional, Unix timestamp
@@ -172,4 +172,4 @@ POST /v1/tokens
 ```
 
 > **❗️Note**<br>
-> `CREATE_USER` permission allows to create tokens for other users with `user` field in the request body of POST `/v1/tokens`. These tokens are not subject to the `max_token_expiration_days` limit set in the auth section of the configuration file.
+> `CREATE_USER` permission allows to create tokens for other users with `user` field in the request body of POST `/v1/admin/tokens`. These tokens are not subject to the `max_token_expiration_days` limit set in the auth section of the configuration file.

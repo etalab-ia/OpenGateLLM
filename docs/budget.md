@@ -4,10 +4,10 @@
 
 ### User budget
 
-Each user has a budget defined by POST `/v1/users` endpoint. The budget is defined in the `budget` field.
+Each user has a budget defined by POST `/v1/admin/users` endpoint. The budget is defined in the `budget` field.
 
 ```bash
-curl -X POST http://localhost:8000/v1/users \
+curl -X POST http://localhost:8000/v1/admin/users \
 -H "Authorization: Bearer <token>" \
 -H "Content-Type: application/json" \
 -d '{
@@ -18,10 +18,10 @@ curl -X POST http://localhost:8000/v1/users \
 }'
 ```
 
-Or by PATCH `/v1/users/{user_id}` endpoint to update the budget of an existing user.
+Or by PATCH `/v1/admin/users/{user_id}` endpoint to update the budget of an existing user.
 
 ```bash
-curl -X PATCH http://localhost:8000/v1/users/1 \
+curl -X PATCH http://localhost:8000/v1/admin/users/1 \
 -H "Authorization: Bearer <token>" \
 -H "Content-Type: application/json" \
 -d '{
