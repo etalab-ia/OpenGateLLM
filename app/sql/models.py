@@ -82,6 +82,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String, index=True, unique=True, nullable=False)
     role_id = Column(Integer, ForeignKey(column="role.id"), nullable=False)
+    organization_id = Column(Integer, ForeignKey(column="organization.id"), nullable=True)
     budget = Column(Float, nullable=True)
     expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
@@ -101,6 +102,15 @@ class Token(Base):
     created_at = Column(DateTime, default=func.now(), nullable=False)
 
     user = relationship(argument="User", backref=backref(name="token", cascade="all, delete-orphan"))
+
+
+class Organization(Base):
+    __tablename__ = "organization"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    updated_at = Column(DateTime, default=func.now(), nullable=False, onupdate=func.now())
 
 
 class Collection(Base):

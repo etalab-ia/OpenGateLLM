@@ -24,7 +24,7 @@ jobs:
     - name: Commit pyproject.toml
       uses: stefanzweifel/git-auto-commit-action@v4
       with:
-        commit_message: Update pyproject.toml version to ${latest_version}
+        commit_message: Update pyproject.toml version
         file_pattern: pyproject.toml
         commit_author: "GitHub Actions <actions@github.com>"
         commit_email: "actions@github.com"
