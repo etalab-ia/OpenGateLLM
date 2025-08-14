@@ -5,9 +5,16 @@ Retrieval-Augmented Generation (RAG) is a technique that combines a language mod
 
 ## How to enable RAG
 
-You need a vector store to enable RAG. OpenGateLLM supports two kinds of vector databases:
+To enable RAG, you need:
+
+1. A vector store (either Qdrant or Elasticsearch).
+2. An embedding model configured in config.yml.
+3. Dependencies configured so OpenGateLLM can communicate with your chosen vector store.
+
+OpenGateLLM supports two vector databases:
 - [Qdrant](https://hub.docker.com/r/qdrant/qdrant)
 - [Elasticsearh](https://www.elastic.co/docs/deploy-manage/deploy/self-managed/install-elasticsearch-with-docker)
+
 
 
 ### Elasticsearch
