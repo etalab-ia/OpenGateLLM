@@ -59,8 +59,7 @@ async def get_token(
     """
 
     tokens = await global_context.identity_access_manager.get_tokens(session=session, user_id=request_context.get().user_id, token_id=token)
-    token = tokens[0]
-    token.pop("user")
+    token = Token(**tokens[0].model_dump(exclude={"user"}))
 
     return JSONResponse(content=token.model_dump(), status_code=200)
 
@@ -86,7 +85,6 @@ async def get_tokens(
         order_by=order_by,
         order_direction=order_direction,
     )
-    for token in data:
-        token.pop("user")
+    data = [Token(**token.model_dump(exclude={"user"})) for token in data]
 
     return JSONResponse(content=Tokens(data=data).model_dump(), status_code=200)

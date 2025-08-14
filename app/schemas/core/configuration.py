@@ -463,7 +463,7 @@ class ConfigFile(ConfigBaseModel):
 
     models: List[Model] = Field(min_length=1, description="Models used by the API. At least one model must be defined.")  # fmt: off
     dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the API.")  # fmt: off
-    settings: Optional[Settings] = Field(default_factory=Settings, description="Settings used by the API.")  # fmt: off
+    settings: Settings = Field(default_factory=Settings, description="Settings used by the API.")  # fmt: off
 
     @field_validator("settings", mode="before")
     def set_default_settings(cls, settings) -> Any:

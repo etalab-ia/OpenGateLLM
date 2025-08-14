@@ -18,6 +18,7 @@ from app.utils.variables import (
     ENDPOINT__COLLECTIONS,
     ENDPOINT__MODELS,
     ENDPOINT__SEARCH,
+    ENDPOINT__TOKENS,
 )
 
 
@@ -130,14 +131,14 @@ class TestAuth:
 
         # Test API access with token before expiration
         headers = {"Authorization": f"Bearer {token}"}
-        response = client.get(url="/health", headers=headers)
+        response = client.get(url="/v1/tokens", headers=headers)
         assert response.status_code == 200, "User should have access before expiration"
 
         # Wait for user to expire
         time.sleep(2)
 
         # Test API access after expiration
-        response = client.get(url="/health", headers=headers)
+        response = client.get(url="/v1/tokens", headers=headers)
         assert response.status_code == 403, response.text
 
         # Verify user info endpoints still work with admin token
@@ -347,7 +348,7 @@ class TestAuth:
         # Get first user's token
         headers1 = {"Authorization": f"Bearer {user1_token}"}
         response = client.get(
-            url=f"/v1{ENDPOINT__ADMIN_TOKENS}/{user1_token_id}",
+            url=f"/v1{ENDPOINT__TOKENS}/{user1_token_id}",
             headers=headers1,
         )
         assert response.status_code == 200, response.text
@@ -382,7 +383,7 @@ class TestAuth:
         # Get second user's token
         headers2 = {"Authorization": f"Bearer {user2_token}"}
         response = client.get(
-            url=f"/v1{ENDPOINT__ADMIN_TOKENS}/{user2_token_id}",
+            url=f"/v1{ENDPOINT__TOKENS}/{user2_token_id}",
             headers=headers2,
         )
         assert response.status_code == 200, response.text
@@ -395,7 +396,7 @@ class TestAuth:
         # Get first user's token again to check it was not affected
         headers1 = {"Authorization": f"Bearer {user1_token}"}
         response = client.get(
-            url=f"/v1{ENDPOINT__ADMIN_TOKENS}/{user1_token_id}",
+            url=f"/v1{ENDPOINT__TOKENS}/{user1_token_id}",
             headers=headers1,
         )
         assert response.status_code == 200, response.text

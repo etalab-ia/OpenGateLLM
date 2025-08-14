@@ -40,6 +40,8 @@ jobs:
       with:
         commit_message: Update coverage badge
         file_pattern: .github/badges/coverage.json
+        commit_author: "GitHub Actions <actions@github.com>"
+        commit_email: "actions@github.com"
 
     - name: Tear down Docker Compose
       if: always()

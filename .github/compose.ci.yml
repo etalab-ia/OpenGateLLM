@@ -62,7 +62,7 @@ services:
     environment:
       - MCP_BRIDGE__CONFIG__FILE=config.json
     volumes:
-      - .github/mcp_config.ci.json:/mcp_bridge/config.json
+      - ./mcp_config.ci.json:/mcp_bridge/config.json
 
 volumes:
   postgres:

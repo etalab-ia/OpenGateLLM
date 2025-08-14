@@ -1,15 +1,14 @@
 import datetime as dt
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from pydantic import Field, constr, field_validator
 
 from app.schemas import BaseModel
-from app.schemas.admin.tokens import Tokens as AdminTokens
-from app.schemas.admin.tokens import TokensResponse as AdminTokensResponse
 
 
-class TokensResponse(AdminTokensResponse):
-    pass
+class TokensResponse(BaseModel):
+    id: int
+    token: str
 
 
 class TokenRequest(BaseModel):
@@ -34,5 +33,6 @@ class Token(BaseModel):
     created_at: int
 
 
-class Tokens(AdminTokens):
-    pass
+class Tokens(BaseModel):
+    object: Literal["list"] = "list"
+    data: List[Token]

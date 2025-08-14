@@ -13,7 +13,7 @@ class TokensResponse(BaseModel):
 
 class TokenRequest(BaseModel):
     name: constr(strip_whitespace=True, min_length=1)
-    user: Optional[int] = Field(default=None, description="User ID to create the token for another user (by default, the current user). Required CREATE_USER permission.")  # fmt: off
+    user: int = Field(description="User ID to create the token for another user (by default, the current user). Required CREATE_USER permission.")  # fmt: off
     expires_at: Optional[int] = Field(None, description="Timestamp in seconds")
 
     @field_validator("expires_at", mode="before")

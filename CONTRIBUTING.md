@@ -75,7 +75,7 @@ make dev
 > [!NOTE]
 > This command will start the API and the playground services and support the following options:
 > ```bash
-> make dev [service=api|playground|both] [env=.env] [compose=compose.yml]
+> make dev [service=api|playground|both] [env=.env] [compose=compose.yml] # service=both by default
 > ```
 > For more information, run `make help`.
 

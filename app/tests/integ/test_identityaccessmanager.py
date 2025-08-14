@@ -12,7 +12,7 @@ class TestIdentityAccessManager:
         # Create a role to update
         role_data = {
             "name": "test-role",
-            "permissions": [PermissionType.CREATE_ROLE.value, PermissionType.CREATE_USER.value],
+            "permissions": [PermissionType.ADMIN.value],
             "limits": [
                 {"model": "test-model", "type": "rpm", "value": 100},
                 {"model": "test-model", "type": "rpd", "value": 1000},
@@ -27,7 +27,7 @@ class TestIdentityAccessManager:
         # Update the role
         updated_role_data = {
             "name": "updated-role",
-            "permissions": [PermissionType.DELETE_ROLE.value],
+            "permissions": [PermissionType.ADMIN.value],
             "limits": [
                 {"model": "new-model", "type": "rpm", "value": 200},
             ],
@@ -49,4 +49,4 @@ class TestIdentityAccessManager:
         assert updated_role["limits"][0]["type"] == "rpm"
         assert updated_role["limits"][0]["value"] == 200
         assert len(updated_role["permissions"]) == 1
-        assert updated_role["permissions"][0] == PermissionType.DELETE_ROLE.value
+        assert updated_role["permissions"][0] == PermissionType.ADMIN.value

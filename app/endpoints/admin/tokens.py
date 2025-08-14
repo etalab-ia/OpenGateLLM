@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.helpers._accesscontroller import AccessController
+from app.schemas.admin.roles import PermissionType
 from app.schemas.admin.tokens import Token, TokenRequest, Tokens, TokensResponse
 from app.sql.session import get_db_session
 from app.utils.context import global_context
@@ -13,7 +14,12 @@ from app.utils.variables import ENDPOINT__ADMIN_TOKENS
 router = APIRouter()
 
 
-@router.post(path=ENDPOINT__ADMIN_TOKENS, dependencies=[Security(dependency=AccessController())], status_code=201, response_model=TokensResponse)
+@router.post(
+    path=ENDPOINT__ADMIN_TOKENS,
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
+    status_code=201,
+    response_model=TokensResponse,
+)
 async def create_token(
     request: Request,
     body: TokenRequest = Body(description="The token creation request."),
@@ -33,7 +39,11 @@ async def create_token(
     return JSONResponse(status_code=201, content={"id": token_id, "token": token})
 
 
-@router.delete(path=ENDPOINT__ADMIN_TOKENS + "/{token:path}", dependencies=[Security(dependency=AccessController())], status_code=204)
+@router.delete(
+    path=ENDPOINT__ADMIN_TOKENS + "/{token:path}",
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
+    status_code=204,
+)
 async def delete_token(
     request: Request,
     user: int = Path(description="The user ID of the user to delete the token for."),
@@ -51,7 +61,7 @@ async def delete_token(
 
 @router.get(
     path=ENDPOINT__ADMIN_TOKENS + "/{token:path}",
-    dependencies=[Security(dependency=AccessController())],
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Token,
 )
@@ -69,7 +79,12 @@ async def get_token(
     return JSONResponse(content=tokens[0].model_dump(), status_code=200)
 
 
-@router.get(path=ENDPOINT__ADMIN_TOKENS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Tokens)
+@router.get(
+    path=ENDPOINT__ADMIN_TOKENS,
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
+    status_code=200,
+    response_model=Tokens,
+)
 async def get_tokens(
     request: Request,
     user: Optional[int] = Query(default=None, description="The user ID of the user to get the tokens for."),

@@ -6,7 +6,7 @@ services:
     restart: always
     env_file: "${APP_ENV_FILE:-./.env}"
     environment:
-      - "CONFIG_FILE=config.yml" # inside the container, do not change this line
+      - "CONFIG_FILE=/config.yml" # inside the container, do not change this line
     ports:
       - 8080:8080
     volumes:

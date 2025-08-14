@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, FastAPI, Request, Response, Security
+from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.dependencies.utils import get_dependant
 from prometheus_fastapi_instrumentator import Instrumentator
 import sentry_sdk
@@ -124,7 +124,7 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
                 app.instrumentator = Instrumentator().instrument(app=app)
                 app.instrumentator.expose(app=app, should_gzip=True, tags=[router_name], dependencies=[Depends(dependency=AccessController(permissions=[PermissionType.READ_METRIC]))], include_in_schema=include_in_schema)  # fmt: off
 
-            @app.get(path="/health", tags=[router_name], include_in_schema=include_in_schema, dependencies=[Security(dependency=AccessController())])
+            @app.get(path="/health", tags=[router_name], include_in_schema=include_in_schema)
             def health() -> Response:
                 return Response(status_code=200)
 

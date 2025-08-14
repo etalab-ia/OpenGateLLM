@@ -17,7 +17,6 @@ import streamlit as st
 
 from ui.backend.sql.models import User as UserTable
 from ui.configuration import configuration
-from ui.variables import ADMIN_PERMISSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +126,7 @@ def login(user_name: str, user_password: str, session: Session, proconnect_token
             limits.append({"model": model["id"], "type": "rpm", "value": None})
             limits.append({"model": model["id"], "type": "rpd", "value": None})
 
-        role = {"object": "role", "id": 0, "name": "master", "default": False, "permissions": ADMIN_PERMISSIONS, "limits": limits}
+        role = {"object": "role", "id": 0, "name": "master", "default": False, "permissions": ["admin"], "limits": limits}
         user = User(
             id=0,
             name=configuration.playground.auth_master_username,

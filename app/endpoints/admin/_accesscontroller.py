@@ -256,13 +256,13 @@ class AccessController:
     async def _check_collections_patch(self, user: User, role: Role, limits: Dict[str, _UserModelLimits], request: Request) -> None:
         body = await self._safely_parse_body(request)
 
-        if body.get("visibility") == CollectionVisibility.PUBLIC and PermissionType.CREATE_PUBLIC_COLLECTION not in role.permissions:
+        if body.get("visibility") == CollectionVisibility.PUBLIC and PermissionType.ADMIN not in role.permissions:
             raise InsufficientPermissionException("Missing permission to update collection visibility to public.")
 
     async def _check_collections_post(self, user: User, role: Role, limits: Dict[str, _UserModelLimits], request: Request) -> None:
         body = await self._safely_parse_body(request)
 
-        if body.get("visibility") == CollectionVisibility.PUBLIC and PermissionType.CREATE_PUBLIC_COLLECTION not in role.permissions:
+        if body.get("visibility") == CollectionVisibility.PUBLIC and PermissionType.ADMIN not in role.permissions:
             raise InsufficientPermissionException("Missing permission to create public collections.")
 
     async def _check_embeddings_post(self, user: User, role: Role, limits: Dict[str, _UserModelLimits], request: Request) -> None:

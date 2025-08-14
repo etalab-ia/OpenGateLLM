@@ -15,7 +15,7 @@ router = APIRouter()
 
 @router.post(
     path=ENDPOINT__ADMIN_ROLES,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.CREATE_ROLE]))],
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=201,
     response_model=RolesResponse,
 )
@@ -37,7 +37,7 @@ async def create_role(
 
 @router.delete(
     path=ENDPOINT__ADMIN_ROLES + "/{role}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.DELETE_ROLE]))],
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
 async def delete_role(
@@ -56,7 +56,7 @@ async def delete_role(
 
 @router.patch(
     path=ENDPOINT__ADMIN_ROLES + "/{role:path}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.UPDATE_ROLE]))],
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
 async def update_role(
@@ -82,7 +82,7 @@ async def update_role(
 
 @router.get(
     path=ENDPOINT__ADMIN_ROLES + "/{role:path}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.READ_ROLE]))],
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Role,
 )
@@ -102,7 +102,7 @@ async def get_role(
 
 @router.get(
     path=ENDPOINT__ADMIN_ROLES,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.READ_ROLE]))],
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Roles,
 )
