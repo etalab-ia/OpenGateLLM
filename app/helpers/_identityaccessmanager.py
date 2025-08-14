@@ -8,10 +8,12 @@ from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
+from app.schemas.admin.organizations import Organization
 from app.schemas.admin.roles import Limit, PermissionType, Role
 from app.schemas.admin.tokens import Token
 from app.schemas.admin.users import User
 from app.sql.models import Limit as LimitTable
+from app.sql.models import Organization as OrganizationTable
 from app.sql.models import Permission as PermissionTable
 from app.sql.models import Role as RoleTable
 from app.sql.models import Token as TokenTable
@@ -20,6 +22,7 @@ from app.sql.models import User as UserTable
 from app.utils.exceptions import (
     DeleteRoleWithUsersException,
     InvalidTokenExpirationException,
+    OrganizationNotFoundException,
     RoleAlreadyExistsException,
     RoleNotFoundException,
     TokenNotFoundException,
@@ -214,6 +217,7 @@ class IdentityAccessManager:
         session: AsyncSession,
         name: str,
         role_id: int,
+        organization_id: Optional[int] = None,
         budget: Optional[float] = None,
         expires_at: Optional[int] = None,
         sub: Optional[str] = None,
@@ -228,6 +232,14 @@ class IdentityAccessManager:
         except NoResultFound:
             raise RoleNotFoundException()
 
+        # check if organization exists
+        if organization_id is not None:
+            result = await session.execute(statement=select(OrganizationTable.id).where(OrganizationTable.id == organization_id))
+            try:
+                result.scalar_one()
+            except NoResultFound:
+                raise OrganizationNotFoundException()
+
         # create the user
         try:
             result = await session.execute(
@@ -235,6 +247,7 @@ class IdentityAccessManager:
                 .values(
                     name=name,
                     role_id=role_id,
+                    organization_id=organization_id,
                     budget=budget,
                     expires_at=expires_at,
                     sub=sub,
@@ -268,17 +281,19 @@ class IdentityAccessManager:
         user_id: int,
         name: Optional[str] = None,
         role_id: Optional[int] = None,
+        organization_id: Optional[int] = None,
         budget: Optional[float] = None,
         expires_at: Optional[int] = None,
     ) -> None:
         """
-        Update user. Warning: budget and expires_at are always replaced by the values passed as parameters because None is a valid value for budget and expires_at.
+        Update user. Warning: budget, expires_at and organization_id are always replaced by the values passed as parameters because None is a valid value for these fields.
 
         Args:
             session: The session to use.
             user_id: The ID of the user to update.
             name: The new name of the user.
             role_id: The new role ID of the user.
+            organization_id: The new organization ID of the user.
             budget: The new budget of the user.
             expires_at: The new expiration timestamp of the user.
         """
@@ -311,10 +326,25 @@ class IdentityAccessManager:
                 result.scalar_one()
             except NoResultFound:
                 raise RoleNotFoundException()
-
         role_id = role_id if role_id is not None else user.role_id
+
+        if organization_id is not None:
+            result = await session.execute(statement=select(OrganizationTable.id).where(OrganizationTable.id == organization_id))
+            try:
+                result.scalar_one()
+            except NoResultFound:
+                raise OrganizationNotFoundException()
+
         await session.execute(
-            statement=update(table=UserTable).values(name=name, role_id=role_id, budget=budget, expires_at=expires_at).where(UserTable.id == user.id)
+            statement=update(table=UserTable)
+            .values(
+                name=name,
+                role_id=role_id,
+                organization_id=organization_id,
+                budget=budget,
+                expires_at=expires_at,
+            )
+            .where(UserTable.id == user.id)
         )
         await session.commit()
 
@@ -323,6 +353,7 @@ class IdentityAccessManager:
         session: AsyncSession,
         user_id: Optional[int] = None,
         role_id: Optional[int] = None,
+        organization_id: Optional[int] = None,
         offset: int = 0,
         limit: int = 10,
         order_by: Literal["id", "name", "created_at", "updated_at"] = "id",
@@ -333,6 +364,7 @@ class IdentityAccessManager:
                 UserTable.id,
                 UserTable.name,
                 UserTable.role_id.label("role"),
+                UserTable.organization_id.label("organization"),
                 UserTable.budget,
                 cast(func.extract("epoch", UserTable.expires_at), Integer).label("expires_at"),
                 cast(func.extract("epoch", UserTable.created_at), Integer).label("created_at"),
@@ -348,6 +380,8 @@ class IdentityAccessManager:
             statement = statement.where(UserTable.id == user_id)
         if role_id is not None:
             statement = statement.where(UserTable.role_id == role_id)
+        if organization_id is not None:
+            statement = statement.where(UserTable.organization_id == organization_id)
 
         result = await session.execute(statement=statement)
         users = [User(**row._mapping) for row in result.all()]
@@ -356,6 +390,66 @@ class IdentityAccessManager:
             raise UserNotFoundException()
 
         return users
+
+    async def create_organization(self, session: AsyncSession, name: str) -> int:
+        result = await session.execute(statement=insert(table=OrganizationTable).values(name=name).returning(OrganizationTable.id))
+        organization_id = result.scalar_one()
+        await session.commit()
+
+        return organization_id
+
+    async def delete_organization(self, session: AsyncSession, organization_id: int) -> None:
+        result = await session.execute(statement=select(OrganizationTable.id).where(OrganizationTable.id == organization_id))
+        try:
+            result.scalar_one()
+        except NoResultFound:
+            raise OrganizationNotFoundException()
+
+        await session.execute(statement=delete(table=OrganizationTable).where(OrganizationTable.id == organization_id))
+        await session.commit()
+
+    async def update_organization(self, session: AsyncSession, organization_id: int, name: Optional[str] = None) -> None:
+        result = await session.execute(statement=select(OrganizationTable).where(OrganizationTable.id == organization_id))
+        try:
+            organization = result.scalar_one()
+        except NoResultFound:
+            raise OrganizationNotFoundException()
+
+        if name is not None:
+            await session.execute(statement=update(table=OrganizationTable).values(name=name).where(OrganizationTable.id == organization.id))
+        await session.commit()
+
+    async def get_organizations(
+        self,
+        session: AsyncSession,
+        organization_id: Optional[int] = None,
+        offset: int = 0,
+        limit: int = 10,
+        order_by: Literal["id", "name", "created_at", "updated_at"] = "id",
+        order_direction: Literal["asc", "desc"] = "asc",
+    ) -> List[Organization]:
+        statement = (
+            select(
+                OrganizationTable.id,
+                OrganizationTable.name,
+                cast(func.extract("epoch", OrganizationTable.created_at), Integer).label("created_at"),
+                cast(func.extract("epoch", OrganizationTable.updated_at), Integer).label("updated_at"),
+            )
+            .offset(offset=offset)
+            .limit(limit=limit)
+            .order_by(text(f"{order_by} {order_direction}"))
+        )
+
+        if organization_id is not None:
+            statement = statement.where(OrganizationTable.id == organization_id)
+
+        result = await session.execute(statement=statement)
+        organizations = [Organization(**row._mapping) for row in result.all()]
+
+        if organization_id is not None and len(organizations) == 0:
+            raise OrganizationNotFoundException()
+
+        return organizations
 
     async def create_token(self, session: AsyncSession, user_id: int, name: str, expires_at: Optional[int] = None) -> Tuple[int, str]:
         # get the user id

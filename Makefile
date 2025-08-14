@@ -46,7 +46,12 @@ help:
 	@echo ""
 
 .start-api:
-	@bash -c 'set -a; . $(env); GUNICORN_CMD_ARGS="--reload --log-level debug --access-logfile - --error-logfile -" ./scripts/startup_api.sh'
+	@bash -c 'set -a; . $(env); \
+	GUNICORN_CMD_ARGS="--reload --log-level debug --access-logfile - --error-logfile -" \
+	./scripts/startup_api.sh &' \
+	&& sleep 2 \
+	&& open http://localhost:8080/docs
+
 
 .start-playground:
 	@mkdir -p ~/.streamlit/

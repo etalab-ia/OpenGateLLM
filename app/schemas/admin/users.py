@@ -9,6 +9,7 @@ from app.schemas import BaseModel
 class UserUpdateRequest(BaseModel):
     name: Optional[constr(strip_whitespace=True, min_length=1)] = Field(default=None, description="The new user name. If None, the user name is not changed.")  # fmt: off
     role: Optional[int] = Field(default=None, description="The new role ID. If None, the user role is not changed.")
+    organization: Optional[int] = Field(default=None, description="The new organization ID. If None, the user will be removed from the organization if he was in one.")  # fmt: off
     budget: Optional[float] = Field(default=None, description="The new budget. If None, the user will have no budget.")
     expires_at: Optional[int] = Field(default=None, description="The new expiration timestamp. If None, the user will never expire.")
 
@@ -28,6 +29,7 @@ class UsersResponse(BaseModel):
 class UserRequest(BaseModel):
     name: constr(strip_whitespace=True, min_length=1) = Field(description="The user name.")
     role: int = Field(description="The role ID.")
+    organization: Optional[int] = Field(default=None, description="The organization ID.")
     budget: Optional[float] = Field(default=None, description="The budget.")
     expires_at: Optional[int] = Field(default=None, description="The expiration timestamp.")
 
@@ -45,6 +47,7 @@ class User(BaseModel):
     id: int
     name: str
     role: int
+    organization: Optional[int] = None
     budget: Optional[float] = None
     expires_at: Optional[int] = None
     created_at: int

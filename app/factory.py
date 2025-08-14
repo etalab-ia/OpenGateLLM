@@ -77,6 +77,7 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
     from app.endpoints.admin import roles as admin_roles
     from app.endpoints.admin import tokens as admin_tokens
     from app.endpoints.admin import users as admin_users
+    from app.endpoints.admin import organizations as admin_organizations
     from app.helpers._accesscontroller import AccessController
 
     def add_hooks(router: APIRouter) -> None:
@@ -110,6 +111,9 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
         router_name = router.upper() if router == ROUTER__OCR else router.title()
 
         if router == ROUTER__ADMIN:
+            add_hooks(router=admin_organizations.router)
+            app.include_router(router=admin_organizations.router, tags=[router_name], prefix=prefix, include_in_schema=include_in_schema)
+
             add_hooks(router=admin_roles.router)
             app.include_router(router=admin_roles.router, tags=[router_name], prefix=prefix, include_in_schema=include_in_schema)
 

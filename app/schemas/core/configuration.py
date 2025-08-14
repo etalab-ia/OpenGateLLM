@@ -392,7 +392,7 @@ class Settings(ConfigBaseModel):
 
     # swagger
     swagger_title: Optional[str] = Field(default="Albert API", description="Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API"])  # fmt: off
-    swagger_summary: Optional[str] = Field(default="Albert API connect to your models.", description="Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API connect to your models."])  # fmt: off
+    swagger_summary: Optional[str] = Field(default="Albert API connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title.", description="Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API connect to your models."])  # fmt: off
     swagger_version: Optional[str] = Field(default="latest", description="Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["2.5.0"])  # fmt: off
     swagger_description: Optional[str] = Field(default="[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)", description="Display description of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)"])  # fmt: off
     swagger_contact: Optional[Dict] = Field(default=None, description="Contact informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off

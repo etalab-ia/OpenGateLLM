@@ -1,6 +1,7 @@
 DEFAULT_APP_NAME = "Albert API"
 DEFAULT_TIMEOUT = 300
 
+ENDPOINT__ADMIN_ORGANIZATIONS = "/admin/organizations"
 ENDPOINT__ADMIN_ROLES = "/admin/roles"
 ENDPOINT__ADMIN_TOKENS = "/admin/tokens"
 ENDPOINT__ADMIN_USERS = "/admin/users"

@@ -29,7 +29,14 @@ async def create_user(
     Create a new user.
     """
 
-    user_id = await global_context.identity_access_manager.create_user(session=session, name=body.name, role_id=body.role, budget=body.budget, expires_at=body.expires_at)  # fmt: off
+    user_id = await global_context.identity_access_manager.create_user(
+        session=session,
+        name=body.name,
+        role_id=body.role,
+        organization_id=body.organization,
+        budget=body.budget,
+        expires_at=body.expires_at,
+    )
 
     return JSONResponse(status_code=201, content={"id": user_id})
 
@@ -71,6 +78,7 @@ async def update_user(
         user_id=user,
         name=body.name,
         role_id=body.role,
+        organization_id=body.organization,
         budget=body.budget,
         expires_at=body.expires_at,
     )
@@ -103,6 +111,7 @@ async def get_user(
 async def get_users(
     request: Request,
     role: Optional[int] = Query(default=None, description="The ID of the role to filter the users by."),
+    organization: Optional[int] = Query(default=None, description="The ID of the organization to filter the users by."),
     offset: int = Query(default=0, ge=0, description="The offset of the users to get."),
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the users to get."),
     order_by: Literal["id", "name", "created_at", "updated_at"] = Query(default="id", description="The field to order the users by."),
@@ -114,7 +123,13 @@ async def get_users(
     """
 
     data = await global_context.identity_access_manager.get_users(
-        session=session, role_id=role, offset=offset, limit=limit, order_by=order_by, order_direction=order_direction
+        session=session,
+        role_id=role,
+        organization_id=organization,
+        offset=offset,
+        limit=limit,
+        order_by=order_by,
+        order_direction=order_direction,
     )
 
     return JSONResponse(content=Users(data=data).model_dump(), status_code=200)
