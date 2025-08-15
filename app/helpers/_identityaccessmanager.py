@@ -574,6 +574,7 @@ class IdentityAccessManager:
 
         if token_id is not None:
             statement = statement.where(TokenTable.id == token_id)
+
         if exclude_expired is not None:
             statement = statement.where(or_(TokenTable.expires_at.is_(None), TokenTable.expires_at >= func.now()))
 
@@ -594,7 +595,7 @@ class IdentityAccessManager:
             return None, None
 
         try:
-            await self.get_tokens(session, user_id=claims["user_id"], token_id=claims["token_id"], exclude_expired=True)
+            await self.get_tokens(session, user_id=claims["user_id"], token_id=claims["token_id"], exclude_expired=True, limit=1)
         except TokenNotFoundException:
             return None, None
 
