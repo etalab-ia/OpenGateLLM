@@ -38,7 +38,7 @@ Refer to the [configuration example file](../../../config.example.yml) for an ex
 | swagger_openapi_tags | array | OpenAPI tags of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  |  |  |  |
 | swagger_openapi_url | string | OpenAPI URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | /openapi.json |  |  |
 | swagger_redoc_url | string | Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | /redoc |  |  |
-| swagger_summary | string | Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | Albert API connect to your models. |  | Albert API connect to your models. |
+| swagger_summary | string | Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | Albert API connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title. |  | Albert API connect to your models. |
 | swagger_terms_of_service | string | A URL to the Terms of Service for the API in swagger UI. If provided, this has to be a URL. |  | None |  | https://example.com/terms-of-service |
 | swagger_title | string | Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | Albert API |  | Albert API |
 | swagger_version | string | Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | latest |  | 2.5.0 |
