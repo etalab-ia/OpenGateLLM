@@ -18,10 +18,10 @@ import vcr.stubs.httpx_stubs
 
 from app.clients.vector_store import BaseVectorStoreClient as VectorStoreClient
 from app.factory import create_app
-from app.schemas.auth import LimitType, PermissionType
+from app.schemas.admin.roles import LimitType, PermissionType
 from app.sql.models import Base
 from app.utils.configuration import configuration
-from app.utils.variables import ENDPOINT__MODELS, ENDPOINT__ROLES, ENDPOINT__TOKENS, ENDPOINT__USERS
+from app.utils.variables import ENDPOINT__MODELS, ENDPOINT__ADMIN_ROLES, ENDPOINT__ADMIN_TOKENS, ENDPOINT__ADMIN_USERS
 
 # Define global VCR instance
 VCR_INSTANCE = None
@@ -260,7 +260,7 @@ def roles(test_client: TestClient) -> tuple[dict, dict]:
 
     # create role admin
     response = test_client.post(
-        url=ENDPOINT__ROLES,
+        url=f"/v1{ENDPOINT__ADMIN_ROLES}",
         json={"name": "test-role-admin", "default": False, "permissions": [permission.value for permission in PermissionType], "limits": limits},
     )
     logging.debug(msg=f"create role test-role-admin: {response.text}")
@@ -268,17 +268,19 @@ def roles(test_client: TestClient) -> tuple[dict, dict]:
 
     role_id_with_permissions = response.json()["id"]
     # create role user
-    response = test_client.post(url=ENDPOINT__ROLES, json={"name": "test-role-user", "default": False, "permissions": [], "limits": limits})
+    response = test_client.post(
+        url=f"/v1{ENDPOINT__ADMIN_ROLES}", json={"name": "test-role-user", "default": False, "permissions": [], "limits": limits}
+    )
     logging.debug(msg=f"create role test-role-user: {response.text}")
     response.raise_for_status()
     role_id_without_permissions = response.json()["id"]
 
-    response = test_client.get(url=f"{ENDPOINT__ROLES}/{role_id_with_permissions}")
+    response = test_client.get(url=f"/v1{ENDPOINT__ADMIN_ROLES}/{role_id_with_permissions}")
     logging.debug(msg=f"get role test-role-with-permissions: {response.text}")
     response.raise_for_status()
     role_with_permissions = response.json()
 
-    response = test_client.get(url=f"{ENDPOINT__ROLES}/{role_id_without_permissions}")
+    response = test_client.get(url=f"/v1{ENDPOINT__ADMIN_ROLES}/{role_id_without_permissions}")
     logging.debug(msg=f"get role test-role-without-permissions: {response.text}")
     response.raise_for_status()
     role_without_permissions = response.json()
@@ -294,24 +296,24 @@ def users(test_client: TestClient, roles: tuple[dict, dict]) -> tuple[dict, dict
 
     # create user admin
     response = test_client.post(
-        url=ENDPOINT__USERS, json={"name": "test-user-admin", "password": "test-password", "role": role_with_permissions["id"]}
+        url=f"/v1{ENDPOINT__ADMIN_USERS}", json={"name": "test-user-admin", "password": "test-password", "role": role_with_permissions["id"]}
     )
     response.raise_for_status()
     user_id_with_permissions = response.json()["id"]
 
-    response = test_client.get(url=f"{ENDPOINT__USERS}/{user_id_with_permissions}")
+    response = test_client.get(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_id_with_permissions}")
     logging.debug(msg=f"get user test-user-with-permissions: {response.text}")
     response.raise_for_status()
     user_with_permissions = response.json()
 
     # create user user
     response = test_client.post(
-        url=ENDPOINT__USERS, json={"name": "test-user-user", "password": "test-password", "role": role_without_permissions["id"]}
+        url=f"/v1{ENDPOINT__ADMIN_USERS}", json={"name": "test-user-user", "password": "test-password", "role": role_without_permissions["id"]}
     )
     response.raise_for_status()
     user_id_user = response.json()["id"]
 
-    response = test_client.get(url=f"{ENDPOINT__USERS}/{user_id_user}")
+    response = test_client.get(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_id_user}")
     logging.debug(msg=f"get user test-user-without-permissions: {response.text}")
     response.raise_for_status()
     user_without_permissions = response.json()
@@ -325,14 +327,16 @@ def tokens(test_client: TestClient, users: tuple[dict, dict]) -> tuple[dict, dic
 
     # create token admin
     response = test_client.post(
-        url=ENDPOINT__TOKENS, json={"user": user_with_permissions["id"], "name": "test-token-admin", "expires_at": int(time.time()) + 300}
+        url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
+        json={"user": user_with_permissions["id"], "name": "test-token-admin", "expires_at": int(time.time()) + 300},
     )
     response.raise_for_status()
     token_with_permissions = response.json()
 
     # create token user
     response = test_client.post(
-        url=ENDPOINT__TOKENS, json={"user": user_without_permissions["id"], "name": "test-token-user", "expires_at": int(time.time()) + 300}
+        url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
+        json={"user": user_without_permissions["id"], "name": "test-token-user", "expires_at": int(time.time()) + 300},
     )
     response.raise_for_status()
     token_without_permissions = response.json()

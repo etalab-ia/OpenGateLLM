@@ -6,17 +6,6 @@ MODEL_TYPE_RERANK = "text-classification"
 
 COLLECTION_VISIBILITY_PRIVATE = "private"
 
-ADMIN_PERMISSIONS = [
-    "create_role",
-    "read_role",
-    "update_role",
-    "delete_role",
-    "create_user",
-    "read_user",
-    "update_user",
-    "delete_user",
-]
-
 TRANSCRIPTION_SUPPORTED_LANGUAGES = [
     "afrikaans",
     "albanian",

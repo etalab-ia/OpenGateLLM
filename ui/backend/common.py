@@ -62,7 +62,7 @@ def get_documents(collection_id: int, offset: int = 0, limit: int = 10) -> dict:
 
 def get_tokens(offset: int = 0, limit: int = 10) -> list:
     response = requests.get(
-        url=f"{configuration.playground.api_url}/tokens?offset={offset}&limit={limit}",
+        url=f"{configuration.playground.api_url}/v1/admin/tokens?offset={offset}&limit={limit}",
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
 
@@ -80,7 +80,7 @@ def get_roles(
     order_direction: Literal["asc", "desc"] = "asc",
 ):
     response = requests.get(
-        url=f"{configuration.playground.api_url}/roles?offset={offset}&limit={limit}&order_by={order_by}&order_direction={order_direction}",
+        url=f"{configuration.playground.api_url}/v1/admin/roles?offset={offset}&limit={limit}&order_by={order_by}&order_direction={order_direction}",
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
     if response.status_code != 200:
@@ -100,7 +100,7 @@ def get_users(
     order_direction: Literal["asc", "desc"] = "asc",
 ):
     response = requests.get(
-        url=f"{configuration.playground.api_url}/users?offset={offset}&limit={limit}&role={role}&order_by={order_by}&order_direction={order_direction}",
+        url=f"{configuration.playground.api_url}/v1/admin/users?offset={offset}&limit={limit}&role={role}&order_by={order_by}&order_direction={order_direction}",
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
     if response.status_code != 200:

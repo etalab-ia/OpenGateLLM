@@ -99,21 +99,21 @@ dependencies:
   redis:
     host: ${REDIS_HOST:-redis}
     port: ${REDIS_PORT:-6379}
-    password: changeme
+    password: ${REDIS_PASSWORD:-changeme}
 
 
   elasticsearch:
     hosts: http://${ELASTICSEARCH_HOST:-elasticsearch}:${ELASTICSEARCH_PORT:-9200}
     basic_auth:
-      - "elastic"
-      - "changeme"
+      - ${ELASTIC_USERNAME:-elastic}
+      - ${ELASTIC_PASSWORD:-changeme}
 
   secretiveshell:
     url: http://${SECRETIVESHELL_HOST:-secretiveshell}:${SECRETIVESHELL_PORT:-8000}
 
   albert:
     headers:
-      Authorization: "Bearer ${ALBERT_API_KEY}"
+      Authorization: Bearer ${ALBERT_API_KEY}
 
   brave:
     headers:
@@ -124,6 +124,7 @@ dependencies:
 
 # ---------------------------------- settings -----------------------------------
 settings:
+  session_secret_key: -ftzKBct7qN22sgnkI9ApWD2ny_dHQVlPd2OPDSk5MM
   usage_tokenizer: tiktoken_gpt2
   log_level: DEBUG
   auth_max_token_expiration_days: 365

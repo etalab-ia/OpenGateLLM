@@ -1,36 +1,30 @@
 import logging
 
-from fastapi import APIRouter, Depends, FastAPI, Request, Response, Security
+from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.dependencies.utils import get_dependant
 from prometheus_fastapi_instrumentator import Instrumentator
 import sentry_sdk
+from starlette.middleware.sessions import SessionMiddleware
 
-from app.schemas.auth import PermissionType
+from app.schemas.admin.roles import PermissionType
 from app.schemas.core.context import RequestContext
 from app.schemas.usage import Usage
-from app.utils.context import generate_request_id, request_context
 from app.sql.session import set_get_db_func
+from app.utils.context import generate_request_id, request_context
 from app.utils.hooks_decorator import hooks
 from app.utils.variables import (
-    ROUTER__USAGE,
-    ROUTER__AGENTS,
-    ROUTER__AUDIO,
-    ROUTER__AUTH,
-    ROUTER__CHAT,
-    ROUTER__CHUNKS,
-    ROUTER__COLLECTIONS,
+    ROUTER__ADMIN,
     ROUTER__COMPLETIONS,
-    ROUTER__DOCUMENTS,
-    ROUTER__EMBEDDINGS,
     ROUTER__FILES,
-    ROUTER__MODELS,
     ROUTER__MONITORING,
+    ROUTER__OAUTH2,
     ROUTER__OCR,
     ROUTER__PARSE,
     ROUTER__RERANK,
     ROUTER__SEARCH,
     ROUTER__USERS,
     ROUTER__MODEL_PROVIDING,
+    ROUTERS,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,9 +34,8 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
     """Create FastAPI application."""
     if db_func is not None:
         set_get_db_func(db_func)
-    from app.utils.lifespan import lifespan
-
     from app.utils.configuration import configuration
+    from app.utils.lifespan import lifespan
 
     if configuration.dependencies.sentry:
         logger.info("Initializing Sentry SDK.")
@@ -61,29 +54,35 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
         redoc_url=configuration.settings.swagger_redoc_url,
         lifespan=lifespan,
     )
+    app.add_middleware(SessionMiddleware, secret_key=configuration.settings.session_secret_key)
 
     # Set up database dependency
     # If no db_func provided, the depends module will fall back to default
     from app.endpoints import (
-        agents,
-        audio,
-        chat,
-        chunks,
-        collections,
-        completions,
-        documents,
-        embeddings,
-        files,
-        models,
-        ocr,
-        parse,
-        rerank,
-        roles,
-        search,
-        usage,
-        users,
-        model_provision,
+        audio,  # noqa: F401
+        auth,  # noqa: F401
+        chat,  # noqa: F401
+        chunks,  # noqa: F401
+        collections,  # noqa: F401
+        completions,  # noqa: F401
+        deepsearch,  # noqa: F401
+        documents,  # noqa: F401
+        embeddings,  # noqa: F401
+        files,  # noqa: F401
+        model_provision, # noqa: F401
+        models,  # noqa: F401
+        ocr,  # noqa: F401
+        parse,  # noqa: F401
+        proconnect,
+        rerank,  # noqa: F401
+        search,  # noqa: F401
+        tokens,  # noqa: F401
+        usage,  # noqa: F401
     )
+    from app.endpoints.admin import roles as admin_roles
+    from app.endpoints.admin import tokens as admin_tokens
+    from app.endpoints.admin import users as admin_users
+    from app.endpoints.admin import organizations as admin_organizations
     from app.helpers._accesscontroller import AccessController
 
     def add_hooks(router: APIRouter) -> None:
@@ -107,86 +106,49 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
         return await call_next(request)
 
     # Routers
-    if ROUTER__AGENTS not in configuration.settings.disabled_routers:
-        add_hooks(router=agents.router)
-        app.include_router(router=agents.router, tags=[ROUTER__AGENTS.title()], prefix="/v1")
+    for router in ROUTERS:
+        prefix = "/v1"
 
-    if ROUTER__AUDIO not in configuration.settings.disabled_routers:
-        add_hooks(router=audio.router)
-        app.include_router(router=audio.router, tags=[ROUTER__AUDIO.title()], prefix="/v1")
+        include_in_schema = router not in configuration.settings.hidden_routers
+        if router in configuration.settings.disabled_routers:
+            include_in_schema = False
 
-    if ROUTER__AUTH not in configuration.settings.disabled_routers:
-        add_hooks(router=roles.router)
-        app.include_router(router=roles.router, tags=[ROUTER__AUTH.title()])
+        router_name = router.upper() if router == ROUTER__OCR else router.title()
 
-    if ROUTER__CHAT not in configuration.settings.disabled_routers:
-        add_hooks(router=chat.router)
-        app.include_router(router=chat.router, tags=[ROUTER__CHAT.title()], prefix="/v1")
+        if router == ROUTER__ADMIN:
+            add_hooks(router=admin_organizations.router)
+            app.include_router(router=admin_organizations.router, tags=[router_name], prefix=prefix, include_in_schema=include_in_schema)
 
-    if ROUTER__CHUNKS not in configuration.settings.disabled_routers:
-        add_hooks(router=chunks.router)
-        app.include_router(router=chunks.router, tags=[ROUTER__CHUNKS.title()], prefix="/v1")
+            add_hooks(router=admin_roles.router)
+            app.include_router(router=admin_roles.router, tags=[router_name], prefix=prefix, include_in_schema=include_in_schema)
 
-    if ROUTER__COLLECTIONS not in configuration.settings.disabled_routers:
-        add_hooks(router=collections.router)
-        app.include_router(router=collections.router, tags=[ROUTER__COLLECTIONS.title()], prefix="/v1")
+            add_hooks(router=admin_tokens.router)
+            app.include_router(router=admin_tokens.router, tags=[router_name], prefix=prefix, include_in_schema=include_in_schema)
 
-    if ROUTER__DOCUMENTS not in configuration.settings.disabled_routers:
-        add_hooks(router=documents.router)
-        app.include_router(router=documents.router, tags=[ROUTER__DOCUMENTS.title()], prefix="/v1")
+            add_hooks(router=admin_users.router)
+            app.include_router(router=admin_users.router, tags=[router_name], prefix=prefix, include_in_schema=include_in_schema)
 
-    if ROUTER__EMBEDDINGS not in configuration.settings.disabled_routers:
-        add_hooks(router=embeddings.router)
-        app.include_router(router=embeddings.router, tags=[ROUTER__EMBEDDINGS.title()], prefix="/v1")
+        elif router == ROUTER__MONITORING:
+            if configuration.settings.monitoring_prometheus_enabled:
+                app.instrumentator = Instrumentator().instrument(app=app)
+                app.instrumentator.expose(app=app, should_gzip=True, tags=[router_name], dependencies=[Depends(dependency=AccessController(permissions=[PermissionType.READ_METRIC]))], include_in_schema=include_in_schema)  # fmt: off
 
-    if ROUTER__MODELS not in configuration.settings.disabled_routers:
-        add_hooks(router=models.router)
-        app.include_router(router=models.router, tags=[ROUTER__MODELS.title()], prefix="/v1")
+            @app.get(path="/health", tags=[router_name], include_in_schema=include_in_schema)
+            def health() -> Response:
+                return Response(status_code=200)
 
-    if ROUTER__MONITORING not in configuration.settings.disabled_routers:
-        if configuration.settings.monitoring_prometheus_enabled:
-            app.instrumentator = Instrumentator().instrument(app=app)
-            app.instrumentator.expose(app=app, should_gzip=True, tags=[ROUTER__MONITORING.title()], dependencies=[Depends(dependency=AccessController(permissions=[PermissionType.READ_METRIC]))], include_in_schema=configuration.settings.log_level == "DEBUG")  # fmt: off
+        elif router in [ROUTER__COMPLETIONS, ROUTER__FILES]:  # legacy routers
+            include_in_schema = False
+            router_name = "Legacy"
+            app.include_router(router=locals()[router].router, tags=[router_name], prefix=prefix, include_in_schema=include_in_schema)
 
-        @app.get(path="/health", tags=[ROUTER__MONITORING.title()], include_in_schema=configuration.settings.log_level == "DEBUG", dependencies=[Security(dependency=AccessController())])  # fmt: off
-        def health() -> Response:
-            return Response(status_code=200)
+        elif router == ROUTER__OAUTH2:
+            add_hooks(router=proconnect.router)
+            app.include_router(router=proconnect.router, tags=[router_name], prefix=prefix, include_in_schema=include_in_schema)
 
-    if ROUTER__OCR not in configuration.settings.disabled_routers:
-        add_hooks(router=ocr.router)
-        app.include_router(router=ocr.router, tags=[ROUTER__OCR.upper()], prefix="/v1")
 
-    if ROUTER__PARSE not in configuration.settings.disabled_routers:
-        add_hooks(router=parse.router)
-        app.include_router(router=parse.router, tags=[ROUTER__PARSE.title()], prefix="/v1")
-
-    if ROUTER__RERANK not in configuration.settings.disabled_routers:
-        add_hooks(router=rerank.router)
-        app.include_router(router=rerank.router, tags=[ROUTER__RERANK.title()], prefix="/v1")
-
-    if ROUTER__SEARCH not in configuration.settings.disabled_routers:
-        add_hooks(router=search.router)
-        app.include_router(router=search.router, tags=[ROUTER__SEARCH.title()], prefix="/v1")
-
-    if ROUTER__USAGE not in configuration.settings.disabled_routers:
-        add_hooks(router=usage.router)
-        app.include_router(router=usage.router, tags=[ROUTER__USAGE.title()], prefix="/v1")
-
-    if ROUTER__MODEL_PROVIDING not in configuration.settings.disabled_routers:
-        add_hooks(router=model_provision.router)
-        app.include_router(router=model_provision.router, tags=[ROUTER__MODEL_PROVIDING.title()], prefix="/v1")
-
-    if ROUTER__USERS not in configuration.settings.disabled_routers:
-        add_hooks(router=users.router)
-        app.include_router(router=users.router, tags=[ROUTER__USERS.title()])
-
-    # DEPRECATED LEGACY ENDPOINTS
-    if ROUTER__COMPLETIONS not in configuration.settings.disabled_routers:
-        add_hooks(router=completions.router)
-        app.include_router(router=completions.router, tags=["Legacy"], prefix="/v1")
-
-    if ROUTER__FILES not in configuration.settings.disabled_routers:
-        # hooks does not work with files endpoint (request is overwritten by the file upload)
-        app.include_router(router=files.router, tags=["Legacy"], prefix="/v1")
+        else:
+            add_hooks(router=locals()[router].router)
+            app.include_router(router=locals()[router].router, tags=[router_name], prefix=prefix, include_in_schema=include_in_schema)
 
     return app

@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.helpers._accesscontroller import AccessController
 from app.helpers._usagemanager import UsageManager
-from app.schemas.auth import User
 from app.schemas.accounts import AccountUsageResponse
+from app.schemas.admin.users import User
 from app.sql.session import get_db_session
 from app.utils.variables import ENDPOINT__USAGE
 

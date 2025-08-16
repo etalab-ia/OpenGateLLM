@@ -5,26 +5,18 @@ from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.helpers._accesscontroller import AccessController
-from app.schemas.auth import (
-    PermissionType,
-    User,
-    UserRequest,
-    Users,
-    UsersResponse,
-    UserUpdateRequest,
-)
+from app.schemas.admin.roles import PermissionType
+from app.schemas.admin.users import UserRequest, Users, UsersResponse, UserUpdateRequest
 from app.sql.session import get_db_session
-from app.utils.configuration import configuration
-from app.utils.context import global_context, request_context
-from app.utils.variables import ENDPOINT__USERS, ENDPOINT__USERS_ME
+from app.utils.context import global_context
+from app.utils.variables import ENDPOINT__ADMIN_USERS
 
 router = APIRouter()
 
 
 @router.post(
-    path=ENDPOINT__USERS,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.CREATE_USER]))],
-    include_in_schema=configuration.settings.log_level == "DEBUG",
+    path=ENDPOINT__ADMIN_USERS,
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=201,
     response_model=UsersResponse,
 )
@@ -37,15 +29,21 @@ async def create_user(
     Create a new user.
     """
 
-    user_id = await global_context.identity_access_manager.create_user(session=session, name=body.name, role_id=body.role, budget=body.budget, expires_at=body.expires_at)  # fmt: off
+    user_id = await global_context.identity_access_manager.create_user(
+        session=session,
+        name=body.name,
+        role_id=body.role,
+        organization_id=body.organization,
+        budget=body.budget,
+        expires_at=body.expires_at,
+    )
 
     return JSONResponse(status_code=201, content={"id": user_id})
 
 
 @router.delete(
-    path=ENDPOINT__USERS + "/{user:path}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.DELETE_USER]))],
-    include_in_schema=configuration.settings.log_level == "DEBUG",
+    path=ENDPOINT__ADMIN_USERS + "/{user:path}",
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
 async def delete_user(
@@ -62,9 +60,8 @@ async def delete_user(
 
 
 @router.patch(
-    path=ENDPOINT__USERS + "/{user:path}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.UPDATE_USER]))],
-    include_in_schema=configuration.settings.log_level == "DEBUG",
+    path=ENDPOINT__ADMIN_USERS + "/{user:path}",
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
 async def update_user(
@@ -81,6 +78,7 @@ async def update_user(
         user_id=user,
         name=body.name,
         role_id=body.role,
+        organization_id=body.organization,
         budget=body.budget,
         expires_at=body.expires_at,
     )
@@ -89,26 +87,8 @@ async def update_user(
 
 
 @router.get(
-    path=ENDPOINT__USERS_ME,
-    dependencies=[Security(dependency=AccessController())],
-    include_in_schema=configuration.settings.log_level == "DEBUG",
-    status_code=200,
-    response_model=User,
-)
-async def get_current_user(request: Request, session: AsyncSession = Depends(get_db_session)) -> JSONResponse:
-    """
-    Get the current user.
-    """
-
-    users = await global_context.identity_access_manager.get_users(session=session, user_id=request_context.get().user_id)
-
-    return JSONResponse(content=users[0].model_dump(), status_code=200)
-
-
-@router.get(
-    path=ENDPOINT__USERS + "/{user:path}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.READ_USER]))],
-    include_in_schema=configuration.settings.log_level == "DEBUG",
+    path=ENDPOINT__ADMIN_USERS + "/{user:path}",
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
 )
 async def get_user(
@@ -124,14 +104,14 @@ async def get_user(
 
 
 @router.get(
-    path=ENDPOINT__USERS,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.READ_USER]))],
-    include_in_schema=configuration.settings.log_level == "DEBUG",
+    path=ENDPOINT__ADMIN_USERS,
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
 )
 async def get_users(
     request: Request,
     role: Optional[int] = Query(default=None, description="The ID of the role to filter the users by."),
+    organization: Optional[int] = Query(default=None, description="The ID of the organization to filter the users by."),
     offset: int = Query(default=0, ge=0, description="The offset of the users to get."),
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the users to get."),
     order_by: Literal["id", "name", "created_at", "updated_at"] = Query(default="id", description="The field to order the users by."),
@@ -143,7 +123,13 @@ async def get_users(
     """
 
     data = await global_context.identity_access_manager.get_users(
-        session=session, role_id=role, offset=offset, limit=limit, order_by=order_by, order_direction=order_direction
+        session=session,
+        role_id=role,
+        organization_id=organization,
+        offset=offset,
+        limit=limit,
+        order_by=order_by,
+        order_direction=order_direction,
     )
 
     return JSONResponse(content=Users(data=data).model_dump(), status_code=200)

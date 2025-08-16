@@ -14,10 +14,9 @@ from ui.frontend.utils import (
     input_new_user_budget,
     resources_selector,
 )
-from ui.variables import ADMIN_PERMISSIONS
 
 header()
-if not all(perm in st.session_state["user"].role["permissions"] for perm in ADMIN_PERMISSIONS):
+if "admin" not in st.session_state["user"].role["permissions"]:
     st.info("Access denied.")
     st.stop()
 

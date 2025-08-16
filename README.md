@@ -1,14 +1,12 @@
 <div id="toc">
   <ul align="center" style="list-style: none">
 
-# OpenGateLLM
+<img src="./docs/assets/banner.png" alt="OpenGateLLM" width="100%">
 
 [![Version](https://img.shields.io/github/v/release/etalab-ia/OpenGateLLM?color=orange&label=version)](https://github.com/etalab-ia/OpenGateLLM/releases) 
 [![Code Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/etalab-ia/OpenGateLLM/refs/heads/main/.github/badges/coverage.json)](https://github.com/etalab-ia/OpenGateLLM)
 [![License](https://img.shields.io/github/license/etalab-ia/OpenGateLLM?color=red&label=license)](https://github.com/etalab-ia/OpenGateLLM/blob/main/LICENSE)
 [![French version](https://img.shields.io/badge/🇫🇷-French%20version-blue)](./docs/README_fr.md)
-
-### *✨ Serve all your self-hosted models in one place and manage your users ✨*
 
 [**API Reference**](https://albert.api.etalab.gouv.fr/documentation) | [**Swagger**](https://albert.api.etalab.gouv.fr/swagger)
 
@@ -58,20 +56,27 @@
 
 Explore practical use cases:
 
-* [**Chat Completions**](https://colab.research.google.com/github/etalab-ia/albert-api/blob/main/docs/tutorials/chat_completions.ipynb)
-* [**Multi-Model Access**](https://colab.research.google.com/github/etalab-ia/albert-api/blob/main/docs/tutorials/models.ipynb)
-* [**Retrieval-Augmented Generation (RAG)**](https://colab.research.google.com/github/etalab-ia/albert-api/blob/main/docs/tutorials/retrieval_augmented_generation.ipynb)
-* [**Knowledge Database Import**](https://colab.research.google.com/github/etalab-ia/albert-api/blob/main/docs/tutorials/import_knowledge_database.ipynb)
-* [**Audio Transcriptions**](https://colab.research.google.com/github/etalab-ia/albert-api/blob/main/docs/tutorials/audio_transcriptions.ipynb)
-* [**PDF OCR**](https://colab.research.google.com/github/etalab-ia/albert-api/blob/main/docs/tutorials/pdf_ocr.ipynb)
+* [**Chat Completions**](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/chat_completions.ipynb)
+* [**Multi-Model Access**](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/models.ipynb)
+* [**Retrieval-Augmented Generation (RAG)**](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/retrieval_augmented_generation.ipynb)
+* [**Knowledge Database Import**](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/import_knowledge_database.ipynb)
+* [**Audio Transcriptions**](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/audio_transcriptions.ipynb)
+* [**PDF OCR**](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/pdf_ocr.ipynb)
 
 ## 🚀 Quickstart
 
-Deploy OpenGateLLM quickly with Docker connected to own free model and start using it:
+Deploy OpenGateLLM quickly with Docker connected to our own free model and start using it:
 
 ```bash
 make quickstart
 ```
+
+> [!NOTE]
+> It will copy the `config.example.yml` and `.env.example` files into `config.yml` and `.env` files if they don't already exist.
+
+> [!TIP]
+> Use `make help` to see all available commands.
+
 Test the API:
 
 ```bash 
@@ -101,8 +106,8 @@ With configuration file, you can connect to your own models and add addtionnal s
 Start by creating a configuration file and a .env dedicated:
 
 ```bash
-cp config.example.yml config.yml && export CONFIG_FILE=./config.yml
-cp .env.example .env && export APP_ENV_FILE=.env
+cp config.example.yml config.yml
+cp .env.example .env
 ```
 
 Check the [configuration documentation](./docs/configuration.md) to configure your configuration file.
@@ -119,6 +124,9 @@ For instance:
 docker compose --env-file .env up api playground postgres redis elasticsearch secretiveshell --detach 
 ```
 
+### Alternative: use kubernetes
+
+You can check our helmchart and instructions here: [https://github.com/etalab-ia/albert-api-helm](https://github.com/etalab-ia/opengatellm-helm)
 
 ## 🤝 Contribute
 

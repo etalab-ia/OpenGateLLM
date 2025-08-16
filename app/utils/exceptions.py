@@ -111,6 +111,11 @@ class UserNotFoundException(HTTPException):
         super().__init__(status_code=404, detail=detail)
 
 
+class OrganizationNotFoundException(HTTPException):
+    def __init__(self, detail: str = "Organization not found.") -> None:
+        super().__init__(status_code=404, detail=detail)
+
+
 # 413
 class FileSizeLimitExceededException(HTTPException):
     MAX_CONTENT_SIZE = 20 * 1024 * 1024  # 20MB

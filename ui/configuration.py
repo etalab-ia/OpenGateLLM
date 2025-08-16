@@ -21,15 +21,18 @@ class MenuItems(ConfigBaseModel):
 
 class Playground(ConfigBaseModel):
     auth_master_username: str = "master"
+    auth_master_key: str = "changeme"
     auth_max_token_expiration_days: Optional[int] = Field(default=None, ge=0)
-    api_url: str = "http://localhost:8000"
+    auth_encryption_key: Optional[str] = Field(default="changeme", description="Secret key for encrypting between FastAPI and Playground. Must be 32 url-safe base64-encoded bytes.")  # fmt: off
+    api_url: str = "http://localhost:8080"
     home_url: str = "http://localhost:8501"
-    page_icon: str = "https://github.com/etalab-ia/albert-api/blob/main/docs/assets/logo.png?raw=true"
+    page_icon: str = "https://github.com/etalab-ia/opengatellm/blob/main/docs/assets/logo.png?raw=true"
     menu_items: MenuItems = MenuItems()
-    logo: str = "https://github.com/etalab-ia/albert-api/blob/main/docs/assets/logo.png?raw=true"
+    logo: str = "https://github.com/etalab-ia/opengatellm/blob/main/docs/assets/logo.png?raw=true"
     cache_ttl: int = 1800  # 30 minutes
     postgres: dict = {}
-    default_model: Optional[str] = "albert-small"
+    default_model: Optional[str] = None
+    proconnect_enabled: bool = False
 
     @field_validator("postgres", mode="after")
     def validate_postgres(cls, postgres):
