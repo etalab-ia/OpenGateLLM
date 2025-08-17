@@ -1,5 +1,5 @@
 # Default variables
-CONFIG_FILE=config.yml
+export CONFIG_FILE ?= ./config.yml
 
 # Default options
 service ?= both

@@ -51,10 +51,7 @@ ROUTER__PARSE = "parse"
 ROUTER__RERANK = "rerank"
 ROUTER__SEARCH = "search"
 ROUTER__USAGE = "usage"
-ROUTER__USERS = "users"
-ROUTER__MULTIAGENTS = "multiagents"
-ROUTER__MODEL_PROVIDING = "model_providing"
-ROUTER__TOKENS = "tokens"
+ROUTER__MODEL_PROVISION = "model_provision"
 
 
 ROUTERS = [value for name, value in locals().items() if name.startswith("ROUTER__")]

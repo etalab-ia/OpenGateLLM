@@ -31,7 +31,6 @@ from app.utils.variables import (
     ENDPOINT__RERANK,
     ENDPOINT__SEARCH,
     ENDPOINT__TOKENS,
-    ENDPOINT__USERS_ME,
     ENDPOINT__MODEL_ADD,
     ENDPOINT__MODEL_DELETE,
     ENDPOINT__ALIAS_ADD,
@@ -128,7 +127,7 @@ class AccessController:
 
         return user
 
-    async def __get_user_limits(self, role: Role) -> Dict[str, UserModelLimits]:
+    async def __get_user_limits(self, role: Role) -> Dict[str, _UserModelLimits]:
         limits = {}
         models = await global_context.model_registry.get_models()
         for model in models:
@@ -342,7 +341,7 @@ class AccessController:
 
         await self._check_budget(user=user, model=global_context.document_manager.vector_store_model.name)
 
-    async def _check_provider(self, user: User, role: Role, limit: Dict[str, UserModelLimits], request: Request) -> None:
+    async def _check_provider(self, user: User, role: Role, limit: Dict[str, _UserModelLimits], request: Request) -> None:
         body = await self._safely_parse_body(request)
 
         if body.get("user") and PermissionType.PROVIDE_MODELS not in role.permissions:

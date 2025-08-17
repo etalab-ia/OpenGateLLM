@@ -19,11 +19,6 @@ from app.utils.variables import (
     ROUTER__MONITORING,
     ROUTER__OAUTH2,
     ROUTER__OCR,
-    ROUTER__PARSE,
-    ROUTER__RERANK,
-    ROUTER__SEARCH,
-    ROUTER__USERS,
-    ROUTER__MODEL_PROVIDING,
     ROUTERS,
 )
 
@@ -59,6 +54,7 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
     # Set up database dependency
     # If no db_func provided, the depends module will fall back to default
     from app.endpoints import (
+        agents, # noqa: F401
         audio,  # noqa: F401
         auth,  # noqa: F401
         chat,  # noqa: F401
