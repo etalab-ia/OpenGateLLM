@@ -30,7 +30,6 @@ from app.utils.variables import (
     ENDPOINT__OCR,
     ENDPOINT__RERANK,
     ENDPOINT__SEARCH,
-    ENDPOINT__TOKENS,
     ENDPOINT__MODEL_ADD,
     ENDPOINT__MODEL_DELETE,
     ENDPOINT__ALIAS_ADD,
@@ -112,9 +111,6 @@ class AccessController:
         if request.url.path.endswith(ENDPOINT__SEARCH) and request.method == "POST":
             await self._check_search_post(user=user, role=role, limits=limits, request=request)
 
-        if request.url.path.endswith(ENDPOINT__TOKENS) and request.method == "POST":
-            await self._check_tokens_post(user=user, role=role, limits=limits, request=request)
-
         if request.url.path.endswith(ENDPOINT__ROUTERS) and request.method == "GET" or (
             (
                 request.url.path.endswith(ENDPOINT__MODEL_ADD) or
@@ -123,7 +119,7 @@ class AccessController:
                 request.url.path.endswith(ENDPOINT__ALIAS_DELETE)
             ) and request.method == "POST"
         ):
-            await self._check_provider(user=user, role=role, limits=limits, request=request)
+            await self._check_provider(user=user, role=role, limit=limits, request=request)
 
         return user
 
