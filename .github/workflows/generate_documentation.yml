@@ -22,6 +22,7 @@ jobs:
       env:
         BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
         ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}
+        CS_API_KEY: ${{ secrets.CS_API_KEY }}
 
     - name: Generate configuration documentation
       run: |
