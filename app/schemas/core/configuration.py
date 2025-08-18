@@ -242,6 +242,8 @@ class BraveDependency(ConfigBaseModel):
     headers: Dict[str, str] = Field(default_factory=dict, required = True, description="Brave API request headers.", examples=[{"X-Subscription-Token": "my-api-key"}])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Brave API requests.", examples=[10])  # fmt: off
 
+class CentraleSupelecDependency(ConfigBaseModel):
+    token: str = Field(description="Centrale Supélec token for testing dynamic models")
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#duckduckgodependency")
 class DuckDuckGoDependency(ConfigBaseModel):
@@ -327,6 +329,7 @@ class ProConnect(ConfigBaseModel):
 class Dependencies(ConfigBaseModel):
     albert: Optional[AlbertDependency] = Field(default=None, description="If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section.")  # fmt: off
     brave: Optional[BraveDependency] = Field(default=None, description="If provided, Brave API is used to web search. Cannot be used with DuckDuckGo dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://api-dashboard.search.brave.com/app/documentation/web-search/query for more information.")  # fmt: off
+    centralesupelec: Optional[CentraleSupelecDependency] = Field(default=None, description="Needed to pass tests where models are added")
     duckduckgo: Optional[DuckDuckGoDependency] = Field(default=None, description="If provided, DuckDuckGo API is used to web search. Cannot be used with Brave dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://www.searchapi.io/docs/duckduckgo-api for more information.")  # fmt: off
     elasticsearch: Optional[ElasticsearchDependency] = Field(default=None, description="Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information.")  # fmt: off
     qdrant: Optional[QdrantDependency] = Field(default=None, description="Pass all qdrant python SDK arguments, see https://python-client.qdrant.tech/qdrant_client.qdrant_client for more information.")  # fmt: off

@@ -122,6 +122,9 @@ dependencies:
     country: "fr"
     safesearch: "strict"
 
+  centralesupelec:
+    token: ${CS_API_KEY}
+
 # ---------------------------------- settings -----------------------------------
 settings:
   session_secret_key: -ftzKBct7qN22sgnkI9ApWD2ny_dHQVlPd2OPDSk5MM
