@@ -15,7 +15,7 @@ from app.schemas.admin.users import User
 from app.sql.session import get_db_session
 from app.utils.configuration import configuration
 from app.utils.context import global_context, request_context
-from app.utils.variables import ROUTER__OAUTH2
+from app.utils.variables import ROUTER__AUTH
 
 from .encryption import decrypt_playground_data, encrypt_redirect_data
 from .token import perform_proconnect_logout
@@ -77,7 +77,7 @@ def generate_redirect_url(request, app_token, token_id, proconnect_token, origin
     return redirect_url
 
 
-@router.get(f"/{ROUTER__OAUTH2}/login")
+@router.get(f"/{ROUTER__AUTH}/login")
 async def oauth2_login(request: Request, oauth2_client=Depends(get_oauth2_client)):
     """
     Initiate the OAuth2 login flow with ProConnect with time-stamped state to invalidate old requests
@@ -100,7 +100,7 @@ async def oauth2_login(request: Request, oauth2_client=Depends(get_oauth2_client
         raise HTTPException(status_code=400, detail=f"OAuth2 login failed: {str(e)}")
 
 
-@router.get(f"/{ROUTER__OAUTH2}/playground-login")
+@router.get(f"/{ROUTER__AUTH}/playground-login")
 async def playground_login(request: Request, session: AsyncSession = Depends(get_db_session)):
     """
     Receive encrypted token from playground encoded with shared key. The token contains
@@ -144,7 +144,7 @@ async def playground_login(request: Request, session: AsyncSession = Depends(get
         raise HTTPException(status_code=500, detail=f"Playground login failed: {str(e)}")
 
 
-@router.get(f"/{ROUTER__OAUTH2}/callback")
+@router.get(f"/{ROUTER__AUTH}/callback")
 async def oauth2_callback(request: Request, session: AsyncSession = Depends(get_db_session), oauth2_client=Depends(get_oauth2_client)):
     """
     Handle OAuth2 callback from ProConnect
@@ -211,7 +211,7 @@ async def oauth2_callback(request: Request, session: AsyncSession = Depends(get_
         raise HTTPException(status_code=400, detail=f"OAuth2 callback failed: {str(e)}")
 
 
-@router.post(f"/{ROUTER__OAUTH2}/logout", dependencies=[Security(dependency=AccessController())], status_code=200)
+@router.post(f"/{ROUTER__AUTH}/logout", dependencies=[Security(dependency=AccessController())], status_code=200)
 async def logout(
     request: Request,
     logout_request: OAuth2LogoutRequest,

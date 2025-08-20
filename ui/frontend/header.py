@@ -24,11 +24,11 @@ def header():
                 if configuration.playground.proconnect_enabled:
                     with stylable_container(key="ProConnect", css_styles=css_proconnect):
                         if not configuration.playground.home_url.startswith("https"):  # if no https you must be working locally
-                            proconnect_login_url = f"{configuration.playground.api_url}/v1/oauth2/login"
+                            proconnect_login_url = f"{configuration.playground.api_url}/v1/auth/login"
                         else:  # else we are working in production and must use the proper API URL from the home_url
                             parsed_home_url = urlparse(configuration.playground.home_url)
                             api_base_url = f"{parsed_home_url.scheme}://{parsed_home_url.netloc}"
-                            proconnect_login_url = f"{api_base_url}/v1/oauth2/login"
+                            proconnect_login_url = f"{api_base_url}/v1/auth/login"
                         st.markdown(
                             html_proconnect.format(
                                 proconnect_login_url=proconnect_login_url,

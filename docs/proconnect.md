@@ -18,7 +18,7 @@ sequenceDiagram
     
     User->>StreamLit: Clicks on "ProConnect" button
     Note over StreamLit: HTML form redirects browser
-    StreamLit->>FastAPI: GET /v1/oauth2/login<br>(with referer header from Streamlit)
+  StreamLit->>FastAPI: GET /v1/auth/login<br>(with referer header from Streamlit)
     
     Note over FastAPI: SessionMiddleware handles cookies<br>for OAuth state management
     FastAPI->>FastAPI: Creates state with original_url + timestamp<br>(for security and expiration)
@@ -29,7 +29,7 @@ sequenceDiagram
     ProConnect->>User: Consent request
     User->>ProConnect: Gives consent
    
-    ProConnect->>FastAPI: Redirect to callback URL<br>GET /v1/oauth2/callback?code=...&state=...
+  ProConnect->>FastAPI: Redirect to callback URL<br>GET /v1/auth/callback?code=...&state=...
     
     FastAPI->>FastAPI: Validates state parameter<br>(timestamp + original_url)
     FastAPI->>ProConnect: Exchange code for tokens<br>(authorize_access_token)
@@ -85,7 +85,7 @@ sequenceDiagram
   - [`app/endpoints/proconnect/encryption.py`](../app/endpoints/proconnect/encryption.py) - Token encryption/decryption
   - [`ui/backend/login.py#L80-L102`](../ui/backend/login.py#L80-L102) - Frontend token decryption
   
-* **Logout Implementation**: ✅ Implemented with `/v1/oauth2/logout` endpoint that handles both local token invalidation and ProConnect logout.
+* **Logout Implementation**: ✅ Implemented with `/v1/auth/logout` endpoint that handles both local token invalidation and ProConnect logout.
   - [`app/endpoints/proconnect/__init__.py#L207-L268`](../app/endpoints/proconnect/__init__.py#L207-L268) - Logout endpoint
   - [`app/endpoints/proconnect/token.py#L89-L130`](../app/endpoints/proconnect/token.py#L89-L130) - ProConnect logout handling
   - [`ui/backend/login.py#L252-L276`](../ui/backend/login.py#L252-L276) - Frontend logout call
@@ -124,7 +124,7 @@ dependencies:
     client_id: "your_proconnect_client_id"
     client_secret: "your_proconnect_client_secret"
     server_metadata_url: "https://identite-sandbox.proconnect.gouv.fr/.well-known/openid-configuration"
-    redirect_uri: "https://your-domain.gouv.fr/v1/oauth2/callback"
+  redirect_uri: "https://your-domain.gouv.fr/v1/auth/callback"
     scope: "openid profile email"
     allowed_domains: "localhost,gouv.fr"  # Comma-separated list
     default_role: "Freemium"  # Role assigned to new ProConnect users
@@ -148,7 +148,7 @@ playground:
 
 ## API Endpoints
 
-### `/v1/oauth2/login` (GET)
+### `/v1/auth/login` (GET)
 
 Initiates the OAuth2 login flow with ProConnect.
 [📁 `app/endpoints/proconnect/__init__.py#L78-L96`](../app/endpoints/proconnect/__init__.py#L78-L96)
@@ -160,11 +160,11 @@ Initiates the OAuth2 login flow with ProConnect.
 
 **Example:**
 ```bash
-curl -X GET "https://api.albert.gouv.fr/v1/oauth2/login" \
+curl -X GET "https://api.albert.gouv.fr/v1/auth/login" \
   -H "Referer: https://playground.albert.gouv.fr"
 ```
 
-### `/v1/oauth2/callback` (GET)
+### `/v1/auth/callback` (GET)
 
 Handles OAuth2 callback from ProConnect.
 [📁 `app/endpoints/proconnect/__init__.py#L149-L200`](../app/endpoints/proconnect/__init__.py#L149-L200)
@@ -183,7 +183,7 @@ Handles OAuth2 callback from ProConnect.
 5. Generates Albert API token
 6. Encrypts tokens and redirects to origin
 
-### `/v1/oauth2/logout` (POST)
+### `/v1/auth/logout` (POST)
 
 Logs out user from both Albert API and ProConnect.
 [📁 `app/endpoints/proconnect/__init__.py#L207-L268`](../app/endpoints/proconnect/__init__.py#L207-L268)
@@ -207,13 +207,13 @@ Logs out user from both Albert API and ProConnect.
 
 **Example:**
 ```bash
-curl -X POST "https://api.albert.gouv.fr/v1/oauth2/logout" \
+curl -X POST "https://api.albert.gouv.fr/v1/auth/logout" \
   -H "Authorization: Bearer your_api_token" \
   -H "Content-Type: application/json" \
   -d '{"proconnect_token": "your_proconnect_id_token"}'
 ```
 
-### `/v1/oauth2/playground-login` (GET)
+### `/v1/auth/playground-login` (GET)
 
 Internal endpoint for Streamlit UI to refresh API tokens.
 [📁 `app/endpoints/proconnect/__init__.py#L99-L142`](../app/endpoints/proconnect/__init__.py#L99-L142)

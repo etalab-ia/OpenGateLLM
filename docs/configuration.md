@@ -131,7 +131,7 @@ See https://github.com/SecretiveShell/MCP-Bridge for more information.
 | client_id | string | Client ID for the ProConnect application. |  |  |  |  |
 | client_secret | string | Client secret for the ProConnect application. |  |  |  |  |
 | default_role | string | Default role assigned to users when they log in for the first time. |  | Freemium |  |  |
-| redirect_uri | string | Redirect URI for the ProConnect application. |  | https://albert.api.etalab.gouv.fr/v1/oauth2/callback |  |  |
+| redirect_uri | string | Redirect URI for the ProConnect application. |  | https://albert.api.etalab.gouv.fr/v1/auth/callback |  |  |
 | scope | string | Scope for the ProConnect application. |  | openid email given_name usual_name siret organizational_unit belonging_population chorusdt |  |  |
 | server_metadata_url | string | OpenID Connect discovery endpoint for server metadata. |  | https://identite-sandbox.proconnect.gouv.fr/.well-known/openid-configuration |  |  |
 

@@ -12,7 +12,16 @@ from pydantic_settings import BaseSettings
 import yaml
 
 from app.schemas.models import ModelType
-from app.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, ROUTER__ADMIN, ROUTER__AUTH, ROUTERS
+from app.utils.variables import (
+    DEFAULT_APP_NAME,
+    DEFAULT_TIMEOUT,
+    ROUTER__ADMIN_ORGANIZATIONS,
+    ROUTER__ADMIN_ROLES,
+    ROUTER__ADMIN_TOKENS,
+    ROUTER__ADMIN_USERS,
+    ROUTER__AUTH,
+    ROUTERS,
+)
 
 # utils ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -443,7 +452,10 @@ class Settings(ConfigBaseModel):
         if len(values.auth_master_key) < 32:
             logging.warning("Auth master key is too short for production, it should be at least 32 characters.")  # fmt: off
 
-        if ROUTER__ADMIN not in values.hidden_routers:
+        if any(
+            router in values.hidden_routers
+            for router in [ROUTER__ADMIN_ORGANIZATIONS, ROUTER__ADMIN_ROLES, ROUTER__ADMIN_TOKENS, ROUTER__ADMIN_USERS]
+        ):
             logging.warning("Admin router should be hidden in production.")  # fmt: off
 
         if ROUTER__AUTH not in values.hidden_routers:

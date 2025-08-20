@@ -157,11 +157,11 @@ def login(user_name: str, user_password: str, session: Session, proconnect_token
         encrypted_token = encrypt_playground_data(db_user.api_user_id)
 
         # Call the playground_login endpoint
-        playground_login_url = f"{configuration.playground.api_url}/v1/oauth2/playground-login"
+        playground_login_url = f"{configuration.playground.api_url}/v1/auth/playground-login"
         response = requests.get(url=playground_login_url, params={"encrypted_token": encrypted_token}, timeout=10)
 
         if response.status_code != 200:
-            st.error(f"Failed to get API key: {response.json().get("detail", "Unknown error")}")
+            st.error(f"Failed to get API key: {response.json().get('detail', 'Unknown error')}")
             st.stop()
 
         login_data = response.json()
@@ -242,7 +242,7 @@ def call_oauth2_logout(api_key: str, proconnect_token: str = None):
         api_token: The API token for authentication
         proconnect_token: Optional ProConnect token for ProConnect logout
     """
-    logout_url = f"{configuration.playground.api_url}/v1/oauth2/logout"
+    logout_url = f"{configuration.playground.api_url}/v1/auth/logout"
 
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 

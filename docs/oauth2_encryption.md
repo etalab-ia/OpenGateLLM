@@ -19,7 +19,7 @@ oauth2:
   client_id: your_proconnect_client_id
   client_secret: your_proconnect_client_secret
   server_metadata_url: https://identite-sandbox.proconnect.gouv.fr/.well-known/openid-configuration
-  redirect_uri: https://your-domain.gouv.fr/v1/oauth2/callback
+  redirect_uri: https://your-domain.gouv.fr/v1/auth/callback
   scope: "openid profile email"
   allowed_domains:
     - localhost  # For development
@@ -59,7 +59,7 @@ playground:
 
 When a user clicks the "Logout" button in the Streamlit interface:
 
-1. **ProConnect Logout**: The UI automatically calls `/v1/oauth2/logout` with the stored ProConnect token
+1. **ProConnect Logout**: The UI automatically calls `/v1/auth/logout` with the stored ProConnect token
 2. **Progress Indicator**: A spinner shows "Déconnexion en cours..." during the process
 3. **Local Cleanup**: Regardless of ProConnect logout success, local session data is cleared
 4. **User Feedback**: Success/warning messages inform the user of the logout status
@@ -78,12 +78,12 @@ proconnect_token = st.session_state.get("proconnect_token")
 
 ## Logout Endpoint
 
-A logout endpoint is available at `/v1/oauth2/logout` that requires authentication and performs both local and ProConnect logout.
+A logout endpoint is available at `/v1/auth/logout` that requires authentication and performs both local and ProConnect logout.
 
 ### Usage
 
 ```bash
-curl -X POST "https://your-domain.gouv.fr/v1/oauth2/logout" \
+curl -X POST "https://your-domain.gouv.fr/v1/auth/logout" \
   -H "Authorization: Bearer your_api_token" \
   -H "Content-Type: application/json" \
   -d '{"proconnect_token": "your_proconnect_id_token"}'
