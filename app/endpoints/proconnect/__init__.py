@@ -77,7 +77,7 @@ def generate_redirect_url(request, app_token, token_id, proconnect_token, origin
     return redirect_url
 
 
-@router.get(f"/{ROUTER__AUTH}/login")
+@router.get(f"/{ROUTER__AUTH}/proconnect")
 async def oauth2_login(request: Request, oauth2_client=Depends(get_oauth2_client)):
     """
     Initiate the OAuth2 login flow with ProConnect with time-stamped state to invalidate old requests
