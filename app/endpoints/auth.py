@@ -6,8 +6,7 @@ from app.helpers._accesscontroller import AccessController
 from app.schemas.auth import AuthMeResponse
 from app.sql.session import get_db_session
 from app.utils.context import global_context, request_context
-from app.utils.variables import ENDPOINT__AUTH_ME
-from app.helpers.auth_encryption import decrypt_playground_data
+from app.utils.variables import ENDPOINT__AUTH_ME, ROUTER__AUTH
 
 router = APIRouter()
 
@@ -24,44 +23,30 @@ async def get_current_role(request: Request, session: AsyncSession = Depends(get
     return JSONResponse(content={"user": users[0].model_dump(), "role": roles[0].model_dump()}, status_code=200)
 
 
-@router.post(path="/auth/playground-login")
-async def playground_login(request: Request, session: AsyncSession = Depends(get_db_session)):
+@router.post(path=f"/{ROUTER__AUTH}/login")
+async def login(request: Request, session: AsyncSession = Depends(get_db_session)):
     """
     Receive encrypted token from playground encoded with shared key via POST body.
     The token contains user id. Refresh and return playground api key associated with the user.
     """
     try:
-        # Get encrypted token from JSON body
-        try:
-            body = await request.json()
-        except Exception:
-            body = None
-        encrypted_token = (body or {}).get("encrypted_token")
-        if not encrypted_token:
-            raise HTTPException(status_code=400, detail="Missing encrypted_token in request body")
+        body = await request.json()
+        user_password = (body or {}).get("password")
+        user_email = (body or {}).get("email")
 
-        # Decrypt the token to get user data
-        try:
-            decrypted_data = decrypt_playground_data(encrypted_token, ttl=600)  # 10 minutes TTL
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid or expired token")
+        if not user_email:
+            raise HTTPException(status_code=400, detail="Missing user_name in request body")
 
-        # Extract user ID from decrypted data
-        user_id = decrypted_data.get("user_id")
-        if not user_id:
-            raise HTTPException(status_code=400, detail="Missing user_id in token")
-
-        # Get user from database
+        # Verify credentials via identity access manager (playground user.name == fastAPI user.email)
         iam = global_context.identity_access_manager
-        user = await iam.get_user(session=session, user_id=user_id)
+        user = await iam.verify_user_credentials(session=session, email=user_email, password=user_password)
         if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=401, detail="Invalid email or password")
 
         # Refresh the playground token for this user
         token_id, app_token = await iam.refresh_token(session=session, user_id=user.id, name="playground")
 
         return {"status": "success", "api_key": app_token, "token_id": token_id, "user_id": user.id}
-
     except HTTPException:
         raise  # Re-raise HTTPException as-is
     except Exception as e:
