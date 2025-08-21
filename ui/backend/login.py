@@ -158,7 +158,8 @@ def login(user_name: str, user_password: str, session: Session, proconnect_token
 
         # Call the playground_login endpoint
         playground_login_url = f"{configuration.playground.api_url}/v1/auth/playground-login"
-        response = requests.get(url=playground_login_url, params={"encrypted_token": encrypted_token}, timeout=10)
+        st.warning(playground_login_url)
+        response = requests.post(url=playground_login_url, json={"encrypted_token": encrypted_token}, timeout=10)
 
         if response.status_code != 200:
             st.error(f"Failed to get API key: {response.json().get('detail', 'Unknown error')}")

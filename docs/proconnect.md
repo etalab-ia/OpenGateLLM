@@ -213,13 +213,17 @@ curl -X POST "https://api.albert.gouv.fr/v1/auth/logout" \
   -d '{"proconnect_token": "your_proconnect_id_token"}'
 ```
 
-### `/v1/auth/playground-login` (GET)
+### `/v1/auth/playground-login` (POST)
 
 Internal endpoint for Streamlit UI to refresh API tokens.
 [📁 `app/endpoints/proconnect/__init__.py#L99-L142`](../app/endpoints/proconnect/__init__.py#L99-L142)
 
-**Parameters:**
-- `encrypted_token` (query): Encrypted user ID token
+**Request Body:**
+```json
+{
+  "encrypted_token": "<encrypted_user_token>"
+}
+```
 
 **Response:**
 ```json

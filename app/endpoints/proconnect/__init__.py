@@ -100,17 +100,21 @@ async def oauth2_login(request: Request, oauth2_client=Depends(get_oauth2_client
         raise HTTPException(status_code=400, detail=f"OAuth2 login failed: {str(e)}")
 
 
-@router.get(f"/{ROUTER__AUTH}/playground-login")
+@router.post(f"/{ROUTER__AUTH}/playground-login")
 async def playground_login(request: Request, session: AsyncSession = Depends(get_db_session)):
     """
-    Receive encrypted token from playground encoded with shared key. The token contains
-    user id. Refresh and return playground api key associated with the user.
+    Receive encrypted token from playground encoded with shared key via POST body.
+    The token contains user id. Refresh and return playground api key associated with the user.
     """
     try:
-        # Get encrypted token from query parameters
-        encrypted_token = request.query_params.get("encrypted_token")
+        # Get encrypted token from JSON body
+        try:
+            body = await request.json()
+        except Exception:
+            body = None
+        encrypted_token = (body or {}).get("encrypted_token")
         if not encrypted_token:
-            raise HTTPException(status_code=400, detail="Missing encrypted_token parameter")
+            raise HTTPException(status_code=400, detail="Missing encrypted_token in request body")
 
         # Decrypt the token to get user data
         try:
