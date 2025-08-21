@@ -7,6 +7,7 @@ from sqlalchemy import Integer, cast, delete, distinct, insert, or_, select, tex
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
+import bcrypt
 
 from app.schemas.admin.organizations import Organization
 from app.schemas.admin.roles import Limit, PermissionType, Role
@@ -637,3 +638,29 @@ class IdentityAccessManager:
         query = select(UserTable).where(or_(*conditions))
         result = await session.execute(query)
         return result.scalar_one_or_none()
+
+    async def verify_user_credentials(self, session: AsyncSession, email: str, password: str):
+        """
+        Verify playground credentials by matching playground_name (which maps to FastAPI user.email)
+        and password against the FastAPI DB. Returns the UserTable ORM instance on success, None otherwise.
+        """
+        if not email or not password:
+            return None
+
+        # Look up user by email
+        result = await session.execute(select(UserTable).where(UserTable.email == email))
+        user = result.scalar_one_or_none()
+        if not user:
+            return None
+
+        stored_hashed = getattr(user, "password", None)
+        if not stored_hashed:
+            return None
+
+        try:
+            if bcrypt.checkpw(password.encode("utf-8"), stored_hashed.encode("utf-8")):
+                return user
+        except Exception:
+            return None
+
+        return None
