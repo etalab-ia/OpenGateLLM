@@ -81,6 +81,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String, index=True, unique=True, nullable=False)
+    password = Column(String, nullable=True)
     role_id = Column(Integer, ForeignKey(column="role.id"), nullable=False)
     organization_id = Column(Integer, ForeignKey(column="organization.id"), nullable=True)
     budget = Column(Float, nullable=True)
