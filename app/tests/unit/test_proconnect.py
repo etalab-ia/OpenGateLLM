@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.endpoints.proconnect import generate_redirect_url, logout, oauth2_callback, oauth2_login
-from app.endpoints.proconnect.encryption import encrypt_redirect_data, get_fernet
+from app.helpers.auth_encryption import encrypt_redirect_data, get_fernet
 from app.endpoints.proconnect.token import get_jwks_keys, perform_proconnect_logout, verify_jwt_signature
 from app.endpoints.proconnect.user import create_user, retrieve_user_info
 from app.schemas.admin.tokens import OAuth2LogoutRequest
@@ -84,7 +84,7 @@ class TestProConnect:
         user.sub = "test_sub_id"
         return user
 
-    @patch("app.endpoints.proconnect.encryption.configuration")
+    @patch("app.helpers.auth_encryption.configuration")
     def test_get_fernet_with_custom_key(self, mock_config):
         """Test Fernet initialization with custom key"""
         # Generate a proper 32-byte key
@@ -92,7 +92,7 @@ class TestProConnect:
         fernet = get_fernet(key="test_key_for_encryption_purposes_32")
         assert fernet is not None
 
-    @patch("app.endpoints.proconnect.encryption.get_fernet")
+    @patch("app.helpers.auth_encryption.get_fernet")
     def test_encrypt_redirect_data_success(self, mock_get_fernet):
         """Test successful encryption of redirect data"""
         # Mock Fernet instance
@@ -106,7 +106,7 @@ class TestProConnect:
         assert isinstance(result, str)
         mock_fernet.encrypt.assert_called_once()
 
-    @patch("app.endpoints.proconnect.encryption.get_fernet")
+    @patch("app.helpers.auth_encryption.get_fernet")
     def test_encrypt_redirect_data_failure(self, mock_get_fernet):
         """Test encryption failure"""
         mock_get_fernet.side_effect = Exception("Encryption error")
