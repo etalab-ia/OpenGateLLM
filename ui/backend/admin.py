@@ -2,13 +2,9 @@ import time
 from typing import Optional
 
 import requests
-from sqlalchemy import delete, insert, select, update
 import streamlit as st
 
 from ui.backend.common import check_password
-from ui.backend.login import get_hashed_password
-from ui.backend.sql.models import User as UserTable
-from ui.backend.sql.session import get_session
 from ui.configuration import configuration
 
 
@@ -103,17 +99,7 @@ def create_user(name: str, password: str, role: int, expires_at: Optional[int] =
     api_key = response.json()["token"]
     api_key_id = response.json()["id"]
 
-    session = next(get_session())
-    session.execute(
-        insert(UserTable).values(
-            name=name,
-            password=get_hashed_password(password=password),
-            api_user_id=user_id,
-            api_role_id=role,
-            api_key_id=api_key_id,
-        )
-    )
-    session.commit()
+    # Server persists users and tokens. No local DB storage is required anymore.
 
     st.toast("User created", icon="✅")
     time.sleep(1)
@@ -129,9 +115,7 @@ def delete_user(user: int):
         st.toast(response.json()["detail"], icon="❌")
         return
 
-    session = next(get_session())
-    session.execute(delete(UserTable).where(UserTable.api_user_id == user))
-    session.commit()
+    # Server deleted the user; no local DB cleanup required.
     st.toast("User deleted", icon="✅")
     time.sleep(0.5)
     st.rerun()
@@ -160,15 +144,7 @@ def update_user(
         st.toast(response.json()["detail"], icon="❌")
         return
 
-    session = next(get_session())
-    db_user = session.execute(select(UserTable).where(UserTable.api_user_id == user)).scalar_one()
-
-    name = name or db_user.name
-    password = get_hashed_password(password) if password else db_user.password
-    role = role or db_user.api_role_id
-
-    session.execute(update(UserTable).values(name=name, password=password, api_role_id=role).where(UserTable.api_user_id == user))
-    session.commit()
+    # Server updated the user. No local DB update required.
 
     st.toast("User updated", icon="✅")
     time.sleep(0.5)
@@ -190,15 +166,7 @@ def refresh_playground_api_key(user: int):
     api_key = response.json()["token"]
     api_key_id = response.json()["id"]
 
-    session = next(get_session())
-    session.execute(
-        update(UserTable)
-        .values(
-            api_key_id=api_key_id,
-        )
-        .where(UserTable.api_user_id == user)
-    )
-    session.commit()
+    # Server stores tokens; nothing to update locally.
 
     st.toast("Playground API key refreshed", icon="✅")
     time.sleep(0.5)

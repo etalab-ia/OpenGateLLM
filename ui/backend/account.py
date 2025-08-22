@@ -1,46 +1,47 @@
 import time
 
 import requests
-from sqlalchemy import select, update
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
 
 from ui.backend.common import check_password
-from ui.backend.login import get_hashed_password
-from ui.backend.sql.models import User as UserTable
-from ui.backend.sql.session import get_session
+
+# ...existing code... (removed unused import)
 from ui.configuration import configuration
 
 
 def change_password(current_password: str, new_password: str, confirm_password: str):
-    session = next(get_session())
-    current_password = session.execute(select(UserTable.password).where(UserTable.name == st.session_state["user"].name)).scalar_one()
-
     new_password = new_password.strip()
     confirm_password = confirm_password.strip()
 
-    if not check_password(current_password):
-        st.toast("Wrong current password", icon="❌")
-        return
-
+    # basic client side checks
     if new_password != confirm_password:
         st.toast("New password and confirm password do not match", icon="❌")
-        return
-
-    if new_password == current_password:
-        st.toast("New password cannot be the same as the current password", icon="❌")
         return
 
     if not check_password(new_password):
         return
 
-    session.execute(update(UserTable).where(UserTable.name == st.session_state["user"].name).values(password=get_hashed_password(new_password)))
-    session.commit()
+    # Call server endpoint to change password
+    response = requests.post(
+        url=f"{configuration.playground.api_url}/v1/auth/change_password",
+        headers={"Authorization": f"Bearer {st.session_state['user'].api_key}"},
+        json={"current_password": current_password, "new_password": new_password},
+        timeout=10,
+    )
 
-    st.toast("Password updated", icon="✅")
-    time.sleep(0.5)
-    st.session_state["login_status"] = False
-    st.rerun()
+    if response.status_code == 204:
+        st.toast("Password updated", icon="✅")
+        time.sleep(0.5)
+        # force logout so user must re-login with new password
+        st.session_state["login_status"] = False
+        st.rerun()
+    else:
+        try:
+            detail = response.json().get("detail", "Unknown error")
+        except Exception:
+            detail = response.text
+        st.toast(detail, icon="❌")
 
 
 def create_token(name: str, expires_at: int):

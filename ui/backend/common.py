@@ -1,11 +1,7 @@
 from typing import Literal
 
 import requests
-from sqlalchemy import select
 import streamlit as st
-
-from ui.backend.sql.models import User as UserTable
-from ui.backend.sql.session import get_session
 from ui.configuration import configuration
 from ui.variables import MODEL_TYPE_AUDIO, MODEL_TYPE_EMBEDDINGS, MODEL_TYPE_IMAGE_TEXT_TO_TEXT, MODEL_TYPE_LANGUAGE, MODEL_TYPE_RERANK
 
@@ -109,15 +105,22 @@ def get_users(
 
     data = response.json()["data"]
 
-    session = next(get_session())
-    db_data = session.execute(select(UserTable)).scalars().all()
+    # Ask backend for the list of users that have a playground token (fast single call)
+    try:
+        resp = requests.get(
+            url=f"{configuration.playground.api_url}/v1/admin/ui-users",
+            headers={"Authorization": f"Bearer {st.session_state['user'].api_key}"},
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            playground_user_ids = set(resp.json().get("data", []))
+        else:
+            playground_user_ids = set()
+    except Exception:
+        playground_user_ids = set()
 
-    # Convert SQLAlchemy User objects to dictionaries
-    db_data = [user.api_user_id for user in db_data]
-
-    # Filter API data based on database user IDs
     for user in data:
-        user["access_ui"] = True if user["id"] in db_data else False
+        user["access_ui"] = True if user["id"] in playground_user_ids else False
 
     return data
 
