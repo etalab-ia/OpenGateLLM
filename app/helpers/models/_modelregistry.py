@@ -16,7 +16,7 @@ from app.helpers._modeldatabasemanager import ModelDatabaseManager
 
 class ModelRegistry:
     def __init__(self, routers: List[ModelRouter]) -> None:
-        self._router_ids = list()
+        self._router_ids: List[str] = []
         self._routers = dict()
         self.aliases = dict()
         self._lock = Lock()
