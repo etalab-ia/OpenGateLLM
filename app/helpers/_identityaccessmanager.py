@@ -664,3 +664,28 @@ class IdentityAccessManager:
             return None
 
         return None
+
+    async def change_password(self, session: AsyncSession, user_id: int, current_password: str, new_password: str) -> None:
+        """Change the password for a user after verifying the current password."""
+        # fetch user
+        result = await session.execute(select(UserTable).where(UserTable.id == user_id))
+        try:
+            user = result.scalar_one()
+        except NoResultFound:
+            raise UserNotFoundException()
+
+        stored_hashed = getattr(user, "password", None)
+        if not stored_hashed:
+            # No password set
+            raise Exception("Current password is invalid")
+
+        try:
+            if not bcrypt.checkpw(current_password.encode("utf-8"), stored_hashed.encode("utf-8")):
+                raise Exception("Current password is invalid")
+        except Exception:
+            raise Exception("Current password is invalid")
+
+        # Hash new password and store it
+        hashed = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        await session.execute(update(UserTable).where(UserTable.id == user_id).values(password=hashed))
+        await session.commit()
