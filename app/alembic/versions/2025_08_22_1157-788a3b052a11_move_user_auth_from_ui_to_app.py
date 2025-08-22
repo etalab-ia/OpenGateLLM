@@ -10,8 +10,8 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-import os
 from sqlalchemy import create_engine, MetaData, Table, select as sa_select
+from app.utils.configuration import configuration
 
 
 # revision identifiers, used by Alembic.
@@ -27,12 +27,9 @@ def upgrade() -> None:
     op.add_column("user", sa.Column("password", sa.String(), nullable=True))
     # ### end Alembic commands ###
 
-    # --- Copy existing passwords from the playground DB into the app DB ---
-    # The playground DB URL must be provided via environment variable:
-    #   PLAYGROUND_DATABASE_URL (preferred) or PLAYGROUND_DB_URL
-    playground_url = os.getenv("PLAYGROUND_DATABASE_URL") or os.getenv("PLAYGROUND_DB_URL")
+    playground_url = configuration.playground.postgres.get("url").replace("+asyncpg", "")
     if not playground_url:
-        raise RuntimeError("PLAYGROUND_DATABASE_URL (or PLAYGROUND_DB_URL) must be set in the environment to migrate user passwords")
+        raise RuntimeError("Playground database url not set in the config file to migrate user passwords")
 
     # Create an engine to the playground DB and reflect its `user` table
     pg_engine = create_engine(playground_url)

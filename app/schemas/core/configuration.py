@@ -467,6 +467,10 @@ class Settings(ConfigBaseModel):
 # load config ----------------------------------------------------------------------------------------------------------------------------------------
 
 
+class Playground(ConfigBaseModel):
+    postgres: dict = {}
+
+
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#all-configuration")
 class ConfigFile(ConfigBaseModel):
     """
@@ -476,6 +480,9 @@ class ConfigFile(ConfigBaseModel):
     models: List[Model] = Field(min_length=1, description="Models used by the API. At least one model must be defined.")  # fmt: off
     dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the API.")  # fmt: off
     settings: Settings = Field(default_factory=Settings, description="Settings used by the API.")  # fmt: off
+    playground: Playground = Field(
+        default_factory=Playground, description="Playground configuration used temporarily in next release to migrate user authentication."
+    )
 
     @field_validator("settings", mode="before")
     def set_default_settings(cls, settings) -> Any:
@@ -561,6 +568,7 @@ class Configuration(BaseSettings):
         values.models = config.models
         values.dependencies = config.dependencies
         values.settings = config.settings
+        values.playground = config.playground
 
         return values
 
