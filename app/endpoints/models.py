@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Path, Request, Security
+from fastapi import APIRouter, Path, Request, Security, HTTPException
 from fastapi.responses import JSONResponse
 
 from app.helpers._accesscontroller import AccessController
