@@ -12,6 +12,7 @@ from app.utils.exceptions import (
     UserAlreadyExistsException,
     UserNotFoundException,
 )
+import bcrypt
 
 
 class _Result:
@@ -20,6 +21,12 @@ class _Result:
         self._all_rows = all_rows
 
     def scalar_one(self):
+        if isinstance(self._scalar_one, Exception):
+            raise self._scalar_one
+        return self._scalar_one
+
+    def scalar_one_or_none(self):
+        # mirror SQLAlchemy behavior: raise if exception, otherwise return value (may be None)
         if isinstance(self._scalar_one, Exception):
             raise self._scalar_one
         return self._scalar_one
@@ -184,3 +191,43 @@ async def test_get_users_filters_and_not_found(session: AsyncSession, iam: Ident
     session.execute = AsyncMock(return_value=_Result(all_rows=[]))
     with pytest.raises(UserNotFoundException):
         await iam.get_users(session, user_id=404)
+
+
+@pytest.mark.asyncio
+async def test_verify_user_credentials_success(session: AsyncSession, iam: IdentityAccessManager):
+    # create a fake user object with a bcrypt-hashed password
+    password_plain = "correcthorsebatterystaple"
+    hashed = bcrypt.hashpw(password_plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    fake_user = MagicMock(id=1, email="alice@example.com", password=hashed)
+
+    session.execute = AsyncMock(return_value=_Result(scalar_one=fake_user))
+
+    user = await iam.verify_user_credentials(session=session, email="alice@example.com", password=password_plain)
+    assert user is not None
+    assert user.id == 1
+
+
+@pytest.mark.asyncio
+async def test_verify_user_credentials_wrong_password(session: AsyncSession, iam: IdentityAccessManager):
+    password_plain = "correcthorsebatterystaple"
+    hashed = bcrypt.hashpw(password_plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    fake_user = MagicMock(id=1, email="alice@example.com", password=hashed)
+
+    session.execute = AsyncMock(return_value=_Result(scalar_one=fake_user))
+
+    user = await iam.verify_user_credentials(session=session, email="alice@example.com", password="wrongpassword")
+    assert user is None
+
+
+@pytest.mark.asyncio
+async def test_verify_user_credentials_user_not_found(session: AsyncSession, iam: IdentityAccessManager):
+    session.execute = AsyncMock(return_value=_Result(scalar_one=None))
+
+    user = await iam.verify_user_credentials(session=session, email="nonexistent@example.com", password="whatever")
+    assert user is None
+
+
+@pytest.mark.asyncio
+async def test_verify_user_credentials_missing_inputs(session: AsyncSession, iam: IdentityAccessManager):
+    user = await iam.verify_user_credentials(session=session, email=None, password=None)
+    assert user is None
