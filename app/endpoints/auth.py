@@ -52,3 +52,27 @@ async def login(request: Request, session: AsyncSession = Depends(get_db_session
     except Exception as e:
         # Fallback protection, although most paths raise HTTPException
         raise HTTPException(status_code=500, detail=f"Playground login failed: {str(e)}")
+
+
+@router.post(path=f"/{ROUTER__AUTH}/change_password", dependencies=[Security(dependency=AccessController())], status_code=204)
+async def change_password(request: Request, session: AsyncSession = Depends(get_db_session)) -> JSONResponse:
+    """
+    Allow a logged-in user to change their password by providing current and new password.
+    """
+    try:
+        body = await request.json()
+        current_password = (body or {}).get("current_password")
+        new_password = (body or {}).get("new_password")
+
+        if not current_password or not new_password:
+            raise HTTPException(status_code=400, detail="Missing password fields")
+
+        await global_context.identity_access_manager.change_password(
+            session=session, user_id=request_context.get().user_id, current_password=current_password, new_password=new_password
+        )
+
+        return JSONResponse(status_code=204)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
