@@ -58,19 +58,23 @@ class ModelRegistry:
         data = list()
         async with self._lock:
             models = [model] if model else self._router_ids
-            for model in models:
-                # Avoid self.__call__, deadlock otherwise
-                model = self._routers[self.aliases.get(model, model)]
-
+            for m in models:
+                model_id = self.aliases.get(m, m)  
+                if model_id not in self._routers:
+                    continue  
+                router_model = self._routers[model_id]
                 data.append(
                     ModelSchema(
-                        id=model.name,
-                        type=model.type,
-                        max_context_length=model.max_context_length,
-                        owned_by=model.owned_by,
-                        created=model.created,
-                        aliases=model.aliases,
-                        costs={"prompt_tokens": model.cost_prompt_tokens, "completion_tokens": model.cost_completion_tokens},
+                        id=router_model.name,
+                        type=router_model.type,
+                        max_context_length=router_model.max_context_length,
+                        owned_by=router_model.owned_by,
+                        created=router_model.created,
+                        aliases=router_model.aliases,
+                        costs={
+                            "prompt_tokens": router_model.cost_prompt_tokens,
+                            "completion_tokens": router_model.cost_completion_tokens,
+                        },
                     )
                 )
 
