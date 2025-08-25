@@ -21571,4 +21571,32 @@ interactions:
     status:
       code: 200
       message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.32.4
+    method: GET
+    uri: http://albert-testbed.etalab.gouv.fr:8000/v1/models
+  response:
+    body:
+      string: '{"object":"list","data":[{"id":"gemma3:1b","object":"model","created":1751632632,"owned_by":"library"}]}
+
+        '
+    headers:
+      Content-Length:
+      - '105'
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 25 Aug 2025 12:40:34 GMT
+    status:
+      code: 200
+      message: OK
 version: 1
