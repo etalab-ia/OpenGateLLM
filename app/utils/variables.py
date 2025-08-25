@@ -51,6 +51,7 @@ ROUTER__PARSE = "parse"
 ROUTER__RERANK = "rerank"
 ROUTER__SEARCH = "search"
 ROUTER__USAGE = "usage"
+ROUTER__TOKENS = "tokens"
 ROUTER__MODEL_PROVISION = "model_provision"
 
 
