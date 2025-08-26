@@ -234,7 +234,7 @@ create-user:
 		bash -c 'set -a; . .github/.env.ci; \
 		CONFIG_FILE=app/tests/integ/config.test.yml PYTHONPATH=. pytest app/tests/integ --config-file=pyproject.toml'; \
 	elif [ "$(execute)" = "docker" ]; then \
-		docker compose --file .github/compose.ci.yml --env-file .github/.env.ci exec -T api pytest app/tests --cov=./app --cov-report=xml; \
+		docker compose --file .github/compose.ci.yml --env-file .github/.env.ci run -T --user $$(id -u):$$(id -g) -v $$(pwd)/app:/app api pytest app/tests --cov=./app --cov-report=xml; \
 	fi
 
 test-integ:
