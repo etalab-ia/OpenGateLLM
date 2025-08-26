@@ -15,9 +15,6 @@ if [ -z "$POSTGRES_HOST" ]; then
   export POSTGRES_HOST=localhost
 fi
 
-# Run database migrations
-python -m alembic -c ui/alembic.ini upgrade head
-
 # Start the application server
 if [ -f /ui/main.py ]; then
     MAIN_PY_PATH=/ui/main.py
