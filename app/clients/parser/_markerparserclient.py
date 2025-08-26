@@ -20,16 +20,20 @@ class MarkerParserClient(BaseParserClient):
     SUPPORTED_FORMATS = [FileType.PDF]
 
     def __init__(self, url: str, headers: Dict[str, str], timeout: int, *args, **kwargs) -> None:
+        # store configuration but avoid performing network calls in constructor
         self.url = url
         self.headers = headers
         self.timeout = timeout
 
-        # Keep health check synchronous in __init__
-        try:
-            response = httpx.get(f"{self.url}/health", headers=self.headers, timeout=self.timeout)
-            assert response.status_code == 200, "Marker API is not reachable."
-        except Exception as e:
-            raise Exception(f"Marker API is not reachable: {e}") from e
+    async def check_health(self) -> bool:
+        """Asynchronously checks the health endpoint of the Marker API.
+
+        Returns True on success, raises an exception for non-2xx responses or network errors.
+        """
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{self.url}/health", headers=self.headers, timeout=self.timeout)
+            resp.raise_for_status()
+        return True
 
     def convert_page_range(self, page_range: str, page_count: int) -> List[int]:
         if page_range == "":

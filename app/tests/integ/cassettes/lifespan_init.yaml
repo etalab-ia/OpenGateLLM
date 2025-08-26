@@ -21599,4 +21599,36 @@ interactions:
     status:
       code: 200
       message: OK
+- request:
+    body: ''
+    headers:
+      Authorization:
+      - Bearer dummy_token_for_test
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+      host:
+      - albert.api.etalab.gouv.fr
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://albert.api.etalab.gouv.fr/health
+  response:
+    body:
+      string: ''
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '0'
+      Date:
+      - Tue, 26 Aug 2025 10:18:55 GMT
+      Server:
+      - nginx/1.27.4
+    status:
+      code: 200
+      message: OK
 version: 1

@@ -22,16 +22,20 @@ class AlbertParserClient(BaseParserClient):
     SUPPORTED_FORMATS = [FileType.PDF]
 
     def __init__(self, headers: Dict[str, str], timeout: int, url: Optional[str] = None, *args, **kwargs) -> None:
+        # store configuration but avoid performing network calls in constructor
         self.url = url or self.URL
         self.headers = headers
         self.timeout = timeout
 
-        # Keep health check synchronous in __init__
-        try:
-            response = httpx.get(f"{self.URL}/health", headers=self.headers, timeout=self.timeout)
-            assert response.status_code == 200, f"Albert API is not reachable: {response.text} {response.status_code}"
-        except Exception as e:
-            raise Exception(f"Albert API is not reachable: {e}") from e
+    async def check_health(self) -> bool:
+        """Asynchronously checks the health endpoint of the Albert API.
+
+        Returns True on success, raises an exception for non-2xx responses or network errors.
+        """
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{self.url}/health", headers=self.headers, timeout=self.timeout)
+            resp.raise_for_status()
+        return True
 
     async def parse(self, params: ParserParams) -> ParsedDocument:
         file_content = await params.file.read()
@@ -53,7 +57,7 @@ class AlbertParserClient(BaseParserClient):
         async with httpx.AsyncClient() as client:
             files = {"file": (params.file.filename, BytesIO(file_content), "application/pdf")}
             response = await client.post(
-                url=f"{self.URL}/v1/parse-beta",
+                url=f"{self.url}/v1/parse-beta",
                 files=files,
                 data=payload,
                 headers=self.headers,
@@ -62,7 +66,7 @@ class AlbertParserClient(BaseParserClient):
             if response.status_code != 200:
                 try:
                     detail = json.loads(response.text).get("detail", "Parsing failed.")
-                except:
+                except Exception:
                     detail = response.text
                 raise HTTPException(status_code=response.status_code, detail=detail)
 

@@ -48,6 +48,16 @@ async def lifespan(app: FastAPI):
 
     dependencies = SimpleNamespace(mcp_bridge=mcp_bridge, parser=parser, redis=redis, vector_store=vector_store, web_search_engine=web_search_engine)
 
+    # perform async health checks for external dependencies when possible
+    try:
+        if dependencies.parser and hasattr(dependencies.parser, "check_health"):
+            await dependencies.parser.check_health()
+    except Exception:
+        # Log an error with the parser client class name for easier debugging
+        parser_name = getattr(dependencies.parser, "__class__", None)
+        parser_name = parser_name.__name__ if parser_name else "parser"
+        logger.error(msg=f"Health check failed for parser '{parser_name}': {traceback.format_exc()}")
+
     # setup global context
     await _setup_model_registry(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_identity_access_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
