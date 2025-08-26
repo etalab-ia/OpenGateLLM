@@ -120,29 +120,12 @@ def db_session(engine):
 
 
 @pytest.fixture(scope="session")
-async def async_db_session(async_engine):
-    """Create an asynchronous database session for tests"""
-    AsyncSessionMaker = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=False)
-    async with AsyncSessionMaker() as session:
-        yield session
-
-
-@pytest.fixture(scope="session")
-def app_with_test_db(async_engine):
-    """Create FastAPI app with test database"""
-
+def test_client(async_engine) -> Generator[TestClient, None, None]:
     async def get_test_db():
         AsyncSessionMaker = sessionmaker(bind=async_engine, class_=AsyncSession, expire_on_commit=False)
         async with AsyncSessionMaker() as session:
             yield session
 
-    # Create app with test database dependency
-    app = create_app(db_func=get_test_db)
-    return app
-
-
-@pytest.fixture(scope="session")
-def test_client(app_with_test_db) -> Generator[TestClient, None, None]:
     async def init_vector_store():
         """Initialize vector store by deleting all collections"""
         vector_store = VectorStoreClient.import_module(type=configuration.dependencies.vector_store.type)(
@@ -170,11 +153,13 @@ def test_client(app_with_test_db) -> Generator[TestClient, None, None]:
         )
 
         with lifespan_vcr.use_cassette("lifespan_init.yaml"):
+            app_with_test_db = create_app(db_func=get_test_db)
             with TestClient(app=app_with_test_db) as client:
                 client.headers = {"Authorization": f"Bearer {configuration.settings.auth_master_key}"}
                 asyncio.run(init_vector_store())  # Initialize vector store
                 yield client
     else:
+        app_with_test_db = create_app(db_func=get_test_db)
         with TestClient(app=app_with_test_db) as client:
             client.headers = {"Authorization": f"Bearer {configuration.settings.auth_master_key}"}
             asyncio.run(init_vector_store())  # Initialize vector store
