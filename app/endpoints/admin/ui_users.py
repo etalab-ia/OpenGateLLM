@@ -1,5 +1,3 @@
-# typing imports not required
-
 from fastapi import APIRouter, Depends, Request, Security
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, or_

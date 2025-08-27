@@ -166,8 +166,6 @@ def refresh_playground_api_key(user: int):
     api_key = response.json()["token"]
     api_key_id = response.json()["id"]
 
-    # Server stores tokens; nothing to update locally.
-
     st.toast("Playground API key refreshed", icon="✅")
     time.sleep(0.5)
     st.rerun()
