@@ -46,6 +46,51 @@ The master key serves several critical purposes:
 > **⚠️ Warning**<br>
 > If you modify the master key, you'll need to update all user API keys since they're encrypted using this key.
 
+## Login (verify_user_credentials)
+
+The codebase exposes a helper used for the interactive Playground (and other UI logins) named `verify_user_credentials`.
+
+- Purpose: verify a user's email and password against the stored FastAPI user record.
+- Inputs: an email and a plaintext password.
+- Behavior: the function looks up the user by `email`, reads the stored (bcrypt) hashed password and compares it using `bcrypt.checkpw`.
+- Returns: on success it returns the ORM user object (the underlying FastAPI `UserTable` instance). On failure it returns `None`.
+
+Notes:
+- In the Playground (Streamlit) UI the `playground_name` maps to the FastAPI `user.email` field — this is what `verify_user_credentials` checks.
+- If a user record doesn't exist, or the user has no stored password, or the password check fails, the function returns `None` and the login is rejected.
+
+This function is intentionally lightweight: it does not issue tokens itself — it only verifies credentials. Token creation is done through the token management endpoints/helpers.
+
+Examples
+
+- Login with email/password (Playground):
+
+```bash
+curl -s -X POST "http://localhost:8000/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "your_password"}'
+```
+
+Expected successful response (JSON):
+
+```json
+{
+  "status": "success",
+  "api_key": "sk-<full-token-string>",
+  "token_id": 123,
+  "user_id": 1
+}
+```
+
+- Use the returned API key in subsequent requests (Authorization header):
+
+```bash
+curl -s "http://localhost:8000/v1/auth/me" \
+  -H "Authorization: Bearer sk-<full-token-string>"
+```
+
+The Playground front-end stores `api_key` in session state and sends it as `Authorization: Bearer <api_key>` for later requests.
+
 ## Role Management
 
 Roles define what actions users can perform within the system through permissions, and what resource limits apply.
@@ -173,3 +218,28 @@ POST /v1/admin/tokens
 
 > **❗️Note**<br>
 > `CREATE_USER` permission allows to create tokens for other users with `user` field in the request body of POST `/v1/admin/tokens`. These tokens are not subject to the `max_token_expiration_days` limit set in the auth section of the configuration file.
+
+### Refreshing tokens (refresh_token)
+
+There is a helper called `refresh_token` used by the Playground (Streamlit front-end) to renew a token with a given name for a user. The behavior is:
+
+- Inputs: `user_id`, `name` (token name), and optional `days` (validity of the new token, default 1 day).
+- Operation sequence:
+  1. Find any existing tokens for the given `user_id` and `name` and collect their ids.
+  2. Create a brand new token using the same `name` and the computed `expires_at` (based on `days`). Internally this calls `create_token`, which returns the new `token_id` and the full encoded app token (the secret string the client will use).
+  3. Update any existing `Usage` records that referenced the old token ids to point to the new `token_id` so usage history remains consistent.
+  4. Delete the old tokens that matched the `user_id` and `name` (the newly created token is kept).
+  5. Commit the changes and return the `new_token_id` and the full new app token.
+
+Notes and implications:
+- The new token returned by `refresh_token` is the real API key (encoded with the master key); the value stored in the database is a masked preview (for example: `sk-XXXXXXXX...YYYYYYYY`) so the full secret is only available once when created.
+- `refresh_token` is convenient for the Playground: it replaces any existing token with the same name, migrates usage references, and provides the client with a new secret to use in subsequent requests.
+- Because `refresh_token` ultimately uses `create_token`, the `max_token_expiration_days` configuration (if set) applies when the token is created.
+
+Where it's used in the app
+
+- `/v1/auth/login` (Playground login): the `/v1/auth/login` endpoint calls `refresh_token` after verifying the user's credentials. This returns a fresh playground API key to the client so the UI can immediately use it for authenticated requests.
+- ProConnect OAuth2 callback (`/v1/auth/callback`): the ProConnect flow also calls `refresh_token` after exchanging the OAuth2 code and creating/finding the corresponding user. The callback then issues the new token back to the browser (usually via an encrypted redirect) so the user is logged into the Playground after OAuth login.
+
+Because both the explicit Playground login and the ProConnect callback call `refresh_token`, a new playground token is generated and returned on each successful authentication. Old tokens with the same name are removed (and their usage references migrated), so the Playground always receives a single fresh token for the `playground` name after login.
+
