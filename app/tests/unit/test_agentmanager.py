@@ -1,11 +1,8 @@
 import json
-import httpx
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
-import types
-
 from app.helpers._agentmanager import AgentManager
 from app.schemas.agents import AgentsTool
 from app.utils.exceptions import ToolNotFoundException
