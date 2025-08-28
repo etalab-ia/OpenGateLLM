@@ -5,17 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import JSONResponse
 
 from app.clients.model import BaseModelClient
-from app.schemas.model_provision import AddModelRequest, DeleteModelRequest, AddAliasesRequest, DeleteAliasesRequest, \
-    RoutersResponse
+from app.schemas.model_provision import AddModelRequest, DeleteModelRequest, AddAliasesRequest, DeleteAliasesRequest, RoutersResponse
 from app.sql.session import get_db_session
 
-from app.utils.variables import (
-    ENDPOINT__MODEL_ADD,
-    ENDPOINT__MODEL_DELETE,
-    ENDPOINT__ALIAS_ADD,
-    ENDPOINT__ALIAS_DELETE,
-    ENDPOINT__ROUTERS
-)
+from app.utils.variables import ENDPOINT__MODEL_ADD, ENDPOINT__MODEL_DELETE, ENDPOINT__ALIAS_ADD, ENDPOINT__ALIAS_DELETE, ENDPOINT__ROUTERS
 
 from app.utils.context import global_context
 from app.utils.variables import DEFAULT_APP_NAME
@@ -144,22 +137,19 @@ async def delete_alias(
 
 # @router.get(path=ENDPOINT__ROUTERS, status_code=200, dependencies=[Security(dependency=AccessController())], response_model=RoutersResponse)
 @router.get(path=ENDPOINT__ROUTERS, status_code=200, response_model=RoutersResponse)
-async def get_routers(
-    request: Request
-) -> JSONResponse:
+async def get_routers(request: Request) -> JSONResponse:
     """
     Gives all the existing routers, with their clients.
     Sensitive information, such as providers' URL and API keys, are censored.
     """
     # We get client & router "quickly" (before processing data) to avoid
     # weird data and inconsistency due to concurrence.
-    routers = await global_context.models.get_router_instances()
+    routers = await global_context.model_registry.get_router_instances()
     clients = [await r.get_clients() for r in routers]
 
     router_schemas = []
 
     for i, r in enumerate(routers):
-
         if len(clients[i]) == 0:
             # No clients, ModelRouter is about to get deleted
             continue

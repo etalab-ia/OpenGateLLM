@@ -79,11 +79,11 @@ class BaseModelRouter(ABC):
             type=self.type,
             owned_by=self.owned_by,
             aliases=self.aliases,
-            routing_strategy=RoutingStrategy(self.routing_strategy),
-            vector_size=self.vector_size,
+            routing_strategy=RoutingStrategy(self._routing_strategy),
+            vector_size=self._vector_size,
             max_context_length=self.max_context_length,
             created=self.created,
-            providers=schemas
+            providers=schemas,
         )
 
     @abstractmethod
@@ -105,19 +105,19 @@ class BaseModelRouter(ABC):
         Return the current list of ModelClient thread-safely.
         """
         async with self._lock:
-            return self._clients
+            return self._providers
 
     async def add_client(self, client: ModelClient):
         """
         Adds a new client.
         """
         async with self._lock:
-            for c in self._clients:
-                if c.api_url == client.api_url and c.model == client.model: # The client already exists; we don't want to double it
+            for c in self._providers:
+                if c.url == client.url and c.name == client.name:  # The client already exists; we don't want to double it
                     return
 
             # consistency check
-            assert client.vector_size == self.vector_size, "All embeddings models in the same model group must have the same vector size."
+            assert client.vector_size == self._vector_size, "All embeddings models in the same model group must have the same vector size."
 
             self._providers.append(client)
 
@@ -145,22 +145,26 @@ class BaseModelRouter(ABC):
             cost_completion_tokens = float("-inf")
             max_context_length = float("+inf")
 
-            for c in self._clients:
-                if c.api_url == api_url and c.model == name:
+            for c in self._providers:
+                if c.url == api_url and c.name == name:
                     client = c
                 else:
-                    if c.max_context_length is not None:
-                        max_context_lengths.append(c.max_context_length)
+                    if c.max_context_length is not None and c.max_context_length < max_context_length:
+                        max_context_length = c.max_context_length
 
-                    costs.append(c.costs)
+                    if c.cost_prompt_tokens > cost_prompt_tokens:
+                        cost_prompt_tokens = c.cost_prompt_tokens
+
+                    if c.cost_completion_tokens > cost_completion_tokens:
+                        cost_completion_tokens = c.cost_completion_tokens
 
             if client is None:
-                raise HTTPException(status_code=404, detail=f"Model with name \"{name}\" and URL \"{api_url}\" not found")
+                raise HTTPException(status_code=404, detail=f'Model with name "{name}" and URL "{api_url}" not found')
 
             await client.lock.acquire()
-            self._clients.remove(client)
+            self._providers.remove(client)
 
-            if len(self._clients) == 0:
+            if len(self._providers) == 0:
                 # No more clients, the ModelRouter is about to get deleted.
                 # There is no need to try to "update" it further.
                 # NB: there is no chance that another ModelClient gets added right after,
@@ -169,12 +173,10 @@ class BaseModelRouter(ABC):
                 client.lock.release()  # Who knows
                 return False
 
-            self.max_context_length = min(max_context_lengths) if max_context_lengths else None
-            self._cycle = cycle(self._clients)
-
-            prompt_tokens = max(costs.prompt_tokens for costs in costs)
-            completion_tokens = max(costs.completion_tokens for costs in costs)
-            self.costs = ModelCosts(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens)
+            self._cycle = cycle(self._providers)
+            self.cost_prompt_tokens = cost_prompt_tokens
+            self.cost_completion_tokens = cost_completion_tokens
+            self.max_context_length = max_context_length
 
             client.lock.release()
             return True
@@ -195,11 +197,7 @@ class BaseModelRouter(ABC):
             if alias in self.aliases:  # Silent error?
                 self.aliases.remove(alias)
 
-    async def safe_client_access[R](
-            self,
-            endpoint: str,
-            handler: Callable[[ModelClient], Union[R, Awaitable[R]]]
-    ) -> R:
+    async def safe_client_access[R](self, endpoint: str, handler: Callable[[ModelClient], Union[R, Awaitable[R]]]) -> R:
         """
         Thread-safely access a BaseModelClient.
         This method calls the given callback with the current instance and BaseModelClient

@@ -1,6 +1,6 @@
 from app.clients.model import BaseModelClient as ModelClient
 from app.helpers.models.routers.strategies import RoundRobinRoutingStrategy, ShuffleRoutingStrategy
-from app.schemas.core.models import RoutingStrategy
+from app.schemas.core.configuration import RoutingStrategy
 from app.schemas.models import ModelType
 from app.utils.exceptions import WrongModelTypeException
 from app.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS, ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__EMBEDDINGS, ENDPOINT__OCR, ENDPOINT__RERANK
@@ -34,7 +34,7 @@ class ImmediateModelRouter(BaseModelRouter):
         if endpoint and self.type not in self.ENDPOINT_MODEL_TYPE_TABLE[endpoint]:
             raise WrongModelTypeException()
 
-        if self.routing_strategy == RoutingStrategy.ROUND_ROBIN:
+        if self._routing_strategy == RoutingStrategy.ROUND_ROBIN:
             strategy = RoundRobinRoutingStrategy(self._clients, self._cycle)
         else:  # ROUTER_STRATEGY__SHUFFLE
             strategy = ShuffleRoutingStrategy(self._clients)
