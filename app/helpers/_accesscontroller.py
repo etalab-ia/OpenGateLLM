@@ -18,7 +18,7 @@ from app.utils.exceptions import (
     InsufficientPermissionException,
     InvalidAPIKeyException,
     InvalidAuthenticationSchemeException,
-    RateLimitExceeded, ModelNotFoundException,
+    RateLimitExceeded,
 )
 from app.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
@@ -111,13 +111,18 @@ class AccessController:
         if request.url.path.endswith(ENDPOINT__SEARCH) and request.method == "POST":
             await self._check_search_post(user=user, role=role, limits=limits, request=request)
 
-        if request.url.path.endswith(ENDPOINT__ROUTERS) and request.method == "GET" or (
-            (
-                request.url.path.endswith(ENDPOINT__MODEL_ADD) or
-                request.url.path.endswith(ENDPOINT__MODEL_DELETE) or
-                request.url.path.endswith(ENDPOINT__ALIAS_ADD) or
-                request.url.path.endswith(ENDPOINT__ALIAS_DELETE)
-            ) and request.method == "POST"
+        if (
+            request.url.path.endswith(ENDPOINT__ROUTERS)
+            and request.method == "GET"
+            or (
+                (
+                    request.url.path.endswith(ENDPOINT__MODEL_ADD)
+                    or request.url.path.endswith(ENDPOINT__MODEL_DELETE)
+                    or request.url.path.endswith(ENDPOINT__ALIAS_ADD)
+                    or request.url.path.endswith(ENDPOINT__ALIAS_DELETE)
+                )
+                and request.method == "POST"
+            )
         ):
             await self._check_provider(user=user, role=role, limit=limits, request=request)
 
@@ -162,7 +167,7 @@ class AccessController:
 
             master_role = Role(id=0, name="master", permissions=permissions, limits=limits)
             master_user = User(id=0, name="master", role=0, expires_at=None, created_at=0, updated_at=0)
-            master_limits = await self.__get_user_limits(role=master_role)
+            master_limits = self.__get_user_limits(role=master_role)
 
             return master_user, master_role, master_limits, None
 
@@ -176,7 +181,7 @@ class AccessController:
         roles = await global_context.identity_access_manager.get_roles(session=session, role_id=user.role)
         role = roles[0]
 
-        limits = await self.__get_user_limits(role=role)
+        limits = self.__get_user_limits(role=role)
 
         return user, role, limits, token_id
 
@@ -336,14 +341,14 @@ class AccessController:
 
         await self._check_budget(user=user, model=global_context.document_manager.vector_store_model.name)
 
-    async def _check_tokens_post(self, user: User, role: Role, limits: Dict[str, UserModelLimits], request: Request) -> None:
+    async def _check_tokens_post(self, user: User, role: Role, limits: Dict[str, _UserModelLimits], request: Request) -> None:
         body = await self._safely_parse_body(request)
 
         # if the token is for another user, we don't check the expiration date
         if body.get("user") and PermissionType.CREATE_USER not in role.permissions:
             raise InsufficientPermissionException("Missing permission to create token for another user.")
 
-    async def _check_provider(self, user: User, role: Role, limit: Dict[str, UserModelLimits], request: Request) -> None:
+    async def _check_provider(self, user: User, role: Role, limit: Dict[str, _UserModelLimits], request: Request) -> None:
         body = await self._safely_parse_body(request)
 
         if body.get("user") and PermissionType.PROVIDE_MODELS not in role.permissions:

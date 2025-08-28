@@ -1,7 +1,6 @@
 from contextlib import asynccontextmanager
 import traceback
 from types import SimpleNamespace
-import time
 
 from coredis import ConnectionPool, Redis
 from fastapi import FastAPI
@@ -53,7 +52,14 @@ async def lifespan(app: FastAPI):
     assert (await redis_test_client.ping()).decode("ascii") == "PONG", "Redis database is not reachable."
     assert await vector_store.check() if vector_store else True, "Vector store database is not reachable."
 
-    dependencies = SimpleNamespace(mcp_bridge=mcp_bridge, parser=parser, redis=redis, vector_store=vector_store, web_search_engine=web_search_engine, model_database_manager=model_database_manager)
+    dependencies = SimpleNamespace(
+        mcp_bridge=mcp_bridge,
+        parser=parser,
+        redis=redis,
+        vector_store=vector_store,
+        web_search_engine=web_search_engine,
+        model_database_manager=model_database_manager,
+    )
 
     # perform async health checks for external dependencies when possible
     try:
@@ -81,16 +87,15 @@ async def lifespan(app: FastAPI):
 
 
 async def _setup_model_registry(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
-    '''Setup the model registry by fetching the models defined in the DB and the configuration. Basic conflict handling between the DB and config.'''
+    """Setup the model registry by fetching the models defined in the DB and the configuration. Basic conflict handling between the DB and config."""
 
     db_models = []
 
     async for session in get_db_session():
-        db_models = await dependencies.model_database_manager.get_routers(session=session, configuration=configuration, dependencies=dependencies)
+        db_models = await dependencies.model_database_manager.get_routers(session=session)
 
     if not db_models:
         logger.warning(msg="no ModelRouters found in database.")
-
 
     db_names = {model.name for model in db_models}
     config_names = {model.name for model in configuration.models}
@@ -99,13 +104,15 @@ async def _setup_model_registry(configuration: Configuration, global_context: Gl
 
     models = configuration.models + db_models
 
-    routers = [await _convert_modelrouterschema_to_modelrouter(configuration=configuration, router=router, dependencies=dependencies) for router in models]
-    
+    routers = [
+        await _convert_modelrouterschema_to_modelrouter(configuration=configuration, router=router, dependencies=dependencies) for router in models
+    ]
+
     global_context.model_registry = ModelRegistry(routers=routers)
 
 
 async def _convert_modelrouterschema_to_modelrouter(configuration: Configuration, router: ModelRouterSchema, dependencies: SimpleNamespace):
-    '''Handles the conversion from the pydantic schema to the object ModelRouter.'''
+    """Handles the conversion from the pydantic schema to the object ModelRouter."""
 
     providers = []
     for provider in router.providers:

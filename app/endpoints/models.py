@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Path, Request, Security, HTTPException
+from fastapi import APIRouter, Path, Request, Security
 from fastapi.responses import JSONResponse
 
 from app.helpers._accesscontroller import AccessController
@@ -26,6 +26,6 @@ async def get_models(request: Request) -> JSONResponse:
     Lists the currently available models and provides basic information.
     """
 
-    data = global_context.model_registry.list()
+    data = await global_context.model_registry.list()
 
     return JSONResponse(content=Models(data=data).model_dump(), status_code=200)

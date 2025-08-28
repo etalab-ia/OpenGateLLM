@@ -45,7 +45,7 @@ class AgentManager:
         return llm_response_with_new_finish_reason
 
     async def get_llm_http_response(self, body: AgentsChatCompletionRequest):
-        model = self.model_registry(model=body.model)
+        model = await self.model_registry(model=body.model)
         client = model.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
         http_llm_response = await client.forward_request(method="POST", json=body.model_dump())
 
