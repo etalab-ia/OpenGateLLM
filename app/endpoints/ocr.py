@@ -28,9 +28,6 @@ async def ocr(request: Request, file: UploadFile = FileForm, model: str = ModelF
     if file.size > FileSizeLimitExceededException.MAX_CONTENT_SIZE:
         raise FileSizeLimitExceededException()
 
-    # get model client
-    model = global_context.model_registry(model=model)
-
     async def handler(client):
         file_content = await file.read()  # open document
         pdf = pymupdf.open(stream=file_content, filetype="pdf")
@@ -48,8 +45,7 @@ async def ocr(request: Request, file: UploadFile = FileForm, model: str = ModelF
                         "role": "user",
                         "content": [
                             {"type": "text", "text": prompt},
-                            {"type": "image_url", "image_url": {
-                                "url": f"data:image/png;base64,{base64.b64encode(img_byte_arr).decode("utf-8")}"}},
+                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64.b64encode(img_byte_arr).decode("utf-8")}"}},
                         ],
                     }
                 ],
@@ -74,10 +70,5 @@ async def ocr(request: Request, file: UploadFile = FileForm, model: str = ModelF
 
         return JSONResponse(content=document.model_dump(), status_code=200)
 
-
-    # get model client
-    model = await global_context.models(model=model)
-    return await model.safe_client_access(
-        endpoint=ENDPOINT__OCR,
-        handler=handler
-    )
+    model = await global_context.model_registry(model=model)
+    return await model.safe_client_access(endpoint=ENDPOINT__OCR, handler=handler)

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Path, Request, Security
+from fastapi import APIRouter, Path, Request, Security, HTTPException
 from fastapi.responses import JSONResponse
 
 from app.helpers._accesscontroller import AccessController
@@ -15,7 +15,11 @@ async def get_model(request: Request, model: str = Path(description="The name of
     Get a model by name and provide basic information.
     """
 
-    model = global_context.model_registry.list(model=model)[0]
+    models = await global_context.model_registry.list(model=model)
+    if not models:
+        raise HTTPException(status_code=404, detail=f"Model '{model}' not found")
+
+    model = models[0]
 
     return JSONResponse(content=model.model_dump(), status_code=200)
 

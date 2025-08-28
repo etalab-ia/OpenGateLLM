@@ -244,7 +244,7 @@ class AccessController:
         if model not in global_context.model_registry.models:
             return
 
-        model = global_context.model_registry(model=model)
+        model = await global_context.model_registry(model=model)
         if model.cost_prompt_tokens == 0 and model.cost_completion_tokens == 0:  # free model
             return
 

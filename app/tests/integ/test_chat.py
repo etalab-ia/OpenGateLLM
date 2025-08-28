@@ -62,7 +62,7 @@ class TestChat:
         MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
 
         # # Get model client instance and setup metrics storage
-        # model_router = global_context.model_registry(model=MODEL_ID)
+        # model_router = await global_context.model_registry(model=MODEL_ID)
         # model_client = model_router.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
         # await model_client.setup_metrics_storage()
 
@@ -100,7 +100,7 @@ class TestChat:
         params = {"model": MODEL_ID, "messages": [{"role": "user", "content": "Hello, how are you?"}], "stream": True, "n": 1, "max_tokens": 10}
 
         # # Get model client instance and setup metrics storage
-        # model_router = global_context.model_registry(model=MODEL_ID)
+        # model_router = await global_context.model_registry(model=MODEL_ID)
         # model_client = model_router.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
         # await model_client.setup_metrics_storage()
 

@@ -48,7 +48,7 @@ async def deepsearch(request: Request, body: DeepSearchRequest, session: AsyncSe
             raise HTTPException(status_code=500, detail="WebSearchManager not configured")
 
         try:
-            model = global_context.model_registry(model=body.model)
+            model = await global_context.model_registry(model=body.model)
             logger.info(f"Using model for DeepSearch: {body.model}")
         except Exception as e:
             logger.error(f"Failed to get model '{body.model}': {e}")
