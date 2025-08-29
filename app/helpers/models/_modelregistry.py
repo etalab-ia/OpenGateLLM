@@ -86,7 +86,7 @@ class ModelRegistry:
 
         return data
 
-    async def __add_client_to_existing_router(self, router_name: str, model_client: BaseModelClient, session: AsyncSession, **__):
+    async def __add_client_to_existing_router(self, router_name: str, model_client: "BaseModelClient", session: AsyncSession, **__):
         """
         Adds a new client to an existing ModelRouter. Method is thread-unsafe.
 
@@ -147,7 +147,7 @@ class ModelRegistry:
             if a not in self.aliases:
                 self.aliases[a] = router_name
 
-    async def add_client(self, router_name: str, model_client: BaseModelClient, session: AsyncSession, **kwargs):
+    async def add_client(self, router_name: str, model_client: "BaseModelClient", session: AsyncSession, **kwargs):
         """
         Adds a new client, and creates a ModelRouter if needed.
         This method is thread safe.

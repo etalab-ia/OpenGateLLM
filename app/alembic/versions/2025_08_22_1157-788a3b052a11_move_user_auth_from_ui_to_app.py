@@ -1,7 +1,7 @@
 """db schema for model router, client and routeralias
 
-Revision ID: 479aeeae940b
-Revises: 788a3b052a11
+Revision ID: 788a3b052a11
+Revises: c1e54102255e
 Create Date: 2025-08-17 19:34:08.505712
 
 """
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = "479aeeae940b"
-down_revision: Union[str, None] = "788a3b052a11"
+revision: str = "788a3b052a11"
+down_revision: Union[str, None] = "c1e54102255e"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
