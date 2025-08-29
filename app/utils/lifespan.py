@@ -26,6 +26,7 @@ from app.schemas.core.context import GlobalContext
 from app.utils.configuration import get_configuration
 from app.utils.context import global_context
 from app.utils.logging import init_logger
+from app.utils.rabbitmq import AsyncRabbitMQConnection
 from app.sql.session import get_db_session
 
 from app.schemas.core.configuration import Model as ModelRouterSchema
@@ -70,6 +71,8 @@ async def lifespan(app: FastAPI):
         parser_name = getattr(dependencies.parser, "__class__", None)
         parser_name = parser_name.__name__ if parser_name else "parser"
         logger.error(msg=f"Health check failed for parser '{parser_name}': {traceback.format_exc()}")
+    if configuration.dependencies.rabbitmq:
+        await AsyncRabbitMQConnection().setup()
 
     # setup global context
     await _setup_model_registry(configuration=configuration, global_context=global_context, dependencies=dependencies)
@@ -84,6 +87,15 @@ async def lifespan(app: FastAPI):
     # cleanup resources when app shuts down
     if vector_store:
         await vector_store.close()
+
+    if configuration.dependencies.rabbitmq:
+
+        logger.info("RabbitMQ: shutting down consumers and deleting existing queues.")
+        for router in (await global_context.model_registry.get_router_instances()):
+            await router.rabbitmq_shutdown()
+
+        logger.info("RabbitMQ: closing connection.")
+        await AsyncRabbitMQConnection().close()
 
 
 async def _setup_model_registry(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):

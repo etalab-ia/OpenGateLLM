@@ -1,16 +1,25 @@
+import asyncio
 from abc import ABC, abstractmethod
-from asyncio import Lock
 from fastapi import HTTPException
 from itertools import cycle
 import time
-from typing import Callable, Union, Awaitable
+from typing import Callable, Union, Awaitable, TYPE_CHECKING
 import inspect
 
-from app.clients.model import BaseModelClient as ModelClient
+import aio_pika
+from aio_pika import IncomingMessage
+
+from app.helpers.models._workingcontext import WorkingContext
 from app.schemas.models import ModelType
+from app.utils.configuration import configuration
+from app.utils.rabbitmq import AsyncRabbitMQConnection
 
 from app.schemas.core.configuration import Model as ModelRouterSchema, RoutingStrategy
 
+if TYPE_CHECKING:
+    # only for type‐checkers and linters, not at runtime
+    # Used to break circular import
+    from app.clients.model import BaseModelClient
 
 class BaseModelRouter(ABC):
     def __init__(
@@ -20,7 +29,7 @@ class BaseModelRouter(ABC):
         owned_by: str,
         aliases: list[str],
         routing_strategy: str,
-        providers: list[ModelClient],
+        providers: list["BaseModelClient"],
         *args,
         **kwargs,
     ) -> None:
@@ -58,7 +67,63 @@ class BaseModelRouter(ABC):
         self._cycle = cycle(providers)
         self._providers = providers
 
-        self._lock = Lock()
+        self._lock = asyncio.Lock()
+
+        self._context_lock = asyncio.Lock()
+        self._context_register = dict()
+
+        self.queue = None
+        self.shutdown_future = asyncio.Future()
+        self.queue_name = f"router_{self.name}_{self.type.value}"  # Maybe use type + name for more explicit logs.
+
+        if configuration.dependencies.rabbitmq:
+            self._dispatch_task = AsyncRabbitMQConnection().consumer_loop.create_task(self._dispatch_callback())
+
+    async def _dispatch_callback(self):
+        """
+        The working consumer's coroutine.
+        """
+        channel = await AsyncRabbitMQConnection().connection.channel()
+        await channel.set_qos(prefetch_count=1)
+        self.queue = await channel.declare_queue(self.queue_name, robust=True)
+
+        # No need to bind as we are using the default_exchange
+        consumer_tag = await self.queue.consume(self._dispatch, no_ack=False)
+        await self.shutdown_future  # blocked until a 'result' is set
+
+        # Clean shutdown
+        await self.queue.cancel(consumer_tag)
+        await self.queue.purge()
+        await self.queue.delete()
+        await channel.close()
+
+    async def _dispatch(self, message: IncomingMessage):
+        """
+        RabbitMQ consumer callback: triggers whenever a message is received on the concerned queue.
+        """
+        async with message.process():
+            content = message.body.decode('utf8')
+
+            ctx = await self.pop_context(content)
+            if ctx is None:
+                return
+
+            async with self._lock:
+                client = self.get_client(ctx.endpoint)
+                await client.register_context(ctx)
+
+                await AsyncRabbitMQConnection().publish_default_exchange(
+                    message=aio_pika.Message(body=ctx.id.encode('utf8')),
+                    routing_key=client.queue_name
+                )
+
+    async def rabbitmq_shutdown(self):
+        """Cleanly shuts down the consumer coroutine, after shutting down all the instance's clients ones."""
+        for client in self._providers:
+            await client.rabbitmq_shutdown()
+
+        self.shutdown_future.set_result(True)  # stop coroutine
+        await self._dispatch_task  # wait for complete shutdown
 
     async def as_schema(self, censored: bool = True) -> ModelRouterSchema:
         """
@@ -87,7 +152,7 @@ class BaseModelRouter(ABC):
         )
 
     @abstractmethod
-    def get_client(self, endpoint: str) -> ModelClient:
+    def get_client(self, endpoint: str) -> "BaseModelClient":
         """
         Get a client to handle the request.
         NB: this method is not thread-safe, you probably want to use safe_client_access.
@@ -107,7 +172,7 @@ class BaseModelRouter(ABC):
         async with self._lock:
             return self._providers
 
-    async def add_client(self, client: ModelClient):
+    async def add_client(self, client: "BaseModelClient"):
         """
         Adds a new client.
         """
@@ -164,12 +229,42 @@ class BaseModelRouter(ABC):
             await client.lock.acquire()
             self._providers.remove(client)
 
+            # Cleaning RabbitMQ setup
+            if configuration.dependencies.rabbitmq:
+
+                while True:
+                    incoming = await client.queue.get(no_ack=False, fail=False)
+                    if incoming is None:
+                        break
+
+                    await incoming.ack()
+
+                    # Reroute pending messages
+                    ctx = await client.get_context(incoming.body.decode('utf8'))
+
+                    if ctx is None:
+                        continue
+
+                    await self.register_context(ctx)
+                    await AsyncRabbitMQConnection().publish_default_exchange(
+                        message=aio_pika.Message(body=ctx.id.encode('utf8')),
+                        routing_key=self.queue_name
+                    )
+
+                await client.rabbitmq_shutdown()
+
             if len(self._providers) == 0:
                 # No more clients, the ModelRouter is about to get deleted.
                 # There is no need to try to "update" it further.
                 # NB: there is no chance that another ModelClient gets added right after,
                 # as ModelRegistry's requires its lock for the whole removing process.
                 # If needed, "this" router will be recreated.
+
+                # Requests might be pending if we are using RabbitMQ
+                if configuration.dependencies.rabbitmq:
+                    self.shutdown_future.set_result(True)  # stop coroutine
+                    await self._dispatch_task  # wait for complete shutdown
+
                 client.lock.release()  # Who knows
                 return False
 
@@ -197,7 +292,32 @@ class BaseModelRouter(ABC):
             if alias in self.aliases:  # Silent error?
                 self.aliases.remove(alias)
 
-    async def safe_client_access[R](self, endpoint: str, handler: Callable[[ModelClient], Union[R, Awaitable[R]]]) -> R:
+    async def register_context(self, req_ctx: WorkingContext):
+        """Adds a WorkingContext to instance's register."""
+        async with self._context_lock:  # We use a different lock as this operation has nothing to do with other fields
+            self._context_register[req_ctx.id] = req_ctx
+
+    async def pop_context(self, ctx_id: str) -> WorkingContext | None:
+        """
+        Pops (= gets and deletes) a WorkingContext to instance's register.
+        Returns None if the given id was not found.
+        """
+        async with self._context_lock:
+            return self._context_register.pop(ctx_id, None)
+
+    async def get_context(self, ctx_id: str) -> WorkingContext | None:
+        """
+        Gets a WorkingContext to instance's register.
+        Returns None if the given id was not found.
+        """
+        async with self._context_lock:
+            return self._context_register.get(ctx_id, None)
+
+    async def safe_client_access[R](
+            self,
+            endpoint: str,
+            handler: Callable[["BaseModelClient"], Union[R, Awaitable[R]]]
+    ) -> R:
         """
         Thread-safely access a BaseModelClient.
         This method calls the given callback with the current instance and BaseModelClient

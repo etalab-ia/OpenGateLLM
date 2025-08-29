@@ -57,7 +57,6 @@ ROUTER__USAGE = "usage"
 ROUTER__TOKENS = "tokens"
 ROUTER__USERS = "users"
 ROUTER__MULTIAGENTS = "multiagents"
-ROUTER__MODEL_PROVIDING = "model_providing"
 ROUTER__MODEL_PROVISION = "model_provision"
 
 

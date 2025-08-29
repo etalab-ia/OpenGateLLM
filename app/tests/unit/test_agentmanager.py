@@ -24,15 +24,9 @@ class TestMCPLoop:
 
     @pytest.fixture
     def mock_llm_registry(self, mock_llm_client):
-        class FakeModel:
-            async def safe_client_access(self, endpoint, handler):
-                # just call handler with your mock client
-                return await handler(mock_llm_client)
-
-        async def fake_registry(model):
-            return FakeModel()
-
-        return fake_registry
+        mock_llm_registry = MagicMock()
+        mock_llm_registry.return_value = SimpleNamespace(get_client=lambda endpoint: mock_llm_client)
+        return mock_llm_registry
 
     @pytest.fixture
     def agent_manager(self, mock_mcp_bridge, mock_llm_registry):

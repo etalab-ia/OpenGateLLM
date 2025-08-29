@@ -325,6 +325,15 @@ class RedisDependency(ConfigBaseModel):
     # All args of pydantic redis client is allowed
 
 
+# TODO: add link to documentation once written
+class RabbitMQDependency(ConfigBaseModel):
+    host: Optional[str] = Field(default="localhost", description="RabbitMQ host.")
+    port: Optional[int] = Field(default=5672, description="Port RabbitMQ listens to.")
+    user: Optional[str] = Field(default="master", description="RabbitMQ default user.")
+    password: Optional[str] = Field(default="changeme", description="RabbitMQ password.")
+    sender_pool_size: Optional[int] = Field(default=100, description="How many AMQP channel the pool used by 'sender' contains.")
+    timeout: Optional[float] = Field(default=20.0, description="How long should a result be waited, before considering the request to be expired.")
+
 class ProConnect(ConfigBaseModel):
     client_id: str = Field(default="", description="Client identifier provided by ProConnect when you register your application in their dashboard. This value is public (it's fine to embed in clients) but must match the value configured in ProConnect.")  # fmt: off
     client_secret: str = Field(default="", description="Client secret provided by ProConnect at application registration. This value must be kept confidential — it's used by the server to authenticate with ProConnect during token exchange (do not expose it to browsers or mobile apps).")  # fmt: off
@@ -350,6 +359,7 @@ class Dependencies(ConfigBaseModel):
     secretiveshell: Optional[SecretiveshellDependency] = Field(default=None, description="If provided, MCP agents can use tools from SecretiveShell MCP Bridge. Pass arguments to call Secretiveshell API in this section, see https://github.com/SecretiveShell/MCP-Bridge for more information.")  # fmt: off
     sentry: Optional[SentryDependency] = Field(default=None, description="Pass all sentry python SDK arguments, see https://docs.sentry.io/platforms/python/configuration/options/ for more information.")  # fmt: off
     proconnect: ProConnect = Field(default_factory=ProConnect, description="ProConnect configuration for the API. See https://github.com/etalab-ia/albert-api/blob/main/docs/oauth2_encryption.md for more information.")  # fmt: off
+    rabbitmq: Optional[RabbitMQDependency] = Field(default=None, description="If provided, pass values to modify the behavior of RabbitMQ.")
 
     @model_validator(mode="after")
     def validate_dependencies(cls, values):
@@ -377,6 +387,7 @@ class Dependencies(ConfigBaseModel):
             for item in type:
                 if hasattr(values, item.value):
                     delattr(values, item.value)
+
 
             return values
 

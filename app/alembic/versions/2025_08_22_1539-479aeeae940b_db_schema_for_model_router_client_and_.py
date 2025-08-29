@@ -1,8 +1,8 @@
 """Move user auth from ui to app
 
-Revision ID: 788a3b052a11
-Revises: c1e54102255e
-Create Date: 2025-08-22 11:57:50.150602
+Revision ID: 479aeeae940b
+Revises: 788a3b052a11
+Create Date: 2025-08-22 15:39:08.505712
 
 """
 
@@ -15,8 +15,9 @@ from app.utils.configuration import configuration
 
 
 # revision identifiers, used by Alembic.
-revision: str = "788a3b052a11"
-down_revision: Union[str, None] = "c1e54102255e"
+
+revision: str = '479aeeae940b'
+down_revision: Union[str, None] = '788a3b052a11'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -1,14 +1,23 @@
-from asyncio import Lock
-from typing import List, Optional
+from asyncio import Lock, wait_for
+from typing import List, Optional, Callable, Union, Awaitable, TYPE_CHECKING
 
+import aio_pika
+
+from app.helpers.models._workingcontext import WorkingContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.clients.model import BaseModelClient
 from app.schemas.core.configuration import RoutingStrategy
 from app.schemas.models import Model as ModelSchema, ModelType
+from app.utils.configuration import configuration
 from app.utils.exceptions import ModelNotFoundException
 
 from app.helpers.models.routers import ModelRouter
+from app.utils.rabbitmq import AsyncRabbitMQConnection
+
+if TYPE_CHECKING:
+    # only for type‐checkers and linters, not at runtime
+    # Used to break circular import
+    from app.clients.model import BaseModelClient
 from app.utils.variables import DEFAULT_APP_NAME
 
 from app.helpers._modeldatabasemanager import ModelDatabaseManager
@@ -16,7 +25,7 @@ from app.helpers._modeldatabasemanager import ModelDatabaseManager
 
 class ModelRegistry:
     def __init__(self, routers: List[ModelRouter]) -> None:
-        self._router_ids: List[str] = []
+        self._router_ids = list()
         self._routers = dict()
         self.aliases = dict()
         self._lock = Lock()
@@ -60,23 +69,18 @@ class ModelRegistry:
         data = list()
         async with self._lock:
             models = [model] if model else self._router_ids
-            for m in models:
-                model_id = self.aliases.get(m, m)
-                if model_id not in self._routers:
-                    continue
-                router_model = self._routers[model_id]
+            for model in models:
+                # Avoid self.__call__, deadlock otherwise
+                model = self._routers[self.aliases.get(model, model)]
                 data.append(
                     ModelSchema(
-                        id=router_model.name,
-                        type=router_model.type,
-                        max_context_length=router_model.max_context_length,
-                        owned_by=router_model.owned_by,
-                        created=router_model.created,
-                        aliases=router_model.aliases,
-                        costs={
-                            "prompt_tokens": router_model.cost_prompt_tokens,
-                            "completion_tokens": router_model.cost_completion_tokens,
-                        },
+                        id=model.name,
+                        type=model.type,
+                        max_context_length=model.max_context_length,
+                        owned_by=model.owned_by,
+                        created=model.created,
+                        aliases=model.aliases,
+                        costs={"prompt_tokens": model.cost_prompt_tokens, "completion_tokens": model.cost_completion_tokens},
                     )
                 )
 
@@ -99,7 +103,7 @@ class ModelRegistry:
     async def __add_client_to_new_router(
         self,
         router_name: str,
-        model_client: BaseModelClient,
+        model_client: "BaseModelClient",
         session: AsyncSession,
         model_type: ModelType = None,
         aliases: List[str] = None,
@@ -258,3 +262,65 @@ class ModelRegistry:
         """
         async with self._lock:
             return [r for r in self._routers.values()]
+
+    async def execute_request[R](
+        self,
+        router_id: str,
+        endpoint: str,
+        handler: Callable[["BaseModelClient"], Union[R, Awaitable[R]]]
+    ) -> R:
+        """
+        Execute an endpoint's request at the right location.
+            If RabbitMQ is enabled, it passes the request to the right queue, and wait for the result.
+            If not, it directly gets a ModelClient to send the request.
+
+        In both case, this method is thread-safe, and should be the main way to send a request to a
+          remote LLM and retrieve the result.
+
+        Args:
+              router_id(str): the ModelRouter name the end user wants to access.
+              endpoint(str): the AI API endpoint to send the request to.
+              handler(callable): A callback that, given a ModelClient, returns the wished result.
+                It describes the actual "work" to be done.
+
+        Returns: Whatever the handler returns.
+        """
+
+        # We lock to prevent any race condition while working
+        async with self._lock:
+
+            router_id = self.aliases.get(router_id, router_id)
+
+            if router_id not in self._router_ids:
+                raise ModelNotFoundException()
+
+            model_router = self._routers[router_id]
+
+            if configuration.dependencies.rabbitmq:  # RabbitMQ is on
+                ctx = WorkingContext(
+                    endpoint=endpoint,
+                    handler=handler
+                )
+
+                await model_router.register_context(ctx)
+
+                try:
+                    await AsyncRabbitMQConnection().publish_default_exchange(
+                        message=aio_pika.Message(body=ctx.id.encode('utf8')),
+                        routing_key=model_router.queue_name
+                    )
+
+                    result = await wait_for(ctx.result, timeout=configuration.dependencies.rabbitmq.timeout)
+                    await model_router.pop_context(ctx)  # free space once finished
+                    return result
+
+                except Exception as e:
+                    # Anyway, we pop the context, to prevent memory leaks
+                    await model_router.pop_context(ctx.id)
+                    raise e
+
+            # if no RabbitMQ, classic access
+            return await model_router.safe_client_access(
+                endpoint=endpoint,
+                handler=handler
+            )
