@@ -3,7 +3,7 @@ from functools import wraps
 import logging
 import os
 import re
-from typing import Any, Dict, List, Literal, Optional, Type
+from typing import Any, Dict, List, Literal, Optional, Type, get_origin, get_args, Union
 
 import pycountry
 from pydantic import BaseModel, ConfigDict, Field, constr, field_validator, model_validator
@@ -72,6 +72,7 @@ def custom_validation_error(url: Optional[str] = None):
 
         cls.__init__ = new_init
         return cls
+
     return decorator
 
 
@@ -123,13 +124,13 @@ class ModelProvider(ConfigBaseModel):
     model_carbon_footprint_zone: CountryCodes = Field(default=CountryCodes.WOR, description="Model hosting zone for carbon footprint computation (with ISO 3166-1 alpha-3 code format). For more information, see https://ecologits.ai", examples=["WOR"])  # fmt: off
     model_carbon_footprint_total_params: Optional[float] = Field(default=None, ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     model_carbon_footprint_active_params: Optional[float] = Field(default=None, ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
-    
+
     model_config = ConfigDict(from_attributes=True)
 
     @model_validator(mode="after")
     def complete_values(cls, values):
         # complete url
-        if values.url is None and not hasattr(values, 'hide_url'):
+        if values.url is None and not hasattr(values, "hide_url"):
             if values.type == ModelProviderType.OPENAI:
                 values.url = "https://api.openai.com"
             elif values.type == ModelProviderType.ALBERT:
@@ -167,10 +168,16 @@ class Model(ConfigBaseModel):
     routing_strategy: RoutingStrategy = Field(default=RoutingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["round_robin"])  # fmt: off
     providers: List[ModelProvider] = Field(..., description="API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type.")  # fmt: off
 
-    vector_size: Optional[int] = Field(default=None, description="Dimension of the vectors, if the models are embeddings. Makes just it is the same for all models.")
-    max_context_length: Optional[int] = Field(default=None, description="Maximum amount of tokens a context could contains. Makes sure it is the same for all models.")
+    vector_size: Optional[int] = Field(
+        default=None, description="Dimension of the vectors, if the models are embeddings. Makes just it is the same for all models."
+    )
+    max_context_length: Optional[int] = Field(
+        default=None, description="Maximum amount of tokens a context could contains. Makes sure it is the same for all models."
+    )
     created: Optional[int] = Field(default=None, description="Time of creation, as Unix timestamp.")
-    from_config: Optional[bool] = Field(default=False, description="Whether this model was defined in configuration, meaning it should be checked against the database.")
+    from_config: Optional[bool] = Field(
+        default=False, description="Whether this model was defined in configuration, meaning it should be checked against the database."
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -195,14 +202,14 @@ class Model(ConfigBaseModel):
             return NotImplemented
 
         return (
-            self.name == other.name and
-            self.type == other.type and
-            set(self.aliases) == set(other.aliases) and
-            self.owned_by == other.owned_by and
-            self.routing_strategy == other.routing_strategy and
-            self.providers == other.providers and
-            self.vector_size == other.vector_size and
-            self.max_context_length == other.max_context_length            
+            self.name == other.name
+            and self.type == other.type
+            and set(self.aliases) == set(other.aliases)
+            and self.owned_by == other.owned_by
+            and self.routing_strategy == other.routing_strategy
+            and self.providers == other.providers
+            and self.vector_size == other.vector_size
+            and self.max_context_length == other.max_context_length
         )
 
 
@@ -252,8 +259,10 @@ class BraveDependency(ConfigBaseModel):
     headers: Dict[str, str] = Field(default_factory=dict, required = True, description="Brave API request headers.", examples=[{"X-Subscription-Token": "my-api-key"}])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Brave API requests.", examples=[10])  # fmt: off
 
+
 class CentraleSupelecDependency(ConfigBaseModel):
     token: str = Field(description="Centrale Supélec token for testing dynamic models")
+
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#duckduckgodependency")
 class DuckDuckGoDependency(ConfigBaseModel):
@@ -270,7 +279,11 @@ class ElasticsearchDependency(ConfigBaseModel):
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#qdrantdependency")
 class QdrantDependency(ConfigBaseModel):
-    # All args of pydantic qdrant client is allowed
+    model: str = Field(default="embeddings-small", description="Model used for embeddings in Qdrant.")
+    args: Dict[str, Any] = Field(
+        default_factory=lambda: {"url": "http://qdrant", "api_key": "changeme", "prefer_grpc": False, "timeout": 10},
+        description="Arguments for the Qdrant client.",
+    )
 
     @model_validator(mode="after")
     def force_rest(cls, values):
@@ -349,7 +362,7 @@ class Dependencies(ConfigBaseModel):
     redis: RedisDependency  = Field(..., description="Pass all redis python SDK arguments, see https://redis.readthedocs.io/en/stable/connections.html for more information.")  # fmt: off
     secretiveshell: Optional[SecretiveshellDependency] = Field(default=None, description="If provided, MCP agents can use tools from SecretiveShell MCP Bridge. Pass arguments to call Secretiveshell API in this section, see https://github.com/SecretiveShell/MCP-Bridge for more information.")  # fmt: off
     sentry: Optional[SentryDependency] = Field(default=None, description="Pass all sentry python SDK arguments, see https://docs.sentry.io/platforms/python/configuration/options/ for more information.")  # fmt: off
-    proconnect: ProConnect = Field(default_factory=ProConnect, description="ProConnect configuration for the API. See https://github.com/etalab-ia/albert-api/blob/main/docs/oauth2_encryption.md for more information.")  # fmt: off
+    proconnect: Optional[ProConnect] = Field(default=None, description="ProConnect configuration for the API. See https://github.com/etalab-ia/albert-api/blob/main/docs/oauth2_encryption.md for more information.")  # fmt: off
 
     @model_validator(mode="after")
     def validate_dependencies(cls, values):
@@ -373,10 +386,10 @@ class Dependencies(ConfigBaseModel):
                 # Expose the dependency under the generic name (vector_store, parser, ...)
                 setattr(values, name, dep_obj)
 
-            # Clean up specific attributes
-            for item in type:
-                if hasattr(values, item.value):
-                    delattr(values, item.value)
+                # Clean up specific attributes
+                for item in type:
+                    if item != chosen_enum and hasattr(values, item.value):
+                        delattr(values, item.value)
 
             return values
 
@@ -588,8 +601,91 @@ class Configuration(BaseSettings):
         # replace environment variables
         file_content = cls.replace_environment_variables(file_content="".join(uncommented_lines))
 
-        # load config
-        config = ConfigFile(**yaml.safe_load(stream=file_content))
+        # --- CHANGED: parse YAML to dict and normalize explicit nulls for BaseModel fields ---
+        config_dict = yaml.safe_load(stream=file_content)
+
+        if config_dict is None:
+            raise ValueError(f"Config file ({values.config_file}) is empty or invalid YAML.")
+
+        # Helper to inspect typing annotations
+
+        def _is_model_annotation(annotation) -> bool:
+            """Return True if annotation is (or contains) a Pydantic BaseModel subclass."""
+            if annotation is None:
+                return False
+            origin = get_origin(annotation)
+            # direct class like MyModel
+            if origin is None:
+                try:
+                    return issubclass(annotation, BaseModel)
+                except Exception:
+                    return False
+            # handle Optional[...] or Union[...]
+            if origin is Union:
+                for arg in get_args(annotation):
+                    try:
+                        if issubclass(arg, BaseModel):
+                            return True
+                    except Exception:
+                        continue
+            return False
+
+        def _get_model_class_from_annotation(annotation):
+            """Return the BaseModel subclass from an annotation (or None)."""
+            origin = get_origin(annotation)
+            if origin is None:
+                try:
+                    return annotation if issubclass(annotation, BaseModel) else None
+                except Exception:
+                    return None
+            if origin is Union:
+                for arg in get_args(annotation):
+                    try:
+                        if issubclass(arg, BaseModel):
+                            return arg
+                    except Exception:
+                        continue
+            return None
+
+        def normalize_none_to_empty_for_model(fragment: dict, model_cls):
+            """
+            For each key in fragment that corresponds to a field on model_cls:
+              - if value is None and the field annotation expects a BaseModel -> replace by {}
+              - if value is a dict and the field annotation expects a BaseModel -> recurse
+            """
+            if fragment is None or not isinstance(fragment, dict):
+                return
+            pyd_fields = getattr(model_cls, "__pydantic_fields__", {}) or {}
+
+            for key, val in list(fragment.items()):
+                if key not in pyd_fields:
+                    # unknown key: skip normalization
+                    continue
+                field_info = pyd_fields[key]
+                annotation = getattr(field_info, "annotation", None)
+                # If the annotation expects a BaseModel (or Optional[BaseModel])
+                if _is_model_annotation(annotation):
+                    # If YAML explicitly used `key: null` or `key:` -> None, replace with {}
+                    if val is None:
+                        fragment[key] = {}
+                        val = fragment[key]
+                    # If we have a dict and nested model, recurse
+                    nested_model = _get_model_class_from_annotation(annotation)
+                    if isinstance(val, dict) and nested_model is not None:
+                        normalize_none_to_empty_for_model(val, nested_model)
+                else:
+                    # Don't change non-BaseModel fields
+                    continue
+
+        # Start normalization at top-level ConfigFile model
+        try:
+            normalize_none_to_empty_for_model(config_dict, ConfigFile)
+        except Exception:
+            # Log but don't fail startup if normalization has an unexpected problem
+            logging.exception("Failed to normalize config None values; continuing without normalization.")
+
+        # load config through Pydantic models
+        config = ConfigFile(**config_dict)
 
         values.models = config.models
         values.dependencies = config.dependencies
