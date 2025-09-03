@@ -223,6 +223,7 @@ class DocumentManager:
         except Exception as e:
             if "foreign key constraint" in str(e).lower() or "fkey" in str(e).lower():
                 raise CollectionNotFoundException(detail=f"Collection {collection_id} no longer exists")
+            raise
         document_id = result.scalar_one()
         await session.commit()
 
