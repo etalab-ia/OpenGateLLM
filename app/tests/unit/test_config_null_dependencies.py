@@ -7,7 +7,7 @@ def write_tmp_config(path: str, content: str):
         f.write(textwrap.dedent(content))
 
 
-def test_missing_proconnect_creates_default(tmp_path):
+def test_missing_proconnect_is_none(tmp_path):
     cfg = tmp_path / "config_no_proconnect.yml"
     content = """
     models:
@@ -26,11 +26,11 @@ def test_missing_proconnect_creates_default(tmp_path):
     write_tmp_config(cfg, content)
 
     c = Configuration(config_file=str(cfg))
-    # When the key is absent, proconnect should remain None (no default factory)
+    # When the key is absent, proconnect should remain None
     assert c.dependencies.proconnect is None
 
 
-def test_present_but_empty_proconnect_is_normalized(tmp_path):
+def test_present_but_empty_proconnect_default(tmp_path):
     cfg = tmp_path / "config_null_proconnect.yml"
     content = """
     models:
@@ -44,7 +44,7 @@ def test_present_but_empty_proconnect_is_normalized(tmp_path):
     dependencies:
       postgres:
         url: postgresql+asyncpg://postgres@localhost:5432/api
-      proconnect:
+      proconnect: {}
       redis: {}
     """
     write_tmp_config(cfg, content)
@@ -53,7 +53,7 @@ def test_present_but_empty_proconnect_is_normalized(tmp_path):
     assert c.dependencies.proconnect is not None
 
 
-def test_present_but_empty_qdrant_is_normalized(tmp_path):
+def test_present_but_empty_qdrant_default(tmp_path):
     cfg = tmp_path / "config_null_qdrant.yml"
     content = """
     models:
@@ -67,7 +67,7 @@ def test_present_but_empty_qdrant_is_normalized(tmp_path):
     dependencies:
       postgres:
         url: postgresql+asyncpg://postgres@localhost:5432/api
-      qdrant:
+      qdrant: {}
       redis: {}
 
     settings:

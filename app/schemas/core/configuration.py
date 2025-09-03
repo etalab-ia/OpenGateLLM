@@ -3,7 +3,7 @@ from functools import wraps
 import logging
 import os
 import re
-from typing import Any, Dict, List, Literal, Optional, Type, get_origin, get_args, Union
+from typing import Any, Dict, List, Literal, Optional, Type
 
 import pycountry
 from pydantic import BaseModel, ConfigDict, Field, constr, field_validator, model_validator
@@ -342,7 +342,7 @@ class ProConnect(ConfigBaseModel):
     client_id: str = Field(default="", description="Client identifier provided by ProConnect when you register your application in their dashboard. This value is public (it's fine to embed in clients) but must match the value configured in ProConnect.")  # fmt: off
     client_secret: str = Field(default="", description="Client secret provided by ProConnect at application registration. This value must be kept confidential — it's used by the server to authenticate with ProConnect during token exchange (do not expose it to browsers or mobile apps).")  # fmt: off
     server_metadata_url: str = Field(default="https://identite-sandbox.proconnect.gouv.fr/.well-known/openid-configuration", description="OpenID Connect discovery endpoint for ProConnect (server metadata). The SDK/flow uses this to discover authorization, token, and JWKS endpoints. Change to the production discovery URL when switching from sandbox to production.")  # fmt: off
-    redirect_uri: str = Field(default="https://albert.api.etalab.gouv.fr/v1/oauth2/callback", description="Redirect URI where users are sent after successful ProConnect authentication. This URI must exactly match one of the redirect URIs configured in OpenGateLLM settings. It must be an HTTPS endpoint in production and is used to receive the authorization tokens from ProConnect.")  # fmt: off
+    redirect_uri: str = Field(default="https://albert.api.etalab.gouv.fr/v1/auth/callback", description="Redirect URI where users are sent after successful ProConnect authentication. This URI must exactly match one of the redirect URIs configured in OpenGateLLM settings. It must be an HTTPS endpoint in production and is used to receive the authorization tokens from ProConnect.")  # fmt: off
     scope: str = Field(default="openid email given_name usual_name siret organizational_unit belonging_population chorusdt", description="Space-separated OAuth2/OpenID Connect scopes requested from ProConnect (for example: 'openid email given_name'). Scopes determine the information returned about the authenticated user; reduce scopes to the minimum necessary for privacy.")  # fmt: off
     allowed_domains: str = Field(default="localhost,gouv.fr", description="Comma-separated list of domains allowed to sign in via ProConnect (e.g. 'gouv.fr,example.com'). Only fronted on the specified domains will be allowed to authenticate using proconnect.")  # fmt: off
     default_role: str = Field(default="Freemium", description="Role automatically assigned to users created via ProConnect login on first sign-in. Set this to the role name you want new ProConnect users to receive (must exist in your roles configuration).")  # fmt: off
@@ -600,92 +600,8 @@ class Configuration(BaseSettings):
 
         # replace environment variables
         file_content = cls.replace_environment_variables(file_content="".join(uncommented_lines))
-
-        # --- CHANGED: parse YAML to dict and normalize explicit nulls for BaseModel fields ---
-        config_dict = yaml.safe_load(stream=file_content)
-
-        if config_dict is None:
-            raise ValueError(f"Config file ({values.config_file}) is empty or invalid YAML.")
-
-        # Helper to inspect typing annotations
-
-        def _is_model_annotation(annotation) -> bool:
-            """Return True if annotation is (or contains) a Pydantic BaseModel subclass."""
-            if annotation is None:
-                return False
-            origin = get_origin(annotation)
-            # direct class like MyModel
-            if origin is None:
-                try:
-                    return issubclass(annotation, BaseModel)
-                except Exception:
-                    return False
-            # handle Optional[...] or Union[...]
-            if origin is Union:
-                for arg in get_args(annotation):
-                    try:
-                        if issubclass(arg, BaseModel):
-                            return True
-                    except Exception:
-                        continue
-            return False
-
-        def _get_model_class_from_annotation(annotation):
-            """Return the BaseModel subclass from an annotation (or None)."""
-            origin = get_origin(annotation)
-            if origin is None:
-                try:
-                    return annotation if issubclass(annotation, BaseModel) else None
-                except Exception:
-                    return None
-            if origin is Union:
-                for arg in get_args(annotation):
-                    try:
-                        if issubclass(arg, BaseModel):
-                            return arg
-                    except Exception:
-                        continue
-            return None
-
-        def normalize_none_to_empty_for_model(fragment: dict, model_cls):
-            """
-            For each key in fragment that corresponds to a field on model_cls:
-              - if value is None and the field annotation expects a BaseModel -> replace by {}
-              - if value is a dict and the field annotation expects a BaseModel -> recurse
-            """
-            if fragment is None or not isinstance(fragment, dict):
-                return
-            pyd_fields = getattr(model_cls, "__pydantic_fields__", {}) or {}
-
-            for key, val in list(fragment.items()):
-                if key not in pyd_fields:
-                    # unknown key: skip normalization
-                    continue
-                field_info = pyd_fields[key]
-                annotation = getattr(field_info, "annotation", None)
-                # If the annotation expects a BaseModel (or Optional[BaseModel])
-                if _is_model_annotation(annotation):
-                    # If YAML explicitly used `key: null` or `key:` -> None, replace with {}
-                    if val is None:
-                        fragment[key] = {}
-                        val = fragment[key]
-                    # If we have a dict and nested model, recurse
-                    nested_model = _get_model_class_from_annotation(annotation)
-                    if isinstance(val, dict) and nested_model is not None:
-                        normalize_none_to_empty_for_model(val, nested_model)
-                else:
-                    # Don't change non-BaseModel fields
-                    continue
-
-        # Start normalization at top-level ConfigFile model
-        try:
-            normalize_none_to_empty_for_model(config_dict, ConfigFile)
-        except Exception:
-            # Log but don't fail startup if normalization has an unexpected problem
-            logging.exception("Failed to normalize config None values; continuing without normalization.")
-
-        # load config through Pydantic models
-        config = ConfigFile(**config_dict)
+        # load config
+        config = ConfigFile(**yaml.safe_load(stream=file_content))
 
         values.models = config.models
         values.dependencies = config.dependencies
