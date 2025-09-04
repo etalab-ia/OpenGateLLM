@@ -146,7 +146,7 @@ quickstart:
 
 # test -----------------------------------------------------------------------------------------------------------------------------------------------
 test:
-	PYTHONPATH=. pytest app/tests/unit --config-file=pyproject.toml
+	PYTHONPATH=. pytest api/tests/unit --config-file=pyproject.toml
 
 # lint -----------------------------------------------------------------------------------------------------------------------------------------------
 lint:
@@ -232,9 +232,9 @@ create-user:
 .test-integ-run:
 	@if [ "$(execute)" = "local" ]; then \
 		bash -c 'set -a; . .github/.env.ci; \
-		CONFIG_FILE=app/tests/integ/config.test.yml PYTHONPATH=. pytest app/tests/integ --config-file=pyproject.toml'; \
+		CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ --config-file=pyproject.toml'; \
 	elif [ "$(execute)" = "docker" ]; then \
-		docker compose --file .github/compose.ci.yml --env-file .github/.env.ci run -T --user $$(id -u):$$(id -g) -v $$(pwd)/app:/app api pytest app/tests --cov=./app --cov-report=xml; \
+		docker compose --file .github/compose.ci.yml --env-file .github/.env.ci run -T --user $$(id -u):$$(id -g) -v $$(pwd)/api:/api api pytest api/tests --cov=./api --cov-report=xml; \
 	fi
 
 test-integ:

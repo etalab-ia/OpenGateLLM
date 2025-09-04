@@ -17,6 +17,7 @@ jobs:
     env:
       APP_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/app
       UI_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/ui
+      PLAYGROUND_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/playground
       IMAGE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || 'latest' }}
     outputs:
       commit_title: ${{ steps.get_head_commit_title.outputs.title }}
@@ -48,14 +49,14 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
-      - name: Build and push ui
+      - name: Build and push playground
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./ui/Dockerfile
+          file: ./playground/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.UI_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          tags: ${{ env.PLAYGROUND_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

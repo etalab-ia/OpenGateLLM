@@ -16,10 +16,10 @@ if [ -z "$POSTGRES_HOST" ]; then
 fi
 
 # Start the application server
-if [ -f /ui/main.py ]; then
-    MAIN_PY_PATH=/ui/main.py
+if [ -f /playground/main.py ]; then
+  MAIN_PY_PATH=/playground/main.py
 else
-    MAIN_PY_PATH=./ui/main.py
+  MAIN_PY_PATH=./playground/main.py
 fi
 exec streamlit run "$MAIN_PY_PATH" \
     --server.port=8501 \

@@ -62,12 +62,12 @@ sequenceDiagram
 ```
 
 **Code References for Sequence Diagram:**
-- **ProConnect Button**: [`ui/frontend/proconnect.py`](../ui/frontend/proconnect.py#L27-L48)
+- **ProConnect Button**: [`playground/frontend/proconnect.py`](../playground/frontend/proconnect.py#L27-L48)
 - **SessionMiddleware**: [`app/factory.py#L67`](../api/factory.py#L67)
 - **OAuth Login**: [`app/endpoints/proconnect/__init__.py#L78-L96`](../api/endpoints/proconnect/__init__.py#L78-L96)
 - **OAuth Callback**: [`app/endpoints/proconnect/__init__.py#L149-L200`](../api/endpoints/proconnect/__init__.py#L149-L200)
 - **Token Encryption**: [`app/endpoints/proconnect/encryption.py`](../api/endpoints/proconnect/encryption.py)
-- **Token Decryption**: [`ui/backend/login.py#L80-L102`](../ui/backend/login.py#L80-L102)
+-- **Token Decryption**: [`playground/backend/login.py#L80-L102`](../playground/backend/login.py#L80-L102)
 - **User Processing**: [`app/endpoints/proconnect/user.py`](../api/endpoints/proconnect/user.py)
 
 ## Key points 
@@ -75,20 +75,20 @@ sequenceDiagram
 ### Implementation Details
 
 * **Button Implementation**: Uses HTML form with direct POST to Albert API (not st.login component). This leverages browser navigation for OAuth flow. 
-  - [`ui/frontend/proconnect.py`](../ui/frontend/proconnect.py#L27-L48) - ProConnect button HTML/CSS
-  - [`ui/frontend/header.py`](../ui/frontend/header.py#L27-L36) - Button integration in login form
+  - [`playground/frontend/proconnect.py`](../playground/frontend/proconnect.py#L27-L48) - ProConnect button HTML/CSS
+  - [`playground/frontend/header.py`](../playground/frontend/header.py#L27-L36) - Button integration in login form
   
 * **Session Management**: FastAPI SessionMiddleware handles cookies and state management during OAuth flow (provides security against CSRF and manages temporary state).
   - [`app/factory.py#L67`](../api/factory.py#L67) - SessionMiddleware configuration
   
 * **Token Security**: Uses our own encrypted tokens instead of directly using ProConnect tokens. This provides better control and security.
   - [`app/endpoints/proconnect/encryption.py`](../api/endpoints/proconnect/encryption.py) - Token encryption/decryption
-  - [`ui/backend/login.py#L80-L102`](../ui/backend/login.py#L80-L102) - Frontend token decryption
+  - [`playground/backend/login.py#L80-L102`](../playground/backend/login.py#L80-L102) - Frontend token decryption
   
 * **Logout Implementation**: ✅ Implemented with `/v1/auth/logout` endpoint that handles both local token invalidation and ProConnect logout.
   - [`app/endpoints/proconnect/__init__.py#L207-L268`](../api/endpoints/proconnect/__init__.py#L207-L268) - Logout endpoint
   - [`app/endpoints/proconnect/token.py#L89-L130`](../api/endpoints/proconnect/token.py#L89-L130) - ProConnect logout handling
-  - [`ui/backend/login.py#L252-L276`](../ui/backend/login.py#L252-L276) - Frontend logout call
+  - [`playground/backend/login.py#L252-L276`](../playground/backend/login.py#L252-L276) - Frontend logout call
 
 ### User Information Processing
 

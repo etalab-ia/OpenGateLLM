@@ -3,7 +3,7 @@ import requests
 import traceback
 import streamlit as st
 
-from ui.configuration import configuration
+from playground.configuration import configuration
 import logging
 
 logger = logging.getLogger(__name__)

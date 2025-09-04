@@ -4,8 +4,8 @@ import requests
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
 
-from ui.backend.common import check_password
-from ui.configuration import configuration
+from playground.backend.common import check_password
+from playground.configuration import configuration
 
 
 def change_password(current_password: str, new_password: str, confirm_password: str):

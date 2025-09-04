@@ -4,7 +4,7 @@ from typing import Optional
 import requests
 import streamlit as st
 
-from ui.configuration import configuration
+from playground.configuration import configuration
 
 
 def create_collection(name: str, description: str) -> None:

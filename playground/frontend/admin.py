@@ -1,9 +1,9 @@
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
 
-from ui.backend.admin import create_role, create_user, delete_role, delete_user, refresh_playground_api_key, update_role, update_user
-from ui.frontend.header import header
-from ui.frontend.utils import (
+from playground.backend.admin import create_role, create_user, delete_role, delete_user, refresh_playground_api_key, update_role, update_user
+from playground.frontend.header import header
+from playground.frontend.utils import (
     input_new_role_limits,
     input_new_role_name,
     input_new_role_permissions,

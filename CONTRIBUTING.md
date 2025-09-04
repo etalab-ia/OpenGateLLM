@@ -46,10 +46,10 @@ It is recommended to use a Python [virtualenv](https://docs.python.org/3/library
 
 1. Create a Python virtual environment (recommended)
 
-2. Install the dependencies with the following command:
+1. Install the dependencies with the following command:
 
   ```bash
-  pip install ".[app,ui,dev,test]"
+  pip install ".[app,playground,dev,test]"
   ```
 
 #### Linter installation
@@ -124,16 +124,16 @@ Then apply the migration with the following command:
 alembic -c app/alembic.ini upgrade head
 ```
 
-### Modifications to the [`ui/sql/models.py`](./ui/sql/models.py) file
+### Modifications to the [`playground/sql/models.py`](./playground/sql/models.py) file
 
-If you have modified the UI database tables in the [models.py](./ui/sql/models.py) file, you need to create an Alembic migration with the following command:
+If you have modified the playground database tables in the [models.py](./playground/sql/models.py) file, you need to create an Alembic migration with the following command:
 
 ```bash
-alembic -c ui/alembic.ini revision --autogenerate -m "message"
+alembic -c playground/alembic.ini revision --autogenerate -m "message"
 ```
 
 Then apply the migration with the following command:
 
 ```bash
-alembic -c ui/alembic.ini upgrade head
+alembic -c playground/alembic.ini upgrade head
 ```

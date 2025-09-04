@@ -5,8 +5,8 @@ from urllib.parse import urlparse
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
 
-from ui.backend.login import call_oauth2_logout, decrypt_oauth_token, login, oauth_login
-from ui.configuration import configuration  # Ensure configuration is imported
+from playground.backend.login import call_oauth2_logout, decrypt_oauth_token, login, oauth_login
+from playground.configuration import configuration  # Ensure configuration is imported
 
 from .proconnect import css_proconnect, html_proconnect
 

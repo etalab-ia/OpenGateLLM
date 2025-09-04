@@ -3,11 +3,11 @@ import datetime as dt
 import pandas as pd
 import streamlit as st
 
-from ui.backend.account import change_password, create_token, delete_token
-from ui.backend.common import get_limits, get_models, get_tokens, get_usage
-from ui.frontend.header import header
-from ui.frontend.utils import pagination
-from ui.configuration import configuration
+from playground.backend.account import change_password, create_token, delete_token
+from playground.backend.common import get_limits, get_models, get_tokens, get_usage
+from playground.frontend.header import header
+from playground.frontend.utils import pagination
+from playground.configuration import configuration
 
 header()
 models = get_models() + ["web-search"]

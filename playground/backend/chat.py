@@ -3,7 +3,7 @@ from openai import OpenAI
 import requests
 import streamlit as st
 
-from ui.configuration import configuration
+from playground.configuration import configuration
 
 
 def generate_stream(messages: List[dict], params: dict, rag: bool, rerank: bool) -> Tuple[str, List[str], List[Dict[str, Any]]]:

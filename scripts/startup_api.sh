@@ -26,10 +26,10 @@ if [ -z "$QDRANT_HOST" ]; then
 fi
 
 # Run database migrations
-python -m alembic -c app/alembic.ini upgrade head
+python -m alembic -c api/alembic.ini upgrade head
 
 # Start the application server
-exec gunicorn app.main:app \
+exec gunicorn api.main:app \
     --workers $WORKERS \
     --worker-connections $WORKER_CONNECTIONS \
     --timeout $TIMEOUT \

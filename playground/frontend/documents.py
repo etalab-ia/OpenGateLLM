@@ -1,9 +1,9 @@
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
 
-from ui.backend.documents import create_collection, delete_collection, delete_document, update_collection, upload_document
-from ui.frontend.header import header
-from ui.frontend.utils import input_new_collection_description, input_new_collection_name, resources_selector
+from playground.backend.documents import create_collection, delete_collection, delete_document, update_collection, upload_document
+from playground.frontend.header import header
+from playground.frontend.utils import input_new_collection_description, input_new_collection_name, resources_selector
 
 header()
 if st.session_state["user"].id == 0:

@@ -3,8 +3,8 @@ import streamlit as st
 from typing import Optional
 import time
 
-from ui.configuration import configuration
-from ui.backend.documents import upload_document, create_collection_with_id
+from playground.configuration import configuration
+from playground.backend.documents import upload_document, create_collection_with_id
 
 
 def parse_document(file, output_format: str = "markdown", force_ocr: bool = False, page_range: str = "", paginate_output: bool = False) -> dict:

@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
 
-from ui.configuration import configuration
+from playground.configuration import configuration
 
 st.set_page_config(
     page_title="OpenGateLLM playground",

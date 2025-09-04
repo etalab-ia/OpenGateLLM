@@ -2,8 +2,8 @@ from typing import Literal
 
 import requests
 import streamlit as st
-from ui.configuration import configuration
-from ui.variables import MODEL_TYPE_AUDIO, MODEL_TYPE_EMBEDDINGS, MODEL_TYPE_IMAGE_TEXT_TO_TEXT, MODEL_TYPE_LANGUAGE, MODEL_TYPE_RERANK
+from playground.configuration import configuration
+from playground.variables import MODEL_TYPE_AUDIO, MODEL_TYPE_EMBEDDINGS, MODEL_TYPE_IMAGE_TEXT_TO_TEXT, MODEL_TYPE_LANGUAGE, MODEL_TYPE_RERANK
 
 
 @st.cache_data(show_spinner=False, ttl=configuration.playground.cache_ttl)

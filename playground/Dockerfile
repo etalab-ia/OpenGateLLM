@@ -1,4 +1,4 @@
-# First, build the application in the `/app` directory.
+# First, build the application in the `/api` directory.
 # See `Dockerfile` for details.
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
@@ -17,18 +17,18 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /
 # Copy project files
-COPY ./ui/ /ui
+COPY ./playground/ /playground
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv pip install ".[ui]"
+    uv pip install ".[playground]"
 
 # Final stage
 FROM python:3.12-slim
 
 RUN groupadd --gid 1100 opengatellm && \
-    useradd --home /ui --gid 1100 --uid 1100 opengatellm
+    useradd --home /playground --gid 1100 --uid 1100 opengatellm
 
 # Only runtime dependencies
 RUN apt-get update && apt-get install -y \
@@ -44,10 +44,10 @@ USER opengatellm
 WORKDIR /
 
 # Copy application from builder
-COPY --from=builder --chown=opengatellm:opengatellm /ui /ui
+COPY --from=builder --chown=opengatellm:opengatellm /playground /playground
 COPY --from=builder --chown=opengatellm:opengatellm /.venv /.venv
 ENV PATH="/.venv/bin:${PATH}"
-ENV PYTHONPATH="/ui:${PYTHONPATH}"
+ENV PYTHONPATH="/playground:${PYTHONPATH}"
 
 # Launch the application
 CMD ["/startup.sh"]

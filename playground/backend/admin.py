@@ -4,8 +4,8 @@ from typing import Optional
 import requests
 import streamlit as st
 
-from ui.backend.common import check_password
-from ui.configuration import configuration
+from playground.backend.common import check_password
+from playground.configuration import configuration
 
 
 def create_role(name: str, permissions: list, limits: list):

@@ -3,11 +3,11 @@ import time
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
 
-from ui.backend.common import get_limits, get_models
-from ui.backend.summarize import generate_summary, generate_toc, get_chunks, summary_with_feedback
-from ui.frontend.header import header
-from ui.frontend.utils import resources_selector
-from ui.variables import MODEL_TYPE_LANGUAGE, MODEL_TYPE_IMAGE_TEXT_TO_TEXT
+from playground.backend.common import get_limits, get_models
+from playground.backend.summarize import generate_summary, generate_toc, get_chunks, summary_with_feedback
+from playground.frontend.header import header
+from playground.frontend.utils import resources_selector
+from playground.variables import MODEL_TYPE_LANGUAGE, MODEL_TYPE_IMAGE_TEXT_TO_TEXT
 
 header()
 models = get_models(types=[MODEL_TYPE_LANGUAGE, MODEL_TYPE_IMAGE_TEXT_TO_TEXT])

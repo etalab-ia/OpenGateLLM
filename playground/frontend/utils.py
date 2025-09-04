@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
 
-from ui.backend.common import get_collections, get_documents, get_limits, get_models, get_roles, get_users
+from playground.backend.common import get_collections, get_documents, get_limits, get_models, get_roles, get_users
 
 
 def resources_selector(resource: Literal["collection", "role", "user", "document"], resource_filter: Any = None, per_page: int = 30):
