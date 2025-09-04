@@ -42,7 +42,7 @@ Au démarrage de l'API un objet `ModelRegistry` est créé qui contient les obje
 ModelRegistry est un classe utilisable comme un dictionnaire pour récupérer un modèle. Le modèle est récupéré par son ID ou un de ses alias définit dans le fichier de configuration (voir [deployment](./deployment.md)).
 
 ```python
-from app.utils.lifespan import models
+from api.utils.lifespan import models
 
 model = models["guillaumetell-7b"]
 ```
@@ -64,7 +64,7 @@ Les informations du modèle sont celle renvoyées par le endpoint `GET /v1/model
 
 
 ```python
-from app.utils.lifespan import models
+from api.utils.lifespan import models
 
 model = models["guillaumetell-7b"]
 

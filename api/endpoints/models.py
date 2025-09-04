@@ -1,0 +1,35 @@
+from fastapi import APIRouter, Path, Request, Security, HTTPException
+from fastapi.responses import JSONResponse
+
+from api.helpers._accesscontroller import AccessController
+from api.schemas.models import Model, Models
+from api.utils.context import global_context
+from api.utils.variables import ENDPOINT__MODELS
+
+router = APIRouter()
+
+
+@router.get(path=ENDPOINT__MODELS + "/{model:path}", dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Model)
+async def get_model(request: Request, model: str = Path(description="The name of the model to get.")) -> JSONResponse:
+    """
+    Get a model by name and provide basic information.
+    """
+
+    models = await global_context.model_registry.list(model=model)
+    if not models:
+        raise HTTPException(status_code=404, detail=f"Model '{model}' not found")
+
+    model = models[0]
+
+    return JSONResponse(content=model.model_dump(), status_code=200)
+
+
+@router.get(path=ENDPOINT__MODELS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Models)
+async def get_models(request: Request) -> JSONResponse:
+    """
+    Lists the currently available models and provides basic information.
+    """
+
+    data = await global_context.model_registry.list()
+
+    return JSONResponse(content=Models(data=data).model_dump(), status_code=200)

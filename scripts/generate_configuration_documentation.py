@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from app.schemas.core.configuration import ConfigFile
+from api.schemas.core.configuration import ConfigFile
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--output", type=str, default="docs/configuration.md")
