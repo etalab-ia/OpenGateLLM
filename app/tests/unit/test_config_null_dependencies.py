@@ -51,32 +51,3 @@ def test_present_but_empty_proconnect_default(tmp_path):
 
     c = Configuration(config_file=str(cfg))
     assert c.dependencies.proconnect is not None
-
-
-def test_present_but_empty_qdrant_default(tmp_path):
-    cfg = tmp_path / "config_null_qdrant.yml"
-    content = """
-    models:
-      - name: dummy-embed
-        type: text-embeddings-inference
-        model_name: embed-test
-        providers:
-          - type: albert
-            model_name: embed-test
-
-    dependencies:
-      postgres:
-        url: postgresql+asyncpg://postgres@localhost:5432/api
-      qdrant: {}
-      redis: {}
-
-    settings:
-      vector_store_model: dummy-embed
-    """
-    write_tmp_config(cfg, content)
-
-    c = Configuration(config_file=str(cfg))
-    # qdrant is Optional[QdrantDependency], normalized should create an object (not None)
-    assert hasattr(c.dependencies, "qdrant")
-    assert c.dependencies.qdrant.model == "embeddings-small"
-    assert c.dependencies.qdrant.args == {"url": "http://qdrant", "api_key": "changeme", "prefer_grpc": False, "timeout": 10}

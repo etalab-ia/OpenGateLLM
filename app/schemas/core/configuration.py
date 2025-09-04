@@ -279,12 +279,6 @@ class ElasticsearchDependency(ConfigBaseModel):
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#qdrantdependency")
 class QdrantDependency(ConfigBaseModel):
-    model: str = Field(default="embeddings-small", description="Model used for embeddings in Qdrant.")
-    args: Dict[str, Any] = Field(
-        default_factory=lambda: {"url": "http://qdrant", "api_key": "changeme", "prefer_grpc": False, "timeout": 10},
-        description="Arguments for the Qdrant client.",
-    )
-
     @model_validator(mode="after")
     def force_rest(cls, values):
         if hasattr(values, "prefer_grpc") and values.prefer_grpc:
