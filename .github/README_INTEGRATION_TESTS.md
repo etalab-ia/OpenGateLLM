@@ -3,7 +3,7 @@
 > [!WARNING]
 > **For internal team use only.**
 
-The configuration file is in the `app/tests/integ/config.test.yml` file.
+The configuration file is in the `api/tests/integ/config.test.yml` file.
 
 ## Run all integration tests (make command)
 
@@ -74,13 +74,13 @@ make test-integ [action=up|down|run|all] [execute=local|docker]
 To execute a specific test, you can use the following command:
 
 ```bash
-CONFIG_FILE=app/tests/integ/config.test.yml PYTHONPATH=. pytest app/tests/integ/test_api.py::test_health --config-file=pyproject.toml
+CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ/test_api.py::test_health --config-file=pyproject.toml
 ```
 
 To run a group of tests, you can use the following command:
 
 ```bash
-CONFIG_FILE=app/tests/integ/config.test.yml PYTHONPATH=. pytest app/tests/integ/test_api.py --config-file=pyproject.toml
+CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ/test_api.py --config-file=pyproject.toml
 ```
 
 ## Run with VSCode
@@ -90,7 +90,7 @@ Create a `.vscode/settings.json` file with the following content:
 ```json
 {
     "python.testing.pytestArgs": [
-        "app", "-v", "-s", "--config-file=pyproject.toml"
+        "api", "-v", "-s", "--config-file=pyproject.toml"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true,
