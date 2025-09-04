@@ -162,7 +162,6 @@ def check_password(password: str) -> bool:
     return True
 
 
-@st.cache_data(show_spinner=False, ttl=configuration.playground.cache_ttl)
 def get_usage(
     limit: int = 50,
     page: int = 1,
