@@ -110,9 +110,9 @@ make test
 
 ## Modifications to SQL database structure
 
-### Modifications to the [`app/sql/models.py`](./app/sql/models.py) file
+### Modifications to the [`app/sql/models.py`](./api/sql/models.py) file
 
-If you have modified the API database tables in the [models.py](./app/sql/models.py) file, you need to create an Alembic migration with the following command:
+If you have modified the API database tables in the [models.py](./api/sql/models.py) file, you need to create an Alembic migration with the following command:
 
 ```bash
 alembic -c app/alembic.ini revision --autogenerate -m "message"

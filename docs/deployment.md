@@ -29,7 +29,7 @@ Connect to the playground UI (http://localhost:8501) with the master username as
 OpenGateLLM requires a configuration file (config.yml) which defines third-party clients and configuration parameters.
 **The configuration file is a YAML file that can combine the configuration of the playground and the API.**
 
-You can consult the Pydantic schema of the configuration for the API [here](../app/schemas/core/settings.py) and for the playground [here](../ui/settings.py).
+You can consult the Pydantic schema of the configuration for the API [here](../api/schemas/core/settings.py) and for the playground [here](../ui/settings.py).
 
 #### Secrets
 

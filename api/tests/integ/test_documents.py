@@ -24,7 +24,7 @@ def collection(client, record_with_vcr):
 @pytest.mark.usefixtures("client", "collection")
 class TestDocuments:
     def test_post_document(self, client: TestClient, collection):
-        file_path = "app/tests/integ/assets/pdf.pdf"
+        file_path = "api/tests/integ/assets/pdf.pdf"
 
         data = {  # with metadata
             "collection": str(collection),
@@ -50,7 +50,7 @@ class TestDocuments:
 
     def test_get_documents(self, client: TestClient, collection):
         # Create document
-        file_path = "app/tests/integ/assets/pdf.pdf"
+        file_path = "api/tests/integ/assets/pdf.pdf"
 
         data = {  # with empty metadata
             "collection": str(collection),
@@ -95,7 +95,7 @@ class TestDocuments:
 
     def test_delete_document(self, client: TestClient, collection):
         # Create document
-        file_path = "app/tests/integ/assets/pdf.pdf"
+        file_path = "api/tests/integ/assets/pdf.pdf"
 
         data = {  # without metadata
             "collection": str(collection),

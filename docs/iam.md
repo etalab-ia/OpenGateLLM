@@ -103,7 +103,7 @@ Roles define what actions users can perform within the system through permission
 - Limits: resource usage limits for users with this role
 
 > **❗️Note**<br>
-> All permissions and limits are managed by the *[Authorization](../app/helpers/_authorization.py)* class.
+> All permissions and limits are managed by the *[Authorization](../api/helpers/_authorization.py)* class.
 
 ### Available Permissions
 

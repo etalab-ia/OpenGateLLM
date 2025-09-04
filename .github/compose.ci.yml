@@ -4,7 +4,7 @@ services:
   api:
     build:
       context: ..
-      dockerfile: app/Dockerfile
+      dockerfile: api/Dockerfile
     restart: always
     env_file: "${APP_ENV_FILE:-.env.ci}"
     volumes:
@@ -14,7 +14,7 @@ services:
     environment:
       - "ALBERT_API_KEY=${ALBERT_API_KEY}"
       - "BRAVE_API_KEY=${BRAVE_API_KEY}"
-      - "COVERAGE_RCFILE=./app/.coveragerc"
+      - "COVERAGE_RCFILE=./api/.coveragerc"
     depends_on:
       redis:
         condition: service_healthy

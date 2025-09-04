@@ -94,9 +94,9 @@ class TestGetCarbonFootprint:
 
     def test_get_carbon_footprint_return_footprint(self, mocker):
         # Given
-        mocked_electricity_mix = mocker.patch("app.utils.carbon.electricity_mixes.find_electricity_mix")
+        mocked_electricity_mix = mocker.patch("api.utils.carbon.electricity_mixes.find_electricity_mix")
         mocked_electricity_mix.return_value = SimpleNamespace(adpe=1, pe=2, gwp=3)
-        mocked_compute_llm_impacts = mocker.patch("app.utils.carbon.compute_llm_impacts")
+        mocked_compute_llm_impacts = mocker.patch("api.utils.carbon.compute_llm_impacts")
         mocked_compute_llm_impacts.return_value = dict_to_namespace(
             {
                 "energy": {"value": {"min": 1, "max": 2}},

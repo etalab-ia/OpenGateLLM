@@ -77,7 +77,7 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
 
     def iter_endpoint_modules():
         """Yield (key, module) for each importable module/package under app.endpoints that defines a router."""
-        base_pkg_name = "app.endpoints"
+        base_pkg_name = "api.endpoints"
         try:
             base_pkg = import_module(base_pkg_name)
             for finder, name, ispkg in pkgutil.walk_packages(base_pkg.__path__, base_pkg.__name__ + "."):

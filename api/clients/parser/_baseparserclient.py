@@ -21,7 +21,7 @@ class BaseParserClient(ABC):
         Returns:
             Type[BaseParserClient]: The subclass of BaseParserClient.
         """
-        module = importlib.import_module(f"app.clients.parser._{type.value}parserclient")
+        module = importlib.import_module(f"api.clients.parser._{type.value}parserclient")
         return getattr(module, f"{type.capitalize()}ParserClient")
 
     def convert_page_range(self, page_range: str, page_count: int) -> List[int]:

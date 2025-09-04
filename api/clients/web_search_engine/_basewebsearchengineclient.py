@@ -17,7 +17,7 @@ class BaseWebSearchEngineClient(ABC):
         Returns:
             Type[BaseWebSearchEngineClient]: The subclass of BaseWebSearchEngineClient.
         """
-        module = importlib.import_module(f"app.clients.web_search_engine._{type.value}websearchengineclient")
+        module = importlib.import_module(f"api.clients.web_search_engine._{type.value}websearchengineclient")
 
         return getattr(module, f"{type.capitalize()}WebSearchEngineClient")
 

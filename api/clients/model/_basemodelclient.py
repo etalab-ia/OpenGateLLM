@@ -91,7 +91,7 @@ class BaseModelClient(ABC):
             Type[BaseModelClient]: The subclass of BaseModelClient.
         """
 
-        module = importlib.import_module(f"app.clients.model._{type.value}modelclient")
+        module = importlib.import_module(f"api.clients.model._{type.value}modelclient")
 
         return getattr(module, f"{type.capitalize()}ModelClient")
 

@@ -24,7 +24,7 @@ class BaseVectorStoreClient(ABC):
             Type[BaseVectorStoreClient]: The subclass of BaseVectorStoreClient.
         """
 
-        module = importlib.import_module(f"app.clients.vector_store._{type.value}vectorstoreclient")
+        module = importlib.import_module(f"api.clients.vector_store._{type.value}vectorstoreclient")
 
         return getattr(module, f"{type.capitalize()}VectorStoreClient")
 

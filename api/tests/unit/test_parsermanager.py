@@ -284,7 +284,7 @@ class TestParserManagerParseHtml:
 
         manager = ParserManager()
 
-        with patch("app.helpers._parsermanager.convert_to_markdown") as mock_convert:
+        with patch("api.helpers._parsermanager.convert_to_markdown") as mock_convert:
             mock_convert.return_value = "# Title\n\nContent"
 
             result = await manager._parse_html(ParserParams(file=file, output_format=ParsedDocumentOutputFormat.MARKDOWN))
@@ -510,7 +510,7 @@ class TestParserManagerEdgeCases:
 
         manager = ParserManager()
 
-        with patch("app.helpers._parsermanager.convert_to_markdown") as mock_convert:
+        with patch("api.helpers._parsermanager.convert_to_markdown") as mock_convert:
             mock_convert.return_value = "# Sample HTML\n\nThis is a **paragraph**."
 
             result = await manager.parse_file(file=file, output_format=ParsedDocumentOutputFormat.MARKDOWN)

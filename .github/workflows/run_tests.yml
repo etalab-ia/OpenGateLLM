@@ -32,7 +32,7 @@ jobs:
       run: |
         mkdir -p .github/badges
         # Extract coverage percentage from coverage.xml
-        COVERAGE=$(docker compose -f .github/compose.ci.yml --env-file .github/.env.ci run -T --user $(id -u):$(id -g) -v $(pwd)/app:/app api python -c "import xml.etree.ElementTree as ET; print(ET.parse('app/coverage.xml').getroot().get('line-rate'))")
+        COVERAGE=$(docker compose -f .github/compose.ci.yml --env-file .github/.env.ci run -T --user $(id -u):$(id -g) -v $(pwd)/api:/api api python -c "import xml.etree.ElementTree as ET; print(ET.parse('api/coverage.xml').getroot().get('line-rate'))")
         COVERAGE_PCT=$(printf "%.2f" $(echo "${COVERAGE} * 100" | bc))
         echo "{\"schemaVersion\":1,\"label\":\"coverage\",\"message\":\"${COVERAGE_PCT}%\",\"color\":\"$(if (( $(echo "${COVERAGE_PCT} >= 80" | bc -l) )); then echo "green"; elif (( $(echo "${COVERAGE_PCT} >= 70" | bc -l) )); then echo "yellow"; else echo "red"; fi)\"}" > .github/badges/coverage.json
 

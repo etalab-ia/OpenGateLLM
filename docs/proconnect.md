@@ -63,12 +63,12 @@ sequenceDiagram
 
 **Code References for Sequence Diagram:**
 - **ProConnect Button**: [`ui/frontend/proconnect.py`](../ui/frontend/proconnect.py#L27-L48)
-- **SessionMiddleware**: [`app/factory.py#L67`](../app/factory.py#L67)
-- **OAuth Login**: [`app/endpoints/proconnect/__init__.py#L78-L96`](../app/endpoints/proconnect/__init__.py#L78-L96)
-- **OAuth Callback**: [`app/endpoints/proconnect/__init__.py#L149-L200`](../app/endpoints/proconnect/__init__.py#L149-L200)
-- **Token Encryption**: [`app/endpoints/proconnect/encryption.py`](../app/endpoints/proconnect/encryption.py)
+- **SessionMiddleware**: [`app/factory.py#L67`](../api/factory.py#L67)
+- **OAuth Login**: [`app/endpoints/proconnect/__init__.py#L78-L96`](../api/endpoints/proconnect/__init__.py#L78-L96)
+- **OAuth Callback**: [`app/endpoints/proconnect/__init__.py#L149-L200`](../api/endpoints/proconnect/__init__.py#L149-L200)
+- **Token Encryption**: [`app/endpoints/proconnect/encryption.py`](../api/endpoints/proconnect/encryption.py)
 - **Token Decryption**: [`ui/backend/login.py#L80-L102`](../ui/backend/login.py#L80-L102)
-- **User Processing**: [`app/endpoints/proconnect/user.py`](../app/endpoints/proconnect/user.py)
+- **User Processing**: [`app/endpoints/proconnect/user.py`](../api/endpoints/proconnect/user.py)
 
 ## Key points 
 
@@ -79,15 +79,15 @@ sequenceDiagram
   - [`ui/frontend/header.py`](../ui/frontend/header.py#L27-L36) - Button integration in login form
   
 * **Session Management**: FastAPI SessionMiddleware handles cookies and state management during OAuth flow (provides security against CSRF and manages temporary state).
-  - [`app/factory.py#L67`](../app/factory.py#L67) - SessionMiddleware configuration
+  - [`app/factory.py#L67`](../api/factory.py#L67) - SessionMiddleware configuration
   
 * **Token Security**: Uses our own encrypted tokens instead of directly using ProConnect tokens. This provides better control and security.
-  - [`app/endpoints/proconnect/encryption.py`](../app/endpoints/proconnect/encryption.py) - Token encryption/decryption
+  - [`app/endpoints/proconnect/encryption.py`](../api/endpoints/proconnect/encryption.py) - Token encryption/decryption
   - [`ui/backend/login.py#L80-L102`](../ui/backend/login.py#L80-L102) - Frontend token decryption
   
 * **Logout Implementation**: ✅ Implemented with `/v1/auth/logout` endpoint that handles both local token invalidation and ProConnect logout.
-  - [`app/endpoints/proconnect/__init__.py#L207-L268`](../app/endpoints/proconnect/__init__.py#L207-L268) - Logout endpoint
-  - [`app/endpoints/proconnect/token.py#L89-L130`](../app/endpoints/proconnect/token.py#L89-L130) - ProConnect logout handling
+  - [`app/endpoints/proconnect/__init__.py#L207-L268`](../api/endpoints/proconnect/__init__.py#L207-L268) - Logout endpoint
+  - [`app/endpoints/proconnect/token.py#L89-L130`](../api/endpoints/proconnect/token.py#L89-L130) - ProConnect logout handling
   - [`ui/backend/login.py#L252-L276`](../ui/backend/login.py#L252-L276) - Frontend logout call
 
 ### User Information Processing
@@ -116,7 +116,7 @@ Reliable [USERINFO](https://partenaires.proconnect.gouv.fr/docs/ressources/gloss
 
 Add the following to your `config.yml`:
 - [`config.example.yml`](../config.example.yml) - Example configuration
-- [`app/schemas/core/configuration.py`](../app/schemas/core/configuration.py) - Configuration schema
+- [`app/schemas/core/configuration.py`](../api/schemas/core/configuration.py) - Configuration schema
 
 ```yaml
 dependencies:
@@ -151,7 +151,7 @@ playground:
 ### `/v1/auth/login` (GET)
 
 Initiates the OAuth2 login flow with ProConnect.
-[📁 `app/endpoints/proconnect/__init__.py#L78-L96`](../app/endpoints/proconnect/__init__.py#L78-L96)
+[📁 `app/endpoints/proconnect/__init__.py#L78-L96`](../api/endpoints/proconnect/__init__.py#L78-L96)
 
 **Parameters:**
 - `origin` (query, optional): Return URL after successful authentication
@@ -167,7 +167,7 @@ curl -X GET "https://api.albert.gouv.fr/v1/auth/login" \
 ### `/v1/auth/callback` (GET)
 
 Handles OAuth2 callback from ProConnect.
-[📁 `app/endpoints/proconnect/__init__.py#L149-L200`](../app/endpoints/proconnect/__init__.py#L149-L200)
+[📁 `app/endpoints/proconnect/__init__.py#L149-L200`](../api/endpoints/proconnect/__init__.py#L149-L200)
 
 **Parameters:**
 - `code` (query): Authorization code from ProConnect
@@ -186,7 +186,7 @@ Handles OAuth2 callback from ProConnect.
 ### `/v1/auth/logout` (POST)
 
 Logs out user from both Albert API and ProConnect.
-[📁 `app/endpoints/proconnect/__init__.py#L207-L268`](../app/endpoints/proconnect/__init__.py#L207-L268)
+[📁 `app/endpoints/proconnect/__init__.py#L207-L268`](../api/endpoints/proconnect/__init__.py#L207-L268)
 
 **Authentication:** Bearer token required
 
@@ -216,7 +216,7 @@ curl -X POST "https://api.albert.gouv.fr/v1/auth/logout" \
 ### `/v1/auth/playground-login` (POST)
 
 Internal endpoint for Streamlit UI to refresh API tokens.
-[📁 `app/endpoints/proconnect/__init__.py#L99-L142`](../app/endpoints/proconnect/__init__.py#L99-L142)
+[📁 `app/endpoints/proconnect/__init__.py#L99-L142`](../api/endpoints/proconnect/__init__.py#L99-L142)
 
 **Request Body:**
 ```json
@@ -269,7 +269,7 @@ Internal endpoint for Streamlit UI to refresh API tokens.
 ```yaml
 allowed_domains: "localhost,albert.gouv.fr,playground.gouv.fr"
 ```
-[📁 `app/endpoints/proconnect/__init__.py#L53-L67`](../app/endpoints/proconnect/__init__.py#L53-L67) - Domain validation logic
+[📁 `app/endpoints/proconnect/__init__.py#L53-L67`](../api/endpoints/proconnect/__init__.py#L53-L67) - Domain validation logic
 
 - Supports exact domain matching
 - Supports subdomain matching (e.g., `*.gouv.fr`)
@@ -277,8 +277,8 @@ allowed_domains: "localhost,albert.gouv.fr,playground.gouv.fr"
 
 ### State Parameter Security
 
-- [📁 `app/endpoints/proconnect/__init__.py#L85-L87`](../app/endpoints/proconnect/__init__.py#L85-L87) - State creation
-- [📁 `app/endpoints/proconnect/__init__.py#L152-L165`](../app/endpoints/proconnect/__init__.py#L152-L165) - State validation
+- [📁 `app/endpoints/proconnect/__init__.py#L85-L87`](../api/endpoints/proconnect/__init__.py#L85-L87) - State creation
+- [📁 `app/endpoints/proconnect/__init__.py#L152-L165`](../api/endpoints/proconnect/__init__.py#L152-L165) - State validation
 
 - Includes timestamp to prevent replay attacks
 - Contains original URL for proper redirection
@@ -289,8 +289,8 @@ allowed_domains: "localhost,albert.gouv.fr,playground.gouv.fr"
 
 ### User Creation Flow
 
-- [📁 `app/endpoints/proconnect/user.py`](../app/endpoints/proconnect/user.py) - User creation logic
-- [📁 `app/endpoints/proconnect/__init__.py#L181-L192`](../app/endpoints/proconnect/__init__.py#L181-L192) - User lookup and update
+- [📁 `app/endpoints/proconnect/user.py`](../api/endpoints/proconnect/user.py) - User creation logic
+- [📁 `app/endpoints/proconnect/__init__.py#L181-L192`](../api/endpoints/proconnect/__init__.py#L181-L192) - User lookup and update
 
 1. **First Login**: User authenticated via ProConnect
 2. **Lookup**: Search by `sub` (primary) or `email` (secondary)
@@ -339,11 +339,11 @@ SESSION_SECRET_KEY=your_session_secret
 ### Docker Configuration
 
 Ensure your Docker setup includes the SessionMiddleware configuration:
-[📁 `app/factory.py#L67`](../app/factory.py#L67) - SessionMiddleware setup
+[📁 `app/factory.py#L67`](../api/factory.py#L67) - SessionMiddleware setup
 
 ```python
 # app/factory.py
-app.add_middleware(SessionMiddleware, secret_key=configuration.settings.session_secret_key)
+api.add_middleware(SessionMiddleware, secret_key=configuration.settings.session_secret_key)
 ```
 
 ## Troubleshooting
