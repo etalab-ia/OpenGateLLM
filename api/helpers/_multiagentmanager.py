@@ -7,110 +7,32 @@ from typing import List
 from api.helpers.models.routers._modelrouter import ModelRouter
 from api.schemas.search import Search
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS
+from api.utils.prompt_loader import get_prompt_renderer
 
 logger = logging.getLogger(__name__)
 
 
 class MultiAgentManager:
-    """Multi Agent manager for handling complex search queries with multiple models."""
+    """Multi Agent manager for handling complex search queries with multiple models.
 
-    CHOICES = {
-        0: "Je ne comprends pas la demande.",
-        1: "Des informations pertinentes ont été trouvées dans la base de données cherchée.",
-        2: "Je n'ai pas trouvé d'informations pertinentes en base de données, mais il me semblait juste de répondre avec mes connaissances générales.",
-        3: "Je n'ai pas trouvé d'informations pertinentes en base de données, et je ne veux pas me mouiller en répondant quelque chose de faux.",
-    }
-
-    PROMPT_TELLER_1 = """
-Tu es un assistant administratif qui répond à des questions sur le droit et l'administratif en français. Tes réponses doivent être succinctes et claires. Ne détaille pas inutilement.
-Voilà un contexte : \n{doc}\n
-Voilà une question : {question}
-En te basant uniquement sur le contexte donné, réponds à la question avec une réponse de la meilleure qualité possible.
-- Si le contexte ne te permet pas de répondre à la question, réponds juste "Rien ici", ne dis jamais "le texte ne mentionne pas".
-- Si le contexte donne des éléments de réponse, réponds uniquement à la question et n'invente rien, donne même juste quelques éléments de réponse si tu n'arrives pas à répondre totalement avec le contexte. Donne le nom du texte du contexte dans ta réponse.
-- Si la question n'est pas explicite et renvoie à la conversation en cours, et que tu trouves que le contexte est en lien avec la conversation, réponds juste "Ces informations sont intéressantes pour la conversation".
-question : {question}
-réponse ("Rien ici" ou ta réponse):
-"""
-
-    PROMPT_TELLER_2 = """
-Tu es un assistant administratif qui répond à des questions sur le droit et l'administratif en français. Nous sommes en 2024. Tes réponses doivent être succinctes et claires. Ne détaille pas inutilement.
-Voilà une demande utilisateur : {question}
-Réponds à cette question comme tu peux.
-Règles à respecter :
-N'invente pas de référence.
-Si tu as besoin de plus d'information ou que la question n'est pas claire, dis-le à l'utilisateur.
-La réponse doit être la plus courte possible.  Mets en forme ta réponse avec des sauts de lignes. Réponds en français et part du principe que l'interlocuteur est français et que ses questions concernent la France.
-Réponse :
-"""
-
-    PROMPT_CHOICER = """
-Tu es un expert en compréhension et en évaluation des besoins en information pour répondre à un message utilisateur. Ton travail est de juger la possibilité de répondre à un message utilisateur en fonction d'un contexte donné.
-Nous sommes en 2024 et ton savoir s'arrête en 2023.
-
-Le contexte est composé d'une liste d'extraits d'articles qui sert d'aide pour répondre au message utilisateur, mais n'est pas forcément en lien avec lui. Tu dois évaluer s'il y a besoin du contexte ou non.
-
-Ne réponds pas au message utilisateur.
-Voilà le message utilisateur : {{prompt}}
-
-Voilà tes choix :
-
-- Si le message utilisateur n'est vraiment pas claire ou ne veut vraiment rien dire en français réponds 0 OU
-- Si le message utilisateur est compréhensible et que le contexte donné est en lien avec le message utilisateur (même de loin, même un seul article du contexte) / Si le message utilisateur aborde un sujet qui est également abordé dans le contexte réponds 1 OU
-- Si le contexte contient certains éléments qui peuvent aider à répondre au message utilisateur réponds 1 OU
-- Si le message utilisateur demande explicitement des sources ou des références réponds 1 (si le contexte associé est bon) ou 3 (si le contexte associé est mauvais) OU
-- Si le message utilisateur n'a pas besoin de contexte car ce n'est pas une question adminitrative / c'est de la culture générale simple réponds 2 OU
-- Si le message utilisateur est un message simple ou personnel / Le reste de la conversation permet d'y répondre réponds 2 OU
-- Si le message utilisateur a besoin de contexte car elle est spécifique, sur de l'administratif, ou complexe, mais qu'aucun des articles du contexte n'est en lien avec elle réponds 3
-
-Pour chaque choix, assure-toi de bien évaluer le message utilisateur selon ces critères avant de donner ta réponse.
-Regarde bien le contexte, s'il peut t'aider à répondre au message utilisateur c'est important.
-Même si le contexte ne contient que quelques informations ou mots communs avec le message utilisateur, considère qu'il est en lien avec la question.
-
-Ne fais pas de phrase, réponds uniquement 0, 1, 2 ou 3.
-
-Exemples
-----------
-Exemple 1 - "Le contexte permet de répondre à la question"
-context : Pour la retraite anticipée [...]
-question : Comment bien préparer sa retraite ?
-reponse : 1
-Exemple 2 - "toto voiture n'est pas une question et ne veut rien dire"
-context : les assurances de véhicules [...]
-question : toto voiture
-reponse : 0
-Exemple 3 : "Pas besoin de contexte, la question est de la culture générale / facile"
-context : En cas de vol ou de perte [...]
-question : Quelle est la capitale de la France ?
-reponse : 2
-Exemple 4 : "Question nécessitant du contexte pertinent mais pas dans le rag"
-context : Vous pouvez faire une demarche [...]
-question : Qui est le président des usa actuellement ?
-reponse : 3
-----------
-
-Ne réponds pas à la question, réponds uniquement 0, 1, 2, 3. Ne donnes jamais d'explications ou de phrases dans ta réponse, renvoie juste un chiffre. Ta réponse doit être sous ce format:<CHIFFRE>
-Base toi également sur le reste des messages de la conversation pour répondre avec ton choix.
-context : {{docs}}
-question : {{prompt}}
-reponse :
-"""
-    PROMPT_CONCAT = """
-Tu es un expert pour rédiger les bonnes réponses et expliquer les choses.
-Voila plusieurs réponses générées par des agents : {answers}
-En te basant sur ces réponses, ne garde que ce qui est utile pour répondre à la question : {prompt}
-Cite les sources utilisées s'il y en a, mais ne parle jamais des "réponses des agents".
-Réponds avec une réponse à cette question de la meilleure qualité possible.
-Si des éléments de réponses sont contradictoires, donnes les quand même à l'utilisateur en expliquant les informations que tu as.
-Réponds juste à la question, ne dis rien d'autre. Tu dois faire un mélange de ces informations pour ne sortir que l'utile de la meilleure manière possible.
-Réponse :
-"""
+    Choice sentences are loaded from the prompt renderer when available. If the
+    prompt macros are not present, fall back to sensible defaults.
+    """
 
     def __init__(self, synthesis_model: ModelRouter, reranker_model: ModelRouter) -> None:
         """Initialize MultiAgent with the given models."""
 
         self.synthesis_model = synthesis_model
         self.reranker_model = reranker_model
+        renderer = get_prompt_renderer()
+        choices = {}
+        for i in range(4):
+            try:
+                # macros are expected to be defined without args and return the sentence
+                choices[i] = renderer.render_macro(f"choice_{i}", module="multiagent")
+            except Exception as e:
+                raise ValueError(f"Prompt macro 'choice_{i}' not found for module 'multiagent' or failed to render: {e}") from e
+        self.choices = choices
 
     async def search(
         self,
@@ -138,7 +60,7 @@ Réponse :
 
         for s in searches_out:
             s.chunk.metadata["choice"] = choice
-            s.chunk.metadata["choice_desc"] = self.CHOICES[choice]
+            s.chunk.metadata["choice_desc"] = self.choices[choice]
             s.chunk.metadata["n_retry"] = n_retry
 
         return searches_out
@@ -146,14 +68,16 @@ Réponse :
     async def full_multiagents(self, searches: List[Search], prompt: str) -> str:
         prompts = self._get_prompts(prompt, searches)
         answers = await self._ask_in_parallel(prompts)
-        return self.PROMPT_CONCAT.format(prompt=prompt, answers=answers)
+        renderer = get_prompt_renderer()
+        return renderer.render_macro("concat", module="multiagent", prompt=prompt, answers=answers)
 
     def _get_prompts(self, question: str, searches: List[Search]) -> List[str]:
         choice = searches[0].chunk.metadata["choice"]
+        renderer = get_prompt_renderer()
         if choice == 1:
-            return [self.PROMPT_TELLER_1.format(doc=s.chunk.content, question=question) for s in searches]
+            return [renderer.render_macro("teller_1", module="multiagent", doc=s.chunk.content, question=question) for s in searches]
         if choice == 2:
-            return [self.PROMPT_TELLER_2.format(question=question)]
+            return [renderer.render_macro("teller_2", module="multiagent", question=question)]
         return []
 
     async def _get_completion(self, prompt: str, temperature=0.2) -> str:
@@ -170,7 +94,8 @@ Réponse :
 
     async def _get_rank(self, prompt: str, inputs: List[str]) -> List[int]:
         client = self.reranker_model.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
-        query = self.PROMPT_CHOICER.format(prompt=prompt, docs=inputs)
+        renderer = get_prompt_renderer()
+        query = renderer.render_macro("choicer", module="multiagent", prompt=prompt, docs=inputs)
         resp = await client.forward_request(
             method="POST",
             json={

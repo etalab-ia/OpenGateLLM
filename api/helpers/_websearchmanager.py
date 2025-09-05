@@ -10,28 +10,12 @@ from starlette.datastructures import Headers
 from api.clients.web_search_engine import BaseWebSearchEngineClient as WebSearchEngineClient
 from api.helpers.models.routers import ModelRouter
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS
+from api.utils.prompt_loader import get_prompt_renderer
 
 logger = logging.getLogger(__name__)
 
 
 class WebSearchManager:
-    GET_WEB_QUERY_PROMPT = """Tu es un spécialiste pour transformer des demandes en requête google. Tu sais écrire les meilleurs types de recherche pour arriver aux meilleurs résultats.
-Voici la demande : {prompt}
-Réponds en donnant uniquement une requête Google qui permettrait de trouver des informations pour répondre à la question.
-
-Exemples :
-- Question: Peut-on avoir des jours de congé pour un mariage ?
-  Réponse: jour de congé mariage conditions
-
-- Question: Donne-moi des informations sur Jules Verne.
-  Réponse: Jules Verne
-
-- Question: Comment refaire une pièce d'identité ?
-  Réponse: renouvellement pièce identité France
-
-Ne donne pas d'explications, ne mets pas de guillemets, réponds uniquement avec la requête Google qui renverra les meilleurs résultats pour la demande. Ne mets pas de mots qui ne servent à rien dans la requête Google.
-"""
-
     def __init__(
         self,
         web_search_engine: WebSearchEngineClient,
@@ -45,7 +29,8 @@ Ne donne pas d'explications, ne mets pas de guillemets, réponds uniquement avec
         self.user_agent = user_agent
 
     async def get_web_query(self, prompt: str) -> str:
-        prompt = self.GET_WEB_QUERY_PROMPT.format(prompt=prompt)
+        renderer = get_prompt_renderer()
+        prompt = renderer.render_macro("query", module="websearch", prompt=prompt)
         client = self.query_model.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
         response = await client.forward_request(
             method="POST",
