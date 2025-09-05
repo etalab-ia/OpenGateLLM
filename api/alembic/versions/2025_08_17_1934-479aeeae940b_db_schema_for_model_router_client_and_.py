@@ -6,13 +6,17 @@ Create Date: 2025-08-22 11:57:50.150602
 
 """
 
+import logging
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy import create_engine, MetaData, Table, select as sa_select
+from sqlalchemy import MetaData, Table, create_engine
+from sqlalchemy import select as sa_select
+
 from api.utils.configuration import configuration
 
+logger = logging.getLogger(__name__)
 
 # revision identifiers, used by Alembic.
 revision: str = "788a3b052a11"
@@ -29,15 +33,18 @@ def upgrade() -> None:
 
     playground_url = configuration.playground.postgres.get("url").replace("+asyncpg", "")
     if not playground_url:
-        raise RuntimeError("Playground database url not set in the config file to migrate user passwords")
+        logging.warning("Playground database url not set in the config file to migrate user passwords; skipping user password migration")
+        return
 
     # Create an engine to the playground DB and reflect its `user` table
     pg_engine = create_engine(playground_url)
     pg_meta = MetaData()
-    pg_meta.reflect(bind=pg_engine, only=["user"])  # reflect user table only
+
     if "user" not in pg_meta.tables:
         pg_engine.dispose()
-        raise RuntimeError("No `user` table found in playground DB")
+        logging.warning("No `user` table found in playground DB; skipping user password migration")
+        return
+    pg_meta.reflect(bind=pg_engine, only=["user"])  # reflect user table only
 
     pg_user = Table("user", pg_meta, autoload_with=pg_engine)
 
@@ -65,7 +72,7 @@ def upgrade() -> None:
             copied += 1
 
     pg_engine.dispose()
-    print(f"alembic: copied {copied} user passwords from playground DB to app DB")
+    logger.info(f"alembic: copied {copied} user passwords from playground DB to app DB")
 
 
 def downgrade() -> None:

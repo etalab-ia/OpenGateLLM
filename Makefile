@@ -129,8 +129,8 @@ dev:
 		$(MAKE) .start-playground; \
 		wait; \
 	elif [ "$(service)" = "both" ]; then \
-		$(MAKE) .start-api & \
 		$(MAKE) .start-playground & \
+		$(MAKE) .start-api & \
 		wait; \
 	else \
 		echo "❌ Error: service must be 'api' or 'playground' or 'both'"; \

@@ -168,16 +168,10 @@ class Model(ConfigBaseModel):
     routing_strategy: RoutingStrategy = Field(default=RoutingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["round_robin"])  # fmt: off
     providers: List[ModelProvider] = Field(..., description="API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type.")  # fmt: off
 
-    vector_size: Optional[int] = Field(
-        default=None, description="Dimension of the vectors, if the models are embeddings. Makes just it is the same for all models."
-    )
-    max_context_length: Optional[int] = Field(
-        default=None, description="Maximum amount of tokens a context could contains. Makes sure it is the same for all models."
-    )
-    created: Optional[int] = Field(default=None, description="Time of creation, as Unix timestamp.")
-    from_config: Optional[bool] = Field(
-        default=False, description="Whether this model was defined in configuration, meaning it should be checked against the database."
-    )
+    vector_size: Optional[int] = Field(default=None, description="Dimension of the vectors, if the models are embeddings. Makes just it is the same for all models.")  # fmt: off
+    max_context_length: Optional[int] = Field(default=None, description="Maximum amount of tokens a context could contains. Makes sure it is the same for all models.")  # fmt: off
+    created: Optional[int] = Field(default=None, description="Time of creation, as Unix timestamp.")  # fmt: off
+    from_config: Optional[bool] = Field(default=False, description="Whether this model was defined in configuration, meaning it should be checked against the database.")  # fmt: off
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -342,13 +336,17 @@ class ProConnect(ConfigBaseModel):
     default_role: str = Field(default="Freemium", description="Role automatically assigned to users created via ProConnect login on first sign-in. Set this to the role name you want new ProConnect users to receive (must exist in your roles configuration).")  # fmt: off
 
 
+class EmptyDepencency(ConfigBaseModel):
+    pass
+
+
 @custom_validation_error(url="https://github.com/etalab-ia/albert-api/blob/main/docs/configuration.md#dependencies")
 class Dependencies(ConfigBaseModel):
     albert: Optional[AlbertDependency] = Field(default=None, description="If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section.")  # fmt: off
     brave: Optional[BraveDependency] = Field(default=None, description="If provided, Brave API is used to web search. Cannot be used with DuckDuckGo dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://api-dashboard.search.brave.com/app/documentation/web-search/query for more information.")  # fmt: off
     centralesupelec: Optional[CentraleSupelecDependency] = Field(default=None, description="Needed to pass tests where models are added")
     duckduckgo: Optional[DuckDuckGoDependency] = Field(default=None, description="If provided, DuckDuckGo API is used to web search. Cannot be used with Brave dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://www.searchapi.io/docs/duckduckgo-api for more information.")  # fmt: off
-    elasticsearch: Optional[ElasticsearchDependency] = Field(default=None, description="Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information.")  # fmt: off
+    elasticsearch: Optional[ElasticsearchDependency] = Field(default_factory=EmptyDepencency, description="Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information.")  # fmt: off
     qdrant: Optional[QdrantDependency] = Field(default=None, description="Pass all qdrant python SDK arguments, see https://python-client.qdrant.tech/qdrant_client.qdrant_client for more information.")  # fmt: off
     marker: Optional[MarkerDependency] = Field(default=None, description="If provided, Marker API is used to parse pdf documents. Cannot be used with Albert dependency concurrently. Pass arguments to call Marker API in this section.")  # fmt: off
     postgres: PostgresDependency = Field(..., description="Pass all postgres python SDK arguments, see https://github.com/etalab-ia/opengatellm/blob/main/docs/dependencies/postgres.md for more information.")  # fmt: off
