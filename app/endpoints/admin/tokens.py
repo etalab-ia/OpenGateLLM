@@ -5,7 +5,6 @@ from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.helpers._accesscontroller import AccessController
-from app.schemas.admin.roles import PermissionType
 from app.schemas.admin.tokens import Token, TokenRequest, Tokens, TokensResponse
 from app.sql.session import get_db_session
 from app.utils.context import global_context
@@ -16,7 +15,7 @@ router = APIRouter()
 
 @router.post(
     path=ENDPOINT__ADMIN_TOKENS,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=201,
     response_model=TokensResponse,
 )
@@ -41,7 +40,7 @@ async def create_token(
 
 @router.delete(
     path=ENDPOINT__ADMIN_TOKENS + "/{token:path}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=204,
 )
 async def delete_token(
@@ -61,7 +60,7 @@ async def delete_token(
 
 @router.get(
     path=ENDPOINT__ADMIN_TOKENS + "/{token:path}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
     response_model=Token,
 )
@@ -81,7 +80,7 @@ async def get_token(
 
 @router.get(
     path=ENDPOINT__ADMIN_TOKENS,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
     response_model=Tokens,
 )
