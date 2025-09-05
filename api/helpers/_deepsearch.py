@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.helpers._websearchmanager import WebSearchManager
 from api.helpers.models.routers._modelrouter import ModelRouter
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS
+from api.utils.prompt_loader import get_prompt_renderer
 
 logger = logging.getLogger(__name__)
 
@@ -15,48 +16,28 @@ logger = logging.getLogger(__name__)
 class DeepSearchPrompts:
     @staticmethod
     def researcher(num_queries: int, lang: str = "fr") -> str:
-        if lang == "en":
-            return f"""You are an expert research assistant. Based on the user's request, generate up to {num_queries} distinct and simple search queries that would help gather information on the requested topic. Include keywords from the user's question in your search queries. If the user does not specify their country, assume they are from France and their request is in French. Respond only with a Python list, for example: ["query1", "query2"] and nothing else. The queries should not be similar."""
-        return f"""Tu es un assistant expert en recherche. En te basant sur la demande utilisateur, génère jusqu'à {num_queries} distinctes
-        différentes et simples requêtes de recherche (comme un humain le ferait) qui aideraient à recueillir des informations sur le sujet demandé. Dans tes requêtes mets aussi les mots clés présents dans la question de l'utilisateur.
-        Si l'utilisateur ne précise pas son pays, part du principe qu'il est Français et que sa demande concerne la France.
-        Réponds uniquement avec une liste python, par exemple : ["query1", "query2"] et ne dis rien d'autre. Les requêtes ne doivent pas se ressembler."""
+        renderer = get_prompt_renderer(lang)
+        return renderer.render_macro("researcher", module="deepsearch", num_queries=num_queries)
 
     @staticmethod
     def evaluator(lang: str = "fr") -> str:
-        if lang == "en":
-            return """You are a critical research evaluator. Given the user's query and the content of a web page, determine if the web page contains useful information to answer the query. You only see an excerpt of the page. Respond with exactly one word: 'yes' if the page is useful or relevant to the query, or 'no' if it is not or does not seem useful. Do not include any additional text."""
-        return """Vous êtes un évaluateur critique de recherche. Étant donné la requête de l'utilisateur et le contenu d'une page web,
-        déterminez si la page web contient des informations utiles pour répondre à la requête. Vous ne voyez ici qu'un extrait de la page.
-        Répondez avec exactement un mot : 'oui' si la page est utile ou en lien avec la requête, ou 'non' si elle ne l'est pas ou n'a pas l'air utile. N'incluez aucun texte supplémentaire"""
+        renderer = get_prompt_renderer(lang)
+        return renderer.render_macro("evaluator", module="deepsearch")
 
     @staticmethod
     def extractor(lang: str = "fr") -> str:
-        if lang == "en":
-            return """You are an expert in information extraction. Based on the user's request that led to this page and its content, extract and summarize all the information that could help answer the user's request. Respond only with the summary of the relevant context without additional comments. Keep only what is related to the user's query. Also provide the titles of the articles and the complete URLs in your response, starting the response with 'According to [title or url].' when possible. Eliminate all articles that do not discuss interesting things for the user's question. If nothing is interesting for the user, respond <next>."""
-        return """Tu es un expert en extraction d'information, en te basant sur la demande utilisateur qui a amené à cette page, et son contenu, extrait et résume toutes les informations qui pourraient aider à répondre à la demande utilisateur.
-        Réponds uniquement avec le résumé du contexte pertinent sans commentaire supplémentaire. Ne gardes que ce qui est en lien avec la requête utilisateur. Donnes aussi le titre des articles et les URLs complètes dans ta réponse en commençant la réponse par 'Selon [titre ou url].' quand c'est possible. 
-        Elimine tous les articles qui ne parlent pas de choses intéressantes pour la question de l'utilisateur. Si rien n'est intéressant pour l'utilisateur, réponds <suivant>."""
+        renderer = get_prompt_renderer(lang)
+        return renderer.render_macro("extractor", module="deepsearch")
 
     @staticmethod
     def analytics(lang: str = "fr") -> str:
-        if lang == "en":
-            return """You are an analytical research assistant. Based on the initial query, the searches conducted so far, and the contexts extracted from web pages, determine if further research is necessary to fully answer the user's query. If the context allows answering the user, respond []. Do not conduct unnecessary research. If the extracted contexts are empty or if further research is absolutely necessary, provide up to two new search queries in the form of a Python list (e.g., ["new query1", "new query2"]). If no further research is needed, respond only with an empty list []. Display only a Python list or [] without any additional text."""
-        return """Vous êtes un assistant de recherche analytique. Sur la base de la requête initiale, des recherches effectuées jusqu'à présent et des contextes extraits des pages web, déterminez si des recherches supplémentaires sont nécessaires. 
-        Si le contexte permet de répondre à l'utilisateur, répondez []. Ne fais pas de recherches inutiles.
-        Si les contextes extraits sont vides ou si des recherches supplémentaires sont absolument nécessaires, fournissez jusqu'à deux nouvelles requêtes de recherche sous forme de liste Python (par exemple, ["new query1", "new query2"]). Si aucune recherche supplémentaire n'est nécessaire répondez uniquement avec une liste vide []. N'affichez qu'une liste Python ou une liste vide[] sans aucun texte supplémentaire.
-        Ne fais jamais de recherches supplémentaires si le contexte est suffisant pour répondre à la question.
-        """
+        renderer = get_prompt_renderer(lang)
+        return renderer.render_macro("analytics", module="deepsearch")
 
     @staticmethod
     def redactor(lang: str = "fr") -> str:
-        if lang == "en":
-            return """You are an expert in drafting user request responses. Be polite. Based on the contexts gathered above and the initial query, write a complete, well-structured, and detailed response in markdown that answers the question thoroughly. Do not make an introduction, start directly with the answer. Include references in the form '[reference number]' in the paragraphs you write that refer to the references used. Include all useful information and conclusions without additional comments, as well as the names of articles and URLs present in the context that seem relevant. In the references, make sure not to duplicate and not to have more than 5, prioritizing URLs and titles. Start with the direct answer. Then detail."""
-        return """Vous êtes un expert en rédaction de réponses de demande utilisateur. Soyez poli.
-        Sur la base des contextes rassemblés ci-dessus et de la requête initiale, rédigez une réponse complète, 
-        bien structurée en markdown et détaillée qui répond à la question de manière approfondie. Ne faites pas d'introduction, commencez tout de suite avec la réponse. Incluez des références sous la forme '[numero reference]' dans les paragraphes que vous rédigez qui renvoient aux références utilisées.
-        Incluez toutes les informations et conclusions utiles sans commentaires supplémentaires, ainsi que les noms d'articles et urls présents dans le contexte qui semblent pertinents. Dans les références veillez à ne pas faire de doublons et à ne pas en avoir plus de 5 et priorisez les URLs et les titres. Commencez avec la réponse sans titre ou introduction. Détaillez ensuite.
-        """
+        renderer = get_prompt_renderer(lang)
+        return renderer.render_macro("redactor", module="deepsearch")
 
 
 class TokenCounter:
@@ -183,13 +164,10 @@ class DeepSearchAgent:
 
     async def _generate_search_queries(self, token_counter: TokenCounter, user_query: str, num_queries: int = 2, lang: str = "fr") -> List[str]:
         prompt = DeepSearchPrompts.researcher(num_queries, lang)
+        renderer = get_prompt_renderer(lang)
+        system_text = renderer.render_macro("system_search", module="deepsearch", lang=lang)
         messages = [
-            {
-                "role": "system",
-                "content": "You are a precise and helpful search assistant."
-                if lang == "en"
-                else "Vous êtes un assistant de recherche précis et utile.",
-            },
+            {"role": "system", "content": system_text},
             {"role": "user", "content": f"User request: {user_query}\n\n{prompt}"},
         ]
         response = await self._call_model_async(token_counter, messages, max_tokens=150)
@@ -232,13 +210,10 @@ class DeepSearchAgent:
             return False
 
         prompt = DeepSearchPrompts.evaluator(lang)
+        renderer = get_prompt_renderer(lang)
+        system_text = renderer.render_macro("system_evaluator", module="deepsearch", lang=lang)
         messages = [
-            {
-                "role": "system",
-                "content": "You are a strict and precise evaluator of research relevance."
-                if lang == "en"
-                else "Vous êtes un évaluateur strict et précis de la pertinence des recherches.",
-            },
+            {"role": "system", "content": system_text},
             {
                 "role": "user",
                 "content": f"User query: {user_query}\n\nWeb page excerpt (first 5000 characters):\n{content[:5000]}[...]\n\n{prompt}",
@@ -257,13 +232,10 @@ class DeepSearchAgent:
             return ""
 
         prompt = DeepSearchPrompts.extractor(lang)
+        renderer = get_prompt_renderer(lang)
+        system_text = renderer.render_macro("system_extractor", module="deepsearch", lang=lang)
         messages = [
-            {
-                "role": "system",
-                "content": "You are an expert in information extraction and synthesis."
-                if lang == "en"
-                else "Vous êtes un expert dans l'extraction et la synthèse d'informations.",
-            },
+            {"role": "system", "content": system_text},
             {
                 "role": "user",
                 "content": f"User query: {user_query}\nSearch query: {search_query}\n\nFound context (first 20000 characters):\n{content[:20000]}\n\n{prompt}",
@@ -304,11 +276,10 @@ class DeepSearchAgent:
 
         context_combined = "\n".join([f"{context[:1000]} [...]" for context in all_contexts])
         prompt = DeepSearchPrompts.analytics(lang)
+        renderer = get_prompt_renderer(lang)
+        system_text = renderer.render_macro("system_planner", module="deepsearch", lang=lang)
         messages = [
-            {
-                "role": "system",
-                "content": "You are a systematic research planner." if lang == "en" else "Vous êtes un planificateur de recherche systématique.",
-            },
+            {"role": "system", "content": system_text},
             {
                 "role": "user",
                 "content": f"Relevant context found:\n{context_combined}\n\n{prompt}\nUser request: {user_query}\nPrevious searches already performed: {previous_search_queries}",
@@ -343,8 +314,10 @@ class DeepSearchAgent:
 
         context_combined = "\n".join(all_contexts)
         prompt = DeepSearchPrompts.redactor(lang)
+        renderer = get_prompt_renderer(lang)
+        system_text = renderer.render_macro("system_talented", module="deepsearch", lang=lang)
         messages = [
-            {"role": "system", "content": "You are a talented assistant." if lang == "en" else "Vous êtes un assistant talentueux."},
+            {"role": "system", "content": system_text},
             {
                 "role": "user",
                 "content": f"User request: {user_query}\n\nRelevant contexts gathered:\n{context_combined}\n\n{prompt}\nReminder:\nUser request: {user_query}",

@@ -151,5 +151,12 @@ class PromptRenderer:
 
 
 @lru_cache
-def get_prompt_renderer() -> PromptRenderer:
-    return PromptRenderer()
+def get_prompt_renderer(language: str | None = None) -> PromptRenderer:
+    """Return a PromptRenderer instance.
+
+    When `language` is provided, the returned renderer will be configured to
+    use that language (this is cached so repeated calls with the same
+    language reuse the renderer). If `language` is None, the default logic in
+    PromptRenderer (configuration or DEFAULT_LANGUAGE) is used.
+    """
+    return PromptRenderer(language=language)
