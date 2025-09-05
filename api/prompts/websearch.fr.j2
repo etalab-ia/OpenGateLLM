@@ -1,0 +1,10 @@
+{% macro query(prompt) %}
+Tu es un spécialiste pour transformer des demandes en requêtes Google optimisées.
+Demande : {{ prompt }}
+Réponds UNIQUEMENT avec une requête Google courte et efficace (pas de guillemets, pas de phrase complète, pas de mots inutiles).
+Exemples :
+- Q: Peut-on avoir des jours de congé pour un mariage ? -> jour congé mariage conditions
+- Q: Donne-moi des informations sur Jules Verne. -> Jules Verne
+- Q: Comment refaire une pièce d'identité ? -> renouvellement pièce identité France
+Requête :
+{% endmacro %}
