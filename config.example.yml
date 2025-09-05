@@ -40,14 +40,14 @@ dependencies:
     port: ${REDIS_PORT:-6379}
     password: ${REDIS_PASSWORD:-changeme}
 
-  # qdrant: # optional
-  # elastic: # optional
-  # marker: # optional
-  # albert: # optional
-  # brave: # optional
-  # duckduckgo: # optional
-  # secretiveshell: # optional
-  # sentry: # optional
+  # qdrant: {} # optional
+  # elastic: {}# optional
+  # marker: {} # optional
+  # albert: {} # optional
+  # brave: {} # optional
+  # duckduckgo: {} # optional
+  # secretiveshell: {} # optional
+  # sentry: {} # optional
 
 # ---------------------------------- settings -----------------------------------
 settings:
