@@ -84,7 +84,7 @@ models:
 # -------------------------------- dependencies ---------------------------------
 dependencies:
   postgres:
-    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/api
+    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/postgres
     echo: False
     pool_size: 10
     max_overflow: 5

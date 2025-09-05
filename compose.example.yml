@@ -39,7 +39,6 @@ services:
     restart: always
     user: postgres
     environment:
-      - "CREATE_DB=api,playground"
       - "POSTGRES_USER=${POSTGRES_USER:-postgres}"
       - "POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}"
       - "POSTGRES_DB=postgres"
@@ -47,7 +46,6 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres:/var/lib/postgresql/data
-      - ./scripts/postgres_entrypoint.sh:/docker-entrypoint-initdb.d/postgres_entrypoint.sh
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready", "-U", "postgres" ]
       interval: 4s

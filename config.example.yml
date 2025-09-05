@@ -27,7 +27,7 @@ models:
 # -------------------------------- dependencies ---------------------------------
 dependencies:
   postgres: # required
-    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-localhost}:${POSTGRES_PORT:-5432}/api
+    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-localhost}:${POSTGRES_PORT:-5432}/postgres
     echo: False
     pool_size: 5
     connect_args:
@@ -41,7 +41,7 @@ dependencies:
     password: ${REDIS_PASSWORD:-changeme}
 
   # qdrant: {} # optional
-  # elastic: {}# optional
+  # elastic: {} # optional
   # marker: {} # optional
   # albert: {} # optional
   # brave: {} # optional
@@ -89,13 +89,7 @@ settings:
   # search_multi_agents_reranker_model: # optional - default: None - example: "my-model"
 
 # -------------------------------- playground ---------------------------------
-playground:
-  api_url: http://${API_HOST:-localhost}:8080
-  postgres:
-    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-localhost}:${POSTGRES_PORT:-5432}/playground
-  
-
-
+# playground:
   # auth_master_username: # optional - default: master
   # auth_master_key: # optional - default: changeme
   # auth_max_token_expiration_days: # optional - default: None, ex: 365

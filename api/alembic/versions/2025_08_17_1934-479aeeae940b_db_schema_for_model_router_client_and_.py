@@ -31,6 +31,10 @@ def upgrade() -> None:
     op.add_column("user", sa.Column("password", sa.String(), nullable=True))
     # ### end Alembic commands ###
 
+    if not hasattr(configuration, "playground"):
+        logging.warning("Playground configuration not found in the config file; skipping user password migration")
+        return
+
     playground_url = configuration.playground.postgres.get("url").replace("+asyncpg", "")
     if not playground_url:
         logging.warning("Playground database url not set in the config file to migrate user passwords; skipping user password migration")

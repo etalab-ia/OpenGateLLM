@@ -21,7 +21,7 @@ def test_missing_proconnect_is_none(tmp_path):
 
     dependencies:
       postgres:
-        url: postgresql+asyncpg://postgres@localhost:5432/api
+        url: postgresql+asyncpg://postgres@localhost:5432/postgres
       redis: {}
     """
     write_tmp_config(cfg, content)
@@ -44,7 +44,7 @@ def test_present_but_empty_proconnect_default(tmp_path):
 
     dependencies:
       postgres:
-        url: postgresql+asyncpg://postgres@localhost:5432/api
+        url: postgresql+asyncpg://postgres@localhost:5432/postgres
       proconnect: {}
       redis: {}
     """

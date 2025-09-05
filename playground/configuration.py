@@ -30,17 +30,8 @@ class Playground(ConfigBaseModel):
     menu_items: MenuItems = MenuItems()
     logo: str = "https://github.com/etalab-ia/opengatellm/blob/main/docs/assets/logo.png?raw=true"
     cache_ttl: int = 1800  # 30 minutes
-    postgres: dict = {}
     default_model: Optional[str] = None
     proconnect_enabled: bool = False
-
-    @field_validator("postgres", mode="after")
-    def validate_postgres(cls, postgres):
-        if postgres.get("url").startswith("postgresql+asyncpg://"):
-            logging.warning("PostgreSQL connection must be sync, force sync connection.")
-            postgres["url"] = postgres["url"].replace("postgresql+asyncpg", "postgresql")
-
-        return postgres
 
 
 class ConfigFile(ConfigBaseModel):
