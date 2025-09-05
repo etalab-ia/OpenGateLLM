@@ -38,6 +38,7 @@
 * **RAG Integration:** Efficiently query vector databases using Elasticsearch or Qdrant.
 * **Audio & Vision:** Transcribe audio (Whisper) and perform OCR on PDF documents.
 * **Enhanced Security:** Built-in API key authentication.
+* **Template-based Prompts:** Centralized, localizable Jinja2 prompt system (see docs/prompts.md).
 
 ## 📊 Comparison
 
