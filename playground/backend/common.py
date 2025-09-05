@@ -108,23 +108,6 @@ def get_users(
 
     data = response.json()["data"]
 
-    # Ask backend for the list of users that have a playground token (fast single call)
-    try:
-        resp = requests.get(
-            url=f"{configuration.playground.api_url}/v1/admin/ui-users",
-            headers={"Authorization": f"Bearer {st.session_state['user'].api_key}"},
-            timeout=10,
-        )
-        if resp.status_code == 200:
-            playground_user_ids = set(resp.json().get("data", []))
-        else:
-            playground_user_ids = set()
-    except Exception:
-        playground_user_ids = set()
-
-    for user in data:
-        user["access_ui"] = True if user["id"] in playground_user_ids else False
-
     return data
 
 

@@ -75,7 +75,7 @@ def create_user(name: str, password: str, role: int, expires_at: Optional[int] =
 
     response = requests.post(
         url=f"{configuration.playground.api_url}/v1/admin/users",
-        json={"name": name, "role": role, "expires_at": expires_at, "budget": budget},
+        json={"name": name, "role": role, "expires_at": expires_at, "budget": budget, "password": password},
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
 

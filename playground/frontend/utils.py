@@ -50,14 +50,13 @@ def resources_selector(resource: Literal["collection", "role", "user", "document
         resources = get_users(
             offset=st.session_state.get(key, 0), limit=per_page, role=resource_filter, order_by=order_by, order_direction=order_direction
         )
-        new_resource = {"name": None, "access_ui": False, "expires_at": None, "id": None, "role": None}
+        new_resource = {"name": None, "expires_at": None, "id": None, "role": None}
 
         data = pd.DataFrame(
             data=[
                 {
                     "ID": user["id"],
                     "Name": user["name"],
-                    "Access UI": user["access_ui"],
                     "Expires at": pd.to_datetime(user["expires_at"], unit="s") if user["expires_at"] else None,
                     "Created at": pd.to_datetime(user["created_at"], unit="s"),
                     "Updated at": pd.to_datetime(user["updated_at"], unit="s"),
