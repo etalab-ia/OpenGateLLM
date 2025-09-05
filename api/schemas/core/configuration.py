@@ -472,6 +472,10 @@ class Settings(ConfigBaseModel):
 
     front_url: str = Field(default="http://localhost:8501", description="Front-end URL for the application.")
 
+    # prompts configuration
+    prompts_dir: str = Field(default="./prompts", description="Directory for override prompt templates mounted as a volume (Docker).")  # fmt: off
+    prompts_lang: str = Field(default="en", description="Language code for prompts (e.g. 'fr', 'en'). Do NOT include the .j2 extension. Fallback to 'en' if missing.")  # fmt: off
+
     @model_validator(mode="after")
     def validate_model(cls, values) -> Any:
         if values.session_secret_key is None:

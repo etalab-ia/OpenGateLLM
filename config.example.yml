@@ -88,6 +88,9 @@ settings:
   # search_multi_agents_synthesis_model: # optional - default: None - example: "my-model"
   # search_multi_agents_reranker_model: # optional - default: None - example: "my-model"
 
+  # prompts_dir: # optional - default: /prompts - directory mounted in Docker to override built-in templates
+  # prompts_lang: # optional - default: en - language code inside prompts dir selecting language (e.g. fr, en). Do NOT include the .j2 extension
+
 # -------------------------------- playground ---------------------------------
 # playground:
   # auth_master_username: # optional - default: master

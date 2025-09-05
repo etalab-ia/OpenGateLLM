@@ -27,6 +27,8 @@ Refer to the [configuration example file](../../../config.example.yml) for an ex
 | monitoring_postgres_enabled | boolean | If true, the log usage will be written in the PostgreSQL database. |  | True |  |  |
 | monitoring_prometheus_enabled | boolean | If true, Prometheus metrics will be exposed in the `/metrics` endpoint. |  | True |  |  |
 | rate_limiting_strategy | string | Rate limiting strategy for the API. |  | fixed_window | • moving_window<br/>• fixed_window<br/>• sliding_window |  |
+| prompts_dir | string | Directory for override prompt templates mounted as a volume (Docker). |  | /prompts |  |  |
+| prompts_lang | string | Language prompt template filename (e.g. 'fr', 'en'). Fallback to en if missing. |  | en |  | fr |
 | search_multi_agents_reranker_model | string | Model used to rerank the results of multi-agents search. If not provided, multi-agents search is disabled. This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`. |  | None |  |  |
 | search_multi_agents_synthesis_model | string | Model used to synthesize the results of multi-agents search. If not provided, multi-agents search is disabled. This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`. |  | None |  |  |
 | search_web_limited_domains | array | Limited domains for the web search. If provided, the web search will be limited to these domains. |  |  |  |  |
