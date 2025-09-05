@@ -1,4 +1,4 @@
 [run]
 omit =
-    app/tests/*
+    api/tests/*
 

@@ -49,7 +49,7 @@ It is recommended to use a Python [virtualenv](https://docs.python.org/3/library
 1. Install the dependencies with the following command:
 
   ```bash
-  pip install ".[app,playground,dev,test]"
+  pip install ".[api,playground,dev,test]"
   ```
 
 #### Linter installation
@@ -110,18 +110,18 @@ make test
 
 ## Modifications to SQL database structure
 
-### Modifications to the [`app/sql/models.py`](./api/sql/models.py) file
+### Modifications to the [`api/sql/models.py`](./api/sql/models.py) file
 
 If you have modified the API database tables in the [models.py](./api/sql/models.py) file, you need to create an Alembic migration with the following command:
 
 ```bash
-alembic -c app/alembic.ini revision --autogenerate -m "message"
+alembic -c api/alembic.ini revision --autogenerate -m "message"
 ```
 
 Then apply the migration with the following command:
 
 ```bash
-alembic -c app/alembic.ini upgrade head
+alembic -c api/alembic.ini upgrade head
 ```
 
 ### Modifications to the [`playground/sql/models.py`](./playground/sql/models.py) file

@@ -2,7 +2,7 @@ name: opengatellm
 
 services:
   api:
-    image: ghcr.io/etalab-ia/opengatellm/app:latest
+    image: ghcr.io/etalab-ia/opengatellm/api:latest
     restart: always
     env_file: "${APP_ENV_FILE:-./.env}"
     environment:

@@ -25,7 +25,7 @@ playground = [
     "bcrypt==4.3.0",
     "cryptography>=3.4.8",
 ]
-app = [
+api = [
     # auth
     "authlib>=1.6.0",
     "python-jose==3.4.0",
@@ -84,7 +84,7 @@ ignore = ["F403", "F841"] # import * and never used variables
 
 [tool.ruff.lint.isort]
 force-sort-within-sections = true
-known-first-party = ["config", "utils", "app"]
+known-first-party = ["config", "utils", "api"]
 forced-separate = ["tests"]
 
 [tool.ruff.lint.isort.sections]

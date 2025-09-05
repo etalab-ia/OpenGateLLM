@@ -15,8 +15,7 @@ jobs:
     name: Build and push from ${{ github.ref_name }}/${{ github.sha }}
     runs-on: ubuntu-latest
     env:
-      APP_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/app
-      UI_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/ui
+      API_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/api
       PLAYGROUND_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/playground
       IMAGE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || 'latest' }}
     outputs:
@@ -38,14 +37,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push app
+      - name: Build and push api
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./api/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.APP_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          tags: ${{ env.API_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
