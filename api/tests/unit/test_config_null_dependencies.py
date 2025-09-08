@@ -23,6 +23,10 @@ def test_missing_proconnect_is_none(tmp_path):
       postgres:
         url: postgresql+asyncpg://postgres@localhost:5432/postgres
       redis: {}
+    
+    settings:
+      vector_store_model: dummy-embed
+      
     """
     write_tmp_config(cfg, content)
 
@@ -47,6 +51,9 @@ def test_present_but_empty_proconnect_default(tmp_path):
         url: postgresql+asyncpg://postgres@localhost:5432/postgres
       proconnect: {}
       redis: {}
+
+    settings:
+      vector_store_model: dummy-embed 
     """
     write_tmp_config(cfg, content)
 
