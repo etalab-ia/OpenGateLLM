@@ -3,7 +3,7 @@ from uuid import uuid4
 import streamlit as st
 
 from playground.backend.chat import generate_stream, format_chunk_for_display, get_chunk_full_content
-from playground.backend.common import get_collections, get_limits, get_models
+from playground.backend.common import get_collections, format_limits, get_models
 from playground.backend.document_parsing import parse_document, count_document_characters, extract_text_from_parsed_document, process_large_document
 from playground.frontend.header import header
 from playground.variables import MODEL_TYPE_IMAGE_TEXT_TO_TEXT, MODEL_TYPE_LANGUAGE
@@ -15,7 +15,7 @@ header()
 
 # Data
 models = get_models(types=[MODEL_TYPE_LANGUAGE, MODEL_TYPE_IMAGE_TEXT_TO_TEXT])
-limits = get_limits(models=models, role=st.session_state["user"].role)
+limits = format_limits(models=models)
 limits = [model for model, values in limits.items() if (values["rpd"] is None or values["rpd"] > 0) and (values["rpm"] is None or values["rpm"] > 0)]
 models = [model for model in models if model in limits]
 collections = get_collections()
@@ -89,8 +89,8 @@ with st.sidebar:
     if st.session_state.get("document_context"):
         with st.expander("📄 Document en contexte"):
             doc_info = st.session_state["document_context"]
-            st.write(f"**Fichier:** {doc_info['filename']}")
-            st.write(f"**Caractères:** {doc_info['char_count']:,}")
+            st.write(f"**Fichier:** {doc_info["filename"]}")
+            st.write(f"**Caractères:** {doc_info["char_count"]:,}")
             if st.button("🗑️ Retirer du contexte"):
                 st.session_state.pop("document_context", None)
                 st.rerun()
@@ -122,7 +122,7 @@ with st.sidebar:
 
             for collection in collections:
                 # Marquer la collection auto-créée
-                collection_label = f"{collection['name']} ({collection['id']})"
+                collection_label = f"{collection["name"]} ({collection["id"]})"
                 if collection["id"] == st.session_state.get("auto_created_collection"):
                     collection_label += " 🤖"
 
@@ -228,7 +228,7 @@ for i, message in enumerate(st.session_state.messages):
                     chunk_selector = st.selectbox(
                         "Sélectionner un chunk à examiner",
                         range(len(chunks)),
-                        format_func=lambda x: f"Chunk {x+1}: {chunks[x]['document_name'][:30]}...",
+                        format_func=lambda x: f"Chunk {x + 1}: {chunks[x]["document_name"][:30]}...",
                     )
 
                     if chunk_selector is not None:
@@ -244,7 +244,7 @@ if prompt := st.chat_input(placeholder="Message to Albert"):
         doc_context = st.session_state["document_context"]
         system_message = {
             "role": "system",
-            "content": f"Document '{doc_context['filename']}' est disponible dans le contexte:\n\n{doc_context['content']}",
+            "content": f"Document '{doc_context["filename"]}' est disponible dans le contexte:\n\n{doc_context["content"]}",
         }
         # Insérer au début si pas déjà présent
         if not messages_to_send or messages_to_send[0].get("role") != "system":

@@ -33,14 +33,14 @@ def hooks(func):
 
         # get the request context
         context = request_context.get()
-        if context.user_id is None:
+        if context.user_info is None:
             logger.info(f"No user ID found in request, skipping usage logging ({context.endpoint}).")
             return await func(*args, **kwargs)
-        if context.user_id == 0:
+        if context.user_info.id == 0:
             logger.info(f"Master user ID found in request, skipping usage logging ({context.endpoint}).")
             return await func(*args, **kwargs)
 
-        usage.user_id = context.user_id
+        usage.user_id = context.user_info.id
         usage.token_id = context.token_id
         usage.endpoint = context.endpoint
         usage.method = context.method

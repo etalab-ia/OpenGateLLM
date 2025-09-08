@@ -1,101 +1,78 @@
+import base64
+from enum import Enum
+import json
 import logging
 import secrets
 import string
-import base64
-import json
+from typing import List, Optional
 
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from pydantic import BaseModel
 import requests
 import streamlit as st
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes
-from cryptography.fernet import Fernet
+
 from playground.configuration import configuration
 
 logger = logging.getLogger(__name__)
 
 
+class LimitType(str, Enum):
+    TPM = "tpm"
+    TPD = "tpd"
+    RPM = "rpm"
+    RPD = "rpd"
+
+
+class Limit(BaseModel):
+    model: str
+    type: LimitType
+    value: Optional[int] = None
+
+
 class User(BaseModel):
     id: int
-    name: str
+    email: str
+    name: Optional[str] = None
     api_key_id: int
     api_key: str
-    proconnect_token: str | None = None
+    limits: List[Limit]
+    permissions: List[str]
+    budget: Optional[float] = None
+    expires_at: Optional[int] = None
+    created_at: Optional[int] = None
+    updated_at: Optional[int] = None
+    proconnect_token: Optional[str] = None
 
-    role: dict
-    user: dict
 
-
-def login(user_name: str, user_password: str, proconnect_token=None) -> dict:
-    # master login flow
-    if user_name == configuration.playground.auth_master_username:
-        response = requests.get(url=f"{configuration.playground.api_url}/v1/auth/me", headers={"Authorization": f"Bearer {user_password}"})
-        if response.status_code != 404:  # only master get 404 on /auth/me
-            st.error(response.json()["detail"])
-            st.stop()
-
-        response = requests.get(url=f"{configuration.playground.api_url}/v1/models", headers={"Authorization": f"Bearer {user_password}"})
-        if response.status_code != 200:
-            st.error(response.json()["detail"])
-            st.stop()
-        models = response.json()["data"]
-
-        limits = []
-        for model in models:
-            limits.append({"model": model["id"], "type": "tpm", "value": None})
-            limits.append({"model": model["id"], "type": "tpd", "value": None})
-            limits.append({"model": model["id"], "type": "rpm", "value": None})
-            limits.append({"model": model["id"], "type": "rpd", "value": None})
-
-        role = {"object": "role", "id": 0, "name": "master", "default": False, "permissions": ["admin"], "limits": limits}
-        user = User(
-            id=0,
-            name=configuration.playground.auth_master_username,
-            api_key=user_password,
-            api_key_id=0,
-            proconnect_token=proconnect_token,
-            user={"expires_at": None, "budget": None},
-            role=role,
-        )
-
-        st.session_state["login_status"] = True
-        st.session_state["user"] = user
-        st.rerun()
-
-    # basic login flow: call playground-login passing user_name and password directly
-    try:
-        playground_login_url = f"{configuration.playground.api_url}/v1/auth/login"
-        response = requests.post(url=playground_login_url, json={"email": user_name, "password": user_password}, timeout=10)
-
-        if response.status_code != 200:
-            st.error(f"Failed to get API key: {response.json().get('detail', 'Unknown error')}")
-            st.stop()
-
-        login_data = response.json()
-        api_key = login_data["api_key"]
-        api_key_id = login_data["token_id"]
-
-    except Exception as e:
-        st.error(f"Authentication failed: {str(e)}")
+def login(user_name: str, user_password: str) -> dict:
+    response = requests.post(url=f"{configuration.playground.api_url}/v1/auth/login", json={"email": user_name, "password": user_password})
+    if response.status_code != 200:
+        st.error(response.json()["detail"], icon="❌")
         st.stop()
 
-    if not api_key or not api_key_id:
-        st.error("Failed to retrieve API key. Please try again.")
-        st.stop()
+    key = response.json()
 
-    response = requests.get(url=f"{configuration.playground.api_url}/v1/auth/me", headers={"Authorization": f"Bearer {api_key}"})
+    response = requests.get(url=f"{configuration.playground.api_url}/v1/me", headers={"Authorization": f"Bearer {key["key"]}"})
     if response.status_code != 200:
         st.error(response.json()["detail"])
         st.stop()
-    user = response.json()["user"]
-    role = response.json()["role"]
 
-    # Build a Streamlit-side user object. We don't have a local DB id anymore; use api_user id when available
-    st_user_id = user.get("id") or 0
-    st_user_name = user.get("name") or user.get("email") or user_name
-
-    user = User(id=st_user_id, name=st_user_name, api_key_id=api_key_id, api_key=api_key, proconnect_token=proconnect_token, user=user, role=role)
-
+    user = response.json()
+    user = User(
+        id=user["id"],
+        email=user["email"],
+        name=user["name"],
+        api_key_id=key["id"],
+        api_key=key["key"],
+        limits=[Limit(**limit) for limit in user["limits"]],
+        permissions=user["permissions"],
+        budget=user["budget"],
+        expires_at=user["expires_at"],
+        created_at=user["created_at"],
+        updated_at=user["updated_at"],
+    )
     st.session_state["login_status"] = True
     st.session_state["user"] = user
     st.rerun()

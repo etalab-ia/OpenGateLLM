@@ -1,8 +1,13 @@
+from pydantic import Field, constr
+
 from api.schemas import BaseModel
-from api.schemas.admin.roles import Role
-from api.schemas.admin.users import User
 
 
-class AuthMeResponse(BaseModel):
-    user: User
-    role: Role
+class Login(BaseModel):
+    email: constr(strip_whitespace=True, min_length=1) = Field(description="The user email.")
+    password: constr(strip_whitespace=True, min_length=1) = Field(description="The user password.")
+
+
+class LoginResponse(BaseModel):
+    id: int = Field(description="The Playground API key ID.")
+    key: str = Field(description="The playground API key.")

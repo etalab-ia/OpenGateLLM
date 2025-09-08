@@ -65,6 +65,7 @@ class ModelRegistry:
                 if model_id not in self._routers:
                     continue
                 router_model = self._routers[model_id]
+
                 data.append(
                     ModelSchema(
                         id=router_model.name,

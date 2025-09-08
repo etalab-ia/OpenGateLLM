@@ -80,16 +80,19 @@ class User(Base):
     __tablename__ = "user"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    name = Column(String, index=True, unique=True, nullable=False)
+    email = Column(String, index=True, unique=True, nullable=False)
     password = Column(String, nullable=True)
+    name = Column(String, nullable=True)
+    sub = Column(String, nullable=True)
+    iss = Column(String, nullable=True)
     role_id = Column(Integer, ForeignKey(column="role.id"), nullable=False)
     organization_id = Column(Integer, ForeignKey(column="organization.id"), nullable=True)
     budget = Column(Float, nullable=True)
     expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), nullable=False, onupdate=func.now())
-    sub = Column(String, unique=True, nullable=True)
-    email = Column(String, index=True, nullable=True)
+
+    __table_args__ = (UniqueConstraint("sub", "iss", name="unique_user_email_sub_iss"),)
 
 
 class Token(Base):

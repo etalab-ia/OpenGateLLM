@@ -8,9 +8,9 @@ from api.helpers._accesscontroller import AccessController
 from api.schemas.admin.roles import PermissionType, Role, RoleRequest, Roles, RolesResponse, RoleUpdateRequest
 from api.sql.session import get_db_session
 from api.utils.context import global_context
-from api.utils.variables import ENDPOINT__ADMIN_ROLES
+from api.utils.variables import ENDPOINT__ADMIN_ROLES, ROUTER__ADMIN
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 
 
 @router.post(

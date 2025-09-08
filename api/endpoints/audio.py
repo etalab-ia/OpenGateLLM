@@ -15,9 +15,9 @@ from api.schemas.audio import (
     AudioTranscriptionTimestampGranularitiesForm,
 )
 from api.utils.context import global_context
-from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS
+from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS, ROUTER__AUDIO
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__AUDIO.title()])
 
 
 @router.post(path=ENDPOINT__AUDIO_TRANSCRIPTIONS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=AudioTranscription)  # fmt: off

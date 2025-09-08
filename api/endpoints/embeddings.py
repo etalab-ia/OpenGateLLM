@@ -4,9 +4,9 @@ from fastapi.responses import JSONResponse
 from api.helpers._accesscontroller import AccessController
 from api.schemas.embeddings import Embeddings, EmbeddingsRequest
 from api.utils.context import global_context
-from api.utils.variables import ENDPOINT__EMBEDDINGS
+from api.utils.variables import ENDPOINT__EMBEDDINGS, ROUTER__EMBEDDINGS
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__EMBEDDINGS.title()])
 
 
 @router.post(path=ENDPOINT__EMBEDDINGS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Embeddings)

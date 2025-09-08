@@ -15,9 +15,9 @@ from api.schemas.admin.organizations import (
 from api.schemas.admin.roles import PermissionType
 from api.sql.session import get_db_session
 from api.utils.context import global_context
-from api.utils.variables import ENDPOINT__ADMIN_ORGANIZATIONS
+from api.utils.variables import ENDPOINT__ADMIN_ORGANIZATIONS, ROUTER__ADMIN
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 
 
 @router.post(

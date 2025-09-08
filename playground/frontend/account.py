@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from playground.backend.account import change_password, create_token, delete_token
-from playground.backend.common import get_limits, get_models, get_tokens, get_usage
+from playground.backend.common import format_limits, get_models, get_tokens, get_usage
 from playground.frontend.header import header
 from playground.frontend.utils import pagination
 from playground.configuration import configuration
@@ -46,15 +46,13 @@ col1, col2 = st.columns(spec=2)
 with col1:
     st.metric(
         label="Account expiration",
-        value=pd.to_datetime(st.session_state["user"].user["expires_at"], unit="s").strftime("%d %b %Y")
-        if st.session_state["user"].user["expires_at"]
-        else None,
+        value=pd.to_datetime(st.session_state["user"].expires_at, unit="s").strftime("%d %b %Y") if st.session_state["user"].expires_at else None,
         border=False,
     )
 with col2:
     st.metric(
         label="Budget",
-        value=round(st.session_state["user"].user["budget"], 4) if st.session_state["user"].user["budget"] else None,
+        value=round(st.session_state["user"].budget, 4) if st.session_state["user"].budget else None,
         border=False,
     )
 
@@ -219,7 +217,8 @@ with col1:
         max_value = dt.datetime.now() + dt.timedelta(days=configuration.playground.auth_max_token_expiration_days) if configuration.playground.auth_max_token_expiration_days else None  # fmt: off
         expires_at = st.date_input(label="Expires at",  min_value=dt.datetime.now(), max_value=max_value, value=max_value, help="Expiration date of the API key.")  # fmt: off
         if st.button(label="Create", disabled=not token_name or st.session_state["user"].name == configuration.playground.auth_master_username):
-            create_token(name=token_name, expires_at=round(int(expires_at.strftime("%s"))))
+            expires_at = round(int(expires_at.strftime("%s"))) if expires_at else None
+            create_token(name=token_name, expires_at=expires_at)
 
 with col2:
     with st.expander(label="Delete an API key", icon=":material/delete_forever:"):
@@ -233,7 +232,7 @@ with col2:
             delete_token(token_id=token_id)
 
 st.subheader("Rate limits")
-limits = get_limits(models=models, role=st.session_state["user"].role)
+limits = format_limits(models=models)
 st.dataframe(
     data=pd.DataFrame(
         data={

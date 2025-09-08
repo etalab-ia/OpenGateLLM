@@ -9,9 +9,9 @@ from api.helpers._usagemanager import UsageManager
 from api.schemas.accounts import AccountUsageResponse
 from api.schemas.admin.users import User
 from api.sql.session import get_db_session
-from api.utils.variables import ENDPOINT__USAGE
+from api.utils.variables import ENDPOINT__USAGE, ROUTER__USAGE
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__USAGE.title()])
 
 
 @router.get(

@@ -72,15 +72,11 @@ def header():
         with col2:
             logout = st.button("Logout")
         if logout:
-            # Get stored tokens for logout
-            api_key = None
-            proconnect_token = None
-            if st.session_state.get("user"):
-                api_key = st.session_state["user"].api_key
-                proconnect_token = st.session_state["user"].proconnect_token
+            api_key = st.session_state["user"].api_key if st.session_state.get("user") else None
+            proconnect_token = st.session_state["user"].proconnect_token if st.session_state.get("user") else None
 
             # Call logout endpoint if we have an API token
-            if api_key:
+            if api_key and proconnect_token:
                 with st.spinner("Déconnexion en cours..."):
                     try:
                         # Call logout endpoint with optional ProConnect token
@@ -94,8 +90,8 @@ def header():
             st.cache_data.clear()
             st.rerun()
 
-        if st.session_state.get("user") and st.session_state["user"].role["name"] == "master":
+        if st.session_state.get("user") and st.session_state["user"].name == "master":
             st.warning("You are logged in as the master user. This is not recommended for production use, please use a regular user instead.")
-        if st.session_state.get("user") and st.session_state["user"].user["expires_at"] and st.session_state["user"].user["expires_at"] < int(time.time()):  # fmt: off
+        if st.session_state.get("user") and st.session_state["user"].expires_at and st.session_state["user"].expires_at < int(time.time()):  # fmt: off
             st.warning("**Your account has expired. Please contact support to renew your account.**")
         st.markdown("***")

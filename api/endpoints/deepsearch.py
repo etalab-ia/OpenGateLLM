@@ -11,9 +11,10 @@ from api.schemas.deepsearch import DeepSearchMetadata, DeepSearchRequest, DeepSe
 from api.schemas.usage import Usage
 from api.sql.session import get_db as get_session
 from api.utils.context import global_context, request_context
+from api.utils.variables import ROUTER__DEEPSEARCH
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__DEEPSEARCH.title()])
 
 
 @router.post(path="/deepsearch", dependencies=[Security(dependency=AccessController())], status_code=200, response_model=DeepSearchResponse)

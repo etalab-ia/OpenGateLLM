@@ -21,10 +21,10 @@ def change_password(current_password: str, new_password: str, confirm_password: 
         return
 
     # Call server endpoint to change password
-    response = requests.post(
-        url=f"{configuration.playground.api_url}/v1/auth/change_password",
+    response = requests.patch(
+        url=f"{configuration.playground.api_url}/v1/me",
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
-        json={"current_password": current_password, "new_password": new_password},
+        json={"current_password": current_password, "password": new_password},
         timeout=10,
     )
 
@@ -44,7 +44,7 @@ def change_password(current_password: str, new_password: str, confirm_password: 
 
 def create_token(name: str, expires_at: int):
     response = requests.post(
-        url=f"{configuration.playground.api_url}/v1/tokens",
+        url=f"{configuration.playground.api_url}/v1/me/keys",
         json={"name": name, "expires_at": expires_at},
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
@@ -63,7 +63,7 @@ def create_token(name: str, expires_at: int):
         @st.dialog(title="Token", width="large")
         def display_token():
             st.warning("**⚠️ Copy the following API key to your clipboard, it will not be displayed again. Refresh the page after saving the API key.**")  # fmt: off
-            st.code(response.json()["token"], language="text")
+            st.code(response.json()["key"], language="text")
             with stylable_container(key="close", css_styles="button{float: right;}"):
                 if st.button("**:material/close:**", key="Close", type="primary"):
                     st.rerun()
@@ -82,7 +82,7 @@ def delete_token(token_id: int):
         return
 
     response = requests.delete(
-        url=f"{configuration.playground.api_url}/v1/tokens/{token_id}",
+        url=f"{configuration.playground.api_url}/v1/me/keys/{token_id}",
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
     if response.status_code == 204:

@@ -11,9 +11,9 @@ from api.schemas.parse import FileForm, ParsedDocument, ParsedDocumentMetadata, 
 from api.schemas.usage import Usage
 from api.utils.context import global_context
 from api.utils.exceptions import FileSizeLimitExceededException
-from api.utils.variables import ENDPOINT__OCR
+from api.utils.variables import ENDPOINT__OCR, ROUTER__OCR
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__OCR.upper()])
 
 
 @router.post(path=ENDPOINT__OCR, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=ParsedDocument)

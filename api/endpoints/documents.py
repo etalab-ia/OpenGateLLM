@@ -32,12 +32,12 @@ from api.schemas.parse import (
     PaginateOutputForm,
     ParsedDocumentOutputFormat,
 )
-from api.utils.context import global_context, request_context
 from api.sql.session import get_db_session
+from api.utils.context import global_context, request_context
 from api.utils.exceptions import CollectionNotFoundException, DocumentNotFoundException, FileSizeLimitExceededException, InvalidJSONFormatException
-from api.utils.variables import ENDPOINT__DOCUMENTS
+from api.utils.variables import ENDPOINT__DOCUMENTS, ROUTER__DOCUMENTS
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__DOCUMENTS.title()])
 
 
 @router.post(path=ENDPOINT__DOCUMENTS, status_code=201, dependencies=[Security(dependency=AccessController())], response_model=DocumentResponse)
@@ -91,7 +91,7 @@ async def create_document(
     )
 
     document_id = await global_context.document_manager.create_document(
-        user_id=request_context.get().user_id,
+        user_id=request_context.get().user_info.id,
         session=session,
         collection_id=collection,
         document=document,
@@ -126,7 +126,7 @@ async def get_document(
     if not global_context.document_manager:  # no vector store available
         raise DocumentNotFoundException()
 
-    documents = await global_context.document_manager.get_documents(session=session, document_id=document, user_id=request_context.get().user_id)
+    documents = await global_context.document_manager.get_documents(session=session, document_id=document, user_id=request_context.get().user_info.id)
 
     return JSONResponse(content=documents[0].model_dump(), status_code=200)
 
@@ -154,7 +154,7 @@ async def get_documents(
         collection_id=collection,
         limit=limit,
         offset=offset,
-        user_id=request_context.get().user_id,
+        user_id=request_context.get().user_info.id,
     )
 
     return JSONResponse(content=Documents(data=data).model_dump(), status_code=200)
@@ -172,6 +172,6 @@ async def delete_document(
     if not global_context.document_manager:  # no vector store available
         raise DocumentNotFoundException()
 
-    await global_context.document_manager.delete_document(session=session, document_id=document, user_id=request_context.get().user_id)
+    await global_context.document_manager.delete_document(session=session, document_id=document, user_id=request_context.get().user_info.id)
 
     return Response(status_code=204)

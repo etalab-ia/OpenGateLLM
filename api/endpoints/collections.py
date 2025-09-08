@@ -4,12 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.schemas.collections import Collection, CollectionRequest, Collections, CollectionUpdateRequest
-from api.utils.context import global_context, request_context
 from api.sql.session import get_db_session
+from api.utils.context import global_context, request_context
 from api.utils.exceptions import CollectionNotFoundException
-from api.utils.variables import ENDPOINT__COLLECTIONS
+from api.utils.variables import ENDPOINT__COLLECTIONS, ROUTER__COLLECTIONS
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__COLLECTIONS.title()])
 
 
 @router.post(path=ENDPOINT__COLLECTIONS, dependencies=[Security(dependency=AccessController())], status_code=201)
@@ -25,7 +25,7 @@ async def create_collection(request: Request, body: CollectionRequest, session: 
         name=body.name,
         visibility=body.visibility,
         description=body.description,
-        user_id=request_context.get().user_id,
+        user_id=request_context.get().user_info.id,
     )
 
     return JSONResponse(status_code=201, content={"id": collection_id})
@@ -51,7 +51,7 @@ async def get_collection(
     collections = await global_context.document_manager.get_collections(
         session=session,
         collection_id=collection,
-        user_id=request_context.get().user_id,
+        user_id=request_context.get().user_info.id,
         include_public=True,
     )
 
@@ -73,7 +73,7 @@ async def get_collections(
     else:
         data = await global_context.document_manager.get_collections(
             session=session,
-            user_id=request_context.get().user_id,
+            user_id=request_context.get().user_info.id,
             include_public=True,
             offset=offset,
             limit=limit,
@@ -96,7 +96,7 @@ async def delete_collection(
 
     await global_context.document_manager.delete_collection(
         session=session,
-        user_id=request_context.get().user_id,
+        user_id=request_context.get().user_info.id,
         collection_id=collection,
     )
 
@@ -118,7 +118,7 @@ async def update_collection(
 
     await global_context.document_manager.update_collection(
         session=session,
-        user_id=request_context.get().user_id,
+        user_id=request_context.get().user_info.id,
         collection_id=collection,
         name=body.name,
         visibility=body.visibility,

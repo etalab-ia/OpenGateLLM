@@ -4,9 +4,9 @@ from fastapi.responses import JSONResponse
 from api.helpers._accesscontroller import AccessController
 from api.schemas.rerank import RerankRequest, Reranks
 from api.utils.context import global_context
-from api.utils.variables import ENDPOINT__RERANK
+from api.utils.variables import ENDPOINT__RERANK, ROUTER__RERANK
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__RERANK.title()])
 
 
 @router.post(path=ENDPOINT__RERANK, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Reranks)

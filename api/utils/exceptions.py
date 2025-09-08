@@ -49,6 +49,11 @@ class InvalidTokenExpirationException(HTTPException):
         super().__init__(status_code=400, detail=detail)
 
 
+class InvalidCurrentPasswordException(HTTPException):
+    def __init__(self, detail: str = "Invalid current password."):
+        super().__init__(status_code=400, detail=detail)
+
+
 # 403
 class InvalidPasswordException(HTTPException):
     def __init__(self, detail: str = "Invalid password."):

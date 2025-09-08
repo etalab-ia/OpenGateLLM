@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime as dt
 from enum import Enum
 from typing import List, Literal, Optional
 
@@ -22,9 +22,9 @@ class LimitType(str, Enum):
 
 
 class Limit(BaseModel):
-    model: str = Field(description="Model ID")
-    type: LimitType
-    value: Optional[int] = Field(default=None, ge=0)
+    model: str = Field(description="The model ID.")
+    type: LimitType = Field(description="The limit type.")
+    value: Optional[int] = Field(default=None, ge=0, description="The limit value.")
 
 
 class RoleUpdateRequest(BaseModel):
@@ -72,8 +72,8 @@ class Role(BaseModel):
     permissions: List[PermissionType]
     limits: List[Limit]
     users: int = 0
-    created_at: int = Field(default_factory=lambda: int(datetime.now().timestamp()))
-    updated_at: int = Field(default_factory=lambda: int(datetime.now().timestamp()))
+    created_at: int = Field(default_factory=lambda: int(dt.datetime.now().timestamp()))
+    updated_at: int = Field(default_factory=lambda: int(dt.datetime.now().timestamp()))
 
 
 class Roles(BaseModel):

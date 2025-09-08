@@ -2,6 +2,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict
 
+from api.schemas.me import UserInfo
 from api.schemas.usage import Usage
 
 
@@ -21,8 +22,7 @@ class RequestContext(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     id: Optional[str] = None
-    user_id: Optional[int] = None
-    role_id: Optional[int] = None
+    user_info: Optional[UserInfo] = None
     token_id: Optional[int] = None
     method: Optional[str] = None
     endpoint: Optional[str] = None

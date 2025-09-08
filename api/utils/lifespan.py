@@ -100,7 +100,7 @@ async def _setup_model_registry(configuration: Configuration, global_context: Gl
     db_names = {model.name for model in db_models}
     config_names = {model.name for model in configuration.models}
 
-    assert not db_names & config_names, f"found duplicate model names {', '.join(db_names & config_names)}"
+    assert not db_names & config_names, f"found duplicate model names {", ".join(db_names & config_names)}"
 
     models = configuration.models + db_models
 
@@ -151,6 +151,7 @@ async def _setup_identity_access_manager(configuration: Configuration, global_co
     global_context.identity_access_manager = IdentityAccessManager(
         master_key=configuration.settings.auth_master_key,
         max_token_expiration_days=configuration.settings.auth_max_token_expiration_days,
+        playground_session_duration=configuration.settings.auth_playground_session_duration,
     )
 
 

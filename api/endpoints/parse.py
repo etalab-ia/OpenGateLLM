@@ -12,9 +12,9 @@ from api.schemas.parse import (
 )
 from api.utils.context import global_context
 from api.utils.exceptions import FileSizeLimitExceededException
-from api.utils.variables import ENDPOINT__PARSE
+from api.utils.variables import ENDPOINT__PARSE, ROUTER__PARSE
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__PARSE.title()])
 
 
 @router.post(path=ENDPOINT__PARSE, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=ParsedDocument)

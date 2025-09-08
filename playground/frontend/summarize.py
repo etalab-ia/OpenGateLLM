@@ -3,7 +3,7 @@ import time
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
 
-from playground.backend.common import get_limits, get_models
+from playground.backend.common import format_limits, get_models
 from playground.backend.summarize import generate_summary, generate_toc, get_chunks, summary_with_feedback
 from playground.frontend.header import header
 from playground.frontend.utils import resources_selector
@@ -11,7 +11,7 @@ from playground.variables import MODEL_TYPE_LANGUAGE, MODEL_TYPE_IMAGE_TEXT_TO_T
 
 header()
 models = get_models(types=[MODEL_TYPE_LANGUAGE, MODEL_TYPE_IMAGE_TEXT_TO_TEXT])
-limits = get_limits(models=models, role=st.session_state["user"].role)
+limits = format_limits(models=models)
 limits = [model for model, values in limits.items() if (values["rpd"] is None or values["rpd"] > 0) and (values["rpm"] is None or values["rpm"] > 0)]
 models = [model for model in models if model in limits]
 
@@ -58,7 +58,7 @@ with st.sidebar:
 # Main
 st.subheader(body=":material/counter_1: Select a document")
 if st.session_state.get("summarize_document"):
-    st.info(body=f"Selected document: {st.session_state['summarize_document']['name']} ({st.session_state['summarize_document']['id']})")
+    st.info(body=f"Selected document: {st.session_state["summarize_document"]["name"]} ({st.session_state["summarize_document"]["id"]})")
 else:
     st.info(body="Select a document to summarize.")
 

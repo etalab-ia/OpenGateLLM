@@ -9,9 +9,9 @@ from api.schemas.chunks import Chunk, Chunks
 from api.sql.session import get_db_session
 from api.utils.context import global_context, request_context
 from api.utils.exceptions import ChunkNotFoundException
-from api.utils.variables import ENDPOINT__CHUNKS
+from api.utils.variables import ENDPOINT__CHUNKS, ROUTER__CHUNKS
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__CHUNKS.title()])
 
 
 @router.get(path=ENDPOINT__CHUNKS + "/{document:path}/{chunk:path}", dependencies=[Security(dependency=AccessController())], status_code=200)
@@ -28,7 +28,7 @@ async def get_chunk(
         raise ChunkNotFoundException()
 
     chunks = await global_context.document_manager.get_chunks(
-        session=session, document_id=document, chunk_id=chunk, user_id=request_context.get().user_id
+        session=session, document_id=document, chunk_id=chunk, user_id=request_context.get().user_info.id
     )
 
     return chunks[0]
@@ -53,7 +53,7 @@ async def get_chunks(
             document_id=document,
             limit=limit,
             offset=offset,
-            user_id=request_context.get().user_id,
+            user_id=request_context.get().user_info.id,
         )
 
     return Chunks(data=data)

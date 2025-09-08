@@ -7,16 +7,17 @@ from playground.frontend.utils import (
     input_new_role_limits,
     input_new_role_name,
     input_new_role_permissions,
+    input_new_user_budget,
+    input_new_user_email,
     input_new_user_expires_at,
     input_new_user_name,
     input_new_user_password,
     input_new_user_role_id,
-    input_new_user_budget,
     resources_selector,
 )
 
 header()
-if "admin" not in st.session_state["user"].role["permissions"]:
+if "admin" not in st.session_state["user"].permissions:
     st.info("Access denied.")
     st.stop()
 
@@ -105,8 +106,9 @@ with st.expander(label="Users", expanded=not st.session_state.get("new_user", Fa
                     delete_user(user=selected_user.get("id"))
 
 
+new_user_email = input_new_user_email(selected_user=selected_user)
 new_user_name = input_new_user_name(selected_user=selected_user)
-new_user_password = input_new_user_password()
+current_password, new_user_password = input_new_user_password()
 new_user_role_id = input_new_user_role_id(selected_role=selected_role, roles=roles)
 new_user_budget = input_new_user_budget(selected_user=selected_user)
 new_user_expires_at = input_new_user_expires_at(selected_user=selected_user)
@@ -115,14 +117,23 @@ new_user_expires_at = input_new_user_expires_at(selected_user=selected_user)
 if st.session_state.get("new_user", False):
     with stylable_container(key="Header", css_styles="button{float: right;}"):
         if st.button(label="**Create**", key="validate_create_user_button"):
-            create_user(name=new_user_name, password=new_user_password, budget=new_user_budget, role=new_user_role_id, expires_at=new_user_expires_at)
+            create_user(
+                email=new_user_email,
+                name=new_user_name,
+                password=new_user_password,
+                role=new_user_role_id,
+                budget=new_user_budget,
+                expires_at=new_user_expires_at,
+            )
 
 if st.session_state.get("update_user", False):
     with stylable_container(key="Header", css_styles="button{float: right;}"):
         if st.button(label="**Update**", key="validate_update_user_button"):
             update_user(
                 user=selected_user["id"],
+                email=new_user_email,
                 name=new_user_name,
+                current_password=current_password,
                 password=new_user_password,
                 budget=new_user_budget,
                 role=new_user_role_id,

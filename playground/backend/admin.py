@@ -58,16 +58,17 @@ def update_role(role: int, name: Optional[str] = None, permissions: Optional[lis
     st.rerun()
 
 
-def create_user(name: str, password: str, role: int, expires_at: Optional[int] = None, budget: Optional[float] = None):
-    if not name:
-        st.toast("User name is required", icon="❌")
+def create_user(email: str, password: str, role: int, name: Optional[str] = None, expires_at: Optional[int] = None, budget: Optional[float] = None):
+    if not email:
+        st.toast("User email is required", icon="❌")
         return
 
     if not password:
         st.toast("User password is required", icon="❌")
         return
 
-    name = name.strip()
+    email = email.strip()
+    name = name.strip() if name else None
     password = password.strip()
 
     if not check_password(password):
@@ -75,7 +76,7 @@ def create_user(name: str, password: str, role: int, expires_at: Optional[int] =
 
     response = requests.post(
         url=f"{configuration.playground.api_url}/v1/admin/users",
-        json={"name": name, "role": role, "expires_at": expires_at, "budget": budget, "password": password},
+        json={"email": email, "name": name, "role": role, "expires_at": expires_at, "budget": budget, "password": password},
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
 
@@ -85,7 +86,7 @@ def create_user(name: str, password: str, role: int, expires_at: Optional[int] =
 
     user_id = response.json()["id"]
 
-    # create token
+    # create playground token
     response = requests.post(
         url=f"{configuration.playground.api_url}/v1/admin/tokens",
         json={"user": user_id, "name": "playground"},
@@ -96,11 +97,6 @@ def create_user(name: str, password: str, role: int, expires_at: Optional[int] =
         st.toast(response.json()["detail"], icon="❌")
         return
 
-    api_key = response.json()["token"]
-    api_key_id = response.json()["id"]
-
-    # Server persists users and tokens. No local DB storage is required anymore.
-
     st.toast("User created", icon="✅")
     time.sleep(1)
     st.session_state["new_user"] = False
@@ -109,13 +105,13 @@ def create_user(name: str, password: str, role: int, expires_at: Optional[int] =
 
 def delete_user(user: int):
     response = requests.delete(
-        url=f"{configuration.playground.api_url}/v1/admin/users/{user}", headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"}
+        url=f"{configuration.playground.api_url}/v1/admin/users/{user}",
+        headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
     if response.status_code != 204:
         st.toast(response.json()["detail"], icon="❌")
         return
 
-    # Server deleted the user; no local DB cleanup required.
     st.toast("User deleted", icon="✅")
     time.sleep(0.5)
     st.rerun()
@@ -123,21 +119,28 @@ def delete_user(user: int):
 
 def update_user(
     user: int,
+    email: Optional[str] = None,
     name: Optional[str] = None,
+    current_password: Optional[str] = None,
     password: Optional[str] = None,
     role: Optional[int] = None,
     expires_at: Optional[int] = None,
     budget: Optional[float] = None,
 ):
+    email = email.strip() if email else None
     name = name.strip() if name else None
-    password = password.strip() if password else None
-
-    if password and not check_password(password):
-        return
 
     response = requests.patch(
         url=f"{configuration.playground.api_url}/v1/admin/users/{user}",
-        json={"name": name, "role": role, "expires_at": expires_at, "budget": budget},
+        json={
+            "email": email,
+            "name": name,
+            "current_password": current_password,
+            "password": password,
+            "role": role,
+            "expires_at": expires_at,
+            "budget": budget,
+        },
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
     if response.status_code != 204:

@@ -4,9 +4,9 @@ from fastapi.responses import JSONResponse
 from api.helpers._accesscontroller import AccessController
 from api.schemas.agents import AgentsChatCompletion, AgentsChatCompletionRequest, AgentsTools
 from api.utils.context import global_context
-from api.utils.variables import ENDPOINT__AGENTS_COMPLETIONS, ENDPOINT__AGENTS_TOOLS
+from api.utils.variables import ENDPOINT__AGENTS_COMPLETIONS, ENDPOINT__AGENTS_TOOLS, ROUTER__AGENTS
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__AGENTS.title()])
 
 
 @router.post(path=ENDPOINT__AGENTS_COMPLETIONS, dependencies=[Security(dependency=AccessController())], response_model=AgentsChatCompletion)

@@ -10,20 +10,20 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers.auth_encryption import encrypt_redirect_data
 from api.schemas.admin.tokens import OAuth2LogoutRequest
 from api.schemas.admin.users import User
 from api.sql.session import get_db_session
 from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context
-from api.utils.variables import ROUTER__AUTH
+from api.utils.variables import ENDPOINT__AUTH_CALLBACK, ENDPOINT__AUTH_LOGOUT, ROUTER__AUTH
 
-from api.helpers.auth_encryption import encrypt_redirect_data
 from .token import perform_proconnect_logout
 from .user import create_user, retrieve_user_info
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__AUTH.title()])
 
 # Singleton pattern for OAuth2 client
 _oauth2_client = None
@@ -100,7 +100,7 @@ async def oauth2_login(request: Request, oauth2_client=Depends(get_oauth2_client
         raise HTTPException(status_code=400, detail=f"OAuth2 login failed: {str(e)}")
 
 
-@router.get(f"/{ROUTER__AUTH}/callback")
+@router.get(path=ENDPOINT__AUTH_CALLBACK)
 async def oauth2_callback(request: Request, session: AsyncSession = Depends(get_db_session), oauth2_client=Depends(get_oauth2_client)):
     """
     Handle OAuth2 callback from ProConnect
@@ -167,7 +167,7 @@ async def oauth2_callback(request: Request, session: AsyncSession = Depends(get_
         raise HTTPException(status_code=400, detail=f"OAuth2 callback failed: {str(e)}")
 
 
-@router.post(f"/{ROUTER__AUTH}/logout", dependencies=[Security(dependency=AccessController())], status_code=200)
+@router.post(path=ENDPOINT__AUTH_LOGOUT, dependencies=[Security(dependency=AccessController())], status_code=200)
 async def logout(
     request: Request,
     logout_request: OAuth2LogoutRequest,

@@ -6,7 +6,7 @@ from api.schemas.completions import CompletionRequest, Completions
 from api.utils.context import global_context
 from api.utils.variables import ENDPOINT__COMPLETIONS
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=["Legacy"])
 
 
 @router.post(path=ENDPOINT__COMPLETIONS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Completions)

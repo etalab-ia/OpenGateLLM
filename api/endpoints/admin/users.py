@@ -9,9 +9,9 @@ from api.schemas.admin.roles import PermissionType
 from api.schemas.admin.users import UserRequest, Users, UsersResponse, UserUpdateRequest
 from api.sql.session import get_db_session
 from api.utils.context import global_context
-from api.utils.variables import ENDPOINT__ADMIN_USERS
+from api.utils.variables import ENDPOINT__ADMIN_USERS, ROUTER__ADMIN
 
-router = APIRouter()
+router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 
 
 @router.post(
@@ -31,6 +31,8 @@ async def create_user(
 
     user_id = await global_context.identity_access_manager.create_user(
         session=session,
+        email=body.email,
+        password=body.password,
         name=body.name,
         role_id=body.role,
         organization_id=body.organization,
@@ -76,7 +78,10 @@ async def update_user(
     await global_context.identity_access_manager.update_user(
         session=session,
         user_id=user,
+        email=body.email,
         name=body.name,
+        current_password=body.current_password,
+        password=body.password,
         role_id=body.role,
         organization_id=body.organization,
         budget=body.budget,

@@ -15,11 +15,8 @@ from api.schemas.models import ModelType
 from api.utils.variables import (
     DEFAULT_APP_NAME,
     DEFAULT_TIMEOUT,
-    ROUTER__ADMIN_ORGANIZATIONS,
-    ROUTER__ADMIN_ROLES,
-    ROUTER__ADMIN_TOKENS,
-    ROUTER__ADMIN_USERS,
     ROUTER__AUTH,
+    ROUTER__ADMIN,
     ROUTERS,
 )
 
@@ -449,6 +446,7 @@ class Settings(ConfigBaseModel):
     # auth
     auth_master_key: constr(strip_whitespace=True, min_length=1) = Field(default="changeme", description="Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys.")  # fmt: off
     auth_max_token_expiration_days: Optional[int] = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
+    auth_playground_session_duration: int = Field(default=3600, ge=1, description="Duration of the playground session in seconds.")  # fmt: off
 
     # rate_limiting
     rate_limiting_strategy: LimitingStrategy = Field(default=LimitingStrategy.FIXED_WINDOW, description="Rate limiting strategy for the API.")  # fmt: off
@@ -483,16 +481,18 @@ class Settings(ConfigBaseModel):
         if len(values.auth_master_key) < 32:
             logging.warning("Auth master key is too short for production, it should be at least 32 characters.")  # fmt: off
 
-        if any(
-            router in values.hidden_routers
-            for router in [ROUTER__ADMIN_ORGANIZATIONS, ROUTER__ADMIN_ROLES, ROUTER__ADMIN_TOKENS, ROUTER__ADMIN_USERS]
-        ):
+        if any(router in values.hidden_routers for router in [ROUTER__ADMIN, ROUTER__AUTH]):
             logging.warning("Admin router should be hidden in production.")  # fmt: off
 
         if ROUTER__AUTH not in values.hidden_routers:
             logging.warning("Auth router should be hidden in production.")  # fmt: off
 
         return values
+
+
+# legacy section for playground (TODO: remove after migration)
+class Playground(ConfigBaseModel):
+    postgres: dict = {}
 
 
 # load config ----------------------------------------------------------------------------------------------------------------------------------------
@@ -505,6 +505,7 @@ class ConfigFile(ConfigBaseModel):
     models: List[Model] = Field(min_length=1, description="Models used by the API. At least one model must be defined.")  # fmt: off
     dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the API.")  # fmt: off
     settings: Settings = Field(default_factory=Settings, description="Settings used by the API.")  # fmt: off
+    playground: Playground = Field(default_factory=Playground, description="Playground configuration used temporarily in next release to migrate user authentication.")  # fmt: off
 
     @field_validator("settings", mode="before")
     def set_default_settings(cls, settings) -> Any:
@@ -589,6 +590,7 @@ class Configuration(BaseSettings):
         values.models = config.models
         values.dependencies = config.dependencies
         values.settings = config.settings
+        values.playground = config.playground
 
         return values
 
