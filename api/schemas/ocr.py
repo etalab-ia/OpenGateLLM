@@ -1,6 +1,6 @@
 from fastapi import Form
 
-from app.utils.prompt_loader import get_prompt_renderer
+from api.utils.prompt_loader import get_prompt_renderer
 
 
 def get_default_ocr_prompt() -> str:
