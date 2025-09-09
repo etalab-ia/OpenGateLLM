@@ -50,7 +50,7 @@
 | Built-in OCR         | ✔️ | ❌ | ❌ | ❌ |
 | Audio Transcription  | ✔️ | ❌ | ❌ | ❌ |
 | Flexible Deployment  | ✔️ | ✔️ | ❌ | ❌ |
-| OpenAI Compatibility | ✔️ | ✔️ | ✔️ | ❌ |
+| OpenAI Compatibility | ✔️ | ✔️ | ✔️ | ✔️ |
 
 ## 📘 Tutorials & Guides
 
