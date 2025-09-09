@@ -98,7 +98,7 @@ async def test_refresh_token_updates_usage_and_deletes_old(session: AsyncSession
     ]
 
     with patch.object(iam, "_encode_token", return_value="sk-newtoken"):
-        new_id, app_token = await iam.refresh_token(session, user_id=1, name="dev", days=1)
+        new_id, app_token = await iam.refresh_token(session, user_id=1, name="dev", duration=3600)
 
     assert new_id == 100
     assert app_token == "sk-newtoken"

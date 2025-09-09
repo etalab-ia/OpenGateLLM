@@ -1,9 +1,9 @@
 from abc import ABC
 import ast
 import asyncio
+from asyncio import Lock
 from datetime import datetime
 import importlib
-from asyncio import Lock
 from json import JSONDecodeError, dumps, loads
 import logging
 import re
@@ -16,12 +16,14 @@ from coredis import ConnectionPool, Redis
 from fastapi import HTTPException
 import httpx
 
-from api.schemas.core.configuration import ModelProviderType, ModelProvider as ModelClientSchema
-from api.utils.configuration import configuration
+from api.schemas.core.configuration import ModelProvider as ModelClientSchema
+from api.schemas.core.configuration import ModelProviderType
 from api.schemas.core.metric import Metric
 from api.schemas.usage import Detail, Usage
 from api.utils.carbon import get_carbon_footprint
+from api.utils.configuration import configuration
 from api.utils.context import generate_request_id, global_context, request_context
+from api.utils.exceptions import ModelIsTooBusyException
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -354,7 +356,7 @@ class BaseModelClient(ABC):
                 response = await async_client.request(method=method, url=url, headers=self.headers, json=json, files=files, data=data)
                 end_time = time.perf_counter()
             except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout, httpx.WriteTimeout, httpx.PoolTimeout) as e:
-                raise HTTPException(status_code=504, detail="Request timed out, model is too busy.")
+                raise ModelIsTooBusyException()
             except Exception as e:
                 logger.exception(msg=f"Failed to forward request to {self.name}: {e}.")
                 raise HTTPException(status_code=500, detail=type(e).__name__)

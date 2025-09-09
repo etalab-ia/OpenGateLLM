@@ -55,6 +55,6 @@ class Key(BaseModel):
     created_at: int
 
 
-class MyKeys(BaseModel):
+class Keys(BaseModel):
     object: Literal["list"] = "list"
     data: List[Key]

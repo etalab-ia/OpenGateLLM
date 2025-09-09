@@ -236,10 +236,10 @@ limits = format_limits(models=models)
 st.dataframe(
     data=pd.DataFrame(
         data={
-            "Request per minute": [limits[model]["rpm"] if limits[model]["rpm"] is not None else "Unlimited" for model in models],
-            "Request per day": [limits[model]["rpd"] if limits[model]["rpd"] is not None else "Unlimited" for model in models],
-            "Tokens per minute": [limits[model]["tpm"] if limits[model]["tpm"] is not None else "Unlimited" for model in models],
-            "Tokens per day": [limits[model]["tpd"] if limits[model]["tpd"] is not None else "Unlimited" for model in models],
+            "Request per minute": [str(limits[model]["rpm"]) if limits[model]["rpm"] is not None else "Unlimited" for model in models],
+            "Request per day": [str(limits[model]["rpd"]) if limits[model]["rpd"] is not None else "Unlimited" for model in models],
+            "Tokens per minute": [str(limits[model]["tpm"]) if limits[model]["tpm"] is not None else "Unlimited" for model in models],
+            "Tokens per day": [str(limits[model]["tpd"]) if limits[model]["tpd"] is not None else "Unlimited" for model in models],
         },
         index=models,
     ),

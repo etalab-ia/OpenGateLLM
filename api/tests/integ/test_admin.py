@@ -13,12 +13,12 @@ from api.utils.variables import (
     ENDPOINT__ADMIN_ROLES,
     ENDPOINT__ADMIN_TOKENS,
     ENDPOINT__ADMIN_USERS,
-    ENDPOINT__AUTH_ME,
     ENDPOINT__CHAT_COMPLETIONS,
     ENDPOINT__COLLECTIONS,
+    ENDPOINT__ME_INFO,
+    ENDPOINT__ME_KEYS,
     ENDPOINT__MODELS,
     ENDPOINT__SEARCH,
-    ENDPOINT__TOKENS,
 )
 
 
@@ -57,7 +57,12 @@ class TestAuth:
         # Create a test user with no expiration
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_USERS}",
-            json={"name": f"test_user_{str(uuid4())}", "role": role_without_permissions["id"]},
+            json={
+                "email": f"test_user_{str(uuid4())}@example.com",
+                "name": f"test_user_{str(uuid4())}",
+                "role": role_without_permissions["id"],
+                "password": "test-password",
+            },
         )
         assert response.status_code == 201, response.text
         user_no_expiration_id = response.json()["id"]
@@ -72,7 +77,13 @@ class TestAuth:
         past_expiration = int((datetime.now() - timedelta(minutes=5)).timestamp())
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_USERS}",
-            json={"name": f"test_user_{str(uuid4())}", "role": role_without_permissions["id"], "expires_at": past_expiration},
+            json={
+                "email": f"test_user_{str(uuid4())}@example.com",
+                "name": f"test_user_{str(uuid4())}",
+                "role": role_without_permissions["id"],
+                "expires_at": past_expiration,
+                "password": "test-password",
+            },
         )
         assert response.status_code == 422, response.text
 
@@ -80,7 +91,13 @@ class TestAuth:
         future_expiration = int((time.time()) + 5 * 60)
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_USERS}",
-            json={"name": f"test_user_{str(uuid4())}", "role": role_without_permissions["id"], "expires_at": future_expiration},
+            json={
+                "email": f"test_user_{str(uuid4())}@example.com",
+                "name": f"test_user_{str(uuid4())}",
+                "role": role_without_permissions["id"],
+                "expires_at": future_expiration,
+                "password": "test-password",
+            },
         )
         assert response.status_code == 201, response.text
         user_with_expiration_id = response.json()["id"]
@@ -116,7 +133,13 @@ class TestAuth:
         # Create user
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_USERS}",
-            json={"name": f"test_user_{str(uuid4())}", "role": role_without_permissions["id"], "expires_at": future_expiration},
+            json={
+                "email": f"test_user_{str(uuid4())}@example.com",
+                "name": f"test_user_{str(uuid4())}",
+                "role": role_without_permissions["id"],
+                "expires_at": future_expiration,
+                "password": "test-password",
+            },
         )
         assert response.status_code == 201, response.text
         user_id = response.json()["id"]
@@ -131,22 +154,22 @@ class TestAuth:
 
         # Test API access with token before expiration
         headers = {"Authorization": f"Bearer {token}"}
-        response = client.get(url="/v1/tokens", headers=headers)
+        response = client.get(url=f"/v1{ENDPOINT__ME_KEYS}", headers=headers)
         assert response.status_code == 200, "User should have access before expiration"
 
         # Wait for user to expire
         time.sleep(2)
 
         # Test API access after expiration
-        response = client.get(url="/v1/tokens", headers=headers)
+        response = client.get(url=f"/v1{ENDPOINT__ME_KEYS}", headers=headers)
         assert response.status_code == 403, response.text
 
         # Verify user info endpoints still work with admin token
         response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_id}")
         assert response.status_code == 200, response.text
 
-        # Check that /auth/me endpoint return 200 for expired user
-        response = client.get(url=f"/v1{ENDPOINT__AUTH_ME}", headers=headers)
+        # Check that /me/info endpoint return 200 for expired user
+        response = client.get(url=f"/v1{ENDPOINT__ME_INFO}", headers=headers)
         assert response.status_code == 200, response.text
 
     def test_create_token_after_max_token_expiration_days(self, client: TestClient, roles: tuple[dict, dict]):
@@ -155,7 +178,12 @@ class TestAuth:
         # Create a user with no expiration
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_USERS}",
-            json={"name": f"test_user_{str(uuid4())}", "role": role_without_permissions["id"]},
+            json={
+                "email": f"test_user_{str(uuid4())}@example.com",
+                "name": f"test_user_{str(uuid4())}",
+                "role": role_without_permissions["id"],
+                "password": "test-password",
+            },
         )
         assert response.status_code == 201, response.text
         user_id = response.json()["id"]
@@ -191,7 +219,12 @@ class TestAuth:
         # Create a user for this role
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_USERS}",
-            json={"name": f"test_user_{str(uuid4())}", "role": role_id},
+            json={
+                "email": f"test_user_{str(uuid4())}@example.com",
+                "name": f"test_user_{str(uuid4())}",
+                "role": role_id,
+                "password": "test-password",
+            },
         )
         assert response.status_code == 201, response.text
         user_id = response.json()["id"]
@@ -199,7 +232,7 @@ class TestAuth:
         # Create a token for this user
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
-            json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires_at": int((time.time()) + 60 * 10)},
+            json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires_at": int((time.time()) + 60 * 10), "password": "test-password"},
         )
         assert response.status_code == 201, response.text
         token = response.json()["token"]
@@ -271,7 +304,13 @@ class TestAuth:
         initial_budget = 10
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_USERS}",
-            json={"name": f"test_user_{str(uuid4())}", "role": 1, "budget": initial_budget},
+            json={
+                "email": f"test_user_{str(uuid4())}@example.com",
+                "name": f"test_user_{str(uuid4())}",
+                "role": 1,
+                "budget": initial_budget,
+                "password": "test-password",
+            },
         )
         assert response.status_code == 201, response.text
         user_id = response.json()["id"]
@@ -331,7 +370,12 @@ class TestAuth:
         # Create first user
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_USERS}",
-            json={"name": f"user1_{str(uuid4())}", "role": role_without_permissions["id"]},
+            json={
+                "email": f"user1_{str(uuid4())}@example.com",
+                "name": f"user1_{str(uuid4())}",
+                "role": role_without_permissions["id"],
+                "password": "test-password",
+            },
         )
         assert response.status_code == 201, response.text
         user1_id = response.json()["id"]
@@ -348,7 +392,7 @@ class TestAuth:
         # Get first user's token
         headers1 = {"Authorization": f"Bearer {user1_token}"}
         response = client.get(
-            url=f"/v1{ENDPOINT__TOKENS}/{user1_token_id}",
+            url=f"/v1{ENDPOINT__ME_KEYS}/{user1_token_id}",
             headers=headers1,
         )
         assert response.status_code == 200, response.text
@@ -366,7 +410,12 @@ class TestAuth:
         # Create second user
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_USERS}",
-            json={"name": f"user2_{str(uuid4())}", "role": role_without_permissions["id"]},
+            json={
+                "email": f"user2_{str(uuid4())}@example.com",
+                "name": f"user2_{str(uuid4())}",
+                "role": role_without_permissions["id"],
+                "password": "test-password",
+            },
         )
         assert response.status_code == 201, response.text
         user2_id = response.json()["id"]
@@ -382,10 +431,7 @@ class TestAuth:
 
         # Get second user's token
         headers2 = {"Authorization": f"Bearer {user2_token}"}
-        response = client.get(
-            url=f"/v1{ENDPOINT__TOKENS}/{user2_token_id}",
-            headers=headers2,
-        )
+        response = client.get(url=f"/v1{ENDPOINT__ME_KEYS}/{user2_token_id}", headers=headers2)
         assert response.status_code == 200, response.text
         user2_token_data = response.json()
 
@@ -395,10 +441,7 @@ class TestAuth:
         # Do it again to expose collision when creating a token with the same name
         # Get first user's token again to check it was not affected
         headers1 = {"Authorization": f"Bearer {user1_token}"}
-        response = client.get(
-            url=f"/v1{ENDPOINT__TOKENS}/{user1_token_id}",
-            headers=headers1,
-        )
+        response = client.get(url=f"/v1{ENDPOINT__ME_KEYS}/{user1_token_id}", headers=headers1)
         assert response.status_code == 200, response.text
         user1_token_data = response.json()
 
@@ -450,7 +493,12 @@ class TestAuth:
         # Create a user
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_USERS}",
-            json={"name": f"test_user_{str(uuid4())}", "role": role_id},
+            json={
+                "email": f"test_user_{str(uuid4())}@example.com",
+                "name": f"test_user_{str(uuid4())}",
+                "role": role_id,
+                "password": "test-password",
+            },
         )
         assert response.status_code == 201, response.text
         user_id = response.json()["id"]
@@ -507,7 +555,12 @@ class TestAuth:
         # Create a user
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_USERS}",
-            json={"name": f"test_user_{str(uuid4())}", "role": role_id},
+            json={
+                "email": f"test_user_{str(uuid4())}@example.com",
+                "name": f"test_user_{str(uuid4())}",
+                "role": role_id,
+                "password": "test-password",
+            },
         )
         assert response.status_code == 201, response.text
         user_id = response.json()["id"]

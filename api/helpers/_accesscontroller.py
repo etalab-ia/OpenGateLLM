@@ -27,8 +27,7 @@ from api.utils.variables import (
     ENDPOINT__COLLECTIONS,
     ENDPOINT__EMBEDDINGS,
     ENDPOINT__FILES,
-    ENDPOINT__ME_ROLE,
-    ENDPOINT__ME_USER,
+    ENDPOINT__ME_INFO,
     ENDPOINT__MODELS,
     ENDPOINT__MODELS_ALIAS,
     ENDPOINT__OCR,
@@ -73,12 +72,7 @@ class AccessController:
         user_info, limits, token_id = await self._check_api_key(api_key=api_key, session=session)
 
         # invalid token if user is expired, except for /me and /me/role endpoints
-        if (
-            user_info.expires_at
-            and user_info.expires_at < time.time()
-            and not request.url.path.endswith(ENDPOINT__ME_USER)
-            and not request.url.path.endswith(ENDPOINT__ME_ROLE)
-        ):
+        if user_info.expires_at and user_info.expires_at < time.time() and not request.url.path.endswith(ENDPOINT__ME_INFO):
             raise InvalidAPIKeyException()
 
         await self._check_permissions(permissions=user_info.permissions)
@@ -212,7 +206,7 @@ class AccessController:
             remaining = await global_context.limiter.remaining(user_id=user_info.id, model=model, type=LimitType.RPD, value=limits[model].rpd)
             raise RateLimitExceeded(detail=f"{str(limits[model].rpd)} requests for {model} per day exceeded (remaining: {remaining}).")
 
-    async def _check_token_limits(self, request: Request, user: User, limits: Dict[str, _UserModelLimits], prompt_tokens: int, model: Optional[str] = None) -> None:  # fmt: off
+    async def _check_token_limits(self, request: Request, user_info: UserInfo, limits: Dict[str, _UserModelLimits], prompt_tokens: int, model: Optional[str] = None) -> None:  # fmt: off
         if not model or not prompt_tokens:
             return
 
@@ -225,15 +219,15 @@ class AccessController:
             raise InsufficientPermissionException(detail=f"Insufficient permissions to access the model {model}.")
 
         # compute the cost (number of hits) of the request by the number of tokens
-        check = await global_context.limiter.hit(user_id=user.id, model=model, type=LimitType.TPM, value=limits[model].tpm, cost=prompt_tokens)
+        check = await global_context.limiter.hit(user_id=user_info.id, model=model, type=LimitType.TPM, value=limits[model].tpm, cost=prompt_tokens)
 
         if not check:
-            remaining = await global_context.limiter.remaining(user_id=user.id, model=model, type=LimitType.TPM, value=limits[model].tpm)
+            remaining = await global_context.limiter.remaining(user_id=user_info.id, model=model, type=LimitType.TPM, value=limits[model].tpm)
             raise RateLimitExceeded(detail=f"{str(limits[model].tpm)} input tokens for {model} per minute exceeded (remaining: {remaining}).")
 
-        check = await global_context.limiter.hit(user_id=user.id, model=model, type=LimitType.TPD, value=limits[model].tpd, cost=prompt_tokens)
+        check = await global_context.limiter.hit(user_id=user_info.id, model=model, type=LimitType.TPD, value=limits[model].tpd, cost=prompt_tokens)
         if not check:
-            remaining = await global_context.limiter.remaining(user_id=user.id, model=model, type=LimitType.TPD, value=limits[model].tpd)
+            remaining = await global_context.limiter.remaining(user_id=user_info.id, model=model, type=LimitType.TPD, value=limits[model].tpd)
             raise RateLimitExceeded(detail=f"{str(limits[model].tpd)} input tokens for {model} per day exceeded (remaining: {remaining}).")
 
     async def _check_budget(self, user_info: UserInfo, model: Optional[str] = None) -> None:

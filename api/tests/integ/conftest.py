@@ -281,7 +281,8 @@ def users(test_client: TestClient, roles: tuple[dict, dict]) -> tuple[dict, dict
 
     # create user admin
     response = test_client.post(
-        url=f"/v1{ENDPOINT__ADMIN_USERS}", json={"name": "test-user-admin", "password": "test-password", "role": role_with_permissions["id"]}
+        url=f"/v1{ENDPOINT__ADMIN_USERS}",
+        json={"email": "test-user-admin@example.com", "name": "test-user-admin", "password": "test-password", "role": role_with_permissions["id"]},
     )
     response.raise_for_status()
     user_id_with_permissions = response.json()["id"]
@@ -293,7 +294,8 @@ def users(test_client: TestClient, roles: tuple[dict, dict]) -> tuple[dict, dict
 
     # create user user
     response = test_client.post(
-        url=f"/v1{ENDPOINT__ADMIN_USERS}", json={"name": "test-user-user", "password": "test-password", "role": role_without_permissions["id"]}
+        url=f"/v1{ENDPOINT__ADMIN_USERS}",
+        json={"email": "test-user-user@example.com", "name": "test-user-user", "password": "test-password", "role": role_without_permissions["id"]},
     )
     response.raise_for_status()
     user_id_user = response.json()["id"]

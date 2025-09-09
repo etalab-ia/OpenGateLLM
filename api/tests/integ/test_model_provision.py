@@ -1,7 +1,9 @@
-import pytest
 import json
-from api.utils.variables import ENDPOINT__MODEL_ADD, ENDPOINT__MODEL_DELETE, ENDPOINT__ALIAS_ADD, ENDPOINT__ALIAS_DELETE, ENDPOINT__ROUTERS
+
+import pytest
+
 from api.utils.configuration import configuration
+from api.utils.variables import ENDPOINT__MODELS, ENDPOINT__MODELS_ALIAS, ENDPOINT__ROUTERS
 
 CONFIG_EXPECTED = [
     {
@@ -15,7 +17,7 @@ CONFIG_EXPECTED = [
     {
         "type": "text-generation",
         "aliases": ["meta-llama/Llama-3.1-8B-Instruct"],
-        "owned_by": "Albert API",
+        "owned_by": "OpenGateLLM",
         "routing_strategy": "round_robin",
         "providers": [
             {"type": "albert", "model_name": "albert-small"},
@@ -26,7 +28,7 @@ CONFIG_EXPECTED = [
     {
         "type": "text-embeddings-inference",
         "aliases": ["BAAI/bge-m3"],
-        "owned_by": "Albert API",
+        "owned_by": "OpenGateLLM",
         "routing_strategy": "shuffle",
         "providers": [{"type": "albert", "model_name": "embeddings-small"}],
         "name": "embeddings-small",
@@ -34,7 +36,7 @@ CONFIG_EXPECTED = [
     {
         "type": "automatic-speech-recognition",
         "aliases": ["openai/whisper-large-v3"],
-        "owned_by": "Albert API",
+        "owned_by": "OpenGateLLM",
         "routing_strategy": "shuffle",
         "providers": [{"type": "albert", "model_name": "audio-large"}],
         "name": "audio-large",
@@ -42,7 +44,7 @@ CONFIG_EXPECTED = [
     {
         "type": "text-classification",
         "aliases": ["BAAI/bge-reranker-v2-m3"],
-        "owned_by": "Albert API",
+        "owned_by": "OpenGateLLM",
         "routing_strategy": "shuffle",
         "providers": [{"type": "albert", "model_name": "rerank-small"}],
         "name": "rerank-small",
@@ -101,7 +103,7 @@ class TestModelProvision:
                 "version": "1.0.0",
             },
         }
-        response = client.post_master(url=f"v1{ENDPOINT__MODEL_ADD}", json=payload)
+        response = client.post_master(url=f"v1{ENDPOINT__MODELS}", json=payload)
         assert response.status_code == 201
 
         response = client.get_master(url=f"v1{ENDPOINT__ROUTERS}")
@@ -113,7 +115,7 @@ class TestModelProvision:
 
     def test_add_alias(self, client):
         payload = {"router_name": "cs-chat", "aliases": ["test-alias"]}
-        response = client.post_master(url=f"v1{ENDPOINT__ALIAS_ADD}", json=payload)
+        response = client.post_master(url=f"v1{ENDPOINT__MODELS_ALIAS}", json=payload)
         assert response.status_code == 201
 
         response = client.get_master(url=f"v1{ENDPOINT__ROUTERS}")
@@ -127,7 +129,7 @@ class TestModelProvision:
     def test_delete_alias(self, client):
         payload = {"router_name": "cs-chat", "aliases": ["test-alias"]}
         response = client.request(
-            "DELETE", f"v1{ENDPOINT__ALIAS_DELETE}", content=json.dumps(payload), headers={**client.headers, "Content-Type": "application/json"}
+            "DELETE", f"v1{ENDPOINT__MODELS_ALIAS}", content=json.dumps(payload), headers={**client.headers, "Content-Type": "application/json"}
         )
         assert response.status_code == 204
 
@@ -145,7 +147,7 @@ class TestModelProvision:
             "model_name": "casperhansen/llama-3.3-70b-instruct-awq",
         }
         response = client.request(
-            "DELETE", f"v1{ENDPOINT__MODEL_DELETE}", content=json.dumps(payload), headers={**client.headers, "Content-Type": "application/json"}
+            "DELETE", f"v1{ENDPOINT__MODELS}", content=json.dumps(payload), headers={**client.headers, "Content-Type": "application/json"}
         )
         assert response.status_code == 204
 

@@ -683,10 +683,14 @@ class IdentityAccessManager:
                 id=0,
                 email="master",
                 name="master",
-                organization_id=0,
+                organization=0,
                 budget=None,
                 permissions=[permission for permission in PermissionType],
-                limits=[Limit(model=model, type=type, value=None) for model in global_context.model_registry.models for type in LimitType],
+                limits=[
+                    Limit(model=model, type=type, value=None)
+                    for model in (global_context.model_registry.models if global_context.model_registry else [])
+                    for type in LimitType
+                ],
                 expires_at=None,
                 created_at=0,
                 updated_at=0,
@@ -698,13 +702,13 @@ class IdentityAccessManager:
         role = roles[0]
 
         # user cannot see limits on models that are not accessible by the role
-        limits = [limit for limit in role.limits if limit.value > 0 or limit.value is None]
+        limits = [limit for limit in role.limits if limit.value is None or limit.value > 0]
 
         user = UserInfo(
             id=user.id,
             email=user.email,
             name=user.name,
-            organization_id=user.organization,
+            organization=user.organization,
             budget=user.budget,
             permissions=role.permissions,
             limits=limits,

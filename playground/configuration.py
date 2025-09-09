@@ -21,7 +21,6 @@ class MenuItems(ConfigBaseModel):
 
 class Playground(ConfigBaseModel):
     auth_master_username: str = "master"
-    auth_master_key: str = "changeme"
     auth_max_token_expiration_days: Optional[int] = Field(default=None, ge=0)
     auth_encryption_key: Optional[str] = Field(default="changeme", description="Secret key for encrypting between FastAPI and Playground. Must be 32 url-safe base64-encoded bytes.")  # fmt: off
     api_url: str = "http://localhost:8080"

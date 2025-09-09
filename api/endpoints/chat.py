@@ -7,16 +7,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.helpers._accesscontroller import AccessController
 from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionRequest
+from api.schemas.exception import HTTPExceptionModel
 from api.schemas.search import Search, SearchMethod
 from api.sql.session import get_db_session
 from api.utils.context import global_context, request_context
-from api.utils.exceptions import CollectionNotFoundException
+from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ROUTER__CHAT
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
 
 
-@router.post(path=ENDPOINT__CHAT_COMPLETIONS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Union[ChatCompletion, ChatCompletionChunk])  # fmt: off
+@router.post(
+    path=ENDPOINT__CHAT_COMPLETIONS,
+    dependencies=[Security(dependency=AccessController())],
+    status_code=200,
+    response_model=Union[ChatCompletion, ChatCompletionChunk],
+    responses={
+        ModelNotFoundException().status_code: {
+            "model": HTTPExceptionModel,
+            "description": f"{ModelNotFoundException().detail} {CollectionNotFoundException().detail}",
+        },
+        ModelIsTooBusyException().status_code: {"model": HTTPExceptionModel, "description": ModelIsTooBusyException().detail},
+    },
+)
 async def chat_completions(request: Request, body: ChatCompletionRequest, session: AsyncSession = Depends(get_db_session)) -> Union[JSONResponse, StreamingResponseWithStatusCode]:  # fmt: off
     """Creates a model response for the given chat conversation.
 

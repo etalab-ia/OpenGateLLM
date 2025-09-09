@@ -1,0 +1,87 @@
+interactions:
+- request:
+    body: '{"messages":[{"role":"user","content":"test test test test test"}],"model":"albert-small","frequency_penalty":0.0,"logit_bias":null,"logprobs":false,"top_logprobs":null,"presence_penalty":0.0,"max_tokens":1,"max_completion_tokens":null,"n":1,"response_format":null,"seed":null,"stop":[],"stream":false,"stream_options":null,"temperature":0.7,"top_p":1,"tools":null,"tool_choice":"none"}'
+    headers:
+      Authorization:
+      - Bearer dummy_token_for_test
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '386'
+      content-type:
+      - application/json
+      host:
+      - albert.api.etalab.gouv.fr
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://albert.api.etalab.gouv.fr/v1/chat/completions
+  response:
+    body:
+      string: '{"id":"chatcmpl-efdb5b1798bd4c2c8332227f31206c7b","object":"chat.completion","created":1757950546,"model":"meta-llama/Llama-3.1-8B-Instruct","choices":[{"index":0,"message":{"role":"assistant","content":"It","refusal":null,"annotations":null,"audio":null,"function_call":null,"tool_calls":[],"reasoning_content":null},"logprobs":null,"finish_reason":"length","stop_reason":null}],"service_tier":null,"system_fingerprint":null,"usage":{"prompt_tokens":5,"completion_tokens":1,"total_tokens":6,"cost":0.0,"carbon":{"kWh":{"min":9.645674394537727e-06,"max":2.4293930394537728e-05},"kgCO2eq":{"min":9.059584168889941e-07,"max":2.0971912154489944e-06}},"details":[{"id":"chatcmpl-efdb5b1798bd4c2c8332227f31206c7b","model":"meta-llama/Llama-3.1-8B-Instruct","usage":{"prompt_tokens":5,"completion_tokens":1,"total_tokens":6,"cost":0.0,"carbon":{"kWh":{"min":9.645674394537727e-06,"max":2.4293930394537728e-05},"kgCO2eq":{"min":9.059584168889941e-07,"max":2.0971912154489944e-06}}}}]},"prompt_logprobs":null,"kv_transfer_params":null}'
+    headers:
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 15 Sep 2025 15:35:46 GMT
+      Server:
+      - nginx/1.27.4
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '1027'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"role":"user","content":"test test test test test test test
+      test test test"}],"model":"albert-small","frequency_penalty":0.0,"logit_bias":null,"logprobs":false,"top_logprobs":null,"presence_penalty":0.0,"max_tokens":1,"max_completion_tokens":null,"n":1,"response_format":null,"seed":null,"stop":[],"stream":false,"stream_options":null,"temperature":0.7,"top_p":1,"tools":null,"tool_choice":"none"}'
+    headers:
+      Authorization:
+      - Bearer dummy_token_for_test
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate, zstd
+      connection:
+      - keep-alive
+      content-length:
+      - '411'
+      content-type:
+      - application/json
+      host:
+      - albert.api.etalab.gouv.fr
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://albert.api.etalab.gouv.fr/v1/chat/completions
+  response:
+    body:
+      string: '{"id":"chatcmpl-5e74ee313c654d789781577ec5024d99","object":"chat.completion","created":1757950546,"model":"meta-llama/Llama-3.1-8B-Instruct","choices":[{"index":0,"message":{"role":"assistant","content":"It","refusal":null,"annotations":null,"audio":null,"function_call":null,"tool_calls":[],"reasoning_content":null},"logprobs":null,"finish_reason":"length","stop_reason":null}],"service_tier":null,"system_fingerprint":null,"usage":{"prompt_tokens":10,"completion_tokens":1,"total_tokens":11,"cost":0.0,"carbon":{"kWh":{"min":1.584056945141685e-05,"max":4.269570545141685e-05},"kgCO2eq":{"min":1.3657115919881782e-06,"max":3.549638389348179e-06}},"details":[{"id":"chatcmpl-5e74ee313c654d789781577ec5024d99","model":"meta-llama/Llama-3.1-8B-Instruct","usage":{"prompt_tokens":10,"completion_tokens":1,"total_tokens":11,"cost":0.0,"carbon":{"kWh":{"min":1.584056945141685e-05,"max":4.269570545141685e-05},"kgCO2eq":{"min":1.3657115919881782e-06,"max":3.549638389348179e-06}}}}]},"prompt_logprobs":null,"kv_transfer_params":null}'
+    headers:
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Mon, 15 Sep 2025 15:35:46 GMT
+      Server:
+      - nginx/1.27.4
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '1029'
+    status:
+      code: 200
+      message: OK
+version: 1

@@ -43,24 +43,24 @@ def upgrade() -> None:
     # Create an engine to the playground DB and reflect its `user` table
     pg_engine = create_engine(playground_url)
     pg_meta = MetaData()
+    pg_meta.reflect(bind=pg_engine)
 
     if "user" not in pg_meta.tables:
         pg_engine.dispose()
         logging.warning("No `user` table found in playground DB; skipping user password migration")
         return
-    pg_meta.reflect(bind=pg_engine, only=["user"])  # reflect user table only
 
     pg_user = Table("user", pg_meta, autoload_with=pg_engine)
 
     # Use the current Alembic/app bind to update the new password column
     bind = op.get_bind()
-    app_meta = MetaData()
-    app_meta.reflect(bind=bind, only=["user"])  # reflect app user table
-    if "user" not in app_meta.tables:
+    api_pg_meta = MetaData()
+    api_pg_meta.reflect(bind=pg_engine)
+    if "user" not in api_pg_meta.tables:
         pg_engine.dispose()
         raise RuntimeError("No `user` table found in app DB")
 
-    app_user = Table("user", app_meta, autoload_with=bind)
+    api_user = Table("user", api_pg_meta, autoload_with=bind)
 
     copied = 0
     with pg_engine.connect() as pg_conn:
@@ -71,7 +71,7 @@ def upgrade() -> None:
             pwd = row[1]
             if pwd is None:
                 continue
-            upd = app_user.update().where(app_user.c.id == user_id).values(password=pwd)
+            upd = api_user.update().where(api_user.c.id == user_id).values(password=pwd)
             bind.execute(upd)
             copied += 1
 

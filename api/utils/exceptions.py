@@ -49,17 +49,18 @@ class InvalidTokenExpirationException(HTTPException):
         super().__init__(status_code=400, detail=detail)
 
 
+# 401
 class InvalidCurrentPasswordException(HTTPException):
     def __init__(self, detail: str = "Invalid current password."):
-        super().__init__(status_code=400, detail=detail)
+        super().__init__(status_code=401, detail=detail)
+
+
+class InvalidPasswordException(HTTPException):
+    def __init__(self, detail: str = "Invalid password."):
+        super().__init__(status_code=401, detail=detail)
 
 
 # 403
-class InvalidPasswordException(HTTPException):
-    def __init__(self, detail: str = "Invalid password."):
-        super().__init__(status_code=403, detail=detail)
-
-
 class InvalidAuthenticationSchemeException(HTTPException):
     def __init__(self, detail: str = "Invalid authentication scheme.") -> None:
         super().__init__(status_code=403, detail=detail)
@@ -192,3 +193,8 @@ class ChunkingFailedException(HTTPException):
 class VectorizationFailedException(HTTPException):
     def __init__(self, detail: str = "Vectorization failed.") -> None:
         super().__init__(status_code=500, detail=detail)
+
+
+class ModelIsTooBusyException(HTTPException):
+    def __init__(self, detail: str = "Model is too busy.") -> None:
+        super().__init__(status_code=504, detail=detail)

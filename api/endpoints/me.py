@@ -5,15 +5,15 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
-from api.schemas.me import CreateKey, CreateKeyResponse, Key, MyKeys, UpdateUserRequest, UserInfo
+from api.schemas.me import CreateKey, CreateKeyResponse, Key, Keys, UpdateUserRequest, UserInfo
 from api.sql.session import get_db_session
 from api.utils.context import global_context, request_context
-from api.utils.variables import ENDPOINT__ME_KEYS, ENDPOINT__ME_USER, ROUTER__ME
+from api.utils.variables import ENDPOINT__ME_INFO, ENDPOINT__ME_KEYS, ROUTER__ME
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__ME.title()])
 
 
-@router.get(path=ENDPOINT__ME_USER, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=UserInfo)
+@router.get(path=ENDPOINT__ME_INFO, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=UserInfo)
 async def get_user(request: Request, session: AsyncSession = Depends(get_db_session)) -> JSONResponse:
     """
     Get information about the current user.
@@ -24,7 +24,7 @@ async def get_user(request: Request, session: AsyncSession = Depends(get_db_sess
     return JSONResponse(content=user_info.model_dump(), status_code=200)
 
 
-@router.patch(path=ENDPOINT__ME_USER, dependencies=[Security(dependency=AccessController())], status_code=204)
+@router.patch(path=ENDPOINT__ME_INFO, dependencies=[Security(dependency=AccessController())], status_code=204)
 async def update_user(
     request: Request,
     body: UpdateUserRequest = Body(description="The user update request."),
@@ -91,13 +91,14 @@ async def get_key(
     Get your token by id.
     """
 
-    tokens = await global_context.identity_access_manager.get_tokens(session=session, user_id=request_context.get().user_info.id, token_id=key)
-    token = Key(**tokens[0].model_dump(exclude={"user"}))
+    keys = await global_context.identity_access_manager.get_tokens(session=session, user_id=request_context.get().user_info.id, token_id=key)
+    key = keys[0]
+    key = Key(id=key.id, name=key.name, token=key.token, expires_at=key.expires_at, created_at=key.created_at)
 
-    return JSONResponse(content=token.model_dump(), status_code=200)
+    return JSONResponse(content=key.model_dump(), status_code=200)
 
 
-@router.get(path=ENDPOINT__ME_KEYS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=MyKeys)
+@router.get(path=ENDPOINT__ME_KEYS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Keys)
 async def get_keys(
     request: Request,
     offset: int = Query(default=0, ge=0, description="The offset of the tokens to get."),
@@ -118,6 +119,6 @@ async def get_keys(
         order_by=order_by,
         order_direction=order_direction,
     )
-    data = [Key(**token.model_dump(exclude={"user"})) for token in data]
+    data = [Key(id=key.id, name=key.name, token=key.token, expires_at=key.expires_at, created_at=key.created_at) for key in data]
 
-    return JSONResponse(content=MyKeys(data=data).model_dump(), status_code=200)
+    return JSONResponse(content=Keys(data=data).model_dump(), status_code=200)
