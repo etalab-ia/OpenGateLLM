@@ -317,6 +317,7 @@ class IdentityAccessManager:
                 UserTable.sub,
                 UserTable.iss,
                 UserTable.name,
+                UserTable.email,
                 UserTable.role_id,
                 UserTable.budget,
                 UserTable.expires_at,
