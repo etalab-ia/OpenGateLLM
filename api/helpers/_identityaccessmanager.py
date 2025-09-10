@@ -384,9 +384,7 @@ class IdentityAccessManager:
         )
         await session.commit()
         # If a new password was provided, delegate to change_password (admin override: no current_password)
-        print("what???: ", password)
         if password is not None:
-            print("updating password :", password)
             await self.change_password(session=session, user_id=user.id, current_password=None, new_password=password)
 
     async def get_users(
