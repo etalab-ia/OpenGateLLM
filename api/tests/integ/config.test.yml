@@ -168,3 +168,7 @@ settings:
   search_web_user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
   search_multi_agents_synthesis_model: albert-large
   search_multi_agents_reranker_model: albert-small
+
+playground:
+  proconnect_enabled: true
+  api_url: http://${API_HOST:-localhost}:8080

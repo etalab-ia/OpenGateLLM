@@ -86,6 +86,7 @@ async def update_user(
         organization_id=body.organization,
         budget=body.budget,
         expires_at=body.expires_at,
+        password=body.password,
     )
 
     return Response(status_code=204)

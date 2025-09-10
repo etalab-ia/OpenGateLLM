@@ -307,6 +307,7 @@ class IdentityAccessManager:
         organization_id: Optional[int] = None,
         budget: Optional[float] = None,
         expires_at: Optional[int] = None,
+        password: Optional[str] = None,
     ) -> None:
         # check if user exists
         result = await session.execute(
@@ -376,10 +377,17 @@ class IdentityAccessManager:
                 organization_id=organization_id,
                 budget=budget,
                 expires_at=expires_at,
+                email=email,
+                # note: password handled below if provided
             )
             .where(UserTable.id == user.id)
         )
         await session.commit()
+        # If a new password was provided, delegate to change_password (admin override: no current_password)
+        print("what???: ", password)
+        if password is not None:
+            print("updating password :", password)
+            await self.change_password(session=session, user_id=user.id, current_password=None, new_password=password)
 
     async def get_users(
         self,
@@ -390,7 +398,7 @@ class IdentityAccessManager:
         organization_id: Optional[int] = None,
         offset: int = 0,
         limit: int = 10,
-        order_by: Literal["id", "name", "created_at", "updated_at"] = "id",
+        order_by: Literal["id", "email", "created_at", "updated_at"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
     ) -> List[User]:
         statement = (

@@ -320,7 +320,7 @@ def input_new_user_name(selected_user: dict):
         or (st.session_state["no_users_in_selected_role"] and not st.session_state.get("new_user", False)),
     )
 
-    return new_user_name
+    return new_user_email
 
 
 def input_new_user_password():
