@@ -94,7 +94,7 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
             "date_detection": False,
             "numeric_detection": False,
             "properties": {
-                "id": {"type": "keyword"},
+                "id": {"type": "integer"},
                 "embedding": {"type": "dense_vector", "dims": vector_size},
                 "content": {"type": "text", "analyzer": "french_analyzer"},
                 "metadata": {"type": "object", "dynamic": True},
