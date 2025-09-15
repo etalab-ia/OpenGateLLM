@@ -19,7 +19,7 @@ from app.helpers._parsermanager import ParserManager
 from app.helpers._usagetokenizer import UsageTokenizer
 from app.helpers._websearchmanager import WebSearchManager
 from app.helpers._modeldatabasemanager import ModelDatabaseManager
-from app.helpers.models import ModelRegistry
+from app.helpers.models import ModelRegistryQueue, ModelRegistrySync
 from app.helpers.models.routers import ModelRouter
 from app.schemas.core.configuration import Configuration
 from app.schemas.core.context import GlobalContext
@@ -120,7 +120,10 @@ async def _setup_model_registry(configuration: Configuration, global_context: Gl
         await _convert_modelrouterschema_to_modelrouter(configuration=configuration, router=router, dependencies=dependencies) for router in models
     ]
 
-    global_context.model_registry = ModelRegistry(routers=routers)
+    if configuration.dependencies.rabbitmq:
+        global_context.model_registry = ModelRegistryQueue(routers=routers)
+    else:
+        global_context.model_registry = ModelRegistrySync(routers=routers)
 
 
 async def _convert_modelrouterschema_to_modelrouter(configuration: Configuration, router: ModelRouterSchema, dependencies: SimpleNamespace):

@@ -1,18 +1,15 @@
-from asyncio import Lock, wait_for
+from abc import ABC, abstractmethod
+from asyncio import Lock
 from typing import List, Optional, Callable, Union, Awaitable, TYPE_CHECKING
 
-import aio_pika
 
-from app.helpers.models._workingcontext import WorkingContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.core.configuration import RoutingStrategy
 from app.schemas.models import Model as ModelSchema, ModelType
-from app.utils.configuration import configuration
 from app.utils.exceptions import ModelNotFoundException
 
 from app.helpers.models.routers import ModelRouter
-from app.utils.rabbitmq import AsyncRabbitMQConnection
 
 if TYPE_CHECKING:
     # only for type‐checkers and linters, not at runtime
@@ -23,7 +20,7 @@ from app.utils.variables import DEFAULT_APP_NAME
 from app.helpers._modeldatabasemanager import ModelDatabaseManager
 
 
-class ModelRegistry:
+class ModelRegistryBase(ABC):
     def __init__(self, routers: List[ModelRouter]) -> None:
         self._router_ids = list()
         self._routers = dict()
@@ -269,6 +266,7 @@ class ModelRegistry:
         async with self._lock:
             return [r for r in self._routers.values()]
 
+    @abstractmethod
     async def execute_request[R](
         self,
         router_id: str,
@@ -292,41 +290,3 @@ class ModelRegistry:
         Returns: Whatever the handler returns.
         """
 
-        # We lock to prevent any race condition while working
-        async with self._lock:
-
-            router_id = self.aliases.get(router_id, router_id)
-
-            if router_id not in self._router_ids:
-                raise ModelNotFoundException()
-
-            model_router = self._routers[router_id]
-
-            if configuration.dependencies.rabbitmq:  # RabbitMQ is on
-                ctx = WorkingContext(
-                    endpoint=endpoint,
-                    handler=handler
-                )
-
-                await model_router.register_context(ctx)
-
-                try:
-                    await AsyncRabbitMQConnection().publish_default_exchange(
-                        message=aio_pika.Message(body=ctx.id.encode('utf8')),
-                        routing_key=model_router.queue_name
-                    )
-
-                    result = await wait_for(ctx.result, timeout=configuration.dependencies.rabbitmq.timeout)
-                    await model_router.pop_context(ctx)  # free space once finished
-                    return result
-
-                except Exception as e:
-                    # Anyway, we pop the context, to prevent memory leaks
-                    await model_router.pop_context(ctx.id)
-                    raise e
-
-            # if no RabbitMQ, classic access
-            return await model_router.safe_client_access(
-                endpoint=endpoint,
-                handler=handler
-            )

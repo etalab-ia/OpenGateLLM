@@ -4,14 +4,14 @@ from typing import List
 import httpx
 
 from app.clients.mcp_bridge import BaseMCPBridgeClient as MCPBridgeClient
-from app.helpers.models import ModelRegistry
+from app.helpers.models import ModelRegistryBase
 from app.schemas.agents import AgentsTool, AgentsChatCompletionRequest
 from app.utils.exceptions import ToolNotFoundException
 from app.utils.variables import ENDPOINT__CHAT_COMPLETIONS
 
 
 class AgentManager:
-    def __init__(self, mcp_bridge: MCPBridgeClient, model_registry: ModelRegistry, max_iterations: int = 2):
+    def __init__(self, mcp_bridge: MCPBridgeClient, model_registry: ModelRegistryBase, max_iterations: int = 2):
         self.model_registry = model_registry
         self.mcp_bridge = mcp_bridge
         self.max_iterations = max_iterations
