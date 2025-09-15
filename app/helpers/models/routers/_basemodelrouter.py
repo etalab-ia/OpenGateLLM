@@ -107,15 +107,17 @@ class BaseModelRouter(ABC):
             ctx = await self.pop_context(content)
             if ctx is None:
                 return
+            try:
+                async with self._lock:
+                    client = self.get_client(ctx.endpoint)
+                    await client.register_context(ctx)
 
-            async with self._lock:
-                client = self.get_client(ctx.endpoint)
-                await client.register_context(ctx)
-
-                await AsyncRabbitMQConnection().publish_default_exchange(
-                    message=aio_pika.Message(body=ctx.id.encode('utf8')),
-                    routing_key=client.queue_name
-                )
+                    await AsyncRabbitMQConnection().publish_default_exchange(
+                        message=aio_pika.Message(body=ctx.id.encode('utf8')),
+                        routing_key=client.queue_name
+                    )
+            except Exception as e:
+                ctx.send_result(e)
 
     async def rabbitmq_shutdown(self):
         """Cleanly shuts down the consumer coroutine, after shutting down all the instance's clients ones."""
