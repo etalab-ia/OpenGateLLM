@@ -6,6 +6,7 @@ Refer to the [configuration example file](../../../config.example.yml) for an ex
 | --- | --- | --- | --- | --- | --- | --- |
 | dependencies | object | Dependencies used by the API. For details of configuration, see the [Dependencies section](#dependencies). |  |  |  |  |
 | models | array | Models used by the API. At least one model must be defined. For details of configuration, see the [Model section](#model). |  |  |  |  |
+| playground | object | Playground configuration used temporarily in next release to migrate user authentication. For details of configuration, see the [Playground section](#playground). |  |  |  |  |
 | settings | object | Settings used by the API. For details of configuration, see the [Settings section](#settings). |  |  |  |  |
 
 <br>
@@ -15,9 +16,10 @@ Refer to the [configuration example file](../../../config.example.yml) for an ex
 | --- | --- | --- | --- | --- | --- | --- |
 | auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. |  | changeme |  |  |
 | auth_max_token_expiration_days | integer | Maximum number of days for a token to be valid. |  | None |  |  |
-| disabled_routers | array | Disabled routers to limits services of the API. |  |  | • admin.organizations<br/>• admin.roles<br/>• admin.tokens<br/>• admin.users<br/>• agents<br/>• audio<br/>• auth<br/>• chat<br/>• ... | ['agents', 'embeddings'] |
+| auth_playground_session_duration | integer | Duration of the playground session in seconds. |  | 3600 |  |  |
+| disabled_routers | array | Disabled routers to limits services of the API. |  |  | • admin<br/>• agents<br/>• audio<br/>• auth<br/>• chat<br/>• chunks<br/>• collections<br/>• completions<br/>• ... | ['agents', 'embeddings'] |
 | front_url | string | Front-end URL for the application. |  | http://localhost:8501 |  |  |
-| hidden_routers | array | Routers are enabled but hidden in the swagger and the documentation of the API. |  |  | • admin.organizations<br/>• admin.roles<br/>• admin.tokens<br/>• admin.users<br/>• agents<br/>• audio<br/>• auth<br/>• chat<br/>• ... | ['admin'] |
+| hidden_routers | array | Routers are enabled but hidden in the swagger and the documentation of the API. |  |  | • admin<br/>• agents<br/>• audio<br/>• auth<br/>• chat<br/>• chunks<br/>• collections<br/>• completions<br/>• ... | ['admin'] |
 | log_format | string | Logging format of the API. |  | [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s |  |  |
 | log_level | string | Logging level of the API. |  | INFO | • DEBUG<br/>• INFO<br/>• WARNING<br/>• ERROR<br/>• CRITICAL |  |
 | mcp_max_iterations | integer | Maximum number of iterations for MCP agents in `/v1/agents/completions` endpoint. |  | 2 |  |  |
@@ -47,6 +49,13 @@ Refer to the [configuration example file](../../../config.example.yml) for an ex
 
 <br>
 
+## Playground
+| Attribute | Type | Description | Required | Default | Values | Examples |
+| --- | --- | --- | --- | --- | --- | --- |
+| postgres | object |  |  | {} |  |  |
+
+<br>
+
 ## Model
 In the models section, you define a list of models. Each model is a set of API providers for that model. Users will access the models specified in
 this section using their *name*. Load balancing is performed between the different providers of the requested model. All providers in a model must
@@ -63,7 +72,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 | created | integer | Time of creation, as Unix timestamp. |  | None |  |  |
 | from_config | boolean | Whether this model was defined in configuration, meaning it should be checked against the database. |  | False |  |  |
 | max_context_length | integer | Maximum amount of tokens a context could contains. Makes sure it is the same for all models. |  | None |  |  |
-| owned_by | string | Owner of the model displayed in `/v1/models` endpoint. |  | Albert API |  | my-app |
+| owned_by | string | Owner of the model displayed in `/v1/models` endpoint. |  | OpenGateLLM |  | my-app |
 | providers | array | API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type. For details of configuration, see the [ModelProvider section](#modelprovider). |  |  |  |  |
 | routing_strategy | string | Routing strategy for load balancing between providers of the model. It will be used to identify the model type. |  | shuffle | • round_robin<br/>• shuffle | round_robin |
 | type | string | Type of the model. It will be used to identify the model type. |  |  | • image-text-to-text<br/>• automatic-speech-recognition<br/>• text-embeddings-inference<br/>• text-generation<br/>• text-classification | text-generation |
@@ -94,7 +103,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 | brave | object | If provided, Brave API is used to web search. Cannot be used with DuckDuckGo dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://api-dashboard.search.brave.com/app/documentation/web-search/query for more information. For details of configuration, see the [BraveDependency section](#bravedependency). |  | None |  |  |
 | centralesupelec | object | Needed to pass tests where models are added For details of configuration, see the [CentraleSupelecDependency section](#centralesupelecdependency). |  | None |  |  |
 | duckduckgo | object | If provided, DuckDuckGo API is used to web search. Cannot be used with Brave dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://www.searchapi.io/docs/duckduckgo-api for more information. For details of configuration, see the [DuckDuckGoDependency section](#duckduckgodependency). |  | None |  |  |
-| elasticsearch | object | Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). |  |  |  |  |
+| elasticsearch | object | Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). |  | None |  |  |
 | marker | object | If provided, Marker API is used to parse pdf documents. Cannot be used with Albert dependency concurrently. Pass arguments to call Marker API in this section. For details of configuration, see the [MarkerDependency section](#markerdependency). |  | None |  |  |
 | postgres | object | Pass all postgres python SDK arguments, see https://github.com/etalab-ia/opengatellm/blob/main/docs/dependencies/postgres.md for more information. For details of configuration, see the [PostgresDependency section](#postgresdependency). |  |  |  |  |
 | proconnect | object | ProConnect configuration for the API. See https://github.com/etalab-ia/albert-api/blob/main/docs/oauth2_encryption.md for more information. For details of configuration, see the [ProConnect section](#proconnect). |  | None |  |  |
