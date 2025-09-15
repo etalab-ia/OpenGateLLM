@@ -11,7 +11,8 @@ class DummyClient:
 
 @pytest.mark.asyncio
 async def test_init_sets_fields():
-    def handler(c): return "ok"
+    def handler(c):
+        return "ok"
 
     ctx = WorkingContext("test-endpoint", handler)
 
@@ -62,7 +63,8 @@ async def test_work_returns_exception_on_error():
 
 @pytest.mark.asyncio
 async def test_send_result_sets_result():
-    def handler(c): return "unused"
+    def handler(c):
+        return "unused"
 
     ctx = WorkingContext("ep", handler)
     ctx.send_result("ok")
@@ -73,7 +75,8 @@ async def test_send_result_sets_result():
 
 @pytest.mark.asyncio
 async def test_send_result_sets_exception():
-    def handler(c): return "unused"
+    def handler(c):
+        return "unused"
 
     ctx = WorkingContext("ep", handler)
     exc = RuntimeError("fail")
@@ -81,4 +84,3 @@ async def test_send_result_sets_exception():
 
     with pytest.raises(RuntimeError, match="fail"):
         await ctx.result
-

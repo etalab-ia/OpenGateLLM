@@ -1,4 +1,3 @@
-from typing import Callable, Union, Awaitable
 from typing import Callable, Union, Awaitable, TYPE_CHECKING
 
 from app.helpers.models._basemodelregistry import ModelRegistryBase
@@ -12,12 +11,7 @@ if TYPE_CHECKING:
 
 
 class ModelRegistrySync(ModelRegistryBase):
-    async def execute_request[R](
-        self,
-        router_id: str,
-        endpoint: str,
-        handler: Callable[["BaseModelClient"], Union[R, Awaitable[R]]]
-    ) -> R:
+    async def execute_request[R](self, router_id: str, endpoint: str, handler: Callable[["BaseModelClient"], Union[R, Awaitable[R]]]) -> R:
         async with self._lock:
             router_id = self.aliases.get(router_id, router_id)
 
@@ -26,7 +20,4 @@ class ModelRegistrySync(ModelRegistryBase):
 
             model_router = self._routers[router_id]
 
-            return await model_router.safe_client_access(
-                endpoint=endpoint,
-                handler=handler
-            )
+            return await model_router.safe_client_access(endpoint=endpoint, handler=handler)

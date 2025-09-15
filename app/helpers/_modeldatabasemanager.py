@@ -11,7 +11,6 @@ from app.schemas.core.configuration import ModelProvider as ModelProviderSchema
 
 
 class ModelDatabaseManager:
-
     @staticmethod
     async def get_routers(
         session: AsyncSession,
@@ -34,25 +33,31 @@ class ModelDatabaseManager:
             # Get all ModelAlias rows and convert from a list of 1-dimensional vectors to a list of values
             db_aliases = [
                 row[0].alias  # Get alias directly, instead of ModelRouterAlias object
-                for row in (await session.execute(select(ModelRouterAliasTable).where(ModelRouterAliasTable.model_router_name == router.name))).fetchall()
+                for row in (
+                    await session.execute(select(ModelRouterAliasTable).where(ModelRouterAliasTable.model_router_name == router.name))
+                ).fetchall()
             ]
 
             db_clients = [
                 row[0]
                 for row in (await session.execute(select(ModelClientTable).where(ModelClientTable.model_router_name == router.name))).fetchall()
             ]
-            
+
             assert db_clients, f"No ModelClients found in database for ModelRouter {router.name}"
 
             providers = [ModelProviderSchema.model_validate(client) for client in db_clients]
-            routers.append(ModelRouterSchema.model_validate({
-                **router.__dict__,
-                "providers": providers,
-                "aliases": db_aliases,
-            }))
+            routers.append(
+                ModelRouterSchema.model_validate(
+                    {
+                        **router.__dict__,
+                        "providers": providers,
+                        "aliases": db_aliases,
+                    }
+                )
+            )
 
         return routers
-    
+
     @staticmethod
     async def add_router(session: AsyncSession, router: ModelRouterSchema):
         """
@@ -67,19 +72,13 @@ class ModelDatabaseManager:
 
         assert not router_result, "tried adding already existing router"
 
-        await session.execute(
-            insert(ModelRouterTable).values(**router.model_dump(exclude={"providers", "aliases"}))
-        )
+        await session.execute(insert(ModelRouterTable).values(**router.model_dump(exclude={"providers", "aliases"})))
 
         for alias in router.aliases:
             await session.execute(insert(ModelRouterAliasTable).values(alias=alias, model_router_name=router.name))
 
         for client in router.providers:
-            await session.execute(
-                insert(ModelClientTable).values(**client.model_dump(),
-                    model_router_name = router.name
-                )
-            )
+            await session.execute(insert(ModelClientTable).values(**client.model_dump(), model_router_name=router.name))
         await session.commit()
 
     @staticmethod
@@ -95,19 +94,15 @@ class ModelDatabaseManager:
         client_result = (
             await session.execute(
                 select(ModelClientTable)
-                    .where(ModelClientTable.model_router_name == router_name)
-                    .where(ModelClientTable.model_name == client.model_name)
-                    .where(ModelClientTable.url == client.url)
+                .where(ModelClientTable.model_router_name == router_name)
+                .where(ModelClientTable.model_name == client.model_name)
+                .where(ModelClientTable.url == client.url)
             )
         ).fetchall()
 
         assert not client_result, "tried adding already existing client"
 
-        await session.execute(
-            insert(ModelClientTable).values(**client.model_dump(),
-                    model_router_name = router_name
-                )
-        )
+        await session.execute(insert(ModelClientTable).values(**client.model_dump(), model_router_name=router_name))
         await session.commit()
 
     @staticmethod
@@ -123,14 +118,14 @@ class ModelDatabaseManager:
         alias_result = (
             await session.execute(
                 select(ModelRouterAliasTable)
-                    .where(ModelRouterAliasTable.model_router_name == router_name)
-                    .where(ModelRouterAliasTable.alias == alias)
+                .where(ModelRouterAliasTable.model_router_name == router_name)
+                .where(ModelRouterAliasTable.alias == alias)
             )
         ).fetchall()
 
         assert not alias_result, "tried to add already-existing alias"
         await session.execute(insert(ModelRouterAliasTable).values(alias=alias, model_router_name=router_name))
-    
+
         await session.commit()
 
     @staticmethod
@@ -146,7 +141,7 @@ class ModelDatabaseManager:
         router_result = (await session.execute(select(ModelRouterTable).where(ModelRouterTable.name == router_name))).fetchall()
         alias_result = (await session.execute(select(ModelRouterAliasTable).where(ModelRouterAliasTable.model_router_name == router_name))).fetchall()
         client_result = (await session.execute(select(ModelClientTable).where(ModelClientTable.model_router_name == router_name))).fetchall()
-        
+
         assert router_result, f"ModelRouter {router_name} not found in DB"
 
         await session.execute(delete(ModelRouterTable).where(ModelRouterTable.name == router_name))
@@ -155,7 +150,7 @@ class ModelDatabaseManager:
             await session.execute(delete(ModelRouterAliasTable).where(ModelRouterAliasTable.model_router_name == router_name))
         if client_result:
             await session.execute(delete(ModelClientTable).where(ModelClientTable.model_router_name == router_name))
-        
+
         await session.commit()
 
     @staticmethod
@@ -173,24 +168,24 @@ class ModelDatabaseManager:
         client_result = (
             await session.execute(
                 select(ModelClientTable)
-                    .where(ModelClientTable.model_router_name == router_name)
-                    .where(ModelClientTable.model_name == model_name)
-                    .where(ModelClientTable.url == model_url)
+                .where(ModelClientTable.model_router_name == router_name)
+                .where(ModelClientTable.model_name == model_name)
+                .where(ModelClientTable.url == model_url)
             )
         ).fetchall()
 
         assert client_result, "tried to delete non-existing client"
         await session.execute(
             delete(ModelClientTable)
-                .where(ModelClientTable.model_router_name == router_name)
-                .where(ModelClientTable.model_name == model_name)
-                .where(ModelClientTable.url == model_url)
+            .where(ModelClientTable.model_router_name == router_name)
+            .where(ModelClientTable.model_name == model_name)
+            .where(ModelClientTable.url == model_url)
         )
-        
+
         await session.commit()
 
     @staticmethod
     async def delete_alias(session: AsyncSession, router_name: str, alias_identifier):
         await session.execute(delete(ModelRouterAliasTable).where(ModelRouterAliasTable.model_router_name == router_name))
-        
+
         await session.commit()

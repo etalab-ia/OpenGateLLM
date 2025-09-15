@@ -138,6 +138,7 @@ class Document(Base):
 
     collection = relationship(argument="Collection", backref=backref(name="document", cascade="all, delete-orphan"))
 
+
 class Model(Base):
     __tablename__ = "model"
 
@@ -149,6 +150,7 @@ class Model(Base):
     max_context_length = Column(Integer, nullable=True)
     created = Column(Integer, nullable=False)
     from_config = Column(Boolean, nullable=False)
+
 
 class ModelRouterAlias(Base):
     __tablename__ = "model_alias"
@@ -179,5 +181,5 @@ class ModelClient(Base):
     model_carbon_footprint_active_params = Column(Integer, nullable=True)
 
     model_router_name = Column(String, ForeignKey(column="model.name", ondelete="CASCADE"), nullable=False)
-    
+
     model_router = relationship(argument="Model", backref=backref(name="client", cascade="all, delete-orphan"))

@@ -89,4 +89,3 @@ class TestLogUsageDecorator:
         assert log.kgco2eq_max >= 0
         assert log.kwh_min <= log.kwh_max
         assert log.kgco2eq_min <= log.kgco2eq_max
-

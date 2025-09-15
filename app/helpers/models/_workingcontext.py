@@ -65,11 +65,12 @@ class WorkingContext:
             result(R | Exception): Either the wished result, or an exception, if something went wrong.
         """
         if isinstance(result, Exception):
+
             def _set():
                 self.result.set_exception(result)
         else:
+
             def _set():
                 self.result.set_result(result)
 
         self.loop.call_soon_threadsafe(_set)
-

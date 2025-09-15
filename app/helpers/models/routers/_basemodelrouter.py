@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     # Used to break circular import
     from app.clients.model import BaseModelClient
 
+
 class BaseModelRouter(ABC):
     def __init__(
         self,
@@ -102,7 +103,7 @@ class BaseModelRouter(ABC):
         RabbitMQ consumer callback: triggers whenever a message is received on the concerned queue.
         """
         async with message.process():
-            content = message.body.decode('utf8')
+            content = message.body.decode("utf8")
 
             ctx = await self.pop_context(content)
             if ctx is None:
@@ -113,8 +114,7 @@ class BaseModelRouter(ABC):
                     await client.register_context(ctx)
 
                     await AsyncRabbitMQConnection().publish_default_exchange(
-                        message=aio_pika.Message(body=ctx.id.encode('utf8')),
-                        routing_key=client.queue_name
+                        message=aio_pika.Message(body=ctx.id.encode("utf8")), routing_key=client.queue_name
                     )
             except Exception as e:
                 ctx.send_result(e)
@@ -233,7 +233,6 @@ class BaseModelRouter(ABC):
 
             # Cleaning RabbitMQ setup
             if configuration.dependencies.rabbitmq:
-
                 while True:
                     incoming = await client.queue.get(no_ack=False, fail=False)
                     if incoming is None:
@@ -242,15 +241,14 @@ class BaseModelRouter(ABC):
                     await incoming.ack()
 
                     # Reroute pending messages
-                    ctx = await client.get_context(incoming.body.decode('utf8'))
+                    ctx = await client.get_context(incoming.body.decode("utf8"))
 
                     if ctx is None:
                         continue
 
                     await self.register_context(ctx)
                     await AsyncRabbitMQConnection().publish_default_exchange(
-                        message=aio_pika.Message(body=ctx.id.encode('utf8')),
-                        routing_key=self.queue_name
+                        message=aio_pika.Message(body=ctx.id.encode("utf8")), routing_key=self.queue_name
                     )
 
                 await client.rabbitmq_shutdown()
@@ -315,11 +313,7 @@ class BaseModelRouter(ABC):
         async with self._context_lock:
             return self._context_register.get(ctx_id, None)
 
-    async def safe_client_access[R](
-            self,
-            endpoint: str,
-            handler: Callable[["BaseModelClient"], Union[R, Awaitable[R]]]
-    ) -> R:
+    async def safe_client_access[R](self, endpoint: str, handler: Callable[["BaseModelClient"], Union[R, Awaitable[R]]]) -> R:
         """
         Thread-safely access a BaseModelClient.
         This method calls the given callback with the current instance and BaseModelClient

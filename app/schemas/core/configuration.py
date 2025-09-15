@@ -72,6 +72,7 @@ def custom_validation_error(url: Optional[str] = None):
 
         cls.__init__ = new_init
         return cls
+
     return decorator
 
 
@@ -123,13 +124,13 @@ class ModelProvider(ConfigBaseModel):
     model_carbon_footprint_zone: CountryCodes = Field(default=CountryCodes.WOR, description="Model hosting zone for carbon footprint computation (with ISO 3166-1 alpha-3 code format). For more information, see https://ecologits.ai", examples=["WOR"])  # fmt: off
     model_carbon_footprint_total_params: Optional[float] = Field(default=None, ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     model_carbon_footprint_active_params: Optional[float] = Field(default=None, ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
-    
+
     model_config = ConfigDict(from_attributes=True)
 
     @model_validator(mode="after")
     def complete_values(cls, values):
         # complete url
-        if values.url is None and not hasattr(values, 'hide_url'):
+        if values.url is None and not hasattr(values, "hide_url"):
             if values.type == ModelProviderType.OPENAI:
                 values.url = "https://api.openai.com"
             elif values.type == ModelProviderType.ALBERT:
@@ -167,10 +168,16 @@ class Model(ConfigBaseModel):
     routing_strategy: RoutingStrategy = Field(default=RoutingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["round_robin"])  # fmt: off
     providers: List[ModelProvider] = Field(..., description="API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type.")  # fmt: off
 
-    vector_size: Optional[int] = Field(default=None, description="Dimension of the vectors, if the models are embeddings. Makes just it is the same for all models.")
-    max_context_length: Optional[int] = Field(default=None, description="Maximum amount of tokens a context could contains. Makes sure it is the same for all models.")
+    vector_size: Optional[int] = Field(
+        default=None, description="Dimension of the vectors, if the models are embeddings. Makes just it is the same for all models."
+    )
+    max_context_length: Optional[int] = Field(
+        default=None, description="Maximum amount of tokens a context could contains. Makes sure it is the same for all models."
+    )
     created: Optional[int] = Field(default=None, description="Time of creation, as Unix timestamp.")
-    from_config: Optional[bool] = Field(default=False, description="Whether this model was defined in configuration, meaning it should be checked against the database.")
+    from_config: Optional[bool] = Field(
+        default=False, description="Whether this model was defined in configuration, meaning it should be checked against the database."
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -195,14 +202,14 @@ class Model(ConfigBaseModel):
             return NotImplemented
 
         return (
-            self.name == other.name and
-            self.type == other.type and
-            set(self.aliases) == set(other.aliases) and
-            self.owned_by == other.owned_by and
-            self.routing_strategy == other.routing_strategy and
-            self.providers == other.providers and
-            self.vector_size == other.vector_size and
-            self.max_context_length == other.max_context_length            
+            self.name == other.name
+            and self.type == other.type
+            and set(self.aliases) == set(other.aliases)
+            and self.owned_by == other.owned_by
+            and self.routing_strategy == other.routing_strategy
+            and self.providers == other.providers
+            and self.vector_size == other.vector_size
+            and self.max_context_length == other.max_context_length
         )
 
 
@@ -252,8 +259,10 @@ class BraveDependency(ConfigBaseModel):
     headers: Dict[str, str] = Field(default_factory=dict, required = True, description="Brave API request headers.", examples=[{"X-Subscription-Token": "my-api-key"}])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Brave API requests.", examples=[10])  # fmt: off
 
+
 class CentraleSupelecDependency(ConfigBaseModel):
     token: str = Field(description="Centrale Supélec token for testing dynamic models")
+
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#duckduckgodependency")
 class DuckDuckGoDependency(ConfigBaseModel):
@@ -334,6 +343,7 @@ class RabbitMQDependency(ConfigBaseModel):
     sender_pool_size: Optional[int] = Field(default=100, description="How many AMQP channel the pool used by 'sender' contains.")
     timeout: Optional[float] = Field(default=20.0, description="How long should a result be waited, before considering the request to be expired.")
 
+
 class ProConnect(ConfigBaseModel):
     client_id: str = Field(default="", description="Client identifier provided by ProConnect when you register your application in their dashboard. This value is public (it's fine to embed in clients) but must match the value configured in ProConnect.")  # fmt: off
     client_secret: str = Field(default="", description="Client secret provided by ProConnect at application registration. This value must be kept confidential — it's used by the server to authenticate with ProConnect during token exchange (do not expose it to browsers or mobile apps).")  # fmt: off
@@ -387,7 +397,6 @@ class Dependencies(ConfigBaseModel):
             for item in type:
                 if hasattr(values, item.value):
                     delattr(values, item.value)
-
 
             return values
 

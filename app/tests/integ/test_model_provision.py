@@ -112,10 +112,7 @@ class TestModelProvision:
         assert len(routers) == len(CONFIG_EXPECTED) + 1
 
     def test_add_alias(self, client):
-        payload = {
-            "router_name": "cs-chat",
-            "aliases": ["test-alias"]
-        }
+        payload = {"router_name": "cs-chat", "aliases": ["test-alias"]}
         response = client.post_master(url=f"v1{ENDPOINT__ALIAS_ADD}", json=payload)
         assert response.status_code == 201
 
@@ -127,17 +124,10 @@ class TestModelProvision:
         assert len(routers[-1]["aliases"]) == 3
         assert routers[-1]["aliases"][-1] == "test-alias"
 
-
     def test_delete_alias(self, client):
-        payload = {
-            "router_name": "cs-chat",
-            "aliases": ["test-alias"]
-        }
+        payload = {"router_name": "cs-chat", "aliases": ["test-alias"]}
         response = client.request(
-            "DELETE",
-            f"v1{ENDPOINT__ALIAS_DELETE}",
-            content=json.dumps(payload),
-            headers={**client.headers, "Content-Type": "application/json"}
+            "DELETE", f"v1{ENDPOINT__ALIAS_DELETE}", content=json.dumps(payload), headers={**client.headers, "Content-Type": "application/json"}
         )
         assert response.status_code == 204
 
@@ -152,13 +142,10 @@ class TestModelProvision:
         payload = {
             "router_name": "cs-chat",
             "url": "https://dispatcher-preprod.kubic.aristote.centralesupelec.fr",
-            "model_name": "casperhansen/llama-3.3-70b-instruct-awq"
+            "model_name": "casperhansen/llama-3.3-70b-instruct-awq",
         }
         response = client.request(
-            "DELETE",
-            f"v1{ENDPOINT__MODEL_DELETE}",
-            content=json.dumps(payload),
-            headers={**client.headers, "Content-Type": "application/json"}
+            "DELETE", f"v1{ENDPOINT__MODEL_DELETE}", content=json.dumps(payload), headers={**client.headers, "Content-Type": "application/json"}
         )
         assert response.status_code == 204
 

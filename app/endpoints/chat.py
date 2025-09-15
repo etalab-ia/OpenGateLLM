@@ -79,8 +79,4 @@ async def chat_completions(request: Request, body: ChatCompletionRequest, sessio
             media_type="text/event-stream",
         )
 
-    return await global_context.model_registry.execute_request(
-        router_id=body['model'],
-        endpoint=ENDPOINT__CHAT_COMPLETIONS,
-        handler=handler
-    )
+    return await global_context.model_registry.execute_request(router_id=body["model"], endpoint=ENDPOINT__CHAT_COMPLETIONS, handler=handler)

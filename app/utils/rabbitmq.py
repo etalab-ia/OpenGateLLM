@@ -20,7 +20,7 @@ class AsyncRabbitMQConnection:
         return cls._instance
 
     def __init__(self):
-        if getattr(self, '_initialized', False):  # Call init once
+        if getattr(self, "_initialized", False):  # Call init once
             return
 
         self.connection = None
@@ -40,21 +40,14 @@ class AsyncRabbitMQConnection:
         Sets up the AMQP connection to RabbitMQ, and initializes the pools.
         """
         self.connection = await aio_pika.connect_robust(
-            host=rmq_config.host,
-            port=rmq_config.port,
-            login=rmq_config.user,
-            password=rmq_config.password
+            host=rmq_config.host, port=rmq_config.port, login=rmq_config.user, password=rmq_config.password
         )
 
         self.sender_loop = asyncio.get_running_loop()  # FastAPI event loop
 
-        self.sender_pool = aio_pika.pool.Pool(
-            self.connection.channel,
-            max_size=rmq_config.sender_pool_size,
-            loop=self.sender_loop
-        )
+        self.sender_pool = aio_pika.pool.Pool(self.connection.channel, max_size=rmq_config.sender_pool_size, loop=self.sender_loop)
 
-        self.consumer_loop = asyncio.get_running_loop() # FastAPI event loop
+        self.consumer_loop = asyncio.get_running_loop()  # FastAPI event loop
 
         # If using dedicated event loop, they need to be started
 
@@ -66,13 +59,11 @@ class AsyncRabbitMQConnection:
             routing_key(str): The key that represents the targeted queue.
             message(aio_pika.Message): The message to send.
         """
+
         async def do_publish():
             async with self.sender_pool.acquire() as channel:
                 ex = channel.default_exchange
-                await ex.publish(
-                    message,
-                    routing_key=routing_key
-                )
+                await ex.publish(message, routing_key=routing_key)
 
         # self.loop.call_soon_threadsafe(lambda: self.loop.create_task(do_publish()))
         self.sender_loop.create_task(do_publish())

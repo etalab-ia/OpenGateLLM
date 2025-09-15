@@ -7,7 +7,6 @@ if TYPE_CHECKING:
     from app.clients.model import BaseModelClient
 
 
-
 class BaseRoutingStrategy(ABC):
     def __init__(self, clients: List["BaseModelClient"]) -> None:
         self.clients = clients

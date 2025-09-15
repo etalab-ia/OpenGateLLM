@@ -267,12 +267,7 @@ class ModelRegistryBase(ABC):
             return [r for r in self._routers.values()]
 
     @abstractmethod
-    async def execute_request[R](
-        self,
-        router_id: str,
-        endpoint: str,
-        handler: Callable[["BaseModelClient"], Union[R, Awaitable[R]]]
-    ) -> R:
+    async def execute_request[R](self, router_id: str, endpoint: str, handler: Callable[["BaseModelClient"], Union[R, Awaitable[R]]]) -> R:
         """
         Execute an endpoint's request at the right location.
             If RabbitMQ is enabled, it passes the request to the right queue, and wait for the result.
@@ -289,4 +284,3 @@ class ModelRegistryBase(ABC):
 
         Returns: Whatever the handler returns.
         """
-

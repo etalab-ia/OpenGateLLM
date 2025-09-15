@@ -17,13 +17,9 @@ if TYPE_CHECKING:
 
 from app.helpers.models._basemodelregistry import ModelRegistryBase
 
+
 class ModelRegistryQueue(ModelRegistryBase):
-    async def execute_request[R](
-        self,
-        router_id: str,
-        endpoint: str,
-        handler: Callable[["BaseModelClient"], Union[R, Awaitable[R]]]
-    ) -> R:
+    async def execute_request[R](self, router_id: str, endpoint: str, handler: Callable[["BaseModelClient"], Union[R, Awaitable[R]]]) -> R:
         async with self._lock:
             router_id = self.aliases.get(router_id, router_id)
 
@@ -32,23 +28,16 @@ class ModelRegistryQueue(ModelRegistryBase):
 
             model_router = self._routers[router_id]
 
-            ctx = WorkingContext(
-                endpoint=endpoint,
-                handler=handler
-            )
+            ctx = WorkingContext(endpoint=endpoint, handler=handler)
 
             await model_router.register_context(ctx)
 
             try:
                 await AsyncRabbitMQConnection().publish_default_exchange(
-                    message=aio_pika.Message(body=ctx.id.encode('utf8')),
-                    routing_key=model_router.queue_name
+                    message=aio_pika.Message(body=ctx.id.encode("utf8")), routing_key=model_router.queue_name
                 )
 
-                result = await wait_for(
-                    ctx.result,
-                    timeout=configuration.dependencies.rabbitmq.timeout
-                )
+                result = await wait_for(ctx.result, timeout=configuration.dependencies.rabbitmq.timeout)
                 await model_router.pop_context(ctx)  # free space once finished
                 return result
 
@@ -56,4 +45,3 @@ class ModelRegistryQueue(ModelRegistryBase):
                 # prevent memory leaks
                 await model_router.pop_context(ctx.id)
                 raise e
-

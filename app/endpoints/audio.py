@@ -59,9 +59,4 @@ async def audio_transcriptions(
 
         return JSONResponse(content=AudioTranscription(**response.json()).model_dump(), status_code=response.status_code)
 
-
-    return await global_context.model_registry.execute_request(
-        router_id=model,
-        endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS,
-        handler=handler
-    )
+    return await global_context.model_registry.execute_request(router_id=model, endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS, handler=handler)

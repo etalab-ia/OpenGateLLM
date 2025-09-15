@@ -114,7 +114,7 @@ class BaseModelClient(ABC):
         RabbitMQ consumer callback: triggers whenever a message is received on the concerned queue.
         """
         async with message.process():
-            content = message.body.decode('utf8')
+            content = message.body.decode("utf8")
             ctx = await self.pop_context(content)
             if ctx is None:
                 return
@@ -156,10 +156,8 @@ class BaseModelClient(ABC):
         Returns:
             A ModelClient instance. The constructor used depends on the "type" field of the schema.
         """
-        act_params = int(
-            schema.model_carbon_footprint_active_params) if schema.model_carbon_footprint_active_params else None
-        tot_params = int(
-            schema.model_carbon_footprint_total_params) if schema.model_carbon_footprint_total_params else None
+        act_params = int(schema.model_carbon_footprint_active_params) if schema.model_carbon_footprint_active_params else None
+        tot_params = int(schema.model_carbon_footprint_total_params) if schema.model_carbon_footprint_total_params else None
 
         return BaseModelClient.import_module(type=schema.type)(
             model_name=schema.model_name,
