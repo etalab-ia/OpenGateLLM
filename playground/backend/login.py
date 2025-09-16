@@ -54,7 +54,7 @@ def login(user_name: str, user_password: str) -> dict:
 
     key = response.json()
 
-    response = requests.get(url=f"{configuration.playground.api_url}/v1/me", headers={"Authorization": f"Bearer {key["key"]}"})
+    response = requests.get(url=f"{configuration.playground.api_url}/v1/me/info", headers={"Authorization": f"Bearer {key["key"]}"})
     if response.status_code != 200:
         st.error(response.json()["detail"])
         st.stop()

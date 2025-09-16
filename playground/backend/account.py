@@ -22,7 +22,7 @@ def change_password(current_password: str, new_password: str, confirm_password: 
 
     # Call server endpoint to change password
     response = requests.patch(
-        url=f"{configuration.playground.api_url}/v1/me",
+        url=f"{configuration.playground.api_url}/v1/me/info",
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
         json={"current_password": current_password, "password": new_password},
         timeout=10,
