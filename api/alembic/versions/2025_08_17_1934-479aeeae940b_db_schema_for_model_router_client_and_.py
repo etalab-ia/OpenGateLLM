@@ -63,7 +63,7 @@ def upgrade() -> None:
     # Use the current Alembic/app bind to update the new password column
     bind = op.get_bind()
     api_pg_meta = MetaData()
-    api_pg_meta.reflect(bind=pg_engine)
+    api_pg_meta.reflect(bind=bind)
     if "user" not in api_pg_meta.tables:
         pg_engine.dispose()
         raise RuntimeError("No `user` table found in app DB")
@@ -72,14 +72,14 @@ def upgrade() -> None:
 
     copied = 0
     with pg_engine.connect() as pg_conn:
-        stmt = sa_select(pg_user.c.id, getattr(pg_user.c, "password"))
+        stmt = sa_select(pg_user.c.api_user_id, getattr(pg_user.c, "password"))
         result = pg_conn.execute(stmt)
         for row in result:
-            user_id = row[0]
+            api_user_id = row[0]
             pwd = row[1]
             if pwd is None:
                 continue
-            upd = api_user.update().where(api_user.c.id == user_id).values(password=pwd)
+            upd = api_user.update().where(api_user.c.id == api_user_id).values(password=pwd)
             bind.execute(upd)
             copied += 1
 
