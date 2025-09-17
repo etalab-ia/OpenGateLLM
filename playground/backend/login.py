@@ -86,21 +86,28 @@ def generate_random_password(length: int = 16) -> str:
 
 def oauth_login(api_key: str, api_key_id: str, proconnect_token: str = None):
     """After OAuth2 login, backend will provide api_key and api_key_id in URL parameters and we use it to process the login"""
-    response = requests.get(url=f"{configuration.playground.api_url}/v1/auth/me", headers={"Authorization": f"Bearer {api_key}"})
+    response = requests.get(url=f"{configuration.playground.api_url}/v1/me/info", headers={"Authorization": f"Bearer {api_key}"})
     if response.status_code != 200:
-        st.error(response.json()["detail"])
+        st.error(body=response.json()["detail"])
         st.stop()
-    user = response.json()["user"]
-    role = response.json()["role"]
 
-    # No local DB: use the api_key to fetch full user info and set session state directly
-    st_user_id = user.get("id") or 0
-    st_user_name = user.get("name") or user.get("email")
-
-    st_user = User(id=st_user_id, name=st_user_name, api_key_id=api_key_id, api_key=api_key, proconnect_token=proconnect_token, user=user, role=role)
+    user = response.json()
+    user = User(
+        proconnect_token=proconnect_token,
+        id=user["id"],
+        email=user["email"],
+        name=user["name"],
+        api_key_id=api_key_id,
+        api_key=api_key,
+        limits=[Limit(**limit) for limit in user["limits"]],
+        permissions=user["permissions"],
+        budget=user["budget"],
+        expires_at=user["expires_at"],
+        created_at=user["created_at"],
+        updated_at=user["updated_at"],
+    )
     st.session_state["login_status"] = True
-    st.session_state["user"] = st_user
-    st.query_params.clear()
+    st.session_state["user"] = user
     st.rerun()
 
 
