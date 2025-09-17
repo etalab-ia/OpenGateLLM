@@ -2,7 +2,7 @@
 
 ### Run services
 
-1. Create a configuration file (see the following [configuration section](./deployment.md#configuration)) `config.yml` on the root of the project. A example configuration file is available [here](../config.example.yml).
+1. Create a configuration file (see the following [configuration section](./deployment.md#configuration)) `config.yml` on the root of the project. A example configuration file is available [here](https://github.com/etalab-ia/OpenGateLLM/blob/main/config.example.yml).
 
 2. Deploy the services with the following command:
 

@@ -1,17 +1,23 @@
 # Routing
 
-L'API Albert permet de configurer pour chaque modèle un ou plusieurs clients vers des API externes. Ces clients sont définis dans le fichier de configuration (voir [deployment](../deployment.md)). Un modèle peut avoir plusieurs clients.
+The **Albert API** allows you to configure one or more external API clients for each model.  
+These clients are defined in the configuration file (see [deployment](../deployment.md)).  
+A single model can have multiple clients.
 
-## Exemple de configuration
+## Example Configuration
 
-Dans cet exemple, nous configurons le modèle `turbo` est lié à deux clients : un client OpenAI et un client vLLM. Le modèle peut être appelé avec l'ID `turbo` ou avec l'alias défini dans l'entrée `aliases` : `turbo-alias`.
+In the example below, the `turbo` model is configured with two clients: an OpenAI client and a vLLM client.  
+The model can be called either using its ID (`turbo`) or using the alias defined in the `aliases` field (`turbo-alias`).
 
-La stratégie de routage est définit à `round_robin` ce qui signifie que les requêtes seront distribuées alternativement entre les deux clients. Pour plus d'information sur les stratégies de routage, voir [deployment](../deployment.md).
+The routing strategy is set to `round_robin`, meaning that requests are distributed alternately between the two clients.  
+For more details on routing strategies, see [deployment](../deployment.md).
 
-Chaque client va appelé un modèle différent, définit par l'entrée `model`. Par exemple, le client OpenAI va appelé le modèle `gpt-3.5-turbo` et le client vLLM va appelé le modèle `meta-llama/Llama-3.1-8B-Instruct`.
+Each client calls a different model, specified by the `model` field.  
+For example, the OpenAI client calls `gpt-3.5-turbo`, while the vLLM client calls `meta-llama/Llama-3.1-8B-Instruct`.
 
-> ❗️ Attention, lorsque vous définissez plusieurs clients pour un modèle, nous recommandons que ces clients soit du même type et appelle le même modèle. En effet, les réponses pourraient avoir des structures différentes dans le cas inverse.
-
+> ❗️ **Important:**  
+> When configuring multiple clients for a model, we strongly recommend that they are of the same type and call the same underlying model.  
+> Otherwise, responses may have different structures.
 ```yaml
 models:
   - id: turbo
@@ -35,11 +41,12 @@ models:
 
 ## Logique de code
 
-Au démarrage de l'API un objet `ModelRegistry` est créé qui contient les objets `ModelRouter` pour chaque modèle définit dans l'entrée `models` du fichier de configuration. Ces derniers contiennent un objet `ModelClient` pour chaque client définit dans l'entrée `clients` du modèle dans le fichier de configuration.
-
+When the API starts, a `ModelRegistry` object is initialized.
+This registry contains a `ModelRouter` for each model defined under models in the configuration file.
+Each `ModelRouter` contains one or more `ModelClient` objects, as specified in the clients list.
 ### ModelRegistry
 
-ModelRegistry est un classe utilisable comme un dictionnaire pour récupérer un modèle. Le modèle est récupéré par son ID ou un de ses alias définit dans le fichier de configuration (voir [deployment](../deployment.md)).
+ModelRegistry acts like a dictionary and allows retrieving a model by its ID or one of its aliases (see [deployment](../deployment.md)).
 
 ```python
 from app.utils.lifespan import models
@@ -47,20 +54,25 @@ from app.utils.lifespan import models
 model = models["guillaumetell-7b"]
 ```
 
-Si le modèle n'existe pas, l'API renverra une erreur HTTP 404 `Model not found`, plutôt qu'une `KeyError`.
+If the model does not exist, the API returns an HTTP 404 error (Model not found) instead of
+raising a `KeyError`.
 
-L'objet retourné est un objet `ModelRouter` qui contient les informations du modèle et les clients associés.
+The returned object is a `ModelRouter`, which contains the model’s configuration and its associated clients.
 
 ### ModelRouter
 
-L'objet `ModelRouter` contient les informations du modèle et les clients associés. Cette classe contient une méthode `get_client` qui permet de récupérer un client du modèle. S'il existe plusieurs clients, la méthode va sélectionner un client en fonction de la stratégie de routage (`routing_strategy`) définit dans le fichier de configuration (voir [deployment](../deployment.md)).
+The `ModelRouter` object stores the model configuration and its clients.
+It exposes a `get_client` method to select a client for the model.
 
-Les informations du modèle sont celle renvoyées par le endpoint `GET /v1/models` :
+If multiple clients are available, the method selects one according to the configured `routing_strategy` 
+(see [deployment](../deployment.md))..
 
-- `id` : l'ID du modèle par lequel les utilisateurs peuvent identifier le modèle
-- `type` : le type de modèle (voir [models](models.md))
-- `aliases` : les alias du modèle
-- `max_context_length` : la longueur maximale d'input du modèle
+The model information corresponds to what is returned by the GET /v1/models endpoint:
+
+- `id` : model identifier used by clients
+- `type` : model type (see [models](models.md))
+- `aliases` : list of model aliases
+- `max_context_length` : maximum input length supported by the model
 
 ```python
 from app.utils.lifespan import models
@@ -70,24 +82,26 @@ model = models["guillaumetell-7b"]
 client = model.get_client(endpoint="chat/completions")
 ```
 
-Le paramètre `endpoint` est optionnel. Si ce paramètre n'est pas renseigné, la méthode `get_client` va vérifier que le type du modèle est compatible avec l'endpoint recherché.
+The `endpoint` parameter is optional.
+If not provided, `get_client` checks that the model type is compatible with the requested endpoint.
 
 ### ModelClient
 
-L'objet `ModelClient` est un objet de type `AsyncOpenAI` qui permet d'appeler l'API externe grâce à 3 attributs :
+`ModelClient` is an `AsyncOpenAI`-like object that handles requests to the external API.
+It exposes three main attributes:
+- `api_url` : the external API URL
+- `api_key` : the external API key
+- `model` : the external model ID
 
-- `api_url` : l'URL de l'API externe
-- `api_key` : la clé API de l'API externe
-- `model` : le modèle ID de l'API externe
+Several `ModelClient` subclasses exist, such as `VllmModelClient` and `OpenAIModelClient`.
+Each defines an `ENDPOINT_TABLE` mapping the supported external API endpoints to Albert API endpoints.
 
-Il y existe plusieurs classes de ModelClient, par exemple `VllmModelClient` ou `OpenAIModelClient`. Chacun définit une variable `ENDPOINT_TABLE` qui contient les endpoints de l'API externe qui sont supportés par le client et permet de faire la correspondance entre l'endpoint de l'API externe et l'endpoint de l'API Albert.
-
-## Stratégies de routage
+## Routing strategies
 
 ### Shuffle
 
-La stratégie `shuffle` distribue les requêtes entre les clients de manière équilibrée aléatoirement.
+The `shuffle` strategy randomly distributes requests among available clients in a balanced way
 
 ### Round robin
 
-La stratégie `round_robin` distribue les requêtes entre les clients de manière alternative.
+The `round_robin` strategy alternates requests between clients in sequence.

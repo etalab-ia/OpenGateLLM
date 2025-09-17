@@ -39,26 +39,18 @@ const sidebars: SidebarsConfig = {
       label: 'Getting Started',
       items: [
         'getting-started/quickstart',
-        {
-            type: 'category',
-            label: 'Contributing',
-            items:  [
-                    'getting-started/contributing/outside-docker',
-                    'getting-started/contributing/inside-docker',
-                    'getting-started/contributing/commit',
-                    ],
-        },
-        {
-            type: 'category',
-            label: 'Advanded Features',
-            items:  [
-                    'getting-started/advanced-features/rag',
-                    'getting-started/advanced-features/mcp',
-                    ],
-        },
         'getting-started/config',
         'getting-started/configuration',
       ],
+    },
+    {
+        type: 'category',
+        label: 'Contributing',
+        items:  [
+                'contributing/outside-docker',
+                'contributing/inside-docker',
+                'contributing/commit',
+                ],
     },
     {
       type: 'category',
@@ -68,16 +60,14 @@ const sidebars: SidebarsConfig = {
         'functionalities/environmental_footprint',
         'functionalities/iam',
         'functionalities/search',
+        'functionalities/rag',
+        'functionalities/mcp'
       ],
     },
     {
       type: 'category',
       label: 'Models',
       items: ['models/models', 'models/routing'],
-    },
-    {
-      type: 'doc',
-      id: 'architecture',
     },
     {
       type: 'doc',

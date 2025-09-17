@@ -114,7 +114,7 @@ volumes:
   export $(grep -v '^#' .env | xargs)
   ```
 
-6. Check the [configuration documentation](./docs/configuration.md) to configure your configuration file.
+6. Check the [configuration documentation](getting-started/configuration.md) to configure your configuration file.
 
 ### Run services
 
@@ -135,9 +135,7 @@ make test
 
 ## Modifications to SQL database structure
 
-### Modifications to the [`app/sql/models.py`](./app/sql/models.py) file
-
-If you have modified the API database tables in the [models.py](./app/sql/models.py) file, you need to create an Alembic migration with the following command:
+If you have modified the API database tables in the [models.py](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/sql/models.py) file, you need to create an Alembic migration with the following command:
 
 ```bash
 alembic -c app/alembic.ini revision --autogenerate -m "message"
@@ -149,16 +147,3 @@ Then apply the migration with the following command:
 alembic -c app/alembic.ini upgrade head
 ```
 
-### Modifications to the [`ui/sql/models.py`](./ui/sql/models.py) file
-
-If you have modified the UI database tables in the [models.py](./ui/sql/models.py) file, you need to create an Alembic migration with the following command:
-
-```bash
-alembic -c ui/alembic.ini revision --autogenerate -m "message"
-```
-
-Then apply the migration with the following command:
-
-```bash
-alembic -c ui/alembic.ini upgrade head
-```

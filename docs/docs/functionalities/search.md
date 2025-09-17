@@ -1,93 +1,92 @@
 # Search
 
-L'API Albert propose d'interagir avec une base de données vectorielle (_vector store_) pour permettre de réaliser du [RAG](https://en.wikipedia.org/wiki/Retrieval-augmented_generation). L'API propose de nourrir ce vector store en important des fichiers qui seront automatiquement traités et insérés dans le _vector store_.
+The Albert API allows you to interact with a vector database (_vector store_) to perform [RAG](https://en.wikipedia.org/wiki/Retrieval-augmented_generation). The API lets you feed this vector store by importing files, which are automatically processed and inserted into the _vector store_.
 
-Les collections sont les espaces de stockage dans ce _vector store_. Elles sont utilisées pour organiser les fichiers qui sont importés par l'API. Ces fichiers sont convertis en documents, contenant le texte extrait. Ces documents sont alors découpés en chunks et convertis en vecteurs à l'aide d'un modèle d'embeddings. Ces vecteurs ainsi que le texte qui a été vectorisé sont enregistrés dans la base de données vectorielle.
+Collections are the storage spaces in this _vector store_. They are used to organize the files imported by the API. These files are converted into documents containing the extracted text. These documents are then split into chunks and converted into vectors using an embeddings model. These vectors, along with the vectorized text, are stored in the vector database.
 
-L'intégration se déroule donc en 3 phases :
+Integration therefore occurs in 3 phases:
 
-- **File** : fichier original (non stocké)
-- **Document** : texte extrait d'un fichier
-- **Chunk** : portion de texte découpée dans un document
+- **File**: the original file (not stored)
+- **Document**: text extracted from a file
+- **Chunk**: a portion of text split from a document
 
 <p align="center">
   <img src="../../static/img/collections_005.png" width="40%"></img>
 </p>
 
-Une fois importés, vous pouvez interroger l'API pour récupérer les documents ou chunks qui vous intéressent en suivant la hiérarchie suivante reposant sur les 3 entités :
+Once imported, you can query the API to retrieve the documents or chunks you are interested in by following this hierarchy based on the 3 entities:
 
-- **Collection** : espace de stockage des documents et chunks
-- **Document** : portion de texte découpée dans un fichier
-- **Chunk** : portion de texte découpée dans un document
+- **Collection**: the storage space for documents and chunks  
+- **Document**: a portion of text extracted from a file  
+- **Chunk**: a portion of text split from a document  
 
 <p align="center">
   <img src="../../static/img/collections_001.png" width="20%"></img>
 </p>
 
-## Création d'une collection
+## Creating a Collection
 
-Avant d'importer un fichier, il convient préalablement de créer une collection à l'aide du endpoint `POST /v1/collections`. Ce endpoint va réaliser 3 opérations successivement :
+Before importing a file, you must first create a collection using the `POST /v1/collections` endpoint. This endpoint performs three operations in sequence:
 
-1. Créer un ID unique (_collection_id_).
-2. Créer une collection qui a pour nom l'ID.
-3. Créer une entrée dans la collection nommée _collections_ qui enregistre les métadonnées des autres collections. Ces métadonnées sont le nom de la collection, le nombre de fichiers dans la collection ainsi que le modèle d'embeddings associé à la collection. Cette entrée a le même ID que l'ID de la collection.
+1. Creates a unique ID (_collection_id_).
+2. Creates a collection named after the ID.
+3. Creates an entry in the collection named _collections_ that stores metadata for the other collections. This metadata includes the collection name, the number of files in the collection, and the embeddings model associated with the collection. This entry uses the same ID as the collection ID.
 
 ![](../../static/img/collections_002.png)
 
-Vous pouvez consulter vos collections à l'aide du endpoint `GET /v1/collections`.
+You can list your collections using the `GET /v1/collections` endpoint.
 
-**Pourquoi enregistrer le nom d'un modèle d'embeddings pour chaque collection ?**
+**Why store the name of an embeddings model for each collection?**
 
-Il est important de comprendre que chaque collection est associée à un modèle d'embeddings car cela va conditionner la recherche de similarité entre plusieurs collections. En effet, comme le modèle d'embeddings définit un espace vectoriel qui lui est propre, il serait incohérent de faire une recherche de similarité entre des vecteurs qui n'ont pas été créés par le même modèle d'embeddings.
+It is important to understand that each collection is associated with an embeddings model because this determines similarity search between multiple collections. Since an embeddings model defines its own vector space, it would be inconsistent to perform a similarity search between vectors that were not created by the same embeddings model.
 
-Ainsi, la conception de l'API rend impossible de faire une recherche de similarité sur des fichiers qui sont stockés dans deux collections associées à des modèles d'embeddings différents. De plus, en définissant dès la création de la collection un modèle d'embeddings associé, cela rend impossible d'avoir des fichiers vectorisés avec des modèles différents au sein de la même collection.
+As a result, the API design makes it impossible to perform similarity searches across files stored in collections associated with different embeddings models. Additionally, by defining an embeddings model at collection creation, you ensure that all files in the same collection are vectorized with the same model.
 
-## Importer un fichier
+## Importing a File
 
-Une fois la collection créée, vous pouvez importer des fichiers dans l'API avec l'endpoint `POST /v1/files`. Plusieurs types de fichiers sont acceptés par l'API dont JSON, PDF, Markdown ou encore HTML. Le endpoint va réaliser les étapes suivantes :
+Once the collection is created, you can import files into the API using the `POST /v1/files` endpoint. The API accepts multiple file types, including JSON, PDF, Markdown, and HTML. The endpoint performs the following steps:
 
-1. Détecter le type du fichier s'il n'est pas spécifié par l'utilisateur.
-2. Créer un ID unique (_document_id_).
-3. Créer une entrée dans une collection nommée _documents_ qui va stocker les métadonnées du document. Cette entrée a le même ID que l'ID du document.
-4. Lancer la pipeline de traitement :
-   1. _parsing_ : extraction du texte dans le fichier (conversion en _document_)
-   2. _chunking_ : découpage du fichier en paragraphes (conversion en _chunks_)
-   3. _vectorization_ : création d'un vecteur par _chunk_
-   4. _indexation_ : insertion des _chunks_ et de leurs vecteurs dans le _vector store_
+1. Detects the file type if not specified by the user.
+2. Creates a unique ID (_document_id_).
+3. Creates an entry in a collection named _documents_ that stores the document's metadata. This entry uses the same ID as the document ID.
+4. Runs the processing pipeline:
+   1. _parsing_: extracts text from the file (conversion into a _document_)
+   2. _chunking_: splits the file into paragraphs (conversion into _chunks_)
+   3. _vectorization_: creates a vector for each _chunk_
+   4. _indexation_: inserts the _chunks_ and their vectors into the _vector store_
 
 ![](../../static/img/collections_003.png)
 
-Vous pouvez consulter les documents importés dans une collection à l'aide du endpoint `GET /v1/documents/{collection}` en spécifiant l'ID de la collection. De même, vous pouvez consulter les _chunks_ d'un document à l'aide du endpoint `GET /v1/chunks/{collection}/{document}` en spécifiant l'ID du document.
+You can view the imported documents in a collection using the `GET /v1/documents/{collection}` endpoint by specifying the collection ID. Similarly, you can view a document’s _chunks_ using the `GET /v1/chunks/{collection}/{document}` endpoint by specifying the document ID.
 
-**Cas spécifique des JSON**
+**Specific Case for JSON**
 
-Le format JSON est adapté pour importer massivement de la donnée dans l'API Albert. En effet, contrairement aux autres types de fichiers, le JSON va être décomposé par l'API en plusieurs documents, chacun de ces documents sera alors converti en chunks. Ce JSON doit respecter une structure définie.
+The JSON format is suitable for bulk importing data into the Albert API. Unlike other file types, JSON will be decomposed by the API into multiple documents, each of which will then be converted into chunks. The JSON must follow a defined structure.
 
 ![](../../static/img/collections_004.png)
 
-### Métadonnées
+### Metadata
 
-Le fichier JSON doit être structuré comme une liste de documents :
+The JSON file must be structured as a list of documents:
 
 ```json
 [{"text": "hello world", "title": "my document"}, ...]
 ```
+You can add metadata to each imported document when using JSON format. Metadata is optional and is currently available only for JSON files.
 
-Il est possible d'ajouter des métadonnées à chaque document importé sous le format JSON. Ces métadonnées sont optionnelles et ne sont pour le moment disponibles que pour les fichiers JSON.
-
-Pour ce faire, vous pouvez les spécifiez comme ceci :
+To do this, specify it as follows:
 
 ```json
-[{"text": "hello world", "title": "my document", "metadata": {"autor": "me"}}, ...]}
+[{"text": "hello world", "title": "my document", "metadata": {"author": "me"}}, ...]}
 ```
 
-Ces métadonnées seront retournées avec le chunk associé au document lors d'une recherche avec l'endpoint `POST /search`.
-
+This metadata will be returned along with the chunk associated with the document when performing a search with the POST /search endpoint.
 ### Chunking
 
-Pour la stratégie de chunking est configurable en paramètre du endpoint `POST /v1/files`. Différentes chunker sont disponibles :
+The chunking strategy is configurable via parameters in the POST /v1/files endpoint. Several chunkers are available:
 
-- `NoSplitter` : le fichier est considéré comme un seul chunk
-- `LangchainRecursiveCharacterTextSplitter` : voir [la documentation Langchain](https://python.langchain.com/v0.1/docs/modules/data_connection/document_transformers/recursive_text_splitter/) pour plus de détails
+NoSplitter: the file is considered as a single chunk
 
-Les paramètres du chunker (taille, séparateur, etc.) sont passés en paramètre du endpoint `POST /v1/files` dans le paramètre `chunker_args`, voir [la documentation](https://albert.api.etalab.gouv.fr/documentation#tag/Retrieval-Augmented-Generation/operation/upload_file_v1_files_post).
+LangchainRecursiveCharacterTextSplitter: see the [Langchain documentation](https://python.langchain.com/v0.1/docs/modules/data_connection/document_transformers/recursive_text_splitter/) for more details
+
+The chunker parameters (size, separator, etc.) are passed as parameters to the POST /v1/files endpoint in the chunker_args parameter [the documentation](https://albert.api.etalab.gouv.fr/documentation#tag/Retrieval-Augmented-Generation/operation/upload_file_v1_files_post).
