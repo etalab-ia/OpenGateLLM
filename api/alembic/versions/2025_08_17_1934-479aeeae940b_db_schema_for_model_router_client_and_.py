@@ -35,6 +35,14 @@ def upgrade() -> None:
         logging.warning("Playground configuration not found in the config file; skipping user password migration")
         return
 
+    if not hasattr(configuration.playground, "postgres"):
+        logging.warning("Playground configuration not found in the config file; skipping user password migration")
+        return
+
+    if configuration.playground.postgres == {}:
+        logging.warning("Playground database url not set in the config file to migrate user passwords; skipping user password migration")
+        return
+
     playground_url = configuration.playground.postgres.get("url").replace("+asyncpg", "")
     if not playground_url:
         logging.warning("Playground database url not set in the config file to migrate user passwords; skipping user password migration")
