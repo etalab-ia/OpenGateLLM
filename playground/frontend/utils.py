@@ -56,6 +56,7 @@ def resources_selector(resource: Literal["collection", "role", "user", "document
             data=[
                 {
                     "ID": user["id"],
+                    "Email": user["email"],
                     "Name": user["name"],
                     "Expires at": pd.to_datetime(user["expires_at"], unit="s") if user["expires_at"] else None,
                     "Created at": pd.to_datetime(user["created_at"], unit="s"),
@@ -66,7 +67,8 @@ def resources_selector(resource: Literal["collection", "role", "user", "document
         )
         column_config = {
             "ID": st.column_config.TextColumn(label="ID", width="small"),
-            "Name": st.column_config.ListColumn(label="Name", width="large"),
+            "Email": st.column_config.TextColumn(label="Email", width="large"),
+            "Name": st.column_config.ListColumn(label="Name", width="small"),
             "Access UI": st.column_config.CheckboxColumn(label="Access UI", help="If true, the user has created by the admin UI.", width="small"),
             "Expires at": st.column_config.DatetimeColumn(format="D MMM YYYY", width="small"),
             "Created at": st.column_config.DatetimeColumn(format="D MMM YYYY", width="small"),
@@ -299,6 +301,7 @@ def input_new_role_limits(selected_role: dict):
 # Admin - users
 def input_new_user_email(selected_user: dict):
     new_user_email = st.text_input(
+        key="create_user_email",
         label="User email",
         placeholder="Enter user email",
         icon=":material/email:",
@@ -312,6 +315,7 @@ def input_new_user_email(selected_user: dict):
 
 def input_new_user_name(selected_user: dict):
     new_user_name = st.text_input(
+        key="create_user_name",
         label="User name",
         placeholder="Enter user name",
         icon=":material/person:",
