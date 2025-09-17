@@ -75,7 +75,7 @@ class BaseModelRouter(ABC):
 
         self.queue = None
         self.shutdown_future = asyncio.Future()
-        self.queue_name = f"router_{self.name}_{self.type.value}"  # Maybe use type + name for more explicit logs.
+        self.queue_name = f"router_{self.name}_{self.type.value}_{hex(id(self))}"  # Maybe use type + name for more explicit logs.
 
         if configuration.dependencies.rabbitmq:
             self._dispatch_task = AsyncRabbitMQConnection().consumer_loop.create_task(self._dispatch_callback())
@@ -104,7 +104,6 @@ class BaseModelRouter(ABC):
         """
         async with message.process():
             content = message.body.decode("utf8")
-
             ctx = await self.pop_context(content)
             if ctx is None:
                 return

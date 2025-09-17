@@ -125,6 +125,12 @@ dependencies:
   centralesupelec:
     token: ${CS_API_KEY}
 
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    user: ${RABBITMQ_DEFAULT_USER:-master}
+    password: ${RABBITMQ_DEFAULT_PASS:-changeme}
+
 # ---------------------------------- settings -----------------------------------
 settings:
   session_secret_key: -ftzKBct7qN22sgnkI9ApWD2ny_dHQVlPd2OPDSk5MM

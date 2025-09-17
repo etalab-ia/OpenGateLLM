@@ -1,5 +1,6 @@
 from abc import ABC
 import ast
+import aiormq
 import asyncio
 from datetime import datetime
 import importlib
@@ -84,7 +85,7 @@ class BaseModelClient(ABC):
 
         self._context_register = {}  # One per client to avoid competition between threads
         self._context_lock = asyncio.Lock()
-        self.queue_name = f"model_{self.name}"  # Maybe use type + name for more explicit logs.
+        self.queue_name = f"model_{self.name}_{hex(id(self))}"  # Maybe use type + name for more explicit logs.
 
         self.queue = None
         self.shutdown_future = asyncio.Future()
@@ -105,9 +106,12 @@ class BaseModelClient(ABC):
         await self.shutdown_future  # blocked until a 'result' is set
 
         # Clean shutdown
-        await self.queue.cancel(consumer_tag)
-        await self.queue.delete()
-        await channel.close()
+        try:
+            await self.queue.cancel(consumer_tag)
+            await self.queue.delete()
+            await channel.close()
+        except aiormq.exceptions.ChannelPreconditionFailed:
+            logger.warning("Queue %s still has active consumers, skipping deletion", self.queue_name)
 
     async def _rabbitmq_callback(self, message: IncomingMessage):
         """
