@@ -62,7 +62,7 @@ def get_documents(collection_id: int, offset: int = 0, limit: int = 10) -> dict:
 
 def get_tokens(offset: int = 0, limit: int = 10) -> list:
     response = requests.get(
-        url=f"{configuration.playground.api_url}/v1/admin/tokens?offset={offset}&limit={limit}",
+        url=f"{configuration.playground.api_url}/v1/me/keys?offset={offset}&limit={limit}",
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
 
