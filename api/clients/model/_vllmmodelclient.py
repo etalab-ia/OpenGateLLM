@@ -18,10 +18,10 @@ from ._basemodelclient import BaseModelClient
 
 class VllmModelClient(BaseModelClient):
     ENDPOINT_TABLE = {
-        ENDPOINT__AUDIO_TRANSCRIPTIONS: None,
+        ENDPOINT__AUDIO_TRANSCRIPTIONS: "v1/audio/transcriptions",
         ENDPOINT__CHAT_COMPLETIONS: "/v1/chat/completions",
-        ENDPOINT__COMPLETIONS: None,
-        ENDPOINT__EMBEDDINGS: None,
+        ENDPOINT__COMPLETIONS: "/v1/completions",
+        ENDPOINT__EMBEDDINGS: "/v1/embeddings",
         ENDPOINT__MODELS: "/v1/models",
         ENDPOINT__OCR: "/v1/chat/completions",
         ENDPOINT__RERANK: None,
