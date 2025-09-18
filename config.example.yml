@@ -89,10 +89,11 @@ settings:
   # search_multi_agents_reranker_model: # optional - default: None - example: "my-model"
 
 # -------------------------------- playground ---------------------------------
-# playground:
+playground:
   # auth_master_username: # optional - default: master
   # auth_master_key: # optional - default: changeme
   # auth_max_token_expiration_days: # optional - default: None, ex: 365
+  api_url:  http://${API_HOST:-localhost}:8080 # optional - default: http://api:8080
   # home_url: # optional - default: http://localhost:8501
   # page_icon: # optional - default: https://github.com/etalab-ia/opengatellm/blob/main/docs/assets/logo.png?raw=true
   # menu_items: # optional - default: MenuItems()

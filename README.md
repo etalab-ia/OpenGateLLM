@@ -89,7 +89,7 @@ The default master API key is `changeme`.
 
 ### User interface
 
-A user interface is available at: http://localhost:8081/playground
+A user interface is available at: http://localhost:8501/playground
 
 User: master
 Password: changeme
