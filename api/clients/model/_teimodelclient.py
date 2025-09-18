@@ -72,7 +72,7 @@ class TeiModelClient(BaseModelClient):
         assert response.status_code == 200, f"Failed to get models list ({response.status_code})."
 
         response = response.json()
-        assert self.name == response["model_name"], f"Model not found ({self.name})."
+        assert self.name == response["model_id"], f"Model not found ({self.name})."
 
         # set attributes of the model
         self.max_context_length = response.get("max_input_length")

@@ -10,8 +10,8 @@ from api.schemas.admin.roles import Limit, PermissionType
 class UserInfo(BaseModel):
     object: Literal["userInfo"] = Field(default="userInfo", description="The user info object type.")
     id: int = Field(description="The user ID.")
-    name: str = Field(description="The user name.")
-    email: Optional[str] = Field(default=None, description="The user email.")
+    email: str = Field(description="The user email.")
+    name: Optional[str] = Field(default=None, description="The user name.")
     organization: Optional[int] = Field(default=None, description="The user organization ID.")
     budget: Optional[float] = Field(default=None, description="The user budget. If None, the user has unlimited budget.")
     permissions: List[PermissionType] = Field(description="The user permissions.")

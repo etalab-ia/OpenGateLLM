@@ -354,13 +354,15 @@ class IdentityAccessManager:
                 raise OrganizationNotFoundException()
 
         if password is not None:
-            try:
-                assert current_password is not None
-                assert self._check_password(password=current_password, hashed_password=user.password)
-            except AssertionError:
-                raise InvalidCurrentPasswordException()
+            # user has no current password, set new current password without checking if specified current password is correct
+            if current_password is None:
+                password = self._hash_password(password=password)
 
-            password = self._hash_password(password=password)
+            # user has a current password, check if specified current password is correct
+            elif self._check_password(password=current_password, hashed_password=user.password):
+                password = self._hash_password(password=password)
+            else:
+                raise InvalidCurrentPasswordException()
         else:
             password = user.password
 
@@ -390,12 +392,13 @@ class IdentityAccessManager:
         organization_id: Optional[int] = None,
         offset: int = 0,
         limit: int = 10,
-        order_by: Literal["id", "name", "created_at", "updated_at"] = "id",
+        order_by: Literal["id", "email", "created_at", "updated_at"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
     ) -> List[User]:
         statement = (
             select(
                 UserTable.id,
+                UserTable.email,
                 UserTable.name,
                 UserTable.role_id.label("role"),
                 UserTable.organization_id.label("organization"),
