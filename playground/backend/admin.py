@@ -84,19 +84,6 @@ def create_user(email: str, password: str, role: int, name: Optional[str] = None
         st.toast(response.json()["detail"], icon="❌")
         return
 
-    user_id = response.json()["id"]
-
-    # create playground token
-    response = requests.post(
-        url=f"{configuration.playground.api_url}/v1/admin/tokens",
-        json={"user": user_id, "name": "playground"},
-        headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
-    )
-
-    if response.status_code != 201:
-        st.toast(response.json()["detail"], icon="❌")
-        return
-
     st.toast("User created", icon="✅")
     time.sleep(1)
     st.session_state["new_user"] = False
