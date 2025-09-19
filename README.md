@@ -80,7 +80,7 @@ make quickstart
 Test the API:
 
 ```bash 
-curl -X POST "http://localhost:8080/v1/chat/completions" \
+curl -X POST "http://localhost:8000/v1/chat/completions" \
 -H "Content-Type: application/json" \
 -H "Authorization: Bearer changeme" \
 -d '{"model": "albert-testbed", "messages": [{"role": "user", "content": "Hello, how are you?"}]}'
