@@ -41,27 +41,43 @@
 
 ## 📊 Comparison
 
-| Feature              | OpenGateLLM ✅ | LiteLLM   | OpenRouter | OpenAI API |
-| -------------------- | ------------ | --------- | ---------- | ---------- |
-| Fully Open Source    | ✔️ | ❌ | ❌ | ❌ |
-| Data Sovereignty     | ✔️ | ✔️ | ❌ | ❌ |
-| Multiple AI Backends | ✔️ | ✔️ | ✔️ | ❌ |
-| Built-in RAG         | ✔️ | ❌ | ❌ | ❌ |
-| Built-in OCR         | ✔️ | ❌ | ❌ | ❌ |
-| Audio Transcription  | ✔️ | ❌ | ❌ | ❌ |
-| Flexible Deployment  | ✔️ | ✔️ | ❌ | ❌ |
-| OpenAI Compatibility | ✔️ | ✔️ | ✔️ | ✔️ |
+| Feature              | OpenGateLLM ✅ | LiteLLM   | OpenRouter |
+| -------------------- | ------------ | --------- | ---------- |
+| OpenAI Compatibility | ✅ | ✅ | ✅ |
+| Open Source    | ✅ | ❌ | ❌ |
+| Free (all features)    | ✅ | ✅ | ❌ |
+| Support commercial models | ✅ | ✅ | ✅ |
+| Support self-hosted models | ✅ | ✅ | ❌ |
+| Built-in RAG         | ✅ | ❌ | ❌ |
+| Built-in OCR         | ✅ | ❌ | ❌ |
 
 ## 📘 Tutorials & Guides
 
 Explore practical use cases:
 
-* [**Chat Completions**](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/chat_completions.ipynb)
-* [**Multi-Model Access**](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/models.ipynb)
-* [**Retrieval-Augmented Generation (RAG)**](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/retrieval_augmented_generation.ipynb)
-* [**Knowledge Database Import**](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/import_knowledge_database.ipynb)
-* [**Audio Transcriptions**](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/audio_transcriptions.ipynb)
-* [**PDF OCR**](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/pdf_ocr.ipynb)
+* **Chat Completions**
+
+  <a target="_blank" href="https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/chat_completions.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Chat Completions"/></a>
+
+* **Multi-Model Access** 
+
+  <a target="_blank" href="https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/models.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Multi-Model Access"/></a>
+
+* **Retrieval-Augmented Generation (RAG)**
+
+  <a target="_blank" href="https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/search_and_rag.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Retrieval-Augmented Generation (RAG)"/></a>
+
+* **Audio Transcriptions**
+
+  <a target="_blank" href="https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/audio_transcriptions.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Audio Transcriptions"/></a>
+
+* **Optical Character Recognition (OCR)**
+
+  <a target="_blank" href="https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/ocr.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Optical Character Recognition (OCR)"/></a>
+
+* **Advanced RAG pipeline**
+
+  <a target="_blank" href="https://colab.research.google.com/github/etalab-ia/albert-api/blob/main/docs/tutorials/advanced_rag_pipeline.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Advanced RAG pipeline"/></a>
 
 ## 🚀 Quickstart
 
