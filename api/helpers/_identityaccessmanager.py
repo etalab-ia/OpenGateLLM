@@ -518,7 +518,7 @@ class IdentityAccessManager:
 
         return token_id, token
 
-    async def refresh_token(self, session: AsyncSession, user_id: int, name: str, duration: int) -> Tuple[int, str]:
+    async def refresh_token(self, session: AsyncSession, user_id: int, name: str, duration: Optional[int] = None) -> Tuple[int, str]:
         """
         Create a new token with the same name, update Usage table references,
         and delete old tokens with the same name and user_id.
@@ -527,7 +527,7 @@ class IdentityAccessManager:
             session(AsyncSession): Database session
             user_id(int): ID of the user
             name(str): Name of the token to refresh
-            duration(int): Number of seconds the new token should be valid for
+            duration(int): Number of seconds the new token should be valid for (None for no expiration)
 
         Returns:
             Tuple containing the new token_id and token
@@ -535,6 +535,9 @@ class IdentityAccessManager:
         # Get the old token_id for tokens with the same name and user_id
         old_token_result = await session.execute(statement=select(TokenTable.id).where(TokenTable.user_id == user_id, TokenTable.name == name))
         old_token_ids = [row[0] for row in old_token_result.all()]
+
+        if duration is None:
+            duration = self.playground_session_duration
 
         expires_at = int((datetime.now() + timedelta(seconds=duration)).timestamp())
         # Create a new token
