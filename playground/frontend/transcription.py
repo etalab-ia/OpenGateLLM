@@ -9,6 +9,10 @@ from playground.frontend.header import header
 from playground.variables import MODEL_TYPE_AUDIO, TRANSCRIPTION_SUPPORTED_LANGUAGES
 
 header()
+st.error(
+    """**Cette page va être dépréciée à partir du 22 octobre 2025 pour laisser place Assistant IA, l'interface de Chatbot de la DINUM. 
+Pour plus d'informations, rendez-vous sur le canal Tchap d'Assistant IA en cliquant [ici](https://www.tchap.gouv.fr/#/room/!gpLYRJyIwdkcHBGYeC:agent.dinum.tchap.gouv.fr).**"""
+)
 
 # Data
 try:

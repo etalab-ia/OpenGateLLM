@@ -12,7 +12,10 @@ from playground.configuration import configuration
 
 SEARCH_METHODS = ["multiagent", "hybrid", "semantic", "lexical"]
 header()
-
+st.error(
+    """**Cette page va être dépréciée à partir du 22 octobre 2025 pour laisser place Assistant IA, l'interface de Chatbot de la DINUM. 
+Pour plus d'informations, rendez-vous sur le canal Tchap d'Assistant IA en cliquant [ici](https://www.tchap.gouv.fr/#/room/!gpLYRJyIwdkcHBGYeC:agent.dinum.tchap.gouv.fr).**"""
+)
 # Data
 models = get_models(types=[MODEL_TYPE_LANGUAGE, MODEL_TYPE_IMAGE_TEXT_TO_TEXT])
 limits = format_limits(models=models)

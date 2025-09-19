@@ -33,12 +33,6 @@ It is recommended to use a Python [virtualenv](https://docs.python.org/3/library
   # POSTGRES_HOST=postgres
   ```
 
-3. Export the environment variables:
-
-  ```bash
-  export $(grep -v '^#' .env | xargs)
-  ```
-
 4. Check the [configuration documentation](./docs/configuration.md) to configure your configuration file.
 
 #### Packages installation
@@ -78,15 +72,19 @@ make dev
 > ```
 > For more information, run `make help`.
 
-
 To run the services without make command, you can use the following commands:
 
-* API:
+1. Export the environment variables:
+  ```bash
+    export $(grep -v '^#' .env | xargs) 
+  ```
+
+2. Launch the API:
   ```bash
   uvicorn api.main:app --log-level debug --reload
   ```
 
-* Playground:
+3. Launch the Playground:
   ```bash
   streamlit run playground/main.py
   ```
