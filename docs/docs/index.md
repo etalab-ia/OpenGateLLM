@@ -10,6 +10,12 @@ Welcome to the OpenGateLLM documentation! This comprehensive guide will walk you
 everything you need to know to run, configure, and extend OpenGateLLM - a production-ready, open-source API gateway for 
 large language models with built-in RAG, OCR, and audio transcription capabilities.
 
+## Sections
+- **[🚀 Getting started](getting-started/quickstart)** - How to quickly run OpenGateLLM locally 
+- **[✍️ Contributing](contributing/outside-docker)** - How to setup and configure OpenGateLLM to modify the project
+- **[⚙️ Functionalities](functionalities/budget)** - All about the functionalities provided by OpenGateLLM
+- **[🤖 Models](models/)** - Which models are supported by OpenGateLLM and how
+
 ## Community & Support
 
 Get help and connect with other developers:

@@ -29,7 +29,7 @@ Go to the _admin_ page and create a role with admin appropriate permissions and 
 The Albert API requires configuring a configuration file (config.yml). This defines third-party clients and configuration parameters.
 **The configuration file is a YAML file that can combine the configuration of the playground and the API.**
 
-You can consult the Pydantic schema of the configuration for the API [here](../app/schemas/core/settings.py) and for the playground [here](../ui/settings.py).
+You can consult the Pydantic schema of the configuration for the API [here](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/schemas/core/configuration.py) and for the playground [here](https://github.com/etalab-ia/OpenGateLLM/blob/main/playground/configuration.py).
 
 #### Secrets
 
@@ -201,11 +201,11 @@ Model types correspond to the convention proposed by HuggingFace Hub. The config
 
 **(2) Routing Strategy**
 
-See [routing - Routing Strategies](models/routingstratégies-de-routage).
+See [routing - Routing Strategies](models/routing#routing-strategies).
 
 **(3) Model**
 
-See [routing - Configuration Example](models/routing#exemple-de-configuration).
+See [routing - Configuration Example](models/routing#configuration-example).
 
 **(4) Model Client Types**
 
@@ -216,7 +216,7 @@ See [routing - Configuration Example](models/routing#exemple-de-configuration).
 | `tei`    | [HuggingFace Text Embeddings Inference](https://github.com/huggingface/text-embeddings-inference) |
 | `albert` | [Albert API](https://github.com/etalab/albert-api)                                                |
 
-For more information, see [models](models/models).
+For more information, see [models](models/models#models).
 
 **(5) `api_url` format by client type**
 
@@ -233,7 +233,7 @@ Only the root of the URL should be provided, do not include `/v1` in the URL.
 
 **Requirements:**
 
-- You must define at least two different `sql` databases, one for the API and one for the playgroud. By default, the [docker compose file](../compose.yml), that defined databases, provides an [entrypoint for Postgres](../scripts/postgres_entrypoint.sh) to create automatically two databases (_api_ and _playground_, setup by environment variable `CREATE_DB` in Postgres docker container).
+- You must define a sql database for the api.
 - To activate RAG features, you must define a Qdrant database.
 - To activate web search features, you must define a Qdrant database.
 

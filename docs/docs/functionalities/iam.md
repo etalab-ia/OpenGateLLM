@@ -61,7 +61,7 @@ Roles define what actions users can perform within the system through permission
 - Limits: resource usage limits for users with this role
 
 > **❗️Note**
-> All permissions and limits are managed by the _[Authorization](../app/helpers/_authorization.py)_ class.
+> All permissions and limits are managed by the _[AccessController](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/helpers/_accesscontroller.py)_ class.
 
 ### Available Permissions
 

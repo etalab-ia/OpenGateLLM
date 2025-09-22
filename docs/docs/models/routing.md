@@ -39,7 +39,7 @@ models:
           timeout: 60
 ```
 
-## Logique de code
+## Code Logic
 
 When the API starts, a `ModelRegistry` object is initialized.
 This registry contains a `ModelRouter` for each model defined under models in the configuration file.

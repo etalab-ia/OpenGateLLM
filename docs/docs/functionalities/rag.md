@@ -93,8 +93,8 @@ settings:
 ```
 
 6. Run OpenGateLLM as described in:
-- [running OpenGateLLM inside docker](getting-started/contributing/inside-docker.mdx)
-- [running OpenGateLLM outside docker](getting-started/contributing/outside-docker.mdx)
+- [running OpenGateLLM inside docker](contributing/inside-docker.mdx)
+- [running OpenGateLLM outside docker](contributing/outside-docker.mdx)
 
 ### Qdrant
 1. Add an `qdrant` container in the `services` section of your `compose.yml` file:
@@ -169,5 +169,5 @@ settings:
 ```
 
 6. Run OpenGateLLM as described in:
-- [running OpenGateLLM inside docker](getting-started/contributing/inside-docker.mdx)
-- [running OpenGateLLM outside docker](getting-started/contributing/outside-docker.mdx)
+- [running OpenGateLLM inside docker](contributing/inside-docker.mdx)
+- [running OpenGateLLM outside docker](contributing/outside-docker.mdx)
