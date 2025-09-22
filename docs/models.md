@@ -24,6 +24,8 @@ Si vous souhaitez déployer un modèle d'embeddings, vous recommandons d'utilise
 
 **⚠️ Le déploiement de l'API est conditionné à la fourniture d'un modèle d'embeddings.**
 
+Note sur la taille des lots (batch): l’API vérifie le nombre d’éléments fournis dans `input` (texte(s) ou liste de tokens) et renvoie une erreur 400 si ce nombre dépasse la limite maximale autorisée par le modèle (valeur exposée par le serveur TEI via l’endpoint `/info`, champ `max_client_batch_size`). Scindez vos entrées en lots d’au plus cette taille pour éviter l’erreur.
+
 ## automatic-speech-recognition
 
 Pour les modèles de transcription audio, vous pouvez utiliser n'importe quel API compatible avec le format [OpenAI](https://platform.openai.com/docs/api-reference/audio/create-transcription), c'est-à-dire disposant d'un endpoint `/v1/audio/transcriptions`.
@@ -39,3 +41,5 @@ Pour les modèles de reranking, vous devez une API compatible avec le format pro
 Si vous souhaitez déployer un modèle de reranking, vous recommandons d'utiliser [HuggingFace Text Embeddings Inference](https://github.com/huggingface/text-embeddings-inference). Exemple de modèle de reranking : [bge-reranker-v2-m3](https://huggingface.co/BAAI/bge-reranker-v2-m3).
 
 Le déploiement de l'API n'est pas conditionné à la fourniture d'un modèle de reranking.
+
+Note sur la taille des lots (batch): l’API vérifie le nombre de textes fournis dans `input` et renvoie une erreur 400 si ce nombre dépasse la limite maximale autorisée par le modèle (valeur exposée par le serveur TEI via l’endpoint `/info`, champ `max_client_batch_size`). Scindez vos entrées en lots d’au plus cette taille pour éviter l’erreur.
