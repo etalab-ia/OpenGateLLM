@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Security
+from fastapi import APIRouter, Request, Security, HTTPException
 from fastapi.responses import JSONResponse
 
 from api.helpers._accesscontroller import AccessController
@@ -16,6 +16,16 @@ async def rerank(request: Request, body: RerankRequest) -> JSONResponse:
     """
     model = await global_context.model_registry(model=body.model)
     client = model.get_client(endpoint=ENDPOINT__RERANK)
+
+    # Validate batch size against client's max_items if provided
+    items_count = len(body.input)
+    max_items = getattr(client, "max_items", None)
+    if max_items is not None and items_count > max_items:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too many items in rerank request: {items_count} provided, maximum allowed is {max_items}. Split the batch into chunks of at most {max_items} texts.",
+        )
+
     response = await client.forward_request(method="POST", json=body.model_dump())
 
     return JSONResponse(content=Reranks(**response.json()).model_dump(), status_code=response.status_code)
