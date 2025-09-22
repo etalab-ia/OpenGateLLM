@@ -76,6 +76,9 @@ class TeiModelClient(BaseModelClient):
 
         # set attributes of the model
         self.max_context_length = response.get("max_input_length")
+        # TEI server-reported client batch limit (number of items per request)
+        # None means no explicit limit provided by the server
+        self.max_items = response.get("max_client_batch_size")
 
         # set vector size
         response = requests.post(
