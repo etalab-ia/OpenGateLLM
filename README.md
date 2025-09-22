@@ -1,43 +1,25 @@
-<div id="toc">
-  <ul align="center" style="list-style: none">
-
-<img src="./docs/assets/banner.png" alt="OpenGateLLM" width="100%">
-
 [![Version](https://img.shields.io/github/v/release/etalab-ia/OpenGateLLM?color=orange&label=version)](https://github.com/etalab-ia/OpenGateLLM/releases) 
 [![Code Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/etalab-ia/OpenGateLLM/refs/heads/main/.github/badges/coverage.json)](https://github.com/etalab-ia/OpenGateLLM)
 [![License](https://img.shields.io/github/license/etalab-ia/OpenGateLLM?color=red&label=license)](https://github.com/etalab-ia/OpenGateLLM/blob/main/LICENSE)
-[![French version](https://img.shields.io/badge/🇫🇷-French%20version-blue)](docs-legacy/README_fr.md)
 
-[**API Reference**](https://albert.api.etalab.gouv.fr/documentation) | [**Swagger**](https://albert.api.etalab.gouv.fr/swagger)
+# OpenGateLLM
+[**API Reference**](https://albert.api.etalab.gouv.fr/documentation)
 
-  </ul>
-</div>
+> [!WARNING]
+> **The API is still under beta version, major breaking changes may occur.**
 
-## 🔥 Why OpenGateLLM?
+Production-ready API gateway for self-hosted LLMs developed by the French Government, fully open-source forever.
 
-- 🌐 **OpenAI standards**: based on OpenAI API conventions. Easy to use with OpenAI SDKs, LangChain, LlamaIndex, etc.
-- 🚦 **Robust API Gateway:** Load balancing, authentication, and seamless integration with OpenAI, vLLM, HuggingFace TEI.
-- 📖 **Open Source**: developed by the French Government, fully open-source forever.
-- ⚙️ **Production-ready**: ready to serve your models in production.
-- 📚 **Full stack genAI API:** Built-in Retrieval-Augmented Generation (RAG), OCR, audio transcription, and more.
-- ✍️ **High code standards**
+* Gateway: 
+* Authentication: SSO support
 
-## 🎯 Key Features
-
-### API Gateway: supported providers
-
-| Provider | Supported endpoints |
-| -------- | ------------------- |
-| Albert API (French Public Administration)   | Language, Embeddings, Reranking, Transcription |
-| OpenAI   | Language, Embeddings, Reranking, Transcription |
-| vLLM     | Language |
-| HuggingFace TEI | Embeddings, Reranking |
-
-### Advanced AI Capabilities
-
-* **RAG Integration:** Efficiently query vector databases using Elasticsearch or Qdrant.
-* **Audio & Vision:** Transcribe audio (Whisper) and perform OCR on PDF documents.
-* **Enhanced Security:** Built-in API key authentication.
+- Self-hosted models backend support: vLLM, HuggingFace TEI
+- OpenAI compatible API
+- Full stack genAI API: chat, embeddings, transcription, RAG and OCR
+- User management: budget, organization, project, key management
+- SSO support
+- Usage monitoring
+- Cost management
 
 ## 📊 Comparison
 
