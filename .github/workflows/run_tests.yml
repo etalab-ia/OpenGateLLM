@@ -26,6 +26,17 @@ jobs:
 
     - name: Run tests
       run: |
+        # Install uv
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+        # Create a local virtual environment and install dependencies
+        "$HOME/.local/bin/uv" venv
+        "$HOME/.local/bin/uv" pip install -p .venv/bin/python ".[api,playground,dev,test]"
+
+        # Activate venv for the test run
+        . .venv/bin/activate
+
         make test-integ action=run execute=local
 
     - name: Create coverage badge
@@ -41,8 +52,8 @@ jobs:
       with:
         commit_message: Update coverage badge
         file_pattern: .github/badges/coverage.json
-        commit_author: "GitHub Actions <actions@github.com>"
-        commit_email: "actions@github.com"
+        commit_user_name: "GitHub Actions"
+        commit_user_email: "actions@github.com"
 
     - name: Tear down Docker Compose
       if: always()
