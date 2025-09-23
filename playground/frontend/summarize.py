@@ -10,6 +10,10 @@ from playground.frontend.utils import resources_selector
 from playground.variables import MODEL_TYPE_LANGUAGE, MODEL_TYPE_IMAGE_TEXT_TO_TEXT
 
 header()
+st.error(
+    """**Cette page va être dépréciée à partir du 22 octobre 2025 pour laisser place Assistant IA, l'interface de Chatbot de la DINUM. 
+Pour plus d'informations, rendez-vous sur le canal Tchap d'Assistant IA en cliquant [ici](https://www.tchap.gouv.fr/#/room/!gpLYRJyIwdkcHBGYeC:agent.dinum.tchap.gouv.fr).**"""
+)
 models = get_models(types=[MODEL_TYPE_LANGUAGE, MODEL_TYPE_IMAGE_TEXT_TO_TEXT])
 limits = format_limits(models=models)
 limits = [model for model, values in limits.items() if (values["rpd"] is None or values["rpd"] > 0) and (values["rpm"] is None or values["rpm"] > 0)]

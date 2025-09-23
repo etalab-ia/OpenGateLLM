@@ -258,7 +258,7 @@ def input_new_role_limits(selected_role: dict):
         limits = (
             {model: {"rpm": None, "rpd": None, "tpm": None, "tpd": None} for model in models}
             if not st.session_state.get("new_role", False) and st.session_state["no_roles"]
-            else format_limits(models=models)
+            else format_limits(models=models, limits=selected_role.get("limits", []))
         )
         initial_limits = pd.DataFrame(
             data={

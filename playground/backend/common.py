@@ -1,8 +1,9 @@
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 import requests
 import streamlit as st
 
+from playground.backend.login import Limit
 from playground.configuration import configuration
 from playground.variables import MODEL_TYPE_AUDIO, MODEL_TYPE_EMBEDDINGS, MODEL_TYPE_IMAGE_TEXT_TO_TEXT, MODEL_TYPE_LANGUAGE, MODEL_TYPE_RERANK
 
@@ -88,6 +89,8 @@ def get_roles(
         return []
 
     data = response.json()["data"]
+    for role in data:
+        role["limits"] = [Limit(**limit) for limit in role["limits"]]
 
     return data
 
@@ -112,7 +115,7 @@ def get_users(
     return data
 
 
-def format_limits(models: list, limits: Optional[list] = None) -> dict:
+def format_limits(models: list, limits: Optional[List[Limit]] = None) -> dict:
     limits = st.session_state["user"].limits if limits is None else limits
     formatted_limits = {}
     for model in models:

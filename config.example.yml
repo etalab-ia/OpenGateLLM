@@ -89,7 +89,9 @@ settings:
   # search_multi_agents_reranker_model: # optional - default: None - example: "my-model"
 
 # -------------------------------- playground ---------------------------------
-# playground:
+playground:
+  api_url:  http://${API_HOST:-localhost}:8000 # optional - default: http://api:8080
+  # api_url: # optional - default: http://api:8000
   # auth_master_username: # optional - default: master
   # auth_master_key: # optional - default: changeme
   # auth_max_token_expiration_days: # optional - default: None, ex: 365

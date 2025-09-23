@@ -50,7 +50,7 @@ help:
 	GUNICORN_CMD_ARGS="--reload --log-level debug --access-logfile - --error-logfile -" \
 	./scripts/startup_api.sh &' \
 	&& sleep 2 \
-	&& open http://localhost:8080/docs
+	&& open http://localhost:8000/docs
 
 
 .start-playground:
@@ -63,7 +63,6 @@ help:
 	@if [ ! -f $(env) ]; then \
 		echo "⚠️ Environment file $(env) does not exist, creating it from $(env).example and using it"; \
 		cp $(env).example $(env); \
-		exit 1; \
 	fi
 
 	@bash -c 'set -a; . $(env); \

@@ -27,17 +27,10 @@ It is recommended to use a Python [virtualenv](https://docs.python.org/3/library
   cp .env.example .env
   ```
 
-3. Replace host names variables by `localhost` like this:
+3. Comment host names variables like this (by default, they are set to `localhost` in compose.example.yml):
 
   ```bash
-  # example
-  POSTGRES_HOST=localhost # instead of POSTGRES_HOST=postgres
-  ```
-
-3. Export the environment variables:
-
-  ```bash
-  export $(grep -v '^#' .env | xargs)
+  # POSTGRES_HOST=postgres
   ```
 
 4. Check the [configuration documentation](./docs/configuration.md) to configure your configuration file.
@@ -78,6 +71,23 @@ make dev
 > make dev [service=api|playground|both] [env=.env] [compose=compose.yml] # service=both by default
 > ```
 > For more information, run `make help`.
+
+To run the services without make command, you can use the following commands:
+
+1. Export the environment variables:
+  ```bash
+    export $(grep -v '^#' .env | xargs) 
+  ```
+
+2. Launch the API:
+  ```bash
+  uvicorn api.main:app --log-level debug --reload
+  ```
+
+3. Launch the Playground:
+  ```bash
+  streamlit run playground/main.py
+  ```
 
 ## Linter
 

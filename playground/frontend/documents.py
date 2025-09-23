@@ -6,6 +6,10 @@ from playground.frontend.header import header
 from playground.frontend.utils import input_new_collection_description, input_new_collection_name, resources_selector
 
 header()
+st.error(
+    """**Cette page va être dépréciée à partir du 22 octobre 2025 pour laisser place Assistant IA, l'interface de Chatbot de la DINUM.
+Pour plus d'informations, rendez-vous sur le canal Tchap d'Assistant IA en cliquant [ici](https://www.tchap.gouv.fr/#/room/!gpLYRJyIwdkcHBGYeC:agent.dinum.tchap.gouv.fr).**"""
+)
 if st.session_state["user"].id == 0:
     st.info("Master user can not create collections.")
     st.stop()
