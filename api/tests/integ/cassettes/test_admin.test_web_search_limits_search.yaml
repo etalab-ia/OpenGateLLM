@@ -567,8 +567,6 @@ interactions:
         path=/; Domain=.transformation.gouv.fr; Secure; SameSite=None
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
-      Transfer-Encoding:
-      - chunked
       Upgrade-Insecure-Requests:
       - '1'
       Vary:
@@ -654,8 +652,6 @@ interactions:
       - no-referrer
       Strict-Transport-Security:
       - max-age=63072000
-      Transfer-Encoding:
-      - chunked
       X-Content-Type-Options:
       - nosniff
       X-Frame-Options:
@@ -726,8 +722,6 @@ interactions:
       - no-referrer
       Strict-Transport-Security:
       - max-age=63072000
-      Transfer-Encoding:
-      - chunked
       X-Content-Type-Options:
       - nosniff
       X-Frame-Options:
@@ -1607,8 +1601,6 @@ interactions:
         Secure
       Strict-Transport-Security:
       - max-age=31536000; includeSubDomains; preload
-      Transfer-Encoding:
-      - chunked
       Vary:
       - Accept-Encoding
       X-Content-Security-Policy:
@@ -2107,4 +2099,311 @@ interactions:
     status:
       code: 200
       message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like
+        Gecko) Chrome/58.0.3029.110 Safari/537.3
+    method: GET
+    uri: https://www.numerique.gouv.fr/uploads/dinum-roadmap_en.pdf
+  response:
+    body:
+      string: "\n\n<!DOCTYPE html>\n<html lang=\"fr\"\n      data-fr-scheme=\"light\"\n
+        \     >\n  <head>\n    <meta charset=\"utf-8\" />\n    <meta name=\"viewport\"\n
+        \         content=\"width=device-width, initial-scale=1, shrink-to-fit=no\"
+        />\n    \n  <title>Erreur 404 \u2014 Page non trouv\xE9e \u2014 numerique.gouv.fr</title>\n\n\n
+        \   \n    \n\n    \n      <link rel=\"canonical\" href=\"https://numerique.gouv.fr:443/uploads/dinum-roadmap_en.pdf\"
+        />\n    \n\n    \n<link rel=\"apple-touch-icon\"\n      href=\"/static/dsfr/dist/favicon/apple-touch-icon.png\"
+        />\n<!-- 180\xD7180 -->\n<link rel=\"icon\"\n      href=\"/static/dsfr/dist/favicon/favicon.svg\"\n
+        \     type=\"image/svg+xml\" />\n<link rel=\"shortcut icon\"\n      href=\"/static/dsfr/dist/favicon/favicon.ico\"\n
+        \     type=\"image/x-icon\" />\n<!-- 32\xD732 -->\n<link rel=\"manifest\"\n
+        \     href=\"/static/dsfr/dist/favicon/manifest.webmanifest\"\n      crossorigin=\"use-credentials\"
+        />\n\n\n    \n<link rel=\"stylesheet\"\n      href=\"/static/dsfr/dist/dsfr/dsfr.min.css\"\n
+        \     integrity=\"sha384-hglg7vJT63v4rqjYrTSDzREjGYZb//5qqtcs8/7Ng8v1ihSg4LgdB+5lYdzAZXOt\">\n<link
+        rel=\"stylesheet\"\n      href=\"/static/dsfr/dist/utility/utility.min.css\"\n
+        \     integrity=\"sha384-OF3yqHNd9CODR/aJcL4+uKOtkKyHvJxfNMO3eBRtIZpFy/iMuNJCyd0HbVArmrUC\">\n<link
+        rel=\"stylesheet\" href=\"/static/css/dsfr-django-overrides.css\">\n\n<meta
+        name=\"theme-color\" content=\"#000091\">\n<!-- D\xE9finit la couleur de th\xE8me
+        du navigateur (Safari/Android) -->\n\n    <link href=\"/static/dsfr/dist/utility/utility.min.css\"\n
+        \         rel=\"stylesheet\"\n          type=\"text/css\" />\n    <link href=\"/static/css/style.css\"
+        rel=\"stylesheet\" type=\"text/css\" />\n\n      \n        <link href=\"/static/css/numerique_gouv.css\"\n
+        \             rel=\"stylesheet\"\n              type=\"text/css\" />\n        <link\n
+        \           rel=\"stylesheet\"\n            href=\"/static/lib/swiperjs/swiper-bundle.min.css\"\n
+        \       />\n      \n\n    \n      \n\n  <script src=\"/static/lib/tarteaucitronjs/tarteaucitron.js\"></script>\n
+        \ <link rel=\"stylesheet\" href=\"/static/css/tac.css\">\n\n  <script type=\"text/javascript\">\n
+        \   tarteaucitron.init({\n      \"privacyUrl\": \"\", /* Privacy policy url
+        */\n      \"bodyPosition\": \"bottom\", /* or top to bring it as first element
+        for accessibility */\n\n      \"hashtag\": \"#consentement\", /* Open the
+        panel with this hashtag */\n      \"cookieName\": \"tarteaucitron\", /* Cookie
+        name */\n\n      \"orientation\": \"bottom\", /* Banner position (top - bottom)
+        */\n\n      \"groupServices\": false, /* Group services by category */\n      \"showDetailsOnClick\":
+        true, /* Click to expand the description */\n      \"serviceDefaultState\":
+        \"wait\", /* Default state (true - wait - false) */\n\n      \"showAlertSmall\":
+        false, /* Show the small banner on bottom right */\n      \"cookieslist\":
+        false, /* Show the cookie list */\n\n      \"closePopup\": false, /* Show
+        a close X on the banner */\n\n      \"showIcon\": false, /* Show cookie icon
+        to manage cookies */\n      //\"iconSrc\": \"\", /* Optionnal: URL or base64
+        encoded image */\n      \"iconPosition\": \"BottomLeft\", /* BottomRight,
+        BottomLeft, TopRight and TopLeft */\n\n      \"adblocker\": false, /* Show
+        a Warning if an adblocker is detected */\n\n      \"DenyAllCta\" : true, /*
+        Show the deny all button */\n      \"AcceptAllCta\" : true, /* Show the accept
+        all button when highPrivacy on */\n      \"highPrivacy\": true, /* HIGHLY
+        RECOMMANDED Disable auto consent */\n      \"alwaysNeedConsent\": false, /*
+        Ask the consent for \"Privacy by design\" services */\n\n      \"handleBrowserDNTRequest\":
+        false, /* If Do Not Track == 1, disallow all */\n\n      \"removeCredit\":
+        true, /* Remove credit link */\n      \"moreInfoLink\": true, /* Show more
+        info link */\n\n      \"useExternalCss\": true, /* If false, the tarteaucitron.css
+        file will be loaded */\n      \"useExternalJs\": false, /* If false, the tarteaucitron.js
+        file will be loaded */\n\n      \"readmoreLink\": \"\", /* Change the default
+        readmore link */\n\n      \"mandatory\": true, /* Show a message about mandatory
+        cookies */\n      \"mandatoryCta\": false, /* Show the disabled accept button
+        when mandatory on */\n\n      //\"customCloserId\": \"\", /* Optional a11y:
+        Custom element ID used to open the panel */\n\n      \"googleConsentMode\":
+        true, /* Enable Google Consent Mode v2 for Google ads and GA4 */\n\n      \"partnersList\":
+        false, /* Show the number of partners on the popup/middle banner */\n    });\n
+        \ </script>\n\n\n\n    \n\n    \n      \n    \n\n    \n    \n  </head>\n\n
+        \ <body>\n    \n      \n\n<div class=\"fr-skiplinks\">\n  <nav role=\"navigation\"\n
+        \      class=\"fr-container\"\n       aria-label=\"Acc\xE8s rapide\">\n    <ul
+        class=\"fr-skiplinks__list\">\n      \n        <li>\n          <a class=\"fr-link\"
+        href=\"#content\">Contenu</a>\n        </li>\n      \n        <li>\n          <a
+        class=\"fr-link\" href=\"#fr-navigation\">Menu</a>\n        </li>\n      \n
+        \   </ul>\n  </nav>\n</div>\n\n    \n\n    \n    \n<header role=\"banner\"
+        class=\"fr-header\">\n  <div class=\"fr-header__body\">\n    <div class=\"fr-container\">\n
+        \     <div class=\"fr-header__body-row\">\n        <div class=\"fr-header__brand
+        fr-enlarge-link\">\n          <div class=\"fr-header__brand-top\">\n            <div
+        class=\"fr-header__logo\">\n              \n  <p class=\"fr-logo\">Gouvernement</p>\n\n
+        \           </div>\n            \n  \n\n            \n  \n  <div class=\"fr-header__navbar\">\n
+        \   \n      <button class=\"fr-btn--search fr-btn\"\n              data-fr-opened=\"false\"\n
+        \             aria-controls=\"modal-search\"\n              id=\"fr-btn-search-mobile\"\n
+        \             title=\"Rechercher\">Rechercher</button>\n    \n    \n    <button
+        class=\"fr-btn--menu fr-btn\"\n            data-fr-opened=\"false\"\n            aria-controls=\"fr-menu-mobile\"\n
+        \           id=\"fr-btn-menu-mobile\"\n            title=\"Menu\">Menu</button>\n
+        \ </div>\n\n          </div>\n          <div class=\"fr-header__service\">\n
+        \           \n  \n  <a href=\"/\"\n     title=\"Accueil \u2014 numerique.gouv.fr\">\n\n
+        \   <p class=\"fr-header__service-title\">\n      \n        numerique.gouv.<em>fr</em>\n
+        \     \n      \n    </p>\n  </a>\n\n            <p class=\"fr-header__service-tagline\">\n
+        \             \n  \n\n            </p>\n          </div>\n        </div>\n
+        \       \n  <div class=\"fr-header__tools\">\n    \n      \n      \n    \n
+        \   \n      \n      \n        <div class=\"fr-header__search fr-modal\" id=\"modal-search\">\n
+        \         <div class=\"fr-container fr-container-lg--fluid\">\n            \n
+        \           <button class=\"fr-btn--close fr-btn\"\n                    aria-controls=\"modal-search\"\n
+        \                   title=\"Fermer\">Fermer</button>\n            <form action=\"/recherche/\"
+        method=\"get\">\n              <div class=\"fr-search-bar\" id=\"search-bar\"
+        role=\"search\">\n                <label class=\"fr-label\" for=\"search-bar-input\">Rechercher</label>\n
+        \               <input class=\"fr-input\"\n                       placeholder=\"Rechercher\"\n
+        \                      type=\"search\"\n                       id=\"search-bar-input\"\n
+        \                      name=\"q\">\n                <button class=\"fr-btn\"
+        title=\"Rechercher\">Rechercher</button>\n              </div>\n            </form>\n
+        \         </div>\n        </div>\n      \n    \n  </div>\n\n      </div>\n
+        \   </div>\n  </div>\n  \n  \n    <div class=\"fr-header__menu fr-modal\"\n
+        \        id=\"fr-menu-mobile\"\n         aria-labelledby=\"fr-btn-menu-mobile\">\n
+        \     <div class=\"fr-container\">\n        \n        <button type=\"button\"\n
+        \               class=\"fr-btn--close fr-btn\"\n                aria-controls=\"fr-menu-mobile\">Fermer</button>\n
+        \       <div class=\"fr-header__menu-links\"></div>\n        \n\n        <nav
+        class=\"fr-nav\" id=\"fr-navigation\" aria-label=\"Menu principal\">\n          \n<ul
+        class=\"fr-nav__list\">\n  \n    <li class=\"fr-nav__item\">\n      \n        <button
+        class=\"fr-nav__btn\"\n                aria-expanded=\"false\"\n                \n
+        \               aria-controls=\"menu-17\">Le num\xE9rique au sein de l\u2019\xC9tat</button>\n
+        \       \n\n  <div class=\"fr-collapse fr-menu\" id=\"menu-17\">\n    <ul
+        class=\"fr-menu__list\">\n      \n        <li>\n          <a class=\"fr-nav__link\"\n
+        \            href=\"/numerique-etat/strat-numerique-etat/\"\n             \n
+        \            target=\"_self\">Strat\xE9gie num\xE9rique de l\u2019\xC9tat</a>\n
+        \       </li>\n      \n        <li>\n          <a class=\"fr-nav__link\"\n
+        \            href=\"/numerique-etat/la-transformation-num%C3%A9rique-des-territoires/\"\n
+        \            \n             target=\"_self\">La transformation num\xE9rique
+        des territoires</a>\n        </li>\n      \n        <li>\n          <a class=\"fr-nav__link\"\n
+        \            href=\"/numerique-etat/ecosyst%C3%A8me-numerique-public/\"\n
+        \            \n             target=\"_self\">Ecosyst\xE8me du num\xE9rique
+        public</a>\n        </li>\n      \n        <li>\n          <a class=\"fr-nav__link\"\n
+        \            href=\"/numerique-etat/europe-international/\"\n             \n
+        \            target=\"_self\">En Europe et \xE0 l&#x27;international</a>\n
+        \       </li>\n      \n        <li>\n          <a class=\"fr-nav__link\"\n
+        \            href=\"/numerique-etat/dinum/\"\n             \n             target=\"_self\">La
+        DINUM</a>\n        </li>\n      \n    </ul>\n  </div>\n\n\n      \n    </li>\n
+        \ \n    <li class=\"fr-nav__item\">\n      \n        <a href=\"/offre-accompagnement/\"\n
+        \          class=\"fr-nav__link\"\n           \n           target=\"_self\">Offre
+        d&#x27;accompagnement</a>\n      \n    </li>\n  \n    <li class=\"fr-nav__item\">\n
+        \     \n        <a href=\"/services-numeriques/\"\n           class=\"fr-nav__link\"\n
+        \          \n           target=\"_self\">Services num\xE9riques</a>\n      \n
+        \   </li>\n  \n    <li class=\"fr-nav__item\">\n      \n        <a href=\"/data/\"\n
+        \          class=\"fr-nav__link\"\n           \n           target=\"_self\">Data</a>\n
+        \     \n    </li>\n  \n    <li class=\"fr-nav__item\">\n      \n        <a
+        href=\"/intelligence-artificielle/\"\n           class=\"fr-nav__link\"\n
+        \          \n           target=\"_self\">IA</a>\n      \n    </li>\n  \n    <li
+        class=\"fr-nav__item\">\n      \n        <button class=\"fr-nav__btn\"\n                aria-expanded=\"false\"\n
+        \               \n                aria-controls=\"menu-18\">Actualit\xE9s</button>\n
+        \       \n\n  <div class=\"fr-collapse fr-menu\" id=\"menu-18\">\n    <ul
+        class=\"fr-menu__list\">\n      \n        <li>\n          <a class=\"fr-nav__link\"\n
+        \            href=\"/sinformer/actualit%C3%A9s/\"\n             \n             target=\"_self\">L&#x27;actualit\xE9
+        du num\xE9rique de l\u2019\xC9tat</a>\n        </li>\n      \n        <li>\n
+        \         <a class=\"fr-nav__link\"\n             href=\"/sinformer/blog/\"\n
+        \            \n             target=\"_self\">Blog</a>\n        </li>\n      \n
+        \       <li>\n          <a class=\"fr-nav__link\"\n             href=\"/sinformer/espace-presse/\"\n
+        \            \n             target=\"_self\">Espace presse</a>\n        </li>\n
+        \     \n    </ul>\n  </div>\n\n\n      \n    </li>\n  \n    <li class=\"fr-nav__item\">\n
+        \     \n        <a href=\"/rejoignez-nous/\"\n           class=\"fr-nav__link\"\n
+        \          \n           target=\"_self\">Rejoignez-nous</a>\n      \n    </li>\n
+        \ \n</ul>\n\n        </nav>\n      </div>\n    </div>\n  \n\n</header>\n\n\n
+        \   \n\n    <main id=\"content\" role=\"main\">\n      \n  <div class=\"fr-container\">\n
+        \   <div class=\"fr-my-7w fr-mt-md-12w fr-mb-md-10w fr-grid-row fr-grid-row--gutters
+        fr-grid-row--middle fr-grid-row--center\">\n      <div class=\"fr-py-0 fr-col-12
+        fr-col-md-6\">\n        <h1>Page non trouv\xE9e</h1>\n        <p class=\"fr-text--sm
+        fr-mb-3w\">Erreur 404</p>\n        <p class=\"fr-text--lead fr-mb-3w\">\n
+        \         La page que vous cherchez est introuvable. Veuillez nous excuser
+        pour la g\xEAne occasionn\xE9e.\n        </p>\n        <p class=\"fr-text--sm
+        fr-mb-5w\">\n          Si vous avez tap\xE9 l\u2019adresse web dans le navigateur,
+        v\xE9rifiez qu\u2019elle est correcte. La page n\u2019est peut-\xEAtre plus
+        disponible.\n          <br />\n          Dans ce cas, pour continuer votre
+        visite, vous pouvez consulter notre page d\u2019accueil.\n        </p>\n        <div
+        class=\"fr-btns-group fr-btns-group--inline-md\">\n          <a class=\"fr-btn\"
+        href=\"/\">Retourner \xE0 l\u2019accueil</a>\n        </div>\n      </div>\n
+        \     <div class=\"fr-col-12 fr-col-md-3 fr-col-offset-md-1 fr-px-6w fr-px-md-0
+        fr-py-0\">\n        <img src=\"/static/artwork/technical-error.svg\"\n             class=\"fr-responsive-img\"\n
+        \            alt=\"\"\n             width=\"300\"\n             height=\"300\"
+        />\n      </div>\n    </div>\n  </div>\n\n    </main>\n\n    \n      \n        <aside
+        id=\"cmsfr-block-follow\">\n          \n\n<div class=\"fr-follow\">\n  <div
+        class=\"fr-container\">\n    <div class=\"fr-grid-row\">\n      \n  \n    <div
+        class=\"fr-col-12 fr-col-md-8\">\n      <div class=\"fr-follow__newsletter\">\n
+        \       <div>\n          <h2 class=\"fr-h5\">Abonnez-vous \xE0 notre lettre
+        d\u2019information</h2>\n          <p class=\"fr-text--sm\">Inscrivez-vous
+        pour recevoir prochainement le premier num\xE9ro !</p>\n        </div>\n        <div
+        class=\"fr-btns-group fr-btns-group--inline-md\">\n          \n          <a
+        class=\"fr-btn\"\n             href=\"https://gouv.us5.list-manage.com/subscribe?u=c921e95d674341b87fd4fb6e6&amp;id=0b0bb007fd\"\n
+        \            target=\"_blank\"\n             rel=\"noopener external\"\n             title=\"S'abonner
+        \xE0 notre lettre d\u2019information - Ouvre une nouvelle fen\xEAtre\">S\u2019abonner</a>\n
+        \       </div>\n      </div>\n    </div>\n  \n\n      \n  \n    <div class=\"fr-col-12
+        fr-col-md-4\">\n      <div class=\"fr-follow__social\">\n        <h2 class=\"fr-h5\">\n
+        \         Suivez-nous<br />sur les r\xE9seaux sociaux\n        </h2>\n        <ul
+        class=\"fr-btns-group\">\n          \n            <li>\n              <a class=\"fr-icon-twitter-x-fill
+        fr-btn\"\n                 href=\"https://x.com/Numerique_Gouv\"\n                 target=\"_blank\"\n
+        \                title=\"X - Ouvre une nouvelle fen\xEAtre\"\n                 rel=\"noopener
+        external\">X</a>\n            </li>\n          \n            <li>\n              <a
+        class=\"fr-icon-linkedin-box-fill fr-btn\"\n                 href=\"https://www.linkedin.com/company/direction-interministerielle-du-numerique-dinum/\"\n
+        \                target=\"_blank\"\n                 title=\"Linkedin - Ouvre
+        une nouvelle fen\xEAtre\"\n                 rel=\"noopener external\">Linkedin</a>\n
+        \           </li>\n          \n            <li>\n              <a class=\"fr-icon-dailymotion-line
+        fr-btn\"\n                 href=\"https://www.dailymotion.com/dinum\"\n                 target=\"_blank\"\n
+        \                title=\"Dailymotion - Ouvre une nouvelle fen\xEAtre\"\n                 rel=\"noopener
+        external\">Dailymotion</a>\n            </li>\n          \n            <li>\n
+        \             <a class=\"fr-icon-mastodon-fill fr-btn\"\n                 href=\"https://social.numerique.gouv.fr/explore\"\n
+        \                target=\"_blank\"\n                 title=\"Mastodont - Ouvre
+        une nouvelle fen\xEAtre\"\n                 rel=\"noopener external\">Mastodont</a>\n
+        \           </li>\n          \n        </ul>\n      </div>\n    </div>\n  \n\n
+        \   </div>\n  </div>\n</div>\n\n        </aside>\n      \n    \n\n    \n\n<footer
+        class=\"fr-footer\" role=\"contentinfo\" id=\"footer\">\n  \n  \n  <div class=\"fr-container\">\n
+        \   <div class=\"fr-footer__body\">\n      \n  \n  \n    <div class=\"fr-footer__brand
+        fr-enlarge-link\">\n      <a id=\"footer-operator\"\n         href=\"/\"\n
+        \        title=\"Retourner \xE0 l\u2019accueil - numerique.gouv.fr - Gouvernement\">\n
+        \       \n          <p class=\"fr-logo\">\n            Gouvernement\n          </p>\n
+        \       \n      </a>\n    </div>\n  \n\n      <div class=\"fr-footer__content\">\n
+        \       \n  <p class=\"fr-footer__content-desc\" data-block-key=\"zzs2o\"><a
+        href=\"http://numerique.gouv.fr/\" rel=\"noopener noreferrer\" target=\"_blank\">\n<span
+        class=\"fr-sr-only\">(Ouvre une nouvelle fen\xEAtre)</span> numerique.gouv.fr</a>
+        est le site de la strat\xE9gie num\xE9rique de l\u2019\xC9tat g\xE9r\xE9 par
+        la direction interminist\xE9rielle du num\xE9rique et anim\xE9 par tous les
+        agents publics de la tech.</p>\n\n        <ul class=\"fr-footer__content-list\">\n
+        \         <li class=\"fr-footer__content-item\">\n            <a target=\"_blank\"\n
+        \              rel=\"noopener external\"\n               title=\"info.gouv.fr
+        - Ouvre une nouvelle fen\xEAtre\"\n               id=\"footer__content-link-gouvernement\"\n
+        \              class=\"fr-footer__content-link\"\n               href=\"https://www.info.gouv.fr\">info.gouv.fr</a>\n
+        \         </li>\n          <li class=\"fr-footer__content-item\">\n            <a
+        target=\"_blank\"\n               rel=\"noopener external\"\n               title=\"service-public.fr
+        - Ouvre une nouvelle fen\xEAtre\"\n               id=\"footer__content-link-servicepublic\"\n
+        \              class=\"fr-footer__content-link\"\n               href=\"https://service-public.fr\">service-public.fr</a>\n
+        \         </li>\n          <li class=\"fr-footer__content-item\">\n            <a
+        target=\"_blank\"\n               rel=\"noopener external\"\n               title=\"legifrance.gouv.fr
+        - Ouvre une nouvelle fen\xEAtre\"\n               id=\"footer__content-link-legifrance\"\n
+        \              class=\"fr-footer__content-link\"\n               href=\"https://legifrance.gouv.fr\">legifrance.gouv.fr</a>\n
+        \         </li>\n          <li class=\"fr-footer__content-item\">\n            <a
+        target=\"_blank\"\n               rel=\"noopener external\"\n               title=\"data.gouv.fr
+        - Ouvre une nouvelle fen\xEAtre\"\n               id=\"footer__content-link-datagouv\"\n
+        \              class=\"fr-footer__content-link\"\n               href=\"https://data.gouv.fr\">data.gouv.fr</a>\n
+        \         </li>\n          \n          \n        </ul>\n      </div>\n    </div>\n
+        \   \n    \n    <div class=\"fr-footer__bottom\">\n      <ul class=\"fr-footer__bottom-list\">\n
+        \       \n  \n    \n  <li class=\"fr-footer__bottom-item\">\n    <a href=\"https://www.numerique.gouv.fr/numerique-etat/#dinum\"\n
+        \      class=\"fr-footer__bottom-link\"\n       \n       target=\"_self\">La
+        DINUM</a>\n  </li>\n\n  <li class=\"fr-footer__bottom-item\">\n    <a href=\"https://www.numerique.gouv.fr/numerique-etat/#ecosysteme\"\n
+        \      class=\"fr-footer__bottom-link\"\n       \n       target=\"_self\">L&#x27;\xE9cosyst\xE8me
+        du num\xE9rique public</a>\n  </li>\n\n  <li class=\"fr-footer__bottom-item\">\n
+        \   <a href=\"/accessibilite/\"\n       class=\"fr-footer__bottom-link\"\n
+        \      \n       target=\"_self\">Accessibilit\xE9\_: partiellement conforme</a>\n
+        \ </li>\n\n  <li class=\"fr-footer__bottom-item\">\n    <a href=\"/contact/\"\n
+        \      class=\"fr-footer__bottom-link\"\n       \n       target=\"_self\">Contact</a>\n
+        \ </li>\n\n  <li class=\"fr-footer__bottom-item\">\n    <a href=\"/mentions-legales/\"\n
+        \      class=\"fr-footer__bottom-link\"\n       \n       target=\"_self\">Mentions
+        l\xE9gales</a>\n  </li>\n\n\n  \n  <li class=\"fr-footer__bottom-item\">\n
+        \   <a class=\"fr-footer__bottom-link\" href=\"/plan-du-site/\">Plan du site</a>\n
+        \ </li>\n  \n    <li class=\"fr-footer__bottom-item\">\n      <button id=\"tarteaucitronManager\"\n
+        \             aria-controls=\"tarteaucitron\"\n              data-fr-opened=\"false\"\n
+        \             class=\"fr-footer__bottom-link\"\n              data-fr-js-modal-button=\"true\">Gestion
+        des cookies</button>\n    </li>\n  \n  \n\n      </ul>\n      <div class=\"fr-footer__bottom-copy\">\n
+        \       <p>\n          \n          Sauf mention explicite de propri\xE9t\xE9
+        intellectuelle d\xE9tenue par des tiers, les contenus de ce site sont propos\xE9s
+        sous\n          <a href=\"https://github.com/etalab/licence-ouverte/blob/master/LO.md\"\n
+        \            target=\"_blank\"\n             rel=\"noopener external\"\n             title=\"Licence
+        etalab-2.0 - Ouvre une nouvelle fen\xEAtre\">licence etalab-2.0</a>\n          \n
+        \ \n  <span class=\"cmsfr-footer__bottom-extra\">\n    Ce site est fait avec
+        <a href=\"https://sites-faciles.beta.numerique.gouv.fr/?mtm_campaign=footer-link\"\n
+        \   target=\"_blank\"\n    rel=\"noopener external\"\n    title=\"Sites faciles
+        - Ouvre une nouvelle fen\xEAtre\">Sites faciles</a>\n  </span>\n\n        </p>\n
+        \     </div>\n    </div>\n  </div>\n</footer>\n\n\n    \n\n    \n<script type=\"module\"\n
+        \       src=\"/static/dsfr/dist/dsfr/dsfr.module.min.js\"\n        integrity=\"sha384-l8g9Hsy5GI9+gVYLHCrBoaD2RBoVqjZ189s6ycWnyUMlBc4fJHgDv6Vy6srjghNj\"\n
+        \       ></script>\n<script nomodule\n        src=\"/static/dsfr/dist/dsfr/dsfr.nomodule.min.js\"\n
+        \       integrity=\"sha384-n3DkLEpXk5jDW26QT+Rsm0VCNrSPDKpmFcCVIwlEkl9I6MgKB89KDVWuDiJpFktn\"\n
+        \       ></script>\n\n      \n        <script src=\"/static/lib/swiperjs/swiper.js\"></script>\n
+        \       <script src=\"/static/js/swiper.js\"></script>\n      \n\n    \n      \n
+        \       <script type=\"text/javascript\">\r\ntarteaucitron.user.matomoId =
+        65;\r\ntarteaucitron.user.matomoHost = 'https://stats.data.gouv.fr/';\r\n(tarteaucitron.job
+        = tarteaucitron.job || []).push('matomo');\r\n \r\n(tarteaucitron.job = tarteaucitron.job
+        || []).push('youtube');\r\ndocument.addEventListener(\"youtube_loaded\", function(){\r\n
+        \ const yt_el = document.querySelector('.youtube_player iframe');\r\n  yt_el.classList.add('fr-responsive-vid');\r\n});\r\n\r\n(tarteaucitron.job
+        = tarteaucitron.job || []).push('dailymotion');\r\ndocument.addEventListener(\"dailymotion_loaded\",
+        function(){\r\n  const yt_el = document.querySelector('.dailymotion_player
+        iframe');\r\n  yt_el.classList.add('fr-responsive-vid');\r\n});\r\n</script>\n
+        \     \n    \n  </body>\n</html>\n"
+    headers:
+      Age:
+      - '8'
+      Connection:
+      - keep-alive
+      Content-Language:
+      - fr
+      Content-Type:
+      - text/html; charset=utf-8
+      Cross-Origin-Opener-Policy:
+      - same-origin
+      Date:
+      - Tue, 23 Sep 2025 12:16:14 GMT
+      Referrer-Policy:
+      - same-origin
+      Strict-Transport-Security:
+      - max-age=31536000
+      Vary:
+      - Accept-Language, Cookie, Accept-Encoding
+      X-Cache-Grace:
+      - '10.000'
+      X-Cache-TTL:
+      - '30.000'
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - DENY
+      X-Request-ID:
+      - d49576c8f67d318ec77acf1065d67071
+      X-Varnish:
+      - 84358080 84358078
+      X-XSS-Protection:
+      - 1; mode=block
+      content-length:
+      - '20400'
+    status:
+      code: 404
+      message: Not Found
 version: 1
