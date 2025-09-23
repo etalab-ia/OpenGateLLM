@@ -6,7 +6,6 @@ Refer to the [configuration example file](../../../config.example.yml) for an ex
 | --- | --- | --- | --- | --- | --- | --- |
 | dependencies | object | Dependencies used by the API. For details of configuration, see the [Dependencies section](#dependencies). |  |  |  |  |
 | models | array | Models used by the API. At least one model must be defined. For details of configuration, see the [Model section](#model). |  |  |  |  |
-| playground | object | Playground configuration used temporarily in next release to migrate user authentication. For details of configuration, see the [Playground section](#playground). |  |  |  |  |
 | settings | object | Settings used by the API. For details of configuration, see the [Settings section](#settings). |  |  |  |  |
 
 <br>
@@ -46,13 +45,6 @@ Refer to the [configuration example file](../../../config.example.yml) for an ex
 | swagger_version | string | Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | latest |  | 2.5.0 |
 | usage_tokenizer | string | Tokenizer used to compute usage of the API. |  | tiktoken_gpt2 | • tiktoken_gpt2<br/>• tiktoken_r50k_base<br/>• tiktoken_p50k_base<br/>• tiktoken_p50k_edit<br/>• tiktoken_cl100k_base<br/>• tiktoken_o200k_base |  |
 | vector_store_model | string | Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch or Qdrant). This model must be defined in the `models` section and have type `text-embeddings-inference`. |  | None |  |  |
-
-<br>
-
-## Playground
-| Attribute | Type | Description | Required | Default | Values | Examples |
-| --- | --- | --- | --- | --- | --- | --- |
-| postgres | object |  |  | {} |  |  |
 
 <br>
 
