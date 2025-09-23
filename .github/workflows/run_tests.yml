@@ -26,7 +26,7 @@ jobs:
 
     - name: Run tests
       run: |
-        make test-integ action=run execute=docker
+        make test-integ action=run execute=local
 
     - name: Create coverage badge
       run: |

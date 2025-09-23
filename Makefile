@@ -216,8 +216,8 @@ create-user:
 			echo "❌ ELASTICSEARCH_PORT must be set to '9200' in order to run the integration tests in docker execute"; \
 			exit 1; \
 		fi; \
-		if [ $$SECRETIVESHELL_PORT != "8000" ]; then \
-			echo "❌ SECRETIVESHELL_PORT must be set to '8000' in order to run the integration tests in docker execute"; \
+		if [ $$SECRETIVESHELL_PORT != "8001" ]; then \
+			echo "❌ SECRETIVESHELL_PORT must be set to '8001' in order to run the integration tests in docker execute"; \
 			exit 1; \
 		fi; \
 	fi'
