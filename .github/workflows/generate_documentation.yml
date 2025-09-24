@@ -18,6 +18,7 @@ jobs:
     - name: Set up Docker Compose
       run: |
         cp .github/.env.ci.example .github/.env.ci
+        cat .github/.env.ci
         make test-integ action=up execute=docker
       env:
         BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
