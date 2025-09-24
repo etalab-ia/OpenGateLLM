@@ -39,8 +39,6 @@ jobs:
 
         make test-integ action=run execute=local
 
-    - name: Create coverage badge
-      run: |
         mkdir -p .github/badges
         # Extract coverage percentage from coverage.xml
         COVERAGE=$(python -c "import xml.etree.ElementTree as ET; print(ET.parse('coverage.xml').getroot().get('line-rate'))")
