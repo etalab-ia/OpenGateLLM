@@ -115,6 +115,7 @@ class AccessController:
         if request.url.path.endswith(ENDPOINT__ROUTERS) and request.method in ["GET"]:
             await self._check_provider(user_info=user_info, limits=limits, request=request)
 
+        await session.rollback()
         return user_info
 
     def __get_user_limits(self, user_info: UserInfo) -> Dict[str, _UserModelLimits]:
