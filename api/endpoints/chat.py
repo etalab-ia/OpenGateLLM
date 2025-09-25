@@ -8,7 +8,6 @@ from api.schemas.admin.users import User
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionRequest
 from api.schemas.exception import HTTPExceptionModel
 from api.schemas.search import Search
-from api.schemas.admin.users import User
 from api.sql.session import get_db_session
 from api.utils.context import global_context, request_context
 from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, TaskFailedException

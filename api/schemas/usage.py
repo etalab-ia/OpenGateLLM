@@ -1,4 +1,5 @@
 from pydantic import Field
+from typing import Optional
 
 from api.schemas import BaseModel
 
