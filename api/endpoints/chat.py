@@ -8,10 +8,11 @@ from api.schemas.admin.users import User
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionRequest
 from api.schemas.exception import HTTPExceptionModel
 from api.schemas.search import Search
-from api.services.model_invocation import invoke_model_request
+from api.schemas.admin.users import User
 from api.sql.session import get_db_session
 from api.utils.context import global_context, request_context
 from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, TaskFailedException
+from api.services.model_invocation import invoke_model_request
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ROUTER__CHAT
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
