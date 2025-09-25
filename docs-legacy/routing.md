@@ -91,3 +91,43 @@ La stratégie `shuffle` distribue les requêtes entre les clients de manière é
 ### Round robin
 
 La stratégie `round_robin` distribue les requêtes entre les clients de manière alternative.
+
+### Least loaded
+
+La stratégie `least_loaded` sélectionne à chaque requête synchrone (non streaming) le client ayant le moins de requêtes en cours ("inflight").
+
+Fonctionnement simplifié :
+
+- Chaque requête non streaming incrémente un compteur Redis de type gauge (`metrics_gauge:inflight:{provider_name}:{provider_url}`) avant l'appel effectif puis le décrémente une fois terminée (succès ou erreur).
+- Le routeur lit ces compteurs sous verrou (mutex) et choisit le client avec la valeur la plus faible.
+- En cas d'indisponibilité de Redis ou de valeur illisible, la valeur est traitée comme 0 pour garder un comportement robuste (le routage retombe alors sur une répartition quasi-aléatoire).
+
+Limitations (itération initiale volontairement simple) :
+
+- Les requêtes streaming ne sont pas encore instrumentées, elles utilisent donc toujours la stratégie de sélection historique (round_robin ou shuffle selon la configuration) même si `least_loaded` est configuré.
+- La mesure de charge est instantanée (compteurs bruts) : aucune moyenne glissante ou pondération par latence n'est appliquée pour le moment.
+- La sélection s'effectue côté API avant délégation éventuelle à Celery ; un worker lancé après la sélection ne revalide pas la charge. Cela peut introduire une légère dérive si la saturation change immédiatement après la lecture des compteurs.
+
+Évolutions possibles :
+
+- Instrumenter également le chemin streaming (`forward_stream`).
+- Ajouter une moyenne mobile exponentielle (EMA) de la latence ou du temps d'attente pour pondérer la sélection.
+- Déporter la sélection dans la tâche Celery pour un choix encore plus à jour (lecture juste avant l'appel réel dans le worker).
+
+Configuration :
+
+```yaml
+models:
+  - id: turbo
+    type: text-generation
+    routing_strategy: least_loaded
+    providers:
+      - type: openai
+        model_name: gpt-4o
+        key: ${OPENAI_API_KEY}
+      - type: vllm
+        url: http://localhost:8000
+        model_name: meta-llama/Llama-3.1-8B-Instruct
+```
+
+Si `least_loaded` est activé avec un seul provider, le comportement est naturellement identique aux autres stratégies.

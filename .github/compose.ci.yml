@@ -10,17 +10,31 @@ services:
     volumes:
       - ../scripts/generate_configuration_documentation.py:/scripts/generate_configuration_documentation.py:ro
     ports:
-      - 8000:8000
-    environment:
-      - "ALBERT_API_KEY=${ALBERT_API_KEY}"
-      - "BRAVE_API_KEY=${BRAVE_API_KEY}"
-      - "COVERAGE_RCFILE=./api/.coveragerc"
+      - 8080:8080
     depends_on:
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
       elasticsearch:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
+    command: ["celery", "-A", "api.tasks.celery_app.celery_app", "worker", "-Q", "model.default,model.albert-large,model.albert-small,model.embeddings-small,model.audio-large,model.rerank-small,model.testbed", "-l", "info"]
+    env_file: "${APP_ENV_FILE:-.env.ci}"
+    volumes:
+      - "../api/tests/integ/config.test.yml:/config.yml:ro"
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
 
   postgres:
@@ -32,6 +46,21 @@ services:
     extends:
       file: ../compose.example.yml
       service: redis
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    restart: always
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:9.0.2

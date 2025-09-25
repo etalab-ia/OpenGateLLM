@@ -157,7 +157,7 @@ Réponse :
         return []
 
     async def _get_completion(self, prompt: str, temperature=0.2) -> str:
-        client = self.synthesis_model.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
+        client, _ = self.synthesis_model.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
         resp = await client.forward_request(
             method="POST",
             json={"messages": [{"role": "user", "content": prompt}], "temperature": temperature, "max_tokens": 1024, "model": self.synthesis_model},
@@ -169,7 +169,7 @@ Réponse :
         return await asyncio.gather(*tasks)
 
     async def _get_rank(self, prompt: str, inputs: List[str]) -> List[int]:
-        client = self.reranker_model.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
+        client, _ = self.reranker_model.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
         query = self.PROMPT_CHOICER.format(prompt=prompt, docs=inputs)
         resp = await client.forward_request(
             method="POST",

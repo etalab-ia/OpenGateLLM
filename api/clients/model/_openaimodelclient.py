@@ -1,6 +1,5 @@
 from urllib.parse import urljoin
 
-from coredis import ConnectionPool
 import requests
 
 from api.utils.variables import (
@@ -38,8 +37,10 @@ class OpenaiModelClient(BaseModelClient):
         model_carbon_footprint_active_params: int,
         model_cost_prompt_tokens: float,
         model_cost_completion_tokens: float,
-        redis: ConnectionPool,
         metrics_retention_ms: int,
+        qos_policy: str,
+        performance_threshold: float | None,
+        max_parallel_requests: int | None,
         *args,
         **kwargs,
     ) -> None:
@@ -56,8 +57,10 @@ class OpenaiModelClient(BaseModelClient):
             url=url,
             key=key,
             timeout=timeout,
-            redis=redis,
             metrics_retention_ms=metrics_retention_ms,
+            qos_policy=qos_policy,
+            performance_threshold=performance_threshold,
+            max_parallel_requests=max_parallel_requests,
             *args,
             **kwargs,
         )

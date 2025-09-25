@@ -3,8 +3,9 @@ from fastapi.responses import JSONResponse
 
 from api.helpers._accesscontroller import AccessController
 from api.schemas.completions import CompletionRequest, Completions
-from api.utils.context import global_context
 from api.utils.variables import ENDPOINT__COMPLETIONS
+from api.utils.exceptions import TaskFailedException
+from api.services.model_invocation import invoke_model_request
 
 router = APIRouter(prefix="/v1", tags=["Legacy"])
 
@@ -15,9 +16,14 @@ async def completions(request: Request, body: CompletionRequest) -> JSONResponse
     Completion API similar to OpenAI's API.
     """
 
-    async def handler(client):
-        response = await client.forward_request(method="POST", json=body.model_dump())
-        return JSONResponse(content=Completions(**response.json()).model_dump(), status_code=response.status_code)
-
-    model = await global_context.model_registry(model=body.model)
-    return await model.safe_client_access(endpoint=ENDPOINT__COMPLETIONS, handler=handler)
+    user_info = getattr(request.state, "user", None)
+    user_priority = getattr(user_info, "priority", 0) if user_info else 0
+    try:
+        client = await invoke_model_request(model_name=body.model, endpoint=ENDPOINT__COMPLETIONS, user_priority=user_priority)
+    except TaskFailedException as e:
+        return JSONResponse(content=e.detail, status_code=e.status_code)
+    client.endpoint = ENDPOINT__COMPLETIONS
+    response = await client.forward_request(method="POST", json=body.model_dump())
+    status = response.status_code
+    payload = response.json()
+    return JSONResponse(content=Completions(**payload).model_dump(), status_code=status)

@@ -14,6 +14,7 @@ models:
         model_carbon_footprint_total_params: 24
         model_carbon_footprint_active_params: 24
         model_carbon_footprint_zone: FRA
+        max_parallel_requests: 5
   
   - name: albert-small
     type: text-generation
@@ -29,6 +30,8 @@ models:
         model_carbon_footprint_total_params: 8
         model_carbon_footprint_active_params: 8
         model_carbon_footprint_zone: FRA
+        qos_policy: parallel-requests-threshold
+        max_parallel_requests: 5
       - type: albert
         key: ${ALBERT_API_KEY}
         timeout: 80
@@ -38,6 +41,8 @@ models:
         model_carbon_footprint_total_params: 8
         model_carbon_footprint_active_params: 8
         model_carbon_footprint_zone: FRA
+        qos_policy: parallel-requests-threshold
+        max_parallel_requests: 5
 
   - name: embeddings-small
     type: text-embeddings-inference
@@ -52,6 +57,7 @@ models:
         model_carbon_footprint_total_params: 8
         model_carbon_footprint_active_params: 8
         model_carbon_footprint_zone: FRA
+        max_parallel_requests: 5
 
   - name: audio-large
     type: automatic-speech-recognition
@@ -66,6 +72,7 @@ models:
         model_carbon_footprint_total_params: 8
         model_carbon_footprint_active_params: 8
         model_carbon_footprint_zone: FRA
+        max_parallel_requests: 5
 
   - name: rerank-small
     type: text-classification
@@ -80,11 +87,12 @@ models:
         model_carbon_footprint_total_params: 8
         model_carbon_footprint_active_params: 8
         model_carbon_footprint_zone: FRA
+        max_parallel_requests: 5
 
 # -------------------------------- dependencies ---------------------------------
 dependencies:
   postgres:
-    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/postgres
+    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-api}
     echo: False
     pool_size: 10
     max_overflow: 5
@@ -168,3 +176,13 @@ settings:
   search_web_user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
   search_multi_agents_synthesis_model: albert-large
   search_multi_agents_reranker_model: albert-small
+  # Celery / Task execution
+  celery_task_always_eager: True
+  # --- Setup to use RabbitMQ and Redis as broker and backend ---
+  # celery_task_always_eager: false
+  # celery_broker_url: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}//
+  # celery_result_backend: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/1
+  # --- Alternatives for in-process worker tests (no external broker) ---
+  # celery_task_always_eager: false
+  # celery_broker_url: memory://
+  # celery_result_backend: cache+memory://

@@ -52,7 +52,8 @@ api = [
     "pyyaml==6.0.2",
     "uvicorn==0.37.0",
     "python-multipart==0.0.20",
-    "html-to-markdown==1.4.0"
+    "html-to-markdown==1.4.0",
+    "celery==5.4.0"
 
 ]
 dev = [

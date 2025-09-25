@@ -6,8 +6,9 @@ import httpx
 from api.clients.mcp_bridge import BaseMCPBridgeClient as MCPBridgeClient
 from api.helpers.models import ModelRegistry
 from api.schemas.agents import AgentsTool, AgentsChatCompletionRequest
-from api.utils.exceptions import ToolNotFoundException
+from api.utils.exceptions import ToolNotFoundException, TaskFailedException
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS
+from api.services.model_invocation import invoke_model_request
 
 
 class AgentManager:
@@ -36,25 +37,31 @@ class AgentManager:
                 body.messages.append({"role": "user", "content": tool_call_result["content"][0]["text"]})
         last_llm_response = http_llm_response.json()
         last_llm_response["choices"][0]["finish_reason"] = "max_iterations"
+        # Some unit tests mock responses without a request object; provide a minimal fallback
+        request_obj = None
+        try:
+            request_obj = http_llm_response.request  # may raise RuntimeError in httpx if unset
+        except Exception:
+            request_obj = httpx.Request("POST", "http://placeholder")
+
         llm_response_with_new_finish_reason = httpx.Response(
             status_code=http_llm_response.status_code,
             content=json.dumps(last_llm_response),
             headers=http_llm_response.headers,
-            request=http_llm_response.request,
+            request=request_obj,
         )
         return llm_response_with_new_finish_reason
 
     async def get_llm_http_response(self, body: AgentsChatCompletionRequest):
-        model = await self.model_registry(model=body.model)
-
-        async def handler(client):
-            http_llm_response = await client.forward_request(method="POST", json=body.model_dump())
-            return http_llm_response
-
-        return await model.safe_client_access(
-            endpoint=ENDPOINT__CHAT_COMPLETIONS,
-            handler=handler,
-        )
+        try:
+            client = await invoke_model_request(model_name=body.model, endpoint=ENDPOINT__CHAT_COMPLETIONS)
+        except TaskFailedException as e:
+            return httpx.Response(status_code=e.status_code, content=json.dumps(e.detail))
+        client.endpoint = ENDPOINT__CHAT_COMPLETIONS
+        response = await client.forward_request(method="POST", json=body.model_dump())
+        status = response.status_code
+        payload = response.json()
+        return httpx.Response(status_code=status, content=json.dumps(payload))
 
     async def set_tools_for_llm_request(self, body: AgentsChatCompletionRequest) -> AgentsChatCompletionRequest:
         if hasattr(body, "tools") and body.tools is not None:

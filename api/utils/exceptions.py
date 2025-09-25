@@ -198,3 +198,8 @@ class VectorizationFailedException(HTTPException):
 class ModelIsTooBusyException(HTTPException):
     def __init__(self, detail: str = "Model is too busy.") -> None:
         super().__init__(status_code=504, detail=detail)
+
+
+class TaskFailedException(HTTPException):
+    def __init__(self, status_code: int = 500, detail: str = "Celery task failed.") -> None:
+        super().__init__(status_code=status_code, detail=detail)

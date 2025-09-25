@@ -1,0 +1,148 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, zstd
+      Authorization:
+      - Bearer dummy_token_for_test
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.32.4
+    method: GET
+    uri: https://albert.api.etalab.gouv.fr/v1/models
+  response:
+    body:
+      string: '{"object":"list","data":[{"id":"albert-small","created":1759762573,"object":"model","owned_by":"OpenGateLLM","max_context_length":64000,"type":"text-generation","aliases":["meta-llama/Llama-3.1-8B-Instruct"],"costs":{"prompt_tokens":0.0,"completion_tokens":0.0}},{"id":"embeddings-small","created":1759762573,"object":"model","owned_by":"OpenGateLLM","max_context_length":8192,"type":"text-embeddings-inference","aliases":["BAAI/bge-m3"],"costs":{"prompt_tokens":0.0,"completion_tokens":0.0}},{"id":"audio-large","created":1759762573,"object":"model","owned_by":"OpenGateLLM","max_context_length":null,"type":"automatic-speech-recognition","aliases":["openai/whisper-large-v3"],"costs":{"prompt_tokens":0.0,"completion_tokens":0.0}},{"id":"rerank-small","created":1759762573,"object":"model","owned_by":"OpenGateLLM","max_context_length":8192,"type":"text-classification","aliases":["BAAI/bge-reranker-v2-m3"],"costs":{"prompt_tokens":0.0,"completion_tokens":0.0}},{"id":"albert-large","created":1759762573,"object":"model","owned_by":"Albert
+        API (prod)","max_context_length":128000,"type":"image-text-to-text","aliases":["mistralai/Mistral-Small-3.2-24B-Instruct-2506"],"costs":{"prompt_tokens":0.0,"completion_tokens":0.0}},{"id":"albert-code","created":1759762573,"object":"model","owned_by":"OpenGateLLM","max_context_length":131072,"type":"text-generation","aliases":["Qwen/Qwen2.5-Coder-32B-Instruct-AWQ","albert-code-beta"],"costs":{"prompt_tokens":0.0,"completion_tokens":0.0}}]}'
+    headers:
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 10 Oct 2025 11:25:04 GMT
+      Server:
+      - nginx/1.27.4
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '1487'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"model": "albert-small", "input": "hello world"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, zstd
+      Authorization:
+      - Bearer dummy_token_for_test
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '49'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.32.4
+    method: POST
+    uri: https://albert.api.etalab.gouv.fr/v1/embeddings
+  response:
+    body:
+      string: '{"detail":"Wrong model type."}'
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '30'
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 10 Oct 2025 11:25:04 GMT
+      Server:
+      - nginx/1.27.4
+    status:
+      code: 422
+      message: Unprocessable Entity
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, zstd
+      Authorization:
+      - Bearer dummy_token_for_test
+      Connection:
+      - keep-alive
+      User-Agent:
+      - python-requests/2.32.4
+    method: GET
+    uri: https://albert.api.etalab.gouv.fr/v1/models
+  response:
+    body:
+      string: '{"object":"list","data":[{"id":"albert-small","created":1759762573,"object":"model","owned_by":"OpenGateLLM","max_context_length":64000,"type":"text-generation","aliases":["meta-llama/Llama-3.1-8B-Instruct"],"costs":{"prompt_tokens":0.0,"completion_tokens":0.0}},{"id":"embeddings-small","created":1759762573,"object":"model","owned_by":"OpenGateLLM","max_context_length":8192,"type":"text-embeddings-inference","aliases":["BAAI/bge-m3"],"costs":{"prompt_tokens":0.0,"completion_tokens":0.0}},{"id":"audio-large","created":1759762573,"object":"model","owned_by":"OpenGateLLM","max_context_length":null,"type":"automatic-speech-recognition","aliases":["openai/whisper-large-v3"],"costs":{"prompt_tokens":0.0,"completion_tokens":0.0}},{"id":"rerank-small","created":1759762573,"object":"model","owned_by":"OpenGateLLM","max_context_length":8192,"type":"text-classification","aliases":["BAAI/bge-reranker-v2-m3"],"costs":{"prompt_tokens":0.0,"completion_tokens":0.0}},{"id":"albert-large","created":1759762573,"object":"model","owned_by":"Albert
+        API (prod)","max_context_length":128000,"type":"image-text-to-text","aliases":["mistralai/Mistral-Small-3.2-24B-Instruct-2506"],"costs":{"prompt_tokens":0.0,"completion_tokens":0.0}},{"id":"albert-code","created":1759762573,"object":"model","owned_by":"OpenGateLLM","max_context_length":131072,"type":"text-generation","aliases":["Qwen/Qwen2.5-Coder-32B-Instruct-AWQ","albert-code-beta"],"costs":{"prompt_tokens":0.0,"completion_tokens":0.0}}]}'
+    headers:
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 10 Oct 2025 11:25:04 GMT
+      Server:
+      - nginx/1.27.4
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '1487'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"model": "albert-small", "input": "hello world"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate, zstd
+      Authorization:
+      - Bearer dummy_token_for_test
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '49'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.32.4
+    method: POST
+    uri: https://albert.api.etalab.gouv.fr/v1/embeddings
+  response:
+    body:
+      string: '{"detail":"Wrong model type."}'
+    headers:
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '30'
+      Content-Type:
+      - application/json
+      Date:
+      - Fri, 10 Oct 2025 11:25:04 GMT
+      Server:
+      - nginx/1.27.4
+    status:
+      code: 422
+      message: Unprocessable Entity
+version: 1

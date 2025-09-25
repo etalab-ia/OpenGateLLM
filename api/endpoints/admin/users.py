@@ -38,6 +38,7 @@ async def create_user(
         organization_id=body.organization,
         budget=body.budget,
         expires_at=body.expires_at,
+        priority=body.priority if body.priority is not None else 0,
     )
 
     return JSONResponse(status_code=201, content={"id": user_id})
@@ -86,6 +87,7 @@ async def update_user(
         organization_id=body.organization,
         budget=body.budget,
         expires_at=body.expires_at,
+        priority=body.priority,
     )
 
     return Response(status_code=204)

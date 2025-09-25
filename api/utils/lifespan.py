@@ -198,7 +198,7 @@ async def _setup_document_manager(configuration: Configuration, global_context: 
         )
 
     parser_manager = ParserManager(parser=dependencies.parser)
-    
+
     global_context.document_manager = DocumentManager(
         vector_store=dependencies.vector_store,
         vector_store_model=await global_context.model_registry(model=configuration.settings.vector_store_model),

@@ -22,6 +22,7 @@ from api.sql.models import Token as TokenTable
 from api.sql.models import Usage as UsageTable
 from api.sql.models import User as UserTable
 from api.utils.context import global_context
+from api.utils.configuration import configuration
 from api.utils.exceptions import (
     DeleteRoleWithUsersException,
     InvalidCurrentPasswordException,
@@ -33,6 +34,8 @@ from api.utils.exceptions import (
     UserAlreadyExistsException,
     UserNotFoundException,
 )
+
+settings = configuration.settings
 
 
 class IdentityAccessManager:
@@ -234,6 +237,7 @@ class IdentityAccessManager:
         organization_id: Optional[int] = None,
         budget: Optional[float] = None,
         expires_at: Optional[int] = None,
+        priority: int = 0,
     ) -> int:
         expires_at = func.to_timestamp(expires_at) if expires_at is not None else None
 
@@ -268,6 +272,7 @@ class IdentityAccessManager:
                     organization_id=organization_id,
                     budget=budget,
                     expires_at=expires_at,
+                    priority=priority,
                 )
                 .returning(UserTable.id)
             )
@@ -305,6 +310,7 @@ class IdentityAccessManager:
         organization_id: Optional[int] = None,
         budget: Optional[float] = None,
         expires_at: Optional[int] = None,
+        priority: Optional[int] = None,
     ) -> None:
         # check if user exists
         result = await session.execute(
@@ -318,6 +324,7 @@ class IdentityAccessManager:
                 UserTable.role_id,
                 UserTable.budget,
                 UserTable.expires_at,
+                UserTable.priority,
                 RoleTable.name.label("role"),
             )
             .join(RoleTable, UserTable.role_id == RoleTable.id)
@@ -334,6 +341,7 @@ class IdentityAccessManager:
         iss = iss if iss is not None else user.iss
         sub = sub if sub is not None else user.sub
         expires_at = func.to_timestamp(expires_at) if expires_at is not None else None
+        new_priority = priority if priority is not None else user.priority
 
         if role_id is not None and role_id != user.role_id:
             # check if role exists
@@ -376,6 +384,7 @@ class IdentityAccessManager:
                 organization_id=organization_id,
                 budget=budget,
                 expires_at=expires_at,
+                priority=new_priority,
             )
             .where(UserTable.id == user.id)
         )
@@ -406,6 +415,7 @@ class IdentityAccessManager:
                 cast(func.extract("epoch", UserTable.updated_at), Integer).label("updated_at"),
                 UserTable.email,
                 UserTable.sub,
+                UserTable.priority,
             )
             .offset(offset=offset)
             .limit(limit=limit)
@@ -695,6 +705,7 @@ class IdentityAccessManager:
                 expires_at=None,
                 created_at=0,
                 updated_at=0,
+                priority=settings.celery_task_max_priority,
             )
         users = await self.get_users(session=session, user_id=user_id, email=email)
         user = users[0]
@@ -716,6 +727,7 @@ class IdentityAccessManager:
             expires_at=user.expires_at,
             created_at=user.created_at,
             updated_at=user.updated_at,
+            priority=user.priority,
         )
 
         return user

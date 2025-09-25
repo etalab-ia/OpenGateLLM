@@ -41,7 +41,7 @@ async def audio_transcriptions(
 
     file_content = await file.read()
     model = await global_context.model_registry(model=model)
-    client = model.get_client(endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS)
+    client, _ = model.get_client(endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS)
     payload = {
         "model": client.name,
         "response_format": response_format,

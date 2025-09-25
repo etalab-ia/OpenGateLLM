@@ -101,6 +101,13 @@ class ModelProviderType(str, Enum):
 class RoutingStrategy(str, Enum):
     ROUND_ROBIN = "round_robin"
     SHUFFLE = "shuffle"
+    LEAST_BUSY = "least_busy"
+
+
+class QosPolicy(str, Enum):
+    WARNING_LOG = "warning-log"
+    PERFORMANCE_THRESHOLD = "performance-threshold"
+    PARALLEL_REQUESTS_THRESHOLD = "parallel-requests-threshold"
 
 
 CountryCodes = [country.alpha_3 for country in pycountry.countries]
@@ -121,6 +128,9 @@ class ModelProvider(ConfigBaseModel):
     model_carbon_footprint_zone: CountryCodes = Field(default=CountryCodes.WOR, description="Model hosting zone for carbon footprint computation (with ISO 3166-1 alpha-3 code format). For more information, see https://ecologits.ai", examples=["WOR"])  # fmt: off
     model_carbon_footprint_total_params: Optional[float] = Field(default=None, ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     model_carbon_footprint_active_params: Optional[float] = Field(default=None, ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
+    qos_policy: QosPolicy = Field(default=QosPolicy.WARNING_LOG, description="The quality of service to apply when using asynchronous dispatching, to choose whether or not the server is ready to handle the request.", examples=["performance-threshold"])  # fmt: off
+    performance_threshold: Optional[float] = Field(default=None, ge=0.0, description="The performance threshold to not exceed when using a performance based QoS", examples=[0.5])  # fmt: off
+    max_parallel_requests: Optional[int] = Field(default=None, ge=1, description="The maximum number of requests handled in parallel by the server, used with a parallel requests based QoS", examples=[50])  # fmt: off
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -164,6 +174,9 @@ class Model(ConfigBaseModel):
     owned_by: constr(strip_whitespace=True, min_length=1, max_length=64) = Field(default=DEFAULT_APP_NAME, description="Owner of the model displayed in `/v1/models` endpoint.", examples=["my-app"])  # fmt: off
     routing_strategy: RoutingStrategy = Field(default=RoutingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["round_robin"])  # fmt: off
     providers: List[ModelProvider] = Field(..., description="API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type.")  # fmt: off
+    cycle_offset: int = Field(
+        default=0, description="Current position in the round-robin cycle for load balancing. Used to maintain cycle state across serialization."
+    )
 
     vector_size: Optional[int] = Field(default=None, description="Dimension of the vectors, if the models are embeddings. Makes just it is the same for all models.")  # fmt: off
     max_context_length: Optional[int] = Field(default=None, description="Maximum amount of tokens a context could contains. Makes sure it is the same for all models.")  # fmt: off
@@ -472,6 +485,40 @@ class Settings(ConfigBaseModel):
 
     front_url: str = Field(default="http://localhost:8501", description="Front-end URL for the application.")
 
+    # celery (task execution for non streaming model calls)
+    celery_task_always_eager: bool = Field(
+        default=True,
+        description="Execute Celery tasks locally (synchronously) without a broker. Set to false in production to use the configured broker/result backend.",
+    )
+    celery_task_eager_propagates: bool = Field(
+        default=True,
+        description="If true, exceptions in eager mode propagate immediately (useful for tests/development).",
+    )
+    celery_broker_url: Optional[str] = Field(
+        default=None,
+        description="Celery broker URL (e.g. redis://localhost:6379/0 or amqp://user:pass@host:5672//). Required if celery_task_always_eager is false.",
+    )
+    celery_result_backend: Optional[str] = Field(
+        default=None,
+        description="Celery result backend URL (e.g. redis://localhost:6379/1 or rpc://). If not provided, results may not persist across workers.",
+    )
+    celery_task_soft_time_limit: int = Field(
+        default=120,
+        ge=1,
+        description="Soft time limit (in seconds) applied to model invocation tasks.",
+    )
+    celery_task_retry_countdown: int = Field(
+        default=1,
+        ge=1,
+        description="Number of seconds before retrying a failed celery task.",
+    )
+    celery_task_max_retry: int = Field(default=120, ge=1, description="Maximum number of retries for celery tasks.")
+    celery_task_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in celery tasks.")
+    celery_default_queue_prefix: str = Field(
+        default="model.",
+        description="Prefix used for per-model Celery queues (queue name = prefix + router_name).",
+    )
+
     @model_validator(mode="after")
     def validate_model(cls, values) -> Any:
         if values.session_secret_key is None:
@@ -486,6 +533,13 @@ class Settings(ConfigBaseModel):
 
         if ROUTER__AUTH not in values.hidden_routers:
             logging.warning("Auth router should be hidden in production.")  # fmt: off
+
+        # Celery validation
+        if not values.celery_task_always_eager and not values.celery_broker_url:
+            raise ValueError("celery_broker_url must be set when celery_task_always_eager is False")
+
+        if values.celery_task_max_retry * values.celery_task_retry_countdown != values.celery_task_soft_time_limit:
+            raise ValueError("Celery soft time limit should match max_retry x retry_countdown")
 
         return values
 

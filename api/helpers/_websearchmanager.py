@@ -46,7 +46,7 @@ Ne donne pas d'explications, ne mets pas de guillemets, réponds uniquement avec
 
     async def get_web_query(self, prompt: str) -> str:
         prompt = self.GET_WEB_QUERY_PROMPT.format(prompt=prompt)
-        client = self.query_model.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
+        client, _ = self.query_model.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
         response = await client.forward_request(
             method="POST",
             json={"messages": [{"role": "user", "content": prompt}], "model": self.query_model.name, "temperature": 0.2, "stream": False},

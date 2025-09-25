@@ -91,6 +91,8 @@ class User(Base):
     expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), nullable=False, onupdate=func.now())
+    # User priority: higher value means higher priority for rate limiting / scheduling (0 = default)
+    priority = Column(Integer, nullable=False, default=0, server_default="0")
 
     __table_args__ = (UniqueConstraint("sub", "iss", name="unique_user_email_sub_iss"),)
 
@@ -149,6 +151,7 @@ class Model(Base):
     type = Column(String, nullable=False)
     routing_strategy = Column(String, nullable=False)
     owned_by = Column(String, nullable=False)
+    cycle_offset = Column(Integer, nullable=True)
     vector_size = Column(Integer, nullable=True)
     max_context_length = Column(Integer, nullable=True)
     created = Column(Integer, nullable=False)
@@ -182,6 +185,10 @@ class ModelClient(Base):
     model_carbon_footprint_zone = Column(String, nullable=True)
     model_carbon_footprint_total_params = Column(Integer, nullable=True)
     model_carbon_footprint_active_params = Column(Integer, nullable=True)
+
+    qos_policy = Column(String, nullable=False)
+    performance_threshold = Column(Float, nullable=True)
+    max_parallel_requests = Column(Integer, nullable=True)
 
     model_router_name = Column(String, ForeignKey(column="model.name", ondelete="CASCADE"), nullable=False)
 

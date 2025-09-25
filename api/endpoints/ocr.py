@@ -1,6 +1,6 @@
 import base64
 
-from fastapi import APIRouter, Request, Security, UploadFile
+from fastapi import APIRouter, Request, Security, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 import pymupdf
 
@@ -10,8 +10,9 @@ from api.schemas.ocr import DPIForm, ModelForm, PromptForm
 from api.schemas.parse import FileForm, ParsedDocument, ParsedDocumentMetadata, ParsedDocumentPage
 from api.schemas.usage import Usage
 from api.utils.context import global_context
-from api.utils.exceptions import FileSizeLimitExceededException
+from api.utils.exceptions import FileSizeLimitExceededException, TaskFailedException
 from api.utils.variables import ENDPOINT__OCR, ROUTER__OCR
+from api.services.model_invocation import invoke_model_request
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__OCR.upper()])
 
@@ -28,47 +29,48 @@ async def ocr(request: Request, file: UploadFile = FileForm, model: str = ModelF
     if file.size > FileSizeLimitExceededException.MAX_CONTENT_SIZE:
         raise FileSizeLimitExceededException()
 
-    async def handler(client):
-        file_content = await file.read()  # open document
-        pdf = pymupdf.open(stream=file_content, filetype="pdf")
-        document = ParsedDocument(data=[], usage=Usage())
-
-        for i, page in enumerate(pdf):  # iterate through the pages
-            image = page.get_pixmap(dpi=dpi)  # render page to an image
-            img_byte_arr = image.tobytes("png")  # convert pixmap to PNG bytes
-
-            # forward request
-            payload = {
-                "model": model,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64.b64encode(img_byte_arr).decode("utf-8")}"}},
-                        ],
-                    }
-                ],
-                "n": 1,
-                "stream": False,
-            }
-            response = await client.forward_request(method="POST", json=payload)  # error are automatically raised
-            response = response.json()
-            text = response.get("choices", [{}])[0].get("message", {}).get("content", "")
-
-            # format response
-            document.data.append(
-                ParsedDocumentPage(
-                    content=text,
-                    images={},
-                    metadata=ParsedDocumentMetadata(page=i, document_name=file.filename, **pdf.metadata),
-                )
+    file_content = await file.read()
+    pdf = pymupdf.open(stream=file_content, filetype="pdf")
+    document = ParsedDocument(data=[], usage=Usage())
+    for i, page in enumerate(pdf):
+        image = page.get_pixmap(dpi=dpi)
+        img_byte_arr = image.tobytes("png")
+        payload = {
+            "model": model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64.b64encode(img_byte_arr).decode('utf-8')}"}},
+                    ],
+                }
+            ],
+            "n": 1,
+            "stream": False,
+        }
+        user_info = getattr(request.state, "user", None)
+        user_priority = getattr(user_info, "priority", 0) if user_info else 0
+        try:
+            client = await invoke_model_request(model_name=model, endpoint=ENDPOINT__OCR, user_priority=user_priority)
+        except TaskFailedException as e:
+            return JSONResponse(content=e.detail, status_code=e.status_code)
+        client.endpoint = ENDPOINT__OCR
+        response = await client.forward_request(method="POST", json=payload)
+        status = response.status_code
+        body_json = response.json()
+        if status // 100 != 2:
+            pdf.close()
+            raise HTTPException(status_code=status, detail=body_json.get("detail", "OCR request failed"))
+        text = body_json.get("choices", [{}])[0].get("message", {}).get("content", "")
+        document.data.append(
+            ParsedDocumentPage(
+                content=text,
+                images={},
+                metadata=ParsedDocumentMetadata(page=i, document_name=file.filename, **pdf.metadata),
             )
-            document.usage = Usage(**response.get("usage", {}))
-
-        pdf.close()
-
-        return JSONResponse(content=document.model_dump(), status_code=200)
-
-    model = await global_context.model_registry(model=model)
-    return await model.safe_client_access(endpoint=ENDPOINT__OCR, handler=handler)
+        )
+        if body_json.get("usage"):
+            document.usage = Usage(**body_json["usage"])
+    pdf.close()
+    return JSONResponse(content=document.model_dump(), status_code=200)

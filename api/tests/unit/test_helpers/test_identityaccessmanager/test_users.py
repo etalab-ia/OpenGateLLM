@@ -181,6 +181,7 @@ async def test_get_users_filters_and_not_found(session: AsyncSession, iam: Ident
                 "updated_at": 11,
                 "email": "alice@example.com",
                 "sub": "sub",
+                "priority": 0,
             }
         )
     ]
@@ -233,6 +234,7 @@ async def test_get_user_info_by_id_success(session: AsyncSession, iam: IdentityA
         "updated_at": 11,
         "email": "alice@example.com",
         "sub": None,
+        "priority": 0,
     }
 
     class _RowDict:
@@ -311,6 +313,7 @@ async def test_get_user_info_by_email_success(session: AsyncSession, iam: Identi
         "updated_at": 21,
         "email": "bob@example.com",
         "sub": None,
+        "priority": 0,
     }
 
     class _RowDict:
@@ -374,3 +377,163 @@ async def test_get_user_info_by_email_success(session: AsyncSession, iam: Identi
 async def test_get_user_info_missing_params_raises(iam: IdentityAccessManager, session: AsyncSession):
     with pytest.raises(AssertionError):
         await iam.get_user_info(session=session)
+
+
+@pytest.mark.asyncio
+async def test_get_users_with_id_and_role_id(session: AsyncSession, iam: IdentityAccessManager):
+    # Arrange
+    rows = [
+        MagicMock(
+            _mapping={
+                "id": 1,
+                "name": "alice",
+                "role": 1,
+                "organization": None,
+                "budget": None,
+                "expires_at": None,
+                "created_at": 10,
+                "updated_at": 11,
+                "email": "alice@example.com",
+                "sub": "sub",
+                "priority": 0,
+            }
+        )
+    ]
+    session.execute = AsyncMock(return_value=_Result(all_rows=rows))
+
+    # Act
+    users = await iam.get_users(session, user_id=1, role_id=1)
+
+    # Assert
+    assert len(users) == 1
+    assert users[0].name == "alice"
+
+
+@pytest.mark.asyncio
+async def test_get_users_with_role_id_only(session: AsyncSession, iam: IdentityAccessManager):
+    # Arrange
+    rows = [
+        MagicMock(
+            _mapping={
+                "id": 1,
+                "name": "alice",
+                "role": 1,
+                "organization": None,
+                "budget": None,
+                "expires_at": None,
+                "created_at": 10,
+                "updated_at": 11,
+                "email": "alice@example.com",
+                "sub": "sub",
+                "priority": 0,
+            }
+        ),
+        MagicMock(
+            _mapping={
+                "id": 2,
+                "name": "bob",
+                "role": 1,
+                "organization": None,
+                "budget": None,
+                "expires_at": None,
+                "created_at": 20,
+                "updated_at": 21,
+                "email": "bob@example.com",
+                "sub": "sub",
+                "priority": 0,
+            }
+        ),
+    ]
+    session.execute = AsyncMock(return_value=_Result(all_rows=rows))
+
+    # Act
+    users = await iam.get_users(session, role_id=1)
+
+    # Assert
+    assert len(users) == 2
+
+
+@pytest.mark.asyncio
+async def test_get_users_with_id_only(session: AsyncSession, iam: IdentityAccessManager):
+    # Arrange
+    rows = [
+        MagicMock(
+            _mapping={
+                "id": 1,
+                "name": "alice",
+                "role": 1,
+                "organization": None,
+                "budget": None,
+                "expires_at": None,
+                "created_at": 10,
+                "updated_at": 11,
+                "email": "alice@example.com",
+                "sub": "sub",
+                "priority": 0,
+            }
+        )
+    ]
+    session.execute = AsyncMock(return_value=_Result(all_rows=rows))
+
+    # Act
+    users = await iam.get_users(session, user_id=1)
+
+    # Assert
+    assert len(users) == 1
+    assert users[0].name == "alice"
+
+
+@pytest.mark.asyncio
+async def test_get_users_no_params(session: AsyncSession, iam: IdentityAccessManager):
+    # Arrange
+    rows = [
+        MagicMock(
+            _mapping={
+                "id": 1,
+                "name": "alice",
+                "role": 1,
+                "organization": None,
+                "budget": None,
+                "expires_at": None,
+                "created_at": 10,
+                "updated_at": 11,
+                "email": "alice@example.com",
+                "sub": "sub",
+                "priority": 0,
+            }
+        ),
+        MagicMock(
+            _mapping={
+                "id": 2,
+                "name": "bob",
+                "role": 1,
+                "organization": None,
+                "budget": None,
+                "expires_at": None,
+                "created_at": 20,
+                "updated_at": 21,
+                "email": "bob@example.com",
+                "sub": "sub",
+                "priority": 0,
+            }
+        ),
+    ]
+    session.execute = AsyncMock(return_value=_Result(all_rows=rows))
+
+    # Act
+    users = await iam.get_users(session)
+
+    # Assert
+    assert len(users) == 2
+    assert users[0].name == "alice"
+    assert users[1].name == "bob"
+
+
+@pytest.mark.asyncio
+async def test_get_users_empty_result(session: AsyncSession, iam: IdentityAccessManager):
+    # Arrange
+    session.execute = AsyncMock(return_value=_Result(all_rows=[]))
+
+    # Act / Assert
+    with pytest.raises(UserNotFoundException):
+        await iam.get_users(session, user_id=404)

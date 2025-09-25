@@ -21631,4 +21631,150 @@ interactions:
     status:
       code: 200
       message: OK
+- request:
+    body: '{"messages":[{"content":"Je veux que tu fasses une action","role":"user"}],"model":"albert-large","tools":[{"type":"function","function":{"name":"tool_1","description":"First
+      tool description","parameters":{}}},{"type":"function","function":{"name":"tool_2","description":"Second
+      tool description","parameters":{}}}],"tool_choice":"auto"}'
+    headers:
+      Authorization:
+      - Bearer dummy_token_for_test
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+      content-length:
+      - '338'
+      content-type:
+      - application/json
+      host:
+      - albert.api.etalab.gouv.fr
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://albert.api.etalab.gouv.fr/v1/chat/completions
+  response:
+    body:
+      string: "{\"id\":\"chatcmpl-8c659bc4c47d4371a0285d09ebb765c7\",\"object\":\"chat.completion\",\"created\":1758809921,\"model\":\"mistralai/Mistral-Small-3.2-24B-Instruct-2506\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"Bien
+        s\xFBr, je suis l\xE0 pour t'aider. Peux-tu me dire quelle action tu aimerais
+        que je fasse ?\",\"refusal\":null,\"annotations\":null,\"audio\":null,\"function_call\":null,\"tool_calls\":[],\"reasoning_content\":null},\"logprobs\":null,\"finish_reason\":\"stop\",\"stop_reason\":null}],\"service_tier\":null,\"system_fingerprint\":null,\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":24,\"total_tokens\":32,\"cost\":0.0,\"carbon\":{\"kWh\":{\"min\":0.0,\"max\":0.0},\"kgCO2eq\":{\"min\":0.0,\"max\":0.0}},\"details\":[{\"id\":\"chatcmpl-8c659bc4c47d4371a0285d09ebb765c7\",\"model\":\"mistralai/Mistral-Small-3.2-24B-Instruct-2506\",\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":24,\"total_tokens\":32,\"cost\":0.0,\"carbon\":{\"kWh\":{\"min\":0.0,\"max\":0.0},\"kgCO2eq\":{\"min\":0.0,\"max\":0.0}}}}]},\"prompt_logprobs\":null,\"kv_transfer_params\":null}"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Thu, 25 Sep 2025 14:18:42 GMT
+      Server:
+      - nginx/1.27.4
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '998'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"content":"Je veux que tu fasses une action","role":"user"}],"model":"albert-large"}'
+    headers:
+      Authorization:
+      - Bearer dummy_token_for_test
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+      content-length:
+      - '98'
+      content-type:
+      - application/json
+      host:
+      - albert.api.etalab.gouv.fr
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://albert.api.etalab.gouv.fr/v1/chat/completions
+  response:
+    body:
+      string: "{\"id\":\"chatcmpl-5f5456d8d7a0411fb66c921b1c20933a\",\"object\":\"chat.completion\",\"created\":1758809922,\"model\":\"mistralai/Mistral-Small-3.2-24B-Instruct-2506\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"Bien
+        s\xFBr ! Je suis l\xE0 pour t'aider. Que souhaites-tu que je fasse pour toi
+        ? Voici quelques exemples d'actions possibles :\\n\\n- **R\xE9pondre \xE0
+        une question** (science, histoire, conseils, etc.)\\n- **Trouver des informations**
+        sur un sujet pr\xE9cis\\n- **\xC9crire un texte** (histoire, lettre, po\xE8me,
+        article, etc.)\\n- **Traduire un texte** ou expliquer des mots\\n- **Donner
+        des conseils** (\xE9tudes, voyage, sant\xE9, etc.)\\n- ** R\xE9soudre un probl\xE8me**
+        (maths, logique, programmation, etc.)\\n- **G\xE9n\xE9rer des id\xE9es** (projets,
+        noms, concepts, etc.)\\n\\nDis-moi simplement ce dont tu as besoin, et je
+        m'en occuperai avec plaisir ! \U0001F60A\",\"refusal\":null,\"annotations\":null,\"audio\":null,\"function_call\":null,\"tool_calls\":[],\"reasoning_content\":null},\"logprobs\":null,\"finish_reason\":\"stop\",\"stop_reason\":null}],\"service_tier\":null,\"system_fingerprint\":null,\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":163,\"total_tokens\":171,\"cost\":0.0,\"carbon\":{\"kWh\":{\"min\":0.0,\"max\":0.0},\"kgCO2eq\":{\"min\":0.0,\"max\":0.0}},\"details\":[{\"id\":\"chatcmpl-5f5456d8d7a0411fb66c921b1c20933a\",\"model\":\"mistralai/Mistral-Small-3.2-24B-Instruct-2506\",\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":163,\"total_tokens\":171,\"cost\":0.0,\"carbon\":{\"kWh\":{\"min\":0.0,\"max\":0.0},\"kgCO2eq\":{\"min\":0.0,\"max\":0.0}}}}]},\"prompt_logprobs\":null,\"kv_transfer_params\":null}"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Thu, 25 Sep 2025 14:18:45 GMT
+      Server:
+      - nginx/1.27.4
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '1543'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"messages":[{"content":"Je veux que tu fasses une action","role":"user"}],"model":"albert-large"}'
+    headers:
+      Authorization:
+      - Bearer dummy_token_for_test
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      connection:
+      - keep-alive
+      content-length:
+      - '98'
+      content-type:
+      - application/json
+      host:
+      - albert.api.etalab.gouv.fr
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://albert.api.etalab.gouv.fr/v1/chat/completions
+  response:
+    body:
+      string: "{\"id\":\"chatcmpl-057c36cda9fe453bb5a7b0e5728e721b\",\"object\":\"chat.completion\",\"created\":1758810273,\"model\":\"mistralai/Mistral-Small-3.2-24B-Instruct-2506\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"Je
+        suis l\xE0 pour t'aider ! \u23F3 Dis-moi exactement ce que tu aimerais que
+        je fasse pour toi (r\xE9pondre \xE0 une question, g\xE9n\xE9rer un texte,
+        analyser un sujet, etc.), et je m'en occupe imm\xE9diatement. \U0001F60A\\n\\nExemples
+        d'actions :\\n- *\\\"R\xE9dige un mail professionnel pour un cong\xE9 maladie.\\\"*\\n-
+        *\\\"Explique la photosynth\xE8se en 3 points.\\\"*\\n- *\\\"Traduis cette
+        phrase en espagnol.\\\"*\\n- *\\\"Propose une id\xE9e de cadeau pour un ami
+        qui aime la randonn\xE9e.\\\"*\\n\\n\xC0 toi de jouer ! \U0001F680\",\"refusal\":null,\"annotations\":null,\"audio\":null,\"function_call\":null,\"tool_calls\":[],\"reasoning_content\":null},\"logprobs\":null,\"finish_reason\":\"stop\",\"stop_reason\":null}],\"service_tier\":null,\"system_fingerprint\":null,\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":127,\"total_tokens\":135,\"cost\":0.0,\"carbon\":{\"kWh\":{\"min\":0.0,\"max\":0.0},\"kgCO2eq\":{\"min\":0.0,\"max\":0.0}},\"details\":[{\"id\":\"chatcmpl-057c36cda9fe453bb5a7b0e5728e721b\",\"model\":\"mistralai/Mistral-Small-3.2-24B-Instruct-2506\",\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":127,\"total_tokens\":135,\"cost\":0.0,\"carbon\":{\"kWh\":{\"min\":0.0,\"max\":0.0},\"kgCO2eq\":{\"min\":0.0,\"max\":0.0}}}}]},\"prompt_logprobs\":null,\"kv_transfer_params\":null}"
+    headers:
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      Date:
+      - Thu, 25 Sep 2025 14:24:37 GMT
+      Server:
+      - nginx/1.27.4
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Accept-Encoding
+      content-length:
+      - '1390'
+    status:
+      code: 200
+      message: OK
 version: 1

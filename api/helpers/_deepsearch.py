@@ -356,7 +356,7 @@ class DeepSearchAgent:
     async def _call_model_async(self, token_counter: TokenCounter, messages: List[dict], max_tokens: int = 2048) -> Optional[str]:
         await asyncio.sleep(0.1)
         try:
-            client = self.model.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
+            client, _ = self.model.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
             resp = await client.forward_request(
                 method="POST",
                 json={

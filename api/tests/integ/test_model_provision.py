@@ -93,6 +93,9 @@ class TestModelProvision:
                 "model_carbon_footprint_zone": "WOR",
                 "model_carbon_footprint_total_params": 8,
                 "model_carbon_footprint_active_params": 8,
+                "qos_policy": "parallel-requests-threshold",
+                "performance_threshold": None,
+                "max_parallel_requests": 20,
             },
             "model_type": "text-generation",
             "aliases": ["cs-router-alias-1", "cs-router-alias-2"],
@@ -104,7 +107,7 @@ class TestModelProvision:
             },
         }
         response = client.post_master(url=f"v1{ENDPOINT__MODELS}", json=payload)
-        assert response.status_code == 201
+        assert response.status_code == 201, response.text
 
         response = client.get_master(url=f"v1{ENDPOINT__ROUTERS}")
         assert response.status_code == 200

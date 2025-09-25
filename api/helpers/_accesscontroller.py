@@ -14,6 +14,7 @@ from api.schemas.collections import CollectionVisibility
 from api.schemas.me import UserInfo
 from api.sql.session import get_db_session
 from api.utils.context import global_context, request_context
+from api.utils.configuration import configuration
 from api.utils.exceptions import (
     InsufficientBudgetException,
     InsufficientPermissionException,
@@ -37,6 +38,8 @@ from api.utils.variables import (
 )
 
 logger = logging.getLogger(__name__)
+
+settings = configuration.settings
 
 
 class _UserModelLimits(BaseModel):
@@ -165,6 +168,7 @@ class AccessController:
                 created_at=0,
                 updated_at=0,
                 organization_id=0,
+                priority=settings.celery_task_max_priority,
             )
 
             master_limits = self.__get_user_limits(user_info=master_info)

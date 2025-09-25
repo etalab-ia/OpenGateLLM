@@ -1,9 +1,11 @@
 import json
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 from api.helpers._agentmanager import AgentManager
+from api.utils.context import global_context
 from api.schemas.agents import AgentsTool
 from api.utils.exceptions import ToolNotFoundException
 
@@ -26,12 +28,13 @@ class TestMCPLoop:
     def mock_llm_registry(self, mock_llm_client):
         class FakeModel:
             async def safe_client_access(self, endpoint, handler):
-                # just call handler with your mock client
                 return await handler(mock_llm_client)
 
         async def fake_registry(model):
             return FakeModel()
 
+        # Patch global_context for production path used by invoke_model_request
+        global_context.model_registry = fake_registry
         return fake_registry
 
     @pytest.fixture
@@ -68,14 +71,29 @@ class TestMCPLoop:
             # GIVEN
             mock_mcp_bridge.get_tool_list.return_value = {}
             raw_response_from_llm = {"choices": [{"finish_reason": "not stop nor tools_calls", "message": {"content": "message from llm"}}]}
+
+            # Mock the forward_request to return the expected response
             mock_llm_client.forward_request.return_value = SimpleNamespace(
-                text=json.dumps(raw_response_from_llm), json=lambda: raw_response_from_llm, status_code=200, request="", headers={}
+                text=json.dumps(raw_response_from_llm),
+                json=lambda r=raw_response_from_llm: r,
+                status_code=200,
+                request=httpx.Request("POST", "http://test"),
+                headers={},
             )
+
             number_of_rounds = 2
-            # WHEN
-            actual_message = await agent_manager.get_completion(
-                SimpleNamespace(messages=[{"content": "Salut", "role": "user"}], model_dump=lambda: None, model="")
-            )
+
+            # WHEN - Mock invoke_model_request to return our mock client
+            with patch("api.helpers._agentmanager.invoke_model_request", new_callable=AsyncMock) as mock_invoke:
+                mock_invoke.return_value = mock_llm_client
+
+                actual_message = await agent_manager.get_completion(
+                    SimpleNamespace(
+                        messages=[{"content": "Salut", "role": "user"}],
+                        model_dump=lambda: {"messages": [{"content": "Salut", "role": "user"}], "model": "albert-large"},
+                        model="albert-large",
+                    )
+                )
 
             # THEN
             assert actual_message.json()["choices"][0]["finish_reason"] == "max_iterations"
@@ -109,13 +127,34 @@ class TestMCPLoop:
 
             mock_llm_client.forward_request.side_effect = [
                 SimpleNamespace(
-                    text='{"choices": [{"finish_reason": "tool_calls","message": {"tool_calls": [{"function": {"name": "tool_1", "arguments": "arguments for tool call"}}]}}]}'
+                    status_code=200,
+                    text=json.dumps(
+                        {
+                            "choices": [
+                                {
+                                    "finish_reason": "tool_calls",
+                                    "message": {"tool_calls": [{"function": {"name": "tool_1", "arguments": "arguments for tool call"}}]},
+                                }
+                            ]
+                        }
+                    ),
+                    json=lambda: {
+                        "choices": [
+                            {
+                                "finish_reason": "tool_calls",
+                                "message": {"tool_calls": [{"function": {"name": "tool_1", "arguments": "arguments for tool call"}}]},
+                            }
+                        ]
+                    },
+                    headers={},
+                    request=httpx.Request("POST", "http://test"),
                 ),
                 SimpleNamespace(
                     status_code=200,
                     text=json.dumps({"choices": [{"finish_reason": "stop", "message": {"content": "message from llm"}}]}),
+                    json=lambda: {"choices": [{"finish_reason": "stop", "message": {"content": "message from llm"}}]},
                     headers={},
-                    request=None,
+                    request=httpx.Request("POST", "http://test"),
                 ),
             ]
             number_of_rounds = 2
@@ -127,7 +166,9 @@ class TestMCPLoop:
             )
 
             # WHEN
-            actual_message = await agent_manager.get_completion(body)
+            with patch("api.helpers._agentmanager.invoke_model_request", new_callable=AsyncMock) as mock_invoke:
+                mock_invoke.return_value = mock_llm_client
+                actual_message = await agent_manager.get_completion(body)
 
             # THEN
             second_call_llm_client_arguments = mock_llm_client.forward_request.call_args_list[1][1]
@@ -161,13 +202,34 @@ class TestMCPLoop:
 
             mock_llm_client.forward_request.side_effect = [
                 SimpleNamespace(
-                    text='{"choices": [{"finish_reason": "tool_calls","message": {"tool_calls": [{"function": {"name": "tool_1", "arguments": "arguments for tool call"}}]}}]}'
+                    status_code=200,
+                    text=json.dumps(
+                        {
+                            "choices": [
+                                {
+                                    "finish_reason": "tool_calls",
+                                    "message": {"tool_calls": [{"function": {"name": "tool_1", "arguments": "arguments for tool call"}}]},
+                                }
+                            ]
+                        }
+                    ),
+                    json=lambda: {
+                        "choices": [
+                            {
+                                "finish_reason": "tool_calls",
+                                "message": {"tool_calls": [{"function": {"name": "tool_1", "arguments": "arguments for tool call"}}]},
+                            }
+                        ]
+                    },
+                    headers={},
+                    request=httpx.Request("POST", "http://test"),
                 ),
                 SimpleNamespace(
                     status_code=200,
                     text=json.dumps({"choices": [{"finish_reason": "stop", "message": {"content": "message from llm"}}]}),
+                    json=lambda: {"choices": [{"finish_reason": "stop", "message": {"content": "message from llm"}}]},
                     headers={},
-                    request=None,
+                    request=httpx.Request("POST", "http://test"),
                 ),
             ]
             number_of_rounds = 2
@@ -177,7 +239,9 @@ class TestMCPLoop:
             )
 
             # WHEN
-            actual_message = await agent_manager.get_completion(body)
+            with patch("api.helpers._agentmanager.invoke_model_request", new_callable=AsyncMock) as mock_invoke:
+                mock_invoke.return_value = mock_llm_client
+                actual_message = await agent_manager.get_completion(body)
 
             # THEN
             second_call_llm_client_arguments = mock_llm_client.forward_request.call_args_list[1][1]
@@ -210,15 +274,18 @@ class TestMCPLoop:
                 SimpleNamespace(
                     status_code=200,
                     text=json.dumps({"choices": [{"finish_reason": "stop", "message": {"content": message_from_llm}}]}),
+                    json=lambda m=message_from_llm: {"choices": [{"finish_reason": "stop", "message": {"content": m}}]},
                     headers={},
-                    request=None,
+                    request=httpx.Request("POST", "http://test"),
                 ),
             ]
             number_of_rounds = 1
             body = TestMCPBody(messages=[{"content": "Je veux que tu fasses une action", "role": "user"}], model="albert-large")
 
             # WHEN
-            actual_message = await agent_manager.get_completion(body)
+            with patch("api.helpers._agentmanager.invoke_model_request", new_callable=AsyncMock) as mock_invoke:
+                mock_invoke.return_value = mock_llm_client
+                actual_message = await agent_manager.get_completion(body)
 
             # THEN
             llm_client_arguments_called = mock_llm_client.forward_request.call_args_list[0][1]
@@ -243,13 +310,34 @@ class TestMCPLoop:
 
             mock_llm_client.forward_request.side_effect = [
                 SimpleNamespace(
-                    text='{"choices": [{"finish_reason": "tool_calls","message": {"tool_calls": [{"function": {"name": "tool_1", "arguments": "arguments for tool call"}}]}}]}'
+                    status_code=200,
+                    text=json.dumps(
+                        {
+                            "choices": [
+                                {
+                                    "finish_reason": "tool_calls",
+                                    "message": {"tool_calls": [{"function": {"name": "tool_1", "arguments": "arguments for tool call"}}]},
+                                }
+                            ]
+                        }
+                    ),
+                    json=lambda: {
+                        "choices": [
+                            {
+                                "finish_reason": "tool_calls",
+                                "message": {"tool_calls": [{"function": {"name": "tool_1", "arguments": "arguments for tool call"}}]},
+                            }
+                        ]
+                    },
+                    headers={},
+                    request=httpx.Request("POST", "http://test"),
                 ),
                 SimpleNamespace(
                     status_code=200,
                     text=json.dumps({"choices": [{"finish_reason": "stop", "message": {"content": "message from llm"}}]}),
+                    json=lambda: {"choices": [{"finish_reason": "stop", "message": {"content": "message from llm"}}]},
                     headers={},
-                    request=None,
+                    request=httpx.Request("POST", "http://test"),
                 ),
             ]
             number_of_rounds = 2
@@ -262,7 +350,9 @@ class TestMCPLoop:
             )
 
             # WHEN
-            actual_message = await agent_manager.get_completion(body)
+            with patch("api.helpers._agentmanager.invoke_model_request", new_callable=AsyncMock) as mock_invoke:
+                mock_invoke.return_value = mock_llm_client
+                actual_message = await agent_manager.get_completion(body)
 
             # THEN
             second_call_llm_client_arguments = mock_llm_client.forward_request.call_args_list[1][1]

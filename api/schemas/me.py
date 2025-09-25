@@ -1,5 +1,5 @@
 import datetime as dt
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Annotated
 
 from pydantic import Field, constr, field_validator
 
@@ -19,6 +19,10 @@ class UserInfo(BaseModel):
     expires_at: Optional[int] = Field(default=None, description="The user expiration timestamp. If None, the user will never expire.")
     created_at: int = Field(description="The user creation timestamp.")
     updated_at: int = Field(description="The user update timestamp.")
+    priority: int = Field(
+        default=0,
+        description="The user priority (higher = higher priority). This value influences scheduling/queue priority for non-streaming model invocations.",
+    )
 
 
 class UpdateUserRequest(BaseModel):
@@ -34,7 +38,7 @@ class CreateKeyResponse(BaseModel):
 
 
 class CreateKey(BaseModel):
-    name: constr(strip_whitespace=True, min_length=1)
+    name: Annotated[str, constr(strip_whitespace=True, min_length=1)]
     expires_at: Optional[int] = Field(None, description="Timestamp in seconds")
 
     @field_validator("expires_at", mode="before")

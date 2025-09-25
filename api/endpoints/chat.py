@@ -9,9 +9,11 @@ from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithSt
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionRequest
 from api.schemas.exception import HTTPExceptionModel
 from api.schemas.search import Search, SearchMethod
+from api.schemas.admin.users import User
 from api.sql.session import get_db_session
 from api.utils.context import global_context, request_context
-from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException
+from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, TaskFailedException
+from api.services.model_invocation import invoke_model_request
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ROUTER__CHAT
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
@@ -19,7 +21,6 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
 
 @router.post(
     path=ENDPOINT__CHAT_COMPLETIONS,
-    dependencies=[Security(dependency=AccessController())],
     status_code=200,
     response_model=Union[ChatCompletion, ChatCompletionChunk],
     responses={
@@ -30,7 +31,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
         ModelIsTooBusyException().status_code: {"model": HTTPExceptionModel, "description": ModelIsTooBusyException().detail},
     },
 )
-async def chat_completions(request: Request, body: ChatCompletionRequest, session: AsyncSession = Depends(get_db_session)) -> Union[JSONResponse, StreamingResponseWithStatusCode]:  # fmt: off
+async def chat_completions(request: Request, body: ChatCompletionRequest, session: AsyncSession = Depends(get_db_session), user: User = Security(AccessController())) -> Union[JSONResponse, StreamingResponseWithStatusCode]:  # fmt: off
     """Creates a model response for the given chat conversation.
 
     **Important**: any others parameters are authorized, depending on the model backend. For example, if model is support by vLLM backend, additional
@@ -80,17 +81,19 @@ async def chat_completions(request: Request, body: ChatCompletionRequest, sessio
     body, results = await retrieval_augmentation_generation(initial_body=body, inner_session=session)
     additional_data = {"search_results": results} if results else {}
 
-    # select client
-    model = await global_context.model_registry(model=body["model"])
-    client = model.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
+    user_priority = getattr(user, "priority", 0)
 
-    # not stream case
+    try:
+        client = await invoke_model_request(model_name=body["model"], endpoint=ENDPOINT__CHAT_COMPLETIONS, user_priority=user_priority)
+    except TaskFailedException as e:
+        return JSONResponse(content=e.detail, status_code=e.status_code)
+
+    client.endpoint = ENDPOINT__CHAT_COMPLETIONS
+
     if not body["stream"]:
         response = await client.forward_request(method="POST", json=body, additional_data=additional_data)
         return JSONResponse(content=response.json(), status_code=response.status_code)
 
     # stream case
-    return StreamingResponseWithStatusCode(
-        content=client.forward_stream(method="POST", json=body, additional_data=additional_data),
-        media_type="text/event-stream",
-    )
+    stream_iter = client.forward_stream(method="POST", json=body, additional_data=additional_data)
+    return StreamingResponseWithStatusCode(content=stream_iter, media_type="text/event-stream")

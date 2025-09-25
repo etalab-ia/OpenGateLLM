@@ -22,6 +22,7 @@ from api.schemas.search import Search, SearchMethod
 from api.sql.models import Collection as CollectionTable
 from api.sql.models import Document as DocumentTable
 from api.sql.models import User as UserTable
+from api.utils.variables import ENDPOINT__EMBEDDINGS
 from api.utils.exceptions import (
     ChunkingFailedException,
     CollectionNotFoundException,
@@ -29,7 +30,6 @@ from api.utils.exceptions import (
     MultiAgentSearchNotAvailableException,
     VectorizationFailedException,
 )
-from api.utils.variables import ENDPOINT__EMBEDDINGS
 
 from ._multiagentmanager import MultiAgentManager
 from ._parsermanager import ParserManager
@@ -386,7 +386,7 @@ class DocumentManager:
         if not collection_ids:
             return []  # to avoid a request to create a query vector
 
-        response = await self._create_embeddings(input=[prompt])
+        response = await self._create_embeddings(input_texts=[prompt])
         query_vector = response[0]
 
         _method = method
@@ -487,10 +487,10 @@ class DocumentManager:
 
         return chunks
 
-    async def _create_embeddings(self, input: List[str]) -> list[float] | list[list[float]] | dict:
+    async def _create_embeddings(self, input_texts: List[str]) -> list[float] | list[list[float]] | dict:
         async def handler(client):
             response = await client.forward_request(
-                method="POST", json={"input": input, "model": self.vector_store_model.name, "encoding_format": "float"}
+                method="POST", json={"input": input_texts, "model": self.vector_store_model.name, "encoding_format": "float"}
             )
 
             return [vector["embedding"] for vector in response.json()["data"]]
@@ -502,7 +502,7 @@ class DocumentManager:
         for batch in batches:
             # create embeddings
             texts = [chunk.content for chunk in batch]
-            embeddings = await self._create_embeddings(input=texts)
+            embeddings = await self._create_embeddings(input_texts=texts)
 
             # insert chunks and vectors
             await self.vector_store.upsert(collection_id=collection_id, chunks=batch, embeddings=embeddings)

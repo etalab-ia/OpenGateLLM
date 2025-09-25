@@ -1,3 +1,4 @@
+import traceback
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response, Security
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,9 +57,7 @@ async def create_model(request: Request, body: AddModelRequest, session: AsyncSe
 
     client_kwargs = body.additional_field if body.additional_field is not None else {}
 
-    redis = global_context.limiter.connection_pool  # not quite clean
-
-    client = BaseModelClient.from_schema(body.model, redis, **client_kwargs)
+    client = BaseModelClient.from_schema(body.model, **client_kwargs)
 
     try:
         await global_context.model_registry.add_client(
@@ -75,7 +74,7 @@ async def create_model(request: Request, body: AddModelRequest, session: AsyncSe
     except HTTPException as e:
         raise e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=traceback.print_exception(e))
 
     return Response(status_code=201)
 

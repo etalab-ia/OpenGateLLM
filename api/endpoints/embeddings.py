@@ -3,8 +3,8 @@ from fastapi.responses import JSONResponse
 
 from api.helpers._accesscontroller import AccessController
 from api.schemas.embeddings import Embeddings, EmbeddingsRequest
-from api.utils.context import global_context
 from api.utils.variables import ENDPOINT__EMBEDDINGS, ROUTER__EMBEDDINGS
+from api.utils.context import global_context
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__EMBEDDINGS.title()])
 
