@@ -144,15 +144,27 @@ def extract_usage_from_streaming_response(response: StreamingResponse, start_tim
                     if data.get("model"):
                         usage.model = data["model"]
 
-                    if data.get("usage"):
-                        usage.prompt_tokens = data["usage"]["prompt_tokens"]
-                        usage.completion_tokens = data["usage"]["completion_tokens"]
-                        usage.total_tokens = data["usage"]["total_tokens"]
-                        usage.cost = data["usage"].get("cost", None)
-                        usage.kwh_min = data["usage"].get("carbon", {}).get("kWh", {}).get("min", None)
-                        usage.kwh_max = data["usage"].get("carbon", {}).get("kWh", {}).get("max", None)
-                        usage.kgco2eq_min = data["usage"].get("carbon", {}).get("kgCO2eq", {}).get("min", None)
-                        usage.kgco2eq_max = data["usage"].get("carbon", {}).get("kgCO2eq", {}).get("max", None)
+                    response_usage = data.get("usage", {})
+                    usage.prompt_tokens = response_usage.get("prompt_tokens", None)
+                    usage.completion_tokens = response_usage.get("completion_tokens", None)
+                    usage.total_tokens = response_usage.get("total_tokens", None)
+                    usage.cost = response_usage.get("cost", None)
+                    usage.kwh_min = response_usage.get("carbon", {}).get("kWh", {}).get("min", None)
+                    usage.kwh_max = response_usage.get("carbon", {}).get("kWh", {}).get("max", None)
+                    usage.kgco2eq_min = response_usage.get("carbon", {}).get("kgCO2eq", {}).get("min", None)
+                    usage.kgco2eq_max = response_usage.get("carbon", {}).get("kgCO2eq", {}).get("max", None)
+
+                    observability = response_usage.get("observability", {})
+                    usage.client_url = observability.get("client_url", "")
+                    usage.max_parallel_requests = observability.get("max_parallel_requests", 0)
+                    usage.current_parallel_requests = observability.get("current_parallel_requests", 0)
+
+                    task_metrics = observability.get("task_metrics", {})
+                    usage.strategy = task_metrics.get("strategy", "")
+                    usage.priority = task_metrics.get("priority", 0)
+                    usage.requeue_count = task_metrics.get("requeue_count", 0)
+                    usage.get_client_duration = task_metrics.get("get_client_duration", 0)
+                    usage.performance_score = task_metrics.get("performance_score", None)
 
         # Set usage.status with the captured status code before calling write_usage
         if response_status_code is not None:
@@ -176,7 +188,8 @@ async def extract_usage_from_response(response: Response, start_time: datetime, 
         if hasattr(response, "body") and response.body:
             body = json.loads(response.body)
 
-        usage.model = body.get("model", None)
+        if body.get("model"):
+            usage.model = body["model"]
         response_usage = body.get("usage", {})
         usage.prompt_tokens = response_usage.get("prompt_tokens", None)
         usage.completion_tokens = response_usage.get("completion_tokens", None)
@@ -186,6 +199,18 @@ async def extract_usage_from_response(response: Response, start_time: datetime, 
         usage.kwh_max = response_usage.get("carbon", {}).get("kWh", {}).get("max", None)
         usage.kgco2eq_min = response_usage.get("carbon", {}).get("kgCO2eq", {}).get("min", None)
         usage.kgco2eq_max = response_usage.get("carbon", {}).get("kgCO2eq", {}).get("max", None)
+
+        observability = response_usage.get("observability", {})
+        usage.client_url = observability.get("client_url", "")
+        usage.max_parallel_requests = observability.get("max_parallel_requests", 0)
+        usage.current_parallel_requests = observability.get("current_parallel_requests", 0)
+
+        task_metrics = observability.get("task_metrics", {})
+        usage.strategy = task_metrics.get("strategy", "")
+        usage.priority = task_metrics.get("priority", 0)
+        usage.requeue_count = task_metrics.get("requeue_count", 0)
+        usage.get_client_duration = task_metrics.get("get_client_duration", 0)
+        usage.performance_score = task_metrics.get("performance_score", None)
 
     except Exception as e:
         logger.warning(f"Failed to parse JSON response body: {response.body} ({e})")

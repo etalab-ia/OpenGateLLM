@@ -39,6 +39,8 @@ def invoke_model_task(self, router_schema: dict[str, Any], endpoint: str) -> dic
                 "status_code": 200,
                 "client": client.as_schema(censored=False).model_dump(),
                 "cycle_offset": router._cycle.offset,
+                "requeue_count": self.request.retries,
+                "performance_indicator": performance_indicator,
             }
         else:
             raise self.retry(
@@ -49,8 +51,8 @@ def invoke_model_task(self, router_schema: dict[str, Any], endpoint: str) -> dic
     except Retry:
         raise
     except MaxRetriesExceededError:
-        return {"status_code": 503, "body": {"detail": "Max retries exceeded"}}
+        return {"status_code": 503, "requeue_count": self.request.retries, "body": {"detail": "Max retries exceeded"}}
     except SoftTimeLimitExceeded:
-        return {"status_code": 504, "body": {"detail": "Model invocation exceeded the soft time limit"}}
+        return {"status_code": 504, "requeue_count": self.request.retries, "body": {"detail": "Model invocation exceeded the soft time limit"}}
     except Exception as e:  # pragma: no cover - defensive
-        return {"status_code": 500, "body": {"detail": type(e).__name__}}
+        return {"status_code": 500, "requeue_count": self.request.retries, "body": {"detail": type(e).__name__}}

@@ -181,13 +181,16 @@ class BaseModelClient(ABC):
             else:
                 logger.error(f"Creation of redis timeseries {latency_ts_key} failed : {e}", exc_info=True)
 
-    def _get_usage(self, json: dict, data: dict | list[dict], stream: bool, request_latency: float = 0.0) -> Usage | None:
+    def _get_usage(
+        self, json: dict, data: dict | list[dict], additional_data: dict[str, Any], stream: bool, request_latency: float = 0.0
+    ) -> Usage | None:
         """
         Get usage data from request and response.
 
         Args:
             json(dict): The JSON body of the request.
             data(dict): The data of the response.
+            additional_data(dict): Additional data notably containing task metrics
             stream(bool): Whether the response is a stream.
 
         Returns:
@@ -254,16 +257,29 @@ class BaseModelClient(ABC):
                         usage.carbon.kWh.max = 0.0
                     usage.carbon.kWh.max += detail.usage.carbon.kWh.max
 
+                usage.observability.client_url = self.url
+                usage.observability.max_parallel_requests = self.max_parallel_requests
+                usage.observability.current_parallel_requests = self.get_current_parallel_requests()
+
+                task_metrics = additional_data.get("task_metrics", {})
+                usage.observability.task_metrics.strategy = task_metrics.get("strategy", "")
+                usage.observability.task_metrics.priority = task_metrics.get("priority", 0)
+                usage.observability.task_metrics.requeue_count = task_metrics.get("requeue_count", 0)
+                usage.observability.task_metrics.get_client_duration = task_metrics.get("get_client_duration", 0)
+                usage.observability.task_metrics.performance_score = task_metrics.get("performance_score", None)
+
             except Exception as e:
                 logger.exception(msg=f"Failed to compute usage values for endpoint {self.endpoint}: {e}.")
 
         return usage
 
-    def _get_additional_data(self, json: dict, data: dict | list[dict], stream: bool, request_latency: float = 0.0) -> dict:
+    def _get_additional_data(
+        self, json: dict, data: dict | list[dict], additional_data: dict[str, Any], stream: bool, request_latency: float = 0.0
+    ) -> dict:
         """
         Get additional data from request and response.
         """
-        usage = self._get_usage(json=json, data=data, stream=stream, request_latency=request_latency)
+        usage = self._get_usage(json=json, data=data, additional_data=additional_data, stream=stream, request_latency=request_latency)
         request_id = usage.details[-1].id if usage and usage.details else generate_request_id()
         additional_data = {"model": self.name, "id": request_id}
 
@@ -319,7 +335,10 @@ class BaseModelClient(ABC):
         content_type = response.headers.get("Content-Type", "")
         if content_type == "application/json":
             data = response.json()
-            data.update(self._get_additional_data(json=json, data=data, stream=False, request_latency=request_latency))
+            data.update(
+                self._get_additional_data(json=json, data=data, additional_data=additional_data, stream=False, request_latency=request_latency)
+            )
+            additional_data.pop("task_metrics")
             data.update(additional_data)
             response = httpx.Response(status_code=response.status_code, content=dumps(data))
 
@@ -359,15 +378,7 @@ class BaseModelClient(ABC):
             self._redis_client.reset()
             return []
 
-    def apply_modelclient_policy(self, performance_indicator: float | None) -> bool:
-        policy: BaseQualityOfServicePolicy | None = None
-        if self.qos_policy == QosPolicy.PARALLEL_REQUESTS_THRESHOLD:
-            policy = ParallelRequestsThresholdPolicy(self.max_parallel_requests)
-        elif self.qos_policy == QosPolicy.PERFORMANCE_THRESHOLD:
-            policy = PerformanceThresholdPolicy(self.performance_threshold)
-        else:
-            policy = WarningLogPolicy(self.performance_threshold, self.max_parallel_requests)
-
+    def get_current_parallel_requests(self) -> Optional[int]:
         try:
             inflight_key = f"metrics_gauge:inflight:{self.name}:{self.url}"
             current_parallel_requests = self._redis_client.get(inflight_key)
@@ -378,6 +389,18 @@ class BaseModelClient(ABC):
         except Exception as e:
             logger.error(traceback.print_exception(e))
             current_parallel_requests = None
+        return current_parallel_requests
+
+    def apply_modelclient_policy(self, performance_indicator: float | None) -> bool:
+        policy: BaseQualityOfServicePolicy | None = None
+        if self.qos_policy == QosPolicy.PARALLEL_REQUESTS_THRESHOLD:
+            policy = ParallelRequestsThresholdPolicy(self.max_parallel_requests)
+        elif self.qos_policy == QosPolicy.PERFORMANCE_THRESHOLD:
+            policy = PerformanceThresholdPolicy(self.performance_threshold)
+        else:
+            policy = WarningLogPolicy(self.performance_threshold, self.max_parallel_requests)
+
+        current_parallel_requests = self.get_current_parallel_requests()
         return policy.apply_policy(performance_indicator, current_parallel_requests)
 
     async def forward_request(
@@ -502,7 +525,9 @@ class BaseModelClient(ABC):
         # normal case
         extra_chunk = content  # based on last chunk to conserve the chunk structure
         extra_chunk.update({"choices": []})
-        extra_chunk.update(self._get_additional_data(json=json, data=chunks, stream=True, request_latency=request_latency))
+        extra_chunk.update(
+            self._get_additional_data(json=json, data=chunks, additional_data=additional_data, stream=True, request_latency=request_latency)
+        )
         extra_chunk.update(additional_data)
 
         return extra_chunk

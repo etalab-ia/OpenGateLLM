@@ -8,7 +8,6 @@ from api.schemas.admin.users import User
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionRequest
 from api.schemas.exception import HTTPExceptionModel
 from api.schemas.search import Search
-from api.schemas.admin.users import User
 from api.sql.session import get_db_session
 from api.utils.context import global_context, request_context
 from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, TaskFailedException
@@ -78,11 +77,12 @@ async def chat_completions(request: Request, body: ChatCompletionRequest, sessio
     user_priority = getattr(user, "priority", 0)
 
     try:
-        client = await invoke_model_request(model_name=body["model"], endpoint=ENDPOINT__CHAT_COMPLETIONS, user_priority=user_priority)
+        client, task_metrics = await invoke_model_request(model_name=body["model"], endpoint=ENDPOINT__CHAT_COMPLETIONS, user_priority=user_priority)
     except TaskFailedException as e:
         return JSONResponse(content=e.detail, status_code=e.status_code)
 
     client.endpoint = ENDPOINT__CHAT_COMPLETIONS
+    additional_data["task_metrics"] = task_metrics.model_dump()
 
     if not body["stream"]:
         response = await client.forward_request(method="POST", json=body, additional_data=additional_data)
