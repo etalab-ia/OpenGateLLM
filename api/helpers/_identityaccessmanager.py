@@ -212,7 +212,6 @@ class IdentityAccessManager:
                 role_id = row.role_id
                 if role_id in roles:
                     roles[role_id].limits.append(Limit(model=row.model, type=row.type, value=row.value))
-
             # Query permissions for these roles
             permissions_query = select(PermissionTable.role_id, PermissionTable.permission).where(PermissionTable.role_id.in_(list(roles.keys())))
 
@@ -221,7 +220,6 @@ class IdentityAccessManager:
                 role_id = row.role_id
                 if role_id in roles:
                     roles[role_id].permissions.append(PermissionType(value=row.permission))
-
         return list(roles.values())
 
     async def create_user(
@@ -739,7 +737,7 @@ class IdentityAccessManager:
         if email == "master" and password == self.master_key:
             return 0, self.master_key
 
-        user = await self.get_user_info(session, email=email)  # raise UserNotFoundException (404) if user not found
+        user = await self.get_user_info(session=session, email=email)  # raise UserNotFoundException (404) if user not found
         result = await session.execute(statement=select(UserTable.password).where(UserTable.id == user.id))
         user_password = result.scalar_one()
 

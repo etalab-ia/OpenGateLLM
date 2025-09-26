@@ -43,13 +43,7 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
 
         mappings = {
             "dynamic_templates": [
-                {
-                    "metadata_objects_disabled": {
-                        "path_match": "metadata.*",
-                        "match_mapping_type": "object",
-                        "mapping": {"enabled": False}
-                    }
-                },
+                {"metadata_objects_disabled": {"path_match": "metadata.*", "match_mapping_type": "object", "mapping": {"enabled": False}}},
                 {
                     "metadata_dates_by_name": {
                         "path_match": "metadata.*",
@@ -58,38 +52,32 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
                         "mapping": {
                             "type": "date",
                             "ignore_malformed": True,
-                            "format": "strict_date_optional_time||strict_date_time||yyyy-MM-dd'T'HH:mm:ssZ||epoch_millis"
-                        }
+                            "format": "strict_date_optional_time||strict_date_time||yyyy-MM-dd'T'HH:mm:ssZ||epoch_millis",
+                        },
                     }
                 },
-                {
-                    "metadata_bools": {
-                        "path_match": "metadata.*",
-                        "match_mapping_type": "boolean",
-                        "mapping": {"type": "boolean"}
-                    }
-                },
+                {"metadata_bools": {"path_match": "metadata.*", "match_mapping_type": "boolean", "mapping": {"type": "boolean"}}},
                 {
                     "metadata_numbers_long": {
                         "path_match": "metadata.*",
                         "match_mapping_type": "long",
-                        "mapping": {"type": "long", "ignore_malformed": True, "coerce": True}
+                        "mapping": {"type": "long", "ignore_malformed": True, "coerce": True},
                     }
                 },
                 {
                     "metadata_numbers_double": {
                         "path_match": "metadata.*",
                         "match_mapping_type": "double",
-                        "mapping": {"type": "double", "ignore_malformed": True, "coerce": True}
+                        "mapping": {"type": "double", "ignore_malformed": True, "coerce": True},
                     }
                 },
                 {
                     "metadata_strings": {
                         "path_match": "metadata.*",
                         "match_mapping_type": "string",
-                        "mapping": {"type": "keyword", "ignore_above": 1024}
+                        "mapping": {"type": "keyword", "ignore_above": 1024},
                     }
-                }
+                },
             ],
             "date_detection": False,
             "numeric_detection": False,

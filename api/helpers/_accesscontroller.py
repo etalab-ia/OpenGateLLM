@@ -8,7 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas.admin.roles import Limit, LimitType, PermissionType, Role
+from api.schemas.admin.roles import Limit, LimitType, PermissionType
 from api.schemas.admin.users import User
 from api.schemas.collections import CollectionVisibility
 from api.schemas.me import UserInfo
@@ -115,7 +115,6 @@ class AccessController:
         if request.url.path.endswith(ENDPOINT__ROUTERS) and request.method in ["GET"]:
             await self._check_provider(user_info=user_info, limits=limits, request=request)
 
-        await session.rollback()
         return user_info
 
     def __get_user_limits(self, user_info: UserInfo) -> Dict[str, _UserModelLimits]:
@@ -144,7 +143,7 @@ class AccessController:
 
     async def _check_api_key(
         self, api_key: HTTPAuthorizationCredentials, session: AsyncSession
-    ) -> tuple[User, Role, Dict[str, _UserModelLimits], int | None]:
+    ) -> tuple[User, Dict[str, _UserModelLimits], int | None]:
         if api_key.scheme != "Bearer":
             raise InvalidAuthenticationSchemeException()
 

@@ -36,3 +36,5 @@ async def get_db_session():
     get_db_func = get_db_dependency()
     async for session in get_db_func():
         yield session
+        if session.in_transaction():
+            await session.close()

@@ -12,7 +12,7 @@ dependencies = [
     "alembic==1.15.1",
     "psycopg2-binary==2.9.10",
     "asyncpg==0.30.0",
-    "sqlalchemy[asyncio]==2.0.38",
+    "sqlalchemy[asyncio]==2.0.43",
     "sqlalchemy-utils==0.41.2",
     "sentry-sdk[fastapi]>=2.28.0",
     "bcrypt==4.3.0"
@@ -47,7 +47,7 @@ api = [
 
     # app
     "gunicorn==23.0.0",
-    "fastapi==0.115.8",
+    "fastapi==0.117.1",
     "prometheus-fastapi-instrumentator==7.0.2",
     "pyyaml==6.0.2",
     "uvicorn==0.34.0",
