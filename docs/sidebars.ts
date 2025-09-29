@@ -60,6 +60,10 @@ const sidebars: SidebarsConfig = {
       type: 'doc',
       id: 'deployment',
     },
+    {
+      type: 'doc',
+      id: 'tutorials',
+    },
   ]
 };
 
