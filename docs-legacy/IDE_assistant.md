@@ -132,3 +132,35 @@ You now see Albert-code in proxyAI.
   }
 }
 ```
+
+<h2>Kilo, Cursor assistant</h1>
+
+
+<p style="text-align: justify;">Kilo Code AI Agent  is a Cursor plugin that allows you to get a code wizard locally, on your IDE. </p>
+
+
+---
+### Kilo : Installation 
+
+- Open Cursor marketplace extensions.
+
+- Search for `Kilo` in the marketplace.
+
+- Select and install `Kilo Code AI Agent`.
+
+- If the installation was successful, you should see a "🗸 Kilo" item in the bottom right-hand corner of your screen.
+
+- After installation, you need to access the Kilo config file. To do this:
+  
+Open Kilo   
+Select `Custom OpenAI`  
+Add a new configuration :  
+
+
+```yaml
+API Key: <YOUR_API_KEY>
+URL: https://albert.api.etalab.gouv.fr/v1/chat/completions
+model: albert-code
+```
+
+You now see Local Assistant as an available template in the chat window.
