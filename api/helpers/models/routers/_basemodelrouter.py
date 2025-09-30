@@ -210,10 +210,13 @@ class BaseModelRouter(ABC):
             # another thread to remove it while in use
             await client.lock.acquire()
 
-        if inspect.iscoroutinefunction(handler):
-            result = await handler(client)
-        else:
-            result = handler(client)
+        try:
+            if inspect.iscoroutinefunction(handler):
+                result = await handler(client)
+            else:
+                result = handler(client)
+        finally:
+            # Always release the client lock, even if handler raises
+            client.lock.release()
 
-        client.lock.release()
         return result
