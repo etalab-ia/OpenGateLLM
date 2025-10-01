@@ -191,15 +191,14 @@ async def _setup_document_manager(configuration: Configuration, global_context: 
             user_agent=configuration.settings.search_web_user_agent,
         )
 
-    if dependencies.parser:
-        parser_manager = ParserManager(parser=dependencies.parser)
-
     if configuration.settings.search_multi_agents_synthesis_model:
         multi_agent_manager = MultiAgentManager(
             synthesis_model=await global_context.model_registry(model=configuration.settings.search_multi_agents_synthesis_model),
             reranker_model=await global_context.model_registry(model=configuration.settings.search_multi_agents_reranker_model),
         )
 
+    parser_manager = ParserManager(parser=dependencies.parser)
+    
     global_context.document_manager = DocumentManager(
         vector_store=dependencies.vector_store,
         vector_store_model=await global_context.model_registry(model=configuration.settings.vector_store_model),
