@@ -1,6 +1,6 @@
 from http import HTTPMethod
 
-from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, Boolean, UniqueConstraint, func
+from sqlalchemy import Boolean, Column, DateTime, Enum, Float, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import backref, declarative_base, relationship
 
 from api.schemas.admin.roles import LimitType, PermissionType

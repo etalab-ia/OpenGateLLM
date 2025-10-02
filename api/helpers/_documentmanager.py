@@ -137,7 +137,16 @@ class DocumentManager:
         await session.commit()
 
     @check_dependencies(dependencies=["vector_store"])
-    async def get_collections(self, session: AsyncSession, user_id: int, collection_id: Optional[int] = None, include_public: bool = True, offset: int = 0, limit: int = 10) -> List[Collection]:  # fmt: off
+    async def get_collections(
+        self,
+        session: AsyncSession,
+        user_id: int,
+        collection_id: Optional[int] = None,
+        collection_name: Optional[str] = None,
+        visibility: Optional[CollectionVisibility] = None,
+        offset: int = 0,
+        limit: int = 10,
+    ) -> List[Collection]:
         # Query basic collection data
         statement = (
             select(
@@ -159,10 +168,12 @@ class DocumentManager:
 
         if collection_id:
             statement = statement.where(CollectionTable.id == collection_id)
-        if include_public:
+        if collection_name:
+            statement = statement.where(CollectionTable.name == collection_name)
+        if visibility is None:
             statement = statement.where(or_(CollectionTable.user_id == user_id, CollectionTable.visibility == CollectionVisibility.PUBLIC))
         else:
-            statement = statement.where(CollectionTable.user_id == user_id)
+            statement = statement.where(CollectionTable.user_id == user_id, CollectionTable.visibility == visibility)
 
         result = await session.execute(statement=statement)
         collections = [Collection(**row._asdict()) for row in result.all()]
@@ -241,7 +252,7 @@ class DocumentManager:
         return document_id
 
     @check_dependencies(dependencies=["vector_store"])
-    async def get_documents(self, session: AsyncSession, user_id: int, collection_id: Optional[int] = None, document_id: Optional[int] = None, offset: int = 0, limit: int = 10) -> List[Document]:  # fmt: off
+    async def get_documents(self, session: AsyncSession, user_id: int, collection_id: Optional[int] = None, document_id: Optional[int] = None, document_name: Optional[str] = None, offset: int = 0, limit: int = 10) -> List[Document]:  # fmt: off
         statement = (
             select(
                 DocumentTable.id,
@@ -256,6 +267,8 @@ class DocumentManager:
         )
         if collection_id:
             statement = statement.where(DocumentTable.collection_id == collection_id)
+        if document_name:
+            statement = statement.where(DocumentTable.name == document_name)
         if document_id:
             statement = statement.where(DocumentTable.id == document_id)
 

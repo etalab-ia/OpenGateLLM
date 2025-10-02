@@ -1,9 +1,11 @@
+from typing import Optional
+
 from fastapi import APIRouter, Body, Depends, Path, Query, Request, Response, Security
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
-from api.schemas.collections import Collection, CollectionRequest, Collections, CollectionUpdateRequest
+from api.schemas.collections import Collection, CollectionRequest, Collections, CollectionUpdateRequest, CollectionVisibility
 from api.sql.session import get_db_session
 from api.utils.context import global_context, request_context
 from api.utils.exceptions import CollectionNotFoundException
@@ -52,7 +54,6 @@ async def get_collection(
         session=session,
         collection_id=collection,
         user_id=request_context.get().user_info.id,
-        include_public=True,
     )
 
     return JSONResponse(status_code=200, content=collections[0].model_dump())
@@ -61,6 +62,8 @@ async def get_collection(
 @router.get(path=ENDPOINT__COLLECTIONS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Collections)
 async def get_collections(
     request: Request,
+    name: str = Query(default=None, description="Filter by collection name."),
+    visibility: Optional[CollectionVisibility] = Query(default=None, description="Filter by collection visibility."),
     offset: int = Query(default=0, ge=0, description="The offset of the collections to get."),
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the collections to get."),
     session: AsyncSession = Depends(get_db_session),
@@ -74,7 +77,8 @@ async def get_collections(
         data = await global_context.document_manager.get_collections(
             session=session,
             user_id=request_context.get().user_info.id,
-            include_public=True,
+            collection_name=name,
+            visibility=visibility,
             offset=offset,
             limit=limit,
         )

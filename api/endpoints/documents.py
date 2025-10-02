@@ -134,6 +134,7 @@ async def get_document(
 @router.get(path=ENDPOINT__DOCUMENTS, dependencies=[Security(dependency=AccessController())], status_code=200)
 async def get_documents(
     request: Request,
+    name: Optional[str] = Query(default=None, description="Filter documents by name."),
     collection: Optional[int] = Query(default=None, description="Filter documents by collection ID"),
     limit: Optional[int] = Query(default=10, ge=1, le=100, description="The number of documents to return"),
     offset: Union[int, UUID] = Query(default=0, description="The offset of the first document to return"),
@@ -152,6 +153,7 @@ async def get_documents(
     data = await global_context.document_manager.get_documents(
         session=session,
         collection_id=collection,
+        document_name=name,
         limit=limit,
         offset=offset,
         user_id=request_context.get().user_info.id,
