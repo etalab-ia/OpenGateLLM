@@ -1,14 +1,14 @@
 # OpenGateLLM documentation
 
-OpenGateLLM uses Docusaurus to serve its documentation 
+OpenGateLLM uses `Docusaurus` to serve its documentation.
 
 ------------------------------------------------------------------------
 ## Installing and Running the project
 ### Documentation installation
 Before you begin, make sure you have:
 
--   **Node.js** (version 18+ recommended)
--   **npm** (or **yarn/pnpm**) installed
+- **Node.js** (version 18+ recommended)
+- **npm** (or **yarn/pnpm**) installed
 
 Check your versions with:
 
@@ -27,7 +27,6 @@ npm install
 
 
 ### Running the Development Server
-
 Start the local development server:
 
 ``` bash
@@ -120,4 +119,4 @@ Open `docusaurus.config.js` to change:
 ------------------------------------------------------------------------
 ## Deploying documentation
 
-When a file is modified in the `docs` folder, a new docker image of the documentation website is created [here](https://github.com/etalab-ia/OpenGateLLM/pkgs/container/opengatellm%2Fdocs) and the official documentation is automatically updated
+When a file is modified in the `docs` folder, a new docker image of the documentation website is created [here](https://github.com/etalab-ia/OpenGateLLM/pkgs/container/opengatellm%2Fdocs) and the official documentation is automatically updated.
