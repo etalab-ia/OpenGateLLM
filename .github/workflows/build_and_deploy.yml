@@ -83,7 +83,7 @@ jobs:
     if: github.event_name == 'push' # Only deploy on push to main
     name: Deploy from ${{ github.ref_name }}/${{ github.sha }}
     runs-on: ubuntu-latest
-    needs: build-and-push
+    needs: [build-api, build-playground]
     steps:
       - name: Trigger dev deployment
         run: |
