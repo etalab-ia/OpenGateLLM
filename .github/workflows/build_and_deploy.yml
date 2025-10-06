@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - fix_opengatellm_build_image
   release:
     types: 
       - published
