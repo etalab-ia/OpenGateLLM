@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix_pipeline_docker_cache
     paths:
       - 'docs/**'
   pull_request:
@@ -50,12 +51,8 @@ jobs:
           push: true
           tags: ${{ env.APP_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           target: serve
-          cache-from: |
-            type=gha
-            type=registry,ref=${{ env.APP_IMAGE_NAME }}:cache
-          cache-to: |
-            type=gha,mode=max
-            type=registry,ref=${{ env.APP_IMAGE_NAME }}:cache,mode=max
+          cache-from: type=registry,ref=${{ env.APP_IMAGE_NAME }}:cache
+          cache-to: type=registry,ref=${{ env.APP_IMAGE_NAME }}:cache,mode=max
           build-args: |
             DOCUSAURUS_BASE_URL=/documentation/
             ALBERT_API_URL=https://albert.api.dev.etalab.gouv.fr
