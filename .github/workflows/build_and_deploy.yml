@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix_opengatellm_build_image
   release:
     types: 
       - published
@@ -45,8 +46,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ env.API_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.APP_IMAGE_NAME }}:cache
+          cache-to: type=registry,ref=${{ env.APP_IMAGE_NAME }}:cache,mode=max
       
       - name: Build and push playground
         uses: docker/build-push-action@v6
@@ -56,8 +57,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ env.PLAYGROUND_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=${{ env.APP_IMAGE_NAME }}:cache
+          cache-to: type=registry,ref=${{ env.APP_IMAGE_NAME }}:cache,mode=max
 
   deploy-dev:
     if: github.event_name == 'push' # Only deploy on push to main
