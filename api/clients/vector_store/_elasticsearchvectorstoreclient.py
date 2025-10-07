@@ -152,7 +152,7 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
         score_threshold: float = 0.0,
     ) -> List[Search]:
         if method == SearchMethod.SEMANTIC:
-            searches = await self._semantic_query(query_vector=query_vector, collection_ids=collection_ids, k=k, score_threshold=score_threshold)
+            searches = await self._semantic_search(query_vector=query_vector, collection_ids=collection_ids, k=k, score_threshold=score_threshold)
 
         elif method == SearchMethod.LEXICAL:
             searches = await self._lexical_search(query_prompt=query_prompt, collection_ids=collection_ids, k=k, score_threshold=score_threshold)
@@ -186,7 +186,7 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
 
         return searches
 
-    async def _semantic_query(self, query_vector: list[float], collection_ids: List[int], k: int, score_threshold: float = 0.0) -> List[Search]:  # fmt: off
+    async def _semantic_search(self, query_vector: list[float], collection_ids: List[int], k: int, score_threshold: float = 0.0) -> List[Search]:  # fmt: off
         collection_ids = [str(x) for x in collection_ids]
         body = {
             "knn": {"field": "embedding", "query_vector": query_vector, "k": k, "num_candidates": 200},
@@ -227,7 +227,7 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
             A combined list of searches with updated scores
         """
         lexical_searches = await self._lexical_search(query_prompt=query_prompt, collection_ids=collection_ids, k=int(k * expansion_factor))
-        semantic_searches = await self._semantic_query(query_vector=query_vector, collection_ids=collection_ids, k=int(k * expansion_factor))
+        semantic_searches = await self._semantic_search(query_vector=query_vector, collection_ids=collection_ids, k=int(k * expansion_factor))
 
         combined_scores = {}
         search_map = {}
