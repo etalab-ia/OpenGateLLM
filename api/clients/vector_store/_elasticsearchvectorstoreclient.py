@@ -165,7 +165,11 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
     async def _lexical_search(self, query_prompt: str, collection_ids: List[int], k: int, score_threshold: float = 0.0) -> List[Search]:
         collection_ids = [str(x) for x in collection_ids]
         fuzziness = {"fuzziness": "AUTO"} if len(query_prompt.split()) < 25 else {}
-        body = {"query": {"multi_match": {"query": query_prompt, **fuzziness}}, "size": k, "_source": {"excludes": ["embedding"]}}
+        body = {
+            "query": {"multi_match": {"query": query_prompt, **fuzziness}},
+            "size": k,
+            "_source": {"excludes": ["embedding"]},
+        }
         results = await AsyncElasticsearch.search(self, index=collection_ids, body=body)
         hits = [hit for hit in results["hits"]["hits"] if hit]
         searches = [
@@ -184,7 +188,11 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
 
     async def _semantic_query(self, query_vector: list[float], collection_ids: List[int], k: int, score_threshold: float = 0.0) -> List[Search]:  # fmt: off
         collection_ids = [str(x) for x in collection_ids]
-        body = {"knn": {"field": "embedding", "query_vector": query_vector, "k": k, "num_candidates": 200}}
+        body = {
+            "knn": {"field": "embedding", "query_vector": query_vector, "k": k, "num_candidates": 200},
+            "size": k,
+            "_source": {"excludes": ["embedding"]},
+        }
         results = await AsyncElasticsearch.search(self, index=collection_ids, body=body)
         hits = [hit for hit in results["hits"]["hits"] if hit]
         searches = [
