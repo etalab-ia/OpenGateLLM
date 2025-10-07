@@ -368,6 +368,8 @@ class DocumentManager:
                 result.scalar_one()
             except NoResultFound:
                 raise CollectionNotFoundException(detail=f"Collection {collection_id} not found.")
+            finally:
+                result.close()
 
         if not collection_ids:
             return []  # to avoid a request to create a query vector

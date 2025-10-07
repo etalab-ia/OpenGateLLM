@@ -213,6 +213,8 @@ class IdentityAccessManager:
                 if role_id in roles:
                     roles[role_id].limits.append(Limit(model=row.model, type=row.type, value=row.value))
             # Query permissions for these roles
+            result.close()
+
             permissions_query = select(PermissionTable.role_id, PermissionTable.permission).where(PermissionTable.role_id.in_(list(roles.keys())))
 
             result = await session.execute(permissions_query)
@@ -220,6 +222,8 @@ class IdentityAccessManager:
                 role_id = row.role_id
                 if role_id in roles:
                     roles[role_id].permissions.append(PermissionType(value=row.permission))
+            result.close()
+
         return list(roles.values())
 
     async def create_user(
