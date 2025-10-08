@@ -21,16 +21,10 @@ You can pass environment variables in configuration file with pattern `${ENV_VAR
 ```yaml
 models:
   - name: my-language-model
+    type: text-generation
     providers:
-      - name: openai
-        model: gpt-4o-mini
+      - type: openai
         url: https://api.openai.com
-        api_key: ${OPENAI_API_KEY}
-        timeout: 60
+        key: ${OPENAI_API_KEY}
+        model_name: gpt-4o-mini
 ```
-
-## Models
-
-The `models` section is used to configure the models used by the API.
-
-## Dependencies

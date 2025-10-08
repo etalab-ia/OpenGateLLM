@@ -4,7 +4,8 @@ import os
 from api.schemas.core.configuration import ConfigFile
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--output", type=str, default="docs-legacy/configuration.md")
+parser.add_argument("--output", type=str, default="./docs/docs/getting-started/configuration.md")
+parser.add_argument("--header", type=str, default="./scripts/configuration_header.md")
 
 
 def get_documentation_data(title: str, data: list, properties: dict, defs: dict, header: str = "", level: int = 1):
@@ -37,7 +38,7 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
                     header=ref.get("description"),
                     level=level + 1,
                 )
-                description += f" For details of configuration, see the [{ref_key} section](#{ref_key.lower().replace(" ", "-")})."
+                description += f" For details of configuration, see the [{ref_key} section](#{ref_key.lower().replace(' ', '-')})."
 
         else:
             type = properties[property].get("type", "")
@@ -57,7 +58,7 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
                     header=ref.get("description"),
                     level=level + 1,
                 )
-                description += f" For details of configuration, see the [{ref_key} section](#{ref_key.lower().replace(" ", "-")})."
+                description += f" For details of configuration, see the [{ref_key} section](#{ref_key.lower().replace(' ', '-')})."
             else:
                 values = ref.get("enum", [])
 
@@ -68,12 +69,13 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
     return data
 
 
-def convert_to_markdown(data: list):
-    markdown = ""
+def convert_to_markdown(data: list, header: str):
+    markdown = header + "\n<br>\n\n"
+
     for item in reversed(data):
-        markdown += f"{"#" * item["level"]} {item["title"]}\n"
+        markdown += f"{'#' * item['level']} {item['title']}\n"
         if item["header"]:
-            markdown += f"{item["header"]}\n<br>\n\n"
+            markdown += f"{item['header']}\n<br>\n\n"
 
         if len(item["table"]) > 0:
             markdown += "| Attribute | Type | Description | Required | Default | Values | Examples |\n"
@@ -98,15 +100,22 @@ def convert_to_markdown(data: list):
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    assert args.output.endswith(".md"), "Output file must end with .md"
-    assert os.path.exists(os.path.dirname(args.output)), "Output directory does not exist"
+    assert args.output.endswith(".md"), f"Output file must end with .md ({args.output})"
+    assert os.path.exists(os.path.dirname(args.output)), f"Output directory does not exist ({os.path.dirname(args.output)})"
+    assert os.path.exists(args.header), f"Header file does not exist ({args.header})"
 
     schema = ConfigFile.model_json_schema()
     properties = schema["properties"]
     defs = schema["$defs"]
 
     data = get_documentation_data(title="All settings", data=[], properties=properties, header=schema.get("description", ""), defs=defs)
-    markdown = convert_to_markdown(data=data)
+
+    with open(file=args.header, mode="r") as f:
+        header = f.read()
+        f.close()
+
+    markdown = convert_to_markdown(data=data, header=header)
 
     with open(file=args.output, mode="w") as f:
         f.write(markdown)
+        f.close()

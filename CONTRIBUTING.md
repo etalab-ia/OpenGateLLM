@@ -147,3 +147,14 @@ Then apply the migration with the following command:
 ```bash
 alembic -c playground/alembic.ini upgrade head
 ```
+
+## Generate configuration documentation
+
+To generate the configuration documentation, you can use the following command:
+
+```bash
+python scripts/generate_configuration_documentation.py
+```
+
+> [!NOTE]
+> This will generate the configuration documentation in the *[docs/docs/getting-started/configuration.md](./docs/docs/getting-started/configuration.md)* file from the [configuration schema](./api/schemas/core/configuration.py) with the [configuration header](./scripts/configuration_header.md).

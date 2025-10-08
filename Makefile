@@ -47,7 +47,8 @@ help:
 
 .start-api:
 	@bash -c 'set -a; . $(env); \
-	GUNICORN_CMD_ARGS="--reload --log-level debug --access-logfile - --error-logfile -" \
+	SERVER=uvicorn \
+	SERVER_CMD_ARGS="--reload --log-level debug" \
 	./scripts/startup_api.sh &' \
 	&& sleep 2 \
 	&& open http://localhost:8000/docs
@@ -122,7 +123,7 @@ dev:
 	fi
 
 	@if [ "$(service)" = "api" ]; then \
-		$(MAKE) .start-api; \
+		SERVER=uvicorn $(MAKE) .start-api; \
 		wait; \
 	elif [ "$(service)" = "playground" ]; then \
 		$(MAKE) .start-playground; \
