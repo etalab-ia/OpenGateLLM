@@ -57,6 +57,14 @@ Please install the pre-commit hooks:
 
 Ruff will run automatically at each commit.
 
+To setup ruff in VSCode or Cursor, you can add the following configuration to your editor:
+```json
+{
+  "ruff.lint.enabled": true,
+  "ruff.lint.fix": true
+}
+```
+
 ### Step 2: launch services
 
 Start services locally with the following command:
@@ -97,6 +105,29 @@ To run the linter manually:
 
 ```bash
 make lint
+```
+
+To setup ruff in VSCode or Cursor, you can add the following configuration to your editor (edit project root path):
+
+```json
+{
+  "[python]": {
+        "editor.formatOnType": true,
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "always"
+        },
+    "ruff.configuration": "<absolute project root path >/pyproject.toml",
+    "ruff.format.preview": true,
+    "ruff.codeAction.fixViolation": {"enable": false},
+    "ruff.organizeImports": true,
+    "ruff.fixAll": true,
+    "ruff.trace.server": "verbose",
+    "ruff.logLevel": "debug",
+    "ruff.nativeServer": "on",
+  }
+}
 ```
 
 ## Commit

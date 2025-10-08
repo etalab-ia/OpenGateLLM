@@ -78,6 +78,9 @@ py-modules = []
 
 [tool.ruff]
 line-length = 150
+exclude = [
+    "**/alembic",
+]
 
 [tool.ruff.lint]
 ignore = ["F403", "F841"] # import * and never used variables
