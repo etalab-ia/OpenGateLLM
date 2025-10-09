@@ -28,11 +28,11 @@ models:
         key: ${OPENAI_API_KEY}
         model_name: gpt-4o-mini
 ```
-<br>
+<br></br>
 
 # All settings
 Refer to the [configuration example file](../../../config.example.yml) for an example of configuration.
-<br>
+<br></br>
 
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -40,7 +40,7 @@ Refer to the [configuration example file](../../../config.example.yml) for an ex
 | models | array | Models used by the API. At least one model must be defined. For details of configuration, see the [Model section](#model). |  |  |  |  |
 | settings | object | Settings used by the API. For details of configuration, see the [Settings section](#settings). |  |  |  |  |
 
-<br>
+<br></br>
 
 ## Settings
 | Attribute | Type | Description | Required | Default | Values | Examples |
@@ -48,16 +48,16 @@ Refer to the [configuration example file](../../../config.example.yml) for an ex
 | auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. |  | changeme |  |  |
 | auth_max_token_expiration_days | integer | Maximum number of days for a token to be valid. |  | None |  |  |
 | auth_playground_session_duration | integer | Duration of the playground session in seconds. |  | 3600 |  |  |
-| disabled_routers | array | Disabled routers to limits services of the API. |  |  | • admin<br/>• agents<br/>• audio<br/>• auth<br/>• chat<br/>• chunks<br/>• collections<br/>• completions<br/>• ... | ['agents', 'embeddings'] |
+| disabled_routers | array | Disabled routers to limits services of the API. |  |  | • admin<br></br>• agents<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• completions<br></br>• ... | ['agents', 'embeddings'] |
 | front_url | string | Front-end URL for the application. |  | http://localhost:8501 |  |  |
-| hidden_routers | array | Routers are enabled but hidden in the swagger and the documentation of the API. |  |  | • admin<br/>• agents<br/>• audio<br/>• auth<br/>• chat<br/>• chunks<br/>• collections<br/>• completions<br/>• ... | ['admin'] |
+| hidden_routers | array | Routers are enabled but hidden in the swagger and the documentation of the API. |  |  | • admin<br></br>• agents<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• completions<br></br>• ... | ['admin'] |
 | log_format | string | Logging format of the API. |  | [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s |  |  |
-| log_level | string | Logging level of the API. |  | INFO | • DEBUG<br/>• INFO<br/>• WARNING<br/>• ERROR<br/>• CRITICAL |  |
+| log_level | string | Logging level of the API. |  | INFO | • DEBUG<br></br>• INFO<br></br>• WARNING<br></br>• ERROR<br></br>• CRITICAL |  |
 | mcp_max_iterations | integer | Maximum number of iterations for MCP agents in `/v1/agents/completions` endpoint. |  | 2 |  |  |
 | metrics_retention_ms | integer | Retention time for metrics in milliseconds. |  | 40000 |  |  |
 | monitoring_postgres_enabled | boolean | If true, the log usage will be written in the PostgreSQL database. |  | True |  |  |
 | monitoring_prometheus_enabled | boolean | If true, Prometheus metrics will be exposed in the `/metrics` endpoint. |  | True |  |  |
-| rate_limiting_strategy | string | Rate limiting strategy for the API. |  | fixed_window | • moving_window<br/>• fixed_window<br/>• sliding_window |  |
+| rate_limiting_strategy | string | Rate limiting strategy for the API. |  | fixed_window | • moving_window<br></br>• fixed_window<br></br>• sliding_window |  |
 | search_multi_agents_reranker_model | string | Model used to rerank the results of multi-agents search. If not provided, multi-agents search is disabled. This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`. |  | None |  |  |
 | search_multi_agents_synthesis_model | string | Model used to synthesize the results of multi-agents search. If not provided, multi-agents search is disabled. This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`. |  | None |  |  |
 | search_web_limited_domains | array | Limited domains for the web search. If provided, the web search will be limited to these domains. |  |  |  |  |
@@ -67,7 +67,7 @@ Refer to the [configuration example file](../../../config.example.yml) for an ex
 | swagger_contact | object | Contact informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | None |  |  |
 | swagger_description | string | Display description of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | [See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md) |  | [See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md) |
 | swagger_docs_url | string | Docs URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | /docs |  |  |
-| swagger_license_info | object | Licence informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | {'name': 'MIT Licence', 'identifier': 'MIT', 'url': 'https://raw.githubusercontent.com/etalab-ia/opengatellm/refs/heads/main/LICENSE'} |  |  |
+| swagger_license_info | object | Licence informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | `{'name': 'MIT Licence', 'identifier': 'MIT', 'url': 'https://raw.githubusercontent.com/etalab-ia/opengatellm/refs/heads/main/LICENSE'}` |  |  |
 | swagger_openapi_tags | array | OpenAPI tags of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  |  |  |  |
 | swagger_openapi_url | string | OpenAPI URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | /openapi.json |  |  |
 | swagger_redoc_url | string | Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | /redoc |  |  |
@@ -75,10 +75,10 @@ Refer to the [configuration example file](../../../config.example.yml) for an ex
 | swagger_terms_of_service | string | A URL to the Terms of Service for the API in swagger UI. If provided, this has to be a URL. |  | None |  | https://example.com/terms-of-service |
 | swagger_title | string | Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | Albert API |  | Albert API |
 | swagger_version | string | Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | latest |  | 2.5.0 |
-| usage_tokenizer | string | Tokenizer used to compute usage of the API. |  | tiktoken_gpt2 | • tiktoken_gpt2<br/>• tiktoken_r50k_base<br/>• tiktoken_p50k_base<br/>• tiktoken_p50k_edit<br/>• tiktoken_cl100k_base<br/>• tiktoken_o200k_base |  |
+| usage_tokenizer | string | Tokenizer used to compute usage of the API. |  | tiktoken_gpt2 | • tiktoken_gpt2<br></br>• tiktoken_r50k_base<br></br>• tiktoken_p50k_base<br></br>• tiktoken_p50k_edit<br></br>• tiktoken_cl100k_base<br></br>• tiktoken_o200k_base |  |
 | vector_store_model | string | Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch or Qdrant). This model must be defined in the `models` section and have type `text-embeddings-inference`. |  | None |  |  |
 
-<br>
+<br></br>
 
 ## Model
 In the models section, you define a list of models. Each model is a set of API providers for that model. Users will access the models specified in
@@ -88,7 +88,7 @@ model, otherwise users may receive responses of varying quality. For embedding m
 same dimension. You can define the load balancing strategy between the model's providers. By default, it is random.
 
 For more information to configure model providers, see the [ModelProvider section](#modelprovider).
-<br>
+<br></br>
 
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -98,11 +98,11 @@ For more information to configure model providers, see the [ModelProvider sectio
 | max_context_length | integer | Maximum amount of tokens a context could contains. Makes sure it is the same for all models. |  | None |  |  |
 | owned_by | string | Owner of the model displayed in `/v1/models` endpoint. |  | OpenGateLLM |  | my-app |
 | providers | array | API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type. For details of configuration, see the [ModelProvider section](#modelprovider). |  |  |  |  |
-| routing_strategy | string | Routing strategy for load balancing between providers of the model. It will be used to identify the model type. |  | shuffle | • round_robin<br/>• shuffle | round_robin |
-| type | string | Type of the model. It will be used to identify the model type. |  |  | • image-text-to-text<br/>• automatic-speech-recognition<br/>• text-embeddings-inference<br/>• text-generation<br/>• text-classification | text-generation |
+| routing_strategy | string | Routing strategy for load balancing between providers of the model. It will be used to identify the model type. |  | shuffle | • round_robin<br></br>• shuffle | round_robin |
+| type | string | Type of the model. It will be used to identify the model type. |  |  | • image-text-to-text<br></br>• automatic-speech-recognition<br></br>• text-embeddings-inference<br></br>• text-generation<br></br>• text-classification | text-generation |
 | vector_size | integer | Dimension of the vectors, if the models are embeddings. Makes just it is the same for all models. |  | None |  |  |
 
-<br>
+<br></br>
 
 ### ModelProvider
 | Attribute | Type | Description | Required | Default | Values | Examples |
@@ -110,15 +110,15 @@ For more information to configure model providers, see the [ModelProvider sectio
 | key | string | Model provider API key. |  | None |  | sk-1234567890 |
 | model_carbon_footprint_active_params | number | Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai |  | None |  | 8 |
 | model_carbon_footprint_total_params | number | Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai |  | None |  | 8 |
-| model_carbon_footprint_zone | string | Model hosting zone for carbon footprint computation (with ISO 3166-1 alpha-3 code format). For more information, see https://ecologits.ai |  | WOR | • ABW<br/>• AFG<br/>• AGO<br/>• AIA<br/>• ALA<br/>• ALB<br/>• AND<br/>• ARE<br/>• ... | WOR |
+| model_carbon_footprint_zone | string | Model hosting zone for carbon footprint computation (with ISO 3166-1 alpha-3 code format). For more information, see https://ecologits.ai |  | WOR | • ABW<br></br>• AFG<br></br>• AGO<br></br>• AIA<br></br>• ALA<br></br>• ALB<br></br>• AND<br></br>• ARE<br></br>• ... | WOR |
 | model_cost_completion_tokens | number | Model costs completion tokens for user budget computation. The cost is by 1M tokens. |  | 0.0 |  | 0.1 |
 | model_cost_prompt_tokens | number | Model costs prompt tokens for user budget computation. The cost is by 1M tokens. |  | 0.0 |  | 0.1 |
 | model_name | string | Model name from the model provider. |  |  |  | gpt-4o |
 | timeout | integer | Timeout for the model provider requests, after user receive an 500 error (model is too busy). |  | 300 |  | 10 |
-| type | string | Model provider type. |  |  | • albert<br/>• openai<br/>• tei<br/>• vllm | openai |
+| type | string | Model provider type. |  |  | • albert<br></br>• openai<br></br>• tei<br></br>• vllm | openai |
 | url | string | Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI). |  | None |  | https://api.openai.com |
 
-<br>
+<br></br>
 
 ## Dependencies
 | Attribute | Type | Description | Required | Default | Values | Examples |
@@ -136,15 +136,15 @@ For more information to configure model providers, see the [ModelProvider sectio
 | secretiveshell | object | If provided, MCP agents can use tools from SecretiveShell MCP Bridge. Pass arguments to call Secretiveshell API in this section, see https://github.com/SecretiveShell/MCP-Bridge for more information. For details of configuration, see the [SecretiveshellDependency section](#secretiveshelldependency). |  | None |  |  |
 | sentry | object | Pass all sentry python SDK arguments, see https://docs.sentry.io/platforms/python/configuration/options/ for more information. For details of configuration, see the [SentryDependency section](#sentrydependency). |  | None |  |  |
 
-<br>
+<br></br>
 
 ### SentryDependency
 
-<br>
+<br></br>
 
 ### SecretiveshellDependency
 See https://github.com/SecretiveShell/MCP-Bridge for more information.
-<br>
+<br></br>
 
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -152,15 +152,15 @@ See https://github.com/SecretiveShell/MCP-Bridge for more information.
 | timeout | integer | Timeout for the Secretiveshell API requests. |  | 300 |  | 10 |
 | url | string | Secretiveshell API url. |  |  |  |  |
 
-<br>
+<br></br>
 
 ### RedisDependency
 
-<br>
+<br></br>
 
 ### QdrantDependency
 
-<br>
+<br></br>
 
 ### ProConnect
 | Attribute | Type | Description | Required | Default | Values | Examples |
@@ -173,59 +173,59 @@ See https://github.com/SecretiveShell/MCP-Bridge for more information.
 | scope | string | Space-separated OAuth2/OpenID Connect scopes requested from ProConnect (for example: 'openid email given_name'). Scopes determine the information returned about the authenticated user; reduce scopes to the minimum necessary for privacy. |  | openid email given_name usual_name siret organizational_unit belonging_population chorusdt |  |  |
 | server_metadata_url | string | OpenID Connect discovery endpoint for ProConnect (server metadata). The SDK/flow uses this to discover authorization, token, and JWKS endpoints. Change to the production discovery URL when switching from sandbox to production. |  | https://identite-sandbox.proconnect.gouv.fr/.well-known/openid-configuration |  |  |
 
-<br>
+<br></br>
 
 ### PostgresDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | url | string | PostgreSQL connection url. |  |  |  |  |
 
-<br>
+<br></br>
 
 ### MarkerDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
-| headers | object | Marker API request headers. |  |  |  | {'Authorization': 'Bearer my-api-key'} |
+| headers | object | Marker API request headers. |  |  |  | `{'Authorization': 'Bearer my-api-key'}` |
 | timeout | integer | Timeout for the Marker API requests. |  | 300 |  | 10 |
 | url | string | Marker API url. |  |  |  |  |
 
-<br>
+<br></br>
 
 ### ElasticsearchDependency
 
-<br>
+<br></br>
 
 ### DuckDuckGoDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
-| headers | object | DuckDuckGo API request headers. | False |  |  | {} |
+| headers | object | DuckDuckGo API request headers. | False |  |  | `{}` |
 | timeout | integer | Timeout for the DuckDuckGo API requests. |  | 300 |  | 10 |
 | url | string | DuckDuckGo API url. |  | https://api.duckduckgo.com/ |  |  |
 
-<br>
+<br></br>
 
 ### CentraleSupelecDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | token | string | Centrale Supélec token for testing dynamic models |  |  |  |  |
 
-<br>
+<br></br>
 
 ### BraveDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
-| headers | object | Brave API request headers. | True |  |  | {'X-Subscription-Token': 'my-api-key'} |
+| headers | object | Brave API request headers. | True |  |  | `{'X-Subscription-Token': 'my-api-key'}` |
 | timeout | integer | Timeout for the Brave API requests. |  | 300 |  | 10 |
 | url | string | Brave API url. |  | https://api.search.brave.com/res/v1/web/search |  |  |
 
-<br>
+<br></br>
 
 ### AlbertDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
-| headers | object | Albert API request headers. |  |  |  | {'Authorization': 'Bearer my-api-key'} |
+| headers | object | Albert API request headers. |  |  |  | `{'Authorization': 'Bearer my-api-key'}` |
 | timeout | integer | Timeout for the Albert API requests. |  | 300 |  | 10 |
 | url | string | Albert API url. |  | https://albert.api.etalab.gouv.fr |  |  |
 
-<br>
+<br></br>
 

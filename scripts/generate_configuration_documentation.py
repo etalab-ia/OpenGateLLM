@@ -3,9 +3,10 @@ import os
 
 from api.schemas.core.configuration import ConfigFile
 
+BASE_DIR = os.path.dirname(__file__)
 parser = argparse.ArgumentParser()
-parser.add_argument("--output", type=str, default="./docs/docs/getting-started/configuration.md")
-parser.add_argument("--header", type=str, default="./scripts/configuration_header.md")
+parser.add_argument("--output", type=str, default=os.path.join(BASE_DIR, "../docs/docs/getting-started/configuration.md"))
+parser.add_argument("--header", type=str, default=os.path.join(BASE_DIR, "../scripts/configuration_header.md"))
 
 
 def get_documentation_data(title: str, data: list, properties: dict, defs: dict, header: str = "", level: int = 1):
@@ -16,8 +17,8 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
 
         description = properties[property].get("description", "")
         required = properties[property].get("required", "")
-        default = properties[property].get("default", "")
-        examples = properties[property].get("examples", [""])[0]
+        default = convert_field_to_string_if_dict(properties[property].get("default", ""))
+        examples = convert_field_to_string_if_dict(properties[property].get("examples", [""])[0])
 
         if "anyOf" in properties[property]:
             properties[property].update(properties[property]["anyOf"][0])
@@ -69,22 +70,28 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
     return data
 
 
+def convert_field_to_string_if_dict(field):
+    if isinstance(field, dict):
+        return "`" + str(field) + "`"
+    return field
+
+
 def convert_to_markdown(data: list, header: str):
-    markdown = header + "\n<br>\n\n"
+    markdown = header + "\n<br></br>\n\n"
 
     for item in reversed(data):
         markdown += f"{'#' * item['level']} {item['title']}\n"
         if item["header"]:
-            markdown += f"{item['header']}\n<br>\n\n"
+            markdown += f"{item['header']}\n<br></br>\n\n"
 
         if len(item["table"]) > 0:
             markdown += "| Attribute | Type | Description | Required | Default | Values | Examples |\n"
             markdown += "| --- | --- | --- | --- | --- | --- | --- |\n"
             for row in item["table"]:
                 if len(row[5]) > 10:
-                    row[5] = "• " + "<br/>• ".join(row[5][:8]) + "<br/>• ..."
+                    row[5] = "• " + "<br></br>• ".join(row[5][:8]) + "<br></br>• ..."
                 elif len(row[5]) > 0:
-                    row[5] = "• " + "<br/>• ".join(row[5])
+                    row[5] = "• " + "<br></br>• ".join(row[5])
                 else:
                     row[5] = ""
 
@@ -93,7 +100,7 @@ def convert_to_markdown(data: list, header: str):
         elif item["header"] == "":
             markdown += "No settings."
 
-        markdown += "\n<br>\n\n"
+        markdown += "\n<br></br>\n\n"
 
     return markdown
 
