@@ -50,7 +50,7 @@ api = [
     "fastapi==0.117.1",
     "prometheus-fastapi-instrumentator==7.0.2",
     "pyyaml==6.0.2",
-    "uvicorn==0.34.0",
+    "uvicorn==0.37.0",
     "python-multipart==0.0.20",
     "html-to-markdown==1.4.0"
 
