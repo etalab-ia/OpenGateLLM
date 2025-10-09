@@ -345,7 +345,8 @@ class DocumentManager:
         user_id: int,
         prompt: str,
         method: str,
-        k: int,
+        limit: int,
+        offset: int,
         rff_k: int,
         score_threshold: float = 0.0,
         web_search: bool = False,
@@ -378,14 +379,15 @@ class DocumentManager:
         _method = method
         if method == SearchMethod.MULTIAGENT:
             _method = self.vector_store.default_method
-            k = k * 4
+            limit = limit * 4
 
         searches = await self.vector_store.search(
             method=_method,
             collection_ids=collection_ids,
             query_prompt=prompt,
             query_vector=query_vector,
-            k=k,
+            limit=limit,
+            offset=offset,
             rff_k=rff_k,
             score_threshold=score_threshold,
         )

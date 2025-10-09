@@ -15,6 +15,8 @@ class ChatSearchArgs(SearchArgs):
         description='Template to use for the RAG query. The template must contain "{chunks}" and "{prompt}" placeholders.',
         default=DEFAULT_RAG_TEMPLATE,
     )
+    k: int = Field(gt=0, le=100, default=10, deprecated=True, description="[DEPRECATED: use limit instead]Number of results to return. A large number of results will increase the model context size and hence the response time.")
+    limit: int = Field(gt=0, le=100, default=10, description="Number of results to return")
 
     @field_validator("template")
     def validate_template(cls, value):

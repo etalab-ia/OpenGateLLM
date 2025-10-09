@@ -85,6 +85,7 @@ class QdrantVectorStoreClient(BaseVectorStoreClient, AsyncQdrantClient):
             scroll_filter=doc_filter,
             order_by=OrderBy(key="id", start_from=offset),
             limit=limit,
+            offset=offset,
         )
         data = data[0]
         chunks = [Chunk(id=chunk.payload["id"], content=chunk.payload["content"], metadata=chunk.payload["metadata"]) for chunk in data]
@@ -107,32 +108,34 @@ class QdrantVectorStoreClient(BaseVectorStoreClient, AsyncQdrantClient):
         collection_ids: List[int],
         query_prompt: str,
         query_vector: list[float],
-        k: int,
+        limit: int,
+        offset: int,
         rff_k: Optional[int] = 20,
         score_threshold: float = 0.0,
     ) -> List[Search]:
         if method == SearchMethod.LEXICAL:
-            searches = await self._lexical_search(query_prompt=query_prompt, collection_ids=collection_ids, k=k)
+            searches = await self._lexical_search(query_prompt=query_prompt, collection_ids=collection_ids, limit=limit, offset=offset)
 
         elif method == SearchMethod.SEMANTIC:
-            searches = await self._semantic_search(query_vector=query_vector, collection_ids=collection_ids, k=k, score_threshold=score_threshold)
+            searches = await self._semantic_search(query_vector=query_vector, collection_ids=collection_ids, limit=limit, offset=offset, score_threshold=score_threshold)
 
         else:  # method == SearchMethod.HYBRID
-            searches = await self._hybrid_search(query_prompt=query_prompt, query_vector=query_vector, collection_ids=collection_ids, k=k, rff_k=rff_k)  # fmt: off
+            searches = await self._hybrid_search(query_prompt=query_prompt, query_vector=query_vector, collection_ids=collection_ids, limit=limit, offset=offset, rff_k=rff_k)  # fmt: off
 
         return searches
 
-    async def _lexical_search(self, query_prompt: str, collection_ids: List[int], k: int) -> List[Search]:
+    async def _lexical_search(self, query_prompt: str, collection_ids: List[int], limit: int, offset: int) -> List[Search]:
         raise NotImplementedException("Only semantic search is available for Qdrant database.")
 
-    async def _semantic_search(self, query_vector: list[float], collection_ids: List[int], k: int, score_threshold: float = 0.0) -> List[Search]:
+    async def _semantic_search(self, query_vector: list[float], collection_ids: List[int], limit: int, offset: int, score_threshold: float = 0.0) -> List[Search]:
         searches = []
         for collection_id in collection_ids:
             results = await AsyncQdrantClient.search(
                 self,
                 collection_name=str(collection_id),
                 query_vector=query_vector,
-                limit=k,
+                limit=limit,
+                offset=offset,
                 score_threshold=score_threshold,
                 with_payload=True,
             )
@@ -146,9 +149,9 @@ class QdrantVectorStoreClient(BaseVectorStoreClient, AsyncQdrantClient):
             )
 
         searches = [search for search in searches if search.score >= score_threshold]
-        searches = sorted(searches, key=lambda x: x.score, reverse=True)[:k]
+        searches = sorted(searches, key=lambda x: x.score, reverse=True)[:limit]
 
         return searches
 
-    async def _hybrid_search(self, query_prompt: str, query_vector: list[float], collection_ids: List[int], k: int, rff_k: Optional[int] = 20) -> List[Search]:  # fmt: off
+    async def _hybrid_search(self, query_prompt: str, query_vector: list[float], collection_ids: List[int], limit: int, offset: int, rff_k: Optional[int] = 20) -> List[Search]:  # fmt: off
         raise NotImplementedException("Only semantic search is available for Qdrant database.")

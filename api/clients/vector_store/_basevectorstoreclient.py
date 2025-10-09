@@ -61,8 +61,8 @@ class BaseVectorStoreClient(ABC):
         self,
         collection_id: int,
         document_id: int,
-        offset: int = 0,
         limit: int = 10,
+        offset: int = 0,
         chunk_id: Optional[int] = None,
     ) -> List[Chunk]:
         """Retrieve a slice of chunks for *document_id* from *collection_id*."""
@@ -78,7 +78,8 @@ class BaseVectorStoreClient(ABC):
         collection_ids: List[int],
         query_prompt: str,
         query_vector: list[float],
-        k: int,
+        limit: int = 10,
+        offset: int = 0,
         rff_k: Optional[int] = 20,
         score_threshold: float = 0.0,
     ) -> List[Search]:
