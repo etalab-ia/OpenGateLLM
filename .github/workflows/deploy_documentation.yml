@@ -2,8 +2,11 @@ name: Deploy Docusaurus to GitHub Pages
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_call: # Add this to make the workflow reusable
+  workflow_dispatch: # Add this to allow manual triggering
 
 jobs:
   deploy:
