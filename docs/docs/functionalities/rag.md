@@ -166,6 +166,4 @@ settings:
   vector_store_model: embeddings-small
 ```
 
-6. Run OpenGateLLM as described in:
-- [running OpenGateLLM inside docker](contributing/inside-docker.mdx)
-- [running OpenGateLLM outside docker](contributing/outside-docker.mdx)
+6. Run OpenGateLLM as described in [quickstart](../getting-started/quickstart.md

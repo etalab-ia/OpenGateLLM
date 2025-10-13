@@ -37,7 +37,7 @@ It is recommended to use a Python [virtualenv](https://docs.python.org/3/library
   # POSTGRES_HOST=postgres
   ```
 
-4. Check the [configuration documentation](./docs/configuration.md) to configure your configuration file.
+4. Check the [configuration documentation](../getting-started/configuration.md) to configure your configuration file.
 
 ## Launch services
 
