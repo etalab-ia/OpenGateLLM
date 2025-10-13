@@ -6,7 +6,7 @@
 <img src="./docs/static/img/ogl_logo.svg" alt="Logo" width="128" height="128">
 
 # OpenGateLLM
-[**API Reference**](https://albert.api.etalab.gouv.fr/documentation)
+[Documentation](https://docs.opengatellm.etalab.gouv.fr) | [API Reference](https://albert.api.etalab.gouv.fr/documentation)
 
 > [!WARNING]
 > **The API is still under beta version, major breaking changes may occur.**
@@ -14,7 +14,7 @@
 Production-ready API gateway for self-hosted LLMs developed by the French Government, fully open-source forever.
 
 | Feature | Description |
-|---------|-------------|
+|---|---|
 | Gateway | • OpenAI compatible API<br>• Self-hosted models backend support: vLLM, HuggingFace TEI, Ollama <br>• Commercial backend support: OpenAI<br>• Full stack genAI API: chat, embeddings, transcription, RAG and OCR |
 | Account services | • SSO support<br>• Organization, project, key management<br>• Budget, usage and carbon footprint monitoring |
 | Monitoring | • Usage and carbon footprint monitoring |
@@ -24,7 +24,7 @@ Production-ready API gateway for self-hosted LLMs developed by the French Govern
 ***
 
 | Feature              | OpenGateLLM | LiteLLM   | OpenRouter |
-| -------------------- | ------------ | --------- | ---------- |
+| ---| ---| --- | --- |
 | OpenAI Compatibility | ✅ | ✅ | ✅ |
 | Open Source    | ✅ | ✅ | ❌ |
 | Free (all features)    | ✅ | ❌ | ❌ |
