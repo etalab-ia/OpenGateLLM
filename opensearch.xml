@@ -4,8 +4,8 @@
   <ShortName>OpenGateLLM</ShortName>
   <Description>Search OpenGateLLM</Description>
   <InputEncoding>UTF-8</InputEncoding>
-  <Image width="16" height="16" type="image/x-icon">https://etalab-ia.github.io/OpenGateLLM/img/ogl_logo.svg</Image>
-  <Url type="text/html" method="get" template="https://etalab-ia.github.io/OpenGateLLM/search?q={searchTerms}"/>
-  <Url type="application/opensearchdescription+xml" rel="self" template="https://etalab-ia.github.io/OpenGateLLM/opensearch.xml" />
-  <moz:SearchForm>https://etalab-ia.github.io/OpenGateLLM/</moz:SearchForm>
+  <Image width="16" height="16" type="image/x-icon">https://docs.opengatellm.etalab.gouv.fr/img/ogl_logo.svg</Image>
+  <Url type="text/html" method="get" template="https://docs.opengatellm.etalab.gouv.fr/search?q={searchTerms}"/>
+  <Url type="application/opensearchdescription+xml" rel="self" template="https://docs.opengatellm.etalab.gouv.fr/opensearch.xml" />
+  <moz:SearchForm>https://docs.opengatellm.etalab.gouv.fr/</moz:SearchForm>
 </OpenSearchDescription>
