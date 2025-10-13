@@ -15,6 +15,7 @@ large language models with built-in RAG, OCR, and audio transcription capabiliti
 - **[✍️ Contributing](contributing/outside-docker)** - How to setup and configure OpenGateLLM to modify the project
 - **[⚙️ Functionalities](functionalities/budget)** - All about the functionalities provided by OpenGateLLM
 - **[🤖 Models](models/)** - Which models are supported by OpenGateLLM and how
+- **[⛰️ Use cases](use-cases/)** - How to use OpenGateLLM for specific use cases
 
 ## Community & Support
 

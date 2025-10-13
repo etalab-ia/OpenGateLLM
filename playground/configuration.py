@@ -25,9 +25,9 @@ class Playground(ConfigBaseModel):
     auth_encryption_key: Optional[str] = Field(default="changeme", description="Secret key for encrypting between FastAPI and Playground. Must be 32 url-safe base64-encoded bytes.")  # fmt: off
     api_url: str = "http://localhost:8000"
     home_url: str = "http://localhost:8501"
-    page_icon: str = "https://github.com/etalab-ia/opengatellm/blob/main/docs/static/img/ogl_logo.png?raw=true"
+    page_icon: str = "https://github.com/etalab-ia/opengatellm/blob/main/docs/static/img/ogl_logo.svg?raw=true"
     menu_items: MenuItems = MenuItems()
-    logo: str = "https://github.com/etalab-ia/opengatellm/blob/main/docs/static/img/ogl_logo.png?raw=true"
+    logo: str = "https://github.com/etalab-ia/opengatellm/blob/main/docs/static/img/ogl_logo.svg?raw=true"
     cache_ttl: int = 1800  # 30 minutes
     default_model: Optional[str] = None
     proconnect_enabled: bool = False

@@ -34,9 +34,16 @@ const sidebars: SidebarsConfig = {
         type: 'category',
         label: 'Contributing',
         items:  [
-                'contributing/outside-docker',
-                'contributing/inside-docker',
+                'contributing/development-environment',
                 'contributing/commit',
+                'contributing/documentation',
+                ],
+    },
+    {
+        type: 'category',
+        label: 'Use cases',
+        items: [
+                'use-cases/IDE',
                 ],
     },
     {

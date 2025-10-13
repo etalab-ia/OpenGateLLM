@@ -15,8 +15,6 @@ OpenGateLLM supports two vector databases:
 - [Qdrant](https://hub.docker.com/r/qdrant/qdrant)
 - [Elasticsearh](https://www.elastic.co/docs/deploy-manage/deploy/self-managed/install-elasticsearch-with-docker)
 
-
-
 ### Elasticsearch
 1. Add an `elasticsearch` container in the `services` section of your `compose.yml` file:
 

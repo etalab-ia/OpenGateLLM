@@ -1,4 +1,4 @@
-# 🚀 Quickstart
+# Quickstart
 
 You can run OpenGateLLM without any configuration with Docker.
 ```bash

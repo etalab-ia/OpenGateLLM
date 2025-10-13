@@ -1,5 +1,4 @@
-
-## Environment variables
+# Environment variables
 
 In addition to the configuration file (see the [configuration documentation](./configuration.md)), you can set the following environment variables:
 
