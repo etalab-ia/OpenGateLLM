@@ -15,8 +15,8 @@ from api.schemas.models import ModelType
 from api.utils.variables import (
     DEFAULT_APP_NAME,
     DEFAULT_TIMEOUT,
-    ROUTER__AUTH,
     ROUTER__ADMIN,
+    ROUTER__AUTH,
     ROUTERS,
 )
 
@@ -118,7 +118,7 @@ class ModelProvider(ConfigBaseModel):
     model_name: constr(strip_whitespace=True, min_length=1) = Field(..., description="Model name from the model provider.", examples=["gpt-4o"])  # fmt: off
     model_cost_prompt_tokens: float = Field(default=0.0, ge=0.0, description="Model costs prompt tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
     model_cost_completion_tokens: float = Field(default=0.0, ge=0.0, description="Model costs completion tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
-    model_carbon_footprint_zone: CountryCodes = Field(default=CountryCodes.WOR, description="Model hosting zone for carbon footprint computation (with ISO 3166-1 alpha-3 code format). For more information, see https://ecologits.ai", examples=["WOR"])  # fmt: off
+    model_carbon_footprint_zone: CountryCodes = Field(default=CountryCodes.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])  # fmt: off
     model_carbon_footprint_total_params: Optional[float] = Field(default=None, ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     model_carbon_footprint_active_params: Optional[float] = Field(default=None, ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
 
@@ -251,10 +251,6 @@ class BraveDependency(ConfigBaseModel):
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Brave API requests.", examples=[10])  # fmt: off
 
 
-class CentraleSupelecDependency(ConfigBaseModel):
-    token: str = Field(description="Centrale Supélec token for testing dynamic models")
-
-
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#duckduckgodependency")
 class DuckDuckGoDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(default="https://api.duckduckgo.com/", description="DuckDuckGo API url.")  # fmt: off
@@ -341,7 +337,6 @@ class EmptyDepencency(ConfigBaseModel):
 class Dependencies(ConfigBaseModel):
     albert: Optional[AlbertDependency] = Field(default=None, description="If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section.")  # fmt: off
     brave: Optional[BraveDependency] = Field(default=None, description="If provided, Brave API is used to web search. Cannot be used with DuckDuckGo dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://api-dashboard.search.brave.com/app/documentation/web-search/query for more information.")  # fmt: off
-    centralesupelec: Optional[CentraleSupelecDependency] = Field(default=None, description="Needed to pass tests where models are added")
     duckduckgo: Optional[DuckDuckGoDependency] = Field(default=None, description="If provided, DuckDuckGo API is used to web search. Cannot be used with Brave dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://www.searchapi.io/docs/duckduckgo-api for more information.")  # fmt: off
     elasticsearch: Optional[ElasticsearchDependency] = Field(default=None, description="Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information.")  # fmt: off
     qdrant: Optional[QdrantDependency] = Field(default=None, description="Pass all qdrant python SDK arguments, see https://python-client.qdrant.tech/qdrant_client.qdrant_client for more information.")  # fmt: off
@@ -494,7 +489,7 @@ class Settings(ConfigBaseModel):
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#all-configuration")
 class ConfigFile(ConfigBaseModel):
     """
-    Refer to the [configuration example file](../../../config.example.yml) for an example of configuration.
+    Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateLLM/blob/main/config.example.yml) for an example of configuration.
     """
 
     models: List[Model] = Field(min_length=1, description="Models used by the API. At least one model must be defined.")  # fmt: off

@@ -20,6 +20,7 @@ You can pass environment variables in configuration file with pattern `${ENV_VAR
 
 ```yaml
 models:
+  [...]
   - name: my-language-model
     type: text-generation
     providers:

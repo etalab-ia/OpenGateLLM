@@ -5,8 +5,8 @@ from api.schemas.core.configuration import ConfigFile
 
 BASE_DIR = os.path.dirname(__file__)
 parser = argparse.ArgumentParser()
-parser.add_argument("--output", type=str, default=os.path.join(BASE_DIR, "../docs/docs/getting-started/configuration.md"))
-parser.add_argument("--header", type=str, default=os.path.join(BASE_DIR, "../scripts/configuration_header.md"))
+parser.add_argument("--output", type=str, default=os.path.join("./docs/docs/getting-started/configuration.md"))
+parser.add_argument("--header", type=str, default=os.path.join("./scripts/docs/configuration_header.md"))
 
 
 def get_documentation_data(title: str, data: list, properties: dict, defs: dict, header: str = "", level: int = 1):
@@ -39,7 +39,7 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
                     header=ref.get("description"),
                     level=level + 1,
                 )
-                description += f" For details of configuration, see the [{ref_key} section](#{ref_key.lower().replace(' ', '-')})."
+                description += f" For details of configuration, see the [{ref_key} section](#{ref_key.lower().replace(" ", "-")})."
 
         else:
             type = properties[property].get("type", "")
@@ -59,7 +59,7 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
                     header=ref.get("description"),
                     level=level + 1,
                 )
-                description += f" For details of configuration, see the [{ref_key} section](#{ref_key.lower().replace(' ', '-')})."
+                description += f" For details of configuration, see the [{ref_key} section](#{ref_key.lower().replace(" ", "-")})."
             else:
                 values = ref.get("enum", [])
 
@@ -80,9 +80,9 @@ def convert_to_markdown(data: list, header: str):
     markdown = header + "\n<br></br>\n\n"
 
     for item in reversed(data):
-        markdown += f"{'#' * item['level']} {item['title']}\n"
+        markdown += f"{"#" * item["level"]} {item["title"]}\n"
         if item["header"]:
-            markdown += f"{item['header']}\n<br></br>\n\n"
+            markdown += f"{item["header"]}\n<br></br>\n\n"
 
         if len(item["table"]) > 0:
             markdown += "| Attribute | Type | Description | Required | Default | Values | Examples |\n"

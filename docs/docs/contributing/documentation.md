@@ -2,7 +2,7 @@
 
 OpenGateLLM uses `Docusaurus` to serve its documentation.
 
-## Installing and Running the project
+## Installing and running the project
 
 ### Documentation installation
 
@@ -18,7 +18,6 @@ node -v
 npm -v
 ```
 
-
 Install dependencies:
 
 ``` bash
@@ -26,7 +25,7 @@ cd docs/
 npm install
 ```
 
-### Running the Development Server
+### Running the development server
 
 Start the local development server:
 
@@ -39,7 +38,7 @@ This will:
 -   Launch a development server at **http://localhost:3000/**
 -   Hot-reload changes as you edit files
 
-### Building for Production
+### Building for production
 
 You can build the website with:
 
@@ -50,7 +49,7 @@ npm run build
 The output will be in the `build/` folder, which you can deploy to any
 static hosting service (Vercel, Netlify, GitHub Pages, etc.).
 
-## Project Structure Overview
+## Project structure overview
 
 The most importants files in the project are:
 
@@ -107,7 +106,7 @@ In `docs/sidebars.ts`, add an item to tutorialSidebar:
 > Warning:
 > If your markdown (`my_documentation.md`) is in a subdirectory in `docs` (for instance `functionalities`), the id of your page will be `functionalities/my_documentation`
 
-### Customizing Configuration
+### Customizing configuration
 
 Open `docusaurus.config.js` to change:
 
@@ -122,13 +121,15 @@ Open `docusaurus.config.js` to change:
 Some documentation is automatically generated from the codebase. Please do not edit the generated documentation files.
 :::
 
-To generate the configuration documentation, you can use the following command:
+The following script is used to generate documentation:
 
-```bash
-python scripts/generate_configuration_documentation.py
-```
+- `scripts/docs/generate_configuration_documentation.py`
 
-This will generate the configuration documentation in the *[/docs/getting-started/configuration.md](../getting-started/configuration.md)* file from the [configuration schema](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/schemas/core/configuration.py) with the [configuration header](https://github.com/etalab-ia/OpenGateLLM/blob/main/scripts/configuration_header.md).
+        Generates the configuration documentation from the [configuration schema](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/schemas/core/configuration.py) with the [configuration header](https://github.com/etalab-ia/OpenGateLLM/blob/main/scripts/configuration_header.md). The output is stored in the *[/docs/getting-started/configuration.md](https://github.com/etalab-ia/OpenGateLLM/blob/main/docs/docs/getting-started/configuration.md)* file.
+
+- `scripts/docs/convert_notebooks_to_docs.py`
+        
+        Converts the notebooks in the *[/docs/tutorials](https://github.com/etalab-ia/OpenGateLLM/blob/main/docs/tutorials)* folder to markdown files in the *[/docs/docs/guides](https://github.com/etalab-ia/OpenGateLLM/blob/main/docs/docs/guides)* folder.
 
 ## Deploying documentation
 

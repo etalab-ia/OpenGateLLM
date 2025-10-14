@@ -6,7 +6,7 @@
 <img src="./docs/static/img/ogl_logo.svg" alt="Logo" width="128" height="128">
 
 # OpenGateLLM
-[Documentation](https://docs.opengatellm.etalab.gouv.fr) | [API Reference](https://albert.api.etalab.gouv.fr/documentation)
+### **[Documentation](https://docs.opengatellm.etalab.gouv.fr) | [API Reference](https://albert.api.etalab.gouv.fr/documentation)**
 
 > [!WARNING]
 > **The API is still under beta version, major breaking changes may occur.**
@@ -116,9 +116,9 @@ Explore practical use cases:
 ### 🤝 Contribute
 ***
 
-This project exists thanks to all the people who contribute. OpenGateLLM thrives on open-source contributions. Join our community!
+This project exists thanks to all the people who contribute. OpenGateLLM thrives on open-source contributions. Join our community! 
 
-Check out our [Contribution Guide](./CONTRIBUTING.md) to get started.
+Check out our [Contribution Guide](https://docs.opengatellm.etalab.gouv.fr/docs/contributing) to get started.
 
 ### 🎖️ Sponsors
 ***

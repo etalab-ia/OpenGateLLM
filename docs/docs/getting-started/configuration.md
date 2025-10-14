@@ -20,6 +20,7 @@ You can pass environment variables in configuration file with pattern `${ENV_VAR
 
 ```yaml
 models:
+  [...]
   - name: my-language-model
     type: text-generation
     providers:
@@ -31,7 +32,7 @@ models:
 <br></br>
 
 # All settings
-Refer to the [configuration example file](../../../config.example.yml) for an example of configuration.
+Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateLLM/blob/main/config.example.yml) for an example of configuration.
 <br></br>
 
 | Attribute | Type | Description | Required | Default | Values | Examples |
@@ -110,7 +111,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 | key | string | Model provider API key. |  | None |  | sk-1234567890 |
 | model_carbon_footprint_active_params | number | Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai |  | None |  | 8 |
 | model_carbon_footprint_total_params | number | Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai |  | None |  | 8 |
-| model_carbon_footprint_zone | string | Model hosting zone for carbon footprint computation (with ISO 3166-1 alpha-3 code format). For more information, see https://ecologits.ai |  | WOR | • ABW<br></br>• AFG<br></br>• AGO<br></br>• AIA<br></br>• ALA<br></br>• ALB<br></br>• AND<br></br>• ARE<br></br>• ... | WOR |
+| model_carbon_footprint_zone | string | Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai |  | WOR | • ABW<br></br>• AFG<br></br>• AGO<br></br>• AIA<br></br>• ALA<br></br>• ALB<br></br>• AND<br></br>• ARE<br></br>• ... | WOR |
 | model_cost_completion_tokens | number | Model costs completion tokens for user budget computation. The cost is by 1M tokens. |  | 0.0 |  | 0.1 |
 | model_cost_prompt_tokens | number | Model costs prompt tokens for user budget computation. The cost is by 1M tokens. |  | 0.0 |  | 0.1 |
 | model_name | string | Model name from the model provider. |  |  |  | gpt-4o |
@@ -125,7 +126,6 @@ For more information to configure model providers, see the [ModelProvider sectio
 | --- | --- | --- | --- | --- | --- | --- |
 | albert | object | If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section. For details of configuration, see the [AlbertDependency section](#albertdependency). |  | None |  |  |
 | brave | object | If provided, Brave API is used to web search. Cannot be used with DuckDuckGo dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://api-dashboard.search.brave.com/app/documentation/web-search/query for more information. For details of configuration, see the [BraveDependency section](#bravedependency). |  | None |  |  |
-| centralesupelec | object | Needed to pass tests where models are added For details of configuration, see the [CentraleSupelecDependency section](#centralesupelecdependency). |  | None |  |  |
 | duckduckgo | object | If provided, DuckDuckGo API is used to web search. Cannot be used with Brave dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://www.searchapi.io/docs/duckduckgo-api for more information. For details of configuration, see the [DuckDuckGoDependency section](#duckduckgodependency). |  | None |  |  |
 | elasticsearch | object | Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). |  | None |  |  |
 | marker | object | If provided, Marker API is used to parse pdf documents. Cannot be used with Albert dependency concurrently. Pass arguments to call Marker API in this section. For details of configuration, see the [MarkerDependency section](#markerdependency). |  | None |  |  |
@@ -201,13 +201,6 @@ See https://github.com/SecretiveShell/MCP-Bridge for more information.
 | headers | object | DuckDuckGo API request headers. | False |  |  | `{}` |
 | timeout | integer | Timeout for the DuckDuckGo API requests. |  | 300 |  | 10 |
 | url | string | DuckDuckGo API url. |  | https://api.duckduckgo.com/ |  |  |
-
-<br></br>
-
-### CentraleSupelecDependency
-| Attribute | Type | Description | Required | Default | Values | Examples |
-| --- | --- | --- | --- | --- | --- | --- |
-| token | string | Centrale Supélec token for testing dynamic models |  |  |  |  |
 
 <br></br>
 

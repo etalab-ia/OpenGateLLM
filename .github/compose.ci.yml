@@ -7,8 +7,6 @@ services:
       dockerfile: api/Dockerfile
     restart: always
     env_file: "${APP_ENV_FILE:-.env.ci}"
-    volumes:
-      - ../scripts/generate_configuration_documentation.py:/scripts/generate_configuration_documentation.py:ro
     ports:
       - 8000:8000
     environment:

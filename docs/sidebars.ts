@@ -32,18 +32,25 @@ const sidebars: SidebarsConfig = {
     },
     {
         type: 'category',
-        label: 'Contributing',
-        items:  [
-                'contributing/development-environment',
-                'contributing/commit',
-                'contributing/documentation',
+        label: 'Guides',
+        items: [
+                'guides/chat_completions',
+                'guides/rag',
+                'guides/ocr',
+                'guides/audio_transcriptions',
+                'guides/models',
+                'guides/IDE', // not generated from notebook
                 ],
     },
     {
         type: 'category',
-        label: 'Use cases',
+        label: 'Dependencies',
         items: [
-                'use-cases/IDE',
+                'dependencies/postgres',
+                'dependencies/prometheus',
+                'dependencies/redis',
+                'dependencies/sentry',
+                'dependencies/vector_store',
                 ],
     },
     {
@@ -52,10 +59,33 @@ const sidebars: SidebarsConfig = {
         items: [
                 'functionalities/budget',
                 'functionalities/environmental_footprint',
-                'functionalities/iam',
-                'functionalities/search',
-                'functionalities/rag',
-                'functionalities/mcp'
+                {
+                    type: 'category',
+                    label: 'Identity and Access Management',
+                    link: {
+                        type: 'doc',
+                        id: 'functionalities/iam/index',
+                    },
+                    items: [
+                        'functionalities/iam/roles-permissions-rate-limitings',
+                        'functionalities/iam/organizations-projects-users',
+                        'functionalities/iam/api-keys',
+                    ],
+                },
+                {
+                    type: 'category',
+                    label: 'Document Management',
+                    link: {
+                        type: 'doc',
+                        id: 'functionalities/document-management/index',
+                    },
+                    items: [
+                        'functionalities/document-management/collections',
+                        'functionalities/document-management/parsing-and-chunking',
+                        'functionalities/document-management/rag',
+                    ],
+                },
+                'functionalities/usage',
                 ],
     },
     {
@@ -64,12 +94,14 @@ const sidebars: SidebarsConfig = {
       items: ['models/models', 'models/routing'],
     },
     {
-      type: 'doc',
-      id: 'deployment',
-    },
-    {
-      type: 'doc',
-      id: 'tutorials',
+      type: 'category',
+      label: 'Contributing',
+      items:  [
+              'contributing/development-environment',
+              'contributing/commit-hooks',
+              'contributing/sql',
+              'contributing/documentation',
+              ],
     },
   ]
 };

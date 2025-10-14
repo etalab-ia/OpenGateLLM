@@ -16,18 +16,26 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: ./docs/package-lock.json
+        
       - name: Install dependencies
         working-directory: ./docs
         run: npm ci
+      
       - name: Build Docusaurus site
         working-directory: ./docs
         run: npm run build
+      
+      - name: Create CNAME file
+        working-directory: ./docs/build
+        run: echo "docs.opengatellm.etalab.gouv.fr" > CNAME
+      
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:

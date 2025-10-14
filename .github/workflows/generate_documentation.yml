@@ -13,27 +13,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout du code
+        uses: actions/checkout@v4
 
-    - name: Set up Docker Compose
-      run: |
-        cp .github/.env.ci.example .github/.env.ci
-        sed -i 's/^\([A-Z_]*\)_HOST=localhost/\1_HOST=\L\1/' .github/.env.ci
-        make test-integ action=up execute=docker
-      env:
-        BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
-        ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}
-        CS_API_KEY: ${{ secrets.CS_API_KEY }}
+      - name: Configure Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-    - name: Generate configuration documentation
-      run: |
-        docker compose -f .github/compose.ci.yml --env-file .github/.env.ci run -T --user $(id -u):$(id -g) -v $(pwd)/api:/api api \
-        python /scripts/generate_configuration_documentation.py --output /api/configuration.md
-        
-        cat ./api/configuration.md > ./docs/docs/getting-started/configuration.md
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[api,dev]"
 
-    - name: Commit configuration documentation
-      uses: stefanzweifel/git-auto-commit-action@v4
-      with:
-        commit_message: Update configuration documentation
-        file_pattern: ./docs/getting-started/configuration.md
+      - name: Generate documentation
+        run: |
+          PYTHONPATH=. python ./scripts/docs/generate_configuration_documentation.py --output ./docs/docs/getting-started/configuration.md
+          PYTHONPATH=. python ./scripts/docs/convert_notebooks_to_docs.py --input ./docs/tutorials --output ./docs/docs/guides
+
+      - name: Commit documentation
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Update docs
+          file_pattern: ./docs/getting-started/configuration.md ./docs/docs/guides/*.md
