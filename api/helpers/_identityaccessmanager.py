@@ -518,7 +518,7 @@ class IdentityAccessManager:
 
         return token_id, token
 
-    async def refresh_token(self, session: AsyncSession, user_id: int, name: str, duration: Optional[int] = None) -> Tuple[int, str]:
+    async def refresh_token(self, session: AsyncSession, user_id: int, name: str) -> Tuple[int, str]:
         """
         Create a new token with the same name, update Usage table references,
         and delete old tokens with the same name and user_id.
@@ -527,7 +527,6 @@ class IdentityAccessManager:
             session(AsyncSession): Database session
             user_id(int): ID of the user
             name(str): Name of the token to refresh
-            duration(int): Number of seconds the new token should be valid for (None for no expiration)
 
         Returns:
             Tuple containing the new token_id and token
@@ -536,10 +535,11 @@ class IdentityAccessManager:
         old_token_result = await session.execute(statement=select(TokenTable.id).where(TokenTable.user_id == user_id, TokenTable.name == name))
         old_token_ids = [row[0] for row in old_token_result.all()]
 
-        if duration is None:
-            duration = self.playground_session_duration
+        if self.playground_session_duration is None:
+            expires_at = None
+        else:
+            expires_at = int((datetime.now() + timedelta(seconds=self.playground_session_duration)).timestamp())
 
-        expires_at = int((datetime.now() + timedelta(seconds=duration)).timestamp())
         # Create a new token
         token_id, token = await self.create_token(session, user_id, name, expires_at=expires_at)
 
@@ -747,6 +747,6 @@ class IdentityAccessManager:
         if not self._check_password(password=password, hashed_password=user_password):
             raise InvalidCurrentPasswordException()
 
-        token_id, token = await self.refresh_token(session, user_id=user.id, name=self.PLAYGROUND_KEY_NAME, duration=self.playground_session_duration)
+        token_id, token = await self.refresh_token(session, user_id=user.id, name=self.PLAYGROUND_KEY_NAME)
 
         return token_id, token
