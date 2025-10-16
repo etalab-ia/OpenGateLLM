@@ -11,11 +11,8 @@
 3. To run the tests, you can use the following command:
 
   ```bash
-    make test
-  
-    # Run tests with coverage
-    make test-coverage
-    
+    make test-unit
+      
     # Open the HTML coverage report
     open htmlcov/index.html  # macOS
     # xdg-open htmlcov/index.html  # Linux
