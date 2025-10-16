@@ -5,12 +5,14 @@ import os
 import re
 from typing import Any, Literal
 
-import pycountry
 from pydantic import BaseModel, ConfigDict, Field, constr, field_validator, model_validator
 from pydantic import ValidationError as PydanticValidationError
 from pydantic_settings import BaseSettings
 import yaml
 
+from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
+from api.schemas.admin.routers import RouterLoadBalancingStrategy
+from api.schemas.core.metrics import MetricType
 from api.schemas.models import ModelType
 from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, ROUTER__ADMIN, ROUTER__AUTH, ROUTERS
 
@@ -74,81 +76,18 @@ class ConfigBaseModel(BaseModel):
 # models ---------------------------------------------------------------------------------------------------------------------------------------------
 
 
-class ModelProviderType(str, Enum):
-    ALBERT = "albert"
-    OPENAI = "openai"
-    TEI = "tei"
-    VLLM = "vllm"
-
-    @classmethod
-    def get_supported_clients(cls, model_type):
-        mapping = {
-            ModelType.AUTOMATIC_SPEECH_RECOGNITION: [cls.ALBERT.value, cls.OPENAI.value, cls.VLLM.value],
-            ModelType.IMAGE_TEXT_TO_TEXT: [cls.ALBERT.value, cls.OPENAI.value, cls.VLLM.value],
-            ModelType.TEXT_EMBEDDINGS_INFERENCE: [cls.ALBERT.value, cls.OPENAI.value, cls.TEI.value, cls.VLLM.value],
-            ModelType.TEXT_GENERATION: [cls.ALBERT.value, cls.OPENAI.value, cls.VLLM.value],
-            ModelType.TEXT_CLASSIFICATION: [cls.ALBERT.value, cls.TEI.value],
-        }
-        return mapping.get(model_type, [])
-
-
-class RoutingStrategy(str, Enum):
-    ROUND_ROBIN = "round_robin"
-    SHUFFLE = "shuffle"
-    LEAST_BUSY = "least_busy"
-
-
-class QosPolicy(str, Enum):
-    WARNING_LOG = "warning-log"
-    PERFORMANCE_THRESHOLD = "performance-threshold"
-    PARALLEL_REQUESTS_THRESHOLD = "parallel-requests-threshold"
-
-
-CountryCodes = [country.alpha_3 for country in pycountry.countries]
-CountryCodes.append("WOR")  # Add world as a country code, default value of the carbon footprint computation framework
-CountryCodes = {str(lang).upper(): str(lang) for lang in sorted(set(CountryCodes))}
-CountryCodes = Enum("CountryCodes", CountryCodes, type=str)
-
-
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#modelprovider")
 class ModelProvider(ConfigBaseModel):
-    type: ModelProviderType = Field(..., description="Model provider type.", examples=["openai"])  # fmt: off
+    type: ProviderType = Field(..., description="Model provider type.", examples=["openai"])  # fmt: off
     url: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI).", examples=["https://api.openai.com"])  # fmt: off
     key: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Model provider API key.", examples=["sk-1234567890"])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 500 error (model is too busy).", examples=[10])  # fmt: off
     model_name: constr(strip_whitespace=True, min_length=1) = Field(..., description="Model name from the model provider.", examples=["gpt-4o"])  # fmt: off
-    model_cost_prompt_tokens: float = Field(default=0.0, ge=0.0, description="Model costs prompt tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
-    model_cost_completion_tokens: float = Field(default=0.0, ge=0.0, description="Model costs completion tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
-    model_carbon_footprint_zone: CountryCodes = Field(default=CountryCodes.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])  # fmt: off
+    model_carbon_footprint_zone: ProviderCarbonFootprintZone = Field(default=ProviderCarbonFootprintZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])  # fmt: off
     model_carbon_footprint_total_params: float | None = Field(default=None, ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     model_carbon_footprint_active_params: float | None = Field(default=None, ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
-    qos_policy: QosPolicy = Field(default=QosPolicy.WARNING_LOG, description="The quality of service to apply when using asynchronous dispatching, to choose whether or not the server is ready to handle the request.", examples=["performance-threshold"])  # fmt: off
-    performance_threshold: float | None = Field(default=None, ge=0.0, description="The performance threshold to not exceed when using a performance based QoS", examples=[0.5])  # fmt: off
-    max_parallel_requests: int | None = Field(default=None, ge=1, description="The maximum number of requests handled in parallel by the server, used with a parallel requests based QoS", examples=[50])  # fmt: off
-
-    model_config = ConfigDict(from_attributes=True)
-
-    @model_validator(mode="after")
-    def complete_values(cls, values):
-        # complete url
-        if values.url is None and not hasattr(values, "hide_url"):
-            if values.type == ModelProviderType.OPENAI:
-                values.url = "https://api.openai.com"
-            elif values.type == ModelProviderType.ALBERT:
-                values.url = "https://albert.api.etalab.gouv.fr"
-            else:
-                raise ValueError(f"URL is required for {values.type.value} model provider type.")
-
-        # complete model_cost_prompt_tokens and model_cost_completion_tokens
-        if values.model_cost_prompt_tokens is None and values.model_cost_completion_tokens is not None:
-            values.model_cost_prompt_tokens = values.model_cost_completion_tokens
-
-        if values.model_carbon_footprint_total_params is None and values.model_carbon_footprint_active_params is not None:
-            values.model_carbon_footprint_total_params = values.model_carbon_footprint_active_params
-        if values.model_carbon_footprint_active_params is None and values.model_carbon_footprint_total_params is not None:
-            values.model_carbon_footprint_active_params = values.model_carbon_footprint_total_params
-
-        return values
+    qos_metric: MetricType | None = Field(default=None, description="The metric to use for the quality of service. If not provided, no QoS policy is applied.", examples=[MetricType.INFLIGHT.value])  # fmt: off
+    qos_value: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.", examples=[0.5])  # fmt: off
 
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#model")
@@ -165,50 +104,10 @@ class Model(ConfigBaseModel):
 
     type: ModelType = Field(..., description="Type of the model. It will be used to identify the model type.", examples=["text-generation"])  # fmt: off
     aliases: list[constr(strip_whitespace=True, min_length=1, max_length=64)] = Field(default_factory=list, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]])  # fmt: off
-    owned_by: constr(strip_whitespace=True, min_length=1, max_length=64) = Field(default=DEFAULT_APP_NAME, description="Owner of the model displayed in `/v1/models` endpoint.", examples=["my-app"])  # fmt: off
-    routing_strategy: RoutingStrategy = Field(default=RoutingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["round_robin"])  # fmt: off
+    load_balancing_strategy: RouterLoadBalancingStrategy = Field(default=RouterLoadBalancingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["round_robin"])  # fmt: off
+    cost_prompt_tokens: float = Field(default=0.0, ge=0.0, description="Model costs prompt tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
+    cost_completion_tokens: float = Field(default=0.0, ge=0.0, description="Model costs completion tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
     providers: list[ModelProvider] = Field(..., description="API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type.")  # fmt: off
-    cycle_offset: int = Field(
-        default=0, description="Current position in the round-robin cycle for load balancing. Used to maintain cycle state across serialization."
-    )
-
-    vector_size: int | None = Field(default=None, description="Dimension of the vectors, if the models are embeddings. Makes just it is the same for all models.")  # fmt: off
-    max_context_length: int | None = Field(default=None, description="Maximum amount of tokens a context could contains. Makes sure it is the same for all models.")  # fmt: off
-    created: int | None = Field(default=None, description="Time of creation, as Unix timestamp.")  # fmt: off
-    from_config: bool | None = Field(default=False, description="Whether this model was defined in configuration, meaning it should be checked against the database.")  # fmt: off
-
-    model_config = ConfigDict(from_attributes=True)
-
-    @model_validator(mode="after")
-    def validate_model_type(cls, values):
-        for provider in values.providers:
-            assert provider.type.value in ModelProviderType.get_supported_clients(values.type.value), f"Invalid model type: {values.type.value} for client type {provider.type.value}"  # fmt: off
-
-        if values.type not in [ModelType.TEXT_GENERATION, ModelType.IMAGE_TEXT_TO_TEXT]:
-            for provider in values.providers:
-                if provider.model_carbon_footprint_active_params is not None:
-                    logging.warning(f"Carbon footprint is not supported for {values.type.value} models, set active params to None.")
-                    provider.model_carbon_footprint_active_params = None
-                if provider.model_carbon_footprint_total_params is not None:
-                    logging.warning(f"Carbon footprint is not supported for {values.type.value} models, set total params to None.")
-                    provider.model_carbon_footprint_total_params = None
-
-        return values
-
-    def __eq__(self, other):
-        if not isinstance(other, Model):
-            return NotImplemented
-
-        return (
-            self.name == other.name
-            and self.type == other.type
-            and set(self.aliases) == set(other.aliases)
-            and self.owned_by == other.owned_by
-            and self.routing_strategy == other.routing_strategy
-            and self.providers == other.providers
-            and self.vector_size == other.vector_size
-            and self.max_context_length == other.max_context_length
-        )
 
 
 # dependencies ---------------------------------------------------------------------------------------------------------------------------------------
@@ -239,7 +138,6 @@ class DependencyType(str, Enum):
     POSTGRES = "postgres"
     REDIS = "redis"
     SENTRY = "sentry"
-    CENTRALESUPELEC = "centralesupelec"
 
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#albert")
@@ -268,12 +166,6 @@ class ElasticsearchDependency(ConfigBaseModel):
     # All args of pydantic elastic client is allowed
     number_of_shards: int = Field(default=1, ge=1, description="Number of shards for the Elasticsearch index.", examples=[1])  # fmt: off
     number_of_replicas: int = Field(default=1, ge=0, description="Number of replicas for the Elasticsearch index.", examples=[1])  # fmt: off
-
-
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#centralesupelec")
-class CentraleSupelecDependency(ConfigBaseModel):
-    # All args of pydantic elastic client is allowed
-    pass
 
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#qdrantdependency")
@@ -316,8 +208,7 @@ class SentryDependency(ConfigBaseModel):
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#redisdependency")
 class RedisDependency(ConfigBaseModel):
-    pass
-    # All args of pydantic redis client is allowed
+    url: str = Field(description="Redis connection url.")  # fmt: off
 
 
 class ProConnect(ConfigBaseModel):
@@ -343,11 +234,9 @@ class Dependencies(ConfigBaseModel):
     qdrant: QdrantDependency | None = Field(default=None, description="Pass all qdrant python SDK arguments, see https://python-client.qdrant.tech/qdrant_client.qdrant_client for more information.")  # fmt: off
     marker: MarkerDependency | None = Field(default=None, description="If provided, Marker API is used to parse pdf documents. Cannot be used with Albert dependency concurrently. Pass arguments to call Marker API in this section.")  # fmt: off
     postgres: PostgresDependency = Field(..., description="Pass all postgres python SDK arguments, see https://github.com/etalab-ia/opengatellm/blob/main/docs/dependencies/postgres.md for more information.")  # fmt: off
-    # @TODO: support optional redis dependency with set redis in cache
-    redis: RedisDependency  = Field(..., description="Pass all redis python SDK arguments, see https://redis.readthedocs.io/en/stable/connections.html for more information.")  # fmt: off
+    redis: RedisDependency  = Field(..., description="Pass all `from_url()` method arguments of `redis.asyncio.connection.ConnectionPool` class, see https://redis.readthedocs.io/en/stable/connections.html#redis.asyncio.connection.ConnectionPool.from_url for more information.")  # fmt: off
     sentry: SentryDependency | None = Field(default=None, description="Pass all sentry python SDK arguments, see https://docs.sentry.io/platforms/python/configuration/options/ for more information.")  # fmt: off
     proconnect: ProConnect | None = Field(default=None, description="ProConnect configuration for the API. See https://github.com/etalab-ia/albert-api/blob/main/docs/oauth2_encryption.md for more information.")  # fmt: off
-    centralesupelec: CentraleSupelecDependency | None = Field(default=None, description="")
 
     @model_validator(mode="after")
     def validate_dependencies(cls, values):
@@ -411,10 +300,7 @@ class Settings(ConfigBaseModel):
     # general
     disabled_routers: list[Routers] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["embeddings"]])  # fmt: off
     hidden_routers: list[Routers] = Field(default_factory=list, description="Routers are enabled but hidden in the swagger and the documentation of the API.", examples=[["admin"]])  # fmt: off
-    app_title: str | None = Field(default="Albert API", description="Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API"])  # fmt: off
-
-    # metrics
-    metrics_retention_ms: int = Field(default=40000, ge=1, description="Retention time for metrics in milliseconds.")  # fmt: off
+    app_title: str | None = Field(default=DEFAULT_APP_NAME, description="Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API"])  # fmt: off
 
     # usage tokenizer
     usage_tokenizer: Tokenizer = Field(default=Tokenizer.TIKTOKEN_GPT2, description="Tokenizer used to compute usage of the API.")  # fmt: off
@@ -424,7 +310,7 @@ class Settings(ConfigBaseModel):
     log_format: str | None = Field(default="[%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s", description="Logging format of the API.")  # fmt: off
 
     # swagger
-    swagger_summary: str | None = Field(default="Albert API connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title.", description="Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API connect to your models."])  # fmt: off
+    swagger_summary: str | None = Field(default="OpenGateLLM connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title.", description="Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API connect to your models."])  # fmt: off
     swagger_version: str | None = Field(default="latest", description="Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["2.5.0"])  # fmt: off
     swagger_description: str | None = Field(default="[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)", description="Display description of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)"])  # fmt: off
     swagger_contact: dict | None = Field(default=None, description="Contact informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
@@ -460,39 +346,17 @@ class Settings(ConfigBaseModel):
 
     front_url: str = Field(default="http://localhost:8501", description="Front-end URL for the application.")
 
-    # celery (task execution for non streaming model calls)
-    celery_task_always_eager: bool = Field(
-        default=True,
-        description="Execute Celery tasks locally (synchronously) without a broker. Set to false in production to use the configured broker/result backend.",
-    )
-    celery_task_eager_propagates: bool = Field(
-        default=True,
-        description="If true, exceptions in eager mode propagate immediately (useful for tests/development).",
-    )
-    celery_broker_url: str | None = Field(
-        default=None,
-        description="Celery broker URL (e.g. redis://localhost:6379/0 or amqp://user:pass@host:5672//). Required if celery_task_always_eager is false.",
-    )
-    celery_result_backend: str | None = Field(
-        default=None,
-        description="Celery result backend URL (e.g. redis://localhost:6379/1 or rpc://). If not provided, results may not persist across workers.",
-    )
-    celery_task_soft_time_limit: int = Field(
-        default=120,
-        ge=1,
-        description="Soft time limit (in seconds) applied to model invocation tasks.",
-    )
-    celery_task_retry_countdown: int = Field(
-        default=1,
-        ge=1,
-        description="Number of seconds before retrying a failed celery task.",
-    )
-    celery_task_max_retry: int = Field(default=120, ge=1, description="Maximum number of retries for celery tasks.")
-    celery_task_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in celery tasks.")
-    celery_default_queue_prefix: str = Field(
-        default="model.",
-        description="Prefix used for per-model Celery queues (queue name = prefix + router_name).",
-    )
+    # celery
+    # TODO: pass celery as dependency
+    celery_task_always_eager: bool = Field(default=True, description="Execute Celery tasks locally (synchronously) without a broker. Set to false in production to use the configured broker/result backend.")  # fmt: off
+    celery_task_eager_propagates: bool = Field(default=True, description="If true, exceptions in eager mode propagate immediately (useful for tests/development).")  # fmt: off
+    celery_broker_url: str | None = Field(default=None, description="Celery broker URL (e.g. redis://localhost:6379/0 or amqp://user:pass@host:5672//). Required if celery_task_always_eager is false.")  # fmt: off
+    celery_result_backend: str | None = Field(default=None,description="Celery result backend URL (e.g. redis://localhost:6379/1 or rpc://). If not provided, results may not persist across workers.")  # fmt: off
+    celery_task_soft_time_limit: int = Field(default=120, ge=1, description="Soft time limit (in seconds) applied to model invocation tasks.")  # fmt: off
+    celery_task_retry_countdown: int = Field(default=1,ge=1, description="Number of seconds before retrying a failed celery task.")  # fmt: off
+    celery_task_max_retries: int = Field(default=120, ge=1, description="Maximum number of retries for celery tasks.")  # fmt: off
+    celery_task_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in celery tasks.")  # fmt: off
+    celery_default_queue_prefix: str = Field(default="router", description="Prefix used for per-model Celery queues (queue name = {prefix}.{router_id}).")  # fmt: off
 
     @model_validator(mode="after")
     def validate_model(cls, values) -> Any:
@@ -513,7 +377,7 @@ class Settings(ConfigBaseModel):
         if not values.celery_task_always_eager and not values.celery_broker_url:
             raise ValueError("celery_broker_url must be set when celery_task_always_eager is False")
 
-        if values.celery_task_max_retry * values.celery_task_retry_countdown != values.celery_task_soft_time_limit:
+        if values.celery_task_max_retries * values.celery_task_retry_countdown != values.celery_task_soft_time_limit:
             raise ValueError("Celery soft time limit should match max_retry x retry_countdown")
 
         return values

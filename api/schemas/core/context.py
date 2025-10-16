@@ -15,6 +15,7 @@ class GlobalContext(BaseModel):
     model_registry: Any | None = None
     parser_manager: Any | None = None
     tokenizer: Any | None = None
+    redis_pool: Any | None = None
 
 
 class RequestContext(BaseModel):

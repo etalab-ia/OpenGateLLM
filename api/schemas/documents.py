@@ -30,7 +30,7 @@ class Document(BaseModel):
     id: int
     name: str
     collection_id: int
-    created_at: int
+    created: int
     chunks: int | None = None
 
 

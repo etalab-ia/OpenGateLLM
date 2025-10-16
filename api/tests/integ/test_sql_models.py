@@ -35,20 +35,6 @@ class TestUsageModel:
         assert saved_log.total_tokens == 50
         assert isinstance(saved_log.datetime, datetime)
 
-    def test_log_repr(self, db_session, users: tuple[int, int], tokens: tuple[int, int]):
-        """Test the string representation of a log entry"""
-        user_with_permissions, user_without_permissions = users
-        token_with_permissions, token_without_permissions = tokens
-
-        log = Usage(user_id=user_with_permissions["id"], token_id=token_with_permissions["id"], endpoint="/test/endpoint", model="test_model")
-        db_session.add(log)
-        db_session.commit()
-
-        assert (
-            str(log)
-            == f"<Usage (id={log.id}, datetime={log.datetime}, user_id={user_with_permissions["id"]}, token_id={token_with_permissions["id"]}, endpoint=/test/endpoint, duration=None)>"
-        )
-
     def test_nullable_fields(self, db_session, users: tuple[int, int], tokens: tuple[int, int]):
         """Test that optional fields can be null"""
         user_with_permissions, user_without_permissions = users

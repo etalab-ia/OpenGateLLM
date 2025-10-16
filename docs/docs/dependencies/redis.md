@@ -87,13 +87,11 @@ For more information about the configuration file, see [Configuration](../gettin
         dependencies:
             [...]
             redis:
-                host: ${REDIS_HOST:-localhost}
-                port: ${REDIS_PORT:-6379}
-                password: ${REDIS_PASSWORD:-changeme}
+              url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
         ```
 
-        The Redis dependency accepts all parameters from the [coredis ConnectionPool](https://coredis.readthedocs.io/en/stable/handbook/connections.html#connection-pools). The `host`, `port`, and `password` parameters are most commonly used.
-
+        The Redis dependency accepts all parameters from the [`from_url()` method](https://redis.readthedocs.io/en/stable/connections.html#redis.asyncio.connection.ConnectionPool.from_url) of `redis.asyncio.connection.ConnectionPool` class.
+  
 2. Configure rate limiting strategy in the `settings` section of your `config.yml` (default is `fixed_window`):
 
         ```yaml

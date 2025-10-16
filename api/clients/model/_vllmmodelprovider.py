@@ -1,0 +1,69 @@
+from urllib.parse import urljoin
+
+import requests
+
+from api.schemas.core.metrics import MetricType
+from api.utils.variables import (
+    ENDPOINT__AUDIO_TRANSCRIPTIONS,
+    ENDPOINT__CHAT_COMPLETIONS,
+    ENDPOINT__EMBEDDINGS,
+    ENDPOINT__MODELS,
+    ENDPOINT__OCR,
+    ENDPOINT__RERANK,
+)
+
+from ._basemodelprovider import BaseModelProvider
+
+
+class VllmModelProvider(BaseModelProvider):
+    ENDPOINT_TABLE = {
+        ENDPOINT__AUDIO_TRANSCRIPTIONS: "v1/audio/transcriptions",
+        ENDPOINT__CHAT_COMPLETIONS: "/v1/chat/completions",
+        ENDPOINT__EMBEDDINGS: "/v1/embeddings",
+        ENDPOINT__MODELS: "/v1/models",
+        ENDPOINT__OCR: "/v1/chat/completions",
+        ENDPOINT__RERANK: None,
+    }
+
+    def __init__(
+        self,
+        url: str,
+        key: str,
+        timeout: int,
+        model_name: str,
+        model_carbon_footprint_zone: str | None,
+        model_carbon_footprint_total_params: int | None,
+        model_carbon_footprint_active_params: int | None,
+        qos_metric: MetricType | None,
+        qos_value: float | None,
+    ) -> None:
+        """
+        Initialize the vLLM model provider and check if the model is available.
+        """
+        super().__init__(
+            url=url,
+            key=key,
+            timeout=timeout,
+            model_name=model_name,
+            model_carbon_footprint_zone=model_carbon_footprint_zone,
+            model_carbon_footprint_total_params=model_carbon_footprint_total_params,
+            model_carbon_footprint_active_params=model_carbon_footprint_active_params,
+            qos_metric=qos_metric,
+            qos_value=qos_value,
+        )
+
+        # check if model is available
+        url = urljoin(base=str(self.url), url=self.ENDPOINT_TABLE[ENDPOINT__MODELS])
+        response = requests.get(url=url, headers=self.headers, timeout=self.timeout)
+        assert response.status_code == 200, f"Failed to get models list ({response.status_code})."
+
+        response = response.json()["data"]
+        response = [model for model in response if model["id"] == self.name]
+        assert len(response) == 1, f"Model not found ({self.name})."
+
+        # set attributes of the model
+        response = response[0]
+        self.max_context_length = response.get("max_model_len")
+
+        # set vector size
+        self.vector_size = None

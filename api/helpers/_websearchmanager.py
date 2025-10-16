@@ -3,11 +3,14 @@ import logging
 from urllib.parse import urlparse
 
 from fastapi import UploadFile
+from redis.asyncio import Redis as AsyncRedis
 import requests
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import Headers
 
 from api.clients.web_search_engine import BaseWebSearchEngineClient as WebSearchEngineClient
-from api.helpers.models.routers import ModelRouter
+from api.helpers.models import ModelRegistry
+from api.schemas.me import UserInfo
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS
 
 logger = logging.getLogger(__name__)
@@ -34,7 +37,7 @@ Ne donne pas d'explications, ne mets pas de guillemets, réponds uniquement avec
     def __init__(
         self,
         web_search_engine: WebSearchEngineClient,
-        query_model: ModelRouter,
+        query_model: str,
         limited_domains: list[str] | None = None,
         user_agent: str | None = None,
     ) -> None:
@@ -43,12 +46,28 @@ Ne donne pas d'explications, ne mets pas de guillemets, réponds uniquement avec
         self.limited_domains = [] if limited_domains is None else limited_domains
         self.user_agent = user_agent
 
-    async def get_web_query(self, prompt: str) -> str:
+    async def get_web_query(
+        self,
+        prompt: str,
+        model_registry: ModelRegistry,
+        session: AsyncSession,
+        redis_client: AsyncRedis,
+        user_info: UserInfo,
+    ) -> str:
+        model_provider = await model_registry.get_model_provider(
+            model=self.query_model,
+            endpoint=ENDPOINT__CHAT_COMPLETIONS,
+            user_info=user_info,
+            session=session,
+            redis_client=redis_client,
+        )
+
         prompt = self.GET_WEB_QUERY_PROMPT.format(prompt=prompt)
-        client, _ = self.query_model.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)
-        response = await client.forward_request(
+        response = await model_provider.forward_request(
             method="POST",
-            json={"messages": [{"role": "user", "content": prompt}], "model": self.query_model.name, "temperature": 0.2, "stream": False},
+            json={"messages": [{"role": "user", "content": prompt}], "model": self.query_model, "temperature": 0.2, "stream": False},
+            endpoint=ENDPOINT__CHAT_COMPLETIONS,
+            redis_client=redis_client,
         )
         query = response.json()["choices"][0]["message"]["content"]
 

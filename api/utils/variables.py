@@ -1,8 +1,14 @@
 DEFAULT_APP_NAME = "OpenGateLLM"
 DEFAULT_TIMEOUT = 300
 
+METRIC__GAUGE_PREFIX = "metric_gauge"
+METRIC__TIMESERIE_PREFIX = "metric_ts"
+METRIC__TIMESERIE_RETENTION_SECONDS = 120
+
 ENDPOINT__ADMIN_ORGANIZATIONS = "/admin/organizations"
+ENDPOINT__ADMIN_PROVIDERS = "/admin/providers"
 ENDPOINT__ADMIN_ROLES = "/admin/roles"
+ENDPOINT__ADMIN_ROUTERS = "/admin/routers"
 ENDPOINT__ADMIN_TOKENS = "/admin/tokens"
 ENDPOINT__ADMIN_USERS = "/admin/users"
 ENDPOINT__AUDIO_TRANSCRIPTIONS = "/audio/transcriptions"
@@ -22,11 +28,11 @@ ENDPOINT__MODELS_ALIAS = "/models/alias"
 ENDPOINT__OCR = "/ocr-beta"
 ENDPOINT__PARSE = "/parse-beta"
 ENDPOINT__RERANK = "/rerank"
-ENDPOINT__ROUTERS = "/routers"
 ENDPOINT__SEARCH = "/search"
 ENDPOINT__USAGE = "/usage"
 
 ENDPOINTS = [value for name, value in locals().items() if name.startswith("ENDPOINT__")]
+
 
 ROUTER__ADMIN = "admin"
 ROUTER__AUDIO = "audio"

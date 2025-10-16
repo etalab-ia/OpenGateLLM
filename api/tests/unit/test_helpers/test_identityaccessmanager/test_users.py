@@ -177,8 +177,8 @@ async def test_get_users_filters_and_not_found(session: AsyncSession, iam: Ident
                 "organization": None,
                 "budget": None,
                 "expires_at": None,
-                "created_at": 10,
-                "updated_at": 11,
+                "created": 10,
+                "updated": 11,
                 "email": "alice@example.com",
                 "sub": "sub",
                 "priority": 0,
@@ -230,8 +230,8 @@ async def test_get_user_info_by_id_success(session: AsyncSession, iam: IdentityA
         "organization": None,
         "budget": 10.0,
         "expires_at": 123,
-        "created_at": 10,
-        "updated_at": 11,
+        "created": 10,
+        "updated": 11,
         "email": "alice@example.com",
         "sub": None,
         "priority": 0,
@@ -258,7 +258,7 @@ async def test_get_user_info_by_id_success(session: AsyncSession, iam: IdentityA
 
     # Sequence: get_users -> roles rows, limits rows, permissions rows (get_roles won't fetch ids when role_id provided)
     roles_rows = [
-        _RowDict({"id": 2, "name": "role", "created_at": 100, "updated_at": 101, "users": 1}),
+        _RowDict({"id": 2, "name": "role", "created": 100, "updated": 101, "users": 1}),
     ]
 
     from api.schemas.admin.roles import LimitType, PermissionType
@@ -293,8 +293,8 @@ async def test_get_user_info_by_id_success(session: AsyncSession, iam: IdentityA
     assert user.organization is None
     assert user.budget == 10.0
     assert user.expires_at == 123
-    assert user.created_at == 10
-    assert user.updated_at == 11
+    assert user.created == 10
+    assert user.updated == 11
     assert len(user.permissions) == 1
     assert len(user.limits) == 1
 
@@ -309,8 +309,8 @@ async def test_get_user_info_by_email_success(session: AsyncSession, iam: Identi
         "organization": 9,
         "budget": None,
         "expires_at": None,
-        "created_at": 20,
-        "updated_at": 21,
+        "created": 20,
+        "updated": 21,
         "email": "bob@example.com",
         "sub": None,
         "priority": 0,
@@ -339,7 +339,7 @@ async def test_get_user_info_by_email_success(session: AsyncSession, iam: Identi
 
     # No ids page when role_id is provided to get_roles
     roles_rows = [
-        _RowDict({"id": 3, "name": "role", "created_at": 200, "updated_at": 201, "users": 1}),
+        _RowDict({"id": 3, "name": "role", "created": 200, "updated": 201, "users": 1}),
     ]
     limits_iter = [
         _LimitRow(3, "mistral", LimitType.RPM, 200),
@@ -367,8 +367,8 @@ async def test_get_user_info_by_email_success(session: AsyncSession, iam: Identi
     assert user.organization == 9
     assert user.budget is None
     assert user.expires_at is None
-    assert user.created_at == 20
-    assert user.updated_at == 21
+    assert user.created == 20
+    assert user.updated == 21
     assert any(p.value == "admin" for p in user.permissions)
     assert any(limit.model == "mistral" and limit.value == 200 for limit in user.limits)
 
@@ -391,8 +391,8 @@ async def test_get_users_with_id_and_role_id(session: AsyncSession, iam: Identit
                 "organization": None,
                 "budget": None,
                 "expires_at": None,
-                "created_at": 10,
-                "updated_at": 11,
+                "created": 10,
+                "updated": 11,
                 "email": "alice@example.com",
                 "sub": "sub",
                 "priority": 0,
@@ -421,8 +421,8 @@ async def test_get_users_with_role_id_only(session: AsyncSession, iam: IdentityA
                 "organization": None,
                 "budget": None,
                 "expires_at": None,
-                "created_at": 10,
-                "updated_at": 11,
+                "created": 10,
+                "updated": 11,
                 "email": "alice@example.com",
                 "sub": "sub",
                 "priority": 0,
@@ -436,8 +436,8 @@ async def test_get_users_with_role_id_only(session: AsyncSession, iam: IdentityA
                 "organization": None,
                 "budget": None,
                 "expires_at": None,
-                "created_at": 20,
-                "updated_at": 21,
+                "created": 20,
+                "updated": 21,
                 "email": "bob@example.com",
                 "sub": "sub",
                 "priority": 0,
@@ -465,8 +465,8 @@ async def test_get_users_with_id_only(session: AsyncSession, iam: IdentityAccess
                 "organization": None,
                 "budget": None,
                 "expires_at": None,
-                "created_at": 10,
-                "updated_at": 11,
+                "created": 10,
+                "updated": 11,
                 "email": "alice@example.com",
                 "sub": "sub",
                 "priority": 0,
@@ -495,8 +495,8 @@ async def test_get_users_no_params(session: AsyncSession, iam: IdentityAccessMan
                 "organization": None,
                 "budget": None,
                 "expires_at": None,
-                "created_at": 10,
-                "updated_at": 11,
+                "created": 10,
+                "updated": 11,
                 "email": "alice@example.com",
                 "sub": "sub",
                 "priority": 0,
@@ -510,8 +510,8 @@ async def test_get_users_no_params(session: AsyncSession, iam: IdentityAccessMan
                 "organization": None,
                 "budget": None,
                 "expires_at": None,
-                "created_at": 20,
-                "updated_at": 21,
+                "created": 20,
+                "updated": 21,
                 "email": "bob@example.com",
                 "sub": "sub",
                 "priority": 0,

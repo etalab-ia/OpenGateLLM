@@ -231,8 +231,8 @@ class TestCollections:
         assert response.status_code == 200, response.text
 
         collection = response.json()
-        assert collection["updated_at"] is not None
-        updated_at = collection["updated_at"]
+        assert collection["updated"] is not None
+        updated = collection["updated"]
 
         time.sleep(1)
 
@@ -243,5 +243,5 @@ class TestCollections:
         assert response.status_code == 200, response.text
 
         collection = response.json()
-        assert collection["updated_at"] is not None
-        assert collection["updated_at"] > updated_at
+        assert collection["updated"] is not None
+        assert collection["updated"] > updated

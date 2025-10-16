@@ -117,7 +117,7 @@ sequenceDiagram
     DM->>+DB: Insert document record
     DB-->>-DM: document_id
     
-    DM->>DM: Add metadata to chunks<br/>(collection_id, document_id,<br/>created_at)
+    DM->>DM: Add metadata to chunks<br/>(collection_id, document_id,<br/>created)
     
     loop For each batch of chunks (32 max)
         DM->>+EM: Create embeddings

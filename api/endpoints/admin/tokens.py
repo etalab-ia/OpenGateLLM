@@ -90,7 +90,7 @@ async def get_tokens(
     user: int | None = Query(default=None, description="The user ID of the user to get the tokens for."),
     offset: int = Query(default=0, ge=0, description="The offset of the tokens to get."),
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the tokens to get."),
-    order_by: Literal["id", "name", "created_at"] = Query(default="id", description="The field to order the tokens by."),
+    order_by: Literal["id", "name", "created"] = Query(default="id", description="The field to order the tokens by."),
     order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the tokens by."),
     session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:

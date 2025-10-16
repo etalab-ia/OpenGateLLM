@@ -17,7 +17,7 @@ models:
   - id: turbo
     type: text-generation
     aliases: ["turbo-alias"]
-    routing_strategy: round_robin
+    load_balancing_strategy: round_robin
     clients:
       - model: gpt-3.5-turbo 
         type: openai
@@ -53,7 +53,7 @@ L'objet retourné est un objet `ModelRouter` qui contient les informations du mo
 
 ### ModelRouter
 
-L'objet `ModelRouter` contient les informations du modèle et les clients associés. Cette classe contient une méthode `get_client` qui permet de récupérer un client du modèle. S'il existe plusieurs clients, la méthode va sélectionner un client en fonction de la stratégie de routage (`routing_strategy`) définit dans le fichier de configuration (voir [deployment](./deployment.md)).
+L'objet `ModelRouter` contient les informations du modèle et les clients associés. Cette classe contient une méthode `get_client` qui permet de récupérer un client du modèle. S'il existe plusieurs clients, la méthode va sélectionner un client en fonction de la stratégie de routage (`load_balancing_strategy`) définit dans le fichier de configuration (voir [deployment](./deployment.md)).
 
 Les informations du modèle sont celle renvoyées par le endpoint `GET /v1/models` :
 
@@ -120,7 +120,7 @@ Configuration :
 models:
   - id: turbo
     type: text-generation
-    routing_strategy: least_loaded
+    load_balancing_strategy: least_loaded
     providers:
       - type: openai
         model_name: gpt-4o

@@ -21,7 +21,7 @@ from api.factory import create_app
 from api.schemas.admin.roles import LimitType, PermissionType
 from api.sql.models import Base
 from api.utils.configuration import configuration
-from api.utils.variables import ENDPOINT__ADMIN_ROLES, ENDPOINT__ADMIN_TOKENS, ENDPOINT__ADMIN_USERS, ENDPOINT__MODELS
+from api.utils.variables import ENDPOINT__ADMIN_ROLES, ENDPOINT__ADMIN_ROUTERS, ENDPOINT__ADMIN_TOKENS, ENDPOINT__ADMIN_USERS
 
 # Define global VCR instance
 VCR_INSTANCE = None
@@ -75,7 +75,6 @@ def engine(worker_id):
     """Create database engine for tests"""
 
     db_url = configuration.dependencies.postgres.model_dump().get("url").replace("+asyncpg", "")
-    db_url = f"{db_url}_{worker_id}" if worker_id != "master" else f"{db_url}_test"
 
     # Create database if it doesn't exist
     if not database_exists(url=db_url):
@@ -89,18 +88,14 @@ def engine(worker_id):
 @pytest.fixture(scope="session")
 def async_engine(worker_id):
     """Create asynchronous database engine for tests"""
-    db_url = configuration.dependencies.postgres.model_dump().get("url").replace("+asyncpg", "")
-    db_url = f"{db_url}_{worker_id}" if worker_id != "master" else f"{db_url}_test"
-
-    # Ensure the URL uses the asyncpg driver
-    async_db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
+    db_url = configuration.dependencies.postgres.model_dump().get("url").replace("postgresql://", "postgresql+asyncpg://")
 
     # Create database if it doesn't exist
     if not database_exists(url=db_url):
         create_database(url=db_url)
         Base.metadata.create_all(bind=create_engine(url=db_url))
 
-    async_engine = create_async_engine(url=async_db_url)
+    async_engine = create_async_engine(url=db_url)
 
     # Use sync engine for metadata operations
     sync_engine = create_engine(url=db_url)
@@ -224,24 +219,18 @@ def vcr_cassette(request):
 def roles(test_client: TestClient) -> tuple[dict, dict]:
     """Create roles for tests, one with permissions and one without permissions."""
 
-    # get limits
-    response = test_client.get(url=f"/v1{ENDPOINT__MODELS}")
+    response = test_client.get(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}")
+
     logging.debug(msg=f"get models: {response.text}")
     response.raise_for_status()
-    models = response.json()["data"]
-    models = [model["id"] for model in models]
+    routers = response.json()["data"]
 
     limits = []
-    for model in models:
-        limits.append({"model": model, "type": LimitType.RPM.value, "value": None})
-        limits.append({"model": model, "type": LimitType.RPD.value, "value": None})
-        limits.append({"model": model, "type": LimitType.TPM.value, "value": None})
-        limits.append({"model": model, "type": LimitType.TPD.value, "value": None})
-
-    limits.append({"model": "web-search", "type": LimitType.RPM.value, "value": None})
-    limits.append({"model": "web-search", "type": LimitType.RPD.value, "value": None})
-    limits.append({"model": "web-search", "type": LimitType.TPM.value, "value": None})
-    limits.append({"model": "web-search", "type": LimitType.TPD.value, "value": None})
+    for router in routers:
+        limits.append({"router": router["id"], "type": LimitType.RPM.value, "value": None})
+        limits.append({"router": router["id"], "type": LimitType.RPD.value, "value": None})
+        limits.append({"router": router["id"], "type": LimitType.TPM.value, "value": None})
+        limits.append({"router": router["id"], "type": LimitType.TPD.value, "value": None})
 
     # create role admin
     response = test_client.post(
@@ -252,6 +241,7 @@ def roles(test_client: TestClient) -> tuple[dict, dict]:
     response.raise_for_status()
 
     role_id_with_permissions = response.json()["id"]
+
     # create role user
     response = test_client.post(
         url=f"/v1{ENDPOINT__ADMIN_ROLES}", json={"name": "test-role-user", "default": False, "permissions": [], "limits": limits}

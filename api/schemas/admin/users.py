@@ -60,8 +60,8 @@ class User(BaseModel):
     organization: int | None = Field(default=None, description="The user organization ID.")
     budget: float | None = Field(default=None, description="The user budget. If None, the user has unlimited budget.")
     expires_at: int | None = Field(default=None, description="The user expiration timestamp. If None, the user will never expire.")
-    created_at: int = Field(description="The user creation timestamp.")
-    updated_at: int = Field(description="The user update timestamp.")
+    created: int = Field(description="The user creation timestamp.")
+    updated: int = Field(description="The user update timestamp.")
     priority: int = Field(description="The user priority (higher = higher priority).")
 
 

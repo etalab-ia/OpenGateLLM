@@ -1,9 +1,9 @@
 import logging
 import traceback
 
-from coredis import ConnectionPool
 from limits import RateLimitItemPerDay, RateLimitItemPerMinute
 from limits.aio import storage, strategies
+from redis.asyncio import ConnectionPool
 
 from api.schemas.admin.roles import LimitType
 from api.schemas.core.configuration import LimitingStrategy
@@ -12,24 +12,20 @@ logger = logging.getLogger(__name__)
 
 
 class Limiter:
-    def __init__(self, redis: ConnectionPool, strategy: LimitingStrategy):
-        self.connection_pool = redis
-        self.redis_host = self.connection_pool.connection_kwargs.get("host", "localhost")
-        self.redis_port = self.connection_pool.connection_kwargs.get("port", 6379)
-        self.redis_username = self.connection_pool.connection_kwargs.get("username", "")
-        self.redis_password = self.connection_pool.connection_kwargs.get("password", "")
-        self.redis = storage.RedisStorage(uri=f"async+redis://{self.redis_username}:{self.redis_password}@{self.redis_host}:{self.redis_port}", connection_pool=self.connection_pool)  # fmt: off
+    def __init__(self, redis_pool: ConnectionPool, strategy: LimitingStrategy):
+        self.redis_pool = redis_pool
+        self.redis_client = storage.RedisStorage(uri=self.redis_pool.url, connection_pool=self.redis_pool, implementation="redispy")
 
         if strategy == LimitingStrategy.MOVING_WINDOW:
-            self.strategy = strategies.MovingWindowRateLimiter(storage=self.redis)
+            self.strategy = strategies.MovingWindowRateLimiter(storage=self.redis_client)
         elif strategy == LimitingStrategy.FIXED_WINDOW:
-            self.strategy = strategies.FixedWindowRateLimiter(storage=self.redis)
+            self.strategy = strategies.FixedWindowRateLimiter(storage=self.redis_client)
         else:  # SLIDING_WINDOW
-            self.strategy = strategies.SlidingWindowCounterRateLimiter(storage=self.redis)
+            self.strategy = strategies.SlidingWindowCounterRateLimiter(storage=self.redis_client)
 
-    async def hit(self, user_id: int, model: str, type: LimitType, value: int | None = None, cost: int = 1) -> bool | None:
+    async def hit(self, user_id: int, router_id: int, type: LimitType, value: int | None = None, cost: int = 1) -> bool | None:
         """
-        Check if the user has reached the limit for the given type and model.
+        Check if the user has reached the limit for the given type and router.
 
         Args:
             user_id(int): The user ID to check the limit for.
@@ -54,16 +50,15 @@ class Limiter:
             elif type == LimitType.RPD:
                 limit = RateLimitItemPerDay(amount=value)
 
-            result = await self.strategy.hit(limit, f"{type.value}:{user_id}:{model}", cost=cost)
+            result = await self.strategy.hit(limit, f"{type.value}:{user_id}:{router_id}", cost=cost)
             return result
 
         except Exception:
-            logger.error(msg="Error during rate limit hit.")
-            logger.error(msg=traceback.format_exc())
+            logger.error(msg="Error during rate limit hit.", exc_info=True)
 
         return True
 
-    async def remaining(self, user_id: int, model: str, type: LimitType, value: int | None = None) -> int | None:
+    async def remaining(self, user_id: int, router_id: int, type: LimitType, value: int | None = None) -> int | None:
         if value is None:
             return None
 
@@ -77,7 +72,7 @@ class Limiter:
             elif type == LimitType.RPD:
                 limit = RateLimitItemPerDay(amount=value)
 
-            window = await self.strategy.get_window_stats(limit, f"{type.value}:{user_id}:{model}")
+            window = await self.strategy.get_window_stats(limit, f"{type.value}:{user_id}:{router_id}")
             return window.remaining
 
         except Exception:

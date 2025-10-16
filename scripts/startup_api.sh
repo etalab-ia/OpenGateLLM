@@ -10,7 +10,7 @@ python -m alembic -c api/alembic.ini upgrade head
 if [ "${CELERY_TASK_ALWAYS_EAGER:-true}" = "false" ]; then
   echo "[startup] Launching Celery worker..."
   CELERY_CONCURRENCY=${CELERY_CONCURRENCY:-4}
-  CELERY_QUEUES=${CELERY_QUEUES:-"model.*"}
+  CELERY_QUEUES=${CELERY_QUEUES:-"router_*"}
   # If wildcard unsupported (e.g. Redis broker), user can pass explicit comma list via CELERY_QUEUES
   celery -A api.tasks.celery_app.celery_app worker \
     -n albert-worker@%h \

@@ -5,14 +5,14 @@ models:
     # aliases: ["model-alias"]
     # owned_by: Me
     # routing_strategy: shuffle
+    # cost_prompt_tokens: 0.10
+    # cost_completion_tokens: 0.10
     providers:
       - type: vllm
         url: http://albert-testbed.etalab.gouv.fr:8000
         # key: sk-xxx
         model_name: "gemma3:1b"
         # timeout: 60
-        # model_cost_prompt_tokens: 0.10
-        # model_cost_completion_tokens: 0.10
         # model_carbon_footprint_zone: FRA
         # model_carbon_footprint_total_params: 8
         # model_carbon_footprint_active_params: 8
@@ -29,9 +29,7 @@ dependencies:
       command_timeout: 60
 
   redis: # required
-    host: ${REDIS_HOST:-localhost}
-    port: ${REDIS_PORT:-6379}
-    password: ${REDIS_PASSWORD:-changeme}
+    url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
 
   # elasticsearch:
   #   number_of_shards: 1

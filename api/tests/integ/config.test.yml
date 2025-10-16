@@ -3,14 +3,14 @@ models:
   - name: albert-large
     type: image-text-to-text
     owned_by: test
+    cost_prompt_tokens: 1
+    cost_completion_tokens: 3
     aliases: ["mistralai/Mistral-Small-3.1-24B-Instruct-2503"]
     providers:
       - type: albert
         key: ${ALBERT_API_KEY}
         timeout: 120
         model_name: albert-large
-        model_cost_prompt_tokens: 1
-        model_cost_completion_tokens: 3
         model_carbon_footprint_total_params: 24
         model_carbon_footprint_active_params: 24
         model_carbon_footprint_zone: FRA
@@ -20,40 +20,40 @@ models:
     type: text-generation
     routing_strategy: round_robin
     aliases: ["meta-llama/Llama-3.1-8B-Instruct"]
+    cost_prompt_tokens: 1
+    cost_completion_tokens: 3
     providers:
       - type: albert
         key: ${ALBERT_API_KEY}
         timeout: 120
         model_name: albert-small
-        model_cost_prompt_tokens: 1
-        model_cost_completion_tokens: 3
         model_carbon_footprint_total_params: 8
         model_carbon_footprint_active_params: 8
         model_carbon_footprint_zone: FRA
-        qos_policy: parallel-requests-threshold
-        max_parallel_requests: 5
+        qos_metric: inflight
+        qos_value: 5
       - type: albert
         key: ${ALBERT_API_KEY}
         timeout: 80
         model_name: albert-small
-        model_cost_prompt_tokens: 1
-        model_cost_completion_tokens: 3
         model_carbon_footprint_total_params: 8
         model_carbon_footprint_active_params: 8
         model_carbon_footprint_zone: FRA
         qos_policy: parallel-requests-threshold
         max_parallel_requests: 5
+        qos_metric: inflight
+        qos_value: 5
 
   - name: embeddings-small
     type: text-embeddings-inference
     aliases: ["BAAI/bge-m3"]
+    cost_prompt_tokens: 1
+    cost_completion_tokens: 3
     providers:
       - type: albert
         key: ${ALBERT_API_KEY}
         timeout: 120
         model_name: embeddings-small
-        model_cost_prompt_tokens: 1
-        model_cost_completion_tokens: 3
         model_carbon_footprint_total_params: 8
         model_carbon_footprint_active_params: 8
         model_carbon_footprint_zone: FRA
@@ -67,8 +67,7 @@ models:
         key: ${ALBERT_API_KEY}
         timeout: 120
         model_name: audio-large
-        model_cost_prompt_tokens: 1
-        model_cost_completion_tokens: 3
+
         model_carbon_footprint_total_params: 8
         model_carbon_footprint_active_params: 8
         model_carbon_footprint_zone: FRA
@@ -82,8 +81,6 @@ models:
         key: ${ALBERT_API_KEY}
         timeout: 120
         model_name: rerank-small
-        model_cost_prompt_tokens: 1
-        model_cost_completion_tokens: 3
         model_carbon_footprint_total_params: 8
         model_carbon_footprint_active_params: 8
         model_carbon_footprint_zone: FRA
@@ -92,7 +89,7 @@ models:
 # -------------------------------- dependencies ---------------------------------
 dependencies:
   postgres:
-    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-api}
+    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
     echo: False
     pool_size: 10
     max_overflow: 5
@@ -105,10 +102,7 @@ dependencies:
       command_timeout: 60
 
   redis:
-    host: ${REDIS_HOST:-redis}
-    port: ${REDIS_PORT:-6379}
-    password: ${REDIS_PASSWORD:-changeme}
-
+    url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
 
   elasticsearch:
     hosts: http://${ELASTICSEARCH_HOST:-elasticsearch}:${ELASTICSEARCH_PORT:-9200}
@@ -129,9 +123,6 @@ dependencies:
       X-Subscription-Token: ${BRAVE_API_KEY}
     country: "fr"
     safesearch: "strict"
-
-  centralesupelec:
-    token: ${CS_API_KEY}
 
 # ---------------------------------- settings -----------------------------------
 settings:

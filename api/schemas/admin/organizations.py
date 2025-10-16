@@ -22,8 +22,8 @@ class Organization(BaseModel):
     object: Literal["organization"] = "organization"
     id: int
     name: str
-    created_at: int = Field(default_factory=lambda: int(datetime.now().timestamp()))
-    updated_at: int = Field(default_factory=lambda: int(datetime.now().timestamp()))
+    created: int = Field(default_factory=lambda: int(datetime.now().timestamp()))
+    updated: int = Field(default_factory=lambda: int(datetime.now().timestamp()))
 
 
 class Organizations(BaseModel):

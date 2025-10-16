@@ -209,8 +209,8 @@ async def test_get_collections_filter_by_visibility():
         "visibility": CollectionVisibility.PRIVATE,
         "description": "A private collection",
         "documents": 5,
-        "created_at": 1697000000,
-        "updated_at": 1697000000,
+        "created": 1697000000,
+        "updated": 1697000000,
     }
     mock_private_result.all.return_value = [mock_private_row]
 
@@ -224,8 +224,8 @@ async def test_get_collections_filter_by_visibility():
         "visibility": CollectionVisibility.PUBLIC,
         "description": "A public collection",
         "documents": 10,
-        "created_at": 1697000000,
-        "updated_at": 1697000000,
+        "created": 1697000000,
+        "updated": 1697000000,
     }
     mock_public_result.all.return_value = [mock_public_row]
 
@@ -280,8 +280,8 @@ async def test_get_collections_filter_by_collection_name():
         "visibility": CollectionVisibility.PRIVATE,
         "description": "First test collection",
         "documents": 3,
-        "created_at": 1697000000,
-        "updated_at": 1697000000,
+        "created": 1697000000,
+        "updated": 1697000000,
     }
     mock_row2 = MagicMock()
     mock_row2._asdict.return_value = {
@@ -291,8 +291,8 @@ async def test_get_collections_filter_by_collection_name():
         "visibility": CollectionVisibility.PRIVATE,
         "description": "Second test collection",
         "documents": 7,
-        "created_at": 1697000000,
-        "updated_at": 1697000000,
+        "created": 1697000000,
+        "updated": 1697000000,
     }
     mock_result_with_matches.all.return_value = [mock_row1, mock_row2]
 
@@ -335,8 +335,8 @@ async def test_get_collections_filter_by_collection_name():
         "visibility": CollectionVisibility.PUBLIC,
         "description": "Exact match collection",
         "documents": 1,
-        "created_at": 1697000000,
-        "updated_at": 1697000000,
+        "created": 1697000000,
+        "updated": 1697000000,
     }
     mock_result_exact.all.return_value = [mock_exact_row]
     mock_session.execute.return_value = mock_result_exact

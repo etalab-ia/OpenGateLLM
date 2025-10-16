@@ -5,9 +5,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Path, Query, Request, Response, Security, UploadFile
 from fastapi.responses import JSONResponse
 from langchain_text_splitters import Language
+from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers.models import ModelRegistry
 from api.schemas.documents import (
     Chunker,
     ChunkerForm,
@@ -34,6 +36,7 @@ from api.schemas.parse import (
 )
 from api.sql.session import get_db_session
 from api.utils.context import global_context, request_context
+from api.utils.dependencies import get_model_registry, get_redis_client
 from api.utils.exceptions import CollectionNotFoundException, DocumentNotFoundException, FileSizeLimitExceededException, InvalidJSONFormatException
 from api.utils.variables import ENDPOINT__DOCUMENTS, ROUTER__DOCUMENTS
 
@@ -44,6 +47,8 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__DOCUMENTS.title()])
 async def create_document(
     request: Request,
     session: AsyncSession = Depends(get_db_session),
+    redis_client: AsyncRedis = Depends(get_redis_client),
+    model_registry: ModelRegistry = Depends(get_model_registry),
     file: UploadFile = FileForm,
     collection: int = CollectionForm,
     # parse params
@@ -91,8 +96,10 @@ async def create_document(
     )
 
     document_id = await global_context.document_manager.create_document(
-        user_id=request_context.get().user_info.id,
+        user_info=request_context.get().user_info,
         session=session,
+        redis_client=redis_client,
+        model_registry=model_registry,
         collection_id=collection,
         document=document,
         chunker=chunker,
@@ -110,7 +117,7 @@ async def create_document(
 
 
 @router.get(
-    path=ENDPOINT__DOCUMENTS + "/{document:path}",
+    path=ENDPOINT__DOCUMENTS + "/{document}",
     dependencies=[Security(dependency=AccessController())],
     status_code=200,
     response_model=Document,
@@ -162,7 +169,7 @@ async def get_documents(
     return JSONResponse(content=Documents(data=data).model_dump(), status_code=200)
 
 
-@router.delete(path=ENDPOINT__DOCUMENTS + "/{document:path}", dependencies=[Security(dependency=AccessController())], status_code=204)
+@router.delete(path=ENDPOINT__DOCUMENTS + "/{document}", dependencies=[Security(dependency=AccessController())], status_code=204)
 async def delete_document(
     request: Request,
     document: int = Path(description="The document ID"),

@@ -1,17 +1,18 @@
 from fastapi import APIRouter, Depends, Request, Security
 from fastapi.responses import JSONResponse
+from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
-from api.schemas.admin.users import User
+from api.helpers.models import ModelRegistry
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionRequest
 from api.schemas.exception import HTTPExceptionModel
 from api.schemas.search import Search
-from api.services.model_invocation import invoke_model_request
 from api.sql.session import get_db_session
 from api.utils.context import global_context, request_context
-from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, TaskFailedException
+from api.utils.dependencies import get_model_registry, get_redis_client
+from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, WrongModelTypeException
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ROUTER__CHAT
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
@@ -20,16 +21,22 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
 @router.post(
     path=ENDPOINT__CHAT_COMPLETIONS,
     status_code=200,
+    dependencies=[Security(dependency=AccessController())],
     response_model=ChatCompletion | ChatCompletionChunk,
+    # fmt: off
     responses={
-        ModelNotFoundException().status_code: {
-            "model": HTTPExceptionModel,
-            "description": f"{ModelNotFoundException().detail} {CollectionNotFoundException().detail}",
-        },
+        404: {"model": HTTPExceptionModel, "description": f"{ModelNotFoundException().detail} {CollectionNotFoundException().detail}"},
+        WrongModelTypeException().status_code: {"model": HTTPExceptionModel, "description": WrongModelTypeException().detail},
         ModelIsTooBusyException().status_code: {"model": HTTPExceptionModel, "description": ModelIsTooBusyException().detail},
     },
 )
-async def chat_completions(request: Request, body: ChatCompletionRequest, session: AsyncSession = Depends(get_db_session), user: User = Security(AccessController())) -> JSONResponse | StreamingResponseWithStatusCode:  # fmt: off
+async def chat_completions(
+    request: Request,
+    body: ChatCompletionRequest,
+    model_registry: ModelRegistry = Depends(get_model_registry),
+    session: AsyncSession = Depends(get_db_session),
+    redis_client: AsyncRedis = Depends(get_redis_client),
+) -> JSONResponse | StreamingResponseWithStatusCode:
     """Creates a model response for the given chat conversation.
 
     **Important**: any others parameters are authorized, depending on the model backend. For example, if model is support by vLLM backend, additional
@@ -39,7 +46,10 @@ async def chat_completions(request: Request, body: ChatCompletionRequest, sessio
 
     # retrieval augmentation generation
     async def retrieval_augmentation_generation(
-        initial_body: ChatCompletionRequest, inner_session: AsyncSession
+        initial_body: ChatCompletionRequest,
+        inner_session: AsyncSession,
+        inner_redis_client: AsyncRedis,
+        inner_model_registry: ModelRegistry,
     ) -> tuple[ChatCompletionRequest, list[Search]]:
         results = []
         if initial_body.search:
@@ -47,7 +57,10 @@ async def chat_completions(request: Request, body: ChatCompletionRequest, sessio
                 raise CollectionNotFoundException()
 
             results = await global_context.document_manager.search_chunks(
+                user_info=request_context.get().user_info,
                 session=inner_session,
+                redis_client=inner_redis_client,
+                model_registry=inner_model_registry,
                 collection_ids=initial_body.search_args.collections,
                 prompt=initial_body.messages[-1]["content"],
                 method=initial_body.search_args.method,
@@ -55,7 +68,6 @@ async def chat_completions(request: Request, body: ChatCompletionRequest, sessio
                 offset=initial_body.search_args.offset,
                 rff_k=initial_body.search_args.rff_k,
                 web_search=initial_body.search_args.web_search,
-                user_id=request_context.get().user_info.id,
             )
             if results:
                 chunks = "\n".join([result.chunk.content for result in results])
@@ -71,22 +83,37 @@ async def chat_completions(request: Request, body: ChatCompletionRequest, sessio
 
         return new_body, results
 
-    body, results = await retrieval_augmentation_generation(initial_body=body, inner_session=session)
+    body, results = await retrieval_augmentation_generation(
+        initial_body=body,
+        inner_session=session,
+        inner_redis_client=redis_client,
+        inner_model_registry=model_registry,
+    )
     additional_data = {"search_results": results} if results else {}
 
-    user_priority = getattr(user, "priority", 0)
+    model_provider = await model_registry.get_model_provider(
+        model=body["model"],
+        endpoint=ENDPOINT__CHAT_COMPLETIONS,
+        user_info=request_context.get().user_info,
+        session=session,
+        redis_client=redis_client,
+    )
 
-    try:
-        client = await invoke_model_request(model_name=body["model"], endpoint=ENDPOINT__CHAT_COMPLETIONS, user_priority=user_priority)
-    except TaskFailedException as e:
-        return JSONResponse(content=e.detail, status_code=e.status_code)
-
-    client.endpoint = ENDPOINT__CHAT_COMPLETIONS
-
-    if not body["stream"]:
-        response = await client.forward_request(method="POST", json=body, additional_data=additional_data)
+    if not body.get("stream", False):
+        response = await model_provider.forward_request(
+            method="POST",
+            json=body,
+            additional_data=additional_data,
+            endpoint=ENDPOINT__CHAT_COMPLETIONS,
+            redis_client=redis_client,
+        )
         return JSONResponse(content=response.json(), status_code=response.status_code)
-
-    # stream case
-    stream_iter = client.forward_stream(method="POST", json=body, additional_data=additional_data)
-    return StreamingResponseWithStatusCode(content=stream_iter, media_type="text/event-stream")
+    else:
+        stream_iter = model_provider.forward_stream(
+            method="POST",
+            json=body,
+            additional_data=additional_data,
+            endpoint=ENDPOINT__CHAT_COMPLETIONS,
+            redis_client=redis_client,
+        )
+        return StreamingResponseWithStatusCode(content=stream_iter, media_type="text/event-stream")

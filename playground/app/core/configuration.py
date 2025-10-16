@@ -9,6 +9,8 @@ from pydantic import ValidationError as PydanticValidationError
 from pydantic_settings import BaseSettings
 import yaml
 
+from app.core.variables import DEFAULT_APP_NAME
+
 
 def custom_validation_error(url: str | None = None):
     """
@@ -77,7 +79,7 @@ class Dependencies(ConfigBaseModel):
 class Settings(ConfigBaseModel):
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
     celery_task_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in celery tasks.")  # fmt: off
-    app_title: str = Field(default="OpenGateLLM", description="The title of the application.")
+    app_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application.")
 
     playground_opengatellm_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
     playground_default_model: str | None = Field(default=None, description="The first model selected in chat page.")

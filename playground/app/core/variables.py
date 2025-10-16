@@ -1,4 +1,4 @@
-"""Global variables for the playground application."""
+DEFAULT_APP_NAME = "OpenGateLLM"
 
 # ============================================================================
 # LAYOUT & DIMENSIONS

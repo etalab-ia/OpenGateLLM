@@ -5,10 +5,9 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas.admin.roles import Limit, LimitType, PermissionType
+from api.schemas.admin.roles import LimitType, PermissionType
 from api.schemas.admin.users import User
 from api.schemas.collections import CollectionVisibility
 from api.schemas.me import UserInfo
@@ -16,7 +15,6 @@ from api.sql.session import get_db_session
 from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context
 from api.utils.exceptions import (
-    InsufficientBudgetException,
     InsufficientPermissionException,
     InvalidAPIKeyException,
     InvalidAuthenticationSchemeException,
@@ -29,11 +27,8 @@ from api.utils.variables import (
     ENDPOINT__EMBEDDINGS,
     ENDPOINT__FILES,
     ENDPOINT__ME_INFO,
-    ENDPOINT__MODELS,
-    ENDPOINT__MODELS_ALIAS,
     ENDPOINT__OCR,
     ENDPOINT__RERANK,
-    ENDPOINT__ROUTERS,
     ENDPOINT__SEARCH,
 )
 
@@ -42,22 +37,12 @@ logger = logging.getLogger(__name__)
 settings = configuration.settings
 
 
-class _UserModelLimits(BaseModel):
-    """
-    PyDantic model to store user limits for each model in AccessController helper.
-    """
-
-    tpm: int = 0
-    tpd: int = 0
-    rpm: int = 0
-    rpd: int = 0
-
-
 class AccessController:
     """
     Access controller ensure user access:
     - API key validation
     - rate limiting application (per requests and per tokens)
+    - budget
     - permissions to access the requested resource
 
     Access controller is used as a dependency of all endpoints.
@@ -70,290 +55,194 @@ class AccessController:
         self,
         request: Request,
         api_key: Annotated[HTTPAuthorizationCredentials, Depends(HTTPBearer())],
-        session: AsyncSession = Depends(get_db_session)
-    ) -> User:  # fmt: off
-        user_info, limits, token_id = await self._check_api_key(api_key=api_key, session=session)
-
-        # invalid token if user is expired, except for /me and /me/role endpoints
-        if user_info.expires_at and user_info.expires_at < time.time() and not request.url.path.endswith(ENDPOINT__ME_INFO):
-            raise InvalidAPIKeyException()
-
+        session: AsyncSession = Depends(get_db_session),
+    ) -> User:
+        user_info, key_id = await self._check_api_key(request=request, api_key=api_key, session=session)
         await self._check_permissions(permissions=user_info.permissions)
+        body = await self.__safely_parse_body(request)
 
         # add authenticated user to request state for logging usages
         context = request_context.get()
         context.user_info = user_info
-        context.token_id = token_id
+        context.token_id = key_id
 
         if request.url.path.endswith(ENDPOINT__AUDIO_TRANSCRIPTIONS) and request.method in ["POST"]:
-            await self._check_audio_transcription(user_info=user_info, limits=limits, request=request)
+            await self._check_audio_transcription(body=body, user_info=user_info)
 
         if request.url.path.endswith(ENDPOINT__CHAT_COMPLETIONS) and request.method in ["POST", "PATCH"]:
-            await self._check_chat_completions(user_info=user_info, limits=limits, request=request)
+            await self._check_chat_completions(body=body, user_info=user_info)
 
         if request.url.path.endswith(ENDPOINT__COLLECTIONS) and request.method in ["POST"]:
-            await self._check_collections(user_info=user_info, limits=limits, request=request)
+            await self._check_collections(body=body, user_info=user_info)
 
         if request.url.path.endswith(ENDPOINT__EMBEDDINGS) and request.method in ["POST"]:
-            await self._check_embeddings(user_info=user_info, limits=limits, request=request)
+            await self._check_embeddings(body=body, user_info=user_info)
 
         if request.url.path.endswith(ENDPOINT__FILES) and request.method in ["POST"]:
-            await self._check_files(user_info=user_info, limits=limits, request=request)
+            await self._check_files(user_info=user_info)
 
         if request.url.path.endswith(ENDPOINT__OCR) and request.method in ["POST"]:
-            await self._check_ocr(user_info=user_info, limits=limits, request=request)
+            await self._check_ocr(body=body, user_info=user_info)
 
         if request.url.path.endswith(ENDPOINT__RERANK) and request.method in ["POST"]:
-            await self._check_rerank(user_info=user_info, limits=limits, request=request)
+            await self._check_rerank(body=body, user_info=user_info)
 
         if request.url.path.endswith(ENDPOINT__SEARCH) and request.method in ["POST"]:
-            await self._check_search(user_info=user_info, limits=limits, request=request)
-
-        if request.url.path.endswith(ENDPOINT__MODELS) and request.method in ["POST", "DELETE"]:
-            await self._check_provider(user_info=user_info, limits=limits, request=request)
-
-        if request.url.path.endswith(ENDPOINT__MODELS_ALIAS) and request.method in ["POST", "DELETE"]:
-            await self._check_provider(user_info=user_info, limits=limits, request=request)
-
-        if request.url.path.endswith(ENDPOINT__ROUTERS) and request.method in ["GET"]:
-            await self._check_provider(user_info=user_info, limits=limits, request=request)
+            await self._check_search(body=body, user_info=user_info)
 
         return user_info
 
-    def __get_user_limits(self, user_info: UserInfo) -> dict[str, _UserModelLimits]:
-        limits = {}
-        for model in global_context.model_registry.models:
-            limits[model] = _UserModelLimits()
-            for limit in user_info.limits:
-                if limit.model == model and limit.type == LimitType.TPM:
-                    limits[model].tpm = limit.value
-                elif limit.model == model and limit.type == LimitType.TPD:
-                    limits[model].tpd = limit.value
-                elif limit.model == model and limit.type == LimitType.RPM:
-                    limits[model].rpm = limit.value
-                elif limit.model == model and limit.type == LimitType.RPD:
-                    limits[model].rpd = limit.value
-
-        # web search limits as pseudo model
-        limits["web-search"] = _UserModelLimits()
-        for limit in user_info.limits:
-            if limit.model == "web-search" and limit.type == LimitType.RPM:
-                limits["web-search"].rpm = limit.value
-            elif limit.model == "web-search" and limit.type == LimitType.RPD:
-                limits["web-search"].rpd = limit.value
-
-        return limits
-
-    async def _check_api_key(
-        self, api_key: HTTPAuthorizationCredentials, session: AsyncSession
-    ) -> tuple[User, dict[str, _UserModelLimits], int | None]:
+    async def _check_api_key(self, request: Request, api_key: HTTPAuthorizationCredentials, session: AsyncSession) -> tuple[UserInfo, int]:
         if api_key.scheme != "Bearer":
             raise InvalidAuthenticationSchemeException()
 
         if not api_key.credentials:
             raise InvalidAPIKeyException()
 
-        if api_key.credentials == global_context.identity_access_manager.master_key:  # master user can do anything
-            limits = [Limit(model=model, type=type, value=None) for model in global_context.model_registry.models for type in LimitType]
-            permissions = [permission for permission in PermissionType]
-
-            master_info = UserInfo(
+        # master user can do anything
+        if api_key.credentials == global_context.identity_access_manager.master_key:
+            user_info = UserInfo(
                 id=0,
                 email="master",
                 name="master",
                 budget=None,
-                limits=limits,
-                permissions=permissions,
+                limits=[],
+                permissions=[permission for permission in PermissionType],
                 expires_at=None,
-                created_at=0,
-                updated_at=0,
+                created=0,
+                updated=0,
                 organization_id=0,
-                priority=settings.celery_task_max_priority,
+                priority=0,
             )
+            key_id = 0
 
-            master_limits = self.__get_user_limits(user_info=master_info)
+        else:
+            user_id, key_id = await global_context.identity_access_manager.check_token(session=session, token=api_key.credentials)
+            if not user_id:
+                raise InvalidAPIKeyException()
 
-            return master_info, master_limits, None
+            user_info = await global_context.identity_access_manager.get_user_info(session=session, user_id=user_id)
 
-        user_id, token_id = await global_context.identity_access_manager.check_token(session=session, token=api_key.credentials)
-        if not user_id:
-            raise InvalidAPIKeyException()
+            # invalid token if user is expired, except for /me and /me/role endpoints
+            if user_info.expires_at and user_info.expires_at < time.time() and not request.url.path.endswith(ENDPOINT__ME_INFO):
+                raise InvalidAPIKeyException()
 
-        user_info = await global_context.identity_access_manager.get_user_info(session=session, user_id=user_id)
-        limits = self.__get_user_limits(user_info=user_info)
-
-        return user_info, limits, token_id
+        return user_info, key_id
 
     async def _check_permissions(self, permissions: list[PermissionType]) -> None:
         if self.permissions and not all(perm in permissions for perm in self.permissions):
             raise InsufficientPermissionException()
 
-    async def _check_request_limits(self, request: Request, user_info: UserInfo, limits: dict[str, _UserModelLimits], model: str | None = None) -> None:  # fmt: off
-        if not model:
+    async def _check_limits(self, user_info: UserInfo, router_id: int, prompt_tokens: int | None = None) -> None:
+        if user_info.id == 0:
             return
 
-        model = global_context.model_registry.aliases.get(model, model)
+        tpm, tpd, rpm, rpd = 0, 0, 0, 0
+        for limit in user_info.limits:
+            if limit.router == router_id and limit.type == LimitType.TPM:
+                tpm = limit.value
+            elif limit.router == router_id and limit.type == LimitType.TPD:
+                tpd = limit.value
+            elif limit.router == router_id and limit.type == LimitType.RPM:
+                rpm = limit.value
+            elif limit.router == router_id and limit.type == LimitType.RPD:
+                rpd = limit.value
 
-        if model not in limits:  # unknown model (404 will be raised by the model client)
-            return
+        if 0 in [tpm, tpd, rpm, rpd]:
+            raise InsufficientPermissionException(detail="Insufficient permissions to access the model.")
 
-        if limits[model].rpm == 0 or limits[model].rpd == 0:
-            raise InsufficientPermissionException(detail=f"Insufficient permissions to access the model {model}.")
-
-        check = await global_context.limiter.hit(user_id=user_info.id, model=model, type=LimitType.RPM, value=limits[model].rpm)
+        # RPM
+        check = await global_context.limiter.hit(user_id=user_info.id, router_id=router_id, type=LimitType.RPM, value=rpm)
         if not check:
-            remaining = await global_context.limiter.remaining(user_id=user_info.id, model=model, type=LimitType.RPM, value=limits[model].rpm)
-            raise RateLimitExceeded(detail=f"{str(limits[model].rpm)} requests for {model} per minute exceeded (remaining: {remaining}).")
+            remaining = await global_context.limiter.remaining(user_id=user_info.id, router_id=router_id, type=LimitType.RPM, value=rpm)
+            raise RateLimitExceeded(detail=f"{str(rpm)} requests per minute exceeded (remaining: {remaining}).")
 
-        check = await global_context.limiter.hit(user_id=user_info.id, model=model, type=LimitType.RPD, value=limits[model].rpd)
+        # RPD
+        check = await global_context.limiter.hit(user_id=user_info.id, router_id=router_id, type=LimitType.RPD, value=rpd)
         if not check:
-            remaining = await global_context.limiter.remaining(user_id=user_info.id, model=model, type=LimitType.RPD, value=limits[model].rpd)
-            raise RateLimitExceeded(detail=f"{str(limits[model].rpd)} requests for {model} per day exceeded (remaining: {remaining}).")
+            remaining = await global_context.limiter.remaining(user_id=user_info.id, router_id=router_id, type=LimitType.RPD, value=rpd)
+            raise RateLimitExceeded(detail=f"{str(rpd)} requests per day exceeded (remaining: {remaining}).")
 
-    async def _check_token_limits(self, request: Request, user_info: UserInfo, limits: dict[str, _UserModelLimits], prompt_tokens: int, model: str | None = None) -> None:  # fmt: off
-        if not model or not prompt_tokens:
+        if not prompt_tokens:
             return
 
-        model = global_context.model_registry.aliases.get(model, model)
-
-        if model not in limits:  # unknown model (404 will be raised by the model client)
-            return
-
-        if limits[model].tpm == 0 or limits[model].tpd == 0:
-            raise InsufficientPermissionException(detail=f"Insufficient permissions to access the model {model}.")
-
-        # compute the cost (number of hits) of the request by the number of tokens
-        check = await global_context.limiter.hit(user_id=user_info.id, model=model, type=LimitType.TPM, value=limits[model].tpm, cost=prompt_tokens)
-
+        # TPM
+        check = await global_context.limiter.hit(user_id=user_info.id, router_id=router_id, type=LimitType.TPM, value=tpm, cost=prompt_tokens)
         if not check:
-            remaining = await global_context.limiter.remaining(user_id=user_info.id, model=model, type=LimitType.TPM, value=limits[model].tpm)
-            raise RateLimitExceeded(detail=f"{str(limits[model].tpm)} input tokens for {model} per minute exceeded (remaining: {remaining}).")
+            remaining = await global_context.limiter.remaining(user_id=user_info.id, router_id=router_id, type=LimitType.TPM, value=tpm)
+            raise RateLimitExceeded(detail=f"{str(tpm)} input tokens per minute exceeded (remaining: {remaining}).")
 
-        check = await global_context.limiter.hit(user_id=user_info.id, model=model, type=LimitType.TPD, value=limits[model].tpd, cost=prompt_tokens)
+        # TPD
+        check = await global_context.limiter.hit(user_id=user_info.id, router_id=router_id, type=LimitType.TPD, value=tpd, cost=prompt_tokens)
         if not check:
-            remaining = await global_context.limiter.remaining(user_id=user_info.id, model=model, type=LimitType.TPD, value=limits[model].tpd)
-            raise RateLimitExceeded(detail=f"{str(limits[model].tpd)} input tokens for {model} per day exceeded (remaining: {remaining}).")
+            remaining = await global_context.limiter.remaining(user_id=user_info.id, router_id=router_id, type=LimitType.TPD, value=tpd)
+            raise RateLimitExceeded(detail=f"{str(tpd)} input tokens per day exceeded (remaining: {remaining}).")
 
-    async def _check_budget(self, user_info: UserInfo, model: str | None = None) -> None:
-        if not model:
+    async def _check_audio_transcription(self, body: dict, user_info: UserInfo) -> None:
+        router_id = self.__get_called_router_id(model=body.get("model"))
+        if router_id is None:
             return
+        await self._check_limits(user_info=user_info, router_id=router_id)
 
-        model = global_context.model_registry.aliases.get(model, model)
-
-        if model not in global_context.model_registry.models:
+    async def _check_chat_completions(self, body: dict, user_info: UserInfo) -> None:
+        router_id = self.__get_called_router_id(model=body.get("model"))
+        if router_id is None:
             return
-
-        model = await global_context.model_registry(model=model)
-        if model.cost_prompt_tokens == 0 and model.cost_completion_tokens == 0:  # free model
-            return
-
-        if user_info.budget == 0:
-            raise InsufficientBudgetException(detail="Insufficient budget.")
-
-    async def _check_audio_transcription(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
-        form = await request.form()
-        form = {key: value for key, value in form.items()} if form else {}
-
-        await self._check_request_limits(request=request, user_info=user_info, limits=limits, model=form.get("model"))
-        await self._check_budget(user_info=user_info, model=form.get("model"))
-
-    async def _check_chat_completions(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
-        body = await self._safely_parse_body(request)
-
-        await self._check_request_limits(request=request, user_info=user_info, limits=limits, model=body.get("model"))
+        await self._check_limits(user_info=user_info, router_id=router_id)
 
         if body.get("search", False):  # count the search request as one request to the search model (embeddings)
-            await self._check_request_limits(
-                request=request, user_info=user_info, limits=limits, model=global_context.document_manager.vector_store_model.name
-            )
-            if body.get("search_args", {}).get("web_search", False):
-                await self._check_request_limits(request=request, user_info=user_info, limits=limits, model="web-search")
+            router_id = self.__get_called_router_id(model=global_context.document_manager.vector_store_model)
+            await self._check_limits(user_info=user_info, router_id=router_id)
 
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__CHAT_COMPLETIONS, body=body)
-        await self._check_token_limits(request=request, user_info=user_info, limits=limits, prompt_tokens=prompt_tokens, model=body.get("model"))
+        await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
-        await self._check_budget(user_info=user_info, model=body.get("model"))
-
-    async def _check_collections(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
-        body = await self._safely_parse_body(request)
-
+    async def _check_collections(self, body: dict, user_info: UserInfo) -> None:
         if body.get("visibility") == CollectionVisibility.PUBLIC and PermissionType.CREATE_PUBLIC_COLLECTION not in user_info.permissions:
             raise InsufficientPermissionException("Missing permission to update collection visibility to public.")
 
-    async def _check_embeddings(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
-        body = await self._safely_parse_body(request)
-
-        await self._check_request_limits(request=request, user_info=user_info, limits=limits, model=body.get("model"))
-
+    async def _check_embeddings(self, body: dict, user_info: UserInfo) -> None:
+        router_id = self.__get_called_router_id(model=body.get("model"))
+        if router_id is None:
+            return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__EMBEDDINGS, body=body)
-        await self._check_token_limits(request=request, user_info=user_info, limits=limits, prompt_tokens=prompt_tokens, model=body.get("model"))
+        await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
-        await self._check_budget(user_info=user_info, model=body.get("model"))
+    async def _check_files(self, user_info: UserInfo) -> None:
+        router_id = self.__get_called_router_id(model=global_context.document_manager.vector_store_model)
+        if router_id is None:
+            return
+        await self._check_limits(user_info=user_info, router_id=router_id)
 
-    async def _check_files(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
-        await self._check_request_limits(
-            request=request, user_info=user_info, limits=limits, model=global_context.document_manager.vector_store_model.name
-        )
+    async def _check_ocr(self, body: dict, user_info: UserInfo) -> None:
+        router_id = self.__get_called_router_id(model=body.get("model"))
+        if router_id is None:
+            return
+        prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__OCR, body=body)
+        await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
-        await self._check_budget(user_info=user_info, model=global_context.document_manager.vector_store_model.name)
-
-    async def _check_ocr(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
-        form = await request.form()
-        form = {key: value for key, value in form.items()} if form else {}
-
-        await self._check_request_limits(request=request, user_info=user_info, limits=limits, model=form.get("model"))
-
-        prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__OCR, body=form)
-        await self._check_token_limits(request=request, user_info=user_info, limits=limits, prompt_tokens=prompt_tokens, model=form.get("model"))
-
-        await self._check_budget(user_info=user_info, model=form.get("model"))
-
-    async def _check_rerank(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
-        body = await self._safely_parse_body(request)
-
-        await self._check_request_limits(request=request, user_info=user_info, limits=limits, model=body.get("model"))
-
+    async def _check_rerank(self, body: dict, user_info: UserInfo) -> None:
+        router_id = self.__get_called_router_id(model=body.get("model"))
+        if router_id is None:
+            return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__RERANK, body=body)
-        await self._check_token_limits(request=request, user_info=user_info, limits=limits, prompt_tokens=prompt_tokens, model=body.get("model"))
+        await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
-        await self._check_budget(user_info=user_info, model=body.get("model"))
-
-    async def _check_search(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
-        body = await self._safely_parse_body(request)
-
-        # count the search request as one request to the search model (embeddings)
-        await self._check_request_limits(
-            request=request, user_info=user_info, limits=limits, model=global_context.document_manager.vector_store_model.name
-        )
-
-        if body.get("web_search", False):
-            await self._check_request_limits(request=request, user_info=user_info, limits=limits, model="web-search")
-
+    async def _check_search(self, body: dict, user_info: UserInfo) -> None:
+        router_id = self.__get_called_router_id(model=global_context.document_manager.vector_store_model)
+        if router_id is None:
+            return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__SEARCH, body=body)
-        await self._check_token_limits(
-            request=request,
-            user_info=user_info,
-            limits=limits,
-            prompt_tokens=prompt_tokens,
-            model=global_context.document_manager.vector_store_model.name,
-        )
+        await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
-        await self._check_budget(user_info=user_info, model=global_context.document_manager.vector_store_model.name)
+    def __get_called_router_id(self, model: str) -> int:
+        called_router_id = None
+        for router_id, aliases in global_context.model_registry._aliases.items():
+            if model in aliases:
+                called_router_id = router_id
+        return called_router_id
 
-    async def _check_tokens(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
-        body = await self._safely_parse_body(request)
-
-        # if the token is for another user, we don't check the expiration date
-        if body.get("user") and PermissionType.CREATE_USER not in user_info.permissions:
-            raise InsufficientPermissionException("Missing permission to create token for another user.")
-
-    async def _check_provider(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
-        body = await self._safely_parse_body(request)
-
-        if body.get("user") and PermissionType.PROVIDE_MODELS not in user_info.permissions:
-            raise InsufficientPermissionException("Missing permission to interact with provider's endpoints.")
-
-    async def _safely_parse_body(self, request: Request) -> dict:
+    async def __safely_parse_body(self, request: Request) -> dict:
         """Safely parse request body as JSON or form data, handling encoding errors."""
         try:
             # Check content type to determine parsing strategy

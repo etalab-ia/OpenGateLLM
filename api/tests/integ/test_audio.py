@@ -63,13 +63,11 @@ class TestAudio:
 
     def test_audio_transcriptions_invalid_model(self, client: TestClient, setup: str, snapshot: Snapshot) -> None:
         """Test the POST /audio/transcriptions with invalid model"""
-        MODEL_ID = "invalid-model"
-
         file_path = "api/tests/integ/assets/audio.mp3"
 
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "audio/mpeg")}
-            data = {"model": MODEL_ID, "language": "fr"}
+            data = {"model": "invalid-model", "language": "fr"}
             response = client.post_without_permissions(f"/v1{ENDPOINT__AUDIO_TRANSCRIPTIONS}", files=files, data=data)
 
         assert response.status_code == 404, response.text

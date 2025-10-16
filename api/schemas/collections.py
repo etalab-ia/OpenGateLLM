@@ -30,8 +30,8 @@ class Collection(BaseModel):
     owner: str
     description: str | None = None
     visibility: CollectionVisibility | None = None
-    created_at: int
-    updated_at: int
+    created: int
+    updated: int
     documents: int = 0
 
 

@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import Literal
 
-from openai.types import Model
 from pydantic import Field
 
 from api.schemas import BaseModel
@@ -20,12 +19,15 @@ class ModelType(str, Enum):
     TEXT_CLASSIFICATION = "text-classification"
 
 
-class Model(Model):
+class Model(BaseModel):
     object: Literal["model"] = "model"
-    max_context_length: int | None = None
-    type: ModelType
-    aliases: list[str] | None = []
-    costs: dict[str, float] = Field(default_factory=dict)
+    id: str = Field(..., description="The model identifier, which can be referenced in the API endpoints.")
+    type: ModelType = Field(..., description="The type of the model, which can be used to identify the model type.", examples=["text-generation"])  # fmt: off
+    aliases: list[str] | None = Field(default=None, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]])  # fmt: off
+    created: int = Field(..., description="Time of creation, as Unix timestamp.")
+    owned_by: str = Field(..., description="The organization that owns the model.")
+    max_context_length: int | None = Field(default=None, description="Maximum amount of tokens a context could contains. Makes sure it is the same for all models.")  # fmt: off
+    costs: ModelCosts = Field(..., description="Costs of the model.")
 
 
 class Models(BaseModel):

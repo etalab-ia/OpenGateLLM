@@ -138,8 +138,8 @@ async def test_get_roles_with_details(session: AsyncSession, iam: IdentityAccess
     ids_result = _Result(all_rows=[(1,), (2,)])
     # Step 2: roles with counts
     roles_rows = [
-        _RowDict({"id": 1, "name": "admin", "created_at": 1, "updated_at": 2, "users": 3}),
-        _RowDict({"id": 2, "name": "user", "created_at": 4, "updated_at": 5, "users": 0}),
+        _RowDict({"id": 1, "name": "admin", "created": 1, "updated": 2, "users": 3}),
+        _RowDict({"id": 2, "name": "user", "created": 4, "updated": 5, "users": 0}),
     ]
     roles_result = _Result(all_rows=roles_rows)
     # Step 3: limits

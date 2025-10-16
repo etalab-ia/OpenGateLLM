@@ -1,6 +1,6 @@
-from ._basemodelclient import BaseModelClient
-from ._openaimodelclient import OpenaiModelClient
-from ._teimodelclient import TeiModelClient
-from ._vllmmodelclient import VllmModelClient
+from ._basemodelprovider import BaseModelProvider
+from ._openaimodelprovider import OpenaiModelProvider
+from ._teimodelprovider import TeiModelProvider
+from ._vllmmodelprovider import VllmModelProvider
 
-__all__ = [BaseModelClient, OpenaiModelClient, VllmModelClient, TeiModelClient]
+__all__ = [BaseModelProvider, OpenaiModelProvider, TeiModelProvider, VllmModelProvider]
