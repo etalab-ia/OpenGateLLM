@@ -17,12 +17,9 @@ class UserInfo(BaseModel):
     permissions: list[PermissionType] = Field(description="The user permissions.")
     limits: list[Limit] = Field(description="The user rate limits.")
     expires_at: int | None = Field(default=None, description="The user expiration timestamp. If None, the user will never expire.")
-    created_at: int = Field(description="The user creation timestamp.")
-    updated_at: int = Field(description="The user update timestamp.")
-    priority: int = Field(
-        default=0,
-        description="The user priority (higher = higher priority). This value influences scheduling/queue priority for non-streaming model invocations.",
-    )
+    priority: int = Field(default=0,description="The user priority (higher = higher priority). This value influences scheduling/queue priority for non-streaming model invocations.")  # fmt: off
+    created: int = Field(description="The user creation timestamp.")
+    updated: int = Field(description="The user update timestamp.")
 
 
 class UpdateUserRequest(BaseModel):
@@ -56,7 +53,7 @@ class Key(BaseModel):
     name: str
     token: str
     expires_at: int | None = None
-    created_at: int
+    created: int
 
 
 class Keys(BaseModel):

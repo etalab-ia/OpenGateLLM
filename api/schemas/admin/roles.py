@@ -22,7 +22,7 @@ class LimitType(str, Enum):
 
 
 class Limit(BaseModel):
-    model: str = Field(description="The model ID.")
+    router: int = Field(description="The router ID.")
     type: LimitType = Field(description="The limit type.")
     value: int | None = Field(default=None, ge=0, description="The limit value.")
 
@@ -37,9 +37,9 @@ class RoleUpdateRequest(BaseModel):
         keys = set()
         if limits is not None:
             for limit in limits:
-                key = (limit.model, limit.type.value)
+                key = (limit.router, limit.type.value)
                 if key in keys:
-                    raise ValueError(f"Duplicate limit found: ({limit.model}, {limit.type}).")
+                    raise ValueError(f"Duplicate limit found: ({limit.router}, {limit.type}).")
                 keys.add(key)
         return limits
 
@@ -57,9 +57,9 @@ class RoleRequest(BaseModel):
     def check_duplicate_limits(cls, limits):
         keys = set()
         for limit in limits:
-            key = (limit.model, limit.type.value)
+            key = (limit.router, limit.type.value)
             if key in keys:
-                raise ValueError(f"Duplicate limit found: ({limit.model}, {limit.type}).")
+                raise ValueError(f"Duplicate limit found: ({limit.router}, {limit.type}).")
             keys.add(key)
 
         return limits
@@ -72,8 +72,8 @@ class Role(BaseModel):
     permissions: list[PermissionType]
     limits: list[Limit]
     users: int = 0
-    created_at: int = Field(default_factory=lambda: int(dt.datetime.now().timestamp()))
-    updated_at: int = Field(default_factory=lambda: int(dt.datetime.now().timestamp()))
+    created: int = Field(default_factory=lambda: int(dt.datetime.now().timestamp()))
+    updated: int = Field(default_factory=lambda: int(dt.datetime.now().timestamp()))
 
 
 class Roles(BaseModel):

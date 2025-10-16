@@ -7,7 +7,7 @@ from playground.backend.common import format_limits, get_models
 from playground.backend.summarize import generate_summary, generate_toc, get_chunks, summary_with_feedback
 from playground.frontend.header import header
 from playground.frontend.utils import resources_selector
-from playground.variables import MODEL_TYPE_LANGUAGE, MODEL_TYPE_IMAGE_TEXT_TO_TEXT
+from playground.variables import MODEL_TYPE_IMAGE_TEXT_TO_TEXT, MODEL_TYPE_LANGUAGE
 
 header()
 st.error(

@@ -1,5 +1,4 @@
 import time
-from typing import Optional
 
 import requests
 import streamlit as st
@@ -25,7 +24,7 @@ def create_collection(name: str, description: str) -> None:
     st.rerun()
 
 
-def create_collection_with_id(name: str, description: str) -> Optional[int]:
+def create_collection_with_id(name: str, description: str) -> int | None:
     """
     Crée une collection et retourne son ID.
     """
@@ -47,7 +46,7 @@ def create_collection_with_id(name: str, description: str) -> Optional[int]:
     return collection_id
 
 
-def update_collection(collection_id: int, name: Optional[str] = None, description: Optional[str] = None) -> None:
+def update_collection(collection_id: int, name: str | None = None, description: str | None = None) -> None:
     params = {}
     if name:
         params["name"] = name

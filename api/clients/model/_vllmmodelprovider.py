@@ -2,6 +2,7 @@ from urllib.parse import urljoin
 
 import requests
 
+from api.schemas.core.metrics import MetricType
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -11,10 +12,10 @@ from api.utils.variables import (
     ENDPOINT__RERANK,
 )
 
-from ._basemodelclient import BaseModelClient
+from ._basemodelprovider import BaseModelProvider
 
 
-class VllmModelClient(BaseModelClient):
+class VllmModelProvider(BaseModelProvider):
     ENDPOINT_TABLE = {
         ENDPOINT__AUDIO_TRANSCRIPTIONS: "v1/audio/transcriptions",
         ENDPOINT__CHAT_COMPLETIONS: "/v1/chat/completions",
@@ -30,20 +31,14 @@ class VllmModelClient(BaseModelClient):
         key: str,
         timeout: int,
         model_name: str,
-        model_carbon_footprint_zone: str,
-        model_carbon_footprint_total_params: int,
-        model_carbon_footprint_active_params: int,
-        model_cost_prompt_tokens: float,
-        model_cost_completion_tokens: float,
-        metrics_retention_ms: int,
-        qos_policy: str,
-        performance_threshold: float | None,
-        max_parallel_requests: int | None,
-        *args,
-        **kwargs,
+        model_carbon_footprint_zone: str | None,
+        model_carbon_footprint_total_params: int | None,
+        model_carbon_footprint_active_params: int | None,
+        qos_metric: MetricType | None,
+        qos_value: float | None,
     ) -> None:
         """
-        Initialize the vLLM model client and check if the model is available.
+        Initialize the vLLM model provider and check if the model is available.
         """
         super().__init__(
             url=url,
@@ -53,14 +48,8 @@ class VllmModelClient(BaseModelClient):
             model_carbon_footprint_zone=model_carbon_footprint_zone,
             model_carbon_footprint_total_params=model_carbon_footprint_total_params,
             model_carbon_footprint_active_params=model_carbon_footprint_active_params,
-            model_cost_prompt_tokens=model_cost_prompt_tokens,
-            model_cost_completion_tokens=model_cost_completion_tokens,
-            metrics_retention_ms=metrics_retention_ms,
-            qos_policy=qos_policy,
-            performance_threshold=performance_threshold,
-            max_parallel_requests=max_parallel_requests,
-            *args,
-            **kwargs,
+            qos_metric=qos_metric,
+            qos_value=qos_value,
         )
 
         # check if model is available

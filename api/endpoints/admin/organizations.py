@@ -89,7 +89,7 @@ async def get_organizations(
     request: Request,
     offset: int = Query(default=0, ge=0, description="The offset of the organizations to get."),
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the organizations to get."),
-    order_by: Literal["id", "name", "created_at", "updated_at"] = Query(default="id", description="The field to order the organizations by."),
+    order_by: Literal["id", "name", "created", "updated"] = Query(default="id", description="The field to order the organizations by."),
     order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the organizations by."),
     session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:

@@ -85,7 +85,7 @@ async def extract_usage_from_request(usage: Usage, request: Request):
     if content_type.startswith("multipart/form-data"):
         body = await request.form()
         body = {key: value for key, value in body.items()}
-        usage.request_model = body.get("model")
+        usage.request_model = body.get("model")  # TODO: recupérer le router_id depuis la request_context
     else:
         try:
             body = await request.body()
@@ -112,7 +112,9 @@ def extract_usage_from_streaming_response(response: StreamingResponse, start_tim
                 response_status_code = response.status_code
 
             try:
-                usage.time_to_first_token = int((datetime.now() - start_time).total_seconds() * 1000) if usage.time_to_first_token is None else usage.time_to_first_token  # fmt: off
+                usage.time_to_first_token = (
+                    int((datetime.now() - start_time).total_seconds() * 1000) if usage.time_to_first_token is None else usage.time_to_first_token
+                )
                 buffer.append(content)  # Appends only the content part
             except Exception:
                 logger.warning("Failed to process chunk in streaming response for usage/buffer calculations")
@@ -211,7 +213,10 @@ async def log_usage(response: Response | None, usage: Usage, start_time: datetim
         usage.status = response.status_code if hasattr(response, "status_code") else None
 
     if usage.request_model:
-        usage.request_model = global_context.model_registry.aliases.get(usage.request_model, usage.request_model)
+        for router_id, aliases in global_context.model_registry._aliases.items():
+            if usage.request_model in aliases:
+                usage.request_model = aliases[0]
+                break
 
     async for session in get_db_session():
         session.add(usage)
@@ -256,7 +261,7 @@ async def update_budget(usage: Usage):
                 new_budget = round(current_budget - actual_cost, ndigits=6)
 
                 # Update the budget
-                update_stmt = update(User).where(User.id == user_id).values(budget=new_budget, updated_at=func.now()).returning(User.budget)
+                update_stmt = update(User).where(User.id == user_id).values(budget=new_budget, updated=func.now()).returning(User.budget)
 
                 result = await session.execute(update_stmt)
 

@@ -1,10 +1,11 @@
+import logging
+import traceback
+
 from openai import OpenAI
 import requests
-import traceback
 import streamlit as st
 
 from playground.configuration import configuration
-import logging
 
 logger = logging.getLogger(__name__)
 

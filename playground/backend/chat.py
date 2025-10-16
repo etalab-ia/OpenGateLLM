@@ -1,4 +1,5 @@
-from typing import List, Tuple, Dict, Any
+from typing import Any
+
 from openai import OpenAI
 import requests
 import streamlit as st
@@ -6,7 +7,7 @@ import streamlit as st
 from playground.configuration import configuration
 
 
-def generate_stream(messages: List[dict], params: dict, rag: bool, rerank: bool) -> Tuple[str, List[str], List[Dict[str, Any]]]:
+def generate_stream(messages: list[dict], params: dict, rag: bool, rerank: bool) -> tuple[str, list[str], list[dict[str, Any]]]:
     """
     Génère un stream de réponse avec les sources et les détails des chunks utilisés.
 
@@ -88,7 +89,7 @@ Les documents sont :
     return stream, sources, rag_chunks
 
 
-def format_chunk_for_display(chunk: Dict[str, Any], index: int) -> str:
+def format_chunk_for_display(chunk: dict[str, Any], index: int) -> str:
     """
     Formate un chunk pour l'affichage dans l'interface.
     """
@@ -110,7 +111,7 @@ def format_chunk_for_display(chunk: Dict[str, Any], index: int) -> str:
 """
 
 
-def get_chunk_full_content(chunk: Dict[str, Any]) -> str:
+def get_chunk_full_content(chunk: dict[str, Any]) -> str:
     """
     Retourne le contenu complet d'un chunk avec ses métadonnées.
     """

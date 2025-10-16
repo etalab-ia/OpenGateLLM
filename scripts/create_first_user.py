@@ -1,118 +1,58 @@
 import argparse
 
-import bcrypt
 import requests
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.sql import text
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--api_url", type=str, default="http://localhost:8080")
+parser.add_argument("--api_url", type=str, default="http://localhost:8000")
 parser.add_argument("--master_key", type=str, default="changeme")
-parser.add_argument("--first_username", type=str, default="me")
+parser.add_argument("--first_email", type=str, default="my-first-user")
 parser.add_argument("--first_password", type=str, default="changeme")
-parser.add_argument("--playground_postgres_host", type=str, default="localhost")
-parser.add_argument("--playground_postgres_port", type=int, default=5432)
-parser.add_argument("--playground_postgres_password", type=str, default="changeme")
-
-
-def get_hashed_password(password: str) -> str:
-    return bcrypt.hashpw(password=password.encode(encoding="utf-8"), salt=bcrypt.gensalt()).decode(encoding="utf-8")
-
-
-def get_session():
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
 
 
 if __name__ == "__main__":
     args = parser.parse_args()
 
     headers = {"Authorization": f"Bearer {args.master_key}"}
-    postgres_url = f"postgresql://postgres:{args.playground_postgres_password}@{args.playground_postgres_host}:{args.playground_postgres_port}/playground"  # fmt: off
 
     #  Get models list
-    response = requests.get(f"{args.api_url}/v1/models", headers=headers)
+    response = requests.get(f"{args.api_url}/v1/admin/routers", headers=headers)
     assert response.status_code == 200, response.text
-    models = response.json()["data"]
-    models = [model["id"] for model in models]
+    routers = response.json()["data"]
 
     # Create a new admin role
     limits = []
-    for model in models:
-        limits.append({"model": model, "type": "rpm", "value": None})
-        limits.append({"model": model, "type": "rpd", "value": None})
-        limits.append({"model": model, "type": "tpm", "value": None})
-        limits.append({"model": model, "type": "tpd", "value": None})
-
-    limits.append({"model": "web-search", "type": "rpm", "value": None})
-    limits.append({"model": "web-search", "type": "rpd", "value": None})
-    limits.append({"model": "web-search", "type": "tpm", "value": None})
-    limits.append({"model": "web-search", "type": "tpd", "value": None})
+    for router in routers:
+        limits.append({"router": router["id"], "type": "rpm", "value": None})
+        limits.append({"router": router["id"], "type": "rpd", "value": None})
+        limits.append({"router": router["id"], "type": "tpm", "value": None})
+        limits.append({"router": router["id"], "type": "tpd", "value": None})
 
     response = requests.post(
         url=f"{args.api_url}/v1/admin/roles",
         headers=headers,
-        json={
-            "name": "admin",
-            "permissions": [
-                "create_role",
-                "read_role",
-                "update_role",
-                "delete_role",
-                "create_user",
-                "read_user",
-                "update_user",
-                "delete_user",
-                "create_public_collection",
-                "read_metric",
-            ],
-            "limits": limits,
-        },
+        json={"name": "my-first-role", "permissions": ["admin"], "limits": limits},
     )
     assert response.status_code == 201, response.text
-
     role_id = response.json()["id"]
 
     # Create a new admin user
-    response = requests.post(url=f"{args.api_url}/v1/admin/users", headers=headers, json={"name": "admin", "role": role_id})
+    response = requests.post(
+        url=f"{args.api_url}/v1/admin/users",
+        headers=headers,
+        json={"email": args.first_email, "name": args.first_email, "password": args.first_password, "role": role_id},
+    )
     assert response.status_code == 201, response.text
     user_id = response.json()["id"]
 
     # Create a new token for the admin user
-    response = requests.post(url=f"{args.api_url}/v1/admin/tokens", headers=headers, json={"name": "admin", "user": user_id})
+    response = requests.post(url=f"{args.api_url}/v1/admin/tokens", headers=headers, json={"user": user_id, "name": "my-first-token"})
     assert response.status_code == 201, response.text
 
-    api_key = response.json()["token"]
-    api_key_id = response.json()["id"]
+    key = response.json()["token"]
 
     print(f"""
 New user created:
-- Username: {args.first_username}
+- Email: {args.first_email}
 - Password: {args.first_password}
-- API key: {api_key}
+- API key: {key}
 """)
-
-    # Create playground account for the admin user
-    engine = create_engine(url=postgres_url)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-    session = next(get_session())
-    session.execute(
-        text("""
-            INSERT INTO "user" (name, password, api_user_id, api_role_id, api_key_id, api_key, created_at, updated_at)
-            VALUES (:name, :password, :api_user_id, :api_role_id, :api_key_id, :api_key, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        """),
-        {
-            "name": args.first_username,
-            "password": get_hashed_password(password=args.first_password),
-            "api_user_id": user_id,
-            "api_role_id": role_id,
-            "api_key_id": api_key_id,
-            "api_key": api_key,
-        },
-    )
-    session.commit()

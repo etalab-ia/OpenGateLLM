@@ -1,10 +1,16 @@
+import datetime as dt
 from http import HTTPMethod
+from typing import Optional
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, Float, ForeignKey, Integer, String, UniqueConstraint, func
-from sqlalchemy.orm import backref, declarative_base, relationship
+from sqlalchemy import ForeignKey, UniqueConstraint, func
+from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 
+from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.roles import LimitType, PermissionType
+from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.collections import CollectionVisibility
+from api.schemas.core.metrics import MetricType
+from api.schemas.models import ModelType
 
 Base = declarative_base()
 
@@ -12,51 +18,52 @@ Base = declarative_base()
 class Usage(Base):
     __tablename__ = "usage"
 
-    id = Column(Integer, primary_key=True)
-    datetime = Column(DateTime, nullable=False, default=func.now())
-    duration = Column(Integer, nullable=True)
-    time_to_first_token = Column(Integer, nullable=True)
-    user_id = Column(ForeignKey(column="user.id", ondelete="CASCADE"), nullable=True)
-    token_id = Column(ForeignKey(column="token.id", ondelete="SET NULL"), nullable=True)
-    endpoint = Column(String, nullable=False)
-    method = Column(Enum(HTTPMethod), nullable=True)
-    model = Column(String, nullable=True)
-    request_model = Column(String, nullable=True)
-    prompt_tokens = Column(Integer)
-    completion_tokens = Column(Float)
-    total_tokens = Column(Integer)
-    cost = Column(Float, nullable=True)
-    status = Column(Integer, nullable=True)
-    kwh_min = Column(Float, nullable=True)
-    kwh_max = Column(Float, nullable=True)
-    kgco2eq_min = Column(Float, nullable=True)
-    kgco2eq_max = Column(Float, nullable=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    datetime: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
+    duration: Mapped[int | None]
+    time_to_first_token: Mapped[int | None]  # Time to first token in milliseconds for streaming chat requests
+    user_id: Mapped[int | None] = mapped_column(ForeignKey(column="user.id", ondelete="SET NULL"))
+    token_id: Mapped[int | None] = mapped_column(ForeignKey(column="token.id", ondelete="SET NULL"))
+    endpoint: Mapped[str]
+    method: Mapped[HTTPMethod | None]
+    model: Mapped[str | None]
+    request_model: Mapped[str | None]
+    prompt_tokens: Mapped[int | None]
+    completion_tokens: Mapped[float | None]
+    total_tokens: Mapped[int | None]
+    cost: Mapped[float | None]
+    status: Mapped[int | None]
+    kwh_min: Mapped[float | None]
+    kwh_max: Mapped[float | None]
+    kgco2eq_min: Mapped[float | None]
+    kgco2eq_max: Mapped[float | None]
 
-    user = relationship(argument="User", backref=backref(name="usage", cascade="all, delete-orphan"))
-    token = relationship(argument="Token", backref=backref(name="usage"))
-
-    def __repr__(self):
-        return f"<Usage (id={self.id}, datetime={self.datetime}, user_id={self.user_id}, token_id={self.token_id}, endpoint={self.endpoint}, duration={self.duration})>"
+    user: Mapped["User"] = relationship(back_populates="usage")
+    token: Mapped[Optional["Token"]] = relationship(back_populates="usage")
 
 
 class Role(Base):
     __tablename__ = "role"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    name = Column(String, unique=True, index=True, nullable=False)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), nullable=False, onupdate=func.now())
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(unique=True, index=True)
+    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
+    updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
+
+    user: Mapped[list["User"]] = relationship(back_populates="role", passive_deletes=True)
+    limits: Mapped[list["Limit"]] = relationship(back_populates="role", cascade="all, delete-orphan", passive_deletes=True)
+    permissions: Mapped[list["Permission"]] = relationship(back_populates="role", cascade="all, delete-orphan", passive_deletes=True)
 
 
 class Permission(Base):
     __tablename__ = "permission"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    role_id = Column(Integer, ForeignKey(column="role.id", ondelete="CASCADE"), nullable=False)
-    permission = Column(Enum(PermissionType), nullable=False)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    role_id: Mapped[int] = mapped_column(ForeignKey(column="role.id", ondelete="CASCADE"))
+    permission: Mapped[PermissionType]
+    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
 
-    role = relationship(argument="Role", backref=backref(name="permission", cascade="all, delete-orphan"))
+    role: Mapped["Role"] = relationship(back_populates="permissions")
 
     __table_args__ = (UniqueConstraint("role_id", "permission", name="unique_permission_per_role"),)
 
@@ -64,132 +71,152 @@ class Permission(Base):
 class Limit(Base):
     __tablename__ = "limit"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    role_id = Column(Integer, ForeignKey(column="role.id", ondelete="CASCADE"), nullable=False)
-    model = Column(String, nullable=False)
-    type = Column(Enum(LimitType), nullable=False)
-    value = Column(Integer, nullable=True)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    role_id: Mapped[int] = mapped_column(ForeignKey(column="role.id", ondelete="CASCADE"))
+    router_id: Mapped[int] = mapped_column(ForeignKey(column="router.id", ondelete="CASCADE"))
+    type: Mapped[LimitType]
+    value: Mapped[int | None]
+    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
 
-    role = relationship(argument="Role", backref=backref(name="limit", cascade="all, delete-orphan"))
+    role: Mapped["Role"] = relationship(back_populates="limits")
+    router: Mapped["Router"] = relationship(back_populates="limit")
 
-    __table_args__ = (UniqueConstraint("role_id", "model", "type", name="unique_rate_limit_per_role"),)
+    __table_args__ = (UniqueConstraint("role_id", "router_id", "type", name="unique_rate_limit_per_role"),)
 
 
 class User(Base):
     __tablename__ = "user"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    email = Column(String, index=True, unique=True, nullable=False)
-    password = Column(String, nullable=True)
-    name = Column(String, nullable=True)
-    sub = Column(String, nullable=True)
-    iss = Column(String, nullable=True)
-    role_id = Column(Integer, ForeignKey(column="role.id"), nullable=False)
-    organization_id = Column(Integer, ForeignKey(column="organization.id"), nullable=True)
-    budget = Column(Float, nullable=True)
-    expires_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), nullable=False, onupdate=func.now())
-    # User priority: higher value means higher priority for rate limiting / scheduling (0 = default)
-    priority = Column(Integer, nullable=False, default=0, server_default="0")
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(index=True, unique=True)
+    password: Mapped[str | None]
+    name: Mapped[str | None]
+    sub: Mapped[str | None]
+    iss: Mapped[str | None]
+    role_id: Mapped[int] = mapped_column(ForeignKey(column="role.id", ondelete="RESTRICT"))
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey(column="organization.id", ondelete="RESTRICT"))
+    budget: Mapped[float | None]
+    expires_at: Mapped[dt.datetime | None]
+    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
+    updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
+    priority: Mapped[int] = mapped_column(default=0)  # User priority: higher value means higher priority for rate limiting / scheduling (0 = default)
 
-    __table_args__ = (UniqueConstraint("sub", "iss", name="unique_user_email_sub_iss"),)
+    usage: Mapped[list["Usage"]] = relationship(back_populates="user", passive_deletes=True)
+    token: Mapped[list["Token"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
+    collection: Mapped[list["Collection"]] = relationship(back_populates="user", passive_deletes=True)
+    role: Mapped["Role"] = relationship(back_populates="user", passive_deletes=True)
+    organization: Mapped["Organization"] = relationship(back_populates="user", passive_deletes=True)
+    router: Mapped["Router"] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
+    provider: Mapped["Provider"] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
+
+    __table_args__ = (
+        UniqueConstraint("sub", "iss", name="unique_user_email_sub_iss"),
+        UniqueConstraint("id", "organization_id", name="unique_user_id_organization_id"),
+    )
 
 
 class Token(Base):
     __tablename__ = "token"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey(column="user.id", ondelete="CASCADE"), nullable=False)
-    name = Column(String, nullable=True)
-    token = Column(String, nullable=True)
-    expires_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="CASCADE"))
+    name: Mapped[str | None]
+    token: Mapped[str | None]
+    expires_at: Mapped[dt.datetime | None]
+    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
 
-    user = relationship(argument="User", backref=backref(name="token", cascade="all, delete-orphan"))
+    user: Mapped["User"] = relationship(back_populates="token")
+    usage: Mapped[list["Usage"]] = relationship(back_populates="token", passive_deletes=True)
 
 
 class Organization(Base):
     __tablename__ = "organization"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    name = Column(String, nullable=False)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), nullable=False, onupdate=func.now())
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str]
+    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
+    updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
+
+    user: Mapped["User"] = relationship(back_populates="organization", passive_deletes=True)
 
 
 class Collection(Base):
     __tablename__ = "collection"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey(column="user.id", ondelete="CASCADE"), nullable=False)
-    name = Column(String, nullable=False)
-    description = Column(String, nullable=True)
-    visibility = Column(Enum(CollectionVisibility), nullable=False)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), nullable=False, onupdate=func.now())
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="CASCADE"))
+    name: Mapped[str]
+    description: Mapped[str | None]
+    visibility: Mapped[CollectionVisibility]
+    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
+    updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
 
-    user = relationship(argument="User", backref=backref(name="collection", cascade="all, delete-orphan"))
+    user: Mapped["User"] = relationship(back_populates="collection")
+    document: Mapped[list["Document"]] = relationship(back_populates="collection", cascade="all, delete-orphan", passive_deletes=True)
 
 
 class Document(Base):
     __tablename__ = "document"
 
-    id = Column(Integer, primary_key=True, index=True)
-    collection_id = Column(Integer, ForeignKey(column="collection.id", ondelete="CASCADE"), nullable=False)
-    name = Column(String, nullable=False)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    collection_id: Mapped[int] = mapped_column(ForeignKey(column="collection.id", ondelete="CASCADE"))
+    name: Mapped[str]
+    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
 
-    collection = relationship(argument="Collection", backref=backref(name="document", cascade="all, delete-orphan"))
-
-
-class Model(Base):
-    __tablename__ = "model"
-
-    name = Column(String, primary_key=True, index=True)
-    type = Column(String, nullable=False)
-    routing_strategy = Column(String, nullable=False)
-    owned_by = Column(String, nullable=False)
-    cycle_offset = Column(Integer, nullable=True)
-    vector_size = Column(Integer, nullable=True)
-    max_context_length = Column(Integer, nullable=True)
-    created = Column(Integer, nullable=False)
-    from_config = Column(Boolean, nullable=False)
+    collection: Mapped["Collection"] = relationship(back_populates="document", passive_deletes=True)
 
 
-class ModelRouterAlias(Base):
-    __tablename__ = "model_alias"
+class Router(Base):
+    __tablename__ = "router"
 
-    id = Column(Integer, primary_key=True, index=True)
-    alias = Column(String, nullable=False)
-    model_router_name = Column(String, ForeignKey(column="model.name", ondelete="CASCADE"), nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey(column="user.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(unique=True)
+    type: Mapped[ModelType]
+    load_balancing_strategy: Mapped[RouterLoadBalancingStrategy]
+    cost_prompt_tokens: Mapped[float] = mapped_column(default=0.0)
+    cost_completion_tokens: Mapped[float] = mapped_column(default=0.0)
+    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
+    updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
 
-    model_router = relationship(argument="Model", backref=backref(name="alias", cascade="all, delete-orphan"))
+    user: Mapped["User"] = relationship(back_populates="router")
+    alias: Mapped[list["RouterAlias"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
+    provider: Mapped[list["Provider"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
+    limit: Mapped[list["Limit"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
 
 
-class ModelClient(Base):
-    __tablename__ = "model_client"
+class RouterAlias(Base):
+    __tablename__ = "router_alias"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    router_id: Mapped[int] = mapped_column(ForeignKey(column="router.id", ondelete="CASCADE"))
+    value: Mapped[str] = mapped_column(unique=True)
 
-    type = Column(String, nullable=False)
-    url = Column(String, nullable=True)
-    key = Column(String, nullable=True)
+    router: Mapped["Router"] = relationship(back_populates="alias")
 
-    timeout = Column(Integer, nullable=True)
-    model_name = Column(String, nullable=False)
 
-    model_cost_prompt_tokens = Column(Float, nullable=True)
-    model_cost_completion_tokens = Column(Float, nullable=True)
-    model_carbon_footprint_zone = Column(String, nullable=True)
-    model_carbon_footprint_total_params = Column(Integer, nullable=True)
-    model_carbon_footprint_active_params = Column(Integer, nullable=True)
+class Provider(Base):
+    __tablename__ = "router_provider"
 
-    qos_policy = Column(String, nullable=False)
-    performance_threshold = Column(Float, nullable=True)
-    max_parallel_requests = Column(Integer, nullable=True)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    router_id: Mapped[int] = mapped_column(ForeignKey(column="router.id", ondelete="CASCADE"))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey(column="user.id", ondelete="CASCADE"))
+    type: Mapped[ProviderType]
+    url: Mapped[str]
+    key: Mapped[str | None]
+    timeout: Mapped[int | None]
+    model_name: Mapped[str]
+    model_carbon_footprint_zone: Mapped[ProviderCarbonFootprintZone | None]
+    model_carbon_footprint_total_params: Mapped[int | None]
+    model_carbon_footprint_active_params: Mapped[int | None]
+    qos_metric: Mapped[MetricType | None]
+    qos_value: Mapped[float | None]
+    max_context_length: Mapped[int | None]
+    vector_size: Mapped[int | None]
+    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
+    updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
 
-    model_router_name = Column(String, ForeignKey(column="model.name", ondelete="CASCADE"), nullable=False)
+    router: Mapped["Router"] = relationship(back_populates="provider")
+    user: Mapped["User"] = relationship(back_populates="provider")
 
-    model_router = relationship(argument="Model", backref=backref(name="client", cascade="all, delete-orphan"))
+    __table_args__ = (UniqueConstraint("url", "model_name", name="unique_provider_url_model_name"),)

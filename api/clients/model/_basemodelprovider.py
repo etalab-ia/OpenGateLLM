@@ -1,33 +1,22 @@
 from abc import ABC
 import ast
-from asyncio import Lock
-from datetime import datetime
 import importlib
-import inspect
 from json import JSONDecodeError, dumps, loads
 import logging
 import re
 import time
 import traceback
-from typing import Any, Literal
+from typing import Any
 from urllib.parse import urljoin
 
 from fastapi import HTTPException
 import httpx
-from redis import Redis
+from redis.asyncio import Redis as AsyncRedis
 
-from api.clients.model.qos_policies import (
-    BaseQualityOfServicePolicy,
-    ParallelRequestsThresholdPolicy,
-    PerformanceThresholdPolicy,
-    WarningLogPolicy,
-)
-from api.schemas.core.configuration import ModelProvider as ModelClientSchema
-from api.schemas.core.configuration import ModelProviderType, QosPolicy
-from api.schemas.core.metric import Metric
+from api.schemas.admin.providers import ProviderType
+from api.schemas.core.metrics import MetricType
 from api.schemas.usage import Detail, Usage
 from api.utils.carbon import get_carbon_footprint
-from api.utils.configuration import configuration
 from api.utils.context import generate_request_id, global_context, request_context
 from api.utils.exceptions import ModelIsTooBusyException
 from api.utils.variables import (
@@ -37,12 +26,15 @@ from api.utils.variables import (
     ENDPOINT__MODELS,
     ENDPOINT__OCR,
     ENDPOINT__RERANK,
+    METRIC__GAUGE_PREFIX,
+    METRIC__TIMESERIE_PREFIX,
+    METRIC__TIMESERIE_RETENTION_SECONDS,
 )
 
 logger = logging.getLogger(__name__)
 
 
-class BaseModelClient(ABC):
+class BaseModelProvider(ABC):
     ENDPOINT_TABLE = {
         ENDPOINT__AUDIO_TRANSCRIPTIONS: None,
         ENDPOINT__CHAT_COMPLETIONS: None,
@@ -58,130 +50,46 @@ class BaseModelClient(ABC):
         key: str,
         timeout: int,
         model_name: str,
-        model_carbon_footprint_zone: str,
-        model_carbon_footprint_total_params: int,
-        model_carbon_footprint_active_params: int,
-        model_cost_prompt_tokens: float,
-        model_cost_completion_tokens: float,
-        metrics_retention_ms: int,
-        qos_policy: str,
-        performance_threshold: float | None,
-        max_parallel_requests: int | None,
-        *args,
-        **kwargs,
+        model_carbon_footprint_zone: str | None,
+        model_carbon_footprint_total_params: int | None,
+        model_carbon_footprint_active_params: int | None,
+        qos_metric: MetricType | None,
+        qos_value: float | None,
     ) -> None:
         self.name = model_name
-        self.cost_prompt_tokens = model_cost_prompt_tokens
-        self.cost_completion_tokens = model_cost_completion_tokens
+
         self.carbon_footprint_zone = model_carbon_footprint_zone
         self.carbon_footprint_total_params = model_carbon_footprint_total_params
         self.carbon_footprint_active_params = model_carbon_footprint_active_params
         self.url = url
         self.key = key
         self.timeout = timeout
-        self.vector_size = None
-        self.max_context_length = None
-        self.metrics_retention_ms = metrics_retention_ms
-        self.qos_policy = qos_policy
-        self.performance_threshold = performance_threshold
-        self.max_parallel_requests = max_parallel_requests
+        self.qos_metric = qos_metric
+        self.qos_value = qos_value
+
+        self.id = None  # set by the ModelRegistry when the provider is created
+        self.cost_prompt_tokens = None  # set by the ModelRegistry when the provider is retrieved
+        self.cost_completion_tokens = None  # set by the ModelRegistry when the provider is retrieved
 
         self.headers = {"Authorization": f"Bearer {self.key}"} if self.key else {}
-        self.lock = Lock()  # Used by ModelRouter to determine whether the Client is in use
-        self._redis_client = Redis(**configuration.dependencies.redis.model_dump())
 
     @staticmethod
-    def import_module(type: ModelProviderType) -> "type[BaseModelClient]":
+    def import_module(type: ProviderType) -> "type[BaseModelProvider]":
         """
-        Static method to import a subclass of BaseModelClient.
+        Static method to import a subclass of BaseModelProvider.
 
         Args:
-            type(str): The type of model client to import.
+            type(str): The type of model provider to import.
 
         Returns:
-            Type[BaseModelClient]: The subclass of BaseModelClient.
+            Type[BaseModelProvider]: The subclass of BaseModelProvider.
         """
 
-        module = importlib.import_module(f"api.clients.model._{type.value}modelclient")
+        module = importlib.import_module(f"api.clients.model._{type.value}modelprovider")
 
-        return getattr(module, f"{type.capitalize()}ModelClient")
+        return getattr(module, f"{type.capitalize()}ModelProvider")
 
-    @staticmethod
-    def from_schema(schema: ModelClientSchema, **init_kwargs) -> "BaseModelClient":
-        """
-        Static method to construct a BaseModelClient instance from a ModelClientSchema.
-
-        Args:
-            schema(ModelClientSchema): A schema, that contains "dead" information.
-            **init_kwargs: Additional arguments to pass to the BaseModelClient's constructor.
-
-        Returns:
-            A ModelClient instance. The constructor used depends on the "type" field of the schema.
-        """
-        act_params = int(schema.model_carbon_footprint_active_params) if schema.model_carbon_footprint_active_params else None
-        tot_params = int(schema.model_carbon_footprint_total_params) if schema.model_carbon_footprint_total_params else None
-
-        return BaseModelClient.import_module(type=schema.type)(
-            model_name=schema.model_name,
-            model_cost_prompt_tokens=schema.model_cost_prompt_tokens,
-            model_cost_completion_tokens=schema.model_cost_completion_tokens,
-            model_carbon_footprint_zone=schema.model_carbon_footprint_zone,
-            model_carbon_footprint_active_params=act_params,
-            model_carbon_footprint_total_params=tot_params,
-            url=schema.url,
-            key=schema.key,
-            timeout=schema.timeout,
-            metrics_retention_ms=configuration.settings.metrics_retention_ms,
-            qos_policy=schema.qos_policy,
-            performance_threshold=schema.performance_threshold,
-            max_parallel_requests=schema.max_parallel_requests,
-            **init_kwargs,
-        )
-
-    def as_schema(self, censored: bool = True) -> ModelClientSchema:
-        """
-        Gets a ModelClientSchema that represents the current instance.
-
-        Args:
-            censored(bool): Whether sensitive information needs to be hidden.
-        """
-        return ModelClientSchema(
-            type=ModelProviderType(type(self).__name__.removesuffix("ModelClient").lower()),
-            url="hidd.en/v1" if censored else self.url,
-            key=None if censored else self.key,
-            timeout=self.timeout,
-            model_name=self.name,
-            model_cost_prompt_tokens=self.cost_prompt_tokens,
-            model_cost_completion_tokens=self.cost_completion_tokens,
-            model_carbon_footprint_zone=self.carbon_footprint_zone,
-            model_carbon_footprint_total_params=self.carbon_footprint_total_params,
-            model_carbon_footprint_active_params=self.carbon_footprint_active_params,
-            qos_policy=self.qos_policy,
-            performance_threshold=self.performance_threshold,
-            max_parallel_requests=self.max_parallel_requests,
-        )
-
-    async def setup_metrics_storage(self) -> None:
-        time_to_first_token_ts_key = f"metrics_ts:time_to_first_token:{self.name}:{self.url}"
-        try:
-            self._redis_client.ts().create(time_to_first_token_ts_key, retention_msecs=self.metrics_retention_ms)
-        except Exception as e:
-            if str(e) == "TSDB: key already exists":
-                logger.debug(f"Redis timeseries {time_to_first_token_ts_key} already exists.")
-            else:
-                logger.error(f"Creation of redis timeseries {time_to_first_token_ts_key} failed : {e}", exc_info=True)
-                self._redis_client.reset()
-
-        latency_ts_key = f"metrics_ts:latency:{self.name}:{self.url}"
-        try:
-            self._redis_client.ts().create(key=latency_ts_key, retention_msecs=self.metrics_retention_ms)
-        except Exception as e:
-            if str(e) == "TSDB: key already exists":
-                logger.debug(f"Redis timeseries {latency_ts_key} already exists.")
-            else:
-                logger.error(f"Creation of redis timeseries {latency_ts_key} failed : {e}", exc_info=True)
-
-    def _get_usage(self, json: dict, data: dict | list[dict], stream: bool, request_latency: float = 0.0) -> Usage | None:
+    def _get_usage(self, json: dict, data: dict | list[dict], stream: bool, endpoint: str, request_latency: float = 0.0) -> Usage | None:
         """
         Get usage data from request and response.
 
@@ -200,18 +108,18 @@ class BaseModelClient(ABC):
         # might not have fully run. Accessing global_context.tokenizer directly could raise AttributeError.
         # We skip usage computation if tokenizer is absent so we still return the provider response.
         tokenizer = getattr(global_context, "tokenizer", None)
-        if tokenizer and self.endpoint in tokenizer.USAGE_COMPLETION_ENDPOINTS:
+        if tokenizer and endpoint in tokenizer.USAGE_COMPLETION_ENDPOINTS:
             try:
                 usage = request_context.get().usage
 
                 # compute usage for the current (add a detail object)
                 detail_id = data[0].get("id", generate_request_id()) if stream else data.get("id", generate_request_id())
                 detail = Detail(id=detail_id, model=self.name, usage=Usage())
-                detail.usage.prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=self.endpoint, body=json)
+                detail.usage.prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=endpoint, body=json)
 
-                if tokenizer.USAGE_COMPLETION_ENDPOINTS[self.endpoint]:
+                if tokenizer.USAGE_COMPLETION_ENDPOINTS[endpoint]:
                     detail.usage.completion_tokens = tokenizer.get_completion_tokens(
-                        endpoint=self.endpoint,
+                        endpoint=endpoint,
                         response=data,
                         stream=stream,
                     )
@@ -255,15 +163,15 @@ class BaseModelClient(ABC):
                     usage.carbon.kWh.max += detail.usage.carbon.kWh.max
 
             except Exception as e:
-                logger.exception(msg=f"Failed to compute usage values for endpoint {self.endpoint}: {e}.")
+                logger.exception(msg=f"Failed to compute usage values for endpoint {endpoint}: {e}.")
 
         return usage
 
-    def _get_additional_data(self, json: dict, data: dict | list[dict], stream: bool, request_latency: float = 0.0) -> dict:
+    def _get_additional_data(self, json: dict, data: dict | list[dict], stream: bool, endpoint: str, request_latency: float = 0.0) -> dict:
         """
         Get additional data from request and response.
         """
-        usage = self._get_usage(json=json, data=data, stream=stream, request_latency=request_latency)
+        usage = self._get_usage(json=json, data=data, stream=stream, endpoint=endpoint, request_latency=request_latency)
         request_id = usage.details[-1].id if usage and usage.details else generate_request_id()
         additional_data = {"model": self.name, "id": request_id}
 
@@ -273,22 +181,25 @@ class BaseModelClient(ABC):
         return additional_data
 
     def _format_request(
-        self, json: dict | None = None, files: dict | None = None, data: dict | None = None
+        self,
+        json: dict | None = None,
+        files: dict | None = None,
+        data: dict | None = None,
+        endpoint: str | None = None,
     ) -> tuple[str, dict[str, str] | None, dict | None, dict | None, dict | None]:
         """
-        Format a request to a client model. This method can be overridden by a subclass to add additional headers or parameters. This method format the requested endpoint thanks the ENDPOINT_TABLE attribute.
+        Format a request to a provider model. This method can be overridden by a subclass to add additional headers or parameters. This method format the requested endpoint thanks the ENDPOINT_TABLE attribute.
 
         Args:
             json(dict): The JSON body to use for the request.
             files(dict): The files to use for the request.
             data(dict): The data to use for the request.
+            endpoint(str): The endpoint to use for the request.
 
         Returns:
             tuple: The formatted request composed of the url, headers, json, files and data.
         """
-        # self.endpoint is set by the ModelRouter
-        assert self.endpoint, "Endpoint has not been set; To get this object, you may use a ModelRouter instance"
-        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[self.endpoint])
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[endpoint])
         if json and "model" in json:
             json["model"] = self.name
 
@@ -298,16 +209,19 @@ class BaseModelClient(ABC):
         self,
         json: dict,
         response: httpx.Response,
+        endpoint: str,
         additional_data: dict[str, Any] | None = None,
         request_latency: float = 0.0,
     ) -> httpx.Response:
         """
-        Format a response from a client model and add usage data and model ID to the response. This method can be overridden by a subclass to add additional headers or parameters.
+        Format a response from a provider model and add usage data and model ID to the response. This method can be overridden by a subclass to add additional headers or parameters.
 
         Args:
             json(dict): The JSON body of the request to the API.
             response(httpx.Response): The response from the API.
+            endpoint(str): The endpoint to use for the request.
             additional_data(Dict[str, Any]): The additional data to add to the response (default: {}).
+            request_latency(float): The request latency in seconds.
 
         Returns:
             httpx.Response: The formatted response.
@@ -319,80 +233,75 @@ class BaseModelClient(ABC):
         content_type = response.headers.get("Content-Type", "")
         if content_type == "application/json":
             data = response.json()
-            data.update(self._get_additional_data(json=json, data=data, stream=False, request_latency=request_latency))
+            data.update(self._get_additional_data(json=json, data=data, stream=False, endpoint=endpoint, request_latency=request_latency))
             data.update(additional_data)
             response = httpx.Response(status_code=response.status_code, content=dumps(data))
 
         return response
 
-    def _log_performance_metric(self, metric: Metric) -> None:
-        time_to_first_token_ts_key = f"metrics_ts:time_to_first_token:{metric.model_name}:{metric.provider_url}"
-        try:
-            if metric.time_to_first_token_us is not None:
-                self._redis_client.ts().add(time_to_first_token_ts_key, "*", metric.time_to_first_token_us)
-        except Exception as e:
-            logger.error(f"Failed to log request metrics in redis ts {time_to_first_token_ts_key}: {e}", exc_info=True)
-            self._redis_client.reset()
-
-        latency_ts_key = f"metrics_ts:latency:{metric.model_name}:{metric.provider_url}"
-        try:
-            if metric.latency_ms is not None:
-                self._redis_client.ts().add(latency_ts_key, "*", metric.latency_ms)
-        except Exception as e:
-            logger.error(f"Failed to log request metrics in redis ts {latency_ts_key}: {e}", exc_info=True)
-
-    def get_timeseries_since(self, metric_type: Literal["time_to_first_token", "latency"], cutoff: datetime | None = None) -> list[tuple[int, float]]:
+    async def _ensure_timeseries_exists(self, redis_client: AsyncRedis, key: str) -> None:
         """
-        Fetch all points in the RedisTimeSeries key newer than `cutoff`.
+        Ensure a time series exists with proper retention configuration.
 
-        Returns a list of (timestamp_ms, value) tuples.
+        Args:
+            redis_client(AsyncRedis): The redis client to use.
+            key(str): The time series key to create.
         """
-        key = f"metrics_ts:{metric_type}:{self.name}:{self.url}"
         try:
-            from_ts = int(cutoff.timestamp() * 1000) if cutoff else 0
-            to_ts = "+"
+            # Check if the time series already exists
+            await redis_client.ts().info(key)
+        except Exception:
+            # Time series doesn't exist, create it with retention
+            try:
+                await redis_client.ts().create(key, retention_msecs=METRIC__TIMESERIE_RETENTION_SECONDS * 1000)
+            except Exception:
+                # Time series might have been created by another concurrent request, ignore
+                pass
 
-            result = self._redis_client.ts().range(key, from_ts, to_ts)
-            return [(ts, val) for ts, val in result]
-        except Exception as e:
-            logger.error(f"Failed to fetch timeseries for {key}: {e}", exc_info=True)
-            self._redis_client.reset()
-            return []
+    async def _log_performance_metric(self, redis_client: AsyncRedis, ttft: int | None, latency: int | None) -> None:
+        """
+        Log performance metrics in redis.
 
-    def apply_modelclient_policy(self, performance_indicator: float | None) -> bool:
-        policy: BaseQualityOfServicePolicy | None = None
-        if self.qos_policy == QosPolicy.PARALLEL_REQUESTS_THRESHOLD:
-            policy = ParallelRequestsThresholdPolicy(self.max_parallel_requests)
-        elif self.qos_policy == QosPolicy.PERFORMANCE_THRESHOLD:
-            policy = PerformanceThresholdPolicy(self.performance_threshold)
-        else:
-            policy = WarningLogPolicy(self.performance_threshold, self.max_parallel_requests)
+        Args:
+            redis_client(AsyncRedis): The redis client to use for the request.
+            ttft(int | None): The time to first token in microseconds (us).
+            latency(int | None): The latency in milliseconds (ms).
+        """
+        try:
+            if ttft is not None:
+                key = f"{METRIC__TIMESERIE_PREFIX}:{MetricType.TTFT.value}:{self.id}"
+                await self._ensure_timeseries_exists(redis_client, key)
+                await redis_client.ts().add(key, "*", ttft)
+        except Exception:
+            logger.error(f"Failed to log request metrics (TTFT) in redis (id: {self.id})", exc_info=True)
+            await redis_client.reset()
 
         try:
-            inflight_key = f"metrics_gauge:inflight:{self.name}:{self.url}"
-            current_parallel_requests = self._redis_client.get(inflight_key)
-            if current_parallel_requests is not None and not inspect.isawaitable(current_parallel_requests):
-                current_parallel_requests = int(current_parallel_requests)
-            else:
-                current_parallel_requests = 0
-        except Exception as e:
-            logger.error(traceback.print_exception(e))
-            current_parallel_requests = None
-        return policy.apply_policy(performance_indicator, current_parallel_requests)
+            if latency is not None:
+                key = f"{METRIC__TIMESERIE_PREFIX}:{MetricType.LATENCY.value}:{self.id}"
+                await self._ensure_timeseries_exists(redis_client, key)
+                await redis_client.ts().add(key, "*", latency)
+        except Exception:
+            logger.error(f"Failed to log request metrics (latency) in redis (id: {self.id})", exc_info=True)
+            await redis_client.reset()
 
     async def forward_request(
         self,
         method: str,
+        endpoint: str,
+        redis_client: AsyncRedis,
         json: dict | None = None,
         files: dict | None = None,
         data: dict | None = None,
         additional_data: dict[str, Any] | None = None,
     ) -> httpx.Response:
         """
-        Forward a request to a client model and add model name to the response. Optionally, add additional data to the response.
+        Forward a request to a provider model and add model name to the response. Optionally, add additional data to the response.
 
         Args:
             method(str): The method to use for the request.
+            endpoint(str): The endpoint to use for the request.
+            redis_client(AsyncRedis): The redis client to use for the request.
             json(Optional[dict]): The JSON body to use for the request.
             files(Optional[dict]): The files to use for the request.
             data(Optional[dict]): The data to use for the request.
@@ -402,16 +311,16 @@ class BaseModelClient(ABC):
             httpx.Response: The response from the API.
         """
 
-        url, _, json, files, data = self._format_request(json=json, files=files, data=data)
+        url, _, json, files, data = self._format_request(json=json, files=files, data=data, endpoint=endpoint)
         if not additional_data:
             additional_data = {}
 
-        inflight_key = f"metrics_gauge:inflight:{self.name}:{self.url}"
+        inflight_key = f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{self.id}"
         try:
             try:
-                self._redis_client.incr(inflight_key)
+                await redis_client.incr(inflight_key)
             except Exception:
-                logger.warning("Unable to increment redis inflight key")  # instrumentation failure should not block request
+                logger.error("Unable to increment redis inflight key")
 
             async with httpx.AsyncClient(timeout=self.timeout) as async_client:
                 try:
@@ -439,21 +348,20 @@ class BaseModelClient(ABC):
                     raise HTTPException(status_code=response.status_code, detail=message)
         finally:
             try:
-                self._redis_client.decr(inflight_key)
+                await redis_client.decr(inflight_key)
             except Exception:
-                logger.warning("Unable to decrement redis inflight key")
+                logger.error("Unable to decrement redis requests inflight key")
 
         # add additional data to the response
         request_latency = end_time - start_time
-        response = self._format_response(json=json, response=response, additional_data=additional_data, request_latency=request_latency)
-        self._log_performance_metric(
-            metric=Metric(
-                timestamp=datetime.now(),
-                model_name=self.name,
-                provider_url=self.url,
-                latency_ms=int(request_latency * 1_000),
-            )
+        response = self._format_response(
+            json=json,
+            response=response,
+            additional_data=additional_data,
+            endpoint=endpoint,
+            request_latency=request_latency,
         )
+        await self._log_performance_metric(redis_client=redis_client, ttft=None, latency=int(request_latency * 1_000))
 
         return response
 
@@ -461,6 +369,7 @@ class BaseModelClient(ABC):
         self,
         json: dict,
         response: list,
+        endpoint: str,
         additional_data: dict[str, Any] | None = None,
         request_latency: float = 0.0,
     ) -> tuple | None:
@@ -470,6 +379,7 @@ class BaseModelClient(ABC):
         Args:
             json(dict):
             response (list): List of response chunks (buffer).
+            endpoint(str): The endpoint to use for the request.
             additional_data (Dict[str, Any]): Additional data to include in the response.
 
         Returns:
@@ -502,7 +412,7 @@ class BaseModelClient(ABC):
         # normal case
         extra_chunk = content  # based on last chunk to conserve the chunk structure
         extra_chunk.update({"choices": []})
-        extra_chunk.update(self._get_additional_data(json=json, data=chunks, stream=True, request_latency=request_latency))
+        extra_chunk.update(self._get_additional_data(json=json, data=chunks, stream=True, endpoint=endpoint, request_latency=request_latency))
         extra_chunk.update(additional_data)
 
         return extra_chunk
@@ -510,16 +420,20 @@ class BaseModelClient(ABC):
     async def forward_stream(
         self,
         method: str,
+        endpoint: str,
+        redis_client: AsyncRedis,
         json: dict | None = None,
         files: dict | None = None,
         data: dict | None = None,
         additional_data: dict[str, Any] | None = None,
     ):
         """
-        Forward a stream request to a client model and add model name to the response. Optionally, add additional data to the response.
+        Forward a stream request to a provider model and add model name to the response. Optionally, add additional data to the response.
 
         Args:
             method(str): The method to use for the request.
+            endpoint(str): The endpoint to use for the request.
+            redis_client(AsyncRedis): The redis client to use for the request.
             json(Optional[dict]): The JSON body to use for the request.
             files(Optional[dict]): The files to use for the request.
             data(Optional[dict]): The data to use for the request.
@@ -529,9 +443,15 @@ class BaseModelClient(ABC):
         if additional_data is None:
             additional_data = {}
 
-        url, _, json, files, data = self._format_request(json=json, files=files, data=data)
+        url, _, json, files, data = self._format_request(json=json, files=files, data=data, endpoint=endpoint)
 
         async with httpx.AsyncClient(timeout=self.timeout) as async_client:
+            inflight_key = f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{self.id}"
+            try:
+                await redis_client.incr(inflight_key)
+            except Exception:
+                logger.error("Unable to increment redis requests inflight key")
+
             try:
                 async with async_client.stream(method=method, url=url, headers=self.headers, json=json, files=files, data=data) as response:
                     buffer = list()
@@ -575,28 +495,21 @@ class BaseModelClient(ABC):
                                 buffer.append(last_chunks)
 
                                 end_time = time.perf_counter()
-                                request_latency = end_time - start_time
+                                request_latency = int((end_time - start_time) * 1_000)
                                 if first_token_time is not None:
-                                    request_time_to_first_token = first_token_time - start_time
+                                    ttft = int((first_token_time - start_time) * 1_000_000)
                                 else:
                                     logger.warning(f"Time to first token could not be determined for request {request_context.get().id}.")
-                                    request_time_to_first_token = 0
+                                    ttft = None
 
                                 extra_chunk = self._format_stream_response(
                                     json=json,
                                     response=buffer,
+                                    endpoint=endpoint,
                                     additional_data=additional_data,
                                     request_latency=request_latency,
                                 )
-                                self._log_performance_metric(
-                                    Metric(
-                                        timestamp=datetime.now(),
-                                        time_to_first_token_us=int(request_time_to_first_token * 1_000_000) if first_token_time is not None else None,
-                                        latency_ms=int(request_latency * 1_000),
-                                        model_name=self.name,
-                                        provider_url=self.url,
-                                    )
-                                )
+                                await self._log_performance_metric(redis_client=redis_client, ttft=ttft, latency=int(request_latency * 1_000))
 
                                 # if error case, yield chunk
                                 if extra_chunk is None:
@@ -612,3 +525,8 @@ class BaseModelClient(ABC):
             except Exception as e:
                 logger.error(traceback.format_exc())
                 yield dumps({"detail": type(e).__name__}).encode(), 500
+            finally:
+                try:
+                    await redis_client.decr(inflight_key)
+                except Exception:
+                    logger.error("Unable to decrement redis requests inflight key")

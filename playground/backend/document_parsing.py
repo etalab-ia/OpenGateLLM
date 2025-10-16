@@ -1,10 +1,10 @@
-import requests
-import streamlit as st
-from typing import Optional
 import time
 
+import requests
+import streamlit as st
+
+from playground.backend.documents import create_collection_with_id, upload_document
 from playground.configuration import configuration
-from playground.backend.documents import upload_document, create_collection_with_id
 
 
 def parse_document(file, output_format: str = "markdown", force_ocr: bool = False, page_range: str = "", paginate_output: bool = False) -> dict:
@@ -74,7 +74,7 @@ def extract_text_from_parsed_document(parsed_document: dict) -> str:
     return "\n\n".join(text_parts)
 
 
-def process_large_document(file, char_count: int) -> Optional[int]:
+def process_large_document(file, char_count: int) -> int | None:
     """
     Traite un document volumineux en créant une collection et en l'uploadant.
 

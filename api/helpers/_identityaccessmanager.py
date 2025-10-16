@@ -24,6 +24,7 @@ from api.sql.models import User as UserTable
 from api.utils.configuration import configuration
 from api.utils.context import global_context
 from api.utils.exceptions import (
+    DeleteOrganizationWithUsersException,
     DeleteRoleWithUsersException,
     InvalidCurrentPasswordException,
     InvalidTokenExpirationException,
@@ -87,7 +88,7 @@ class IdentityAccessManager:
 
         # create the limits
         for limit in limits:
-            await session.execute(statement=insert(table=LimitTable).values(role_id=role_id, model=limit.model, type=limit.type, value=limit.value))  # fmt: off
+            await session.execute(statement=insert(table=LimitTable).values(role_id=role_id, router_id=limit.router, type=limit.type, value=limit.value))  # fmt: off
 
         # create the permissions
         for permission in permissions:
@@ -137,7 +138,7 @@ class IdentityAccessManager:
             await session.execute(statement=delete(table=LimitTable).where(LimitTable.role_id == role.id))
 
             # create the new limits
-            values = [{"role_id": role.id, "model": limit.model, "type": limit.type, "value": limit.value} for limit in limits]
+            values = [{"role_id": role.id, "router_id": limit.router, "type": limit.type, "value": limit.value} for limit in limits]
             if values:
                 await session.execute(statement=insert(table=LimitTable).values(values))
 
@@ -159,7 +160,7 @@ class IdentityAccessManager:
         role_id: int | None = None,
         offset: int = 0,
         limit: int = 10,
-        order_by: Literal["id", "name", "created_at", "updated_at"] = "id",
+        order_by: Literal["id", "name", "created", "updated"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[Role]:
         if role_id is None:
@@ -175,8 +176,8 @@ class IdentityAccessManager:
             select(
                 RoleTable.id,
                 RoleTable.name,
-                cast(func.extract("epoch", RoleTable.created_at), Integer).label("created_at"),
-                cast(func.extract("epoch", RoleTable.updated_at), Integer).label("updated_at"),
+                cast(func.extract("epoch", RoleTable.created), Integer).label("created"),
+                cast(func.extract("epoch", RoleTable.updated), Integer).label("updated"),
                 func.count(distinct(UserTable.id)).label("users"),
             )
             .outerjoin(UserTable, RoleTable.id == UserTable.role_id)
@@ -197,24 +198,28 @@ class IdentityAccessManager:
             roles[row["id"]] = Role(
                 id=row["id"],
                 name=row["name"],
-                created_at=row["created_at"],
-                updated_at=row["updated_at"],
+                created=row["created"],
+                updated=row["updated"],
                 users=row["users"],
                 limits=[],
                 permissions=[],
             )
 
-        # Query limits for these roles
         if roles:
-            limits_query = select(LimitTable.role_id, LimitTable.model, LimitTable.type, LimitTable.value).where(
-                LimitTable.role_id.in_(list(roles.keys()))
-            )
+            # Query limits for these roles
+            limits_query = select(
+                LimitTable.role_id,
+                LimitTable.router_id,
+                LimitTable.type,
+                LimitTable.value,
+            ).where(LimitTable.role_id.in_(list(roles.keys())))
 
             result = await session.execute(limits_query)
             for row in result:
                 role_id = row.role_id
                 if role_id in roles:
-                    roles[role_id].limits.append(Limit(model=row.model, type=row.type, value=row.value))
+                    roles[role_id].limits.append(Limit(router=row.router_id, type=row.type, value=row.value))
+
             # Query permissions for these roles
             permissions_query = select(PermissionTable.role_id, PermissionTable.permission).where(PermissionTable.role_id.in_(list(roles.keys())))
 
@@ -223,6 +228,7 @@ class IdentityAccessManager:
                 role_id = row.role_id
                 if role_id in roles:
                     roles[role_id].permissions.append(PermissionType(value=row.permission))
+
         return list(roles.values())
 
     async def create_user(
@@ -399,7 +405,7 @@ class IdentityAccessManager:
         organization_id: int | None = None,
         offset: int = 0,
         limit: int = 10,
-        order_by: Literal["id", "email", "created_at", "updated_at"] = "id",
+        order_by: Literal["id", "email", "created", "updated"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[User]:
         statement = (
@@ -411,8 +417,8 @@ class IdentityAccessManager:
                 UserTable.organization_id.label("organization"),
                 UserTable.budget,
                 cast(func.extract("epoch", UserTable.expires_at), Integer).label("expires_at"),
-                cast(func.extract("epoch", UserTable.created_at), Integer).label("created_at"),
-                cast(func.extract("epoch", UserTable.updated_at), Integer).label("updated_at"),
+                cast(func.extract("epoch", UserTable.created), Integer).label("created"),
+                cast(func.extract("epoch", UserTable.updated), Integer).label("updated"),
                 UserTable.email,
                 UserTable.sub,
                 UserTable.priority,
@@ -452,7 +458,11 @@ class IdentityAccessManager:
         except NoResultFound:
             raise OrganizationNotFoundException()
 
-        await session.execute(statement=delete(table=OrganizationTable).where(OrganizationTable.id == organization_id))
+        try:
+            await session.execute(statement=delete(table=OrganizationTable).where(OrganizationTable.id == organization_id))
+        except IntegrityError:
+            raise DeleteOrganizationWithUsersException()
+
         await session.commit()
 
     async def update_organization(self, session: AsyncSession, organization_id: int, name: str | None = None) -> None:
@@ -472,15 +482,15 @@ class IdentityAccessManager:
         organization_id: int | None = None,
         offset: int = 0,
         limit: int = 10,
-        order_by: Literal["id", "name", "created_at", "updated_at"] = "id",
+        order_by: Literal["id", "name", "created", "updated"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[Organization]:
         statement = (
             select(
                 OrganizationTable.id,
                 OrganizationTable.name,
-                cast(func.extract("epoch", OrganizationTable.created_at), Integer).label("created_at"),
-                cast(func.extract("epoch", OrganizationTable.updated_at), Integer).label("updated_at"),
+                cast(func.extract("epoch", OrganizationTable.created), Integer).label("created"),
+                cast(func.extract("epoch", OrganizationTable.updated), Integer).label("updated"),
             )
             .offset(offset=offset)
             .limit(limit=limit)
@@ -604,7 +614,7 @@ class IdentityAccessManager:
         exclude_expired: bool = False,
         offset: int = 0,
         limit: int = 10,
-        order_by: Literal["id", "name", "created_at"] = "id",
+        order_by: Literal["id", "name", "created"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[Token]:
         statement = (
@@ -614,7 +624,7 @@ class IdentityAccessManager:
                 TokenTable.token,
                 TokenTable.user_id.label("user"),
                 cast(func.extract("epoch", TokenTable.expires_at), Integer).label("expires_at"),
-                cast(func.extract("epoch", TokenTable.created_at), Integer).label("created_at"),
+                cast(func.extract("epoch", TokenTable.created), Integer).label("created"),
             )
             .offset(offset=offset)
             .limit(limit=limit)
@@ -692,46 +702,41 @@ class IdentityAccessManager:
 
     async def get_user_info(self, session: AsyncSession, user_id: int | None = None, email: str | None = None) -> UserInfo:
         assert user_id is not None or email is not None, "user_id or email is required"
-        if user_id == 0:
-            return UserInfo(
+
+        if user_id == 0:  # master user
+            routers = await global_context.model_registry.get_routers(router_id=None, name=None, session=session)
+            user = UserInfo(
                 id=0,
                 email="master",
                 name="master",
                 organization=0,
                 budget=None,
                 permissions=[permission for permission in PermissionType],
-                limits=[
-                    Limit(model=model, type=type, value=None)
-                    for model in (global_context.model_registry.models if global_context.model_registry else [])
-                    for type in LimitType
-                ],
-                expires_at=None,
-                created_at=0,
-                updated_at=0,
-                priority=settings.celery_task_max_priority,
+                limits=[Limit(router=router.id, type=type, value=None) for router in routers for type in LimitType],
             )
-        users = await self.get_users(session=session, user_id=user_id, email=email)
-        user = users[0]
+        else:
+            users = await self.get_users(session=session, user_id=user_id, email=email)
+            user = users[0]
 
-        roles = await self.get_roles(session, role_id=user.role)
-        role = roles[0]
+            roles = await self.get_roles(session, role_id=user.role)
+            role = roles[0]
 
-        # user cannot see limits on models that are not accessible by the role
-        limits = [limit for limit in role.limits if limit.value is None or limit.value > 0]
+            # user cannot see limits on models that are not accessible by the role
+            limits = [limit for limit in role.limits if limit.value is None or limit.value > 0]
 
-        user = UserInfo(
-            id=user.id,
-            email=user.email,
-            name=user.name,
-            organization=user.organization,
-            budget=user.budget,
-            permissions=role.permissions,
-            limits=limits,
-            expires_at=user.expires_at,
-            created_at=user.created_at,
-            updated_at=user.updated_at,
-            priority=user.priority,
-        )
+            user = UserInfo(
+                id=user.id,
+                email=user.email,
+                name=user.name,
+                organization=user.organization,
+                budget=user.budget,
+                permissions=role.permissions,
+                limits=limits,
+                expires_at=user.expires_at,
+                created=user.created,
+                updated=user.updated,
+                priority=user.priority,
+            )
 
         return user
 

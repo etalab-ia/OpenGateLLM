@@ -32,7 +32,7 @@ class Token(BaseModel):
     token: str
     user: int
     expires_at: int | None = None
-    created_at: int
+    created: int
 
 
 class Tokens(BaseModel):

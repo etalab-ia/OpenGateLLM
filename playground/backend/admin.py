@@ -1,5 +1,4 @@
 import time
-from typing import Optional
 
 import requests
 import streamlit as st
@@ -41,7 +40,7 @@ def delete_role(role: int):
     st.rerun()
 
 
-def update_role(role: int, name: Optional[str] = None, permissions: Optional[list] = None, limits: Optional[list] = None):
+def update_role(role: int, name: str | None = None, permissions: list | None = None, limits: list | None = None):
     response = requests.patch(
         url=f"{configuration.playground.api_url}/v1/admin/roles/{role}",
         json={"name": name, "permissions": permissions, "limits": limits},
@@ -58,7 +57,7 @@ def update_role(role: int, name: Optional[str] = None, permissions: Optional[lis
     st.rerun()
 
 
-def create_user(email: str, password: str, role: int, name: Optional[str] = None, expires_at: Optional[int] = None, budget: Optional[float] = None):
+def create_user(email: str, password: str, role: int, name: str | None = None, expires_at: int | None = None, budget: float | None = None):
     if not email:
         st.toast("User email is required", icon="❌")
         return
@@ -106,13 +105,13 @@ def delete_user(user: int):
 
 def update_user(
     user: int,
-    email: Optional[str] = None,
-    name: Optional[str] = None,
-    current_password: Optional[str] = None,
-    password: Optional[str] = None,
-    role: Optional[int] = None,
-    expires_at: Optional[int] = None,
-    budget: Optional[float] = None,
+    email: str | None = None,
+    name: str | None = None,
+    current_password: str | None = None,
+    password: str | None = None,
+    role: int | None = None,
+    expires_at: int | None = None,
+    budget: float | None = None,
 ):
     email = email.strip() if email else None
     name = name.strip() if name else None

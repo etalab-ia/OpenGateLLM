@@ -66,8 +66,8 @@ class MockIdentityAccessManagerSuccess:
                 permissions=self.GET_ROLE_PERMISSIONS,
                 limits=self.GET_ROLE_LIMITS,
                 users=self.GET_ROLE_USERS,
-                created_at=self.GET_ROLE_CREATED_AT,
-                updated_at=self.GET_ROLE_UPDATED_AT,
+                created=self.GET_ROLE_CREATED_AT,
+                updated=self.GET_ROLE_UPDATED_AT,
             )
         ]
 
@@ -87,8 +87,8 @@ class MockIdentityAccessManagerSuccess:
             permissions=[PermissionType.ADMIN],
             limits=self.GET_ROLE_LIMITS,
             expires_at=self.GET_USER_EXPIRES_AT,
-            created_at=self.GET_USER_CREATED_AT,
-            updated_at=self.GET_USER_UPDATED_AT,
+            created=self.GET_USER_CREATED_AT,
+            updated=self.GET_USER_UPDATED_AT,
         )
 
     # users
@@ -127,8 +127,8 @@ class MockIdentityAccessManagerSuccess:
                 organization=self.GET_USER_ORGANIZATION,
                 budget=self.GET_USER_BUDGET,
                 expires_at=self.GET_USER_EXPIRES_AT,
-                created_at=self.GET_USER_CREATED_AT,
-                updated_at=self.GET_USER_UPDATED_AT,
+                created=self.GET_USER_CREATED_AT,
+                updated=self.GET_USER_UPDATED_AT,
             )
         ]
 
@@ -147,7 +147,7 @@ class MockIdentityAccessManagerSuccess:
                 token="token-string",
                 user=self.CREATE_USER_ID,
                 expires_at=None,
-                created_at=0,
+                created=0,
             )
         ]
 
@@ -162,7 +162,7 @@ class MockIdentityAccessManagerSuccess:
         return None
 
     async def get_organizations(self, session, organization_id=None, offset=0, limit=10, order_by="id", order_direction="asc") -> list[Organization]:
-        return [Organization(id=self.CREATE_ORG_ID, name="org", created_at=0, updated_at=0)]
+        return [Organization(id=self.CREATE_ORG_ID, name="org", created=0, updated=0)]
 
 
 class MockIdentityAccessManagerFail:
@@ -197,8 +197,8 @@ class MockIdentityAccessManagerFail:
             permissions=[PermissionType.ADMIN],
             limits=[Limit(model="test_model", type=LimitType.TPM, value=100)],
             expires_at=None,
-            created_at=0,
-            updated_at=0,
+            created=0,
+            updated=0,
         )
 
     # users

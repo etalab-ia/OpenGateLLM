@@ -1,10 +1,6 @@
 from fastapi import HTTPException
 
-
 # 400
-class SearchMethodNotAvailableException(HTTPException):
-    def __init__(self, detail: str = "Method not available."):
-        super().__init__(status_code=400, detail=detail)
 
 
 class WrongSearchMethodException(HTTPException):
@@ -17,21 +13,6 @@ class WebSearchNotAvailableException(HTTPException):
         super().__init__(status_code=400, detail=detail)
 
 
-class RoleAlreadyExistsException(HTTPException):
-    def __init__(self, detail: str = "Role already exists."):
-        super().__init__(status_code=400, detail=detail)
-
-
-class DeleteRoleWithUsersException(HTTPException):
-    def __init__(self, detail: str = "Delete role with users is not allowed."):
-        super().__init__(status_code=400, detail=detail)
-
-
-class UserAlreadyExistsException(HTTPException):
-    def __init__(self, detail: str = "User already exists."):
-        super().__init__(status_code=400, detail=detail)
-
-
 class InsufficientBudgetException(HTTPException):
     def __init__(self, detail: str = "Insufficient budget."):
         super().__init__(status_code=400, detail=detail)
@@ -39,6 +20,11 @@ class InsufficientBudgetException(HTTPException):
 
 class InvalidTokenExpirationException(HTTPException):
     def __init__(self, detail: str = "Invalid token expiration."):
+        super().__init__(status_code=400, detail=detail)
+
+
+class InvalidProviderTypeException(HTTPException):
+    def __init__(self, detail: str = "Invalid model provider type for this model router type."):
         super().__init__(status_code=400, detail=detail)
 
 
@@ -69,6 +55,26 @@ class InsufficientPermissionException(HTTPException):
         super().__init__(status_code=403, detail=detail)
 
 
+class MissingProviderURLException(HTTPException):
+    def __init__(self, detail: str = "URL is required for this model provider type."):
+        super().__init__(status_code=403, detail=detail)
+
+
+class InconsistentModelVectorSizeException(HTTPException):
+    def __init__(self, detail: str = "Inconsistent model vector size."):
+        super().__init__(status_code=403, detail=detail)
+
+
+class InconsistentModelMaxContextLengthException(HTTPException):
+    def __init__(self, detail: str = "Inconsistent model max context length."):
+        super().__init__(status_code=403, detail=detail)
+
+
+class InconsistentModelCostsException(HTTPException):
+    def __init__(self, detail: str = "Inconsistent model costs."):
+        super().__init__(status_code=403, detail=detail)
+
+
 # 404
 class CollectionNotFoundException(HTTPException):
     def __init__(self, detail: str = "Collection not found.") -> None:
@@ -87,6 +93,16 @@ class ChunkNotFoundException(HTTPException):
 
 class ModelNotFoundException(HTTPException):
     def __init__(self, detail: str = "Model not found.") -> None:
+        super().__init__(status_code=404, detail=detail)
+
+
+class RouterNotFoundException(HTTPException):
+    def __init__(self, detail: str = "Model router not found.") -> None:
+        super().__init__(status_code=404, detail=detail)
+
+
+class ProviderNotFoundException(HTTPException):
+    def __init__(self, detail: str = "Model provider not found.") -> None:
         super().__init__(status_code=404, detail=detail)
 
 
@@ -113,6 +129,42 @@ class UserNotFoundException(HTTPException):
 class OrganizationNotFoundException(HTTPException):
     def __init__(self, detail: str = "Organization not found.") -> None:
         super().__init__(status_code=404, detail=detail)
+
+
+# 409
+class RoleAlreadyExistsException(HTTPException):
+    def __init__(self, detail: str = "Role already exists."):
+        super().__init__(status_code=409, detail=detail)
+
+
+class UserAlreadyExistsException(HTTPException):
+    def __init__(self, detail: str = "User already exists."):
+        super().__init__(status_code=409, detail=detail)
+
+
+class ProviderAlreadyExistsException(HTTPException):
+    def __init__(self, detail: str = "Model provider already exists."):
+        super().__init__(status_code=409, detail=detail)
+
+
+class RouterAliasAlreadyExistsException(HTTPException):
+    def __init__(self, detail: str = "Model router alias already exists."):
+        super().__init__(status_code=409, detail=detail)
+
+
+class RouterAlreadyExistsException(HTTPException):
+    def __init__(self, detail: str = "Model router already exists."):
+        super().__init__(status_code=409, detail=detail)
+
+
+class DeleteRoleWithUsersException(HTTPException):
+    def __init__(self, detail: str = "Delete role with users is not allowed."):
+        super().__init__(status_code=409, detail=detail)
+
+
+class DeleteOrganizationWithUsersException(HTTPException):
+    def __init__(self, detail: str = "Delete organization with users is not allowed."):
+        super().__init__(status_code=409, detail=detail)
 
 
 # 413
@@ -164,6 +216,12 @@ class UnsupportedFileUploadException(HTTPException):
         super().__init__(status_code=422, detail=detail)
 
 
+# 424
+class ProviderNotReachableException(HTTPException):
+    def __init__(self, detail: str = "Model provider not reachable.") -> None:
+        super().__init__(status_code=424, detail=detail)
+
+
 # 429
 class RateLimitExceeded(HTTPException):
     def __init__(self, detail: str = "Rate limit exceeded.") -> None:
@@ -181,11 +239,12 @@ class VectorizationFailedException(HTTPException):
         super().__init__(status_code=500, detail=detail)
 
 
-class ModelIsTooBusyException(HTTPException):
-    def __init__(self, detail: str = "Model is too busy.") -> None:
-        super().__init__(status_code=504, detail=detail)
-
-
 class TaskFailedException(HTTPException):
     def __init__(self, status_code: int = 500, detail: str = "Celery task failed.") -> None:
         super().__init__(status_code=status_code, detail=detail)
+
+
+# 503
+class ModelIsTooBusyException(HTTPException):
+    def __init__(self, detail: str = "Model is too busy, please try again later.") -> None:
+        super().__init__(status_code=503, detail=detail)

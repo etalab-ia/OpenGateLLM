@@ -50,7 +50,7 @@ sequenceDiagram
     actor user as User
     box rgba(33,66,99,0.1) OpenGateLLM
     participant route as Route
-	participant access as AccessControler
+	participant access as AccessController
 	participant limiter as Limiter
 	participant process as Request processing
 	participant hook as Hook

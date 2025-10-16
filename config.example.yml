@@ -12,14 +12,14 @@ models:
   #   aliases: # optional - example: ["model-alias"]
   #   owned_by: # optional - example: "Me"
   #   routing_strategy: # optional - default: shuffle - values: shuffle, round_robin
+  #   cost_prompt_tokens: # optional - default: 0.0 - example: 0.10
+  #   cost_completion_tokens: # optional - default: 0.0 - example: 0.10
   #   providers:
   #     - type: # required - example: "openai" - values: vllm, tei, openai, albert
   #       url: # required - example: "https://api.openai.com" (without /v1 suffix)
   #       key: # required - example: "sk-1234567890"
   #       timeout: # optional - default: 10
   #       model_name: # required - example: "gpt-4o"
-  #       model_cost_prompt_tokens: # optional - default: None - example: 0.10
-  #       model_cost_completion_tokens: # optional - default: None - example: 0.10
   #       model_carbon_footprint_zone: # optional - default: "WOR" - values: country codes (ISO 3166-1 alpha-3 format)
   #       model_carbon_footprint_total_params: # optional - default: None - example: 8
   #       model_carbon_footprint_active_params: # optional - default: None - example: 8
@@ -36,9 +36,7 @@ dependencies:
       command_timeout: 60
 
   redis: # required
-    host: ${REDIS_HOST:-localhost}
-    port: ${REDIS_PORT:-6379}
-    password: ${REDIS_PASSWORD:-changeme}
+    url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
 
   # qdrant: {} # optional
   # elastic: {} # optional
@@ -46,7 +44,6 @@ dependencies:
   # albert: {} # optional
   # brave: {} # optional
   # duckduckgo: {} # optional
-  # secretiveshell: {} # optional
   # sentry: {} # optional
 
 # ---------------------------------- settings -----------------------------------

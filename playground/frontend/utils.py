@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 from streamlit_extras.stylable_container import stylable_container
 
-from playground.backend.common import get_collections, get_documents, format_limits, get_models, get_roles, get_users
+from playground.backend.common import format_limits, get_collections, get_documents, get_models, get_roles, get_users
 
 
 def resources_selector(resource: Literal["collection", "role", "user", "document"], resource_filter: Any = None, per_page: int = 30):
@@ -13,7 +13,7 @@ def resources_selector(resource: Literal["collection", "role", "user", "document
     if resource == "role":
         col1, col2 = st.columns(2)
         with col1:
-            order_by = st.selectbox(label="Order by", options=["id", "name", "created_at", "updated_at"], index=0, key=f"order_by-{resource}")
+            order_by = st.selectbox(label="Order by", options=["id", "name", "created", "updated"], index=0, key=f"order_by-{resource}")
         with col2:
             order_direction = st.selectbox(label="Order direction", options=["asc", "desc"], index=0, key=f"order_direction-{resource}")
 
@@ -26,8 +26,8 @@ def resources_selector(resource: Literal["collection", "role", "user", "document
                     "ID": role["id"],
                     "Name": role["name"],
                     "Users": role["users"],
-                    "Created at": pd.to_datetime(role["created_at"], unit="s"),
-                    "Updated at": pd.to_datetime(role["updated_at"], unit="s"),
+                    "Created at": pd.to_datetime(role["created"], unit="s"),
+                    "Updated at": pd.to_datetime(role["updated"], unit="s"),
                 }
                 for role in resources
             ],
@@ -43,7 +43,7 @@ def resources_selector(resource: Literal["collection", "role", "user", "document
     elif resource == "user":
         col1, col2 = st.columns(2)
         with col1:
-            order_by = st.selectbox(label="Order by", options=["id", "name", "created_at", "updated_at"], index=0, key=f"order_by-{resource}")
+            order_by = st.selectbox(label="Order by", options=["id", "name", "created", "updated"], index=0, key=f"order_by-{resource}")
         with col2:
             order_direction = st.selectbox(label="Order direction", options=["asc", "desc"], index=0, key=f"order_direction-{resource}")
 
@@ -59,8 +59,8 @@ def resources_selector(resource: Literal["collection", "role", "user", "document
                     "Email": user["email"],
                     "Name": user["name"],
                     "Expires at": pd.to_datetime(user["expires_at"], unit="s") if user["expires_at"] else None,
-                    "Created at": pd.to_datetime(user["created_at"], unit="s"),
-                    "Updated at": pd.to_datetime(user["updated_at"], unit="s"),
+                    "Created at": pd.to_datetime(user["created"], unit="s"),
+                    "Updated at": pd.to_datetime(user["updated"], unit="s"),
                 }
                 for user in resources
             ],
@@ -84,7 +84,7 @@ def resources_selector(resource: Literal["collection", "role", "user", "document
                     "ID": document["id"],
                     "Name": document["name"],
                     "Chunks": document["chunks"],
-                    "Created at": pd.to_datetime(document["created_at"], unit="s"),
+                    "Created at": pd.to_datetime(document["created"], unit="s"),
                 }
                 for document in resources
             ]
@@ -109,8 +109,8 @@ def resources_selector(resource: Literal["collection", "role", "user", "document
                     "Owner": collection["owner"],
                     "Documents": collection["documents"],
                     "Description": collection["description"],
-                    "Updated at": pd.to_datetime(collection["updated_at"], unit="s"),
-                    "Created at": pd.to_datetime(collection["created_at"], unit="s"),
+                    "Updated at": pd.to_datetime(collection["updated"], unit="s"),
+                    "Created at": pd.to_datetime(collection["created"], unit="s"),
                 }
                 for collection in resources
             ],

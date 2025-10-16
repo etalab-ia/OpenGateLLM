@@ -73,13 +73,13 @@ make test-integ [action=up|down|run|all] [execute=local|docker]
 To execute a specific test, you can use the following command:
 
 ```bash
-CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ/test_api.py::test_health --config-file=pyproject.toml
+CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ/test_admin.py::TestAuth::test_user_budget --config-file=pyproject.toml
 ```
 
 To run a group of tests, you can use the following command:
 
 ```bash
-CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ/test_api.py --config-file=pyproject.toml
+CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ/test_admin.py --config-file=pyproject.toml
 ```
 
 ## Run with VSCode

@@ -1,23 +1,38 @@
-from fastapi import APIRouter, Request, Security
+from fastapi import APIRouter, Depends, Request, Security
 from fastapi.responses import JSONResponse
+from redis.asyncio import Redis as AsyncRedis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers.models import ModelRegistry
 from api.schemas.embeddings import Embeddings, EmbeddingsRequest
-from api.utils.context import global_context
+from api.sql.session import get_db_session
+from api.utils.context import request_context
+from api.utils.dependencies import get_model_registry, get_redis_client
 from api.utils.variables import ENDPOINT__EMBEDDINGS, ROUTER__EMBEDDINGS
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__EMBEDDINGS.title()])
 
 
 @router.post(path=ENDPOINT__EMBEDDINGS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Embeddings)
-async def embeddings(request: Request, body: EmbeddingsRequest) -> JSONResponse:
+async def embeddings(
+    request: Request,
+    body: EmbeddingsRequest,
+    model_registry: ModelRegistry = Depends(get_model_registry),
+    redis_client: AsyncRedis = Depends(get_redis_client),
+    session: AsyncSession = Depends(get_db_session),
+) -> JSONResponse:
     """
     Creates an embedding vector representing the input text.
     """
 
-    async def handler(client):
-        response = await client.forward_request(method="POST", json=body.model_dump())
-        return JSONResponse(content=Embeddings(**response.json()).model_dump(), status_code=response.status_code)
+    model_provider = await model_registry.get_model_provider(
+        model=body.model,
+        endpoint=ENDPOINT__EMBEDDINGS,
+        user_info=request_context.get().user_info,
+        session=session,
+        redis_client=redis_client,
+    )
+    response = await model_provider.forward_request(method="POST", json=body.model_dump(), endpoint=ENDPOINT__EMBEDDINGS, redis_client=redis_client)
 
-    model = await global_context.model_registry(model=body.model)
-    return await model.safe_client_access(endpoint=ENDPOINT__EMBEDDINGS, handler=handler)
+    return JSONResponse(content=Embeddings(**response.json()).model_dump(), status_code=response.status_code)

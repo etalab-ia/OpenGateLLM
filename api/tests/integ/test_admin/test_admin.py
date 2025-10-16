@@ -8,24 +8,24 @@ from redis import Redis
 
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.schemas.admin.roles import LimitType
+from api.schemas.admin.routers import Router
 from api.utils.configuration import configuration
 from api.utils.variables import (
     ENDPOINT__ADMIN_ROLES,
+    ENDPOINT__ADMIN_ROUTERS,
     ENDPOINT__ADMIN_TOKENS,
     ENDPOINT__ADMIN_USERS,
     ENDPOINT__CHAT_COMPLETIONS,
     ENDPOINT__COLLECTIONS,
     ENDPOINT__ME_INFO,
     ENDPOINT__ME_KEYS,
-    ENDPOINT__MODELS,
-    ENDPOINT__SEARCH,
 )
 
 
 @pytest.fixture(scope="module")
 def clean_redis() -> None:
     """Delete all redis keys for rate limiting conflicts."""
-    r = Redis(**configuration.dependencies.redis.model_dump())
+    r = Redis.from_url(configuration.dependencies.redis.url)
     assert r.ping(), "Redis database is not reachable."
 
     for key in r.keys():
@@ -41,15 +41,16 @@ def tokenizer():
 
 
 @pytest.fixture(scope="module")
-def text_generation_model(client: TestClient):
-    response = client.get_with_permissions(url=f"/v1{ENDPOINT__MODELS}")
+def text_generation_router(client: TestClient) -> Router:
+    response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}")
     assert response.status_code == 200, response.text
-    model = [model["id"] for model in response.json()["data"] if model["type"] == "text-generation"][0]
+    router = [router for router in response.json()["data"] if router["type"] == "text-generation"][0]
+    router = Router(**router)
 
-    yield model
+    yield router
 
 
-@pytest.mark.usefixtures("client", "clean_redis", "tokenizer", "roles", "text_generation_model")
+@pytest.mark.usefixtures("client", "clean_redis", "tokenizer", "roles", "text_generation_router")
 class TestAuth:
     def test_user_account_expiration_format(self, client: TestClient, roles: tuple[dict, dict]):
         role_with_permissions, role_without_permissions = roles
@@ -199,17 +200,17 @@ class TestAuth:
         )
         assert response.status_code == 400, response.text
 
-    def test_token_rate_limits(self, client: TestClient, tokenizer, text_generation_model):
+    def test_token_rate_limits(self, client: TestClient, tokenizer, text_generation_router: Router):
         # Create a role with token limits
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_ROLES}",
             json={
                 "name": f"test_role_{str(uuid4())}",
                 "limits": [
-                    {"model": text_generation_model, "type": LimitType.RPM.value, "value": None},
-                    {"model": text_generation_model, "type": LimitType.RPD.value, "value": None},
-                    {"model": text_generation_model, "type": LimitType.TPM.value, "value": None},
-                    {"model": text_generation_model, "type": LimitType.TPD.value, "value": 10},  # 10 tokens per days
+                    {"router": text_generation_router.id, "type": LimitType.RPM.value, "value": None},
+                    {"router": text_generation_router.id, "type": LimitType.RPD.value, "value": None},
+                    {"router": text_generation_router.id, "type": LimitType.TPM.value, "value": None},
+                    {"router": text_generation_router.id, "type": LimitType.TPD.value, "value": 10},  # 10 tokens per days
                 ],
             },
         )
@@ -253,14 +254,14 @@ class TestAuth:
         response = client.post(
             url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
             headers=headers,
-            json={"model": text_generation_model, "messages": [{"role": "user", "content": content_len_5}], "max_tokens": 1},
+            json={"model": text_generation_router.name, "messages": [{"role": "user", "content": content_len_5}], "max_tokens": 1},
         )
         assert response.status_code == 200, response.text
 
         response = client.post(
             url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
             headers=headers,
-            json={"model": text_generation_model, "messages": [{"role": "user", "content": content_len_10}], "max_tokens": 1},
+            json={"model": text_generation_router.name, "messages": [{"role": "user", "content": content_len_10}], "max_tokens": 1},
         )
 
         assert response.status_code == 429, response.text
@@ -271,10 +272,10 @@ class TestAuth:
             json={
                 "name": f"test_role_{str(uuid4())}",
                 "limits": [
-                    {"model": text_generation_model, "type": "rpm", "value": None},
-                    {"model": text_generation_model, "type": "rpd", "value": None},
-                    {"model": text_generation_model, "type": "tpm", "value": None},
-                    {"model": text_generation_model, "type": "tpd", "value": 50},  # 50 tokens per days
+                    {"router": text_generation_router.id, "type": "rpm", "value": None},
+                    {"router": text_generation_router.id, "type": "rpd", "value": None},
+                    {"router": text_generation_router.id, "type": "tpm", "value": None},
+                    {"router": text_generation_router.id, "type": "tpd", "value": 50},  # 50 tokens per days
                 ],
             },
         )
@@ -283,7 +284,7 @@ class TestAuth:
         response = client.post(
             url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
             headers=headers,
-            json={"model": text_generation_model, "messages": [{"role": "user", "content": content_len_10}], "max_tokens": 1},
+            json={"model": text_generation_router.name, "messages": [{"role": "user", "content": content_len_10}], "max_tokens": 1},
         )
         assert response.status_code == 200, response.text
 
@@ -292,14 +293,14 @@ class TestAuth:
             url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
             headers=headers,
             json={
-                "model": text_generation_model,
+                "model": text_generation_router.name,
                 "messages": [{"role": "assistant", "content": content_len_10}, {"role": "user", "content": content_len_40}],
                 "max_tokens": 1,
             },
         )
         assert response.status_code == 429, response.text
 
-    def test_user_budget(self, client: TestClient, tokenizer, text_generation_model):
+    def test_user_budget(self, client: TestClient, tokenizer, text_generation_router: Router):
         # Create a user
         initial_budget = 10
         response = client.post_with_permissions(
@@ -330,7 +331,7 @@ class TestAuth:
         response = client.post(
             url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
             headers={"Authorization": f"Bearer {token}"},
-            json={"model": text_generation_model, "messages": [{"role": "user", "content": prompt}], "max_tokens": 100},
+            json={"model": text_generation_router.name, "messages": [{"role": "user", "content": prompt}], "max_tokens": 100},
         )
         assert response.status_code == 200, response.text
 
@@ -358,7 +359,7 @@ class TestAuth:
         response = client.post(
             url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
             headers={"Authorization": f"Bearer {token}"},
-            json={"model": text_generation_model, "messages": [{"role": "user", "content": prompt}], "max_tokens": 100},
+            json={"model": text_generation_router.name, "messages": [{"role": "user", "content": prompt}], "max_tokens": 100},
         )
         assert response.status_code == 400, response.text
 
@@ -467,136 +468,3 @@ class TestAuth:
 
         # Check that tokens are different for both users
         assert user1_token_data["token"] != user2_token_data["token"], "Tokens with same name across users should not be modified by each other"
-
-    def test_web_search_limits_search(self, client: TestClient, tokenizer, text_generation_model):
-        # Create a role with web search limits (only one request per day)
-        response = client.get_with_permissions(url=f"/v1{ENDPOINT__MODELS}")
-        assert response.status_code == 200, response.text
-        models = response.json()["data"]
-
-        models = [model["id"] for model in models]
-
-        limits = []
-        for model in models:
-            limits.append({"model": model, "type": LimitType.RPM.value, "value": None})
-            limits.append({"model": model, "type": LimitType.RPD.value, "value": None})
-            limits.append({"model": model, "type": LimitType.TPM.value, "value": None})
-            limits.append({"model": model, "type": LimitType.TPD.value, "value": None})
-
-        limits.append({"model": "web-search", "type": LimitType.RPM.value, "value": None})
-        limits.append({"model": "web-search", "type": LimitType.RPD.value, "value": 1})
-
-        response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROLES}", json={"name": f"test_role_{str(uuid4())}", "limits": limits})
-        assert response.status_code == 201, response.text
-        role_id = response.json()["id"]
-
-        # Create a user
-        response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_USERS}",
-            json={
-                "email": f"test_user_{str(uuid4())}@example.com",
-                "name": f"test_user_{str(uuid4())}",
-                "role": role_id,
-                "password": "test-password",
-            },
-        )
-        assert response.status_code == 201, response.text
-        user_id = response.json()["id"]
-
-        # Create a token for this user
-        response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
-            json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires_at": int((time.time()) + 60 * 10)},
-        )
-        assert response.status_code == 201, response.text
-        token = response.json()["token"]
-
-        # Test the web search limits (/v1/search)
-        prompt = "Can you find information about the DINUM, the French government agency responsible for digital transformation?"
-        response = client.post(
-            url=f"/v1{ENDPOINT__SEARCH}",
-            headers={"Authorization": f"Bearer {token}"},
-            json={"web_search": True, "prompt": prompt},
-        )
-        assert response.status_code == 200, response.text
-
-        response = client.post(
-            url=f"/v1{ENDPOINT__SEARCH}",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "web_search": True,
-                "prompt": prompt,
-            },
-        )
-        assert response.status_code == 429, response.text
-
-    def test_web_search_limits_chat_completions(self, client: TestClient, tokenizer, text_generation_model):
-        # Create a role with web search limits (only one request per day)
-        response = client.get_with_permissions(url=f"/v1{ENDPOINT__MODELS}")
-        assert response.status_code == 200, response.text
-        models = response.json()["data"]
-
-        models = [model["id"] for model in models]
-
-        limits = []
-        for model in models:
-            limits.append({"model": model, "type": LimitType.RPM.value, "value": None})
-            limits.append({"model": model, "type": LimitType.RPD.value, "value": None})
-            limits.append({"model": model, "type": LimitType.TPM.value, "value": None})
-            limits.append({"model": model, "type": LimitType.TPD.value, "value": None})
-
-        limits.append({"model": "web-search", "type": LimitType.RPM.value, "value": None})
-        limits.append({"model": "web-search", "type": LimitType.RPD.value, "value": 1})
-
-        response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROLES}", json={"name": f"test_role_{str(uuid4())}", "limits": limits})
-        assert response.status_code == 201, response.text
-        role_id = response.json()["id"]
-
-        # Create a user
-        response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_USERS}",
-            json={
-                "email": f"test_user_{str(uuid4())}@example.com",
-                "name": f"test_user_{str(uuid4())}",
-                "role": role_id,
-                "password": "test-password",
-            },
-        )
-        assert response.status_code == 201, response.text
-        user_id = response.json()["id"]
-
-        # Create a token for this user
-        response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
-            json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires_at": int((time.time()) + 60 * 10)},
-        )
-        assert response.status_code == 201, response.text
-        token = response.json()["token"]
-
-        # Test the web search limits (/v1/chat/completions)
-        prompt = "Can you find information about the DINUM, the French government agency responsible for digital transformation?"
-        response = client.post(
-            url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "model": text_generation_model,
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 100,
-                "search": True,
-                "search_args": {"web_search": True},
-            },
-        )
-        assert response.status_code == 200, response.text
-
-        response = client.post(
-            url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
-            headers={"Authorization": f"Bearer {token}"},
-            json={
-                "model": text_generation_model,
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 100,
-                "search": True,
-                "search_args": {"web_search": True},
-            },
-        )
-        assert response.status_code == 429, response.text

@@ -93,7 +93,7 @@ async def get_key(
 
     keys = await global_context.identity_access_manager.get_tokens(session=session, user_id=request_context.get().user_info.id, token_id=key)
     key = keys[0]
-    key = Key(id=key.id, name=key.name, token=key.token, expires_at=key.expires_at, created_at=key.created_at)
+    key = Key(id=key.id, name=key.name, token=key.token, expires_at=key.expires_at, created=key.created)
 
     return JSONResponse(content=key.model_dump(), status_code=200)
 
@@ -103,7 +103,7 @@ async def get_keys(
     request: Request,
     offset: int = Query(default=0, ge=0, description="The offset of the tokens to get."),
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the tokens to get."),
-    order_by: Literal["id", "name", "created_at"] = Query(default="id", description="The field to order the tokens by."),
+    order_by: Literal["id", "name", "created"] = Query(default="id", description="The field to order the tokens by."),
     order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the tokens by."),
     session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:
@@ -119,6 +119,6 @@ async def get_keys(
         order_by=order_by,
         order_direction=order_direction,
     )
-    data = [Key(id=key.id, name=key.name, token=key.token, expires_at=key.expires_at, created_at=key.created_at) for key in data]
+    data = [Key(id=key.id, name=key.name, token=key.token, expires_at=key.expires_at, created=key.created) for key in data]
 
     return JSONResponse(content=Keys(data=data).model_dump(), status_code=200)

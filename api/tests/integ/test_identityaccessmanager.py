@@ -2,12 +2,20 @@ from fastapi.testclient import TestClient
 import pytest
 
 from api.schemas.admin.roles import PermissionType
-from api.utils.variables import ENDPOINT__ADMIN_ROLES
+from api.utils.variables import ENDPOINT__ADMIN_ROLES, ENDPOINT__ADMIN_ROUTERS
+
+
+@pytest.fixture(scope="module")
+def router_id(client: TestClient) -> int:
+    response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}")
+    assert response.status_code == 200, response.text
+    models = response.json()["data"]
+    return models[0]["id"]
 
 
 @pytest.mark.usefixtures("client")
 class TestIdentityAccessManager:
-    def test_update_role(self, client: TestClient):
+    def test_update_role(self, client: TestClient, router_id: int):
         """Test the update_role function through the API."""
 
         # Create a role to update
@@ -15,8 +23,8 @@ class TestIdentityAccessManager:
             "name": "test-role",
             "permissions": [PermissionType.ADMIN.value],
             "limits": [
-                {"model": "test-model", "type": "rpm", "value": 100},
-                {"model": "test-model", "type": "rpd", "value": 1000},
+                {"router": router_id, "type": "rpm", "value": 100},
+                {"router": router_id, "type": "rpd", "value": 1000},
             ],
         }
 
@@ -30,7 +38,7 @@ class TestIdentityAccessManager:
             "name": "updated-role",
             "permissions": [PermissionType.ADMIN.value],
             "limits": [
-                {"model": "new-model", "type": "rpm", "value": 200},
+                {"router": router_id, "type": "rpm", "value": 200},
             ],
         }
 
@@ -46,7 +54,7 @@ class TestIdentityAccessManager:
         # Verify the updates
         assert updated_role["name"] == "updated-role"
         assert len(updated_role["limits"]) == 1
-        assert updated_role["limits"][0]["model"] == "new-model"
+        assert updated_role["limits"][0]["router"] == router_id
         assert updated_role["limits"][0]["type"] == "rpm"
         assert updated_role["limits"][0]["value"] == 200
         assert len(updated_role["permissions"]) == 1

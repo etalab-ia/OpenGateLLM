@@ -4,7 +4,6 @@ import json
 import logging
 import secrets
 import string
-from typing import List, Optional
 
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
@@ -28,22 +27,22 @@ class LimitType(str, Enum):
 class Limit(BaseModel):
     model: str
     type: LimitType
-    value: Optional[int] = None
+    value: int | None = None
 
 
 class User(BaseModel):
     id: int
     email: str
-    name: Optional[str] = None
+    name: str | None = None
     api_key_id: int
     api_key: str
-    limits: List[Limit]
-    permissions: List[str]
-    budget: Optional[float] = None
-    expires_at: Optional[int] = None
-    created_at: Optional[int] = None
-    updated_at: Optional[int] = None
-    proconnect_token: Optional[str] = None
+    limits: list[Limit]
+    permissions: list[str]
+    budget: float | None = None
+    expires_at: int | None = None
+    created: int | None = None
+    updated: int | None = None
+    proconnect_token: str | None = None
 
 
 def login(user_name: str, user_password: str) -> dict:
@@ -70,8 +69,8 @@ def login(user_name: str, user_password: str) -> dict:
         permissions=user["permissions"],
         budget=user["budget"],
         expires_at=user["expires_at"],
-        created_at=user["created_at"],
-        updated_at=user["updated_at"],
+        created=user["created"],
+        updated=user["updated"],
     )
     st.session_state["login_status"] = True
     st.session_state["user"] = user
@@ -103,8 +102,8 @@ def oauth_login(api_key: str, api_key_id: str, proconnect_token: str = None):
         permissions=user["permissions"],
         budget=user["budget"],
         expires_at=user["expires_at"],
-        created_at=user["created_at"],
-        updated_at=user["updated_at"],
+        created=user["created"],
+        updated=user["updated"],
     )
     st.session_state["login_status"] = True
     st.session_state["user"] = user

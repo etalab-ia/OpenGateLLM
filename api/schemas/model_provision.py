@@ -18,7 +18,9 @@ class AddModelRequest(BaseModel):
     # Optional fields
     model_type: ModelType | None = Field(default=None, description="Model type. Required when creating a new ModelRouter.")
     aliases: list[str] | None = Field(default=[], description="Aliases, to add for existing router, to set for new instance.")
-    routing_strategy: RoutingStrategy | None = Field(default=RoutingStrategy.ROUND_ROBIN, description="Routing Strategy when creating a new router.")
+    load_balancing_strategy: RoutingStrategy | None = Field(
+        default=RoutingStrategy.ROUND_ROBIN, description="Routing Strategy when creating a new router."
+    )
     owner: str | None = Field(default=None, description="ModelRouter owner when creating a new one.")
 
     additional_field: dict[str, Any] | None = Field(default=None, description="Additional or specific data")

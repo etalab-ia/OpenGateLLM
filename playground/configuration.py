@@ -2,7 +2,7 @@ from functools import lru_cache
 import logging
 import os
 import re
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
@@ -14,22 +14,22 @@ class ConfigBaseModel(BaseModel):
 
 
 class MenuItems(ConfigBaseModel):
-    get_help: Optional[str] = None
-    report_a_bug: Optional[str] = None
-    about: Optional[str] = None
+    get_help: str | None = None
+    report_a_bug: str | None = None
+    about: str | None = None
 
 
 class Playground(ConfigBaseModel):
     auth_master_username: str = "master"
-    auth_max_token_expiration_days: Optional[int] = Field(default=None, ge=0)
-    auth_encryption_key: Optional[str] = Field(default="changeme", description="Secret key for encrypting between FastAPI and Playground. Must be 32 url-safe base64-encoded bytes.")  # fmt: off
+    auth_max_token_expiration_days: int | None = Field(default=None, ge=0)
+    auth_encryption_key: str | None = Field(default="changeme", description="Secret key for encrypting between FastAPI and Playground. Must be 32 url-safe base64-encoded bytes.")  # fmt: off
     api_url: str = "http://localhost:8000"
     home_url: str = "http://localhost:8501"
     page_icon: str = "https://github.com/etalab-ia/opengatellm/blob/main/docs/static/img/ogl_logo.svg?raw=true"
     menu_items: MenuItems = MenuItems()
     logo: str = "https://github.com/etalab-ia/opengatellm/blob/main/docs/static/img/ogl_logo.svg?raw=true"
     cache_ttl: int = 1800  # 30 minutes
-    default_model: Optional[str] = None
+    default_model: str | None = None
     proconnect_enabled: bool = False
 
 
@@ -49,7 +49,7 @@ class Configuration(BaseSettings):
 
     @model_validator(mode="after")
     def setup_config(cls, values) -> Any:
-        with open(file=values.config_file, mode="r") as file:
+        with open(file=values.config_file) as file:
             lines = file.readlines()
 
         non_comment_lines = [line for line in lines if not line.lstrip().startswith("#")]

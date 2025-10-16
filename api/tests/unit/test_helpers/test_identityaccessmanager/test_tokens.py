@@ -135,8 +135,8 @@ async def test_delete_tokens_by_name(session: AsyncSession):
 async def test_get_tokens_filters_and_exclude_expired(session: AsyncSession):
     iam = IdentityAccessManager(master_key="secret")
     rows = [
-        MagicMock(_mapping={"id": 1, "name": "dev", "token": "sk-xxxx", "user": 1, "expires_at": None, "created_at": 10}),
-        MagicMock(_mapping={"id": 2, "name": "ops", "token": "sk-yyyy", "user": 1, "expires_at": 11, "created_at": 12}),
+        MagicMock(_mapping={"id": 1, "name": "dev", "token": "sk-xxxx", "user": 1, "expires_at": None, "created": 10}),
+        MagicMock(_mapping={"id": 2, "name": "ops", "token": "sk-yyyy", "user": 1, "expires_at": 11, "created": 12}),
     ]
     session.execute = AsyncMock(return_value=_Result(all_rows=rows))
 
@@ -169,7 +169,7 @@ async def test_check_token_ok(session: AsyncSession):
                             "user": 1,
                             "token": "sk-abcdef",
                             "name": "dev",
-                            "created_at": 1755243926,
+                            "created": 1755243926,
                             "expires_at": None,
                         }
                     )

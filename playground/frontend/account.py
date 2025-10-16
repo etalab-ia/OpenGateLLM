@@ -5,9 +5,9 @@ import streamlit as st
 
 from playground.backend.account import change_password, create_token, delete_token
 from playground.backend.common import format_limits, get_models, get_tokens, get_usage
+from playground.configuration import configuration
 from playground.frontend.header import header
 from playground.frontend.utils import pagination
-from playground.configuration import configuration
 
 header()
 models = get_models() + ["web-search"]
@@ -188,7 +188,7 @@ st.dataframe(
             "ID": [token["id"] for token in tokens],
             "Name": [token["name"] for token in tokens],
             "Token": [token["token"] for token in tokens],
-            "Created at": [pd.to_datetime(token["created_at"], unit="s") for token in tokens],
+            "Created at": [pd.to_datetime(token["created"], unit="s") for token in tokens],
             "Expiration": [pd.to_datetime(token["expires_at"], unit="s") for token in tokens],
         }
     ).style.apply(

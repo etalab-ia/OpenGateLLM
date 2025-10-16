@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional
+from typing import Literal
 
 import requests
 import streamlit as st
@@ -77,7 +77,7 @@ def get_tokens(offset: int = 0, limit: int = 10) -> list:
 def get_roles(
     offset: int = 0,
     limit: int = 10,
-    order_by: Literal["id", "name", "created_at", "updated_at"] = "id",
+    order_by: Literal["id", "name", "created", "updated"] = "id",
     order_direction: Literal["asc", "desc"] = "asc",
 ):
     response = requests.get(
@@ -99,7 +99,7 @@ def get_users(
     role: int,
     offset: int = 0,
     limit: int = 100,
-    order_by: Literal["id", "name", "created_at", "updated_at"] = "id",
+    order_by: Literal["id", "name", "created", "updated"] = "id",
     order_direction: Literal["asc", "desc"] = "asc",
 ):
     response = requests.get(
@@ -115,7 +115,7 @@ def get_users(
     return data
 
 
-def format_limits(models: list, limits: Optional[List[Limit]] = None) -> dict:
+def format_limits(models: list, limits: list[Limit] | None = None) -> dict:
     limits = st.session_state["user"].limits if limits is None else limits
     formatted_limits = {}
     for model in models:

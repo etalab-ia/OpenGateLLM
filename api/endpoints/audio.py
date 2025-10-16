@@ -1,9 +1,12 @@
 from typing import Literal
 
-from fastapi import APIRouter, File, Request, Security, UploadFile
+from fastapi import APIRouter, Depends, File, Request, Security, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
+from redis.asyncio import Redis as AsyncRedis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers.models import ModelRegistry
 from api.schemas.audio import (
     AudioTranscription,
     AudioTranscriptionLanguage,
@@ -14,7 +17,9 @@ from api.schemas.audio import (
     AudioTranscriptionTemperatureForm,
     AudioTranscriptionTimestampGranularitiesForm,
 )
-from api.utils.context import global_context
+from api.sql.session import get_db_session
+from api.utils.context import request_context
+from api.utils.dependencies import get_model_registry, get_redis_client
 from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS, ROUTER__AUDIO
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__AUDIO.title()])
@@ -30,20 +35,19 @@ async def audio_transcriptions(
     response_format: Literal["json", "text"] = AudioTranscriptionResponseFormatForm,
     temperature: float = AudioTranscriptionTemperatureForm,
     timestamp_granularities: list[str] = AudioTranscriptionTimestampGranularitiesForm,
+    model_registry: ModelRegistry = Depends(get_model_registry),
+    redis_client: AsyncRedis = Depends(get_redis_client),
+    session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse | PlainTextResponse:
     """
     Transcribes audio into the input language.
     """
 
-    # @TODO: Implement prompt
-    # @TODO: Implement timestamp_granularities
-    # @TODO: Implement verbose response format
-
     file_content = await file.read()
-    model = await global_context.model_registry(model=model)
-    client, _ = model.get_client(endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS)
+    # model = await global_context.model_registry(model=model)
+    # client, _ = model.get_client(endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS)
     payload = {
-        "model": client.name,
+        "model": model,
         "response_format": response_format,
         "temperature": temperature,
         "timestamp_granularities": timestamp_granularities,
@@ -51,22 +55,23 @@ async def audio_transcriptions(
     if language != "":
         payload["language"] = language.value
 
-    async def handler(client):
-        payload = {
-            "model": client.name,
-            "response_format": response_format,
-            "temperature": temperature,
-            "timestamp_granularities": timestamp_granularities,
-        }
+    model_provider = await model_registry.get_model_provider(
+        model=model,
+        endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS,
+        user_info=request_context.get().user_info,
+        session=session,
+        redis_client=redis_client,
+    )
 
-        if language != "":
-            payload["language"] = language.value
+    response = await model_provider.forward_request(
+        method="POST",
+        files={"file": (file.filename, file_content, file.content_type)},
+        data=payload,
+        endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS,
+        redis_client=redis_client,
+    )
 
-        response = await client.forward_request(method="POST", files={"file": (file.filename, file_content, file.content_type)}, data=payload)
+    if response_format == "text":
+        return PlainTextResponse(content=response.text)
 
-        if response_format == "text":
-            return PlainTextResponse(content=response.text)
-
-        return JSONResponse(content=AudioTranscription(**response.json()).model_dump(), status_code=response.status_code)
-
-    return await model.safe_client_access(endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS, handler=handler)
+    return JSONResponse(content=AudioTranscription(**response.json()).model_dump(), status_code=response.status_code)
