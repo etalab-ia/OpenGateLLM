@@ -18,7 +18,7 @@ models:
   
   - name: albert-small
     type: text-generation
-    routing_strategy: round_robin
+    load_balancing_strategy: shuffle
     aliases: ["meta-llama/Llama-3.1-8B-Instruct"]
     cost_prompt_tokens: 1
     cost_completion_tokens: 3
@@ -31,18 +31,7 @@ models:
         model_carbon_footprint_active_params: 8
         model_carbon_footprint_zone: FRA
         qos_metric: inflight
-        qos_value: 5
-      - type: albert
-        key: ${ALBERT_API_KEY}
-        timeout: 80
-        model_name: albert-small
-        model_carbon_footprint_total_params: 8
-        model_carbon_footprint_active_params: 8
-        model_carbon_footprint_zone: FRA
-        qos_policy: parallel-requests-threshold
-        max_parallel_requests: 5
-        qos_metric: inflight
-        qos_value: 5
+        qos_limit: 5
 
   - name: embeddings-small
     type: text-embeddings-inference
@@ -102,7 +91,7 @@ dependencies:
       command_timeout: 60
 
   redis:
-    url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
+    url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
 
   elasticsearch:
     hosts: http://${ELASTICSEARCH_HOST:-elasticsearch}:${ELASTICSEARCH_PORT:-9200}
@@ -167,13 +156,6 @@ settings:
   search_web_user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
   search_multi_agents_synthesis_model: albert-large
   search_multi_agents_reranker_model: albert-small
-  # Celery / Task execution
-  celery_task_always_eager: True
-  # --- Setup to use RabbitMQ and Redis as broker and backend ---
-  # celery_task_always_eager: false
-  # celery_broker_url: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}//
-  # celery_result_backend: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/1
-  # --- Alternatives for in-process worker tests (no external broker) ---
-  # celery_task_always_eager: false
-  # celery_broker_url: memory://
-  # celery_result_backend: cache+memory://
+  celery_task_always_eager: ${CELERY_TASK_ALWAYS_EAGER:-false}
+  celery_broker_url: amqp://${RABBITMQ_USER:-rabbitmq}:${RABBITMQ_PASSWORD:-changeme}@${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}/
+  celery_result_backend: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/1

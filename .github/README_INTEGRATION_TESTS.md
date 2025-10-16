@@ -12,11 +12,6 @@ The configuration file is in the `api/tests/integ/config.test.yml` file.
 - Docker
 - Docker Compose
 - Virtual environment with packages installed (see [CONTRIBUTING.md](../CONTRIBUTING.md)) (optional)
-- OpenMockLLM
-
-    ```bash
-    pip install git+https://github.com/etalab-ia/openmockllm.git
-    ```
 
 ### Start services and run tests
 

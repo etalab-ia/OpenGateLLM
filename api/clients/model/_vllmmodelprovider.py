@@ -52,7 +52,7 @@ class VllmModelProvider(BaseModelProvider):
 
         async with httpx.AsyncClient() as client:
             response = await client.get(url=url, headers=self.headers, timeout=self.timeout)
-            assert response.status_code == 200, f"Model is not reachable ({response.status_code})."
+            assert response.status_code == 200, f"Model is not reachable ({response.status_code} - {response.text})."
 
         data = response.json()
         models = [model for model in data["data"] if model["id"] == self.name]

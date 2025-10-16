@@ -1,7 +1,7 @@
 from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
 
-from api.helpers.models.load_balancing import LeastBusyLoadBalancingStrategy, ShuffleLoadBalancingStrategy
+from api.helpers.load_balancing import LeastBusyLoadBalancingStrategy, ShuffleLoadBalancingStrategy
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.core.metrics import Metric
 
@@ -9,7 +9,7 @@ from api.schemas.core.metrics import Metric
 def apply_sync_load_balancing(
     load_balancing_strategy: RouterLoadBalancingStrategy,
     candidates: list[int],
-    redis_client: Redis | None = None,
+    redis_client: Redis,
     load_balancing_metric: Metric = Metric.TTFT,
 ) -> tuple[int, float | None]:
     """
@@ -18,8 +18,8 @@ def apply_sync_load_balancing(
     Args:
         load_balancing_strategy (RouterLoadBalancingStrategy): The routing strategy to use for selecting a provider
         candidates (list[int]): The list of provider candidates (provider IDs) to choose from
+        redis_client (Redis): Redis client instance, required for least busy strategy
         load_balancing_metric (Metric): The type of metric to use for performance evaluation
-        redis_client (Redis | None): Redis client instance, required for least busy strategy
 
     Returns:
         tuple[int, float | None]: A tuple containing:

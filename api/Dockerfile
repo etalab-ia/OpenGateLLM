@@ -23,8 +23,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv pip install ".[api]"
 
-# Final stage
-FROM python:3.12-slim
+# Runtime stage
+FROM python:3.12-slim as runtime
 
 RUN groupadd --gid 1100 opengatellm && \
     useradd --home /api --gid 1100 --uid 1100 opengatellm
@@ -35,20 +35,25 @@ RUN apt-get update && apt-get install -y \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
-COPY scripts/startup_api.sh /startup.sh
-RUN chown opengatellm:opengatellm /startup.sh
-RUN chmod u+x /startup.sh
-
 # Set a non-root user
 USER opengatellm
 WORKDIR /
 
 # Copy application from builder
 COPY --from=builder --chown=opengatellm:opengatellm /api /api
-COPY ./scripts/ /scripts
 COPY --from=builder --chown=opengatellm:opengatellm /.venv /.venv
+COPY --chown=opengatellm:opengatellm ./scripts/ /scripts
+
 ENV PATH="/.venv/bin:${PATH}"
 ENV PYTHONPATH="/api:${PYTHONPATH}"
 
-# Launch the application
-CMD ["./startup.sh"]
+# Final stages: worker and api (depend --target)
+FROM runtime as worker
+
+RUN chmod u+x /scripts/startup_worker.sh
+CMD ["/scripts/startup_worker.sh"]
+
+FROM runtime as api
+
+RUN chmod u+x /scripts/startup_api.sh
+CMD ["/scripts/startup_api.sh"]

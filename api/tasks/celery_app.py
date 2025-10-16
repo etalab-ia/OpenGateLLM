@@ -53,6 +53,7 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    task_create_missing_queues=True,  # Enable dynamic queue creation
 )
 
 # Priority queues (RabbitMQ only). We lazily declare per-model queues elsewhere; here we set defaults.
@@ -69,3 +70,30 @@ if configuration.settings.celery_broker_url and configuration.settings.celery_br
     celery_app.conf.task_default_exchange = ""
     celery_app.conf.task_default_routing_key = f"{configuration.settings.celery_default_queue_prefix}.default"
     celery_app.conf.task_queue_max_priority = configuration.settings.celery_task_max_priority
+
+
+def ensure_queue_exists(queue_name: str) -> None:
+    """
+    Ensure a queue exists with proper configuration (priority support for RabbitMQ).
+    This function declares the queue if it doesn't exist yet, ensuring it has the correct
+    arguments for priority queues when using RabbitMQ. With task_create_missing_queues=True,
+    queues are created automatically when tasks are sent, but we still need to declare them
+    with proper arguments for RabbitMQ priority queues.
+
+    Args:
+        queue_name: The name of the queue to ensure exists
+    """
+    if settings.celery_task_always_eager:
+        return
+
+    queue = Queue(queue_name, routing_key=queue_name, queue_arguments={"x-max-priority": configuration.settings.celery_task_max_priority})
+    existing_queues = celery_app.conf.task_queues or ()
+    queue_names = {q.name for q in existing_queues}
+    if queue_name not in queue_names:
+        celery_app.conf.task_queues = existing_queues + (queue,)
+        celery_app.control.add_consumer(queue_name)
+
+
+# Import tasks to ensure they are registered with Celery
+# This ensures that when the worker starts, all tasks are available
+from api.tasks import routing  # noqa: F401

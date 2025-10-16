@@ -10,6 +10,7 @@ on:
 
 jobs:
   unit-tests:
+    name: Unit tests
     runs-on: ubuntu-latest
 
     steps:
@@ -42,6 +43,7 @@ jobs:
           echo "{\"schemaVersion\":1,\"label\":\"coverage\",\"message\":\"${COVERAGE_PCT}%\",\"color\":\"$(if (( $(echo \"${COVERAGE_PCT} >= 80\" | bc -l) )); then echo "green"; elif (( $(echo \"${COVERAGE_PCT} >= 70\" | bc -l) )); then echo "yellow"; else echo "red"; fi)\"}" > .github/badges/coverage.json
 
       - name: Commit unit coverage badge
+        if: github.event.pull_request.base.ref == 'main'
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: Update unit coverage badge
@@ -50,7 +52,11 @@ jobs:
           commit_user_email: "actions@github.com"
 
   integration-tests:
+    name: Integration tests
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        with_queuing: [with queuing, without queuing]
 
     steps:
     - uses: actions/checkout@v4
@@ -73,6 +79,7 @@ jobs:
         # Run integration tests
         make test-integ action=all execute=local
       env:
+        CELERY_TASK_ALWAYS_EAGER: ${{ matrix.with_queuing == 'with queuing' && 'false' || 'true' }}
         BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
         ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}
 

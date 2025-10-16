@@ -87,7 +87,7 @@ class ModelProvider(ConfigBaseModel):
     model_carbon_footprint_total_params: int | None = Field(default=None, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     model_carbon_footprint_active_params: int | None = Field(default=None, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     qos_metric: Metric | None = Field(default=None, description="The metric to use for the quality of service. If not provided, no QoS policy is applied.", examples=[Metric.INFLIGHT.value])  # fmt: off
-    qos_value: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.", examples=[0.5])  # fmt: off
+    qos_limit: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.", examples=[0.5])  # fmt: off
 
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#model")
@@ -120,7 +120,7 @@ class ParserType(str, Enum):
 
 
 class VectorStoreType(str, Enum):
-    ELASTIC = "elasticsearch"
+    ELASTICSEARCH = "elasticsearch"
     QDRANT = "qdrant"
 
 
@@ -133,7 +133,7 @@ class DependencyType(str, Enum):
     ALBERT = "albert"
     BRAVE = "brave"
     DUCKDUCKGO = "duckduckgo"
-    ELASTIC = "elasticsearch"
+    ELASTICSEARCH = "elasticsearch"
     QDRANT = "qdrant"
     MARKER = "marker"
     POSTGRES = "postgres"
@@ -351,7 +351,7 @@ class Settings(ConfigBaseModel):
     # TODO: pass celery as dependency
     celery_task_always_eager: bool = Field(default=True, description="Execute Celery tasks locally (synchronously) without a broker. Set to false in production to use the configured broker/result backend.")  # fmt: off
     celery_task_eager_propagates: bool = Field(default=True, description="If true, exceptions in eager mode propagate immediately (useful for tests/development).")  # fmt: off
-    celery_broker_url: str | None = Field(default=None, description="Celery broker URL (e.g. redis://localhost:6379/0 or amqp://user:pass@host:5672//). Required if celery_task_always_eager is false.")  # fmt: off
+    celery_broker_url: str | None = Field(default=None, description="Celery broker URL (e.g. redis://localhost:6379/0 or amqp://user:pass@host:5672/). Required if celery_task_always_eager is false.")  # fmt: off
     celery_result_backend: str | None = Field(default=None,description="Celery result backend URL (e.g. redis://localhost:6379/1 or rpc://). If not provided, results may not persist across workers.")  # fmt: off
     celery_task_soft_time_limit: int = Field(default=120, ge=1, description="Soft time limit (in seconds) applied to model invocation tasks.")  # fmt: off
     celery_task_retry_countdown: int = Field(default=1,ge=1, description="Number of seconds before retrying a failed celery task.")  # fmt: off

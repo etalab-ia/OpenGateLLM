@@ -6,7 +6,7 @@ import random
 from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
 
-from api.helpers.models.load_balancing import BaseLoadBalancingStrategy
+from api.helpers.load_balancing import BaseLoadBalancingStrategy
 from api.schemas.core.metrics import Metric
 from api.utils.variables import METRIC__TIMESERIE_PREFIX, METRIC__TIMESERIE_RETENTION_SECONDS
 

@@ -1,8 +1,6 @@
-import asyncio
 from contextvars import ContextVar
 import logging
 
-from celery.result import AsyncResult
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy import Integer, cast, delete, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError, NoResultFound
@@ -21,8 +19,7 @@ from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 from api.sql.models import User as UserTable
-from api.tasks.celery_app import celery_app
-from api.tasks.queuing import apply_load_balancing_and_qos_policy_with_queuing, apply_load_balancing_and_qos_policy_without_queuing
+from api.tasks.celery_app import ensure_queue_exists
 from api.utils.exceptions import (
     InconsistentModelMaxContextLengthException,
     InconsistentModelVectorSizeException,
@@ -36,9 +33,9 @@ from api.utils.exceptions import (
     RouterAliasAlreadyExistsException,
     RouterAlreadyExistsException,
     RouterNotFoundException,
-    TaskFailedException,
     WrongModelTypeException,
 )
+from api.utils.routing import apply_routing_with_queuing, apply_routing_without_queuing
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -104,7 +101,15 @@ class ModelRegistry:
         self.task_max_retries = task_max_retries
         self.task_retry_countdown = task_retry_countdown
 
-    async def _import_model_configuration(self, models: list[ModelConfiguration], session: AsyncSession) -> None:
+    async def setup(self, models: list[ModelConfiguration], session: AsyncSession) -> None:
+        """
+        Setup the model registry by creating the routers and providers from the configuration and
+        creating the consumers for the routers. Run in lifespan context.
+
+        Args:
+            models(list[ModelConfiguration]): The models to setup
+            session(AsyncSession): The database session
+        """
         for model in models:
             try:
                 router_id = await self.create_router(
@@ -121,7 +126,7 @@ class ModelRegistry:
             except RouterAlreadyExistsException:
                 logger.warning(f"Router {model.name} already exists, skipping.")
             except Exception as e:
-                session.rollback()
+                await session.rollback()
                 logger.error(f"Error creating router {model.name}: {e}")
                 raise e
 
@@ -142,17 +147,22 @@ class ModelRegistry:
                         model_carbon_footprint_total_params=provider.model_carbon_footprint_total_params,
                         model_carbon_footprint_active_params=provider.model_carbon_footprint_active_params,
                         qos_metric=provider.qos_metric,
-                        qos_value=provider.qos_value,
+                        qos_limit=provider.qos_limit,
                         session=session,
                     )
                 except ProviderAlreadyExistsException:
                     logger.warning(f"Provider {provider.model_name} already exists for router {model.name} (skipping)")
                     continue
                 except Exception as e:
-                    session.rollback()
+                    await session.rollback()
                     logger.error(f"Provider {provider.model_name} failed to be created for router {model.name} ({e})")
                     raise e
                 logging.info(f"Provider {provider.model_name} successfully created for router {model.name} (id: {provider_id})")
+
+            if not self.task_always_eager:
+                routers = await self.get_routers(router_id=None, name=None, session=session)
+                for router in routers:
+                    ensure_queue_exists(f"{self.queue_name_prefix}.{router.id}")
 
     async def create_router(
         self,
@@ -218,6 +228,9 @@ class ModelRegistry:
                 await session.execute(query)
 
         await session.commit()
+
+        if not self.task_always_eager:
+            ensure_queue_exists(f"{self.queue_name_prefix}.{router_id}")
 
         return router_id
 
@@ -400,7 +413,7 @@ class ModelRegistry:
         model_carbon_footprint_total_params: int | None,
         model_carbon_footprint_active_params: int | None,
         qos_metric: Metric | None,
-        qos_value: float | None,
+        qos_limit: float | None,
         session: AsyncSession,
     ) -> int:
         """
@@ -418,7 +431,7 @@ class ModelRegistry:
             model_carbon_footprint_total_params: int | None
             model_carbon_footprint_active_params: int | None
             qos_metric(Metric | None): QoS metric. If None, no QoS policy is applied.
-            qos_value(float | None): Optional QoS value
+            qos_limit(float | None): Optional QoS limit
             session(AsyncSession): Database session
         Returns:
             The provider ID
@@ -488,7 +501,7 @@ class ModelRegistry:
                     model_carbon_footprint_total_params=model_carbon_footprint_total_params,
                     model_carbon_footprint_active_params=model_carbon_footprint_active_params,
                     qos_metric=qos_metric,
-                    qos_value=qos_value,
+                    qos_limit=qos_limit,
                     max_context_length=max_context_length,
                     vector_size=vector_size,
                 )
@@ -506,7 +519,6 @@ class ModelRegistry:
 
     async def delete_provider(
         self,
-        router_id: int,
         provider_id: int,
         user_id: int,
         session: AsyncSession,
@@ -522,12 +534,7 @@ class ModelRegistry:
         """
         # Check if provider exists
         try:
-            query = (
-                select(ProviderTable)
-                .where(ProviderTable.id == provider_id)
-                .where(ProviderTable.user_id == user_id)
-                .where(ProviderTable.router_id == router_id)
-            )
+            query = select(ProviderTable).where(ProviderTable.id == provider_id).where(ProviderTable.user_id == user_id)
             result = await session.execute(query)
             result.scalar_one()
         except NoResultFound:
@@ -568,7 +575,7 @@ class ModelRegistry:
             ProviderTable.model_carbon_footprint_total_params,
             ProviderTable.model_carbon_footprint_active_params,
             ProviderTable.qos_metric,
-            ProviderTable.qos_value,
+            ProviderTable.qos_limit,
             cast(func.extract("epoch", ProviderTable.created), Integer).label("created"),
             cast(func.extract("epoch", ProviderTable.updated), Integer).label("updated"),
         ).where(ProviderTable.router_id == router_id)
@@ -600,7 +607,7 @@ class ModelRegistry:
                     model_carbon_footprint_total_params=row["model_carbon_footprint_total_params"],
                     model_carbon_footprint_active_params=row["model_carbon_footprint_active_params"],
                     qos_metric=qos_metric,
-                    qos_value=row["qos_value"],
+                    qos_limit=row["qos_limit"],
                     created=row["created"],
                     updated=row["updated"],
                 )
@@ -695,12 +702,12 @@ class ModelRegistry:
         session: AsyncSession,
         redis_client: AsyncRedis,
         request_context: ContextVar[RequestContext],
-    ) -> int:
+    ) -> ModelProvider:
         """
         Get a model provider for a given model, endpoint, user priority, session and redis client.
 
         Args:
-            providers(List[Provider]): The model name
+            model(str): The model name
             endpoint(str): The type of endpoint called
             session(AsyncSession): Database session
             redis_client(AsyncRedis): Redis client
@@ -728,55 +735,24 @@ class ModelRegistry:
         if len(providers) == 0:
             raise ModelNotFoundException()
 
-        # select candidates for load balancing
-        candidates: list[tuple[int, Metric | None, float | None]] = []
-        for provider in providers:
-            qos_metric = provider.qos_metric if provider.qos_metric is not None else None
-            candidates.append((provider.id, qos_metric, provider.qos_value))
-
-        # eager path: without queuing
         if self.task_always_eager:
-            provider_id = await apply_load_balancing_and_qos_policy_without_queuing(
-                candidates=candidates,
+            provider_id = await apply_routing_without_queuing(
+                providers=providers,
                 load_balancing_strategy=router.load_balancing_strategy,
                 load_balancing_metric=Metric.TTFT,
                 redis_client=redis_client,
             )
-
-        # celery path: with queuing
         else:
-            priority = max(0, min(int(request_context.get().user_info.priority), self.task_max_priority - 1))  # 0-(n-1) usable priorities (n levels)
-            task = apply_load_balancing_and_qos_policy_with_queuing.apply_async(
-                args=[
-                    candidates,  # candidates
-                    router.load_balancing_strategy,  # load_balancing_strategy
-                    Metric.TTFT,  # load_balancing_metric
-                    self.task_retry_countdown,  # task_retry_countdown
-                    self.task_max_retries,  # task_max_retries
-                ],
-                queue=f"{self.queue_name_prefix}.{router.id}",
-                priority=priority,
+            provider_id = await apply_routing_with_queuing(
+                providers=providers,
+                load_balancing_strategy=router.load_balancing_strategy,
+                load_balancing_metric=Metric.TTFT,
+                queue_name=f"{self.queue_name_prefix}.{router.id}",
+                priority=request_context.get().user_info.priority,
+                max_priority=self.task_max_priority,
+                retry_countdown=self.task_retry_countdown,
+                max_retries=self.task_max_retries,
             )
-
-            async_result = AsyncResult(id=task.id, app=celery_app)
-            loop = asyncio.get_event_loop()
-            start_time = loop.time()
-
-            # wait until the task is ready or timeout is reached
-            while not async_result.ready():
-                if loop.time() - start_time > self.task_soft_time_limit:
-                    raise TimeoutError(f"Task {task.id} timed out after {self.task_soft_time_limit} seconds")
-                await asyncio.sleep(0.1)  # TODO: variabiliser
-
-            try:
-                result = async_result.result  # direct access is safe after ready() returns True
-                if result["status_code"] != 200:
-                    raise TaskFailedException(status_code=result["status_code"], detail=result["body"]["detail"])
-                provider_id = result["provider_id"]
-
-            except Exception as e:
-                logger.warning(f"Error retrieving result for task {task.id}: {e}")
-                raise TaskFailedException(detail=str(e))
 
         providers = await self.get_providers(router_id=router.id, provider_id=provider_id, session=session)
         provider = providers[0]

@@ -86,11 +86,7 @@ help:
 	@if [ "$(services)" = "" ]; then \
 		services=$$(docker compose --file $(compose) config --services 2>/dev/null); \
 	fi;
-	@if [ "$(compose)" = "compose.ci.yml" ] ; then \
-		docker compose --env-file $(env) --file $(compose) up $$services --detach --quiet-pull --no-build --wait; \
-	else \
-		docker compose --env-file $(env) --file $(compose) up $$services --detach --quiet-pull --wait; \
-	fi
+	@docker compose --env-file $(env) --file $(compose) up $$services --detach --quiet-pull --wait
 	@sleep 4
 	for service in $$services; do \
 		if ! $(MAKE) --silent .check-service-status service=$$service env=$(env) compose=$(compose); then \

@@ -52,7 +52,7 @@ class OpenaiModelProvider(BaseModelProvider):
 
         async with httpx.AsyncClient() as client:
             response = await client.get(url=url, headers=self.headers, timeout=self.timeout)
-            assert response.status_code == 200, f"Model is not reachable ({response.status_code})."
+            assert response.status_code == 200, f"Model is not reachable ({response.status_code} - {response.text})."
 
         data = response.json()["data"]
         models = [model for model in data if model["id"] == self.name]

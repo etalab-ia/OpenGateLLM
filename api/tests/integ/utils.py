@@ -146,7 +146,7 @@ def create_provider(router_id: int, provider_url: str, provider_key: str, provid
         model_carbon_footprint_total_params=None,
         model_carbon_footprint_active_params=None,
         qos_metric=None,
-        qos_value=None,
+        qos_limit=None,
     )
     response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_PROVIDERS}", json=payload.model_dump())
     assert response.status_code == 201, response.text

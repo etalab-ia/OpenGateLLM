@@ -4,7 +4,7 @@ models:
     type: text-generation
     # aliases: ["model-alias"]
     # owned_by: Me
-    # routing_strategy: shuffle
+    # load_balancing_strategy: shuffle
     # cost_prompt_tokens: 0.10
     # cost_completion_tokens: 0.10
     providers:

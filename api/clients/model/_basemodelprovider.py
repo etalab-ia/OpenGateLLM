@@ -101,7 +101,7 @@ class BaseModelProvider(ABC):
 
         async with httpx.AsyncClient() as client:
             response = await client.post(url=url, headers=self.headers, json={"model": self.name, "input": "hello world"}, timeout=self.timeout)
-            assert response.status_code == 200, f"Model is not reachable ({response.status_code})."
+            assert response.status_code == 200, f"Model is not reachable ({response.status_code} - {response.text})."
 
         data = response.json()["data"]
         vector_size = len(data[0]["embedding"])

@@ -34,7 +34,6 @@ class AccessController:
     Access controller ensure user access:
     - API key validation
     - rate limiting application (per requests and per tokens)
-    - budget
     - permissions to access the requested resource
 
     Access controller is used as a dependency of all endpoints.

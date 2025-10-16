@@ -73,6 +73,7 @@ class DocumentManager:
         self.vector_store_model = vector_store_model
         self.web_search_manager = web_search_manager
         self.parser_manager = parser_manager
+        self.redis_client = None  # TODO: add redis_client
 
     @check_dependencies(dependencies=["vector_store"])
     async def create_collection(self, session: AsyncSession, user_id: int, name: str, visibility: CollectionVisibility, description: str | None = None) -> int:  # fmt: off

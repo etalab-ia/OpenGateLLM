@@ -56,7 +56,7 @@ class TestAdminProviders:
             model_carbon_footprint_total_params=None,
             model_carbon_footprint_active_params=None,
             qos_metric=None,
-            qos_value=None,
+            qos_limit=None,
         )
 
         response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_PROVIDERS}", json=payload.model_dump())
@@ -76,7 +76,7 @@ class TestAdminProviders:
             model_carbon_footprint_total_params=None,
             model_carbon_footprint_active_params=None,
             qos_metric=None,
-            qos_value=None,
+            qos_limit=None,
         )
 
         response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_PROVIDERS}", json=payload.model_dump())
