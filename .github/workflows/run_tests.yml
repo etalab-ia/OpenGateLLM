@@ -37,6 +37,10 @@ jobs:
         # Activate venv for the test run
         . .venv/bin/activate
 
+        # Run unit tests (includes api/tests/unit and scripts/test_scripts via Makefile)
+        make test
+
+        # Run integration tests
         make test-integ action=run execute=local
 
         mkdir -p .github/badges

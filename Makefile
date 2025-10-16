@@ -53,7 +53,6 @@ help:
 	&& sleep 2 \
 	&& open http://localhost:8000/docs
 
-
 .start-playground:
 	@mkdir -p ~/.streamlit/
 	@echo "[general]"  > ~/.streamlit/credentials.toml
@@ -147,6 +146,16 @@ quickstart:
 # test -----------------------------------------------------------------------------------------------------------------------------------------------
 test:
 	PYTHONPATH=. pytest api/tests/unit --config-file=pyproject.toml
+
+# test with coverage -------------------------------------------------------------------------------------------------------------------------------
+# Generates terminal summary, XML (coverage.xml), and HTML report (htmlcov/)
+test-coverage:
+	PYTHONPATH=. pytest api/tests/unit \
+		--config-file=pyproject.toml \
+		--cov=./api \
+		--cov-report=term-missing \
+		--cov-report=xml \
+		--cov-report=html
 
 # lint -----------------------------------------------------------------------------------------------------------------------------------------------
 lint:
