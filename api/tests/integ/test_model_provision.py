@@ -85,7 +85,7 @@ class TestModelProvision:
             "model": {
                 "type": "vllm",
                 "url": "https://dispatcher-preprod.kubic.aristote.centralesupelec.fr",
-                "key": configuration.dependencies["centralesupelec"]["token"],
+                "key": configuration.dependencies.centralesupelec.token,
                 "timeout": 10,
                 "model_name": "casperhansen/llama-3.3-70b-instruct-awq",
                 "model_cost_prompt_tokens": 0.1,
