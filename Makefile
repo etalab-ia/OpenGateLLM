@@ -145,17 +145,7 @@ quickstart:
 
 # test -----------------------------------------------------------------------------------------------------------------------------------------------
 test-unit:
-	PYTHONPATH=. pytest api/tests/unit --config-file=pyproject.toml
-
-# test with coverage -------------------------------------------------------------------------------------------------------------------------------
-# Generates terminal summary, XML (coverage.xml), and HTML report (htmlcov/)
-test-coverage:
-	PYTHONPATH=. pytest api/tests/unit \
-		--config-file=pyproject.toml \
-		--cov=./api \
-		--cov-report=term-missing \
-		--cov-report=xml \
-		--cov-report=html
+	PYTHONPATH=. pytest api/tests/unit --config-file=pyproject.toml --cov=./api --cov-report=term-missing --cov-report=xml --cov-report=html
 
 # lint -----------------------------------------------------------------------------------------------------------------------------------------------
 lint:
@@ -241,7 +231,7 @@ create-user:
 .test-integ-run:
 	@if [ "$(execute)" = "local" ]; then \
 		bash -c 'set -a; . .github/.env.ci; \
-		CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests --config-file=pyproject.toml --cov=./api --cov-report=xml'; \
+		CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ --config-file=pyproject.toml --cov=./api --cov-report=xml'; \
 	elif [ "$(execute)" = "docker" ]; then \
 		docker compose --file .github/compose.ci.yml --env-file .github/.env.ci run -T --user $$(id -u):$$(id -g) -v $$(pwd)/api:/api api pytest api/tests --cov=./api --cov-report=xml; \
 	fi

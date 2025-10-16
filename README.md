@@ -1,5 +1,6 @@
 [![Version](https://img.shields.io/github/v/release/etalab-ia/OpenGateLLM?color=orange&label=version)](https://github.com/etalab-ia/OpenGateLLM/releases) 
-[![Code Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/etalab-ia/OpenGateLLM/refs/heads/main/.github/badges/coverage.json)](https://github.com/etalab-ia/OpenGateLLM)
+[![Integration Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/etalab-ia/OpenGateLLM/refs/heads/main/.github/badges/coverage.json)](https://github.com/etalab-ia/OpenGateLLM)
+[![Unit Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/etalab-ia/OpenGateLLM/refs/heads/main/.github/badges/coverage-unit.json)](https://github.com/etalab-ia/OpenGateLLM)
 [![License](https://img.shields.io/github/license/etalab-ia/OpenGateLLM?color=red&label=license)](https://github.com/etalab-ia/OpenGateLLM/blob/main/LICENSE)
 
 

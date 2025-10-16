@@ -19,7 +19,7 @@ jobs:
         run: |
           cp config.example.yml config.yml
 
-      - name: Run tests
+      - name: Run tests with coverage and publish unit badge
         run: |
           # Install uv
           curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -32,8 +32,22 @@ jobs:
           # Activate venv for the test run
           . .venv/bin/activate
           
-          # Run unit tests (includes api/tests/unit via Makefile)
+          # Run unit tests with coverage (Makefile target generates coverage.xml and htmlcov)
           make test-unit
+          
+          # Build unit coverage badge JSON
+          mkdir -p .github/badges
+          COVERAGE=$(python -c "import xml.etree.ElementTree as ET; print(ET.parse('coverage.xml').getroot().get('line-rate'))")
+          COVERAGE_PCT=$(printf "%.2f" $(echo "${COVERAGE} * 100" | bc))
+          echo "{\"schemaVersion\":1,\"label\":\"unit coverage\",\"message\":\"${COVERAGE_PCT}%\",\"color\":\"$(if (( $(echo \"${COVERAGE_PCT} >= 80\" | bc -l) )); then echo \"green\"; elif (( $(echo \"${COVERAGE_PCT} >= 70\" | bc -l) )); then echo \"yellow\"; else echo \"red\"; fi)\"}" > .github/badges/coverage-unit.json
+
+      - name: Commit unit coverage badge
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Update unit coverage badge
+          file_pattern: .github/badges/coverage-unit.json
+          commit_user_name: "GitHub Actions"
+          commit_user_email: "actions@github.com"
 
   test-integ:
     runs-on: ubuntu-latest
