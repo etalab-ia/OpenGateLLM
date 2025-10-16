@@ -6,7 +6,7 @@ from sqlalchemy.sql import text
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--api_url", type=str, default="http://localhost:8080")
+parser.add_argument("--api_url", type=str, default="http://localhost:8000")
 parser.add_argument("--master_key", type=str, default="changeme")
 parser.add_argument("--first_username", type=str, default="me")
 parser.add_argument("--first_password", type=str, default="changeme")
@@ -31,7 +31,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     headers = {"Authorization": f"Bearer {args.master_key}"}
-    postgres_url = f"postgresql://postgres:{args.playground_postgres_password}@{args.playground_postgres_host}:{args.playground_postgres_port}/playground"  # fmt: off
+    postgres_url = (
+        f"postgresql://postgres:{args.playground_postgres_password}@{args.playground_postgres_host}:{args.playground_postgres_port}/postgres"
+    )
 
     #  Get models list
     response = requests.get(f"{args.api_url}/v1/models", headers=headers)
@@ -57,18 +59,7 @@ if __name__ == "__main__":
         headers=headers,
         json={
             "name": "admin",
-            "permissions": [
-                "create_role",
-                "read_role",
-                "update_role",
-                "delete_role",
-                "create_user",
-                "read_user",
-                "update_user",
-                "delete_user",
-                "create_public_collection",
-                "read_metric",
-            ],
+            "permissions": ["create_public_collection", "read_metric", "admin"],
             "limits": limits,
         },
     )
@@ -77,7 +68,11 @@ if __name__ == "__main__":
     role_id = response.json()["id"]
 
     # Create a new admin user
-    response = requests.post(url=f"{args.api_url}/v1/admin/users", headers=headers, json={"name": "admin", "role": role_id})
+    response = requests.post(
+        url=f"{args.api_url}/v1/admin/users",
+        headers=headers,
+        json={"name": "admin", "email": "admin@admin.fr", "password": "Changeme1", "role": role_id},
+    )
     assert response.status_code == 201, response.text
     user_id = response.json()["id"]
 
@@ -102,14 +97,14 @@ New user created:
     session = next(get_session())
     session.execute(
         text("""
-            INSERT INTO "user" (name, password, api_user_id, api_role_id, api_key_id, api_key, created_at, updated_at)
-            VALUES (:name, :password, :api_user_id, :api_role_id, :api_key_id, :api_key, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO "user" (name, email, password, role_id, created_at, updated_at)
+            VALUES (:name, :email, :password, :role_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """),
         {
             "name": args.first_username,
+            "email": args.first_username + "@test.com",
             "password": get_hashed_password(password=args.first_password),
-            "api_user_id": user_id,
-            "api_role_id": role_id,
+            "role_id": role_id,
             "api_key_id": api_key_id,
             "api_key": api_key,
         },
