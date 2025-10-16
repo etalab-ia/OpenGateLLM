@@ -9,7 +9,33 @@ on:
   workflow_dispatch: # Add this to allow manual triggering
 
 jobs:
-  test:
+  test-unit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Compose
+        run: |
+          cp config.example.yml config.yml
+
+      - name: Run tests
+        run: |
+          # Install uv
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          
+          # Create a local virtual environment and install dependencies
+          "$HOME/.local/bin/uv" venv
+          "$HOME/.local/bin/uv" pip install -p .venv/bin/python ".[api,playground,dev,test]"
+          
+          # Activate venv for the test run
+          . .venv/bin/activate
+          
+          # Run unit tests (includes api/tests/unit via Makefile)
+          make test-unit
+
+  test-integ:
     runs-on: ubuntu-latest
 
     steps:
