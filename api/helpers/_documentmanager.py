@@ -18,20 +18,13 @@ from api.schemas.chunks import Chunk
 from api.schemas.collections import Collection, CollectionVisibility
 from api.schemas.documents import Chunker, Document
 from api.schemas.parse import ParsedDocument, ParsedDocumentOutputFormat
-from api.schemas.search import Search, SearchMethod
+from api.schemas.search import Search
 from api.sql.models import Collection as CollectionTable
 from api.sql.models import Document as DocumentTable
 from api.sql.models import User as UserTable
+from api.utils.exceptions import ChunkingFailedException, CollectionNotFoundException, DocumentNotFoundException, VectorizationFailedException
 from api.utils.variables import ENDPOINT__EMBEDDINGS
-from api.utils.exceptions import (
-    ChunkingFailedException,
-    CollectionNotFoundException,
-    DocumentNotFoundException,
-    MultiAgentSearchNotAvailableException,
-    VectorizationFailedException,
-)
 
-from ._multiagentmanager import MultiAgentManager
 from ._parsermanager import ParserManager
 from ._websearchmanager import WebSearchManager
 
@@ -52,8 +45,6 @@ def check_dependencies(*, dependencies: List[str]) -> Callable:
                 raise HTTPException(status_code=400, detail="Feature not available: web search is not initialized.")
             if "parser_manager" in dependencies and not self.parser_manager:
                 raise HTTPException(status_code=400, detail="Feature not available: parser is not initialized.")
-            if "multi_agent_manager" in dependencies and not self.multi_agent_manager:
-                raise HTTPException(status_code=400, detail="Feature not available: multi agents is not initialized.")
 
             return method(self, *args, **kwargs)
 
@@ -71,13 +62,11 @@ class DocumentManager:
         vector_store_model: ModelRouter,
         parser_manager: ParserManager,
         web_search_manager: Optional[WebSearchManager] = None,
-        multi_agent_manager: Optional[MultiAgentManager] = None,
     ) -> None:
         self.vector_store = vector_store
         self.vector_store_model = vector_store_model
         self.web_search_manager = web_search_manager
         self.parser_manager = parser_manager
-        self.multi_agent_manager = multi_agent_manager
 
     @check_dependencies(dependencies=["vector_store"])
     async def create_collection(self, session: AsyncSession, user_id: int, name: str, visibility: CollectionVisibility, description: Optional[str] = None) -> int:  # fmt: off
@@ -389,13 +378,8 @@ class DocumentManager:
         response = await self._create_embeddings(input_texts=[prompt])
         query_vector = response[0]
 
-        _method = method
-        if method == SearchMethod.MULTIAGENT:
-            _method = self.vector_store.default_method
-            limit = limit * 4
-
         searches = await self.vector_store.search(
-            method=_method,
+            method=method,
             collection_ids=collection_ids,
             query_prompt=prompt,
             query_vector=query_vector,
@@ -404,11 +388,6 @@ class DocumentManager:
             rff_k=rff_k,
             score_threshold=score_threshold,
         )
-        if method == SearchMethod.MULTIAGENT:
-            if not self.multi_agent_manager:
-                raise MultiAgentSearchNotAvailableException()
-            searches = await self.multi_agent_manager.search(searches=searches, prompt=prompt)
-
         if web_collection_id:
             await self.delete_collection(session=session, user_id=user_id, collection_id=web_collection_id)
 

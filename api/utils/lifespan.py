@@ -14,22 +14,19 @@ from api.helpers._agentmanager import AgentManager
 from api.helpers._documentmanager import DocumentManager
 from api.helpers._identityaccessmanager import IdentityAccessManager
 from api.helpers._limiter import Limiter
-from api.helpers._multiagentmanager import MultiAgentManager
+from api.helpers._modeldatabasemanager import ModelDatabaseManager
 from api.helpers._parsermanager import ParserManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers._websearchmanager import WebSearchManager
-from api.helpers._modeldatabasemanager import ModelDatabaseManager
 from api.helpers.models import ModelRegistry
 from api.helpers.models.routers import ModelRouter
 from api.schemas.core.configuration import Configuration
+from api.schemas.core.configuration import Model as ModelRouterSchema
 from api.schemas.core.context import GlobalContext
+from api.sql.session import get_db_session
 from api.utils.configuration import get_configuration
 from api.utils.context import global_context
 from api.utils.logging import init_logger
-from api.sql.session import get_db_session
-
-from api.schemas.core.configuration import Model as ModelRouterSchema
-
 
 logger = init_logger(name=__name__)
 
@@ -135,10 +132,6 @@ async def _convert_modelrouterschema_to_modelrouter(configuration: Configuration
             raise ValueError(f"Query web search model ({router.name}) must be reachable.")
         if configuration.settings.vector_store_model and router.name == configuration.settings.vector_store_model:
             raise ValueError(f"Vector store embedding model ({router.name}) must be reachable.")
-        if router.name == configuration.settings.search_multi_agents_synthesis_model:
-            raise ValueError(f"Multi agents synthesis model ({router.name}) must be reachable.")
-        if router.name == configuration.settings.search_multi_agents_reranker_model:
-            raise ValueError(f"Multi agents reranker model ({router.name}) must be reachable.")
 
     logger.info(msg=f"add model {router.name} ({len(providers)}/{len(router.providers)} providers).")
     router = router.model_dump()
@@ -177,7 +170,7 @@ async def _setup_agent_manager(configuration: Configuration, global_context: Glo
 async def _setup_document_manager(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
     assert global_context.model_registry, "Set model registry in global context before setting up document manager."
 
-    web_search_manager, parser_manager, multi_agent_manager = None, None, None
+    web_search_manager, parser_manager = None, None
 
     if dependencies.vector_store is None:
         global_context.document_manager = None
@@ -191,12 +184,6 @@ async def _setup_document_manager(configuration: Configuration, global_context: 
             user_agent=configuration.settings.search_web_user_agent,
         )
 
-    if configuration.settings.search_multi_agents_synthesis_model:
-        multi_agent_manager = MultiAgentManager(
-            synthesis_model=await global_context.model_registry(model=configuration.settings.search_multi_agents_synthesis_model),
-            reranker_model=await global_context.model_registry(model=configuration.settings.search_multi_agents_reranker_model),
-        )
-
     parser_manager = ParserManager(parser=dependencies.parser)
 
     global_context.document_manager = DocumentManager(
@@ -204,5 +191,4 @@ async def _setup_document_manager(configuration: Configuration, global_context: 
         vector_store_model=await global_context.model_registry(model=configuration.settings.vector_store_model),
         parser_manager=parser_manager,
         web_search_manager=web_search_manager,
-        multi_agent_manager=multi_agent_manager,
     )

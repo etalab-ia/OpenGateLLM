@@ -479,10 +479,6 @@ class Settings(ConfigBaseModel):
     search_web_limited_domains: List[str] = Field(default_factory=list, description="Limited domains for the web search. If provided, the web search will be limited to these domains.")  # fmt: off
     search_web_user_agent: Optional[str] = Field(default=None, description="User agent to scrape the web. If provided, the web search will use this user agent.")  # fmt: off
 
-    # search - multi agents
-    search_multi_agents_synthesis_model: Optional[str] = Field(default=None, description="Model used to synthesize the results of multi-agents search. If not provided, multi-agents search is disabled. This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`.")  # fmt: off
-    search_multi_agents_reranker_model: Optional[str] = Field(default=None, description="Model used to rerank the results of multi-agents search. If not provided, multi-agents search is disabled. This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`.")  # fmt: off
-
     # session
     session_secret_key: Optional[str] = Field(default=None, description='Secret key for session middleware. If not provided, the master key will be used.', examples=["knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM"])  # fmt: off
 
@@ -594,22 +590,6 @@ class ConfigFile(ConfigBaseModel):
             assert values.settings.search_web_query_model, "Web search query model must be defined in settings section."
             assert values.settings.search_web_query_model in models["all"], "Web search query model must be defined in models section."
             assert values.settings.search_web_query_model in models[ModelType.IMAGE_TEXT_TO_TEXT.value] + models[ModelType.TEXT_GENERATION.value], f"Web search query model must be defined in models section with type {ModelType.TEXT_GENERATION} or {ModelType.IMAGE_TEXT_TO_TEXT}."  # fmt: off
-
-        if values.settings.search_multi_agents_synthesis_model:
-            assert values.settings.search_multi_agents_synthesis_model in models["all"], "Multi-agents search synthesis model must be defined in models section."  # fmt: off
-            assert values.settings.search_multi_agents_synthesis_model in models[ModelType.IMAGE_TEXT_TO_TEXT.value] + models[ModelType.TEXT_GENERATION.value], f"Multi-agents search synthesis model must have type {ModelType.IMAGE_TEXT_TO_TEXT} or {ModelType.TEXT_GENERATION}."  # fmt: off
-
-            if values.settings.search_multi_agents_reranker_model is None:
-                logging.warning("Multi-agents search reranker model is not defined, using multi-agents search synthesis model as reranker model.")
-                values.settings.search_multi_agents_reranker_model = values.settings.search_multi_agents_synthesis_model
-
-        if values.settings.search_multi_agents_reranker_model:
-            assert values.settings.search_multi_agents_reranker_model in models["all"], "Multi-agents search reranker model must be defined in models section."  # fmt: off
-            assert values.settings.search_multi_agents_reranker_model in models[ModelType.IMAGE_TEXT_TO_TEXT.value] + models[ModelType.TEXT_GENERATION.value], f"Multi-agents search reranker model must have type {ModelType.IMAGE_TEXT_TO_TEXT} or {ModelType.TEXT_GENERATION}."  # fmt: off
-
-            if values.settings.search_multi_agents_synthesis_model is None:
-                logging.warning("Multi-agents search synthesis model is not defined, using multi-agents search reranker model as synthesis model.")
-                values.settings.search_multi_agents_synthesis_model = values.settings.search_multi_agents_reranker_model
 
         return values
 

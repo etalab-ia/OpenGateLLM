@@ -12,7 +12,6 @@ from api.utils.exceptions import WrongSearchMethodException
 class SearchMethod(str, Enum):
     """Enum representing the search methods available (will be displayed in this order in playground)."""
 
-    MULTIAGENT = "multiagent"
     HYBRID = "hybrid"
     SEMANTIC = "semantic"
     LEXICAL = "lexical"
@@ -31,15 +30,15 @@ class SearchArgs(BaseModel):
 
     @model_validator(mode="after")
     def score_threshold_filter(cls, values):
-        if values.score_threshold and values.method not in (SearchMethod.SEMANTIC, SearchMethod.MULTIAGENT):
-            raise WrongSearchMethodException(detail="Score threshold is only available for semantic and multiagent search methods.")
+        if values.score_threshold and values.method not in (SearchMethod.SEMANTIC):
+            raise WrongSearchMethodException(detail="Score threshold is only available for semantic search method.")
         return values
 
     @model_validator(mode="before")
     def handle_deprecated_fields(cls, data):
         if isinstance(data, dict):
-            if 'k' in data and 'limit' not in data:
-                data['limit'] = data['k']
+            if "k" in data and "limit" not in data:
+                data["limit"] = data["k"]
         return data
 
 

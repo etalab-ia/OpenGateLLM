@@ -24,7 +24,7 @@ help:
 	@echo " compose 					Optional, compose file to use. Default: compose.yml"
 	@echo ""
 	@echo "create-user						    Create a first user"
-	@echo "test									Run unit tests"
+	@echo "test-unit								Run unit tests"
 	@echo "lint									Run linter"
 	@echo ""
 	@echo "test-integ [action=up|run|all] [execute=local|docker]	Run integration tests"
@@ -257,4 +257,4 @@ test-integ:
 		echo "✅ Integration tests completed."; \
 	fi
 
-.PHONY: help test test-integ lint setup quickstart dev
+.PHONY: help test-unit test-integ lint setup quickstart dev

@@ -117,7 +117,9 @@ class QdrantVectorStoreClient(BaseVectorStoreClient, AsyncQdrantClient):
             searches = await self._lexical_search(query_prompt=query_prompt, collection_ids=collection_ids, limit=limit, offset=offset)
 
         elif method == SearchMethod.SEMANTIC:
-            searches = await self._semantic_search(query_vector=query_vector, collection_ids=collection_ids, limit=limit, offset=offset, score_threshold=score_threshold)
+            searches = await self._semantic_search(
+                query_vector=query_vector, collection_ids=collection_ids, limit=limit, offset=offset, score_threshold=score_threshold
+            )
 
         else:  # method == SearchMethod.HYBRID
             searches = await self._hybrid_search(query_prompt=query_prompt, query_vector=query_vector, collection_ids=collection_ids, limit=limit, offset=offset, rff_k=rff_k)  # fmt: off
@@ -127,7 +129,9 @@ class QdrantVectorStoreClient(BaseVectorStoreClient, AsyncQdrantClient):
     async def _lexical_search(self, query_prompt: str, collection_ids: List[int], limit: int, offset: int) -> List[Search]:
         raise NotImplementedException("Only semantic search is available for Qdrant database.")
 
-    async def _semantic_search(self, query_vector: list[float], collection_ids: List[int], limit: int, offset: int, score_threshold: float = 0.0) -> List[Search]:
+    async def _semantic_search(
+        self, query_vector: list[float], collection_ids: List[int], limit: int, offset: int, score_threshold: float = 0.0
+    ) -> List[Search]:
         searches = []
         for collection_id in collection_ids:
             results = await AsyncQdrantClient.search(

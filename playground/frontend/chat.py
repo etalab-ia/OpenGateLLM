@@ -2,15 +2,14 @@ from uuid import uuid4
 
 import streamlit as st
 
-from playground.backend.chat import generate_stream, format_chunk_for_display, get_chunk_full_content
-from playground.backend.common import get_collections, format_limits, get_models
-from playground.backend.document_parsing import parse_document, count_document_characters, extract_text_from_parsed_document, process_large_document
+from playground.backend.chat import format_chunk_for_display, generate_stream, get_chunk_full_content
+from playground.backend.common import format_limits, get_collections, get_models
+from playground.backend.document_parsing import count_document_characters, extract_text_from_parsed_document, parse_document, process_large_document
+from playground.configuration import configuration
 from playground.frontend.header import header
 from playground.variables import MODEL_TYPE_IMAGE_TEXT_TO_TEXT, MODEL_TYPE_LANGUAGE
 
-from playground.configuration import configuration
-
-SEARCH_METHODS = ["multiagent", "hybrid", "semantic", "lexical"]
+SEARCH_METHODS = ["hybrid", "semantic", "lexical"]
 header()
 st.error(
     """**Cette page va être dépréciée à partir du 22 octobre 2025 pour laisser place Assistant IA, l'interface de Chatbot de la DINUM. 

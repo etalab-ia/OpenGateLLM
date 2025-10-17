@@ -49,6 +49,15 @@ Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateL
 | auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. |  | changeme |  |  |
 | auth_max_token_expiration_days | integer | Maximum number of days for a token to be valid. |  | None |  |  |
 | auth_playground_session_duration | integer | Duration of the playground session in seconds. |  | 3600 |  |  |
+| celery_broker_url | string | Celery broker URL (e.g. redis://localhost:6379/0 or amqp://user:pass@host:5672//). Required if celery_task_always_eager is false. |  | None |  |  |
+| celery_default_queue_prefix | string | Prefix used for per-model Celery queues (queue name = prefix + router_name). |  | model. |  |  |
+| celery_result_backend | string | Celery result backend URL (e.g. redis://localhost:6379/1 or rpc://). If not provided, results may not persist across workers. |  | None |  |  |
+| celery_task_always_eager | boolean | Execute Celery tasks locally (synchronously) without a broker. Set to false in production to use the configured broker/result backend. |  | True |  |  |
+| celery_task_eager_propagates | boolean | If true, exceptions in eager mode propagate immediately (useful for tests/development). |  | True |  |  |
+| celery_task_max_priority | integer | Maximum allowed priority in celery tasks. |  | 10 |  |  |
+| celery_task_max_retry | integer | Maximum number of retries for celery tasks. |  | 120 |  |  |
+| celery_task_retry_countdown | integer | Number of seconds before retrying a failed celery task. |  | 1 |  |  |
+| celery_task_soft_time_limit | integer | Soft time limit (in seconds) applied to model invocation tasks. |  | 120 |  |  |
 | disabled_routers | array | Disabled routers to limits services of the API. |  |  | • admin<br></br>• agents<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• completions<br></br>• ... | ['agents', 'embeddings'] |
 | front_url | string | Front-end URL for the application. |  | http://localhost:8501 |  |  |
 | hidden_routers | array | Routers are enabled but hidden in the swagger and the documentation of the API. |  |  | • admin<br></br>• agents<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• completions<br></br>• ... | ['admin'] |
@@ -59,8 +68,6 @@ Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateL
 | monitoring_postgres_enabled | boolean | If true, the log usage will be written in the PostgreSQL database. |  | True |  |  |
 | monitoring_prometheus_enabled | boolean | If true, Prometheus metrics will be exposed in the `/metrics` endpoint. |  | True |  |  |
 | rate_limiting_strategy | string | Rate limiting strategy for the API. |  | fixed_window | • moving_window<br></br>• fixed_window<br></br>• sliding_window |  |
-| search_multi_agents_reranker_model | string | Model used to rerank the results of multi-agents search. If not provided, multi-agents search is disabled. This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`. |  | None |  |  |
-| search_multi_agents_synthesis_model | string | Model used to synthesize the results of multi-agents search. If not provided, multi-agents search is disabled. This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`. |  | None |  |  |
 | search_web_limited_domains | array | Limited domains for the web search. If provided, the web search will be limited to these domains. |  |  |  |  |
 | search_web_query_model | string | Model used to query the web in the web search. Is required if a web search dependency is provided (Brave or DuckDuckGo). This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`. |  | None |  |  |
 | search_web_user_agent | string | User agent to scrape the web. If provided, the web search will use this user agent. |  | None |  |  |
@@ -95,11 +102,12 @@ For more information to configure model providers, see the [ModelProvider sectio
 | --- | --- | --- | --- | --- | --- | --- |
 | aliases | array | Aliases of the model. It will be used to identify the model by users. |  |  |  | ['model-alias', 'model-alias-2'] |
 | created | integer | Time of creation, as Unix timestamp. |  | None |  |  |
+| cycle_offset | integer | Current position in the round-robin cycle for load balancing. Used to maintain cycle state across serialization. |  | 0 |  |  |
 | from_config | boolean | Whether this model was defined in configuration, meaning it should be checked against the database. |  | False |  |  |
 | max_context_length | integer | Maximum amount of tokens a context could contains. Makes sure it is the same for all models. |  | None |  |  |
 | owned_by | string | Owner of the model displayed in `/v1/models` endpoint. |  | OpenGateLLM |  | my-app |
 | providers | array | API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type. For details of configuration, see the [ModelProvider section](#modelprovider). |  |  |  |  |
-| routing_strategy | string | Routing strategy for load balancing between providers of the model. It will be used to identify the model type. |  | shuffle | • round_robin<br></br>• shuffle | round_robin |
+| routing_strategy | string | Routing strategy for load balancing between providers of the model. It will be used to identify the model type. |  | shuffle | • round_robin<br></br>• shuffle<br></br>• least_busy | round_robin |
 | type | string | Type of the model. It will be used to identify the model type. |  |  | • image-text-to-text<br></br>• automatic-speech-recognition<br></br>• text-embeddings-inference<br></br>• text-generation<br></br>• text-classification | text-generation |
 | vector_size | integer | Dimension of the vectors, if the models are embeddings. Makes just it is the same for all models. |  | None |  |  |
 
@@ -109,12 +117,15 @@ For more information to configure model providers, see the [ModelProvider sectio
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | key | string | Model provider API key. |  | None |  | sk-1234567890 |
+| max_parallel_requests | integer | The maximum number of requests handled in parallel by the server, used with a parallel requests based QoS |  | None |  | 50 |
 | model_carbon_footprint_active_params | number | Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai |  | None |  | 8 |
 | model_carbon_footprint_total_params | number | Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai |  | None |  | 8 |
 | model_carbon_footprint_zone | string | Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai |  | WOR | • ABW<br></br>• AFG<br></br>• AGO<br></br>• AIA<br></br>• ALA<br></br>• ALB<br></br>• AND<br></br>• ARE<br></br>• ... | WOR |
 | model_cost_completion_tokens | number | Model costs completion tokens for user budget computation. The cost is by 1M tokens. |  | 0.0 |  | 0.1 |
 | model_cost_prompt_tokens | number | Model costs prompt tokens for user budget computation. The cost is by 1M tokens. |  | 0.0 |  | 0.1 |
 | model_name | string | Model name from the model provider. |  |  |  | gpt-4o |
+| performance_threshold | number | The performance threshold to not exceed when using a performance based QoS |  | None |  | 0.5 |
+| qos_policy | string | The quality of service to apply when using asynchronous dispatching, to choose whether or not the server is ready to handle the request. |  | warning-log | • warning-log<br></br>• performance-threshold<br></br>• parallel-requests-threshold | performance-threshold |
 | timeout | integer | Timeout for the model provider requests, after user receive an 500 error (model is too busy). |  | 300 |  | 10 |
 | type | string | Model provider type. |  |  | • albert<br></br>• openai<br></br>• tei<br></br>• vllm | openai |
 | url | string | Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI). |  | None |  | https://api.openai.com |
@@ -126,6 +137,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 | --- | --- | --- | --- | --- | --- | --- |
 | albert | object | If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section. For details of configuration, see the [AlbertDependency section](#albertdependency). |  | None |  |  |
 | brave | object | If provided, Brave API is used to web search. Cannot be used with DuckDuckGo dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://api-dashboard.search.brave.com/app/documentation/web-search/query for more information. For details of configuration, see the [BraveDependency section](#bravedependency). |  | None |  |  |
+| centralesupelec | object |  For details of configuration, see the [CentraleSupelecDependency section](#centralesupelecdependency). |  | None |  |  |
 | duckduckgo | object | If provided, DuckDuckGo API is used to web search. Cannot be used with Brave dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://www.searchapi.io/docs/duckduckgo-api for more information. For details of configuration, see the [DuckDuckGoDependency section](#duckduckgodependency). |  | None |  |  |
 | elasticsearch | object | Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). |  | None |  |  |
 | marker | object | If provided, Marker API is used to parse pdf documents. Cannot be used with Albert dependency concurrently. Pass arguments to call Marker API in this section. For details of configuration, see the [MarkerDependency section](#markerdependency). |  | None |  |  |
@@ -201,6 +213,10 @@ See https://github.com/SecretiveShell/MCP-Bridge for more information.
 | headers | object | DuckDuckGo API request headers. | False |  |  | `{}` |
 | timeout | integer | Timeout for the DuckDuckGo API requests. |  | 300 |  | 10 |
 | url | string | DuckDuckGo API url. |  | https://api.duckduckgo.com/ |  |  |
+
+<br></br>
+
+### CentraleSupelecDependency
 
 <br></br>
 

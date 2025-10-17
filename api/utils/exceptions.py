@@ -19,11 +19,6 @@ class WebSearchNotAvailableException(HTTPException):
         super().__init__(status_code=400, detail=detail)
 
 
-class MultiAgentSearchNotAvailableException(HTTPException):
-    def __init__(self, detail: str = "Multi agents search is not available."):
-        super().__init__(status_code=400, detail=detail)
-
-
 class RoleAlreadyExistsException(HTTPException):
     def __init__(self, detail: str = "Role already exists."):
         super().__init__(status_code=400, detail=detail)

@@ -12,15 +12,17 @@ DOMAIN = "etalab.gouv.fr"
 CNAME_SUBDOMAIN = "docs.opengatellm"
 CNAME_TARGET = "etalab-ia.github.io."
 TXT_SUBDOMAIN = "_github-pages-challenge-etalab-ia.docs.opengatellm"
-TXT_TARGET = "\"fadc7d567d241d7ddbbf351cba47d4\""
+TXT_TARGET = '"fadc7d567d241d7ddbbf351cba47d4"'
+
 
 def get_client():
     return ovh.Client(
-        endpoint='ovh-eu',
+        endpoint="ovh-eu",
         application_key=APP_KEY,
         application_secret=APP_SECRET,
         consumer_key=CONSUMER_KEY,
     )
+
 
 def find_record(client, domain, subdomain, record_type):
     try:
@@ -29,8 +31,10 @@ def find_record(client, domain, subdomain, record_type):
         print(f"❌ Error fetching {record_type} records for {subdomain}: {e}")
         return []
 
+
 def get_record_details(client, domain, record_id):
     return client.get(f"/domain/zone/{domain}/record/{record_id}")
+
 
 def update_or_create_record(client, domain, subdomain, record_type, expected_value):
     records = find_record(client, domain, subdomain, record_type)
@@ -47,13 +51,9 @@ def update_or_create_record(client, domain, subdomain, record_type, expected_val
             return
 
     print(f"➕ Creating new {record_type} record for {subdomain}")
-    client.post(f"/domain/zone/{domain}/record",
-                fieldType=record_type,
-                subDomain=subdomain,
-                target=expected_value,
-                ttl=60
-                )
+    client.post(f"/domain/zone/{domain}/record", fieldType=record_type, subDomain=subdomain, target=expected_value, ttl=60)
     client.post(f"/domain/zone/{domain}/refresh")
+
 
 def main():
     if not all([APP_KEY, APP_SECRET, CONSUMER_KEY]):
@@ -64,6 +64,7 @@ def main():
 
     update_or_create_record(client, DOMAIN, CNAME_SUBDOMAIN, "CNAME", CNAME_TARGET)
     update_or_create_record(client, DOMAIN, TXT_SUBDOMAIN, "TXT", TXT_TARGET)
+
 
 if __name__ == "__main__":
     main()

@@ -14,7 +14,6 @@ OpenGateLLM supports multiple search methods:
 | `semantic` | Vector similarity search using embeddings |
 | `lexical` | Keyword-based search (BM25) |
 | `hybrid` | Combination of semantic and lexical search |
-| `multiagent` | Advanced search using multi-agent synthesis and reranking |
 
 ## Search Parameters
 
@@ -24,7 +23,7 @@ OpenGateLLM supports multiple search methods:
 - `limit`: Number of results to return (default: 10, max: 200)
 - `offset`: Pagination offset (default: 0)
 - `rff_k`: RRF constant for hybrid search (default: 20)
-- `score_threshold`: Minimum similarity score (0.0-1.0, only for semantic/multiagent)
+- `score_threshold`: Minimum similarity score (0.0-1.0, only for semantic)
 - `web_search`: Add internet search results (default: false)
 - `web_search_k`: Number of web results (default: 5)
 
@@ -40,7 +39,6 @@ graph TD
     E -->|semantic| F[Semantic Search]
     E -->|lexical| G[Lexical Search]
     E -->|hybrid| H[Hybrid Search]
-    E -->|multiagent| I[Multi-Agent Search]
     F --> J[Return Results]
     G --> J
     H --> J
@@ -83,19 +81,6 @@ graph TD
     }'
   ```
   </TabItem>
-  <TabItem value="Multi-agent search" label="Multi-agent search">
-  ```bash
-  curl -X POST http://localhost:8000/v1/search \
-    -H "Authorization: Bearer <api_key>" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "prompt": "Advanced AI techniques",
-      "collections": [1, 2, 3],
-      "method": "multiagent",
-      "limit": 5
-    }'
-  ```
-  </TabItem>
   <TabItem value="Web search" label="With web search">
   ```bash
   curl -X POST http://localhost:8000/v1/search \
@@ -114,10 +99,6 @@ graph TD
 </Tabs>
 
 :::info
-Multi-agent search requires additional configuration:
-- `search_multi_agents_synthesis_model` in settings
-- `search_multi_agents_reranker_model` in settings
-
 See [Configuration](../../getting-started/configuration.md) for more details.
 :::
 
