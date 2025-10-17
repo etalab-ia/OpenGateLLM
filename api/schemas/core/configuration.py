@@ -248,6 +248,7 @@ class DependencyType(str, Enum):
     REDIS = "redis"
     SECRETIVESHELL = "secretiveshell"
     SENTRY = "sentry"
+    CENTRALESUPELEC = "centralesupelec"
 
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#albert")
@@ -273,6 +274,12 @@ class DuckDuckGoDependency(ConfigBaseModel):
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#elasticsearchdependency")
 class ElasticsearchDependency(ConfigBaseModel):
+    # All args of pydantic elastic client is allowed
+    pass
+
+
+@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#centralesupelec")
+class CentraleSupelecDependency(ConfigBaseModel):
     # All args of pydantic elastic client is allowed
     pass
 
@@ -360,6 +367,7 @@ class Dependencies(ConfigBaseModel):
     secretiveshell: Optional[SecretiveshellDependency] = Field(default=None, description="If provided, MCP agents can use tools from SecretiveShell MCP Bridge. Pass arguments to call Secretiveshell API in this section, see https://github.com/SecretiveShell/MCP-Bridge for more information.")  # fmt: off
     sentry: Optional[SentryDependency] = Field(default=None, description="Pass all sentry python SDK arguments, see https://docs.sentry.io/platforms/python/configuration/options/ for more information.")  # fmt: off
     proconnect: Optional[ProConnect] = Field(default=None, description="ProConnect configuration for the API. See https://github.com/etalab-ia/albert-api/blob/main/docs/oauth2_encryption.md for more information.")  # fmt: off
+    centralesupelec: Optional[CentraleSupelecDependency] = Field(default=None, description="")
 
     @model_validator(mode="after")
     def validate_dependencies(cls, values):
