@@ -31,6 +31,7 @@ class Playground(ConfigBaseModel):
     cache_ttl: int = 1800  # 30 minutes
     default_model: Optional[str] = None
     proconnect_enabled: bool = False
+    app_name: str = "OpenGateLLM"
 
 
 class ConfigFile(ConfigBaseModel):

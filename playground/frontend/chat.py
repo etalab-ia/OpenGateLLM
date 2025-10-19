@@ -11,10 +11,7 @@ from playground.variables import MODEL_TYPE_IMAGE_TEXT_TO_TEXT, MODEL_TYPE_LANGU
 
 SEARCH_METHODS = ["hybrid", "semantic", "lexical"]
 header()
-st.error(
-    """**Cette page va être dépréciée à partir du 22 octobre 2025 pour laisser place Assistant IA, l'interface de Chatbot de la DINUM. 
-Pour plus d'informations, rendez-vous sur le canal Tchap d'Assistant IA en cliquant [ici](https://www.tchap.gouv.fr/#/room/!gpLYRJyIwdkcHBGYeC:agent.dinum.tchap.gouv.fr).**"""
-)
+
 # Data
 models = get_models(types=[MODEL_TYPE_LANGUAGE, MODEL_TYPE_IMAGE_TEXT_TO_TEXT])
 limits = format_limits(models=models)
@@ -192,7 +189,7 @@ with st.sidebar:
 # Main
 with st.chat_message(name="assistant"):
     st.markdown(
-        body="""Bonjour je suis Albert, et je peux vous aider si vous avez des questions administratives !
+        body=f"""Bonjour, je suis {configuration.playground.app_name}, et je peux vous aider si vous avez des questions administratives ! Testez-moi directement dans ce chat.
 
 Je peux me connecter à vos bases de connaissances, pour ça sélectionnez les collections voulues dans le menu de gauche. Si vous ne souhaitez pas utiliser de collection, désactivez le RAG en décochant la fonction "Activated RAG".
 

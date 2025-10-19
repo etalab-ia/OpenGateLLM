@@ -62,12 +62,22 @@ def header():
     with stylable_container(key="Header", css_styles="button{float: right;}"):
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader("Albert playground")
+            st.subheader(f"{configuration.playground.app_name} playground")
+
+        st.info(f"👋 Welcome to the {configuration.playground.app_name} playground! " + 
+                f"Use this interface to explore the capabilities of {configuration.playground.app_name} " +
+                f"by navigating through the various sections available in the sidebar. " +
+                f"Whether you want to chat with the model, manage your documents, " + 
+                f"or summarize content, everything is just a click away.")
 
         # Authentication
         authenticate()
         if st.session_state.get("login_status") is None:
             st.stop()
+
+        st.warning(f"⚠️ This playground should only be used for testing and evaluation purposes, " +
+                   f"when developing your applications using {configuration.playground.app_name}. " +
+                   f"This is NOT an AI assistant for professional use.")
 
         with col2:
             logout = st.button("Logout")
