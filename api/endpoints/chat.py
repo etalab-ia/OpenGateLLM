@@ -75,9 +75,17 @@ async def chat_completions(request: Request, body: ChatCompletionRequest, sessio
     additional_data = {"search_results": results} if results else {}
 
     user_priority = getattr(user, "priority", 0)
+    organization = getattr(user, "organization", None)
+    request_mode = body.request_mode
 
     try:
-        client, task_metrics = await invoke_model_request(model_name=body["model"], endpoint=ENDPOINT__CHAT_COMPLETIONS, user_priority=user_priority)
+        client, task_metrics = await invoke_model_request(
+            model_name=body.model,
+            endpoint=ENDPOINT__CHAT_COMPLETIONS,
+            user_priority=user_priority,
+            request_mode=request_mode,
+            organization=organization,
+        )
     except TaskFailedException as e:
         return JSONResponse(content=e.detail, status_code=e.status_code)
 

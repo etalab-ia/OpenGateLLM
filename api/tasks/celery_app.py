@@ -34,8 +34,16 @@ if settings.celery_broker_url and settings.celery_broker_url.startswith("amqp://
     celery_app.conf.task_queue_max_priority = MAX_PRIORITY
 
 
-def queue_name_for_model(router_name: str) -> str:
-    return f"{settings.celery_default_queue_prefix}{router_name}" if router_name else settings.celery_default_queue_prefix.rstrip(".")
+def queue_name_for_model(router_name: str, org_name: str | None = None) -> str:
+    if not router_name:
+        return settings.celery_default_queue_prefix.rstrip(".")
+    base = f"{settings.celery_default_queue_prefix}{router_name}"
+    return f"{base}.{org_name}" if org_name else base
+
+
+def shared_queue_name_from_private_one(private_queue_name: str) -> str:
+    # Strip org suffix (everything after (including) the last ".")
+    return private_queue_name.rsplit(".", 1)[0]
 
 
 def task_priority_from_user_priority(user_priority: int) -> int:

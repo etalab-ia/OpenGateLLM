@@ -69,6 +69,12 @@ class InsufficientPermissionException(HTTPException):
         super().__init__(status_code=403, detail=detail)
 
 
+class ModelNotProvidedByOrganizationException(HTTPException):
+    def __init__(self, model: str, organization: str) -> None:
+        detail = f"Private mode not allowed because the requested model: {model} is not provided by your organization ({organization})"
+        super().__init__(status_code=403, detail=detail)
+
+
 # 404
 class CollectionNotFoundException(HTTPException):
     def __init__(self, detail: str = "Collection not found.") -> None:

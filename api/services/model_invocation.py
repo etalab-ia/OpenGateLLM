@@ -13,11 +13,15 @@ from api.utils.context import global_context
 from api.schemas.core.configuration import ModelProvider as ModelClientSchema
 from api.schemas.usage import TaskMetrics
 from api.clients.model import BaseModelClient
-from api.tasks.model import invoke_model_task
+from api.tasks.model import invoke_shared_model_task, invoke_private_model_task
 from api.tasks.celery_app import queue_name_for_model, task_priority_from_user_priority
 from api.utils.tracked_cycle import TrackedCycle
+<<<<<<< HEAD
 from api.utils.exceptions import TaskFailedException
 from api.utils.tracked_cycle import TrackedCycle
+=======
+from api.utils.exceptions import ModelNotProvidedByOrganizationException, TaskFailedException
+>>>>>>> b1ba224 (wip 1)
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +29,7 @@ settings = configuration.settings
 
 
 async def invoke_model_request(
-    model_name: str,
-    endpoint: str,
-    user_priority: int | None = None,
+    model_name: str, endpoint: str, user_priority: int | None = None, request_mode: str = "shared", organization: str | None = None
 ) -> tuple[BaseModelClient, TaskMetrics]:
     """Invoke a model (non-streaming) returning (status_code, json_body).
 
@@ -55,10 +57,20 @@ async def invoke_model_request(
     except Exception:
         original_name = model_name  # fallback; error will surface later if invalid
 
-    queue = queue_name_for_model(original_name)
-
     # Submit task
-    async_result = invoke_model_task.apply_async(args=[router_schema, endpoint], queue=queue, priority=priority)
+    if "private" in request_mode:
+        try:
+            router.get_client_from_org(organization)
+        except ModelNotProvidedByOrganizationException:
+            raise
+        queue = queue_name_for_model(original_name, organization)
+        async_result = invoke_private_model_task.apply_async(
+            args=[router_schema, endpoint, request_mode, organization], queue=queue, priority=priority
+        )
+
+    else:
+        queue = queue_name_for_model(original_name)
+        async_result = invoke_shared_model_task.apply_async(args=[router_schema, endpoint], queue=queue, priority=priority)
 
     # Wait for result using async polling
     result, duration = await wait_for_task_result(async_result.id)

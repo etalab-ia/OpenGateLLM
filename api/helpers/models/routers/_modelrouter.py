@@ -5,13 +5,14 @@ import logging
 import time
 
 from fastapi import HTTPException
+import random
 
 from api.clients.model import BaseModelClient as ModelClient
 from api.helpers.models.routers.strategies import LeastBusyRoutingStrategy, RoundRobinRoutingStrategy, ShuffleRoutingStrategy
 from api.schemas.core.configuration import Model as ModelRouterSchema
 from api.schemas.core.configuration import RoutingStrategy
 from api.schemas.models import ModelType
-from api.utils.exceptions import WrongModelTypeException
+from api.utils.exceptions import WrongModelTypeException, ModelNotProvidedByOrganizationException
 from api.utils.tracked_cycle import TrackedCycle
 from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS, ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__EMBEDDINGS, ENDPOINT__OCR, ENDPOINT__RERANK
 
@@ -143,6 +144,18 @@ class ModelRouter:
         client.endpoint = endpoint
 
         return client, metric
+
+    def get_client_from_org(self, organization: str, endpoint: str) -> tuple[ModelClient, float | None]:
+        candidates = []
+        for provider in self._providers:
+            if provider.organization == organization:
+                candidates.append(provider)
+        try:
+            choice = random.choice(candidates)
+            choice.endpoint = endpoint
+            return choice, None
+        except IndexError:
+            raise ModelNotProvidedByOrganizationException(self.name, organization)
 
     async def get_clients(self):
         """

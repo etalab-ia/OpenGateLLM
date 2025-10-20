@@ -51,6 +51,14 @@ class ChatCompletionRequest(BaseModel):
     search: bool = Field(default=False)  # fmt: off
     search_args: ChatSearchArgs | None = Field(default=None)  # fmt: off
 
+    request_mode: Literal["shared", "private-only", "private-first"] = Field(
+        default="shared",
+        description="Determines which provider pool to use. Options are: "
+        "`shared` (default, use shared pool), "
+        "`private-only` (use only the org-specific provider), "
+        "`private-first` (try private first, fallback to shared if unavailable).",
+    )
+
     @model_validator(mode="after")
     def validate_model(cls, values):
         if values.search:
