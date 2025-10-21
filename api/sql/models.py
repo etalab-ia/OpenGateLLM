@@ -188,6 +188,7 @@ class ModelClient(Base):
 
     timeout = Column(Integer, nullable=True)
     model_name = Column(String, nullable=False)
+    organization_id = Column(Integer, ForeignKey(column="organization.id"), nullable=True)
 
     model_cost_prompt_tokens = Column(Float, nullable=True)
     model_cost_completion_tokens = Column(Float, nullable=True)
@@ -197,7 +198,9 @@ class ModelClient(Base):
 
     qos_policy = Column(String, nullable=False)
     performance_threshold = Column(Float, nullable=True)
-    max_parallel_requests = Column(Integer, nullable=True)
+    max_parallel_requests_shared = Column(Integer, nullable=True)
+    max_parallel_requests_private_shared = Column(Integer, nullable=True)
+    max_parallel_requests_private_private = Column(Integer, nullable=True)
 
     model_router_name = Column(String, ForeignKey(column="model.name", ondelete="CASCADE"), nullable=False)
 

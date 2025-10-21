@@ -4,6 +4,7 @@ from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import Field, field_validator, model_validator
 
 from api.schemas import BaseModel
+from api.schemas.core.configuration import RequestMode
 from api.schemas.search import Search, SearchArgs
 from api.schemas.usage import Usage
 
@@ -51,8 +52,8 @@ class ChatCompletionRequest(BaseModel):
     search: bool = Field(default=False)  # fmt: off
     search_args: ChatSearchArgs | None = Field(default=None)  # fmt: off
 
-    request_mode: Literal["shared", "private-only", "private-first"] = Field(
-        default="shared",
+    request_mode: RequestMode = Field(
+        default=RequestMode.SHARED,
         description="Determines which provider pool to use. Options are: "
         "`shared` (default, use shared pool), "
         "`private-only` (use only the org-specific provider), "
@@ -69,7 +70,7 @@ class ChatCompletionRequest(BaseModel):
 
 
 class ChatCompletion(ChatCompletion):
-    id: str = Field(default=None, description="A unique identifier for the chat completion.")
+    id: str | None = Field(default=None, description="A unique identifier for the chat completion.")
     search_results: list[Search] = []
     usage: Usage = Field(default_factory=Usage, description="Usage information for the request.")
 

@@ -110,6 +110,23 @@ class QosPolicy(str, Enum):
     PARALLEL_REQUESTS_THRESHOLD = "parallel-requests-threshold"
 
 
+class RequestMode(str, Enum):
+    SHARED = "shared"
+    PRIVATE_FIRST = "private-first"
+    PRIVATE_ONLY = "private-only"
+
+
+class CounterMode(str, Enum):
+    SHARED = "shared"
+    PRIVATE = "private"
+
+
+class ThresholdMode(str, Enum):
+    SHARED = "shared"
+    PRIVATE_SHARED = "private-shared"
+    PRIVATE_PRIVATE = "private-private"
+
+
 CountryCodes = [country.alpha_3 for country in pycountry.countries]
 CountryCodes.append("WOR")  # Add world as a country code, default value of the carbon footprint computation framework
 CountryCodes = {str(lang).upper(): str(lang) for lang in sorted(set(CountryCodes))}
@@ -123,6 +140,9 @@ class ModelProvider(ConfigBaseModel):
     key: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Model provider API key.", examples=["sk-1234567890"])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 500 error (model is too busy).", examples=[10])  # fmt: off
     model_name: constr(strip_whitespace=True, min_length=1) = Field(..., description="Model name from the model provider.", examples=["gpt-4o"])  # fmt: off
+    organization: constr(strip_whitespace=True, min_length=1) = Field(
+        ..., description="The organization to which belongs the provider.", examples=["google"]
+    )
     model_cost_prompt_tokens: float = Field(default=0.0, ge=0.0, description="Model costs prompt tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
     model_cost_completion_tokens: float = Field(default=0.0, ge=0.0, description="Model costs completion tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
     model_carbon_footprint_zone: CountryCodes = Field(default=CountryCodes.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])  # fmt: off
@@ -130,7 +150,9 @@ class ModelProvider(ConfigBaseModel):
     model_carbon_footprint_active_params: float | None = Field(default=None, ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     qos_policy: QosPolicy = Field(default=QosPolicy.WARNING_LOG, description="The quality of service to apply when using asynchronous dispatching, to choose whether or not the server is ready to handle the request.", examples=["performance-threshold"])  # fmt: off
     performance_threshold: float | None = Field(default=None, ge=0.0, description="The performance threshold to not exceed when using a performance based QoS", examples=[0.5])  # fmt: off
-    max_parallel_requests: int | None = Field(default=None, ge=1, description="The maximum number of requests handled in parallel by the server, used with a parallel requests based QoS", examples=[50])  # fmt: off
+    max_parallel_requests_shared: int | None = Field(default=None, ge=1, description="The maximum number of requests handled in parallel by the server (global), used with a parallel requests based QoS", examples=[50])  # fmt: off
+    max_parallel_requests_private_shared: int | None = Field(default=None, ge=1, description="The maximum number of requests handled in parallel by the server (from the private queue but compared against shared queue), used with a parallel requests based QoS", examples=[50])  # fmt: off
+    max_parallel_requests_private_private: int | None = Field(default=None, ge=1, description="The maximum number of requests handled in parallel by the server (from the private queue), used with a parallel requests based QoS", examples=[50])  # fmt: off
 
     model_config = ConfigDict(from_attributes=True)
 

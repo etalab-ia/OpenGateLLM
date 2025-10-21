@@ -22,8 +22,8 @@ from api.clients.model.qos_policies import (
     PerformanceThresholdPolicy,
     WarningLogPolicy,
 )
+from api.schemas.core.configuration import CounterMode, ModelProviderType, QosPolicy, RequestMode, ThresholdMode
 from api.schemas.core.configuration import ModelProvider as ModelClientSchema
-from api.schemas.core.configuration import ModelProviderType, QosPolicy
 from api.schemas.core.metric import Metric
 from api.schemas.usage import Detail, Usage
 from api.utils.carbon import get_carbon_footprint
@@ -58,6 +58,7 @@ class BaseModelClient(ABC):
         key: str,
         timeout: int,
         model_name: str,
+        organization: str,
         model_carbon_footprint_zone: str,
         model_carbon_footprint_total_params: int,
         model_carbon_footprint_active_params: int,
@@ -66,7 +67,9 @@ class BaseModelClient(ABC):
         metrics_retention_ms: int,
         qos_policy: str,
         performance_threshold: float | None,
-        max_parallel_requests: int | None,
+        max_parallel_requests_shared: int | None,
+        max_parallel_requests_private_shared: int | None,
+        max_parallel_requests_private_private: int | None,
         *args,
         **kwargs,
     ) -> None:
@@ -79,12 +82,15 @@ class BaseModelClient(ABC):
         self.url = url
         self.key = key
         self.timeout = timeout
+        self.organization = organization
         self.vector_size = None
         self.max_context_length = None
         self.metrics_retention_ms = metrics_retention_ms
         self.qos_policy = qos_policy
         self.performance_threshold = performance_threshold
-        self.max_parallel_requests = max_parallel_requests
+        self.max_parallel_requests_shared = max_parallel_requests_shared
+        self.max_parallel_requests_private_shared = max_parallel_requests_private_shared
+        self.max_parallel_requests_private_private = max_parallel_requests_private_private
 
         self.headers = {"Authorization": f"Bearer {self.key}"} if self.key else {}
         self.lock = Lock()  # Used by ModelRouter to determine whether the Client is in use
@@ -131,11 +137,13 @@ class BaseModelClient(ABC):
             url=schema.url,
             key=schema.key,
             timeout=schema.timeout,
+            organization=schema.organization,
             metrics_retention_ms=configuration.settings.metrics_retention_ms,
             qos_policy=schema.qos_policy,
             performance_threshold=schema.performance_threshold,
-            max_parallel_requests=schema.max_parallel_requests,
-            **init_kwargs,
+            max_parallel_requests_shared=schema.max_parallel_requests_shared,
+            max_parallel_requests_private_shared=schema.max_parallel_requests_private_shared,
+            max_parallel_requests_private_private=schema.max_parallel_requests_private_private**init_kwargs,
         )
 
     def as_schema(self, censored: bool = True) -> ModelClientSchema:
@@ -151,6 +159,7 @@ class BaseModelClient(ABC):
             key=None if censored else self.key,
             timeout=self.timeout,
             model_name=self.name,
+            organization=self.organization,
             model_cost_prompt_tokens=self.cost_prompt_tokens,
             model_cost_completion_tokens=self.cost_completion_tokens,
             model_carbon_footprint_zone=self.carbon_footprint_zone,
@@ -158,7 +167,9 @@ class BaseModelClient(ABC):
             model_carbon_footprint_active_params=self.carbon_footprint_active_params,
             qos_policy=self.qos_policy,
             performance_threshold=self.performance_threshold,
-            max_parallel_requests=self.max_parallel_requests,
+            max_parallel_requests_shared=self.max_parallel_requests_shared,
+            max_parallel_requests_private_shared=self.max_parallel_requests_private_shared,
+            max_parallel_requests_private_private=self.max_parallel_requests_private_private,
         )
 
     async def setup_metrics_storage(self) -> None:
@@ -288,6 +299,104 @@ class BaseModelClient(ABC):
 
         return additional_data
 
+    def _log_performance_metric(self, metric: Metric) -> None:
+        time_to_first_token_ts_key = f"metrics_ts:time_to_first_token:{metric.model_name}:{metric.provider_url}"
+        try:
+            if metric.time_to_first_token_us is not None:
+                self._redis_client.ts().add(time_to_first_token_ts_key, "*", metric.time_to_first_token_us)
+        except Exception as e:
+            logger.error(f"Failed to log request metrics in redis ts {time_to_first_token_ts_key}: {e}", exc_info=True)
+            self._redis_client.reset()
+
+        latency_ts_key = f"metrics_ts:latency:{metric.model_name}:{metric.provider_url}"
+        try:
+            if metric.latency_ms is not None:
+                self._redis_client.ts().add(latency_ts_key, "*", metric.latency_ms)
+        except Exception as e:
+            logger.error(f"Failed to log request metrics in redis ts {latency_ts_key}: {e}", exc_info=True)
+
+    def get_timeseries_since(self, metric_type: Literal["time_to_first_token", "latency"], cutoff: datetime | None = None) -> list[tuple[int, float]]:
+        """
+        Fetch all points in the RedisTimeSeries key newer than `cutoff`.
+
+        Returns a list of (timestamp_ms, value) tuples.
+        """
+        key = f"metrics_ts:{metric_type}:{self.name}:{self.url}"
+        try:
+            from_ts = int(cutoff.timestamp() * 1000) if cutoff else 0
+            to_ts = "+"
+
+            result = self._redis_client.ts().range(key, from_ts, to_ts)
+            return [(ts, val) for ts, val in result]
+        except Exception as e:
+            logger.error(f"Failed to fetch timeseries for {key}: {e}", exc_info=True)
+            self._redis_client.reset()
+            return []
+
+    def get_current_parallel_requests(self, counter_mode: str) -> int | None:
+        try:
+            inflight_key = f"metrics_gauge:inflight:{self.name}:{self.url}:{counter_mode}"
+            current_parallel_requests = self._redis_client.get(inflight_key)
+            if current_parallel_requests is not None and not inspect.isawaitable(current_parallel_requests):
+                current_parallel_requests = int(current_parallel_requests)
+            else:
+                current_parallel_requests = 0
+        except Exception as e:
+            logger.error(traceback.print_exception(e))
+            current_parallel_requests = None
+        return current_parallel_requests
+
+    def apply_modelclient_policy(self, request_mode: str, priority: int, performance_indicator: float | None) -> tuple[bool, bool]:
+        """
+        Returns two booleans:
+        - first reprensents whether or not request can be forwarded
+        - second represents whether or not the request should switch queue (private first: private -> shared)
+        """
+        if request_mode == RequestMode.PRIVATE_FIRST or request_mode == RequestMode.PRIVATE_ONLY:
+            if priority >= 4:  # TODO: variabiliser la prio bypass
+                return True, False
+            counter_mode = CounterMode.PRIVATE
+            threshold_mode = ThresholdMode.PRIVATE_PRIVATE
+        else:  # request mode is shared
+            counter_mode = CounterMode.SHARED
+            threshold_mode = ThresholdMode.SHARED
+
+        policy: BaseQualityOfServicePolicy | None = None
+        if self.qos_policy == QosPolicy.PARALLEL_REQUESTS_THRESHOLD:
+            policy = ParallelRequestsThresholdPolicy(
+                max_parallel_requests_shared=self.max_parallel_requests_shared,
+                max_parallel_requests_private_shared=self.max_parallel_requests_private_shared,
+                max_parallel_requests_private_private=self.max_parallel_requests_private_private,
+            )
+        elif self.qos_policy == QosPolicy.PERFORMANCE_THRESHOLD:
+            policy = PerformanceThresholdPolicy(self.performance_threshold)
+        else:
+            policy = WarningLogPolicy(
+                performance_threshold=self.performance_threshold,
+                max_parallel_requests_shared=self.max_parallel_requests_shared,
+                max_parallel_requests_private_shared=self.max_parallel_requests_private_shared,
+                max_parallel_requests_private_private=self.max_parallel_requests_private_private,
+            )
+
+        current_parallel_requests = self.get_current_parallel_requests(counter_mode)
+        can_be_forwarded = policy.apply_policy(performance_indicator, current_parallel_requests, threshold_mode)
+
+        if (
+            not can_be_forwarded and request_mode == RequestMode.SHARED and priority >= 4
+        ):  # And qos policy is parallel requests threshold ? TODO: variabiliser la prio bypass
+            counter_mode = CounterMode.PRIVATE
+            current_parallel_requests = self.get_current_parallel_requests(counter_mode)
+            threshold_mode = ThresholdMode.PRIVATE_SHARED
+            can_be_forwarded = policy.apply_policy(performance_indicator, current_parallel_requests, threshold_mode)
+
+        elif not can_be_forwarded and request_mode == RequestMode.PRIVATE_FIRST:  # And qos policy is parallel requests threshold ?
+            counter_mode = CounterMode.SHARED
+            current_parallel_requests = self.get_current_parallel_requests(counter_mode)
+            threshold_mode = ThresholdMode.SHARED
+            should_switch_queue = policy.apply_policy(performance_indicator, current_parallel_requests, threshold_mode)
+            return False, should_switch_queue
+        return can_be_forwarded, False
+
     def _format_request(
         self, json: dict | None = None, files: dict | None = None, data: dict | None = None
     ) -> tuple[str, dict[str, str] | None, dict | None, dict | None, dict | None]:
@@ -344,65 +453,6 @@ class BaseModelClient(ABC):
 
         return response
 
-    def _log_performance_metric(self, metric: Metric) -> None:
-        time_to_first_token_ts_key = f"metrics_ts:time_to_first_token:{metric.model_name}:{metric.provider_url}"
-        try:
-            if metric.time_to_first_token_us is not None:
-                self._redis_client.ts().add(time_to_first_token_ts_key, "*", metric.time_to_first_token_us)
-        except Exception as e:
-            logger.error(f"Failed to log request metrics in redis ts {time_to_first_token_ts_key}: {e}", exc_info=True)
-            self._redis_client.reset()
-
-        latency_ts_key = f"metrics_ts:latency:{metric.model_name}:{metric.provider_url}"
-        try:
-            if metric.latency_ms is not None:
-                self._redis_client.ts().add(latency_ts_key, "*", metric.latency_ms)
-        except Exception as e:
-            logger.error(f"Failed to log request metrics in redis ts {latency_ts_key}: {e}", exc_info=True)
-
-    def get_timeseries_since(self, metric_type: Literal["time_to_first_token", "latency"], cutoff: datetime | None = None) -> list[tuple[int, float]]:
-        """
-        Fetch all points in the RedisTimeSeries key newer than `cutoff`.
-
-        Returns a list of (timestamp_ms, value) tuples.
-        """
-        key = f"metrics_ts:{metric_type}:{self.name}:{self.url}"
-        try:
-            from_ts = int(cutoff.timestamp() * 1000) if cutoff else 0
-            to_ts = "+"
-
-            result = self._redis_client.ts().range(key, from_ts, to_ts)
-            return [(ts, val) for ts, val in result]
-        except Exception as e:
-            logger.error(f"Failed to fetch timeseries for {key}: {e}", exc_info=True)
-            self._redis_client.reset()
-            return []
-
-    def get_current_parallel_requests(self) -> Optional[int]:
-        try:
-            inflight_key = f"metrics_gauge:inflight:{self.name}:{self.url}"
-            current_parallel_requests = self._redis_client.get(inflight_key)
-            if current_parallel_requests is not None and not inspect.isawaitable(current_parallel_requests):
-                current_parallel_requests = int(current_parallel_requests)
-            else:
-                current_parallel_requests = 0
-        except Exception as e:
-            logger.error(traceback.print_exception(e))
-            current_parallel_requests = None
-        return current_parallel_requests
-
-    def apply_modelclient_policy(self, performance_indicator: float | None) -> bool:
-        policy: BaseQualityOfServicePolicy | None = None
-        if self.qos_policy == QosPolicy.PARALLEL_REQUESTS_THRESHOLD:
-            policy = ParallelRequestsThresholdPolicy(self.max_parallel_requests)
-        elif self.qos_policy == QosPolicy.PERFORMANCE_THRESHOLD:
-            policy = PerformanceThresholdPolicy(self.performance_threshold)
-        else:
-            policy = WarningLogPolicy(self.performance_threshold, self.max_parallel_requests)
-
-        current_parallel_requests = self.get_current_parallel_requests()
-        return policy.apply_policy(performance_indicator, current_parallel_requests)
-
     async def forward_request(
         self,
         method: str,
@@ -429,7 +479,12 @@ class BaseModelClient(ABC):
         if not additional_data:
             additional_data = {}
 
-        inflight_key = f"metrics_gauge:inflight:{self.name}:{self.url}"
+        request_mode = getattr(json, "request_mode", RequestMode.SHARED)
+        if request_mode == RequestMode.PRIVATE_FIRST or request_mode == RequestMode.PRIVATE_ONLY:
+            counter_mode = CounterMode.PRIVATE
+        else:
+            counter_mode = CounterMode.SHARED
+        inflight_key = f"metrics_gauge:inflight:{self.name}:{self.url}:{counter_mode}"
         try:
             try:
                 self._redis_client.incr(inflight_key)

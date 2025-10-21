@@ -2,17 +2,17 @@ from asyncio import Lock
 from collections.abc import Awaitable, Callable
 import inspect
 import logging
+import random
 import time
 
 from fastapi import HTTPException
-import random
 
 from api.clients.model import BaseModelClient as ModelClient
 from api.helpers.models.routers.strategies import LeastBusyRoutingStrategy, RoundRobinRoutingStrategy, ShuffleRoutingStrategy
 from api.schemas.core.configuration import Model as ModelRouterSchema
 from api.schemas.core.configuration import RoutingStrategy
 from api.schemas.models import ModelType
-from api.utils.exceptions import WrongModelTypeException, ModelNotProvidedByOrganizationException
+from api.utils.exceptions import ModelNotProvidedByOrganizationException, WrongModelTypeException
 from api.utils.tracked_cycle import TrackedCycle
 from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS, ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__EMBEDDINGS, ENDPOINT__OCR, ENDPOINT__RERANK
 

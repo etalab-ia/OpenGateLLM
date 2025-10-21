@@ -24,6 +24,7 @@ from api.sql.models import Document as DocumentTable
 from api.sql.models import User as UserTable
 from api.utils.exceptions import ChunkingFailedException, CollectionNotFoundException, DocumentNotFoundException, VectorizationFailedException
 from api.utils.variables import ENDPOINT__EMBEDDINGS
+
 from ._parsermanager import ParserManager
 from ._websearchmanager import WebSearchManager
 

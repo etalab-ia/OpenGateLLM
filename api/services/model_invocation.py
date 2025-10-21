@@ -6,22 +6,14 @@ from typing import Any
 
 from api.clients.model import BaseModelClient
 from api.schemas.core.configuration import ModelProvider as ModelClientSchema
+from api.schemas.core.configuration import RequestMode
+from api.schemas.usage import TaskMetrics
 from api.tasks.celery_app import celery_app, queue_name_for_model, task_priority_from_user_priority
-from api.tasks.model import invoke_model_task
+from api.tasks.model import invoke_private_model_task, invoke_shared_model_task
 from api.utils.configuration import configuration
 from api.utils.context import global_context
-from api.schemas.core.configuration import ModelProvider as ModelClientSchema
-from api.schemas.usage import TaskMetrics
-from api.clients.model import BaseModelClient
-from api.tasks.model import invoke_shared_model_task, invoke_private_model_task
-from api.tasks.celery_app import queue_name_for_model, task_priority_from_user_priority
-from api.utils.tracked_cycle import TrackedCycle
-<<<<<<< HEAD
-from api.utils.exceptions import TaskFailedException
-from api.utils.tracked_cycle import TrackedCycle
-=======
 from api.utils.exceptions import ModelNotProvidedByOrganizationException, TaskFailedException
->>>>>>> b1ba224 (wip 1)
+from api.utils.tracked_cycle import TrackedCycle
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +21,7 @@ settings = configuration.settings
 
 
 async def invoke_model_request(
-    model_name: str, endpoint: str, user_priority: int | None = None, request_mode: str = "shared", organization: str | None = None
+    model_name: str, endpoint: str, user_priority: int | None = None, request_mode: RequestMode = RequestMode.SHARED, organization: str | None = None
 ) -> tuple[BaseModelClient, TaskMetrics]:
     """Invoke a model (non-streaming) returning (status_code, json_body).
 
@@ -58,7 +50,7 @@ async def invoke_model_request(
         original_name = model_name  # fallback; error will surface later if invalid
 
     # Submit task
-    if "private" in request_mode:
+    if request_mode == RequestMode.PRIVATE_FIRST or request_mode == RequestMode.PRIVATE_ONLY:
         try:
             router.get_client_from_org(organization)
         except ModelNotProvidedByOrganizationException:
@@ -68,7 +60,7 @@ async def invoke_model_request(
             args=[router_schema, endpoint, request_mode, organization], queue=queue, priority=priority
         )
 
-    else:
+    else:  # request mode is shared
         queue = queue_name_for_model(original_name)
         async_result = invoke_shared_model_task.apply_async(args=[router_schema, endpoint], queue=queue, priority=priority)
 

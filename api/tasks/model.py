@@ -1,22 +1,19 @@
-from typing import Any, Dict
+from typing import Any
 
 from billiard.exceptions import SoftTimeLimitExceeded
 from celery.exceptions import MaxRetriesExceededError, Retry
 
 from api.helpers.models.routers._modelrouter import ModelRouter
-from billiard.exceptions import SoftTimeLimitExceeded
-from celery.exceptions import Retry, MaxRetriesExceededError
-
-from api.tasks.celery_app import celery_app, shared_queue_name_from_private_one
 from api.schemas.core.configuration import Model as ModelRouterSchema
-from api.tasks.celery_app import celery_app
+from api.schemas.core.configuration import RequestMode
+from api.tasks.celery_app import celery_app, shared_queue_name_from_private_one
 from api.utils.configuration import configuration
 
 settings = configuration.settings
 
 
 @celery_app.task(name="model.invoke.shared", bind=True)
-def invoke_shared_model_task(self, router_schema: Dict[str, Any], endpoint: str) -> Dict[str, Any]:
+def invoke_shared_model_task(self, router_schema: dict[str, Any], endpoint: str) -> dict[str, Any]:
     """Invoke a model provider (non-streaming).
 
     router_schema: serialized ModelRouterSchema schema (censored=False)
@@ -37,7 +34,10 @@ def invoke_shared_model_task(self, router_schema: Dict[str, Any], endpoint: str)
 
     try:
         client, performance_indicator = router.get_client(endpoint=endpoint)
-        can_be_forwarded = client.apply_modelclient_policy(performance_indicator)
+        priority = self.request.delivery_info.get("priority", 0)
+        can_be_forwarded, _ = client.apply_modelclient_policy(
+            request_mode=RequestMode.SHARED, priority=priority, performance_indicator=performance_indicator
+        )
         if can_be_forwarded:
             return {
                 "status_code": 200,
@@ -63,7 +63,7 @@ def invoke_shared_model_task(self, router_schema: Dict[str, Any], endpoint: str)
 
 
 @celery_app.task(name="model.invoke.private", bind=True)
-def invoke_private_model_task(self, router_schema: Dict[str, Any], endpoint: str, mode: str, organization: str) -> Dict[str, Any]:
+def invoke_private_model_task(self, router_schema: dict[str, Any], endpoint: str, mode: str, organization: str) -> dict[str, Any]:
     """
     Private or private-first invocation for a specific provider.
     mode ∈ {"private", "private-first"}
@@ -82,8 +82,10 @@ def invoke_private_model_task(self, router_schema: Dict[str, Any], endpoint: str
 
     try:
         client, performance_indicator = router.get_client_from_org(organization, endpoint=endpoint)
-        can_be_forwarded = client.apply_modelclient_policy(performance_indicator)
-
+        priority = self.request.delivery_info.get("priority", 0)
+        can_be_forwarded, should_switch_queue = client.apply_modelclient_policy(
+            request_mode=mode, priority=priority, performance_indicator=performance_indicator
+        )
         if can_be_forwarded:
             return {
                 "status_code": 200,
@@ -93,7 +95,7 @@ def invoke_private_model_task(self, router_schema: Dict[str, Any], endpoint: str
                 "performance_indicator": performance_indicator,
             }
 
-        elif mode == "private-first":
+        elif should_switch_queue:
             current_queue = self.request.delivery_info.get("routing_key", "")
             shared_queue = shared_queue_name_from_private_one(current_queue)
 
