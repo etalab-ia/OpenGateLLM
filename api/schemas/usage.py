@@ -20,6 +20,7 @@ class CarbonFootprintUsage(BaseModel):
 
 class TaskMetrics(BaseModel):
     strategy: str = Field(default="", description="Strategy used to choose a client.")
+    policy: Optional[str] = Field(default=None, description="QoS policy used to decide whether or not the message should be requeued.")
     priority: int = Field(default=0, description="Priority of the user who made the request.")
     requeue_count: int = Field(default=0, description="Number of times the celery task had to be retried before succeeding.")
     get_client_duration: int = Field(default=0, description="Total duration (in milliseconds) of the celery task, including retries.")

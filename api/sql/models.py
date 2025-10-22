@@ -26,6 +26,7 @@ class Usage(Base):
     client_url = Column(String, nullable=False)
     request_model = Column(String, nullable=True)
     strategy = Column(String, nullable=False)
+    policy = Column(String, nullable=True)
     performance_score = Column(Float, nullable=True)
     current_parallel_requests = Column(Integer, nullable=False)
     max_parallel_requests = Column(Integer, nullable=True)

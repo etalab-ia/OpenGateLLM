@@ -81,6 +81,7 @@ async def invoke_model_request(
     client = BaseModelClient.from_schema(schema=schema_obj)
     task_metrics = TaskMetrics(
         strategy=strategy,
+        policy=client.qos_policy,
         priority=priority,
         requeue_count=result.get("requeue_count", 0),
         get_client_duration=duration,
