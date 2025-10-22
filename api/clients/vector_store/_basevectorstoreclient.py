@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import importlib
-from typing import List, Optional, Type
 
 from api.schemas.chunks import Chunk
 from api.schemas.core.configuration import VectorStoreType
@@ -13,7 +12,7 @@ class BaseVectorStoreClient(ABC):
     default_method = None  # SearchMethod, it needs to be overridden by child classes.
 
     @staticmethod
-    def import_module(type: VectorStoreType) -> "Type[BaseVectorStoreClient]":
+    def import_module(type: VectorStoreType) -> "type[BaseVectorStoreClient]":
         """
         Static method to import a subclass of BaseVectorStoreClient.
 
@@ -49,7 +48,7 @@ class BaseVectorStoreClient(ABC):
         """Return the list of existing collection identifiers."""
 
     @abstractmethod
-    async def get_chunk_count(self, collection_id: int, document_id: int) -> Optional[int]:
+    async def get_chunk_count(self, collection_id: int, document_id: int) -> int | None:
         """Return the number of chunks for *document_id* inside *collection_id* (or *None* if unavailable)."""
 
     @abstractmethod
@@ -63,24 +62,24 @@ class BaseVectorStoreClient(ABC):
         document_id: int,
         limit: int = 10,
         offset: int = 0,
-        chunk_id: Optional[int] = None,
-    ) -> List[Chunk]:
+        chunk_id: int | None = None,
+    ) -> list[Chunk]:
         """Retrieve a slice of chunks for *document_id* from *collection_id*."""
 
     @abstractmethod
-    async def upsert(self, collection_id: int, chunks: List[Chunk], embeddings: List[list[float]]) -> None:
+    async def upsert(self, collection_id: int, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
         """Insert or update *chunks* along with their *embeddings* inside *collection_id*."""
 
     @abstractmethod
     async def search(
         self,
         method: SearchMethod,
-        collection_ids: List[int],
+        collection_ids: list[int],
         query_prompt: str,
         query_vector: list[float],
         limit: int = 10,
         offset: int = 0,
-        rff_k: Optional[int] = 20,
+        rff_k: int | None = 20,
         score_threshold: float = 0.0,
-    ) -> List[Search]:
+    ) -> list[Search]:
         """Run a search query and return a ranked list of *Search* results."""

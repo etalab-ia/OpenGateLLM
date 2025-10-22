@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, Body, Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
@@ -87,7 +87,7 @@ async def get_token(
 )
 async def get_tokens(
     request: Request,
-    user: Optional[int] = Query(default=None, description="The user ID of the user to get the tokens for."),
+    user: int | None = Query(default=None, description="The user ID of the user to get the tokens for."),
     offset: int = Query(default=0, ge=0, description="The offset of the tokens to get."),
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the tokens to get."),
     order_by: Literal["id", "name", "created_at"] = Query(default="id", description="The field to order the tokens by."),

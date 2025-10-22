@@ -1,8 +1,8 @@
-import pytest
 from fastapi.testclient import TestClient
+import pytest
 
 from api.schemas.chat import ChatCompletion
-from api.utils.variables import ENDPOINT__AGENTS_TOOLS, ENDPOINT__AGENTS_COMPLETIONS
+from api.utils.variables import ENDPOINT__AGENTS_COMPLETIONS, ENDPOINT__AGENTS_TOOLS
 
 
 @pytest.mark.usefixtures("client")

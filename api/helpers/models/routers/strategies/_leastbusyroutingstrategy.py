@@ -1,11 +1,10 @@
-from typing import Literal
 from datetime import datetime, timedelta
 import math
 import random
-
-from api.helpers.models.routers.strategies import BaseRoutingStrategy
+from typing import Literal
 
 from api.clients.model import BaseModelClient as ModelClient
+from api.helpers.models.routers.strategies import BaseRoutingStrategy
 
 
 class LeastBusyRoutingStrategy(BaseRoutingStrategy):

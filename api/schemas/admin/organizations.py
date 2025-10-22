@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import Field, constr
 
@@ -11,7 +11,7 @@ class OrganizationRequest(BaseModel):
 
 
 class OrganizationUpdateRequest(BaseModel):
-    name: Optional[constr(strip_whitespace=True, min_length=1)] = Field(default=None, description="The new organization name.")
+    name: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="The new organization name.")
 
 
 class OrganizationsResponse(BaseModel):
@@ -28,4 +28,4 @@ class Organization(BaseModel):
 
 class Organizations(BaseModel):
     object: Literal["list"] = "list"
-    data: List[Organization]
+    data: list[Organization]

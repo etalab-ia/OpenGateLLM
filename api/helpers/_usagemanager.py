@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import math
 
-from sqlalchemy import desc, asc, func
+from sqlalchemy import asc, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 

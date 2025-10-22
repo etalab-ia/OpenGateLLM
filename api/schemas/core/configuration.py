@@ -3,7 +3,7 @@ from functools import wraps
 import logging
 import os
 import re
-from typing import Any, Dict, List, Literal, Optional, Type
+from typing import Any, Literal
 
 import pycountry
 from pydantic import BaseModel, ConfigDict, Field, constr, field_validator, model_validator
@@ -23,7 +23,7 @@ from api.utils.variables import (
 # utils ----------------------------------------------------------------------------------------------------------------------------------------------
 
 
-def custom_validation_error(url: Optional[str] = None):
+def custom_validation_error(url: str | None = None):
     """
     Decorator to override Pydantic ValidationError to change error message.
 
@@ -57,7 +57,7 @@ def custom_validation_error(url: Optional[str] = None):
         def __str__(self):
             return self.message
 
-    def decorator(cls: Type[BaseModel]):
+    def decorator(cls: type[BaseModel]):
         original_init = cls.__init__
 
         @wraps(original_init)
@@ -119,18 +119,18 @@ CountryCodes = Enum("CountryCodes", CountryCodes, type=str)
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#modelprovider")
 class ModelProvider(ConfigBaseModel):
     type: ModelProviderType = Field(..., description="Model provider type.", examples=["openai"])  # fmt: off
-    url: Optional[constr(strip_whitespace=True, min_length=1)] = Field(default=None, description="Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI).", examples=["https://api.openai.com"])  # fmt: off
-    key: Optional[constr(strip_whitespace=True, min_length=1)] = Field(default=None, description="Model provider API key.", examples=["sk-1234567890"])  # fmt: off
+    url: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI).", examples=["https://api.openai.com"])  # fmt: off
+    key: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Model provider API key.", examples=["sk-1234567890"])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 500 error (model is too busy).", examples=[10])  # fmt: off
     model_name: constr(strip_whitespace=True, min_length=1) = Field(..., description="Model name from the model provider.", examples=["gpt-4o"])  # fmt: off
     model_cost_prompt_tokens: float = Field(default=0.0, ge=0.0, description="Model costs prompt tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
     model_cost_completion_tokens: float = Field(default=0.0, ge=0.0, description="Model costs completion tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
     model_carbon_footprint_zone: CountryCodes = Field(default=CountryCodes.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])  # fmt: off
-    model_carbon_footprint_total_params: Optional[float] = Field(default=None, ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
-    model_carbon_footprint_active_params: Optional[float] = Field(default=None, ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
+    model_carbon_footprint_total_params: float | None = Field(default=None, ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
+    model_carbon_footprint_active_params: float | None = Field(default=None, ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     qos_policy: QosPolicy = Field(default=QosPolicy.WARNING_LOG, description="The quality of service to apply when using asynchronous dispatching, to choose whether or not the server is ready to handle the request.", examples=["performance-threshold"])  # fmt: off
-    performance_threshold: Optional[float] = Field(default=None, ge=0.0, description="The performance threshold to not exceed when using a performance based QoS", examples=[0.5])  # fmt: off
-    max_parallel_requests: Optional[int] = Field(default=None, ge=1, description="The maximum number of requests handled in parallel by the server, used with a parallel requests based QoS", examples=[50])  # fmt: off
+    performance_threshold: float | None = Field(default=None, ge=0.0, description="The performance threshold to not exceed when using a performance based QoS", examples=[0.5])  # fmt: off
+    max_parallel_requests: int | None = Field(default=None, ge=1, description="The maximum number of requests handled in parallel by the server, used with a parallel requests based QoS", examples=[50])  # fmt: off
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -170,18 +170,18 @@ class Model(ConfigBaseModel):
     """
 
     type: ModelType = Field(..., description="Type of the model. It will be used to identify the model type.", examples=["text-generation"])  # fmt: off
-    aliases: List[constr(strip_whitespace=True, min_length=1, max_length=64)] = Field(default_factory=list, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]])  # fmt: off
+    aliases: list[constr(strip_whitespace=True, min_length=1, max_length=64)] = Field(default_factory=list, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]])  # fmt: off
     owned_by: constr(strip_whitespace=True, min_length=1, max_length=64) = Field(default=DEFAULT_APP_NAME, description="Owner of the model displayed in `/v1/models` endpoint.", examples=["my-app"])  # fmt: off
     routing_strategy: RoutingStrategy = Field(default=RoutingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["round_robin"])  # fmt: off
-    providers: List[ModelProvider] = Field(..., description="API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type.")  # fmt: off
+    providers: list[ModelProvider] = Field(..., description="API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type.")  # fmt: off
     cycle_offset: int = Field(
         default=0, description="Current position in the round-robin cycle for load balancing. Used to maintain cycle state across serialization."
     )
 
-    vector_size: Optional[int] = Field(default=None, description="Dimension of the vectors, if the models are embeddings. Makes just it is the same for all models.")  # fmt: off
-    max_context_length: Optional[int] = Field(default=None, description="Maximum amount of tokens a context could contains. Makes sure it is the same for all models.")  # fmt: off
-    created: Optional[int] = Field(default=None, description="Time of creation, as Unix timestamp.")  # fmt: off
-    from_config: Optional[bool] = Field(default=False, description="Whether this model was defined in configuration, meaning it should be checked against the database.")  # fmt: off
+    vector_size: int | None = Field(default=None, description="Dimension of the vectors, if the models are embeddings. Makes just it is the same for all models.")  # fmt: off
+    max_context_length: int | None = Field(default=None, description="Maximum amount of tokens a context could contains. Makes sure it is the same for all models.")  # fmt: off
+    created: int | None = Field(default=None, description="Time of creation, as Unix timestamp.")  # fmt: off
+    from_config: bool | None = Field(default=False, description="Whether this model was defined in configuration, meaning it should be checked against the database.")  # fmt: off
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -254,21 +254,21 @@ class DependencyType(str, Enum):
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#albert")
 class AlbertDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(default="https://albert.api.etalab.gouv.fr", description="Albert API url.")  # fmt: off
-    headers: Dict[str, str] = Field(default_factory=dict, description="Albert API request headers.", examples=[{"Authorization": "Bearer my-api-key"}])  # fmt: off
+    headers: dict[str, str] = Field(default_factory=dict, description="Albert API request headers.", examples=[{"Authorization": "Bearer my-api-key"}])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Albert API requests.", examples=[10])  # fmt: off
 
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#brave")
 class BraveDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(default="https://api.search.brave.com/res/v1/web/search", description="Brave API url.")  # fmt: off
-    headers: Dict[str, str] = Field(default_factory=dict, required = True, description="Brave API request headers.", examples=[{"X-Subscription-Token": "my-api-key"}])  # fmt: off
+    headers: dict[str, str] = Field(default_factory=dict, required = True, description="Brave API request headers.", examples=[{"X-Subscription-Token": "my-api-key"}])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Brave API requests.", examples=[10])  # fmt: off
 
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#duckduckgodependency")
 class DuckDuckGoDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(default="https://api.duckduckgo.com/", description="DuckDuckGo API url.")  # fmt: off
-    headers: Dict[str, str] = Field(default_factory=dict, required = False, description="DuckDuckGo API request headers.", examples=[{}])  # fmt: off
+    headers: dict[str, str] = Field(default_factory=dict, required = False, description="DuckDuckGo API request headers.", examples=[{}])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the DuckDuckGo API requests.", examples=[10])  # fmt: off
 
 
@@ -298,7 +298,7 @@ class QdrantDependency(ConfigBaseModel):
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#markerdependency")
 class MarkerDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(..., description="Marker API url.")  # fmt: off
-    headers: Dict[str, str] = Field(default_factory=dict, description="Marker API request headers.", examples=[{"Authorization": "Bearer my-api-key"}])  # fmt: off
+    headers: dict[str, str] = Field(default_factory=dict, description="Marker API request headers.", examples=[{"Authorization": "Bearer my-api-key"}])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Marker API requests.", examples=[10])  # fmt: off
 
 
@@ -323,7 +323,7 @@ class SecretiveshellDependency(ConfigBaseModel):
     """
 
     url: constr(strip_whitespace=True, min_length=1) = Field(..., description="Secretiveshell API url.")  # fmt: off
-    headers: Dict[str, str] = Field(default_factory=dict, description="Secretiveshell API request headers.")  # fmt: off
+    headers: dict[str, str] = Field(default_factory=dict, description="Secretiveshell API request headers.")  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Secretiveshell API requests.", examples=[10])  # fmt: off
 
 
@@ -355,19 +355,19 @@ class EmptyDepencency(ConfigBaseModel):
 
 @custom_validation_error(url="https://github.com/etalab-ia/albert-api/blob/main/docs/configuration.md#dependencies")
 class Dependencies(ConfigBaseModel):
-    albert: Optional[AlbertDependency] = Field(default=None, description="If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section.")  # fmt: off
-    brave: Optional[BraveDependency] = Field(default=None, description="If provided, Brave API is used to web search. Cannot be used with DuckDuckGo dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://api-dashboard.search.brave.com/app/documentation/web-search/query for more information.")  # fmt: off
-    duckduckgo: Optional[DuckDuckGoDependency] = Field(default=None, description="If provided, DuckDuckGo API is used to web search. Cannot be used with Brave dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://www.searchapi.io/docs/duckduckgo-api for more information.")  # fmt: off
-    elasticsearch: Optional[ElasticsearchDependency] = Field(default=None, description="Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information.")  # fmt: off
-    qdrant: Optional[QdrantDependency] = Field(default=None, description="Pass all qdrant python SDK arguments, see https://python-client.qdrant.tech/qdrant_client.qdrant_client for more information.")  # fmt: off
-    marker: Optional[MarkerDependency] = Field(default=None, description="If provided, Marker API is used to parse pdf documents. Cannot be used with Albert dependency concurrently. Pass arguments to call Marker API in this section.")  # fmt: off
+    albert: AlbertDependency | None = Field(default=None, description="If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section.")  # fmt: off
+    brave: BraveDependency | None = Field(default=None, description="If provided, Brave API is used to web search. Cannot be used with DuckDuckGo dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://api-dashboard.search.brave.com/app/documentation/web-search/query for more information.")  # fmt: off
+    duckduckgo: DuckDuckGoDependency | None = Field(default=None, description="If provided, DuckDuckGo API is used to web search. Cannot be used with Brave dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://www.searchapi.io/docs/duckduckgo-api for more information.")  # fmt: off
+    elasticsearch: ElasticsearchDependency | None = Field(default=None, description="Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information.")  # fmt: off
+    qdrant: QdrantDependency | None = Field(default=None, description="Pass all qdrant python SDK arguments, see https://python-client.qdrant.tech/qdrant_client.qdrant_client for more information.")  # fmt: off
+    marker: MarkerDependency | None = Field(default=None, description="If provided, Marker API is used to parse pdf documents. Cannot be used with Albert dependency concurrently. Pass arguments to call Marker API in this section.")  # fmt: off
     postgres: PostgresDependency = Field(..., description="Pass all postgres python SDK arguments, see https://github.com/etalab-ia/opengatellm/blob/main/docs/dependencies/postgres.md for more information.")  # fmt: off
     # @TODO: support optional redis dependency with set redis in cache
     redis: RedisDependency  = Field(..., description="Pass all redis python SDK arguments, see https://redis.readthedocs.io/en/stable/connections.html for more information.")  # fmt: off
-    secretiveshell: Optional[SecretiveshellDependency] = Field(default=None, description="If provided, MCP agents can use tools from SecretiveShell MCP Bridge. Pass arguments to call Secretiveshell API in this section, see https://github.com/SecretiveShell/MCP-Bridge for more information.")  # fmt: off
-    sentry: Optional[SentryDependency] = Field(default=None, description="Pass all sentry python SDK arguments, see https://docs.sentry.io/platforms/python/configuration/options/ for more information.")  # fmt: off
-    proconnect: Optional[ProConnect] = Field(default=None, description="ProConnect configuration for the API. See https://github.com/etalab-ia/albert-api/blob/main/docs/oauth2_encryption.md for more information.")  # fmt: off
-    centralesupelec: Optional[CentraleSupelecDependency] = Field(default=None, description="")
+    secretiveshell: SecretiveshellDependency | None = Field(default=None, description="If provided, MCP agents can use tools from SecretiveShell MCP Bridge. Pass arguments to call Secretiveshell API in this section, see https://github.com/SecretiveShell/MCP-Bridge for more information.")  # fmt: off
+    sentry: SentryDependency | None = Field(default=None, description="Pass all sentry python SDK arguments, see https://docs.sentry.io/platforms/python/configuration/options/ for more information.")  # fmt: off
+    proconnect: ProConnect | None = Field(default=None, description="ProConnect configuration for the API. See https://github.com/etalab-ia/albert-api/blob/main/docs/oauth2_encryption.md for more information.")  # fmt: off
+    centralesupelec: CentraleSupelecDependency | None = Field(default=None, description="")
 
     @model_validator(mode="after")
     def validate_dependencies(cls, values):
@@ -430,8 +430,8 @@ class Tokenizer(str, Enum):
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#settings")
 class Settings(ConfigBaseModel):
     # other
-    disabled_routers: List[Routers] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["agents", "embeddings"]])  # fmt: off
-    hidden_routers: List[Routers] = Field(default_factory=list, description="Routers are enabled but hidden in the swagger and the documentation of the API.", examples=[["admin"]])  # fmt: off
+    disabled_routers: list[Routers] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["agents", "embeddings"]])  # fmt: off
+    hidden_routers: list[Routers] = Field(default_factory=list, description="Routers are enabled but hidden in the swagger and the documentation of the API.", examples=[["admin"]])  # fmt: off
 
     # metrics
     metrics_retention_ms: int = Field(default=40000, ge=1, description="Retention time for metrics in milliseconds.")  # fmt: off
@@ -441,27 +441,27 @@ class Settings(ConfigBaseModel):
 
     # logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(default="INFO", description="Logging level of the API.")  # fmt: off
-    log_format: Optional[str] = Field(default="[%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s", description="Logging format of the API.")  # fmt: off
+    log_format: str | None = Field(default="[%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s", description="Logging format of the API.")  # fmt: off
 
     # swagger
-    swagger_title: Optional[str] = Field(default="Albert API", description="Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API"])  # fmt: off
-    swagger_summary: Optional[str] = Field(default="Albert API connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title.", description="Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API connect to your models."])  # fmt: off
-    swagger_version: Optional[str] = Field(default="latest", description="Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["2.5.0"])  # fmt: off
-    swagger_description: Optional[str] = Field(default="[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)", description="Display description of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)"])  # fmt: off
-    swagger_contact: Optional[Dict] = Field(default=None, description="Contact informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
-    swagger_license_info: Optional[Dict] = Field(default={"name": "MIT Licence", "identifier": "MIT", "url": "https://raw.githubusercontent.com/etalab-ia/opengatellm/refs/heads/main/LICENSE"}, description="Licence informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
-    swagger_terms_of_service: Optional[str] = Field(default=None, description="A URL to the Terms of Service for the API in swagger UI. If provided, this has to be a URL.", examples=["https://example.com/terms-of-service"])  # fmt: off
-    swagger_openapi_tags: List[Dict[str, Any]] = Field(default_factory=list, description="OpenAPI tags of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
-    swagger_openapi_url: Optional[str] = Field(default="/openapi.json", pattern=r"^/", description="OpenAPI URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
-    swagger_docs_url: Optional[str] = Field(default="/docs", pattern=r"^/", description="Docs URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
-    swagger_redoc_url: Optional[str] = Field(default="/redoc", pattern=r"^/", description="Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
+    swagger_title: str | None = Field(default="Albert API", description="Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API"])  # fmt: off
+    swagger_summary: str | None = Field(default="Albert API connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title.", description="Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API connect to your models."])  # fmt: off
+    swagger_version: str | None = Field(default="latest", description="Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["2.5.0"])  # fmt: off
+    swagger_description: str | None = Field(default="[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)", description="Display description of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)"])  # fmt: off
+    swagger_contact: dict | None = Field(default=None, description="Contact informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
+    swagger_license_info: dict | None = Field(default={"name": "MIT Licence", "identifier": "MIT", "url": "https://raw.githubusercontent.com/etalab-ia/opengatellm/refs/heads/main/LICENSE"}, description="Licence informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
+    swagger_terms_of_service: str | None = Field(default=None, description="A URL to the Terms of Service for the API in swagger UI. If provided, this has to be a URL.", examples=["https://example.com/terms-of-service"])  # fmt: off
+    swagger_openapi_tags: list[dict[str, Any]] = Field(default_factory=list, description="OpenAPI tags of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
+    swagger_openapi_url: str | None = Field(default="/openapi.json", pattern=r"^/", description="OpenAPI URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
+    swagger_docs_url: str | None = Field(default="/docs", pattern=r"^/", description="Docs URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
+    swagger_redoc_url: str | None = Field(default="/redoc", pattern=r"^/", description="Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
 
     # mcp
     mcp_max_iterations: int = Field(default=2, ge=2, description="Maximum number of iterations for MCP agents in `/v1/agents/completions` endpoint.")  # fmt: off
 
     # auth
     auth_master_key: constr(strip_whitespace=True, min_length=1) = Field(default="changeme", description="Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys.")  # fmt: off
-    auth_max_token_expiration_days: Optional[int] = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
+    auth_max_token_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
     auth_playground_session_duration: int = Field(default=3600, ge=1, description="Duration of the playground session in seconds.")  # fmt: off
 
     # rate_limiting
@@ -472,15 +472,15 @@ class Settings(ConfigBaseModel):
     monitoring_prometheus_enabled: bool = Field(default=True, description="If true, Prometheus metrics will be exposed in the `/metrics` endpoint.")  # fmt: off
 
     # vector store
-    vector_store_model: Optional[str] = Field(default=None, description="Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch or Qdrant). This model must be defined in the `models` section and have type `text-embeddings-inference`.")  # fmt: off
+    vector_store_model: str | None = Field(default=None, description="Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch or Qdrant). This model must be defined in the `models` section and have type `text-embeddings-inference`.")  # fmt: off
 
     # search - web
-    search_web_query_model: Optional[str] = Field(default=None, description="Model used to query the web in the web search. Is required if a web search dependency is provided (Brave or DuckDuckGo). This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`.")  # fmt: off
-    search_web_limited_domains: List[str] = Field(default_factory=list, description="Limited domains for the web search. If provided, the web search will be limited to these domains.")  # fmt: off
-    search_web_user_agent: Optional[str] = Field(default=None, description="User agent to scrape the web. If provided, the web search will use this user agent.")  # fmt: off
+    search_web_query_model: str | None = Field(default=None, description="Model used to query the web in the web search. Is required if a web search dependency is provided (Brave or DuckDuckGo). This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`.")  # fmt: off
+    search_web_limited_domains: list[str] = Field(default_factory=list, description="Limited domains for the web search. If provided, the web search will be limited to these domains.")  # fmt: off
+    search_web_user_agent: str | None = Field(default=None, description="User agent to scrape the web. If provided, the web search will use this user agent.")  # fmt: off
 
     # session
-    session_secret_key: Optional[str] = Field(default=None, description='Secret key for session middleware. If not provided, the master key will be used.', examples=["knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM"])  # fmt: off
+    session_secret_key: str | None = Field(default=None, description='Secret key for session middleware. If not provided, the master key will be used.', examples=["knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM"])  # fmt: off
 
     front_url: str = Field(default="http://localhost:8501", description="Front-end URL for the application.")
 
@@ -493,11 +493,11 @@ class Settings(ConfigBaseModel):
         default=True,
         description="If true, exceptions in eager mode propagate immediately (useful for tests/development).",
     )
-    celery_broker_url: Optional[str] = Field(
+    celery_broker_url: str | None = Field(
         default=None,
         description="Celery broker URL (e.g. redis://localhost:6379/0 or amqp://user:pass@host:5672//). Required if celery_task_always_eager is false.",
     )
-    celery_result_backend: Optional[str] = Field(
+    celery_result_backend: str | None = Field(
         default=None,
         description="Celery result backend URL (e.g. redis://localhost:6379/1 or rpc://). If not provided, results may not persist across workers.",
     )
@@ -550,7 +550,7 @@ class ConfigFile(ConfigBaseModel):
     Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateLLM/blob/main/config.example.yml) for an example of configuration.
     """
 
-    models: List[Model] = Field(min_length=1, description="Models used by the API. At least one model must be defined.")  # fmt: off
+    models: list[Model] = Field(min_length=1, description="Models used by the API. At least one model must be defined.")  # fmt: off
     dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the API.")  # fmt: off
     settings: Settings = Field(default_factory=Settings, description="Settings used by the API.")  # fmt: off
 
@@ -607,7 +607,7 @@ class Configuration(BaseSettings):
 
     @model_validator(mode="after")
     def setup_config(cls, values) -> Any:
-        with open(file=values.config_file, mode="r") as file:
+        with open(file=values.config_file) as file:
             lines = file.readlines()
 
         # remove commented lines

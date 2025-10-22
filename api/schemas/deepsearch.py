@@ -1,5 +1,3 @@
-from typing import List, Union
-
 from pydantic import BaseModel, Field
 
 from api.schemas.usage import Usage
@@ -12,7 +10,7 @@ class DeepSearchRequest(BaseModel):
     iteration_limit: int = Field(default=2, ge=1, le=5, description="Maximum number of search iterations")
     num_queries: int = Field(default=2, ge=1, le=5, description="Number of queries to generate per iteration")
     lang: str = Field(default="fr", description="Language for the search (fr or en)")
-    limited_domains: Union[bool, List[str]] = Field(default=True, description="Allowed domains handling: True = use default config, False = all domains allowed, [list] = custom domains")  # fmt: off
+    limited_domains: bool | list[str] = Field(default=True, description="Allowed domains handling: True = use default config, False = all domains allowed, [list] = custom domains")  # fmt: off
 
 
 class DeepSearchMetadata(BaseModel):
@@ -29,6 +27,6 @@ class DeepSearchResponse(BaseModel):
     object: str = "deepsearch_result"
     prompt: str = Field(description="Original request")
     response: str = Field(description="Generated response based on the sources found")
-    sources: List[str] = Field(description="List of source URLs")
+    sources: list[str] = Field(description="List of source URLs")
     metadata: DeepSearchMetadata = Field(description="Metadata about the search process")
     usage: Usage = Field(description="Usage information for the request")

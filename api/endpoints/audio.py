@@ -1,4 +1,4 @@
-from typing import List, Literal, Union
+from typing import Literal
 
 from fastapi import APIRouter, File, Request, Security, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -25,11 +25,11 @@ async def audio_transcriptions(
     request: Request,
     file: UploadFile = File(description="The audio file object (not file name) to transcribe, in one of these formats: mp3 or wav."),
     model: str = AudioTranscriptionModelForm,
-    language: Union[AudioTranscriptionLanguage, Literal[""]] = AudioTranscriptionLanguageForm,
+    language: AudioTranscriptionLanguage | Literal[""] = AudioTranscriptionLanguageForm,
     prompt: str = AudioTranscriptionPromptForm,
     response_format: Literal["json", "text"] = AudioTranscriptionResponseFormatForm,
     temperature: float = AudioTranscriptionTemperatureForm,
-    timestamp_granularities: List[str] = AudioTranscriptionTimestampGranularitiesForm,
+    timestamp_granularities: list[str] = AudioTranscriptionTimestampGranularitiesForm,
 ) -> JSONResponse | PlainTextResponse:
     """
     Transcribes audio into the input language.

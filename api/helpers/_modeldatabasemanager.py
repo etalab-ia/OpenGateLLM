@@ -1,20 +1,18 @@
-from typing import List
-
-from sqlalchemy import select, insert, delete
+from sqlalchemy import delete, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.sql.models import Model as ModelRouterTable
-from api.sql.models import ModelRouterAlias as ModelRouterAliasTable
-from api.sql.models import ModelClient as ModelClientTable
 from api.schemas.core.configuration import Model as ModelRouterSchema
 from api.schemas.core.configuration import ModelProvider as ModelProviderSchema
+from api.sql.models import Model as ModelRouterTable
+from api.sql.models import ModelClient as ModelClientTable
+from api.sql.models import ModelRouterAlias as ModelRouterAliasTable
 
 
 class ModelDatabaseManager:
     @staticmethod
     async def get_routers(
         session: AsyncSession,
-    ) -> List[ModelRouterSchema]:
+    ) -> list[ModelRouterSchema]:
         """
         Returns the ModelRouterSchemas stored in the database.
 

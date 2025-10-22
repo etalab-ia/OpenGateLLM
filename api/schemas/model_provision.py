@@ -1,9 +1,11 @@
+from typing import Any
+
 from pydantic import Field
-from typing import List, Optional, Dict, Any
 
 from api.schemas import BaseModel
+from api.schemas.core.configuration import Model as ModelRouterSchema
+from api.schemas.core.configuration import ModelProvider as ModelClientSchema
 from api.schemas.core.configuration import RoutingStrategy
-from api.schemas.core.configuration import ModelProvider as ModelClientSchema, Model as ModelRouterSchema
 from api.schemas.models import ModelType
 
 URL_PATTERN = r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)"
@@ -14,14 +16,12 @@ class AddModelRequest(BaseModel):
     model: ModelClientSchema = Field(description="Model to add.")
 
     # Optional fields
-    model_type: Optional[ModelType] = Field(default=None, description="Model type. Required when creating a new ModelRouter.")
-    aliases: Optional[List[str]] = Field(default=[], description="Aliases, to add for existing router, to set for new instance.")
-    routing_strategy: Optional[RoutingStrategy] = Field(
-        default=RoutingStrategy.ROUND_ROBIN, description="Routing Strategy when creating a new router."
-    )
-    owner: Optional[str] = Field(default=None, description="ModelRouter owner when creating a new one.")
+    model_type: ModelType | None = Field(default=None, description="Model type. Required when creating a new ModelRouter.")
+    aliases: list[str] | None = Field(default=[], description="Aliases, to add for existing router, to set for new instance.")
+    routing_strategy: RoutingStrategy | None = Field(default=RoutingStrategy.ROUND_ROBIN, description="Routing Strategy when creating a new router.")
+    owner: str | None = Field(default=None, description="ModelRouter owner when creating a new one.")
 
-    additional_field: Optional[Dict[str, Any]] = Field(default=None, description="Additional or specific data")
+    additional_field: dict[str, Any] | None = Field(default=None, description="Additional or specific data")
 
 
 class DeleteModelRequest(BaseModel):
@@ -32,13 +32,13 @@ class DeleteModelRequest(BaseModel):
 
 class AddAliasesRequest(BaseModel):
     router_name: str = Field(min_length=1, description="ID of the targeted ModelRouter.")
-    aliases: List[str] = Field(default=[], description="Aliases to add.")
+    aliases: list[str] = Field(default=[], description="Aliases to add.")
 
 
 class DeleteAliasesRequest(BaseModel):
     router_name: str = Field(min_length=1, description="ID of the targeted ModelRouter.")
-    aliases: List[str] = Field(default=[], description="Aliases to delete.")
+    aliases: list[str] = Field(default=[], description="Aliases to delete.")
 
 
 class RoutersResponse(BaseModel):
-    routers: List[ModelRouterSchema] = Field(description="Currently existing ModelRouters.")
+    routers: list[ModelRouterSchema] = Field(description="Currently existing ModelRouters.")

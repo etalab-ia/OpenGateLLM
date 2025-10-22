@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import Dict, Optional, Set
 
 from fastapi import HTTPException, UploadFile
 from html_to_markdown import convert_to_markdown
@@ -15,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class ParserManager:
-    EXTENSION_MAP: Dict[str, FileType] = {
+    EXTENSION_MAP: dict[str, FileType] = {
         ".pdf": FileType.PDF,
         ".html": FileType.HTML,
         ".htm": FileType.HTML,
@@ -25,7 +24,7 @@ class ParserManager:
         ".text": FileType.TXT,
     }
 
-    VALID_CONTENT_TYPES: Dict[FileType, Set[str]] = {
+    VALID_CONTENT_TYPES: dict[FileType, set[str]] = {
         FileType.PDF: {
             "application/pdf",
             "application/octet-stream",
@@ -50,10 +49,10 @@ class ParserManager:
         },
     }
 
-    def __init__(self, parser: Optional[ParserClient] = None, *args, **kwargs):
+    def __init__(self, parser: ParserClient | None = None, *args, **kwargs):
         self.parser_client = parser
 
-    def _detect_file_type(self, file: UploadFile, type: Optional[FileType] = None) -> FileType:
+    def _detect_file_type(self, file: UploadFile, type: FileType | None = None) -> FileType:
         """
         Detect file type by extension, then check content-type.
         """

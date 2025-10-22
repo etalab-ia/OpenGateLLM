@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Literal, Union
+from typing import Literal
 
 from fastapi import Form
 from openai.types.audio import Transcription
@@ -14,11 +14,11 @@ SUPPORTED_LANGUAGES = {str(lang).upper(): str(lang) for lang in sorted(set(SUPPO
 AudioTranscriptionLanguage = Enum("AudioTranscriptionLanguage", SUPPORTED_LANGUAGES, type=str)
 
 AudioTranscriptionModelForm: str = Form(default=..., description="ID of the model to use. Call `/v1/models` endpoint to get the list of available models, only `automatic-speech-recognition` model type is supported.")  # fmt: off
-AudioTranscriptionLanguageForm: Union[AudioTranscriptionLanguage, Literal[""]] = Form(default="", description="The language of the input audio. Supplying the input language in ISO-639-1 (e.g. en) format will improve accuracy and latency.")  # fmt: off
+AudioTranscriptionLanguageForm: AudioTranscriptionLanguage | Literal[""] = Form(default="", description="The language of the input audio. Supplying the input language in ISO-639-1 (e.g. en) format will improve accuracy and latency.")  # fmt: off
 AudioTranscriptionPromptForm = Form(default=None, description="Not implemented.")  # fmt: off
 AudioTranscriptionResponseFormatForm: Literal["json", "text"] = Form(default="json", description="The format of the transcript output, in one of these formats: `json` or `text`.")  # fmt: off
 AudioTranscriptionTemperatureForm: float = Form(default=0, ge=0, le=1, description="The sampling temperature, between 0 and 1. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. If set to 0, the model will use log probability to automatically increase the temperature until certain thresholds are hit.")  # fmt: off
-AudioTranscriptionTimestampGranularitiesForm: List[str] = Form(default=["segment"], description="Not implemented.")  # fmt: off
+AudioTranscriptionTimestampGranularitiesForm: list[str] = Form(default=["segment"], description="Not implemented.")  # fmt: off
 
 
 class AudioTranscription(Transcription):
@@ -37,7 +37,7 @@ class Segment(BaseModel):
     start: float
     end: float
     text: str
-    tokens: List[int]
+    tokens: list[int]
     temperature: float
     avg_logprob: float
     compression_ratio: float
@@ -48,5 +48,5 @@ class AudioTranscriptionVerbose(AudioTranscription):
     language: str
     duration: float
     text: str
-    words: List[Word]
-    segments: List[Segment]
+    words: list[Word]
+    segments: list[Segment]

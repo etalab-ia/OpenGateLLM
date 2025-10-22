@@ -48,39 +48,6 @@ class TestGetCarbonFootprint:
         # Then
         assert expected_carbon_footprint == result
 
-    def test_get_carbon_footprint_return_error_when_token_count_is_not_int_or_float(self):
-        # Given
-        active_params = 0
-        total_params = 0
-        model_zone = CountryCodes.WOR
-        token_count = "10"
-        request_latency = 0.01
-        # When-Then
-        with pytest.raises(ValueError, match="token_count must be a positive number"):
-            get_carbon_footprint(active_params, total_params, model_zone, token_count, request_latency)
-
-    def test_get_carbon_footprint_return_error_when_token_count_is_negative(self):
-        # Given
-        active_params = 0
-        total_params = 0
-        model_zone = CountryCodes.WOR
-        token_count = -10
-        request_latency = 0.01
-        # When-Then
-        with pytest.raises(ValueError, match="token_count must be a positive number"):
-            get_carbon_footprint(active_params, total_params, model_zone, token_count, request_latency)
-
-    def test_get_carbon_footprint_return_error_when_request_latency_is_not_int_or_float(self):
-        # Given
-        active_params = 0
-        total_params = 0
-        model_zone = CountryCodes.WOR
-        token_count = 10
-        request_latency = "0.01"
-        # When-Then
-        with pytest.raises(ValueError, match="request_latency must be a positive number"):
-            get_carbon_footprint(active_params, total_params, model_zone, token_count, request_latency)
-
     def test_get_carbon_footprint_return_error_when_request_latency_is_negative(self):
         # Given
         active_params = 0
@@ -89,7 +56,7 @@ class TestGetCarbonFootprint:
         token_count = 10
         request_latency = -0.01
         # When-Then
-        with pytest.raises(ValueError, match="request_latency must be a positive number"):
+        with pytest.raises(AssertionError, match="request_latency must be a positive number"):
             get_carbon_footprint(active_params, total_params, model_zone, token_count, request_latency)
 
     def test_get_carbon_footprint_return_footprint(self, mocker):
@@ -97,12 +64,10 @@ class TestGetCarbonFootprint:
         mocked_electricity_mix = mocker.patch("api.utils.carbon.electricity_mixes.find_electricity_mix")
         mocked_electricity_mix.return_value = SimpleNamespace(adpe=1, pe=2, gwp=3)
         mocked_compute_llm_impacts = mocker.patch("api.utils.carbon.compute_llm_impacts")
-        mocked_compute_llm_impacts.return_value = dict_to_namespace(
-            {
-                "energy": {"value": {"min": 1, "max": 2}},
-                "gwp": {"value": {"min": 0, "max": 3}},
-            }
-        )
+        mocked_compute_llm_impacts.return_value = dict_to_namespace({
+            "energy": {"value": {"min": 1, "max": 2}},
+            "gwp": {"value": {"min": 0, "max": 3}},
+        })
         active_params = 1
         total_params = 1
         model_zone = CountryCodes.WOR

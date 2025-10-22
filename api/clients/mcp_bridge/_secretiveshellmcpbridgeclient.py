@@ -1,5 +1,4 @@
 import json
-from typing import Dict, List
 
 from fastapi import HTTPException
 import httpx
@@ -9,7 +8,7 @@ from api.schemas.agents import AgentsTool
 
 
 class SecretiveshellMCPBridgeClient(BaseMCPBridgeClient):
-    def __init__(self, url: str, headers: Dict[str, str], timeout: int, *args, **kwargs):
+    def __init__(self, url: str, headers: dict[str, str], timeout: int, *args, **kwargs):
         super().__init__(url=url, headers=headers, timeout=timeout)
 
         # Keep health check synchronous in __init__
@@ -19,7 +18,7 @@ class SecretiveshellMCPBridgeClient(BaseMCPBridgeClient):
         except Exception as e:
             raise Exception(f"Secretiveshell API is not reachable: {e}") from e
 
-    async def get_tool_list(self) -> List[AgentsTool]:
+    async def get_tool_list(self) -> list[AgentsTool]:
         async with httpx.AsyncClient(timeout=self.timeout) as async_client:
             try:
                 response = await async_client.request(method="GET", url=self.url + "/mcp/tools", headers=self.headers)

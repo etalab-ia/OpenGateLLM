@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from langchain_text_splitters import Language
 from langchain_text_splitters import RecursiveCharacterTextSplitter as LangChainRecursiveCharacterTextSplitter
 
@@ -13,8 +11,8 @@ class RecursiveCharacterTextSplitter(BaseSplitter):
     def __init__(
         self,
         chunk_min_size: int = 0,
-        metadata: Optional[dict] = None,
-        preset_separators: Optional[Language] = None,
+        metadata: dict | None = None,
+        preset_separators: Language | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -26,7 +24,7 @@ class RecursiveCharacterTextSplitter(BaseSplitter):
         else:
             self.splitter = LangChainRecursiveCharacterTextSplitter(*args, **kwargs)
 
-    def split_document(self, document: ParsedDocument) -> List[Chunk]:
+    def split_document(self, document: ParsedDocument) -> list[Chunk]:
         chunks = list()
         i = 1
 

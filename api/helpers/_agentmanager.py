@@ -1,14 +1,13 @@
 import json
-from typing import List
 
 import httpx
 
 from api.clients.mcp_bridge import BaseMCPBridgeClient as MCPBridgeClient
 from api.helpers.models import ModelRegistry
-from api.schemas.agents import AgentsTool, AgentsChatCompletionRequest
-from api.utils.exceptions import ToolNotFoundException, TaskFailedException
-from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS
+from api.schemas.agents import AgentsChatCompletionRequest, AgentsTool
 from api.services.model_invocation import invoke_model_request
+from api.utils.exceptions import TaskFailedException, ToolNotFoundException
+from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS
 
 
 class AgentManager:
@@ -68,7 +67,7 @@ class AgentManager:
             tools = await self.get_tools_from_bridge()
             available_tools = [{"type": "function", "function": {"name": tool.name, "description": tool.description, "parameters": tool.input_schema}} for tool in tools]  # fmt:off
 
-            requested_tools: List[dict] = []
+            requested_tools: list[dict] = []
             for tool in body.tools:
                 if tool.get("type") is None:
                     continue
@@ -99,7 +98,7 @@ class AgentManager:
 
         return body
 
-    async def get_tools_from_bridge(self) -> List[AgentsTool]:
+    async def get_tools_from_bridge(self) -> list[AgentsTool]:
         tools = await self.mcp_bridge.get_tool_list()
 
         return tools

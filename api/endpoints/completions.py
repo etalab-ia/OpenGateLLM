@@ -3,9 +3,9 @@ from fastapi.responses import JSONResponse
 
 from api.helpers._accesscontroller import AccessController
 from api.schemas.completions import CompletionRequest, Completions
-from api.utils.variables import ENDPOINT__COMPLETIONS
-from api.utils.exceptions import TaskFailedException
 from api.services.model_invocation import invoke_model_request
+from api.utils.exceptions import TaskFailedException
+from api.utils.variables import ENDPOINT__COMPLETIONS
 
 router = APIRouter(prefix="/v1", tags=["Legacy"])
 

@@ -1,19 +1,17 @@
 from __future__ import annotations
-from typing import Any, Dict
 
 import asyncio
 import logging
+from typing import Any
 
-
-from api.tasks.celery_app import celery_app
+from api.clients.model import BaseModelClient
+from api.schemas.core.configuration import ModelProvider as ModelClientSchema
+from api.tasks.celery_app import celery_app, queue_name_for_model, task_priority_from_user_priority
+from api.tasks.model import invoke_model_task
 from api.utils.configuration import configuration
 from api.utils.context import global_context
-from api.schemas.core.configuration import ModelProvider as ModelClientSchema
-from api.clients.model import BaseModelClient
-from api.tasks.model import invoke_model_task
-from api.tasks.celery_app import queue_name_for_model, task_priority_from_user_priority
-from api.utils.tracked_cycle import TrackedCycle
 from api.utils.exceptions import TaskFailedException
+from api.utils.tracked_cycle import TrackedCycle
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +71,7 @@ async def invoke_model_request(
     return client
 
 
-async def wait_for_task_result(task_id: str, timeout: int = settings.celery_task_soft_time_limit, poll_interval: float = 0.1) -> Dict[str, Any]:
+async def wait_for_task_result(task_id: str, timeout: int = settings.celery_task_soft_time_limit, poll_interval: float = 0.1) -> dict[str, Any]:
     """Wait for task result using async polling to avoid blocking and connection issues."""
     from celery.result import AsyncResult
 

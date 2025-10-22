@@ -1,8 +1,9 @@
 import logging
-import httpx
 
-from jose import jwt, jwk
+import httpx
+from jose import jwk, jwt
 from jose.exceptions import JWTError
+
 from api.utils.configuration import configuration
 
 logger = logging.getLogger(__name__)

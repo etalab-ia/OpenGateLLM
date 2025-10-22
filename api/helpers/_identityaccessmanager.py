@@ -1,6 +1,6 @@
 import datetime as dt
 from datetime import datetime, timedelta
-from typing import List, Literal, Optional, Tuple
+from typing import Literal
 
 import bcrypt
 from jose import JWTError, jwt
@@ -21,8 +21,8 @@ from api.sql.models import Role as RoleTable
 from api.sql.models import Token as TokenTable
 from api.sql.models import Usage as UsageTable
 from api.sql.models import User as UserTable
-from api.utils.context import global_context
 from api.utils.configuration import configuration
+from api.utils.context import global_context
 from api.utils.exceptions import (
     DeleteRoleWithUsersException,
     InvalidCurrentPasswordException,
@@ -42,7 +42,7 @@ class IdentityAccessManager:
     TOKEN_PREFIX = "sk-"
     PLAYGROUND_KEY_NAME = "playground"
 
-    def __init__(self, master_key: str, max_token_expiration_days: Optional[int] = None, playground_session_duration: int = 3600):
+    def __init__(self, master_key: str, max_token_expiration_days: int | None = None, playground_session_duration: int = 3600):
         self.master_key = master_key
         self.max_token_expiration_days = max_token_expiration_days
         self.playground_session_duration = playground_session_duration
@@ -57,7 +57,7 @@ class IdentityAccessManager:
         token = token.split(IdentityAccessManager.TOKEN_PREFIX)[1]
         return jwt.decode(token=token, key=self.master_key, algorithms=["HS256"])
 
-    def _encode_token(self, user_id: int, token_id: int, expires_at: Optional[int] = None) -> str:
+    def _encode_token(self, user_id: int, token_id: int, expires_at: int | None = None) -> str:
         return IdentityAccessManager.TOKEN_PREFIX + jwt.encode(
             claims={"user_id": user_id, "token_id": token_id, "expires_at": expires_at},
             key=self.master_key,
@@ -68,8 +68,8 @@ class IdentityAccessManager:
         self,
         session: AsyncSession,
         name: str,
-        limits: List[Limit] = None,
-        permissions: List[PermissionType] = None,
+        limits: list[Limit] = None,
+        permissions: list[PermissionType] = None,
     ) -> int:
         if limits is None:
             limits = []
@@ -117,9 +117,9 @@ class IdentityAccessManager:
         self,
         session: AsyncSession,
         role_id: int,
-        name: Optional[str] = None,
-        limits: Optional[List[Limit]] = None,
-        permissions: Optional[List[PermissionType]] = None,
+        name: str | None = None,
+        limits: list[Limit] | None = None,
+        permissions: list[PermissionType] | None = None,
     ) -> None:
         # check if role exists
         result = await session.execute(statement=select(RoleTable).where(RoleTable.id == role_id))
@@ -156,12 +156,12 @@ class IdentityAccessManager:
     async def get_roles(
         self,
         session: AsyncSession,
-        role_id: Optional[int] = None,
+        role_id: int | None = None,
         offset: int = 0,
         limit: int = 10,
         order_by: Literal["id", "name", "created_at", "updated_at"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
-    ) -> List[Role]:
+    ) -> list[Role]:
         if role_id is None:
             # get the unique role IDs with pagination
             statement = select(RoleTable.id).offset(offset=offset).limit(limit=limit).order_by(text(f"{order_by} {order_direction}"))
@@ -230,13 +230,13 @@ class IdentityAccessManager:
         session: AsyncSession,
         email: str,
         role_id: int,
-        name: Optional[str] = None,
-        password: Optional[str] = None,
-        sub: Optional[str] = None,
-        iss: Optional[str] = None,
-        organization_id: Optional[int] = None,
-        budget: Optional[float] = None,
-        expires_at: Optional[int] = None,
+        name: str | None = None,
+        password: str | None = None,
+        sub: str | None = None,
+        iss: str | None = None,
+        organization_id: int | None = None,
+        budget: float | None = None,
+        expires_at: int | None = None,
         priority: int = 0,
     ) -> int:
         expires_at = func.to_timestamp(expires_at) if expires_at is not None else None
@@ -300,17 +300,17 @@ class IdentityAccessManager:
         self,
         session: AsyncSession,
         user_id: int,
-        email: Optional[str] = None,
-        name: Optional[str] = None,
-        current_password: Optional[str] = None,
-        password: Optional[str] = None,
-        sub: Optional[str] = None,
-        iss: Optional[str] = None,
-        role_id: Optional[int] = None,
-        organization_id: Optional[int] = None,
-        budget: Optional[float] = None,
-        expires_at: Optional[int] = None,
-        priority: Optional[int] = None,
+        email: str | None = None,
+        name: str | None = None,
+        current_password: str | None = None,
+        password: str | None = None,
+        sub: str | None = None,
+        iss: str | None = None,
+        role_id: int | None = None,
+        organization_id: int | None = None,
+        budget: float | None = None,
+        expires_at: int | None = None,
+        priority: int | None = None,
     ) -> None:
         # check if user exists
         result = await session.execute(
@@ -393,15 +393,15 @@ class IdentityAccessManager:
     async def get_users(
         self,
         session: AsyncSession,
-        email: Optional[str] = None,
-        user_id: Optional[int] = None,
-        role_id: Optional[int] = None,
-        organization_id: Optional[int] = None,
+        email: str | None = None,
+        user_id: int | None = None,
+        role_id: int | None = None,
+        organization_id: int | None = None,
         offset: int = 0,
         limit: int = 10,
         order_by: Literal["id", "email", "created_at", "updated_at"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
-    ) -> List[User]:
+    ) -> list[User]:
         statement = (
             select(
                 UserTable.id,
@@ -455,7 +455,7 @@ class IdentityAccessManager:
         await session.execute(statement=delete(table=OrganizationTable).where(OrganizationTable.id == organization_id))
         await session.commit()
 
-    async def update_organization(self, session: AsyncSession, organization_id: int, name: Optional[str] = None) -> None:
+    async def update_organization(self, session: AsyncSession, organization_id: int, name: str | None = None) -> None:
         result = await session.execute(statement=select(OrganizationTable).where(OrganizationTable.id == organization_id))
         try:
             organization = result.scalar_one()
@@ -469,12 +469,12 @@ class IdentityAccessManager:
     async def get_organizations(
         self,
         session: AsyncSession,
-        organization_id: Optional[int] = None,
+        organization_id: int | None = None,
         offset: int = 0,
         limit: int = 10,
         order_by: Literal["id", "name", "created_at", "updated_at"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
-    ) -> List[Organization]:
+    ) -> list[Organization]:
         statement = (
             select(
                 OrganizationTable.id,
@@ -498,7 +498,7 @@ class IdentityAccessManager:
 
         return organizations
 
-    async def create_token(self, session: AsyncSession, user_id: int, name: str, expires_at: Optional[int] = None) -> Tuple[int, str]:
+    async def create_token(self, session: AsyncSession, user_id: int, name: str, expires_at: int | None = None) -> tuple[int, str]:
         if self.max_token_expiration_days:
             if expires_at is None:
                 expires_at = int(dt.datetime.now(tz=dt.UTC).timestamp()) + self.max_token_expiration_days * 86400
@@ -528,7 +528,7 @@ class IdentityAccessManager:
 
         return token_id, token
 
-    async def refresh_token(self, session: AsyncSession, user_id: int, name: str) -> Tuple[int, str]:
+    async def refresh_token(self, session: AsyncSession, user_id: int, name: str) -> tuple[int, str]:
         """
         Create a new token with the same name, update Usage table references,
         and delete old tokens with the same name and user_id.
@@ -599,14 +599,14 @@ class IdentityAccessManager:
     async def get_tokens(
         self,
         session: AsyncSession,
-        user_id: Optional[int] = None,
-        token_id: Optional[int] = None,
+        user_id: int | None = None,
+        token_id: int | None = None,
         exclude_expired: bool = False,
         offset: int = 0,
         limit: int = 10,
         order_by: Literal["id", "name", "created_at"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
-    ) -> List[Token]:
+    ) -> list[Token]:
         statement = (
             select(
                 TokenTable.id,
@@ -638,7 +638,7 @@ class IdentityAccessManager:
 
         return tokens
 
-    async def check_token(self, session: AsyncSession, token: str) -> Tuple[Optional[int], Optional[int]]:
+    async def check_token(self, session: AsyncSession, token: str) -> tuple[int | None, int | None]:
         try:
             claims = self._decode_token(token=token)
         except JWTError:
@@ -668,10 +668,10 @@ class IdentityAccessManager:
     async def get_user(
         self,
         session: AsyncSession,
-        user_id: Optional[int] = None,
-        sub: Optional[str] = None,
-        email: Optional[str] = None,
-    ) -> Optional[User]:
+        user_id: int | None = None,
+        sub: str | None = None,
+        email: str | None = None,
+    ) -> User | None:
         # Build conditions list only for non-None values
         conditions = []
         if user_id is not None:
@@ -690,7 +690,7 @@ class IdentityAccessManager:
         result = await session.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_user_info(self, session: AsyncSession, user_id: Optional[int] = None, email: Optional[str] = None) -> UserInfo:
+    async def get_user_info(self, session: AsyncSession, user_id: int | None = None, email: str | None = None) -> UserInfo:
         assert user_id is not None or email is not None, "user_id or email is required"
         if user_id == 0:
             return UserInfo(
@@ -735,7 +735,7 @@ class IdentityAccessManager:
 
         return user
 
-    async def login(self, session: AsyncSession, email: str, password: str) -> Tuple[int, str]:
+    async def login(self, session: AsyncSession, email: str, password: str) -> tuple[int, str]:
         """
         Login a user and return the token ID and the token of the refreshed playground token.
         Raise InvalidCurrentPasswordException (400) if password is incorrect and UserNotFoundException (404) if user not found.

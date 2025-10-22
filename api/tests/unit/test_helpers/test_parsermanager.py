@@ -1,11 +1,12 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
-from fastapi import HTTPException, UploadFile
-from starlette.datastructures import Headers
 from io import BytesIO
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
-from api.helpers._parsermanager import ParserManager
+from fastapi import HTTPException, UploadFile
+import pytest
+from starlette.datastructures import Headers
+
 from api.clients.parser import BaseParserClient as ParserClient
+from api.helpers._parsermanager import ParserManager
 from api.schemas.core.documents import FileType, ParserParams
 from api.schemas.parse import ParsedDocument, ParsedDocumentOutputFormat
 from api.utils.exceptions import UnsupportedFileTypeException

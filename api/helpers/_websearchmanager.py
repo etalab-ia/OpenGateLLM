@@ -1,6 +1,5 @@
 from io import BytesIO
 import logging
-from typing import List, Optional
 from urllib.parse import urlparse
 
 from fastapi import UploadFile
@@ -36,8 +35,8 @@ Ne donne pas d'explications, ne mets pas de guillemets, réponds uniquement avec
         self,
         web_search_engine: WebSearchEngineClient,
         query_model: ModelRouter,
-        limited_domains: Optional[List[str]] = None,
-        user_agent: Optional[str] = None,
+        limited_domains: list[str] | None = None,
+        user_agent: str | None = None,
     ) -> None:
         self.web_search_engine = web_search_engine
         self.query_model = query_model
@@ -55,7 +54,7 @@ Ne donne pas d'explications, ne mets pas de guillemets, réponds uniquement avec
 
         return query
 
-    async def get_results(self, query: str, k: int) -> List[UploadFile]:
+    async def get_results(self, query: str, k: int) -> list[UploadFile]:
         urls = await self.web_search_engine.search(query=query, k=k)
         results = []
         for url in urls:

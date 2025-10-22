@@ -1,6 +1,5 @@
 from io import BytesIO
 import json
-from typing import Dict, List
 
 from fastapi import HTTPException
 import httpx
@@ -19,7 +18,7 @@ class MarkerParserClient(BaseParserClient):
 
     SUPPORTED_FORMATS = [FileType.PDF]
 
-    def __init__(self, url: str, headers: Dict[str, str], timeout: int, *args, **kwargs) -> None:
+    def __init__(self, url: str, headers: dict[str, str], timeout: int, *args, **kwargs) -> None:
         # store configuration but avoid performing network calls in constructor
         self.url = url
         self.headers = headers
@@ -35,7 +34,7 @@ class MarkerParserClient(BaseParserClient):
             resp.raise_for_status()
         return True
 
-    def convert_page_range(self, page_range: str, page_count: int) -> List[int]:
+    def convert_page_range(self, page_range: str, page_count: int) -> list[int]:
         if page_range == "":
             return [i for i in range(page_count)]
 

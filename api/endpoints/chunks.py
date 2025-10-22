@@ -1,4 +1,3 @@
-from typing import Union
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query, Request, Security
@@ -39,7 +38,7 @@ async def get_chunks(
     request: Request,
     document: int = Path(description="The document ID"),
     limit: int = Query(default=10, ge=1, le=100, description="The number of documents to return"),
-    offset: Union[int, UUID] = Query(default=0, description="The offset of the first document to return"),
+    offset: int | UUID = Query(default=0, description="The offset of the first document to return"),
     session: AsyncSession = Depends(get_db_session),
 ) -> Chunks:
     """

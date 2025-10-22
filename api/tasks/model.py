@@ -1,18 +1,18 @@
-from typing import Any, Dict
+from typing import Any
+
+from billiard.exceptions import SoftTimeLimitExceeded
+from celery.exceptions import MaxRetriesExceededError, Retry
 
 from api.helpers.models.routers._modelrouter import ModelRouter
-from billiard.exceptions import SoftTimeLimitExceeded
-from celery.exceptions import Retry, MaxRetriesExceededError
-
-from api.tasks.celery_app import celery_app
 from api.schemas.core.configuration import Model as ModelRouterSchema
+from api.tasks.celery_app import celery_app
 from api.utils.configuration import configuration
 
 settings = configuration.settings
 
 
 @celery_app.task(name="model.invoke", bind=True)
-def invoke_model_task(self, router_schema: Dict[str, Any], endpoint: str) -> Dict[str, Any]:
+def invoke_model_task(self, router_schema: dict[str, Any], endpoint: str) -> dict[str, Any]:
     """Invoke a model provider (non-streaming).
 
     router_schema: serialized ModelRouterSchema schema (censored=False)

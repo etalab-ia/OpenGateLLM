@@ -1,6 +1,6 @@
+from importlib import import_module
 import logging
 import pkgutil
-from importlib import import_module
 
 from fastapi import APIRouter, Depends, FastAPI, Request, Response
 from fastapi.dependencies.utils import get_dependant

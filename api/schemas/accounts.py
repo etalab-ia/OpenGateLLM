@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import Field
 
@@ -10,35 +10,35 @@ class AccountUsage(BaseModel):
 
     id: int
     datetime: int = Field(description="Timestamp in seconds")
-    duration: Optional[int] = None
-    time_to_first_token: Optional[int] = None
-    user_id: Optional[int] = None
-    token_id: Optional[int] = None
+    duration: int | None = None
+    time_to_first_token: int | None = None
+    user_id: int | None = None
+    token_id: int | None = None
     endpoint: str
-    method: Optional[str] = None
-    model: Optional[str] = None
-    request_model: Optional[str] = None
-    prompt_tokens: Optional[int] = None
-    completion_tokens: Optional[float] = None
-    total_tokens: Optional[int] = None
-    cost: Optional[float] = None
-    status: Optional[int] = None
-    kwh_min: Optional[float] = None
-    kwh_max: Optional[float] = None
-    kgco2eq_min: Optional[float] = None
-    kgco2eq_max: Optional[float] = None
+    method: str | None = None
+    model: str | None = None
+    request_model: str | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: float | None = None
+    total_tokens: int | None = None
+    cost: float | None = None
+    status: int | None = None
+    kwh_min: float | None = None
+    kwh_max: float | None = None
+    kgco2eq_min: float | None = None
+    kgco2eq_max: float | None = None
 
 
 class AccountUsageResponse(BaseModel):
     """Schema for list of account usage records."""
 
     object: Literal["list"] = "list"
-    data: List[AccountUsage]
+    data: list[AccountUsage]
     total: int = Field(description="Total number of records")
     total_requests: int = Field(description="Total number of requests made")
-    total_albert_coins: Optional[float] = Field(description="Total Albert coins earned")
-    total_tokens: Optional[int] = Field(description="Total tokens used")
-    total_co2: Optional[float] = Field(description="Total CO2 emissions in grams")
+    total_albert_coins: float | None = Field(description="Total Albert coins earned")
+    total_tokens: int | None = Field(description="Total tokens used")
+    total_co2: float | None = Field(description="Total CO2 emissions in grams")
 
     # Pagination metadata
     page: int = Field(description="Current page number (1-based)")

@@ -1,4 +1,5 @@
 import pytest
+
 from api.utils.tracked_cycle import TrackedCycle
 
 

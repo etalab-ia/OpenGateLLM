@@ -1,7 +1,7 @@
 import json
 import logging
 import time
-from typing import Annotated, Dict, List, Optional
+from typing import Annotated
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -13,8 +13,8 @@ from api.schemas.admin.users import User
 from api.schemas.collections import CollectionVisibility
 from api.schemas.me import UserInfo
 from api.sql.session import get_db_session
-from api.utils.context import global_context, request_context
 from api.utils.configuration import configuration
+from api.utils.context import global_context, request_context
 from api.utils.exceptions import (
     InsufficientBudgetException,
     InsufficientPermissionException,
@@ -63,7 +63,7 @@ class AccessController:
     Access controller is used as a dependency of all endpoints.
     """
 
-    def __init__(self, permissions: List[PermissionType] = None):
+    def __init__(self, permissions: list[PermissionType] = None):
         self.permissions = permissions if permissions is not None else []
 
     async def __call__(
@@ -120,7 +120,7 @@ class AccessController:
 
         return user_info
 
-    def __get_user_limits(self, user_info: UserInfo) -> Dict[str, _UserModelLimits]:
+    def __get_user_limits(self, user_info: UserInfo) -> dict[str, _UserModelLimits]:
         limits = {}
         for model in global_context.model_registry.models:
             limits[model] = _UserModelLimits()
@@ -146,7 +146,7 @@ class AccessController:
 
     async def _check_api_key(
         self, api_key: HTTPAuthorizationCredentials, session: AsyncSession
-    ) -> tuple[User, Dict[str, _UserModelLimits], int | None]:
+    ) -> tuple[User, dict[str, _UserModelLimits], int | None]:
         if api_key.scheme != "Bearer":
             raise InvalidAuthenticationSchemeException()
 
@@ -184,11 +184,11 @@ class AccessController:
 
         return user_info, limits, token_id
 
-    async def _check_permissions(self, permissions: List[PermissionType]) -> None:
+    async def _check_permissions(self, permissions: list[PermissionType]) -> None:
         if self.permissions and not all(perm in permissions for perm in self.permissions):
             raise InsufficientPermissionException()
 
-    async def _check_request_limits(self, request: Request, user_info: UserInfo, limits: Dict[str, _UserModelLimits], model: Optional[str] = None) -> None:  # fmt: off
+    async def _check_request_limits(self, request: Request, user_info: UserInfo, limits: dict[str, _UserModelLimits], model: str | None = None) -> None:  # fmt: off
         if not model:
             return
 
@@ -210,7 +210,7 @@ class AccessController:
             remaining = await global_context.limiter.remaining(user_id=user_info.id, model=model, type=LimitType.RPD, value=limits[model].rpd)
             raise RateLimitExceeded(detail=f"{str(limits[model].rpd)} requests for {model} per day exceeded (remaining: {remaining}).")
 
-    async def _check_token_limits(self, request: Request, user_info: UserInfo, limits: Dict[str, _UserModelLimits], prompt_tokens: int, model: Optional[str] = None) -> None:  # fmt: off
+    async def _check_token_limits(self, request: Request, user_info: UserInfo, limits: dict[str, _UserModelLimits], prompt_tokens: int, model: str | None = None) -> None:  # fmt: off
         if not model or not prompt_tokens:
             return
 
@@ -234,7 +234,7 @@ class AccessController:
             remaining = await global_context.limiter.remaining(user_id=user_info.id, model=model, type=LimitType.TPD, value=limits[model].tpd)
             raise RateLimitExceeded(detail=f"{str(limits[model].tpd)} input tokens for {model} per day exceeded (remaining: {remaining}).")
 
-    async def _check_budget(self, user_info: UserInfo, model: Optional[str] = None) -> None:
+    async def _check_budget(self, user_info: UserInfo, model: str | None = None) -> None:
         if not model:
             return
 
@@ -250,14 +250,14 @@ class AccessController:
         if user_info.budget == 0:
             raise InsufficientBudgetException(detail="Insufficient budget.")
 
-    async def _check_audio_transcription(self, user_info: UserInfo, limits: Dict[str, _UserModelLimits], request: Request) -> None:
+    async def _check_audio_transcription(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
         form = await request.form()
         form = {key: value for key, value in form.items()} if form else {}
 
         await self._check_request_limits(request=request, user_info=user_info, limits=limits, model=form.get("model"))
         await self._check_budget(user_info=user_info, model=form.get("model"))
 
-    async def _check_chat_completions(self, user_info: UserInfo, limits: Dict[str, _UserModelLimits], request: Request) -> None:
+    async def _check_chat_completions(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
         body = await self._safely_parse_body(request)
 
         await self._check_request_limits(request=request, user_info=user_info, limits=limits, model=body.get("model"))
@@ -274,13 +274,13 @@ class AccessController:
 
         await self._check_budget(user_info=user_info, model=body.get("model"))
 
-    async def _check_collections(self, user_info: UserInfo, limits: Dict[str, _UserModelLimits], request: Request) -> None:
+    async def _check_collections(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
         body = await self._safely_parse_body(request)
 
         if body.get("visibility") == CollectionVisibility.PUBLIC and PermissionType.CREATE_PUBLIC_COLLECTION not in user_info.permissions:
             raise InsufficientPermissionException("Missing permission to update collection visibility to public.")
 
-    async def _check_embeddings(self, user_info: UserInfo, limits: Dict[str, _UserModelLimits], request: Request) -> None:
+    async def _check_embeddings(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
         body = await self._safely_parse_body(request)
 
         await self._check_request_limits(request=request, user_info=user_info, limits=limits, model=body.get("model"))
@@ -290,14 +290,14 @@ class AccessController:
 
         await self._check_budget(user_info=user_info, model=body.get("model"))
 
-    async def _check_files(self, user_info: UserInfo, limits: Dict[str, _UserModelLimits], request: Request) -> None:
+    async def _check_files(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
         await self._check_request_limits(
             request=request, user_info=user_info, limits=limits, model=global_context.document_manager.vector_store_model.name
         )
 
         await self._check_budget(user_info=user_info, model=global_context.document_manager.vector_store_model.name)
 
-    async def _check_ocr(self, user_info: UserInfo, limits: Dict[str, _UserModelLimits], request: Request) -> None:
+    async def _check_ocr(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
         form = await request.form()
         form = {key: value for key, value in form.items()} if form else {}
 
@@ -308,7 +308,7 @@ class AccessController:
 
         await self._check_budget(user_info=user_info, model=form.get("model"))
 
-    async def _check_rerank(self, user_info: UserInfo, limits: Dict[str, _UserModelLimits], request: Request) -> None:
+    async def _check_rerank(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
         body = await self._safely_parse_body(request)
 
         await self._check_request_limits(request=request, user_info=user_info, limits=limits, model=body.get("model"))
@@ -318,7 +318,7 @@ class AccessController:
 
         await self._check_budget(user_info=user_info, model=body.get("model"))
 
-    async def _check_search(self, user_info: UserInfo, limits: Dict[str, _UserModelLimits], request: Request) -> None:
+    async def _check_search(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
         body = await self._safely_parse_body(request)
 
         # count the search request as one request to the search model (embeddings)
@@ -340,20 +340,20 @@ class AccessController:
 
         await self._check_budget(user_info=user_info, model=global_context.document_manager.vector_store_model.name)
 
-    async def _check_tokens(self, user_info: UserInfo, limits: Dict[str, _UserModelLimits], request: Request) -> None:
+    async def _check_tokens(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
         body = await self._safely_parse_body(request)
 
         # if the token is for another user, we don't check the expiration date
         if body.get("user") and PermissionType.CREATE_USER not in user_info.permissions:
             raise InsufficientPermissionException("Missing permission to create token for another user.")
 
-    async def _check_provider(self, user_info: UserInfo, limits: Dict[str, _UserModelLimits], request: Request) -> None:
+    async def _check_provider(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
         body = await self._safely_parse_body(request)
 
         if body.get("user") and PermissionType.PROVIDE_MODELS not in user_info.permissions:
             raise InsufficientPermissionException("Missing permission to interact with provider's endpoints.")
 
-    async def _safely_parse_body(self, request: Request) -> Dict:
+    async def _safely_parse_body(self, request: Request) -> dict:
         """Safely parse request body as JSON or form data, handling encoding errors."""
         try:
             # Check content type to determine parsing strategy

@@ -1,11 +1,10 @@
 from contextvars import ContextVar
 from logging import Filter, Formatter, Logger, StreamHandler, getLogger
 import sys
-from typing import Optional
 
 from api.utils.configuration import configuration
 
-client_ip: ContextVar[Optional[str]] = ContextVar("client_ip", default=None)
+client_ip: ContextVar[str | None] = ContextVar("client_ip", default=None)
 
 
 class ClientIPFilter(Filter):

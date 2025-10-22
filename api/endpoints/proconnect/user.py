@@ -1,13 +1,15 @@
 import logging
-import httpx
 
 from fastapi import HTTPException
+import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._identityaccessmanager import IdentityAccessManager
-from api.sql.models import Role, User as UserTable
+from api.sql.models import Role
+from api.sql.models import User as UserTable
 from api.utils.configuration import configuration
+
 from .token import verify_jwt_signature
 
 logger = logging.getLogger(__name__)

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import Field, constr, model_validator
 
@@ -18,13 +18,13 @@ class SearchMethod(str, Enum):
 
 
 class SearchArgs(BaseModel):
-    collections: List[Any] = Field(default=[], description="List of collections ID")
+    collections: list[Any] = Field(default=[], description="List of collections ID")
     rff_k: int = Field(default=20, description="k constant in RFF algorithm")
     k: int = Field(gt=0, le=200, default=10, deprecated=True, description="[DEPRECATED: use limit instead]Number of results to return")
     limit: int = Field(gt=0, le=200, default=10, description="Number of results to return")
     offset: int = Field(gt=0, default=0, description="Offset for pagination, specifying how many results to skip from the beginning")
     method: SearchMethod = Field(default=SearchMethod.SEMANTIC)
-    score_threshold: Optional[float] = Field(default=0.0, ge=0.0, le=1.0, description="Score of cosine similarity threshold for filtering results, only available for semantic search method.")  # fmt: off
+    score_threshold: float | None = Field(default=0.0, ge=0.0, le=1.0, description="Score of cosine similarity threshold for filtering results, only available for semantic search method.")  # fmt: off
     web_search: bool = Field(default=False, description="Whether add internet search to the results.")
     web_search_k: int = Field(default=5, description="Number of results to return for web search.")
 
@@ -54,5 +54,5 @@ class Search(BaseModel):
 
 class Searches(BaseModel):
     object: Literal["list"] = "list"
-    data: List[Search]
+    data: list[Search]
     usage: Usage = Field(default_factory=Usage, description="Usage information for the request.")

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Literal, Optional, Union
+from typing import Literal
 
 from fastapi import Form
 from langchain_text_splitters import Language
@@ -21,8 +21,8 @@ CollectionForm: int = Form(default=..., description="The collection ID to use fo
 LengthFunctionForm: Literal["len"] = Form(default="len", description="The function to use to calculate the length of the chunks to use for the file upload.")  # fmt: off
 IsSeparatorRegexForm: bool = Form(default=False, description="Whether the separator is a regex to use for the file upload.")  # fmt: off
 MetadataForm: str = Form(default="{}", description="Additional metadata to chunks, JSON string. Example: '{\"string_metadata\": \"test\", \"int_metadata\": 1, \"float_metadata\": 1.0, \"bool_metadata\": true}'", pattern=r"^\{.*\}$")  # fmt: off
-SeparatorsForm: List[str] = Form(default=["\n\n", "\n", ". ", " "], description="The separators to use for the file upload.")  # fmt: off
-PresetSeparatorsForm: Union[Language, Literal[""]] = Form(default="", description="If provided, override separators by the preset specific separators. See [implemented details](https://github.com/langchain-ai/langchain/blob/eb122945832eae9b9df7c70ccd8d51fcd7a1899b/libs/text-splitters/langchain_text_splitters/character.py#L164).")  # fmt: off
+SeparatorsForm: list[str] = Form(default=["\n\n", "\n", ". ", " "], description="The separators to use for the file upload.")  # fmt: off
+PresetSeparatorsForm: Language | Literal[""] = Form(default="", description="If provided, override separators by the preset specific separators. See [implemented details](https://github.com/langchain-ai/langchain/blob/eb122945832eae9b9df7c70ccd8d51fcd7a1899b/libs/text-splitters/langchain_text_splitters/character.py#L164).")  # fmt: off
 
 
 class Document(BaseModel):
@@ -31,12 +31,12 @@ class Document(BaseModel):
     name: str
     collection_id: int
     created_at: int
-    chunks: Optional[int] = None
+    chunks: int | None = None
 
 
 class Documents(BaseModel):
     object: Literal["list"] = "list"
-    data: List[Document]
+    data: list[Document]
 
 
 class DocumentResponse(BaseModel):

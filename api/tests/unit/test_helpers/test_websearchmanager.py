@@ -1,20 +1,18 @@
+from fastapi import UploadFile
 import pytest
 import requests
-from fastapi import UploadFile
-from typing import List
 
 from api.helpers._websearchmanager import WebSearchManager
-
 
 timeout = 5
 
 
 class DummyWebSearch:
-    def __init__(self, urls: List[str]) -> None:
+    def __init__(self, urls: list[str]) -> None:
         self.urls = urls
         self.USER_AGENT = "test-agent"
 
-    async def search(self, query: str, k: int) -> List[str]:
+    async def search(self, query: str, k: int) -> list[str]:
         return self.urls[:k]
 
 

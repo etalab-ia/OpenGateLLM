@@ -1,7 +1,7 @@
 import pytest
 
-from api.utils.context import global_context
 from api.helpers.models.routers._modelrouter import ModelRouter
+from api.utils.context import global_context
 
 
 @pytest.mark.usefixtures("client")

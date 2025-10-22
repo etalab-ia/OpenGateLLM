@@ -9,9 +9,9 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.endpoints.proconnect import generate_redirect_url, logout, oauth2_callback, oauth2_login
-from api.helpers.auth_encryption import encrypt_redirect_data, get_fernet
 from api.endpoints.proconnect.token import get_jwks_keys, perform_proconnect_logout, verify_jwt_signature
 from api.endpoints.proconnect.user import create_user, retrieve_user_info
+from api.helpers.auth_encryption import encrypt_redirect_data, get_fernet
 from api.schemas.admin.tokens import OAuth2LogoutRequest
 from api.schemas.admin.users import User
 from api.sql.models import User as UserTable

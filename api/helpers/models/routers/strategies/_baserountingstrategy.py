@@ -1,11 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import List
 
 from api.clients.model import BaseModelClient as ModelClient
 
 
 class BaseRoutingStrategy(ABC):
-    def __init__(self, clients: List[ModelClient]) -> None:
+    def __init__(self, clients: list[ModelClient]) -> None:
         self.clients = clients
 
     @abstractmethod

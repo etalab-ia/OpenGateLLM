@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, Body, Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
@@ -117,8 +117,8 @@ async def get_user(
 )
 async def get_users(
     request: Request,
-    role: Optional[int] = Query(default=None, description="The ID of the role to filter the users by."),
-    organization: Optional[int] = Query(default=None, description="The ID of the organization to filter the users by."),
+    role: int | None = Query(default=None, description="The ID of the role to filter the users by."),
+    organization: int | None = Query(default=None, description="The ID of the organization to filter the users by."),
     offset: int = Query(default=0, ge=0, description="The offset of the users to get."),
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the users to get."),
     order_by: Literal["id", "name", "created_at", "updated_at"] = Query(default="id", description="The field to order the users by."),

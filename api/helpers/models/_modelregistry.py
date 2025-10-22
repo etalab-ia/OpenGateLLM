@@ -1,22 +1,21 @@
 from asyncio import Lock
-from typing import List, Optional
+import builtins
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.clients.model import BaseModelClient
-from api.schemas.core.configuration import RoutingStrategy
-from api.schemas.models import Model as ModelSchema, ModelType
-from api.utils.exceptions import ModelNotFoundException
-
-from api.helpers.models.routers import ModelRouter
-from api.utils.variables import DEFAULT_APP_NAME
-
 from api.helpers._modeldatabasemanager import ModelDatabaseManager
+from api.helpers.models.routers import ModelRouter
+from api.schemas.core.configuration import RoutingStrategy
+from api.schemas.models import Model as ModelSchema
+from api.schemas.models import ModelType
+from api.utils.exceptions import ModelNotFoundException
+from api.utils.variables import DEFAULT_APP_NAME
 
 
 class ModelRegistry:
-    def __init__(self, routers: List[ModelRouter]) -> None:
-        self._router_ids: List[str] = []
+    def __init__(self, routers: list[ModelRouter]) -> None:
+        self._router_ids: list[str] = []
         self._routers = dict()
         self.aliases = dict()
         self._lock = Lock()
@@ -56,7 +55,7 @@ class ModelRegistry:
         async with self._lock:
             return self.aliases.get(model, model)
 
-    async def list(self, model: Optional[str] = None) -> List[ModelSchema]:
+    async def list(self, model: str | None = None) -> list[ModelSchema]:
         data = list()
         async with self._lock:
             models = [model] if model else self._router_ids
@@ -103,7 +102,7 @@ class ModelRegistry:
         model_client: BaseModelClient,
         session: AsyncSession,
         model_type: ModelType = None,
-        aliases: List[str] = None,
+        aliases: builtins.list[str] = None,
         routing_strategy: RoutingStrategy = RoutingStrategy.ROUND_ROBIN,
         owner: str = None,
         **__,
@@ -204,7 +203,7 @@ class ModelRegistry:
                 del self._routers[router_name]
                 self._router_ids.remove(router_name)
 
-    async def add_aliases(self, router_name: str, aliases: List[str], session: AsyncSession):
+    async def add_aliases(self, router_name: str, aliases: builtins.list[str], session: AsyncSession):
         """
         Adds aliases of a ModelRouter.
 
@@ -225,7 +224,7 @@ class ModelRegistry:
                     self.aliases[al] = router_name
                     await self._routers[router_name].add_alias(al)
 
-    async def delete_aliases(self, router_name: str, aliases: List[str], session: AsyncSession):
+    async def delete_aliases(self, router_name: str, aliases: builtins.list[str], session: AsyncSession):
         """
         Removes aliases of a ModelRouter.
 
@@ -246,14 +245,14 @@ class ModelRegistry:
                     del self.aliases[al]
                     await self._routers[router_name].delete_alias(al)
 
-    async def get_models(self) -> List[str]:
+    async def get_models(self) -> builtins.list[str]:
         """
         Get all ModelRouter IDs.
         """
         async with self._lock:
             return self._router_ids
 
-    async def get_router_instances(self) -> List[ModelRouter]:
+    async def get_router_instances(self) -> builtins.list[ModelRouter]:
         """
         Returns existing ModelRouter instances.
         """

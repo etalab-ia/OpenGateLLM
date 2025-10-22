@@ -1,6 +1,5 @@
 import logging
 import traceback
-from typing import Optional
 
 from coredis import ConnectionPool
 from limits import RateLimitItemPerDay, RateLimitItemPerMinute
@@ -27,7 +26,7 @@ class Limiter:
         else:  # SLIDING_WINDOW
             self.strategy = strategies.SlidingWindowCounterRateLimiter(storage=self.redis)
 
-    async def hit(self, user_id: int, model: str, type: LimitType, value: Optional[int] = None, cost: int = 1) -> Optional[bool]:
+    async def hit(self, user_id: int, model: str, type: LimitType, value: int | None = None, cost: int = 1) -> bool | None:
         """
         Check if the user has reached the limit for the given type and model.
 
@@ -63,7 +62,7 @@ class Limiter:
 
         return True
 
-    async def remaining(self, user_id: int, model: str, type: LimitType, value: Optional[int] = None) -> Optional[int]:
+    async def remaining(self, user_id: int, model: str, type: LimitType, value: int | None = None) -> int | None:
         if value is None:
             return None
 

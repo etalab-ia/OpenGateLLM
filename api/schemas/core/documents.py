@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import UploadFile
 from pydantic import BaseModel
@@ -9,11 +9,11 @@ from api.schemas.parse import ParsedDocumentOutputFormat
 
 class ParserParams(BaseModel):
     file: UploadFile
-    output_format: Optional[ParsedDocumentOutputFormat] = None
-    force_ocr: Optional[bool] = None
+    output_format: ParsedDocumentOutputFormat | None = None
+    force_ocr: bool | None = None
     page_range: str = ""
-    paginate_output: Optional[bool] = None
-    use_llm: Optional[bool] = None
+    paginate_output: bool | None = None
+    use_llm: bool | None = None
 
 
 class FileType(str, Enum):
@@ -25,10 +25,10 @@ class FileType(str, Enum):
 
 
 class JsonFileDocument(BaseModel):
-    title: Optional[str] = None
+    title: str | None = None
     text: str
-    metadata: Dict[str, Any] = {}
+    metadata: dict[str, Any] = {}
 
 
 class JsonFile(BaseModel):
-    documents: List[JsonFileDocument]
+    documents: list[JsonFileDocument]

@@ -1,7 +1,7 @@
+from collections.abc import AsyncIterator
 import json
 import logging
 import traceback
-from typing import AsyncIterator
 
 from fastapi.responses import StreamingResponse
 from starlette.types import Send

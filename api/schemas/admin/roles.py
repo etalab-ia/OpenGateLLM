@@ -1,6 +1,6 @@
 import datetime as dt
 from enum import Enum
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import Field, constr, field_validator
 
@@ -24,13 +24,13 @@ class LimitType(str, Enum):
 class Limit(BaseModel):
     model: str = Field(description="The model ID.")
     type: LimitType = Field(description="The limit type.")
-    value: Optional[int] = Field(default=None, ge=0, description="The limit value.")
+    value: int | None = Field(default=None, ge=0, description="The limit value.")
 
 
 class RoleUpdateRequest(BaseModel):
-    name: Optional[constr(strip_whitespace=True, min_length=1)] = Field(default=None, description="The new role name.")
-    permissions: Optional[List[PermissionType]] = Field(default=None, description="The new permissions.")
-    limits: Optional[List[Limit]] = Field(default=None, description="The new limits.")
+    name: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="The new role name.")
+    permissions: list[PermissionType] | None = Field(default=None, description="The new permissions.")
+    limits: list[Limit] | None = Field(default=None, description="The new limits.")
 
     @field_validator("limits", mode="after")
     def check_duplicate_limits(cls, limits):
@@ -50,8 +50,8 @@ class RolesResponse(BaseModel):
 
 class RoleRequest(BaseModel):
     name: constr(strip_whitespace=True, min_length=1)
-    permissions: Optional[List[PermissionType]] = []
-    limits: List[Limit] = []
+    permissions: list[PermissionType] | None = []
+    limits: list[Limit] = []
 
     @field_validator("limits", mode="after")
     def check_duplicate_limits(cls, limits):
@@ -69,8 +69,8 @@ class Role(BaseModel):
     object: Literal["role"] = "role"
     id: int
     name: str
-    permissions: List[PermissionType]
-    limits: List[Limit]
+    permissions: list[PermissionType]
+    limits: list[Limit]
     users: int = 0
     created_at: int = Field(default_factory=lambda: int(dt.datetime.now().timestamp()))
     updated_at: int = Field(default_factory=lambda: int(dt.datetime.now().timestamp()))
@@ -78,4 +78,4 @@ class Role(BaseModel):
 
 class Roles(BaseModel):
     object: Literal["list"] = "list"
-    data: List[Role]
+    data: list[Role]

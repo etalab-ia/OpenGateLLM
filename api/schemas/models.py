@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Literal, Optional
+from typing import Literal
 
 from openai.types import Model
 from pydantic import Field
@@ -22,12 +22,12 @@ class ModelType(str, Enum):
 
 class Model(Model):
     object: Literal["model"] = "model"
-    max_context_length: Optional[int] = None
+    max_context_length: int | None = None
     type: ModelType
-    aliases: Optional[List[str]] = []
+    aliases: list[str] | None = []
     costs: dict[str, float] = Field(default_factory=dict)
 
 
 class Models(BaseModel):
     object: Literal["list"] = "list"
-    data: List[Model]
+    data: list[Model]

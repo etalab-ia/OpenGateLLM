@@ -1,10 +1,10 @@
 import asyncio
+from collections.abc import Generator
 from functools import partial
 import logging
 import os
 from pathlib import Path
 import time
-from typing import Generator
 
 from fastapi.testclient import TestClient
 import pytest
@@ -21,7 +21,7 @@ from api.factory import create_app
 from api.schemas.admin.roles import LimitType, PermissionType
 from api.sql.models import Base
 from api.utils.configuration import configuration
-from api.utils.variables import ENDPOINT__MODELS, ENDPOINT__ADMIN_ROLES, ENDPOINT__ADMIN_TOKENS, ENDPOINT__ADMIN_USERS
+from api.utils.variables import ENDPOINT__ADMIN_ROLES, ENDPOINT__ADMIN_TOKENS, ENDPOINT__ADMIN_USERS, ENDPOINT__MODELS
 
 # Define global VCR instance
 VCR_INSTANCE = None

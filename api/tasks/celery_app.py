@@ -1,6 +1,7 @@
 from celery import Celery
-from api.utils.configuration import configuration
 from kombu import Queue
+
+from api.utils.configuration import configuration
 
 settings = configuration.settings
 

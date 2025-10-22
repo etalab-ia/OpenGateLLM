@@ -1,8 +1,6 @@
-from typing import Tuple
-
+from api.schemas.admin.organizations import Organization
 from api.schemas.admin.roles import Limit, LimitType, PermissionType, Role
 from api.schemas.admin.tokens import Token
-from api.schemas.admin.organizations import Organization
 from api.schemas.admin.users import User
 from api.schemas.me import UserInfo
 from api.utils.exceptions import (
@@ -73,7 +71,7 @@ class MockIdentityAccessManagerSuccess:
             )
         ]
 
-    async def login(self, session, email, password) -> Tuple[int, str]:
+    async def login(self, session, email, password) -> tuple[int, str]:
         return self.LOGIN_KEY_ID, self.LOGIN_KEY
 
     async def check_token(self, session, token):
@@ -135,7 +133,7 @@ class MockIdentityAccessManagerSuccess:
         ]
 
     # tokens
-    async def create_token(self, session, user_id, name, expires_at) -> Tuple[int, str]:
+    async def create_token(self, session, user_id, name, expires_at) -> tuple[int, str]:
         return self.CREATE_TOKEN_ID, "token-string"
 
     async def delete_token(self, session, user_id, token_id):
@@ -231,7 +229,7 @@ class MockIdentityAccessManagerFail:
         raise UserNotFoundException()
 
     # tokens
-    async def create_token(self, session, user_id, name, expires_at) -> Tuple[int, str]:
+    async def create_token(self, session, user_id, name, expires_at) -> tuple[int, str]:
         raise UserNotFoundException()
 
     async def delete_token(self, session, user_id, token_id):

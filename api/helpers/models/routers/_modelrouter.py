@@ -1,18 +1,19 @@
 from asyncio import Lock
-from fastapi import HTTPException
-import time
-from typing import Callable, Union, Awaitable
+from collections.abc import Awaitable, Callable
 import inspect
 import logging
+import time
+
+from fastapi import HTTPException
 
 from api.clients.model import BaseModelClient as ModelClient
 from api.helpers.models.routers.strategies import LeastBusyRoutingStrategy, RoundRobinRoutingStrategy, ShuffleRoutingStrategy
+from api.schemas.core.configuration import Model as ModelRouterSchema
+from api.schemas.core.configuration import RoutingStrategy
 from api.schemas.models import ModelType
 from api.utils.exceptions import WrongModelTypeException
 from api.utils.tracked_cycle import TrackedCycle
 from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS, ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__EMBEDDINGS, ENDPOINT__OCR, ENDPOINT__RERANK
-
-from api.schemas.core.configuration import Model as ModelRouterSchema, RoutingStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -245,7 +246,7 @@ class ModelRouter:
             if alias in self.aliases:  # Silent error?
                 self.aliases.remove(alias)
 
-    async def safe_client_access[R](self, endpoint: str, handler: Callable[[ModelClient], Union[R, Awaitable[R]]]) -> R:
+    async def safe_client_access[R](self, endpoint: str, handler: Callable[[ModelClient], R | Awaitable[R]]) -> R:
         """
         Thread-safely access a BaseModelClient.
         This method calls the given callback with the current instance and BaseModelClient

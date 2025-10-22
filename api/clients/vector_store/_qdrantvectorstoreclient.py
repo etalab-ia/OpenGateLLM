@@ -1,5 +1,4 @@
 import logging
-from typing import List, Optional
 from uuid import uuid4
 
 from qdrant_client import AsyncQdrantClient
@@ -58,7 +57,7 @@ class QdrantVectorStoreClient(BaseVectorStoreClient, AsyncQdrantClient):
         collections = await AsyncQdrantClient.get_collections(self)
         return [int(collection.name) for collection in collections.collections]
 
-    async def get_chunk_count(self, collection_id: int, document_id: int) -> Optional[int]:
+    async def get_chunk_count(self, collection_id: int, document_id: int) -> int | None:
         try:
             chunks_count = await AsyncQdrantClient.count(
                 self,
@@ -73,7 +72,7 @@ class QdrantVectorStoreClient(BaseVectorStoreClient, AsyncQdrantClient):
         doc_filter = Filter(must=[FieldCondition(key="metadata.document_id", match=MatchAny(any=[document_id]))])
         await AsyncQdrantClient.delete(self, collection_name=str(collection_id), points_selector=FilterSelector(filter=doc_filter))
 
-    async def get_chunks(self, collection_id: int, document_id: int, offset: int = 0, limit: int = 10, chunk_id: Optional[int] = None) -> List[Chunk]:
+    async def get_chunks(self, collection_id: int, document_id: int, offset: int = 0, limit: int = 10, chunk_id: int | None = None) -> list[Chunk]:
         must = [FieldCondition(key="metadata.document_id", match=MatchAny(any=[document_id]))]
         if chunk_id:
             must.append(FieldCondition(key="metadata.id", match=MatchValue(value=chunk_id)))
@@ -92,7 +91,7 @@ class QdrantVectorStoreClient(BaseVectorStoreClient, AsyncQdrantClient):
 
         return chunks
 
-    async def upsert(self, collection_id: int, chunks: List[Chunk], embeddings: List[list[float]]) -> None:
+    async def upsert(self, collection_id: int, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
         await AsyncQdrantClient.upsert(
             self,
             collection_name=str(collection_id),
@@ -105,14 +104,14 @@ class QdrantVectorStoreClient(BaseVectorStoreClient, AsyncQdrantClient):
     async def search(
         self,
         method: SearchMethod,
-        collection_ids: List[int],
+        collection_ids: list[int],
         query_prompt: str,
         query_vector: list[float],
         limit: int,
         offset: int,
-        rff_k: Optional[int] = 20,
+        rff_k: int | None = 20,
         score_threshold: float = 0.0,
-    ) -> List[Search]:
+    ) -> list[Search]:
         if method == SearchMethod.LEXICAL:
             searches = await self._lexical_search(query_prompt=query_prompt, collection_ids=collection_ids, limit=limit, offset=offset)
 
@@ -126,12 +125,12 @@ class QdrantVectorStoreClient(BaseVectorStoreClient, AsyncQdrantClient):
 
         return searches
 
-    async def _lexical_search(self, query_prompt: str, collection_ids: List[int], limit: int, offset: int) -> List[Search]:
+    async def _lexical_search(self, query_prompt: str, collection_ids: list[int], limit: int, offset: int) -> list[Search]:
         raise NotImplementedException("Only semantic search is available for Qdrant database.")
 
     async def _semantic_search(
-        self, query_vector: list[float], collection_ids: List[int], limit: int, offset: int, score_threshold: float = 0.0
-    ) -> List[Search]:
+        self, query_vector: list[float], collection_ids: list[int], limit: int, offset: int, score_threshold: float = 0.0
+    ) -> list[Search]:
         searches = []
         for collection_id in collection_ids:
             results = await AsyncQdrantClient.search(
@@ -157,5 +156,5 @@ class QdrantVectorStoreClient(BaseVectorStoreClient, AsyncQdrantClient):
 
         return searches
 
-    async def _hybrid_search(self, query_prompt: str, query_vector: list[float], collection_ids: List[int], limit: int, offset: int, rff_k: Optional[int] = 20) -> List[Search]:  # fmt: off
+    async def _hybrid_search(self, query_prompt: str, query_vector: list[float], collection_ids: list[int], limit: int, offset: int, rff_k: int | None = 20) -> list[Search]:  # fmt: off
         raise NotImplementedException("Only semantic search is available for Qdrant database.")

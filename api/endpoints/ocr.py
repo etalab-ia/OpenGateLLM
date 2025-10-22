@@ -1,6 +1,6 @@
 import base64
 
-from fastapi import APIRouter, Request, Security, UploadFile, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Security, UploadFile
 from fastapi.responses import JSONResponse
 import pymupdf
 
@@ -9,10 +9,10 @@ from api.schemas.core.documents import FileType
 from api.schemas.ocr import DPIForm, ModelForm, PromptForm
 from api.schemas.parse import FileForm, ParsedDocument, ParsedDocumentMetadata, ParsedDocumentPage
 from api.schemas.usage import Usage
+from api.services.model_invocation import invoke_model_request
 from api.utils.context import global_context
 from api.utils.exceptions import FileSizeLimitExceededException, TaskFailedException
 from api.utils.variables import ENDPOINT__OCR, ROUTER__OCR
-from api.services.model_invocation import invoke_model_request
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__OCR.upper()])
 

@@ -1,5 +1,5 @@
 import datetime as dt
-from typing import List, Literal, Optional, Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field, constr, field_validator
 
@@ -11,12 +11,12 @@ class UserInfo(BaseModel):
     object: Literal["userInfo"] = Field(default="userInfo", description="The user info object type.")
     id: int = Field(description="The user ID.")
     email: str = Field(description="The user email.")
-    name: Optional[str] = Field(default=None, description="The user name.")
-    organization: Optional[int] = Field(default=None, description="The user organization ID.")
-    budget: Optional[float] = Field(default=None, description="The user budget. If None, the user has unlimited budget.")
-    permissions: List[PermissionType] = Field(description="The user permissions.")
-    limits: List[Limit] = Field(description="The user rate limits.")
-    expires_at: Optional[int] = Field(default=None, description="The user expiration timestamp. If None, the user will never expire.")
+    name: str | None = Field(default=None, description="The user name.")
+    organization: int | None = Field(default=None, description="The user organization ID.")
+    budget: float | None = Field(default=None, description="The user budget. If None, the user has unlimited budget.")
+    permissions: list[PermissionType] = Field(description="The user permissions.")
+    limits: list[Limit] = Field(description="The user rate limits.")
+    expires_at: int | None = Field(default=None, description="The user expiration timestamp. If None, the user will never expire.")
     created_at: int = Field(description="The user creation timestamp.")
     updated_at: int = Field(description="The user update timestamp.")
     priority: int = Field(
@@ -26,10 +26,10 @@ class UserInfo(BaseModel):
 
 
 class UpdateUserRequest(BaseModel):
-    name: Optional[str] = Field(default=None, description="The user name.")
-    email: Optional[str] = Field(default=None, description="The user email.")
-    current_password: Optional[str] = Field(default=None, description="The current user password.")
-    password: Optional[str] = Field(default=None, description="The new user password. If None, the user password is not changed.")
+    name: str | None = Field(default=None, description="The user name.")
+    email: str | None = Field(default=None, description="The user email.")
+    current_password: str | None = Field(default=None, description="The current user password.")
+    password: str | None = Field(default=None, description="The new user password. If None, the user password is not changed.")
 
 
 class CreateKeyResponse(BaseModel):
@@ -39,7 +39,7 @@ class CreateKeyResponse(BaseModel):
 
 class CreateKey(BaseModel):
     name: Annotated[str, constr(strip_whitespace=True, min_length=1)]
-    expires_at: Optional[int] = Field(None, description="Timestamp in seconds")
+    expires_at: int | None = Field(None, description="Timestamp in seconds")
 
     @field_validator("expires_at", mode="before")
     def must_be_future(cls, expires_at):
@@ -55,10 +55,10 @@ class Key(BaseModel):
     id: int
     name: str
     token: str
-    expires_at: Optional[int] = None
+    expires_at: int | None = None
     created_at: int
 
 
 class Keys(BaseModel):
     object: Literal["list"] = "list"
-    data: List[Key]
+    data: list[Key]

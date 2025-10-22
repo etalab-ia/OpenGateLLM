@@ -1,9 +1,10 @@
+import argparse
+
 import bcrypt
 import requests
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import text
-import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--api_url", type=str, default="http://localhost:8080")

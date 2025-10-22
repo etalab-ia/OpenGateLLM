@@ -1,18 +1,16 @@
-from typing import List, Optional
-
 from pydantic import Field
 
 from api.schemas import BaseModel
 
 
 class CarbonFootprintUsageKWh(BaseModel):
-    min: Optional[float] = Field(default=None, description="Minimum carbon footprint in kWh.")
-    max: Optional[float] = Field(default=None, description="Maximum carbon footprint in kWh.")
+    min: float | None = Field(default=None, description="Minimum carbon footprint in kWh.")
+    max: float | None = Field(default=None, description="Maximum carbon footprint in kWh.")
 
 
 class CarbonFootprintUsageKgCO2eq(BaseModel):
-    min: Optional[float] = Field(default=None, description="Minimum carbon footprint in kgCO2eq (global warming potential).")
-    max: Optional[float] = Field(default=None, description="Maximum carbon footprint in kgCO2eq (global warming potential).")
+    min: float | None = Field(default=None, description="Minimum carbon footprint in kgCO2eq (global warming potential).")
+    max: float | None = Field(default=None, description="Maximum carbon footprint in kgCO2eq (global warming potential).")
 
 
 class CarbonFootprintUsage(BaseModel):
@@ -35,4 +33,4 @@ class Detail(BaseModel):
 
 
 class Usage(BaseUsage):
-    details: List[Detail] = []
+    details: list[Detail] = []

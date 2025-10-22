@@ -3,7 +3,6 @@ from datetime import datetime
 import functools
 import json
 import logging
-from typing import Optional
 
 from fastapi import HTTPException, Request, Response
 from sqlalchemy import func, select, update
@@ -196,7 +195,7 @@ async def extract_usage_from_response(response: Response, start_time: datetime, 
     asyncio.create_task(update_budget(usage=usage))
 
 
-async def log_usage(response: Optional[Response], usage: Usage, start_time: datetime):
+async def log_usage(response: Response | None, usage: Usage, start_time: datetime):
     """
     Logs the usage information to the database.
     This function captures the duration of the request and sets the status code of the response if available.

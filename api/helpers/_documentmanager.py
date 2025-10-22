@@ -1,8 +1,8 @@
+from collections.abc import Callable
 from functools import wraps
 from itertools import batched
 import logging
 import time
-from typing import Callable, List, Optional
 from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile
@@ -31,7 +31,7 @@ from ._websearchmanager import WebSearchManager
 logger = logging.getLogger(__name__)
 
 
-def check_dependencies(*, dependencies: List[str]) -> Callable:
+def check_dependencies(*, dependencies: list[str]) -> Callable:
     """
     Decorator to return a 400 error to the user if the endpoint calls a feature that requires an uninitialized dependency.
     """
@@ -61,7 +61,7 @@ class DocumentManager:
         vector_store: BaseVectorStoreClient,
         vector_store_model: ModelRouter,
         parser_manager: ParserManager,
-        web_search_manager: Optional[WebSearchManager] = None,
+        web_search_manager: WebSearchManager | None = None,
     ) -> None:
         self.vector_store = vector_store
         self.vector_store_model = vector_store_model
@@ -69,7 +69,7 @@ class DocumentManager:
         self.parser_manager = parser_manager
 
     @check_dependencies(dependencies=["vector_store"])
-    async def create_collection(self, session: AsyncSession, user_id: int, name: str, visibility: CollectionVisibility, description: Optional[str] = None) -> int:  # fmt: off
+    async def create_collection(self, session: AsyncSession, user_id: int, name: str, visibility: CollectionVisibility, description: str | None = None) -> int:  # fmt: off
         result = await session.execute(
             statement=insert(table=CollectionTable)
             .values(name=name, user_id=user_id, visibility=visibility, description=description)
@@ -101,7 +101,7 @@ class DocumentManager:
         await self.vector_store.delete_collection(collection_id=collection_id)
 
     @check_dependencies(dependencies=["vector_store"])
-    async def update_collection(self, session: AsyncSession, user_id: int, collection_id: int, name: Optional[str] = None, visibility: Optional[CollectionVisibility] = None, description: Optional[str] = None) -> None:  # fmt: off
+    async def update_collection(self, session: AsyncSession, user_id: int, collection_id: int, name: str | None = None, visibility: CollectionVisibility | None = None, description: str | None = None) -> None:  # fmt: off
         # check if collection exists
         result = await session.execute(
             statement=select(CollectionTable)
@@ -130,12 +130,12 @@ class DocumentManager:
         self,
         session: AsyncSession,
         user_id: int,
-        collection_id: Optional[int] = None,
-        collection_name: Optional[str] = None,
-        visibility: Optional[CollectionVisibility] = None,
+        collection_id: int | None = None,
+        collection_name: str | None = None,
+        visibility: CollectionVisibility | None = None,
         offset: int = 0,
         limit: int = 10,
-    ) -> List[Collection]:
+    ) -> list[Collection]:
         # Query basic collection data
         statement = (
             select(
@@ -184,10 +184,10 @@ class DocumentManager:
         chunk_overlap: int,
         length_function: Callable,
         chunk_min_size: int,
-        is_separator_regex: Optional[bool] = None,
-        separators: Optional[List[str]] = None,
-        preset_separators: Optional[Language] = None,
-        metadata: Optional[dict] = None,
+        is_separator_regex: bool | None = None,
+        separators: list[str] | None = None,
+        preset_separators: Language | None = None,
+        metadata: dict | None = None,
     ) -> int:
         # check if collection exists and prepare document chunks in a single transaction
         result = await session.execute(
@@ -241,7 +241,7 @@ class DocumentManager:
         return document_id
 
     @check_dependencies(dependencies=["vector_store"])
-    async def get_documents(self, session: AsyncSession, user_id: int, collection_id: Optional[int] = None, document_id: Optional[int] = None, document_name: Optional[str] = None, offset: int = 0, limit: int = 10) -> List[Document]:  # fmt: off
+    async def get_documents(self, session: AsyncSession, user_id: int, collection_id: int | None = None, document_id: int | None = None, document_name: str | None = None, offset: int = 0, limit: int = 10) -> list[Document]:  # fmt: off
         statement = (
             select(
                 DocumentTable.id,
@@ -299,10 +299,10 @@ class DocumentManager:
         session: AsyncSession,
         user_id: int,
         document_id: int,
-        chunk_id: Optional[int] = None,
+        chunk_id: int | None = None,
         offset: int = 0,
         limit: int = 10,
-    ) -> List[Chunk]:
+    ) -> list[Chunk]:
         # check if document exists
         result = await session.execute(
             statement=select(DocumentTable)
@@ -329,11 +329,11 @@ class DocumentManager:
     async def parse_file(
         self,
         file: UploadFile,
-        output_format: Optional[ParsedDocumentOutputFormat] = None,
-        force_ocr: Optional[bool] = None,
+        output_format: ParsedDocumentOutputFormat | None = None,
+        force_ocr: bool | None = None,
         page_range: str = "",
-        paginate_output: Optional[bool] = None,
-        use_llm: Optional[bool] = None,
+        paginate_output: bool | None = None,
+        use_llm: bool | None = None,
     ) -> ParsedDocument:
         return await self.parser_manager.parse_file(
             file=file, output_format=output_format, force_ocr=force_ocr, page_range=page_range, paginate_output=paginate_output, use_llm=use_llm
@@ -343,7 +343,7 @@ class DocumentManager:
     async def search_chunks(
         self,
         session: AsyncSession,
-        collection_ids: List[int],
+        collection_ids: list[int],
         user_id: int,
         prompt: str,
         method: str,
@@ -353,7 +353,7 @@ class DocumentManager:
         score_threshold: float = 0.0,
         web_search: bool = False,
         web_search_k: int = 5,
-    ) -> List[Search]:
+    ) -> list[Search]:
         web_collection_id = None
         if web_search:
             web_collection_id = await self._create_web_collection(session=session, user_id=user_id, prompt=prompt, k=web_search_k)
@@ -400,7 +400,7 @@ class DocumentManager:
         user_id: int,
         prompt: str,
         k: int = 5,
-    ) -> Optional[int]:
+    ) -> int | None:
         web_query = await self.web_search_manager.get_web_query(prompt=prompt)
         web_results = await self.web_search_manager.get_results(query=web_query, k=k)
         collection_id = None
@@ -443,11 +443,11 @@ class DocumentManager:
         chunk_min_size: int,
         chunk_overlap: int,
         length_function: Callable,
-        separators: Optional[List[str]] = None,
-        is_separator_regex: Optional[bool] = None,
-        preset_separators: Optional[Language] = None,
-        metadata: Optional[dict] = None,
-    ) -> List[Chunk]:
+        separators: list[str] | None = None,
+        is_separator_regex: bool | None = None,
+        preset_separators: Language | None = None,
+        metadata: dict | None = None,
+    ) -> list[Chunk]:
         if chunker == Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER:
             chunker = RecursiveCharacterTextSplitter(
                 chunk_size=chunk_size,
@@ -466,7 +466,7 @@ class DocumentManager:
 
         return chunks
 
-    async def _create_embeddings(self, input_texts: List[str]) -> list[float] | list[list[float]] | dict:
+    async def _create_embeddings(self, input_texts: list[str]) -> list[float] | list[list[float]] | dict:
         async def handler(client):
             response = await client.forward_request(
                 method="POST", json={"input": input_texts, "model": self.vector_store_model.name, "encoding_format": "float"}
@@ -476,7 +476,7 @@ class DocumentManager:
 
         return await self.vector_store_model.safe_client_access(endpoint=ENDPOINT__EMBEDDINGS, handler=handler)
 
-    async def _upsert(self, chunks: List[Chunk], collection_id: int) -> None:
+    async def _upsert(self, chunks: list[Chunk], collection_id: int) -> None:
         batches = batched(iterable=chunks, n=self.BATCH_SIZE)
         for batch in batches:
             # create embeddings

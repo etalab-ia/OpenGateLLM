@@ -1,5 +1,5 @@
 import json
-from typing import List, Literal, Optional, Union
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query, Request, Response, Security, UploadFile
@@ -47,7 +47,7 @@ async def create_document(
     file: UploadFile = FileForm,
     collection: int = CollectionForm,
     # parse params
-    paginate_output: Optional[bool] = PaginateOutputForm,
+    paginate_output: bool | None = PaginateOutputForm,
     page_range: str = PageRangeForm,
     force_ocr: bool = ForceOCRForm,
     output_format: ParsedDocumentOutputFormat = OutputFormatForm,
@@ -58,8 +58,8 @@ async def create_document(
     chunk_overlap: int = ChunkOverlapForm,
     length_function: Literal["len"] = LengthFunctionForm,
     is_separator_regex: bool = IsSeparatorRegexForm,
-    separators: List[str] = SeparatorsForm,
-    preset_separators: Union[Language, Literal[""]] = PresetSeparatorsForm,
+    separators: list[str] = SeparatorsForm,
+    preset_separators: Language | Literal[""] = PresetSeparatorsForm,
     metadata: str = MetadataForm,
 ) -> JSONResponse:
     """
@@ -134,10 +134,10 @@ async def get_document(
 @router.get(path=ENDPOINT__DOCUMENTS, dependencies=[Security(dependency=AccessController())], status_code=200)
 async def get_documents(
     request: Request,
-    name: Optional[str] = Query(default=None, description="Filter documents by name."),
-    collection: Optional[int] = Query(default=None, description="Filter documents by collection ID"),
-    limit: Optional[int] = Query(default=10, ge=1, le=100, description="The number of documents to return"),
-    offset: Union[int, UUID] = Query(default=0, description="The offset of the first document to return"),
+    name: str | None = Query(default=None, description="Filter documents by name."),
+    collection: int | None = Query(default=None, description="Filter documents by collection ID"),
+    limit: int | None = Query(default=10, ge=1, le=100, description="The number of documents to return"),
+    offset: int | UUID = Query(default=0, description="The offset of the first document to return"),
     session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:
     """

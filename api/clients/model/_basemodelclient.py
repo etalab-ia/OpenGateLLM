@@ -9,12 +9,12 @@ import logging
 import re
 import time
 import traceback
-from typing import Any, Dict, Literal, Optional, Tuple, Type
+from typing import Any, Literal
 from urllib.parse import urljoin
 
-from redis import Redis
 from fastapi import HTTPException
 import httpx
+from redis import Redis
 
 from api.clients.model.qos_policies import (
     BaseQualityOfServicePolicy,
@@ -93,7 +93,7 @@ class BaseModelClient(ABC):
         self._redis_client = Redis(**configuration.dependencies.redis.model_dump())
 
     @staticmethod
-    def import_module(type: ModelProviderType) -> "Type[BaseModelClient]":
+    def import_module(type: ModelProviderType) -> "type[BaseModelClient]":
         """
         Static method to import a subclass of BaseModelClient.
 
@@ -183,7 +183,7 @@ class BaseModelClient(ABC):
             else:
                 logger.error(f"Creation of redis timeseries {latency_ts_key} failed : {e}", exc_info=True)
 
-    def _get_usage(self, json: dict, data: dict | list[dict], stream: bool, request_latency: float = 0.0) -> Optional[Usage]:
+    def _get_usage(self, json: dict, data: dict | list[dict], stream: bool, request_latency: float = 0.0) -> Usage | None:
         """
         Get usage data from request and response.
 
@@ -275,8 +275,8 @@ class BaseModelClient(ABC):
         return additional_data
 
     def _format_request(
-        self, json: Optional[dict] = None, files: Optional[dict] = None, data: Optional[dict] = None
-    ) -> Tuple[str, Optional[Dict[str, str]], Optional[dict], Optional[dict], Optional[dict]]:
+        self, json: dict | None = None, files: dict | None = None, data: dict | None = None
+    ) -> tuple[str, dict[str, str] | None, dict | None, dict | None, dict | None]:
         """
         Format a request to a client model. This method can be overridden by a subclass to add additional headers or parameters. This method format the requested endpoint thanks the ENDPOINT_TABLE attribute.
 
@@ -300,7 +300,7 @@ class BaseModelClient(ABC):
         self,
         json: dict,
         response: httpx.Response,
-        additional_data: Optional[Dict[str, Any]] = None,
+        additional_data: dict[str, Any] | None = None,
         request_latency: float = 0.0,
     ) -> httpx.Response:
         """
@@ -343,9 +343,7 @@ class BaseModelClient(ABC):
         except Exception as e:
             logger.error(f"Failed to log request metrics in redis ts {latency_ts_key}: {e}", exc_info=True)
 
-    def get_timeseries_since(
-        self, metric_type: Literal["time_to_first_token", "latency"], cutoff: Optional[datetime] = None
-    ) -> list[tuple[int, float]]:
+    def get_timeseries_since(self, metric_type: Literal["time_to_first_token", "latency"], cutoff: datetime | None = None) -> list[tuple[int, float]]:
         """
         Fetch all points in the RedisTimeSeries key newer than `cutoff`.
 
@@ -387,10 +385,10 @@ class BaseModelClient(ABC):
     async def forward_request(
         self,
         method: str,
-        json: Optional[dict] = None,
-        files: Optional[dict] = None,
-        data: Optional[dict] = None,
-        additional_data: Optional[dict[str, Any]] = None,
+        json: dict | None = None,
+        files: dict | None = None,
+        data: dict | None = None,
+        additional_data: dict[str, Any] | None = None,
     ) -> httpx.Response:
         """
         Forward a request to a client model and add model name to the response. Optionally, add additional data to the response.
@@ -465,7 +463,7 @@ class BaseModelClient(ABC):
         self,
         json: dict,
         response: list,
-        additional_data: Optional[Dict[str, Any]] = None,
+        additional_data: dict[str, Any] | None = None,
         request_latency: float = 0.0,
     ) -> tuple | None:
         """
@@ -514,10 +512,10 @@ class BaseModelClient(ABC):
     async def forward_stream(
         self,
         method: str,
-        json: Optional[dict] = None,
-        files: Optional[dict] = None,
-        data: Optional[dict] = None,
-        additional_data: Optional[Dict[str, Any]] = None,
+        json: dict | None = None,
+        files: dict | None = None,
+        data: dict | None = None,
+        additional_data: dict[str, Any] | None = None,
     ):
         """
         Forward a stream request to a client model and add model name to the response. Optionally, add additional data to the response.

@@ -1,4 +1,5 @@
 import traceback
+
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response, Security
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -165,6 +166,6 @@ async def get_routers(request: Request) -> JSONResponse:
             # No clients, ModelRouter is about to get deleted
             continue
 
-        router_schemas.append((await r.as_schema()))
+        router_schemas.append(await r.as_schema())
 
     return JSONResponse(content=RoutersResponse(routers=router_schemas).model_dump(), status_code=200)

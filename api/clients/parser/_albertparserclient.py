@@ -1,6 +1,5 @@
 from io import BytesIO
 import json
-from typing import Dict, Optional
 
 from fastapi import HTTPException
 import httpx
@@ -21,7 +20,7 @@ class AlbertParserClient(BaseParserClient):
 
     SUPPORTED_FORMATS = [FileType.PDF]
 
-    def __init__(self, headers: Dict[str, str], timeout: int, url: Optional[str] = None, *args, **kwargs) -> None:
+    def __init__(self, headers: dict[str, str], timeout: int, url: str | None = None, *args, **kwargs) -> None:
         # store configuration but avoid performing network calls in constructor
         self.url = url or self.URL
         self.headers = headers

@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from elasticsearch import AsyncElasticsearch, helpers
 
 from api.clients.vector_store._basevectorstoreclient import BaseVectorStoreClient
@@ -98,7 +96,7 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
         collections = await self.indices.get_alias()
         return [int(collection) for collection in collections]
 
-    async def get_chunk_count(self, collection_id: int, document_id: int) -> Optional[int]:
+    async def get_chunk_count(self, collection_id: int, document_id: int) -> int | None:
         try:
             body = {"query": {"match": {"metadata.document_id": document_id}}}
             result = await AsyncElasticsearch.count(self, index=str(collection_id), body=body)
@@ -111,7 +109,7 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
         await AsyncElasticsearch.delete_by_query(self, index=str(collection_id), body=body)
         await self.indices.refresh(index=str(collection_id))
 
-    async def get_chunks(self, collection_id: int, document_id: int, offset: int = 0, limit: int = 10, chunk_id: Optional[int] = None) -> List[Chunk]:
+    async def get_chunks(self, collection_id: int, document_id: int, offset: int = 0, limit: int = 10, chunk_id: int | None = None) -> list[Chunk]:
         body = {"query": {"bool": {"must": [{"match": {"metadata.document_id": document_id}}]}}, "_source": ["id", "content", "metadata"]}
         if chunk_id is not None:
             body["query"]["bool"]["must"].append({"term": {"id": chunk_id}})
@@ -124,7 +122,7 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
 
         return chunks
 
-    async def upsert(self, collection_id: int, chunks: List[Chunk], embeddings: List[list[float]]) -> None:
+    async def upsert(self, collection_id: int, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
         actions = [
             {
                 "_index": str(collection_id),
@@ -144,14 +142,14 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
     async def search(
         self,
         method: SearchMethod,
-        collection_ids: List[int],
+        collection_ids: list[int],
         query_prompt: str,
         query_vector: list[float],
         limit: int,
         offset: int,
-        rff_k: Optional[int] = 20,
+        rff_k: int | None = 20,
         score_threshold: float = 0.0,
-    ) -> List[Search]:
+    ) -> list[Search]:
         if method == SearchMethod.SEMANTIC:
             searches = await self._semantic_search(
                 query_vector=query_vector, collection_ids=collection_ids, limit=limit, offset=offset, score_threshold=score_threshold
@@ -170,8 +168,8 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
         return searches
 
     async def _lexical_search(
-        self, query_prompt: str, collection_ids: List[int], limit: int, offset: int, score_threshold: float = 0.0
-    ) -> List[Search]:
+        self, query_prompt: str, collection_ids: list[int], limit: int, offset: int, score_threshold: float = 0.0
+    ) -> list[Search]:
         collection_ids = [str(x) for x in collection_ids]
         fuzziness = {"fuzziness": "AUTO"} if len(query_prompt.split()) < 25 else {}
         body = {
@@ -197,8 +195,8 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
         return searches
 
     async def _semantic_search(
-        self, query_vector: list[float], collection_ids: List[int], limit: int, offset: int, score_threshold: float = 0.0
-    ) -> List[Search]:
+        self, query_vector: list[float], collection_ids: list[int], limit: int, offset: int, score_threshold: float = 0.0
+    ) -> list[Search]:
         collection_ids = [str(x) for x in collection_ids]
         body = {
             "knn": {"field": "embedding", "query_vector": query_vector, "k": limit, "num_candidates": max(limit * 10, 100)},
@@ -223,8 +221,8 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
         return searches
 
     async def _hybrid_search(
-        self, query_prompt: str, query_vector: list[float], collection_ids: List[int], limit: int, offset: int, rff_k: int, expansion_factor: int = 2
-    ) -> List[Search]:
+        self, query_prompt: str, query_vector: list[float], collection_ids: list[int], limit: int, offset: int, rff_k: int, expansion_factor: int = 2
+    ) -> list[Search]:
         """
         Hybrid search combines lexical and semantic search results using Reciprocal Rank Fusion (RRF).
 

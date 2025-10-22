@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import time
-from typing import List, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,7 +69,7 @@ class TokenCounter:
             self.total_input_tokens += input_tokens
             self.total_output_tokens += output_tokens
 
-    async def get_totals(self) -> Tuple[int, int]:
+    async def get_totals(self) -> tuple[int, int]:
         async with self.lock:
             return self.total_input_tokens, self.total_output_tokens
 
@@ -85,7 +84,7 @@ class DeepSearchAgent:
 
     async def deep_search(
         self, prompt: str, session: AsyncSession, k: int = 5, iteration_limit: int = 2, num_queries: int = 2, lang: str = "fr"
-    ) -> Tuple[str, List[str], dict]:
+    ) -> tuple[str, list[str], dict]:
         """
         Perform a deep search with WebSearchManager and multiple iterations.
         Returns: (final_response, sources, metadata)
@@ -181,7 +180,7 @@ class DeepSearchAgent:
             logger.exception(f"Error during deep search: {e}")
             raise
 
-    async def _generate_search_queries(self, token_counter: TokenCounter, user_query: str, num_queries: int = 2, lang: str = "fr") -> List[str]:
+    async def _generate_search_queries(self, token_counter: TokenCounter, user_query: str, num_queries: int = 2, lang: str = "fr") -> list[str]:
         prompt = DeepSearchPrompts.researcher(num_queries, lang)
         messages = [
             {
@@ -297,7 +296,7 @@ class DeepSearchAgent:
         return ""
 
     async def _get_new_search_queries(
-        self, token_counter: TokenCounter, user_query: str, previous_search_queries: List[str], all_contexts: List[str], lang: str = "fr"
+        self, token_counter: TokenCounter, user_query: str, previous_search_queries: list[str], all_contexts: list[str], lang: str = "fr"
     ):
         if not all_contexts:
             return await self._generate_search_queries(token_counter, user_query, 2, lang)
@@ -333,7 +332,7 @@ class DeepSearchAgent:
                 return []
         return []
 
-    async def _generate_final_report(self, token_counter: TokenCounter, user_query: str, all_contexts: List[str], lang: str = "fr") -> str:
+    async def _generate_final_report(self, token_counter: TokenCounter, user_query: str, all_contexts: list[str], lang: str = "fr") -> str:
         if not all_contexts:
             return (
                 "No relevant information found to answer your query."
@@ -353,7 +352,7 @@ class DeepSearchAgent:
         report = await self._call_model_async(token_counter, messages, max_tokens=2048)
         return report or ("Failed to generate report." if lang == "en" else "Échec de génération d'un rapport.")
 
-    async def _call_model_async(self, token_counter: TokenCounter, messages: List[dict], max_tokens: int = 2048) -> Optional[str]:
+    async def _call_model_async(self, token_counter: TokenCounter, messages: list[dict], max_tokens: int = 2048) -> str | None:
         await asyncio.sleep(0.1)
         try:
             client, _ = self.model.get_client(endpoint=ENDPOINT__CHAT_COMPLETIONS)

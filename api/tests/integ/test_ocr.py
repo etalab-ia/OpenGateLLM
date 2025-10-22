@@ -3,8 +3,8 @@ import os
 from fastapi.testclient import TestClient
 import pytest
 
-from api.schemas.parse import ParsedDocument
 from api.schemas.models import ModelType
+from api.schemas.parse import ParsedDocument
 from api.utils.variables import ENDPOINT__MODELS, ENDPOINT__OCR
 
 current_path = os.path.dirname(__file__)

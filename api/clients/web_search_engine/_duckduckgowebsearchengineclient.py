@@ -1,5 +1,4 @@
 import logging
-from typing import Dict, List, Optional
 
 import httpx
 
@@ -11,13 +10,13 @@ logger = logging.getLogger(__name__)
 class DuckduckgoWebSearchEngineClient(BaseWebSearchEngineClient):
     URL = "https://api.duckduckgo.com/"
 
-    def __init__(self, headers: Dict[str, str], timeout: int, url: Optional[str] = None, *args, **kwargs) -> None:
+    def __init__(self, headers: dict[str, str], timeout: int, url: str | None = None, *args, **kwargs) -> None:
         self.url = url or self.URL
         self.headers = headers
         self.timeout = timeout
         self.additional_params = kwargs
 
-    async def search(self, query: str, k: int = 3) -> List[str]:
+    async def search(self, query: str, k: int = 3) -> list[str]:
         params = {"q": query, "format": "json", "safe": 1} | self.additional_params
         results = []
 

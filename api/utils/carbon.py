@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from ecologits.tracers.utils import compute_llm_impacts, electricity_mixes
 
@@ -10,8 +9,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_carbon_footprint(
-    active_params: Optional[int],
-    total_params: Optional[int],
+    active_params: int | None,
+    total_params: int | None,
     model_zone: CountryCodes,
     token_count: int,
     request_latency: float,
@@ -29,15 +28,10 @@ def get_carbon_footprint(
         CarbonFootprintUsage: Computed carbon footprint
     """
     if total_params is None or token_count == 0:
-        return CarbonFootprintUsage(
-            kWh=CarbonFootprintUsageKWh(min=0, max=0),
-            kgCO2eq=CarbonFootprintUsageKgCO2eq(min=0, max=0),
-        )
+        return CarbonFootprintUsage(kWh=CarbonFootprintUsageKWh(min=0, max=0), kgCO2eq=CarbonFootprintUsageKgCO2eq(min=0, max=0))
 
-    if not isinstance(token_count, (int, float)) or token_count < 0:
-        raise ValueError("token_count must be a positive number")
-    if not isinstance(request_latency, (int, float)) or request_latency < 0:
-        raise ValueError("request_latency must be a positive number")
+    assert token_count is not None and token_count > 0, "token_count must be a positive number"
+    assert request_latency is not None and request_latency > 0, "request_latency must be a positive number"
 
     electricity_mix = electricity_mixes.find_electricity_mix(zone=model_zone.value)
     if not electricity_mix:

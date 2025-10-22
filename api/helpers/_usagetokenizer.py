@@ -1,9 +1,8 @@
 import logging
-from typing import List, Union
 
 import tiktoken
-from api.schemas.chat import ChatCompletionChunk, ChatCompletion
 
+from api.schemas.chat import ChatCompletion, ChatCompletionChunk
 from api.schemas.core.configuration import Tokenizer
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__EMBEDDINGS, ENDPOINT__OCR, ENDPOINT__RERANK, ENDPOINT__SEARCH
 
@@ -58,7 +57,7 @@ class UsageTokenizer:
 
         return prompt_tokens
 
-    def get_completion_tokens(self, endpoint: str, response: Union[dict, List[dict]], stream: bool = False) -> int:
+    def get_completion_tokens(self, endpoint: str, response: dict | list[dict], stream: bool = False) -> int:
         """
         Get the completion tokens for the given endpoint and body.
 

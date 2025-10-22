@@ -117,7 +117,7 @@ if __name__ == "__main__":
 
     data = get_documentation_data(title="All settings", data=[], properties=properties, header=schema.get("description", ""), defs=defs)
 
-    with open(file=args.header, mode="r") as f:
+    with open(file=args.header) as f:
         header = f.read()
         f.close()
 

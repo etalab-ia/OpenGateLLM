@@ -1,5 +1,3 @@
-from typing import Optional
-
 from fastapi import APIRouter, Body, Depends, Path, Query, Request, Response, Security
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -63,7 +61,7 @@ async def get_collection(
 async def get_collections(
     request: Request,
     name: str = Query(default=None, description="Filter by collection name."),
-    visibility: Optional[CollectionVisibility] = Query(default=None, description="Filter by collection visibility."),
+    visibility: CollectionVisibility | None = Query(default=None, description="Filter by collection visibility."),
     offset: int = Query(default=0, ge=0, description="The offset of the collections to get."),
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the collections to get."),
     session: AsyncSession = Depends(get_db_session),

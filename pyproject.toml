@@ -82,10 +82,28 @@ py-modules = []
 line-length = 150
 exclude = [
     "**/alembic",
+    "**/playground",
 ]
 
 [tool.ruff.lint]
-ignore = ["F403", "F841"] # import * and never used variables
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+]
+ignore = [
+    "F403",  # import * 
+    "F841",  # never used variables
+    "E501",  # line too long
+    "N806",  # force lowercase
+    "UP031", # format specifiers instead of percent format
+    "W291",  # trailing whitespace
+    "N805",  # first argument of a class method call is self
+    "N815",  # mixed case variable name
+]
 
 [tool.ruff.lint.isort]
 force-sort-within-sections = true

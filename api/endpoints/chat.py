@@ -1,5 +1,3 @@
-from typing import List, Tuple, Union
-
 from fastapi import APIRouter, Depends, Request, Security
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +20,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
 @router.post(
     path=ENDPOINT__CHAT_COMPLETIONS,
     status_code=200,
-    response_model=Union[ChatCompletion, ChatCompletionChunk],
+    response_model=ChatCompletion | ChatCompletionChunk,
     responses={
         ModelNotFoundException().status_code: {
             "model": HTTPExceptionModel,
@@ -31,7 +29,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
         ModelIsTooBusyException().status_code: {"model": HTTPExceptionModel, "description": ModelIsTooBusyException().detail},
     },
 )
-async def chat_completions(request: Request, body: ChatCompletionRequest, session: AsyncSession = Depends(get_db_session), user: User = Security(AccessController())) -> Union[JSONResponse, StreamingResponseWithStatusCode]:  # fmt: off
+async def chat_completions(request: Request, body: ChatCompletionRequest, session: AsyncSession = Depends(get_db_session), user: User = Security(AccessController())) -> JSONResponse | StreamingResponseWithStatusCode:  # fmt: off
     """Creates a model response for the given chat conversation.
 
     **Important**: any others parameters are authorized, depending on the model backend. For example, if model is support by vLLM backend, additional
@@ -42,7 +40,7 @@ async def chat_completions(request: Request, body: ChatCompletionRequest, sessio
     # retrieval augmentation generation
     async def retrieval_augmentation_generation(
         initial_body: ChatCompletionRequest, inner_session: AsyncSession
-    ) -> Tuple[ChatCompletionRequest, List[Search]]:
+    ) -> tuple[ChatCompletionRequest, list[Search]]:
         results = []
         if initial_body.search:
             if not global_context.document_manager:

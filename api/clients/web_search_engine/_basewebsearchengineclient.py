@@ -1,13 +1,12 @@
 from abc import ABC, abstractmethod
 import importlib
-from typing import List, Type
 
 from api.schemas.core.configuration import WebSearchEngineType
 
 
 class BaseWebSearchEngineClient(ABC):
     @staticmethod
-    def import_module(type: WebSearchEngineType) -> "Type[BaseWebSearchEngineClient]":
+    def import_module(type: WebSearchEngineType) -> "type[BaseWebSearchEngineClient]":
         """
         Static method to import a subclass of BaseWebSearchEngineClient.
 
@@ -22,7 +21,7 @@ class BaseWebSearchEngineClient(ABC):
         return getattr(module, f"{type.capitalize()}WebSearchEngineClient")
 
     @abstractmethod
-    async def search(self, query: str, n: int = 3) -> List[str]:
+    async def search(self, query: str, n: int = 3) -> list[str]:
         """
         Get the URLs of the search results for a given query.
 

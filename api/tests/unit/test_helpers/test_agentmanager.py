@@ -4,9 +4,10 @@ from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
+
 from api.helpers._agentmanager import AgentManager
-from api.utils.context import global_context
 from api.schemas.agents import AgentsTool
+from api.utils.context import global_context
 from api.utils.exceptions import ToolNotFoundException
 
 
