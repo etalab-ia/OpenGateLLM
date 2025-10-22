@@ -33,7 +33,6 @@ from api.utils.exceptions import ModelIsTooBusyException
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
-    ENDPOINT__COMPLETIONS,
     ENDPOINT__EMBEDDINGS,
     ENDPOINT__MODELS,
     ENDPOINT__OCR,
@@ -47,7 +46,6 @@ class BaseModelClient(ABC):
     ENDPOINT_TABLE = {
         ENDPOINT__AUDIO_TRANSCRIPTIONS: None,
         ENDPOINT__CHAT_COMPLETIONS: None,
-        ENDPOINT__COMPLETIONS: None,
         ENDPOINT__EMBEDDINGS: None,
         ENDPOINT__MODELS: None,
         ENDPOINT__OCR: None,

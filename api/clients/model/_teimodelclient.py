@@ -8,7 +8,6 @@ import requests
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
-    ENDPOINT__COMPLETIONS,
     ENDPOINT__EMBEDDINGS,
     ENDPOINT__MODELS,
     ENDPOINT__OCR,
@@ -22,7 +21,6 @@ class TeiModelClient(BaseModelClient):
     ENDPOINT_TABLE = {
         ENDPOINT__AUDIO_TRANSCRIPTIONS: None,
         ENDPOINT__CHAT_COMPLETIONS: None,
-        ENDPOINT__COMPLETIONS: None,
         ENDPOINT__EMBEDDINGS: "/v1/embeddings",
         ENDPOINT__MODELS: "/info",
         ENDPOINT__OCR: None,

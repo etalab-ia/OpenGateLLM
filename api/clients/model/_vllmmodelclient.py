@@ -5,7 +5,6 @@ import requests
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
-    ENDPOINT__COMPLETIONS,
     ENDPOINT__EMBEDDINGS,
     ENDPOINT__MODELS,
     ENDPOINT__OCR,
@@ -19,7 +18,6 @@ class VllmModelClient(BaseModelClient):
     ENDPOINT_TABLE = {
         ENDPOINT__AUDIO_TRANSCRIPTIONS: "v1/audio/transcriptions",
         ENDPOINT__CHAT_COMPLETIONS: "/v1/chat/completions",
-        ENDPOINT__COMPLETIONS: "/v1/completions",
         ENDPOINT__EMBEDDINGS: "/v1/embeddings",
         ENDPOINT__MODELS: "/v1/models",
         ENDPOINT__OCR: "/v1/chat/completions",
