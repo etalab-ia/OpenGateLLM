@@ -22,7 +22,7 @@ class TaskMetrics(BaseModel):
     strategy: str = Field(default="", description="Strategy used to choose a client.")
     priority: int = Field(default=0, description="Priority of the user who made the request.")
     requeue_count: int = Field(default=0, description="Number of times the celery task had to be retried before succeeding.")
-    get_client_duration: float = Field(default=0, description="Total duration (in seconds) of the celery task, including retries.")
+    get_client_duration: int = Field(default=0, description="Total duration (in milliseconds) of the celery task, including retries.")
     performance_score: Optional[float] = Field(default=None, description="Performance score like time to first token, if relevant.")
 
 

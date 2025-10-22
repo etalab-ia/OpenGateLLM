@@ -14,7 +14,7 @@ class Usage(Base):
 
     id = Column(Integer, primary_key=True)
     datetime = Column(DateTime, nullable=False, default=func.now())
-    get_client_duration = Column(Float, nullable=True)
+    get_client_duration = Column(Integer, nullable=True)
     requeue_count = Column(Integer, nullable=True)
     duration = Column(Integer, nullable=True)
     time_to_first_token = Column(Integer, nullable=True)

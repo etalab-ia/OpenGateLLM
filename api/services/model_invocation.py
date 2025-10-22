@@ -106,6 +106,7 @@ async def wait_for_task_result(
         await asyncio.sleep(poll_interval)
 
     duration = loop.time() - start_time
+    duration = round(1000 * duration)  # float seconds to int milliseconds
 
     # Once ready, safely retrieve the result
     try:
