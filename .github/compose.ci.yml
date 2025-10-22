@@ -79,18 +79,6 @@ services:
       timeout: 10s
       retries: 5
 
-  secretiveshell:
-    image: ghcr.io/etalab-ia/albert-api-mcp-bridge/albert-api-mcp-bridge:latest
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    restart: always
-    ports:
-      - "${SECRETIVESHELL_PORT:-8001}:8000"
-    environment:
-      - MCP_BRIDGE__CONFIG__FILE=config.json
-    volumes:
-      - ./mcp_config.ci.json:/mcp_bridge/config.json
-
 volumes:
   postgres:
   redis:

@@ -57,7 +57,7 @@ def pytest_configure(config):
         return VcrRequest(httpx_request.method, uri, body, headers)
 
     vcr.stubs.httpx_stubs._make_vcr_request = _make_vcr_request
-    ignore_hosts = ["testserver", os.environ.get("MCP_BRIDGE_HOST"), os.environ.get("QDRANT_HOST"), os.environ.get("ELASTICSEARCH_HOST")]
+    ignore_hosts = ["testserver", os.environ.get("QDRANT_HOST"), os.environ.get("ELASTICSEARCH_HOST")]
 
     VCR_INSTANCE = vcr.VCR(
         cassette_library_dir=str(cassette_library_dir),
@@ -141,7 +141,7 @@ def test_client(async_engine) -> Generator[TestClient, None, None]:
     if VCR_ENABLED:
         # Create a custom VCR instance with new_episodes record mode for lifespan_init
         cassette_library_dir = Path(__file__).parent / "cassettes"
-        ignore_hosts = ["testserver", os.environ.get("MCP_BRIDGE_HOST"), os.environ.get("QDRANT_HOST"), os.environ.get("ELASTICSEARCH_HOST")]
+        ignore_hosts = ["testserver", os.environ.get("QDRANT_HOST"), os.environ.get("ELASTICSEARCH_HOST")]
 
         lifespan_vcr = vcr.VCR(
             cassette_library_dir=str(cassette_library_dir),
@@ -200,7 +200,7 @@ def vcr_cassette(request):
 
         # Get the base configuration from the global VCR instance
         cassette_library_dir = Path(__file__).parent / "cassettes"
-        ignore_hosts = ["testserver", os.environ.get("MCP_BRIDGE_HOST"), os.environ.get("QDRANT_HOST"), os.environ.get("ELASTICSEARCH_HOST")]
+        ignore_hosts = ["testserver", os.environ.get("QDRANT_HOST"), os.environ.get("ELASTICSEARCH_HOST")]
 
         # Create custom VCR instance with merged configuration
         custom_vcr = vcr.VCR(

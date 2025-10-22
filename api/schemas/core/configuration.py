@@ -218,8 +218,6 @@ class Model(ConfigBaseModel):
 
 
 # dependencies ---------------------------------------------------------------------------------------------------------------------------------------
-class MCPBridgeType(str, Enum):
-    SECRETIVESHELL = "secretiveshell"
 
 
 class ParserType(str, Enum):
@@ -246,7 +244,6 @@ class DependencyType(str, Enum):
     MARKER = "marker"
     POSTGRES = "postgres"
     REDIS = "redis"
-    SECRETIVESHELL = "secretiveshell"
     SENTRY = "sentry"
     CENTRALESUPELEC = "centralesupelec"
 
@@ -316,17 +313,6 @@ class PostgresDependency(ConfigBaseModel):
         return url
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#secretiveshelldependency")
-class SecretiveshellDependency(ConfigBaseModel):
-    """
-    See https://github.com/SecretiveShell/MCP-Bridge for more information.
-    """
-
-    url: constr(strip_whitespace=True, min_length=1) = Field(..., description="Secretiveshell API url.")  # fmt: off
-    headers: dict[str, str] = Field(default_factory=dict, description="Secretiveshell API request headers.")  # fmt: off
-    timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Secretiveshell API requests.", examples=[10])  # fmt: off
-
-
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#sentrydependency")
 class SentryDependency(ConfigBaseModel):
     pass
@@ -364,7 +350,6 @@ class Dependencies(ConfigBaseModel):
     postgres: PostgresDependency = Field(..., description="Pass all postgres python SDK arguments, see https://github.com/etalab-ia/opengatellm/blob/main/docs/dependencies/postgres.md for more information.")  # fmt: off
     # @TODO: support optional redis dependency with set redis in cache
     redis: RedisDependency  = Field(..., description="Pass all redis python SDK arguments, see https://redis.readthedocs.io/en/stable/connections.html for more information.")  # fmt: off
-    secretiveshell: SecretiveshellDependency | None = Field(default=None, description="If provided, MCP agents can use tools from SecretiveShell MCP Bridge. Pass arguments to call Secretiveshell API in this section, see https://github.com/SecretiveShell/MCP-Bridge for more information.")  # fmt: off
     sentry: SentryDependency | None = Field(default=None, description="Pass all sentry python SDK arguments, see https://docs.sentry.io/platforms/python/configuration/options/ for more information.")  # fmt: off
     proconnect: ProConnect | None = Field(default=None, description="ProConnect configuration for the API. See https://github.com/etalab-ia/albert-api/blob/main/docs/oauth2_encryption.md for more information.")  # fmt: off
     centralesupelec: CentraleSupelecDependency | None = Field(default=None, description="")
@@ -401,7 +386,6 @@ class Dependencies(ConfigBaseModel):
         values = create_attribute(name="web_search_engine", type=WebSearchEngineType, values=values)
         values = create_attribute(name="parser", type=ParserType, values=values)
         values = create_attribute(name="vector_store", type=VectorStoreType, values=values)
-        values = create_attribute(name="mcp_bridge", type=MCPBridgeType, values=values)
 
         return values
 
@@ -430,7 +414,7 @@ class Tokenizer(str, Enum):
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#settings")
 class Settings(ConfigBaseModel):
     # other
-    disabled_routers: list[Routers] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["agents", "embeddings"]])  # fmt: off
+    disabled_routers: list[Routers] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["embeddings"]])  # fmt: off
     hidden_routers: list[Routers] = Field(default_factory=list, description="Routers are enabled but hidden in the swagger and the documentation of the API.", examples=[["admin"]])  # fmt: off
 
     # metrics
@@ -455,9 +439,6 @@ class Settings(ConfigBaseModel):
     swagger_openapi_url: str | None = Field(default="/openapi.json", pattern=r"^/", description="OpenAPI URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
     swagger_docs_url: str | None = Field(default="/docs", pattern=r"^/", description="Docs URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
     swagger_redoc_url: str | None = Field(default="/redoc", pattern=r"^/", description="Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
-
-    # mcp
-    mcp_max_iterations: int = Field(default=2, ge=2, description="Maximum number of iterations for MCP agents in `/v1/agents/completions` endpoint.")  # fmt: off
 
     # auth
     auth_master_key: constr(strip_whitespace=True, min_length=1) = Field(default="changeme", description="Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys.")  # fmt: off

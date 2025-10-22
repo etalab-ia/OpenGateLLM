@@ -93,7 +93,7 @@ docker compose --env-file .env up <services_you_need> --detach
 
 For instance:
 ```bash
-docker compose --env-file .env up api playground postgres redis elasticsearch secretiveshell --detach 
+docker compose --env-file .env up api playground postgres redis elasticsearch --detach 
 ```
 
 #### Alternative: use kubernetes

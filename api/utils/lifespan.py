@@ -5,12 +5,10 @@ from types import SimpleNamespace
 from coredis import ConnectionPool, Redis
 from fastapi import FastAPI
 
-from api.clients.mcp_bridge import BaseMCPBridgeClient as MCPBridgeClient
 from api.clients.model import BaseModelClient as ModelClient
 from api.clients.parser import BaseParserClient as ParserClient
 from api.clients.vector_store import BaseVectorStoreClient as VectorStoreClient
 from api.clients.web_search_engine import BaseWebSearchEngineClient as WebSearchEngineClient
-from api.helpers._agentmanager import AgentManager
 from api.helpers._documentmanager import DocumentManager
 from api.helpers._identityaccessmanager import IdentityAccessManager
 from api.helpers._limiter import Limiter
@@ -38,7 +36,6 @@ async def lifespan(app: FastAPI):
     configuration = get_configuration()
 
     # Dependencies
-    mcp_bridge = MCPBridgeClient.import_module(type=configuration.dependencies.mcp_bridge.type)(**configuration.dependencies.mcp_bridge.model_dump()) if configuration.dependencies.mcp_bridge else None  # fmt: off
     parser = ParserClient.import_module(type=configuration.dependencies.parser.type)(**configuration.dependencies.parser.model_dump()) if configuration.dependencies.parser else None  # fmt: off
     redis = ConnectionPool(**configuration.dependencies.redis.model_dump())
     vector_store = VectorStoreClient.import_module(type=configuration.dependencies.vector_store.type)(**configuration.dependencies.vector_store.model_dump()) if configuration.dependencies.vector_store else None  # fmt: off
@@ -50,7 +47,6 @@ async def lifespan(app: FastAPI):
     assert await vector_store.check() if vector_store else True, "Vector store database is not reachable."
 
     dependencies = SimpleNamespace(
-        mcp_bridge=mcp_bridge,
         parser=parser,
         redis=redis,
         vector_store=vector_store,
@@ -73,7 +69,6 @@ async def lifespan(app: FastAPI):
     await _setup_identity_access_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_limiter(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_tokenizer(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_agent_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_document_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
 
     yield
@@ -156,15 +151,6 @@ async def _setup_limiter(configuration: Configuration, global_context: GlobalCon
 
 async def _setup_tokenizer(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
     global_context.tokenizer = UsageTokenizer(tokenizer=configuration.settings.usage_tokenizer)
-
-
-async def _setup_agent_manager(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
-    assert global_context.model_registry, "Set model registry in global context before setting up agent manager."
-    global_context.agent_manager = AgentManager(
-        mcp_bridge=dependencies.mcp_bridge,
-        model_registry=global_context.model_registry,
-        max_iterations=configuration.settings.mcp_max_iterations,
-    )
 
 
 async def _setup_document_manager(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):

@@ -58,12 +58,11 @@ Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateL
 | celery_task_max_retry | integer | Maximum number of retries for celery tasks. |  | 120 |  |  |
 | celery_task_retry_countdown | integer | Number of seconds before retrying a failed celery task. |  | 1 |  |  |
 | celery_task_soft_time_limit | integer | Soft time limit (in seconds) applied to model invocation tasks. |  | 120 |  |  |
-| disabled_routers | array | Disabled routers to limits services of the API. |  |  | • admin<br></br>• agents<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• completions<br></br>• ... | ['agents', 'embeddings'] |
+| disabled_routers | array | Disabled routers to limits services of the API. |  |  | • admin<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• documents<br></br>• embeddings<br></br>• ... | ['embeddings'] |
 | front_url | string | Front-end URL for the application. |  | http://localhost:8501 |  |  |
-| hidden_routers | array | Routers are enabled but hidden in the swagger and the documentation of the API. |  |  | • admin<br></br>• agents<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• completions<br></br>• ... | ['admin'] |
+| hidden_routers | array | Routers are enabled but hidden in the swagger and the documentation of the API. |  |  | • admin<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• documents<br></br>• embeddings<br></br>• ... | ['admin'] |
 | log_format | string | Logging format of the API. |  | [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s |  |  |
 | log_level | string | Logging level of the API. |  | INFO | • DEBUG<br></br>• INFO<br></br>• WARNING<br></br>• ERROR<br></br>• CRITICAL |  |
-| mcp_max_iterations | integer | Maximum number of iterations for MCP agents in `/v1/agents/completions` endpoint. |  | 2 |  |  |
 | metrics_retention_ms | integer | Retention time for metrics in milliseconds. |  | 40000 |  |  |
 | monitoring_postgres_enabled | boolean | If true, the log usage will be written in the PostgreSQL database. |  | True |  |  |
 | monitoring_prometheus_enabled | boolean | If true, Prometheus metrics will be exposed in the `/metrics` endpoint. |  | True |  |  |
@@ -145,24 +144,11 @@ For more information to configure model providers, see the [ModelProvider sectio
 | proconnect | object | ProConnect configuration for the API. See https://github.com/etalab-ia/albert-api/blob/main/docs/oauth2_encryption.md for more information. For details of configuration, see the [ProConnect section](#proconnect). |  | None |  |  |
 | qdrant | object | Pass all qdrant python SDK arguments, see https://python-client.qdrant.tech/qdrant_client.qdrant_client for more information. For details of configuration, see the [QdrantDependency section](#qdrantdependency). |  | None |  |  |
 | redis | object | Pass all redis python SDK arguments, see https://redis.readthedocs.io/en/stable/connections.html for more information. For details of configuration, see the [RedisDependency section](#redisdependency). |  |  |  |  |
-| secretiveshell | object | If provided, MCP agents can use tools from SecretiveShell MCP Bridge. Pass arguments to call Secretiveshell API in this section, see https://github.com/SecretiveShell/MCP-Bridge for more information. For details of configuration, see the [SecretiveshellDependency section](#secretiveshelldependency). |  | None |  |  |
 | sentry | object | Pass all sentry python SDK arguments, see https://docs.sentry.io/platforms/python/configuration/options/ for more information. For details of configuration, see the [SentryDependency section](#sentrydependency). |  | None |  |  |
 
 <br></br>
 
 ### SentryDependency
-
-<br></br>
-
-### SecretiveshellDependency
-See https://github.com/SecretiveShell/MCP-Bridge for more information.
-<br></br>
-
-| Attribute | Type | Description | Required | Default | Values | Examples |
-| --- | --- | --- | --- | --- | --- | --- |
-| headers | object | Secretiveshell API request headers. |  |  |  |  |
-| timeout | integer | Timeout for the Secretiveshell API requests. |  | 300 |  | 10 |
-| url | string | Secretiveshell API url. |  |  |  |  |
 
 <br></br>
 

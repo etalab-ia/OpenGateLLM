@@ -9,7 +9,6 @@ from api.schemas.usage import Usage
 class GlobalContext(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    agent_manager: Any | None = None
     document_manager: Any | None = None
     identity_access_manager: Any | None = None
     limiter: Any | None = None

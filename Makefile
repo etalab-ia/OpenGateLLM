@@ -183,10 +183,6 @@ create-user:
 			echo "❌ ELASTICSEARCH_HOST must be set to 'localhost' in order to run the integration tests local execute"; \
 			exit 1; \
 		fi; \
-		if [ $$SECRETIVESHELL_HOST != "localhost" ]; then \
-			echo "❌ SECRETIVESHELL_HOST must be set to 'localhost' in order to run the integration tests local execute"; \
-			exit 1; \
-		fi; \
 	else \
 		if [ $$POSTGRES_HOST != "postgres" ]; then \
 			echo "❌ POSTGRES_HOST must be set to 'postgres' in order to run the integration tests in docker execute"; \
@@ -200,10 +196,6 @@ create-user:
 			echo "❌ ELASTICSEARCH_HOST must be set to 'elasticsearch' in order to run the integration tests in docker execute"; \
 			exit 1; \
 		fi; \
-		if [ $$SECRETIVESHELL_HOST != "secretiveshell" ]; then \
-			echo "❌ SECRETIVESHELL_HOST must be set to 'secretiveshell' in order to run the integration tests in docker execute"; \
-			exit 1; \
-		fi; \
 		if [ $$POSTGRES_PORT != "5432" ]; then \
 			echo "❌ POSTGRES_PORT must be set to '5432' in order to run the integration tests in docker execute"; \
 			exit 1; \
@@ -214,10 +206,6 @@ create-user:
 		fi; \
 		if [ $$ELASTICSEARCH_PORT != "9200" ]; then \
 			echo "❌ ELASTICSEARCH_PORT must be set to '9200' in order to run the integration tests in docker execute"; \
-			exit 1; \
-		fi; \
-		if [ $$SECRETIVESHELL_PORT != "8001" ]; then \
-			echo "❌ SECRETIVESHELL_PORT must be set to '8001' in order to run the integration tests in docker execute"; \
 			exit 1; \
 		fi; \
 	fi'

@@ -1,9 +1,0 @@
-{
-    "mcp_servers": {
-        "data-gouv": {
-            "command": "uvx",
-            "args": [
-                "data-gouv-fr-mcp-server"
-            ]
-        }
-}}
