@@ -42,6 +42,8 @@ def header():
 
                 submit = st.form_submit_button(label="Submit")
                 if submit:
+                    if not user_name or not user_password:
+                        st.error("Email or password must not be empty.", icon="❌")
                     login(user_name, user_password)
 
         # Access the encrypted token parameter
