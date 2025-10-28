@@ -112,7 +112,6 @@ Explore practical use cases:
 | Retrieval-Augmented Generation (RAG) | [![Retrieval-Augmented Generation (RAG)](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/search_and_rag.ipynb) |
 | Audio Transcriptions | [![Audio Transcriptions](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/audio_transcriptions.ipynb) |
 | Optical Character Recognition (OCR) | [![Optical Character Recognition (OCR)](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/ocr.ipynb) |
-| Advanced RAG pipeline | [![Advanced RAG pipeline](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/albert-api/blob/main/docs/tutorials/advanced_rag_pipeline.ipynb) |
 
 ### 🤝 Contribute
 ***
