@@ -47,17 +47,22 @@ help:
 
 .start-api:
 	@bash -c 'set -a; . $(env); \
-	SERVER=uvicorn \
-	SERVER_CMD_ARGS="--reload --log-level debug" \
-	./scripts/startup_api.sh &' \
-	&& sleep 2 \
-	&& open http://localhost:8000/docs
+	trap "trap - SIGTERM && kill -- -$$$$" SIGINT SIGTERM EXIT; \
+	python -m alembic -c api/alembic.ini upgrade head \
+	&& uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug & \
+	sleep 10; \
+	open http://localhost:8000/docs; \
+	wait'
+
 
 .start-playground:
-	@mkdir -p ~/.streamlit/
-	@echo "[general]"  > ~/.streamlit/credentials.toml
-	@echo "email = \"\""  >> ~/.streamlit/credentials.toml
-	@bash -c 'set -a; . $(env); ./scripts/startup_ui.sh'
+	@bash -c 'set -a; . $(env); \
+	trap "trap - SIGTERM && kill -- -$$$$" SIGINT SIGTERM EXIT; \
+	cd ./playground \
+	&& CONFIG_FILE=../$${CONFIG_FILE} API_URL="http://localhost:8500" reflex run --env dev --loglevel info & \
+	sleep 10; \
+	open http://localhost:8501; \
+	wait'
 
 .pre-checks:
 	@if [ ! -f $(env) ]; then \

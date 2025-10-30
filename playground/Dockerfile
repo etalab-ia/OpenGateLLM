@@ -1,53 +1,54 @@
-# First, build the application in the `/api` directory.
-# See `Dockerfile` for details.
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
-# Disable Python downloads, because we want to use the system interpreter
-# across both images. If using a managed Python version, it needs to be
-# copied from the build image into the final image; see `standalone.Dockerfile`
-# for an example.
-ENV UV_PYTHON_DOWNLOADS=0
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    libpq-dev \
-    gcc \
-    python3-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y unzip curl && \
+    rm -rf /var/lib/apt/lists/*
 
-WORKDIR /
-# Copy project files
-COPY ./playground/ /playground
+WORKDIR /playground
+
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv pip install ".[playground]"
 
-# Final stage
+ARG CONFIG_FILE=config.example.yml API_HOST=api FAVICON=./playground/assets/favicon.ico
+COPY $CONFIG_FILE config.yml
+COPY ./playground/ .
+COPY $FAVICON ./assets/favicon.ico
+
+ENV CONFIG_FILE=config.yml API_HOST=$API_HOST API_URL=http://localhost:8501
+RUN .venv/bin/reflex export --frontend-only --no-zip  --loglevel debug
+
 FROM python:3.12-slim
 
+WORKDIR /playground
+
+RUN apt-get update && \
+    apt-get install -y nginx supervisor curl unzip && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -f /etc/nginx/sites-enabled/default
+
 RUN groupadd --gid 1100 opengatellm && \
-    useradd --home /playground --gid 1100 --uid 1100 opengatellm
+    useradd --home /playground --gid 1100 --uid 1100 --create-home opengatellm
 
-# Only runtime dependencies
-RUN apt-get update && apt-get install -y \
-    libpq5 \
-    && rm -rf /var/lib/apt/lists/*
+COPY --chown=opengatellm:opengatellm ./playground/rxconfig.py ./rxconfig.py
+COPY --chown=opengatellm:opengatellm ./playground/app ./app
+COPY --chown=opengatellm:opengatellm ./playground/assets ./assets
+COPY --chown=opengatellm:opengatellm ./playground/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chown=opengatellm:opengatellm ./playground/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-COPY scripts/startup_ui.sh /startup.sh
-RUN chown opengatellm:opengatellm /startup.sh
-RUN chmod u+x /startup.sh
+COPY --from=builder --chown=opengatellm:opengatellm /playground/.venv ./.venv
+COPY --from=builder --chown=opengatellm:opengatellm /playground/.web/build/client /usr/share/nginx/html
 
-# Set a non-root user
-USER opengatellm
-WORKDIR /
-
-# Copy application from builder
-COPY --from=builder --chown=opengatellm:opengatellm /playground /playground
-COPY --from=builder --chown=opengatellm:opengatellm /.venv /.venv
-ENV PATH="/.venv/bin:${PATH}"
+ENV PATH="/playground/.venv/bin:${PATH}"
 ENV PYTHONPATH="/playground:${PYTHONPATH}"
 
-# Launch the application
-CMD ["/startup.sh"]
+RUN chown -R opengatellm:opengatellm /playground /var/lib/nginx /var/log/nginx /run /etc/supervisor /usr/share/nginx/html
+
+EXPOSE 80
+
+USER opengatellm
+
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

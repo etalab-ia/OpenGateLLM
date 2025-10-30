@@ -1,5 +1,3 @@
-# First, build the application in the `/api` directory.
-# See `Dockerfile` for details.
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
@@ -8,7 +6,7 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 # copied from the build image into the final image; see `standalone.Dockerfile`
 # for an example.
 ENV UV_PYTHON_DOWNLOADS=0
-# Install build dependencies
+
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
@@ -16,8 +14,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /
-# Copy project files
+
 COPY ./api/ /api
+
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv
 RUN --mount=type=cache,target=/root/.cache/uv \

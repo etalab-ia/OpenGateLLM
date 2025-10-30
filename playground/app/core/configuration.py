@@ -1,0 +1,141 @@
+from functools import wraps
+import logging
+import os
+import re
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import ValidationError as PydanticValidationError
+from pydantic_settings import BaseSettings
+import yaml
+
+
+def custom_validation_error(url: str | None = None):
+    """
+    Decorator to override Pydantic ValidationError to change error message.
+
+    Args:
+        url(Optional[str]): override Pydantic documentation URL by provided URL. If not provided, the error message will be the same as the original error message.
+    """
+
+    class ValidationError(Exception):
+        def __init__(self, exc: PydanticValidationError, cls: BaseModel, url: str):
+            super().__init__()
+            error_count = exc.error_count()
+            error_content = exc.errors()
+            message = f"{error_count} validation error for {cls.__name__}\n"
+
+            for error in error_content:
+                url = url or error["url"]
+                if error["type"] == "assertion_error":
+                    message += f"{error["msg"]}\n"
+                else:
+                    if len(error["loc"]) > 0:
+                        message += f"{error["loc"][0]}\n"
+                    message += f"  {error["msg"]} [type={error["type"]}, input_value={error.get("input", "")}, input_type={type(error.get("input")).__name__}]\n"  # fmt: off
+                    if len(error["loc"]) > 0:
+                        description = cls.__pydantic_fields__[error["loc"][0]].description
+                        if description:
+                            message += f"\n  {description}\n"
+                message += f"    For further information visit {url}\n\n"
+
+            self.message = message
+
+        def __str__(self):
+            return self.message
+
+    def decorator(cls: type[BaseModel]):
+        original_init = cls.__init__
+
+        @wraps(original_init)
+        def new_init(self, **data):
+            try:
+                original_init(self, **data)
+            except PydanticValidationError as e:
+                raise ValidationError(exc=e, cls=cls, url=url) from None  # hide previous traceback
+
+        cls.__init__ = new_init
+        return cls
+
+    return decorator
+
+
+class BaseConfig(BaseSettings):
+    model_config = ConfigDict(extra="allow")
+
+
+class Playground(BaseConfig):
+    api_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
+    app_title: str = Field(default="OpenGateLLM", description="The title of the application.")
+
+    theme_has_background: bool = Field(default=True, description="Whether the theme has a background.")
+    theme_accent_color: str = Field(
+        default="blue",
+        description="The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.",
+    )
+    theme_appearance: str = Field(default="dark", description="The appearance of the theme.")
+    theme_gray_color: str = Field(
+        default="gray",
+        description="The secondary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.",
+    )
+    theme_panel_background: str = Field(default="solid", description="Whether panel backgrounds are translucent: 'solid' | 'translucent'.")
+    theme_radius: str = Field(default="medium", description="The radius of the theme. Can be 'small', 'medium', or 'large'.")
+    theme_scaling: str = Field(default="100%", description="The scaling of the theme.")
+
+
+class ConfigFile(BaseConfig):
+    playground: Playground = Field(default_factory=Playground, description="The playground configuration.")
+
+
+class Configuration(BaseSettings):
+    model_config = ConfigDict(extra="allow")
+
+    config_file: str = "../config.yml"
+
+    @field_validator("config_file", mode="before")
+    def config_file_exists(cls, config_file):
+        assert os.path.exists(path=config_file), f"Config file ({config_file}) not found."
+        return config_file
+
+    @model_validator(mode="after")
+    def setup_config(cls, values) -> Any:
+        with open(file=values.config_file) as file:
+            lines = file.readlines()
+
+        # remove commented lines
+        uncommented_lines = [line for line in lines if not line.lstrip().startswith("#")]
+
+        # replace environment variables
+        file_content = cls.replace_environment_variables(file_content="".join(uncommented_lines))
+        # load config
+        config = ConfigFile(**yaml.safe_load(stream=file_content))
+
+        values.playground = config.playground
+
+        return values
+
+    @classmethod
+    def replace_environment_variables(cls, file_content):
+        env_variable_pattern = re.compile(r"\${([A-Z0-9_]+)(:-[^}]*)?}")
+
+        def replace_env_var(match):
+            env_variable_definition = match.group(0)
+            env_variable_name = match.group(1)
+            default_env_variable_value = match.group(2)[2:] if match.group(2) else None
+
+            env_variable_value = os.getenv(env_variable_name)
+
+            if env_variable_value is not None and env_variable_value != "":
+                return env_variable_value
+            elif default_env_variable_value is not None:
+                return default_env_variable_value
+            else:
+                logging.warning(f"Environment variable {env_variable_name} not found or empty to replace {env_variable_definition}.")
+                return env_variable_definition
+
+        file_content = env_variable_pattern.sub(replace_env_var, file_content)
+
+        return file_content
+
+
+configuration = Configuration()
