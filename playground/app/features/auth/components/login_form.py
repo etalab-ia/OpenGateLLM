@@ -48,21 +48,6 @@ def login_page() -> rx.Component:
                         loading=AuthState.is_loading,
                         disabled=AuthState.is_loading,
                     ),
-                    # Error message container with fixed height
-                    rx.box(
-                        rx.cond(
-                            AuthState.error_message != "",
-                            rx.callout(
-                                AuthState.error_message,
-                                icon="triangle_alert",
-                                color_scheme="red",
-                                role="alert",
-                                width="100%",
-                            ),
-                        ),
-                        min_height="60px",
-                        width="100%",
-                    ),
                     spacing="4",
                     width="100%",
                 ),

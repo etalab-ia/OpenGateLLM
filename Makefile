@@ -59,7 +59,7 @@ help:
 	@bash -c 'set -a; . $(env); \
 	trap "trap - SIGTERM && kill -- -$$$$" SIGINT SIGTERM EXIT; \
 	cd ./playground \
-	&& CONFIG_FILE=../$${CONFIG_FILE} API_URL="http://localhost:8500" reflex run --env dev --loglevel info & \
+	&& CONFIG_FILE=../$${CONFIG_FILE} API_URL="http://localhost:8500" reflex run --env dev --loglevel debug & \
 	sleep 10; \
 	open http://localhost:8501; \
 	wait'

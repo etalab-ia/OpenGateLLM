@@ -26,9 +26,6 @@ class AuthState(rx.State):
     user_permissions: list[str] = []
     user_limits: list[dict] = []
 
-    # Error message
-    error_message: str = ""
-
     # Loading state
     is_loading: bool = False
 
@@ -45,12 +42,10 @@ class AuthState(rx.State):
         password = self.password_input.strip()
 
         if not email or not password:
-            self.error_message = "Email and password are required"
-            yield
+            yield rx.toast.warning("Email and password are required", position="bottom-right")
             return
 
         self.is_loading = True
-        self.error_message = ""
         yield
 
         try:
@@ -59,7 +54,7 @@ class AuthState(rx.State):
                 response = await client.post(f"{self.api_url}/v1/auth/login", json={"email": email, "password": password}, timeout=10.0)
                 if response.status_code != 200:
                     error_detail = response.json().get("detail", "Login failed")
-                    self.error_message = error_detail
+                    yield rx.toast.error(error_detail, position="bottom-right")
                     self.is_loading = False
                     yield
                     return
@@ -72,7 +67,7 @@ class AuthState(rx.State):
                 response = await client.get(f"{self.api_url}/v1/me/info", headers={"Authorization": f"Bearer {api_key}"}, timeout=10.0)
 
                 if response.status_code != 200:
-                    self.error_message = "Failed to fetch user info"
+                    yield rx.toast.error("Failed to fetch user info", position="bottom-right")
                     self.is_loading = False
                     yield
                     return
@@ -93,8 +88,8 @@ class AuthState(rx.State):
                 self.user_updated_at = user_data.get("updated_at")
                 self.user_permissions = user_data.get("permissions", [])
                 self.user_limits = user_data.get("limits", [])
-                self.error_message = ""
 
+                yield rx.toast.success("Successfully logged in!", position="bottom-right")
                 yield
 
                 # Load models after successful login (if ChatState)
@@ -103,11 +98,11 @@ class AuthState(rx.State):
                         yield
 
         except httpx.TimeoutException:
-            self.error_message = "Request timeout. Please check if the API is running."
+            yield rx.toast.error("Request timeout. Please check if the API is running.", position="bottom-right")
         except httpx.ConnectError:
-            self.error_message = f"Cannot connect to API at {self.api_url}. Please check the URL."
+            yield rx.toast.error(f"Cannot connect to API at {self.api_url}. Please check the URL.", position="bottom-right")
         except Exception as e:
-            self.error_message = f"An error occurred: {str(e)}"
+            yield rx.toast.error(f"An error occurred: {str(e)}", position="bottom-right")
         finally:
             self.is_loading = False
             yield
@@ -128,4 +123,3 @@ class AuthState(rx.State):
         self.user_updated_at = None
         self.user_permissions = []
         self.user_limits = []
-        self.error_message = ""

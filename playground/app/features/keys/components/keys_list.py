@@ -22,14 +22,6 @@ def keys_list() -> rx.Component:
             ),
             rx.divider(),
             rx.cond(
-                KeysState.keys_error != "",
-                rx.callout(
-                    KeysState.keys_error,
-                    icon="triangle_alert",
-                    color_scheme="red",
-                ),
-            ),
-            rx.cond(
                 KeysState.keys_loading,
                 rx.center(
                     rx.spinner(size="3"),

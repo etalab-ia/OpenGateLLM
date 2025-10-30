@@ -67,17 +67,10 @@ class BaseConfig(BaseSettings):
 class Playground(BaseConfig):
     api_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
     app_title: str = Field(default="OpenGateLLM", description="The title of the application.")
-
     theme_has_background: bool = Field(default=True, description="Whether the theme has a background.")
-    theme_accent_color: str = Field(
-        default="blue",
-        description="The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.",
-    )
-    theme_appearance: str = Field(default="dark", description="The appearance of the theme.")
-    theme_gray_color: str = Field(
-        default="gray",
-        description="The secondary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.",
-    )
+    theme_accent_color: str = Field(default="purple", description="The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.")  # fmt: off
+    theme_appearance: str = Field(default="light", description="The appearance of the theme.")
+    theme_gray_color: str = Field(default="gray", description="The secondary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.")  # fmt: off
     theme_panel_background: str = Field(default="solid", description="Whether panel backgrounds are translucent: 'solid' | 'translucent'.")
     theme_radius: str = Field(default="medium", description="The radius of the theme. Can be 'small', 'medium', or 'large'.")
     theme_scaling: str = Field(default="100%", description="The scaling of the theme.")

@@ -1,10 +1,4 @@
 playground:
   api_url: http://api:8000
   app_title: Albert API
-  theme_has_background: # optional - default: True
-  theme_accent_color: # optional - default: blue
-  theme_appearance: # optional - default: dark
-  theme_gray_color: # optional - default: gray
-  theme_panel_background: # optional - default: solid
-  theme_radius: # optional - default: medium
-  theme_scaling: # optional - default: 100%
+  theme_accent_color: indigo

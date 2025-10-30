@@ -42,14 +42,6 @@ def usage_time_filters() -> rx.Component:
                 align="end",
                 spacing="3",
             ),
-            rx.cond(
-                UsageState.error != "",
-                rx.callout(
-                    UsageState.error,
-                    icon="triangle_alert",
-                    color_scheme="red",
-                ),
-            ),
             spacing="3",
             width="100%",
         ),

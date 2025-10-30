@@ -22,7 +22,6 @@ def keys_create_form() -> rx.Component:
                         placeholder="e.g., Production API Key",
                         value=KeysState.new_key_name,
                         on_change=KeysState.set_new_key_name,
-                        on_focus=KeysState.clear_errors,
                         width="100%",
                     ),
                     spacing="1",
@@ -34,7 +33,6 @@ def keys_create_form() -> rx.Component:
                         type="date",
                         value=KeysState.new_key_expires_at_date,
                         on_change=KeysState.set_new_key_expires_at_date,
-                        on_focus=KeysState.clear_errors,
                         min=KeysState.min_expiry_date,
                         width="100%",
                     ),
@@ -45,15 +43,6 @@ def keys_create_form() -> rx.Component:
                     ),
                     spacing="1",
                     width="100%",
-                ),
-                rx.cond(
-                    KeysState.create_key_error != "",
-                    rx.callout(
-                        KeysState.create_key_error,
-                        icon="triangle_alert",
-                        color_scheme="red",
-                        width="100%",
-                    ),
                 ),
                 rx.button(
                     rx.icon("plus", size=18),

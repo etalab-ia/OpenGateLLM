@@ -13,14 +13,6 @@ def keys_delete_dialog() -> rx.Component:
             rx.alert_dialog.description(
                 "Are you sure you want to delete this API key? This action cannot be undone and will immediately revoke access for this key.",
             ),
-            rx.cond(
-                KeysState.delete_key_error != "",
-                rx.callout(
-                    KeysState.delete_key_error,
-                    icon="triangle_alert",
-                    color_scheme="red",
-                ),
-            ),
             rx.hstack(
                 rx.alert_dialog.cancel(
                     rx.button(

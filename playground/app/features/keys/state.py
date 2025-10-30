@@ -16,20 +16,17 @@ class KeysState(AuthState):
     # Keys list
     keys: list[ApiKey] = []
     keys_loading: bool = False
-    keys_error: str = ""
 
     # Create key form
     new_key_name: str = ""
     new_key_expires_at_date: str = ""  # Date in YYYY-MM-DD format
     create_key_loading: bool = False
-    create_key_error: str = ""
     created_key: str = ""  # Store the created key to show once
     is_created_dialog_open: bool = False  # Explicit state for dialog
 
     # Delete confirmation
     key_to_delete: int | None = None
     delete_key_loading: bool = False
-    delete_key_error: str = ""
 
     @rx.var
     def is_delete_dialog_open(self) -> bool:
@@ -93,7 +90,6 @@ class KeysState(AuthState):
             return
 
         self.keys_loading = True
-        self.keys_error = ""
         yield
 
         try:
@@ -110,8 +106,7 @@ class KeysState(AuthState):
                 self.keys = [ApiKey(**key) for key in keys_data if key["name"] != "playground"]
 
         except Exception as e:
-            self.keys_error = f"Error loading keys: {str(e)}"
-            rx.error("Error loading keys.")
+            yield rx.toast.error(f"Error loading keys: {str(e)}", position="bottom-right")
             self.keys = []
         finally:
             self.keys_loading = False
@@ -121,12 +116,10 @@ class KeysState(AuthState):
     async def create_key(self):
         """Create a new API key."""
         if not self.new_key_name.strip():
-            self.create_key_error = "Key name is required"
-            yield
+            yield rx.toast.warning("Key name is required", position="bottom-right")
             return
 
         self.create_key_loading = True
-        self.create_key_error = ""
         self.created_key = ""
         yield
 
@@ -143,7 +136,7 @@ class KeysState(AuthState):
                     expires_timestamp = int(date_obj.timestamp())
                     payload["expires_at"] = expires_timestamp
                 except ValueError:
-                    self.create_key_error = "Invalid date format"
+                    yield rx.toast.warning("Invalid date format", position="bottom-right")
                     self.create_key_loading = False
                     yield
                     return
@@ -160,6 +153,7 @@ class KeysState(AuthState):
                     data = response.json()
                     self.created_key = data.get("token", "")
                     self.is_created_dialog_open = True
+                    yield rx.toast.success("API key created successfully", position="bottom-right")
                     # Yield to update UI and show the dialog
                     yield
                     # Clear form
@@ -179,14 +173,14 @@ class KeysState(AuthState):
                             msg = first_error.get("msg", "Validation error")
                             if ", " in msg:
                                 msg = msg.split(", ", 1)[1]
-                            self.create_key_error = msg
+                            yield rx.toast.error(msg, position="bottom-right")
                         else:
-                            self.create_key_error = str(detail[0])
+                            yield rx.toast.error(str(detail[0]), position="bottom-right")
                     else:
-                        self.create_key_error = str(detail)
+                        yield rx.toast.error(str(detail), position="bottom-right")
 
         except Exception as e:
-            self.create_key_error = str(e)
+            yield rx.toast.error(str(e), position="bottom-right")
         finally:
             self.create_key_loading = False
             yield
@@ -195,7 +189,6 @@ class KeysState(AuthState):
     async def delete_key(self, key_id: int):
         """Delete an API key."""
         self.delete_key_loading = True
-        self.delete_key_error = ""
         yield
 
         try:
@@ -207,16 +200,17 @@ class KeysState(AuthState):
                 )
 
                 if response.status_code == 204:
+                    self.key_to_delete = None
+                    yield rx.toast.success("API key deleted successfully", position="bottom-right")
                     # Reload keys
                     async for _ in self.load_keys():
                         yield
-                    self.key_to_delete = None
                 else:
                     error_data = response.json()
-                    self.delete_key_error = error_data.get("detail", "Failed to delete key")
+                    yield rx.toast.error(error_data.get("detail", "Failed to delete key"), position="bottom-right")
 
         except Exception as e:
-            self.delete_key_error = f"Error: {str(e)}"
+            yield rx.toast.error(f"Error: {str(e)}", position="bottom-right")
         finally:
             self.delete_key_loading = False
             yield
@@ -237,7 +231,6 @@ class KeysState(AuthState):
         """Handle dialog open/close state change."""
         if not is_open:
             self.key_to_delete = None
-            self.delete_key_error = ""
 
     @rx.event
     def handle_created_dialog_change(self, is_open: bool):
@@ -245,13 +238,6 @@ class KeysState(AuthState):
         self.is_created_dialog_open = is_open
         if not is_open:
             self.created_key = ""
-
-    @rx.event
-    def clear_errors(self):
-        """Clear all error messages."""
-        self.create_key_error = ""
-        self.delete_key_error = ""
-        self.keys_error = ""
 
     # Explicit setters to avoid deprecation of auto-setters in Reflex >=0.8.9
     @rx.event

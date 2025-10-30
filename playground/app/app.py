@@ -2,11 +2,12 @@ import reflex as rx
 
 from app.core.configuration import configuration
 from app.features.account.page import account_page
-from app.features.account.state import AccountState
 from app.features.chat.page import chat_page_content
 from app.features.keys.page import keys_page
 from app.features.keys.state import KeysState
 from app.features.limits.page import limits_page
+from app.features.roles.page import roles_page
+from app.features.roles.state import RolesState
 from app.features.usage.page import usage_page
 from app.features.usage.state import UsageState
 from app.shared.layouts.authenticated import authenticated_page
@@ -37,6 +38,25 @@ def usage() -> rx.Component:
     return authenticated_page(usage_page())
 
 
+def roles() -> rx.Component:
+    """Roles management page (admin only)."""
+    return authenticated_page(
+        rx.cond(
+            RolesState.is_admin,
+            roles_page(),
+            rx.center(
+                rx.vstack(
+                    rx.icon("shield-alert", size=64, color=rx.color("red", 9)),
+                    rx.heading("Access Denied", size="8"),
+                    rx.text("You need admin permissions to access this page.", size="4"),
+                    spacing="4",
+                ),
+                height="100vh",
+            ),
+        )
+    )
+
+
 # Create the app with theme configuration
 app = rx.App(
     theme=rx.theme(
@@ -55,7 +75,8 @@ app = rx.App(
 
 # Add pages
 app.add_page(index, route="/")
-app.add_page(account, route="/account", on_load=AccountState.clear_account_flash)
+app.add_page(account, route="/account")
 app.add_page(keys, route="/keys", on_load=KeysState.load_keys)
 app.add_page(limits, route="/limits")
 app.add_page(usage, route="/usage", on_load=UsageState.load_usage)
+app.add_page(roles, route="/roles", on_load=RolesState.load_roles)

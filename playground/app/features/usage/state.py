@@ -3,11 +3,10 @@
 import datetime as dt
 from typing import Any
 
+from app.features.auth.state import AuthState
 import httpx
 from pydantic import BaseModel
 import reflex as rx
-
-from app.features.auth.state import AuthState
 
 
 class UsageItem(BaseModel):
@@ -36,7 +35,6 @@ class UsageState(AuthState):
     # Data
     usage: list[UsageItem] = []
     loading: bool = False
-    error: str = ""
 
     @rx.var
     def min_to_date(self) -> str:
@@ -97,16 +95,11 @@ class UsageState(AuthState):
         self.page = page
 
     @rx.event
-    def clear_error(self):
-        self.error = ""
-
-    @rx.event
     async def load_usage(self):
         if not self.is_authenticated or not self.api_key:
             return
 
         self.loading = True
-        self.error = ""
         yield
 
         try:
@@ -141,7 +134,7 @@ class UsageState(AuthState):
                 )
 
                 if resp.status_code != 200:
-                    self.error = resp.json().get("detail", "Failed to load usage")
+                    yield rx.toast.error(resp.json().get("detail", "Failed to load usage"), position="bottom-right")
                 else:
                     data = resp.json()
                     self.total_count = data.get("total", 0)
@@ -161,7 +154,7 @@ class UsageState(AuthState):
                         for item in items
                     ]
         except Exception as e:
-            self.error = str(e)
+            yield rx.toast.error(str(e), position="bottom-right")
         finally:
             self.loading = False
             yield

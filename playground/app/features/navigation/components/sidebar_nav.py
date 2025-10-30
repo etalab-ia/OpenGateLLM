@@ -50,7 +50,7 @@ def sidebar_nav() -> rx.Component:
                 ),
                 width="100%",
                 padding="1em",
-                border_bottom=f"1px solid {rx.color('mauve', 3)}",
+                border_bottom=f"1px solid {rx.color("mauve", 3)}",
             ),
             # Navigation items
             rx.vstack(
@@ -59,6 +59,14 @@ def sidebar_nav() -> rx.Component:
                 nav_item("Usage", "bar-chart-3", "/usage"),
                 nav_item("Rate Limits", "gauge", "/limits"),
                 nav_item("Chat", "message-square", "/"),
+                rx.cond(
+                    AuthState.user_permissions.contains("admin"),
+                    rx.box(
+                        rx.divider(margin_y="0.5em"),
+                        nav_item("Roles", "shield", "/roles"),
+                        width="100%",
+                    ),
+                ),
                 spacing="2",
                 width="100%",
                 padding="1em",
@@ -119,7 +127,7 @@ def sidebar_nav() -> rx.Component:
         width="250px",
         height="100vh",
         background_color=rx.color("mauve", 2),
-        border_right=f"1px solid {rx.color('mauve', 3)}",
+        border_right=f"1px solid {rx.color("mauve", 3)}",
         position="fixed",
         left="0",
         top="0",

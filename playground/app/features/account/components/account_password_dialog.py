@@ -29,7 +29,6 @@ def account_password_dialog() -> rx.Component:
                         type="password",
                         value=AccountState.current_password,
                         on_change=AccountState.set_current_password,
-                        on_focus=AccountState.clear_password_messages,
                         width="100%",
                     ),
                     spacing="1",
@@ -42,7 +41,6 @@ def account_password_dialog() -> rx.Component:
                         type="password",
                         value=AccountState.new_password,
                         on_change=AccountState.set_new_password,
-                        on_focus=AccountState.clear_password_messages,
                         width="100%",
                     ),
                     spacing="1",
@@ -55,29 +53,10 @@ def account_password_dialog() -> rx.Component:
                         type="password",
                         value=AccountState.confirm_password,
                         on_change=AccountState.set_confirm_password,
-                        on_focus=AccountState.clear_password_messages,
                         width="100%",
                     ),
                     spacing="1",
                     width="100%",
-                ),
-                rx.cond(
-                    AccountState.password_change_error != "",
-                    rx.callout(
-                        AccountState.password_change_error,
-                        icon="triangle_alert",
-                        color_scheme="red",
-                        width="100%",
-                    ),
-                ),
-                rx.cond(
-                    AccountState.password_change_success != "",
-                    rx.callout(
-                        AccountState.password_change_success,
-                        icon="check",
-                        color_scheme="green",
-                        width="100%",
-                    ),
                 ),
                 rx.hstack(
                     rx.dialog.close(

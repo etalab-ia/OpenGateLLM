@@ -32,7 +32,6 @@ def account_info_card() -> rx.Component:
                         placeholder="Enter your name",
                         value=AccountState.edit_name,
                         on_change=AccountState.set_edit_name,
-                        on_focus=AccountState.clear_update_name_messages,
                         on_mount=AccountState.load_current_name,
                         width="100%",
                     ),
@@ -48,24 +47,6 @@ def account_info_card() -> rx.Component:
                     ),
                     spacing="1",
                     width="100%",
-                ),
-                rx.cond(
-                    AccountState.update_name_error != "",
-                    rx.callout(
-                        AccountState.update_name_error,
-                        icon="triangle_alert",
-                        color_scheme="red",
-                        width="100%",
-                    ),
-                ),
-                rx.cond(
-                    AccountState.update_name_success != "",
-                    rx.callout(
-                        AccountState.update_name_success,
-                        icon="check",
-                        color_scheme="green",
-                        width="100%",
-                    ),
                 ),
                 rx.button(
                     rx.icon("save", size=18),

@@ -12,16 +12,12 @@ class AccountState(AuthState):
     # Update name form
     edit_name: str = ""
     update_name_loading: bool = False
-    update_name_success: str = ""
-    update_name_error: str = ""
 
     # Password change form
     current_password: str = ""
     new_password: str = ""
     confirm_password: str = ""
     password_change_loading: bool = False
-    password_change_success: str = ""
-    password_change_error: str = ""
 
     @rx.var
     def user_created_at_formatted(self) -> str:
@@ -44,28 +40,22 @@ class AccountState(AuthState):
         """Change user password."""
         # Validate inputs
         if not self.current_password:
-            self.password_change_error = "Current password is required"
-            yield
+            yield rx.toast.warning("Current password is required", position="bottom-right")
             return
 
         if not self.new_password:
-            self.password_change_error = "New password is required"
-            yield
+            yield rx.toast.warning("New password is required", position="bottom-right")
             return
 
         if len(self.new_password) < 8:
-            self.password_change_error = "New password must be at least 8 characters"
-            yield
+            yield rx.toast.warning("New password must be at least 8 characters", position="bottom-right")
             return
 
         if self.new_password != self.confirm_password:
-            self.password_change_error = "Passwords do not match"
-            yield
+            yield rx.toast.warning("Passwords do not match", position="bottom-right")
             return
 
         self.password_change_loading = True
-        self.password_change_error = ""
-        self.password_change_success = ""
         yield
 
         try:
@@ -84,30 +74,24 @@ class AccountState(AuthState):
                 )
 
                 if response.status_code == 204:
-                    self.password_change_success = "Password changed successfully!"
+                    yield rx.toast.success("Password changed successfully!", position="bottom-right")
                     # Clear form
                     self.current_password = ""
                     self.new_password = ""
                     self.confirm_password = ""
                 else:
                     error_data = response.json()
-                    self.password_change_error = error_data.get("detail", "Failed to change password")
+                    yield rx.toast.error(error_data.get("detail", "Failed to change password"), position="bottom-right")
 
         except httpx.TimeoutException:
-            self.password_change_error = "Request timeout"
+            yield rx.toast.error("Request timeout", position="bottom-right")
         except httpx.ConnectError:
-            self.password_change_error = f"Cannot connect to API at {self.api_url}"
+            yield rx.toast.error(f"Cannot connect to API at {self.api_url}", position="bottom-right")
         except Exception as e:
-            self.password_change_error = f"An error occurred: {str(e)}"
+            yield rx.toast.error(f"An error occurred: {str(e)}", position="bottom-right")
         finally:
             self.password_change_loading = False
             yield
-
-    @rx.event
-    def clear_password_messages(self):
-        """Clear password change messages."""
-        self.password_change_error = ""
-        self.password_change_success = ""
 
     @rx.event
     def load_current_name(self):
@@ -119,13 +103,10 @@ class AccountState(AuthState):
         """Update user name."""
         # Validate input
         if not self.edit_name or not self.edit_name.strip():
-            self.update_name_error = "Name cannot be empty"
-            yield
+            yield rx.toast.warning("Name cannot be empty", position="bottom-right")
             return
 
         self.update_name_loading = True
-        self.update_name_error = ""
-        self.update_name_success = ""
         yield
 
         try:
@@ -138,9 +119,9 @@ class AccountState(AuthState):
                 )
 
                 if response.status_code == 204:
-                    self.update_name_success = "Name updated successfully!"
                     # Update the user_name in state
                     self.user_name = self.edit_name.strip()
+                    yield rx.toast.success("Name updated successfully!", position="bottom-right")
                 else:
                     error_data = response.json()
                     detail = error_data.get("detail", "Failed to update name")
@@ -152,35 +133,21 @@ class AccountState(AuthState):
                             msg = first_error.get("msg", "Validation error")
                             if ", " in msg:
                                 msg = msg.split(", ", 1)[1]
-                            self.update_name_error = msg
+                            yield rx.toast.error(msg, position="bottom-right")
                         else:
-                            self.update_name_error = str(detail[0])
+                            yield rx.toast.error(str(detail[0]), position="bottom-right")
                     else:
-                        self.update_name_error = str(detail)
+                        yield rx.toast.error(str(detail), position="bottom-right")
 
         except httpx.TimeoutException:
-            self.update_name_error = "Request timeout"
+            yield rx.toast.error("Request timeout", position="bottom-right")
         except httpx.ConnectError:
-            self.update_name_error = f"Cannot connect to API at {self.api_url}"
+            yield rx.toast.error(f"Cannot connect to API at {self.api_url}", position="bottom-right")
         except Exception as e:
-            self.update_name_error = str(e)
+            yield rx.toast.error(str(e), position="bottom-right")
         finally:
             self.update_name_loading = False
             yield
-
-    @rx.event
-    def clear_update_name_messages(self):
-        """Clear name update messages."""
-        self.update_name_error = ""
-        self.update_name_success = ""
-
-    @rx.event
-    def clear_account_flash(self):
-        """Clear transient success/error messages when (re)entering the page."""
-        self.update_name_error = ""
-        self.update_name_success = ""
-        self.password_change_error = ""
-        self.password_change_success = ""
 
     # Explicit setters to avoid deprecation of auto-setters in Reflex >=0.8.9
     @rx.event
