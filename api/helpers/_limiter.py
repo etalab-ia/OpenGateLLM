@@ -16,8 +16,9 @@ class Limiter:
         self.connection_pool = redis
         self.redis_host = self.connection_pool.connection_kwargs.get("host", "localhost")
         self.redis_port = self.connection_pool.connection_kwargs.get("port", 6379)
+        self.redis_username = self.connection_pool.connection_kwargs.get("username", "")
         self.redis_password = self.connection_pool.connection_kwargs.get("password", "")
-        self.redis = storage.RedisStorage(uri=f"async+redis://:{self.redis_password}@{self.redis_host}:{self.redis_port}", connection_pool=self.connection_pool)  # fmt: off
+        self.redis = storage.RedisStorage(uri=f"async+redis://{self.redis_username}:{self.redis_password}@{self.redis_host}:{self.redis_port}", connection_pool=self.connection_pool)  # fmt: off
 
         if strategy == LimitingStrategy.MOVING_WINDOW:
             self.strategy = strategies.MovingWindowRateLimiter(storage=self.redis)
