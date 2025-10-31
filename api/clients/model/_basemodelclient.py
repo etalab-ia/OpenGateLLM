@@ -292,7 +292,7 @@ class BaseModelClient(ABC):
         if json and "model" in json:
             json["model"] = self.name
 
-        return url, None, json, files, data
+        return url, json, files, data
 
     def _format_response(
         self,
@@ -402,7 +402,7 @@ class BaseModelClient(ABC):
             httpx.Response: The response from the API.
         """
 
-        url, _, json, files, data = self._format_request(json=json, files=files, data=data)
+        url, json, files, data = self._format_request(json=json, files=files, data=data)
         if not additional_data:
             additional_data = {}
 
@@ -529,7 +529,7 @@ class BaseModelClient(ABC):
         if additional_data is None:
             additional_data = {}
 
-        url, _, json, files, data = self._format_request(json=json, files=files, data=data)
+        url, json, files, data = self._format_request(json=json, files=files, data=data)
 
         async with httpx.AsyncClient(timeout=self.timeout) as async_client:
             try:
