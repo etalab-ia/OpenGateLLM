@@ -35,7 +35,7 @@ class OpenaiModelProvider(BaseModelProvider):
         model_carbon_footprint_total_params: int | None,
         model_carbon_footprint_active_params: int | None,
         qos_metric: MetricType | None,
-        qos_value: float | None,
+        qos_threshold: float | None,
     ) -> None:
         """
         Initialize the OpenAI model provider and check if the model is available.
@@ -49,7 +49,7 @@ class OpenaiModelProvider(BaseModelProvider):
             key=key,
             timeout=timeout,
             qos_metric=qos_metric,
-            qos_value=qos_value,
+            qos_threshold=qos_threshold,
         )
 
         # check if model is available

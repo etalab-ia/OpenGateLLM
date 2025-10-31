@@ -2,14 +2,14 @@ from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
 
 from api.helpers.models.load_balancing import LeastBusyLoadBalancingStrategy, ShuffleLoadBalancingStrategy
-from api.schemas.admin.routers import RouterLoadBalancingStrategy
+from api.schemas.admin.routers import RouterLoadBalancingStrategy as RouterLoadBalancingStrategyName
 from api.schemas.core.metrics import MetricType
 
 
 def apply_sync_load_balancing(
-    load_balancing_strategy: RouterLoadBalancingStrategy,
+    load_balancing_strategy_name: RouterLoadBalancingStrategyName,
     candidates: list[int],
-    redis_client: Redis | None = None,
+    redis_client: Redis,
     load_balancing_metric: MetricType = MetricType.TTFT,
 ) -> tuple[int, float | None]:
     """
@@ -26,7 +26,7 @@ def apply_sync_load_balancing(
             - provider_id (int): The chosen provider ID
             - performance_indicator (float | None): Performance metric for the chosen provider, if applicable
     """
-    if load_balancing_strategy == RouterLoadBalancingStrategy.LEAST_BUSY:
+    if load_balancing_strategy_name == RouterLoadBalancingStrategyName.LEAST_BUSY:
         load_balancing_strategy = LeastBusyLoadBalancingStrategy(redis_client=redis_client, load_balancing_metric=load_balancing_metric)
     else:  # load_balancing_strategy == RouterLoadBalancingStrategy.SHUFFLE:
         load_balancing_strategy = ShuffleLoadBalancingStrategy()
@@ -37,9 +37,9 @@ def apply_sync_load_balancing(
 
 
 async def apply_async_load_balancing(
-    load_balancing_strategy: RouterLoadBalancingStrategy,
+    load_balancing_strategy_name: RouterLoadBalancingStrategyName,
     candidates: list[int],
-    redis_client: AsyncRedis | None = None,
+    redis_client: AsyncRedis,
     load_balancing_metric: MetricType = MetricType.TTFT,
 ) -> tuple[int, float | None]:
     """
@@ -57,7 +57,7 @@ async def apply_async_load_balancing(
             - performance_indicator (float | None): Performance metric for the chosen provider, if applicable
     """
     performance_indicator = None
-    if load_balancing_strategy == RouterLoadBalancingStrategy.LEAST_BUSY:
+    if load_balancing_strategy_name == RouterLoadBalancingStrategyName.LEAST_BUSY:
         load_balancing_strategy = LeastBusyLoadBalancingStrategy(redis_client=redis_client, load_balancing_metric=load_balancing_metric)
     else:  # load_balancing_strategy == RouterLoadBalancingStrategy.SHUFFLE:
         load_balancing_strategy = ShuffleLoadBalancingStrategy()

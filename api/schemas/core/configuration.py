@@ -87,7 +87,7 @@ class ModelProvider(ConfigBaseModel):
     model_carbon_footprint_total_params: float | None = Field(default=None, ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     model_carbon_footprint_active_params: float | None = Field(default=None, ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     qos_metric: MetricType | None = Field(default=None, description="The metric to use for the quality of service. If not provided, no QoS policy is applied.", examples=[MetricType.INFLIGHT.value])  # fmt: off
-    qos_value: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.", examples=[0.5])  # fmt: off
+    qos_threshold: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depending on the metric, the value can be a percentile, a threshold, etc.", examples=[0.5])  # fmt: off
 
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#model")

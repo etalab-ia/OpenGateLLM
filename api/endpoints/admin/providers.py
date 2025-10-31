@@ -45,7 +45,7 @@ async def create_router_provider(
         model_carbon_footprint_total_params=body.model_carbon_footprint_total_params,
         model_carbon_footprint_active_params=body.model_carbon_footprint_active_params,
         qos_metric=body.qos_metric,
-        qos_value=body.qos_value,
+        qos_threshold=body.qos_threshold,
         session=session,
     )
     return JSONResponse(status_code=201, content=CreateProviderResponse(id=provider_id).model_dump())

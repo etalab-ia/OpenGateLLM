@@ -210,7 +210,7 @@ class Provider(Base):
     model_carbon_footprint_total_params: Mapped[int | None]
     model_carbon_footprint_active_params: Mapped[int | None]
     qos_metric: Mapped[MetricType | None]
-    qos_value: Mapped[float | None]
+    qos_threshold: Mapped[float | None]
     max_context_length: Mapped[int | None]
     vector_size: Mapped[int | None]
     created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())

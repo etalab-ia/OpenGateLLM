@@ -54,7 +54,7 @@ class BaseModelProvider(ABC):
         model_carbon_footprint_total_params: int | None,
         model_carbon_footprint_active_params: int | None,
         qos_metric: MetricType | None,
-        qos_value: float | None,
+        qos_threshold: float | None,
     ) -> None:
         self.name = model_name
 
@@ -65,7 +65,7 @@ class BaseModelProvider(ABC):
         self.key = key
         self.timeout = timeout
         self.qos_metric = qos_metric
-        self.qos_value = qos_value
+        self.qos_threshold = qos_threshold
 
         self.id = None  # set by the ModelRegistry when the provider is created
         self.cost_prompt_tokens = None  # set by the ModelRegistry when the provider is retrieved
