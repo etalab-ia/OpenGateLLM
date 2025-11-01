@@ -2,6 +2,7 @@
 
 import reflex as rx
 
+from app.core.variables import PADDING_PAGE, SPACING_XL
 from app.features.roles.components import (
     roles_header,
     roles_limits,
@@ -22,9 +23,9 @@ def roles_page() -> rx.Component:
                 roles_limits(),
                 # Box 3: Permissions management
                 roles_permissions(),
-                spacing="6",
+                spacing=SPACING_XL,
                 width="100%",
-                padding="2em",
+                padding=PADDING_PAGE,
             ),
             height="100%",
         ),

@@ -2,6 +2,7 @@
 
 import reflex as rx
 
+from app.core.variables import PADDING_PAGE, SPACING_LARGE, SPACING_XL
 from app.features.keys.components import (
     keys_create_form,
     keys_created_dialog,
@@ -19,9 +20,9 @@ def keys_page() -> rx.Component:
                 keys_header(),
                 keys_create_form(),
                 keys_list(),
-                spacing="6",
+                spacing=SPACING_XL,
                 width="100%",
-                padding="2em",
+                padding=PADDING_PAGE,
             ),
             height="100%",
         ),

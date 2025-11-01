@@ -68,8 +68,12 @@ To run the services without make command, you can use the following commands:
   uvicorn api.main:app --log-level debug --reload
   ```
 
+  The API will be available at http://localhost:8000.
+
 3. Launch the Playground:
   ```bash
-  streamlit run playground/main.py
+  cd playground
+  reflex run --env dev --loglevel debug
   ```
 
+  The playground will be available at http://localhost:8501. 

@@ -2,6 +2,19 @@
 
 import reflex as rx
 
+from app.core.variables import (
+    HEADING_SIZE_SECTION,
+    ICON_SIZE_EMPTY_STATE,
+    ICON_SIZE_MEDIUM,
+    MAX_CARD_WIDTH,
+    PADDING_PAGE,
+    SELECT_MEDIUM_WIDTH,
+    SIZE_MEDIUM,
+    SPACING_MEDIUM,
+    SPACING_SMALL,
+    TEXT_SIZE_LABEL,
+    TEXT_SIZE_LARGE,
+)
 from app.features.roles.models import Limit
 from app.features.roles.state import RolesState
 
@@ -12,7 +25,7 @@ def limit_row(limit: Limit) -> rx.Component:
         rx.table.cell(
             rx.text(
                 limit.model,
-                size="3",
+                size=SIZE_MEDIUM,
                 weight="medium",
                 color=rx.color("mauve", 12),
             ),
@@ -31,17 +44,17 @@ def limit_row(limit: Limit) -> rx.Component:
                     limit.value.to(str),
                     "Unlimited",
                 ),
-                size="3",
+                size=SIZE_MEDIUM,
                 color=rx.color("mauve", 11),
             ),
         ),
         rx.table.cell(
             rx.button(
-                rx.icon("trash-2", size=18),
+                rx.icon("trash-2", size=ICON_SIZE_MEDIUM),
                 on_click=lambda: RolesState.delete_limit(limit.model, limit.type),
                 variant="soft",
                 color_scheme="red",
-                size="2",
+                size=TEXT_SIZE_LABEL,
                 disabled=RolesState.delete_limit_loading,
             ),
             justify="end",
@@ -79,16 +92,16 @@ def add_limit_form() -> rx.Component:
             rx.button(
                 rx.cond(
                     RolesState.add_limit_loading,
-                    rx.spinner(size="3"),
+                    rx.spinner(size=SIZE_MEDIUM),
                     "Create",
                 ),
                 on_click=RolesState.add_limit,
                 disabled=RolesState.add_limit_loading | ~RolesState.has_limits_selected_role,
             ),
             width="100%",
-            spacing="2",
+            spacing=SPACING_SMALL,
         ),
-        spacing="3",
+        spacing=SPACING_MEDIUM,
         width="100%",
     )
 
@@ -98,11 +111,11 @@ def roles_limits() -> rx.Component:
     return rx.card(
         rx.vstack(
             rx.hstack(
-                rx.heading("Rate limits", size="6"),
+                rx.heading("Rate limits", size=HEADING_SIZE_SECTION),
                 rx.spacer(),
-                rx.text("Role", size="2", color=rx.color("mauve", 11)),
+                rx.text("Role", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
                 rx.select.root(
-                    rx.select.trigger(placeholder="Select a role", size="2", width="200px"),
+                    rx.select.trigger(placeholder="Select a role", size=TEXT_SIZE_LABEL, width="200px"),
                     rx.select.content(
                         rx.foreach(
                             RolesState.roles,
@@ -116,16 +129,16 @@ def roles_limits() -> rx.Component:
                     ),
                     on_change=RolesState.set_limits_selected_role,
                 ),
-                rx.text("Model", size="2", color=rx.color("mauve", 11)),
+                rx.text("Model", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
                 rx.select(
                     RolesState.limits_models_list_with_all,
                     value=RolesState.limits_filter_model,
                     on_change=RolesState.set_limits_filter_model,
                     placeholder="All models",
-                    size="2",
+                    size=TEXT_SIZE_LABEL,
                 ),
                 align="center",
-                spacing="2",
+                spacing=SPACING_SMALL,
                 width="100%",
             ),
             rx.divider(),
@@ -133,21 +146,21 @@ def roles_limits() -> rx.Component:
                 ~RolesState.has_limits_selected_role,
                 rx.center(
                     rx.vstack(
-                        rx.icon("arrow-up", size=48, color=rx.color("mauve", 8)),
+                        rx.icon("arrow-up", size=ICON_SIZE_EMPTY_STATE, color=rx.color("mauve", 8)),
                         rx.text(
                             "Select a role first",
-                            size="4",
+                            size=TEXT_SIZE_LARGE,
                             color=rx.color("mauve", 10),
                         ),
                         rx.text(
                             "Choose a role from the dropdown above to manage its limits",
-                            size="2",
+                            size=TEXT_SIZE_LABEL,
                             color=rx.color("mauve", 9),
                         ),
-                        spacing="2",
+                        spacing=SPACING_SMALL,
                     ),
                     width="100%",
-                    padding="2em",
+                    padding=PADDING_PAGE,
                 ),
                 rx.cond(
                     RolesState.filtered_limits.length() > 0,
@@ -168,10 +181,10 @@ def roles_limits() -> rx.Component:
                     ),
                     rx.center(
                         rx.vstack(
-                            rx.icon("gauge", size=48, color=rx.color("mauve", 8)),
+                            rx.icon("gauge", size=ICON_SIZE_EMPTY_STATE, color=rx.color("mauve", 8)),
                             rx.text(
                                 "No limits",
-                                size="4",
+                                size=TEXT_SIZE_LARGE,
                                 color=rx.color("mauve", 10),
                             ),
                             rx.text(
@@ -180,20 +193,20 @@ def roles_limits() -> rx.Component:
                                     "This role has no limits configured",
                                     "No limits for the selected model",
                                 ),
-                                size="2",
+                                size=TEXT_SIZE_LABEL,
                                 color=rx.color("mauve", 9),
                             ),
-                            spacing="2",
+                            spacing=SPACING_SMALL,
                         ),
                         width="100%",
-                        padding="2em",
+                        padding=PADDING_PAGE,
                     ),
                 ),
             ),
             add_limit_form(),
-            spacing="3",
+            spacing=SPACING_MEDIUM,
             width="100%",
         ),
         width="100%",
-        max_width="1000px",
+        max_width=MAX_CARD_WIDTH,
     )

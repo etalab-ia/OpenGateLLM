@@ -2,6 +2,15 @@
 
 import reflex as rx
 
+from app.core.variables import (
+    HEADING_SIZE_SECTION,
+    ICON_SIZE_TINY,
+    MAX_CARD_WIDTH,
+    SPACING_MEDIUM,
+    SPACING_SMALL,
+    SPACING_TINY,
+    TEXT_SIZE_LABEL,
+)
 from app.features.limits.components.limits_row import limits_row
 from app.features.limits.state import LimitsState
 
@@ -11,9 +20,9 @@ def limits_table() -> rx.Component:
     return rx.card(
         rx.vstack(
             rx.hstack(
-                rx.heading("Your rate limits", size="6"),
+                rx.heading("Your rate limits", size=HEADING_SIZE_SECTION),
                 align="center",
-                spacing="2",
+                spacing=SPACING_SMALL,
             ),
             rx.divider(),
             rx.cond(
@@ -26,8 +35,8 @@ def limits_table() -> rx.Component:
                                 rx.tooltip(
                                     rx.hstack(
                                         rx.text("RPM"),
-                                        rx.icon("info", size=14),
-                                        spacing="1",
+                                        rx.icon("info", size=ICON_SIZE_TINY),
+                                        spacing=SPACING_TINY,
                                         align="center",
                                     ),
                                     content="Requests Per Minute",
@@ -37,8 +46,8 @@ def limits_table() -> rx.Component:
                                 rx.tooltip(
                                     rx.hstack(
                                         rx.text("RPD"),
-                                        rx.icon("info", size=14),
-                                        spacing="1",
+                                        rx.icon("info", size=ICON_SIZE_TINY),
+                                        spacing=SPACING_TINY,
                                         align="center",
                                     ),
                                     content="Requests Per Day",
@@ -48,8 +57,8 @@ def limits_table() -> rx.Component:
                                 rx.tooltip(
                                     rx.hstack(
                                         rx.text("TPM"),
-                                        rx.icon("info", size=14),
-                                        spacing="1",
+                                        rx.icon("info", size=ICON_SIZE_TINY),
+                                        spacing=SPACING_TINY,
                                         align="center",
                                     ),
                                     content="Tokens Per Minute",
@@ -59,8 +68,8 @@ def limits_table() -> rx.Component:
                                 rx.tooltip(
                                     rx.hstack(
                                         rx.text("TPD"),
-                                        rx.icon("info", size=14),
-                                        spacing="1",
+                                        rx.icon("info", size=ICON_SIZE_TINY),
+                                        spacing=SPACING_TINY,
                                         align="center",
                                     ),
                                     content="Tokens Per Day",
@@ -76,13 +85,13 @@ def limits_table() -> rx.Component:
                 ),
                 rx.text(
                     "No rate limits configured",
-                    size="2",
+                    size=TEXT_SIZE_LABEL,
                     color=rx.color("mauve", 9),
                 ),
             ),
-            spacing="3",
+            spacing=SPACING_MEDIUM,
             width="100%",
         ),
         width="100%",
-        max_width="1000px",
+        max_width=MAX_CARD_WIDTH,
     )

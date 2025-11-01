@@ -1,1 +1,0 @@
-"""Shared components and layouts."""

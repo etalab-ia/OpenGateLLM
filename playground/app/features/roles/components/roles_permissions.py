@@ -2,6 +2,19 @@
 
 import reflex as rx
 
+from app.core.variables import (
+    HEADING_SIZE_SECTION,
+    ICON_SIZE_EMPTY_STATE,
+    ICON_SIZE_MEDIUM,
+    MAX_CARD_WIDTH,
+    PADDING_PAGE,
+    SELECT_MEDIUM_WIDTH,
+    SIZE_MEDIUM,
+    SPACING_MEDIUM,
+    SPACING_SMALL,
+    TEXT_SIZE_LABEL,
+    TEXT_SIZE_LARGE,
+)
 from app.features.roles.state import RolesState
 
 
@@ -11,18 +24,18 @@ def permission_row(permission: str) -> rx.Component:
         rx.table.cell(
             rx.text(
                 permission,
-                size="3",
+                size=SIZE_MEDIUM,
                 weight="medium",
                 color=rx.color("mauve", 12),
             ),
         ),
         rx.table.cell(
             rx.button(
-                rx.icon("trash-2", size=18),
+                rx.icon("trash-2", size=ICON_SIZE_MEDIUM),
                 on_click=lambda: RolesState.delete_permission(permission),
                 variant="soft",
                 color_scheme="red",
-                size="2",
+                size=TEXT_SIZE_LABEL,
                 disabled=RolesState.delete_permission_loading,
             ),
             justify="end",
@@ -46,16 +59,16 @@ def add_permission_form() -> rx.Component:
             rx.button(
                 rx.cond(
                     RolesState.add_permission_loading,
-                    rx.spinner(size="3"),
+                    rx.spinner(size=SIZE_MEDIUM),
                     "Add",
                 ),
                 on_click=RolesState.add_permission,
                 disabled=RolesState.add_permission_loading | ~RolesState.has_permissions_selected_role,
             ),
             width="100%",
-            spacing="2",
+            spacing=SPACING_SMALL,
         ),
-        spacing="3",
+        spacing=SPACING_MEDIUM,
         width="100%",
     )
 
@@ -65,11 +78,11 @@ def roles_permissions() -> rx.Component:
     return rx.card(
         rx.vstack(
             rx.hstack(
-                rx.heading("Permissions", size="6"),
+                rx.heading("Permissions", size=HEADING_SIZE_SECTION),
                 rx.spacer(),
-                rx.text("Role", size="2", color=rx.color("mauve", 11)),
+                rx.text("Role", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
                 rx.select.root(
-                    rx.select.trigger(placeholder="Select a role", size="2", width="200px"),
+                    rx.select.trigger(placeholder="Select a role", size=TEXT_SIZE_LABEL, width="200px"),
                     rx.select.content(
                         rx.foreach(
                             RolesState.roles,
@@ -84,7 +97,7 @@ def roles_permissions() -> rx.Component:
                     on_change=RolesState.set_permissions_selected_role,
                 ),
                 align="center",
-                spacing="2",
+                spacing=SPACING_SMALL,
                 width="100%",
             ),
             rx.divider(),
@@ -92,21 +105,21 @@ def roles_permissions() -> rx.Component:
                 ~RolesState.has_permissions_selected_role,
                 rx.center(
                     rx.vstack(
-                        rx.icon("arrow-up", size=48, color=rx.color("mauve", 8)),
+                        rx.icon("arrow-up", size=ICON_SIZE_EMPTY_STATE, color=rx.color("mauve", 8)),
                         rx.text(
                             "Select a role first",
-                            size="4",
+                            size=TEXT_SIZE_LARGE,
                             color=rx.color("mauve", 10),
                         ),
                         rx.text(
                             "Choose a role from the dropdown above to manage its permissions",
-                            size="2",
+                            size=TEXT_SIZE_LABEL,
                             color=rx.color("mauve", 9),
                         ),
-                        spacing="2",
+                        spacing=SPACING_SMALL,
                     ),
                     width="100%",
-                    padding="2em",
+                    padding=PADDING_PAGE,
                 ),
                 rx.cond(
                     RolesState.selected_role_permissions.length() > 0,
@@ -125,28 +138,28 @@ def roles_permissions() -> rx.Component:
                     ),
                     rx.center(
                         rx.vstack(
-                            rx.icon("shield-off", size=48, color=rx.color("mauve", 8)),
+                            rx.icon("shield-off", size=ICON_SIZE_EMPTY_STATE, color=rx.color("mauve", 8)),
                             rx.text(
                                 "No permissions",
-                                size="4",
+                                size=TEXT_SIZE_LARGE,
                                 color=rx.color("mauve", 10),
                             ),
                             rx.text(
                                 "This role has no permissions configured",
-                                size="2",
+                                size=TEXT_SIZE_LABEL,
                                 color=rx.color("mauve", 9),
                             ),
-                            spacing="2",
+                            spacing=SPACING_SMALL,
                         ),
                         width="100%",
-                        padding="2em",
+                        padding=PADDING_PAGE,
                     ),
                 ),
             ),
             add_permission_form(),
-            spacing="3",
+            spacing=SPACING_MEDIUM,
             width="100%",
         ),
         width="100%",
-        max_width="1000px",
+        max_width=MAX_CARD_WIDTH,
     )

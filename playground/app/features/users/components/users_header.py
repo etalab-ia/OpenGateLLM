@@ -1,5 +1,3 @@
-"""Roles page header component."""
-
 import reflex as rx
 
 from app.core.variables import (
@@ -12,10 +10,10 @@ from app.core.variables import (
 )
 
 
-def roles_header() -> rx.Component:
-    """Header for roles management page."""
+def users_header() -> rx.Component:
+    """Header for users management page."""
     return rx.hstack(
-        rx.heading("Roles management", size=HEADING_SIZE_PAGE),
+        rx.heading("Users management", size=HEADING_SIZE_PAGE),
         rx.badge(
             rx.hstack(
                 rx.icon("shield-check", size=ICON_SIZE_SMALL),

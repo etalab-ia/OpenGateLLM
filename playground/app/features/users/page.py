@@ -1,22 +1,17 @@
-"""Limits page composition."""
-
 import reflex as rx
 
-from app.core.variables import (
-    PADDING_PAGE,
-    SPACING_XL,
-)
-
-from app.features.limits.components import limits_header, limits_table
+from app.core.variables import PADDING_PAGE, SPACING_XL
+from app.features.users.components import users_header, users_list
 
 
-def limits_page() -> rx.Component:
-    """Rate limits page."""
+def users_page() -> rx.Component:
+    """Users management page with admin permission check."""
     return rx.box(
         rx.scroll_area(
             rx.vstack(
-                limits_header(),
-                limits_table(),
+                users_header(),
+                # Main users list with create/edit/delete functionality
+                users_list(),
                 spacing=SPACING_XL,
                 width="100%",
                 padding=PADDING_PAGE,

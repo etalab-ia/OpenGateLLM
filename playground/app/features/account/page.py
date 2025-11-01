@@ -2,6 +2,11 @@
 
 import reflex as rx
 
+from app.core.variables import (
+    PADDING_PAGE,
+    SPACING_XL,
+)
+
 from app.features.account.components import (
     account_header,
     account_info_card,
@@ -17,9 +22,9 @@ def account_page() -> rx.Component:
                 account_header(),
                 account_info_card(),
                 account_security_card(),
-                spacing="6",
+                spacing=SPACING_XL,
                 width="100%",
-                padding="2em",
+                padding=PADDING_PAGE,
             ),
             height="100%",
         ),

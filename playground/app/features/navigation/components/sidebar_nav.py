@@ -64,6 +64,8 @@ def sidebar_nav() -> rx.Component:
                     rx.box(
                         rx.divider(margin_y="0.5em"),
                         nav_item("Roles", "shield", "/roles"),
+                        nav_item("Users", "users", "/users"),
+                        nav_item("Organizations", "building", "/organizations"),
                         width="100%",
                     ),
                 ),

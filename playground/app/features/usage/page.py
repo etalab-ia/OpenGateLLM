@@ -2,6 +2,13 @@
 
 import reflex as rx
 
+from app.core.variables import (
+    HEADING_SIZE_SECTION,
+    MAX_CARD_WIDTH,
+    PADDING_PAGE,
+    SPACING_LARGE,
+    SPACING_XL,
+)
 from app.features.usage.components import (
     usage_chart,
     usage_header,
@@ -26,27 +33,27 @@ def usage_page() -> rx.Component:
                         width="100%",
                     ),
                     width="100%",
-                    max_width="1000px",
+                    max_width=MAX_CARD_WIDTH,
                 ),
                 # Table card
                 rx.card(
                     rx.vstack(
-                        rx.heading("Usage details", size="6"),
+                        rx.heading("Usage details", size=HEADING_SIZE_SECTION),
                         usage_table(),
                         rx.hstack(
                             usage_pagination(),
                             width="100%",
                             justify="end",
                         ),
-                        spacing="4",
+                        spacing=SPACING_LARGE,
                         width="100%",
                     ),
                     width="100%",
-                    max_width="1000px",
+                    max_width=MAX_CARD_WIDTH,
                 ),
-                spacing="6",
+                spacing=SPACING_XL,
                 width="100%",
-                padding="2em",
+                padding=PADDING_PAGE,
             ),
             height="100%",
         ),

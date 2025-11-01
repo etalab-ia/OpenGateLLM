@@ -2,6 +2,15 @@
 
 import reflex as rx
 
+from app.core.variables import (
+    ICON_SIZE_MEDIUM,
+    ICON_SIZE_XL,
+    MAX_DIALOG_WIDTH,
+    SIZE_MEDIUM,
+    SPACING_LARGE,
+    SPACING_SMALL,
+    TEXT_SIZE_LABEL,
+)
 from app.features.keys.state import KeysState
 
 
@@ -11,9 +20,9 @@ def keys_created_dialog() -> rx.Component:
         rx.dialog.content(
             rx.dialog.title(
                 rx.hstack(
-                    rx.icon("check_check", size=24, color=rx.color("green", 11)),
+                    rx.icon("check_check", size=ICON_SIZE_XL, color=rx.color("green", 11)),
                     "API Key Created Successfully!",
-                    spacing="2",
+                    spacing=SPACING_SMALL,
                     align="center",
                 )
             ),
@@ -26,7 +35,7 @@ def keys_created_dialog() -> rx.Component:
                 rx.vstack(
                     rx.text(
                         "Your API Key:",
-                        size="2",
+                        size=TEXT_SIZE_LABEL,
                         weight="bold",
                         color=rx.color("mauve", 11),
                     ),
@@ -35,9 +44,9 @@ def keys_created_dialog() -> rx.Component:
                         read_only=True,
                         width="100%",
                         min_height="120px",
-                        size="3",
+                        size=SIZE_MEDIUM,
                     ),
-                    spacing="2",
+                    spacing=SPACING_SMALL,
                     width="100%",
                 ),
                 rx.callout(
@@ -48,17 +57,17 @@ def keys_created_dialog() -> rx.Component:
                 ),
                 rx.dialog.close(
                     rx.button(
-                        rx.icon("check", size=18),
+                        rx.icon("check", size=ICON_SIZE_MEDIUM),
                         "I've copied the key",
                         on_click=KeysState.clear_created_key,
-                        size="3",
+                        size=SIZE_MEDIUM,
                         width="100%",
                     ),
                 ),
-                spacing="4",
+                spacing=SPACING_LARGE,
                 width="100%",
             ),
-            max_width="600px",
+            max_width=MAX_DIALOG_WIDTH,
         ),
         open=KeysState.is_created_dialog_open,
         on_open_change=KeysState.handle_created_dialog_change,

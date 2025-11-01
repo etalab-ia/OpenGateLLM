@@ -2,6 +2,15 @@
 
 import reflex as rx
 
+from app.core.variables import (
+    ICON_SIZE_MEDIUM,
+    MAX_DIALOG_WIDTH,
+    SIZE_MEDIUM,
+    SPACING_LARGE,
+    SPACING_MEDIUM,
+    SPACING_TINY,
+    TEXT_SIZE_LABEL,
+)
 from app.features.account.state import AccountState
 
 
@@ -10,10 +19,10 @@ def account_password_dialog() -> rx.Component:
     return rx.dialog.root(
         rx.dialog.trigger(
             rx.button(
-                rx.icon("lock", size=18),
+                rx.icon("lock", size=ICON_SIZE_MEDIUM),
                 "Change Password",
                 variant="soft",
-                size="3",
+                size=SIZE_MEDIUM,
             ),
         ),
         rx.dialog.content(
@@ -23,7 +32,7 @@ def account_password_dialog() -> rx.Component:
             ),
             rx.vstack(
                 rx.vstack(
-                    rx.text("Current Password", size="2", weight="bold"),
+                    rx.text("Current Password", size=TEXT_SIZE_LABEL, weight="bold"),
                     rx.input(
                         placeholder="Enter current password",
                         type="password",
@@ -31,11 +40,11 @@ def account_password_dialog() -> rx.Component:
                         on_change=AccountState.set_current_password,
                         width="100%",
                     ),
-                    spacing="1",
+                    spacing=SPACING_TINY,
                     width="100%",
                 ),
                 rx.vstack(
-                    rx.text("New Password", size="2", weight="bold"),
+                    rx.text("New Password", size=TEXT_SIZE_LABEL, weight="bold"),
                     rx.input(
                         placeholder="Enter new password (min 8 characters)",
                         type="password",
@@ -43,11 +52,11 @@ def account_password_dialog() -> rx.Component:
                         on_change=AccountState.set_new_password,
                         width="100%",
                     ),
-                    spacing="1",
+                    spacing=SPACING_TINY,
                     width="100%",
                 ),
                 rx.vstack(
-                    rx.text("Confirm New Password", size="2", weight="bold"),
+                    rx.text("Confirm New Password", size=TEXT_SIZE_LABEL, weight="bold"),
                     rx.input(
                         placeholder="Confirm new password",
                         type="password",
@@ -55,7 +64,7 @@ def account_password_dialog() -> rx.Component:
                         on_change=AccountState.set_confirm_password,
                         width="100%",
                     ),
-                    spacing="1",
+                    spacing=SPACING_TINY,
                     width="100%",
                 ),
                 rx.hstack(
@@ -72,13 +81,13 @@ def account_password_dialog() -> rx.Component:
                         loading=AccountState.password_change_loading,
                         disabled=AccountState.password_change_loading,
                     ),
-                    spacing="3",
+                    spacing=SPACING_MEDIUM,
                     justify="end",
                     width="100%",
                 ),
-                spacing="4",
+                spacing=SPACING_LARGE,
                 width="100%",
             ),
-            max_width="450px",
+            max_width=MAX_DIALOG_WIDTH,
         ),
     )

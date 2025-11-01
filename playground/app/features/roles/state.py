@@ -42,6 +42,11 @@ class RolesState(ChatState):
     role_to_delete: int | None = None
     delete_role_loading: bool = False
 
+    # Edit role
+    role_to_edit: int | None = None
+    edit_role_name: str = ""
+    edit_role_loading: bool = False
+
     # Add limit form
     new_limit_model: str = ""
     new_limit_type: str = "rpm"
@@ -178,6 +183,11 @@ class RolesState(ChatState):
         return self.role_to_delete is not None
 
     @rx.var
+    def is_edit_role_dialog_open(self) -> bool:
+        """Check if edit role dialog should be open."""
+        return self.role_to_edit is not None
+
+    @rx.var
     def has_limits_selected_role(self) -> bool:
         """Check if a role is selected for limits."""
         return self.limits_selected_role_id is not None
@@ -254,6 +264,25 @@ class RolesState(ChatState):
     def set_role_to_delete(self, role_id: int | None):
         """Set role to delete."""
         self.role_to_delete = role_id
+
+    @rx.event
+    def set_role_to_edit(self, role_id: int | None):
+        """Set role to edit and load its data."""
+        if role_id is None:
+            self.role_to_edit = None
+            self.edit_role_name = ""
+        else:
+            self.role_to_edit = role_id
+            # Find role and populate edit form
+            for role in self.roles:
+                if role.id == role_id:
+                    self.edit_role_name = role.name
+                    break
+
+    @rx.event
+    def set_edit_role_name(self, value: str):
+        """Set edit role name."""
+        self.edit_role_name = value
 
     @rx.event
     def set_new_limit_model(self, value: str):
@@ -399,6 +428,55 @@ class RolesState(ChatState):
             yield rx.toast.error(f"Error: {str(e)}", position="bottom-right")
         finally:
             self.delete_role_loading = False
+            yield
+
+    @rx.event
+    async def update_role(self):
+        """Update a role name."""
+        if self.role_to_edit is None:
+            return
+
+        if not self.edit_role_name.strip():
+            yield rx.toast.warning("Role name is required", position="bottom-right")
+            return
+
+        self.edit_role_loading = True
+        yield
+
+        try:
+            payload = {
+                "name": self.edit_role_name.strip(),
+            }
+
+            async with httpx.AsyncClient() as client:
+                response = await client.patch(
+                    f"{self.api_url}/v1/admin/roles/{self.role_to_edit}",
+                    json=payload,
+                    headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+                    timeout=10.0,
+                )
+
+                if response.status_code == 204:
+                    self.role_to_edit = None
+                    yield rx.toast.success("Role updated successfully", position="bottom-right")
+                    # Reload roles
+                    async for _ in self.load_roles():
+                        yield
+                else:
+                    error_detail = response.json().get("detail", "Failed to update role")
+                    if isinstance(error_detail, list) and len(error_detail) > 0:
+                        first_error = error_detail[0]
+                        if isinstance(first_error, dict):
+                            yield rx.toast.error(first_error.get("msg", str(error_detail)), position="bottom-right")
+                        else:
+                            yield rx.toast.error(str(first_error), position="bottom-right")
+                    else:
+                        yield rx.toast.error(str(error_detail), position="bottom-right")
+
+        except Exception as e:
+            yield rx.toast.error(f"Error: {str(e)}", position="bottom-right")
+        finally:
+            self.edit_role_loading = False
             yield
 
     @rx.event

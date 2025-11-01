@@ -2,6 +2,7 @@
 
 import reflex as rx
 
+from app.core.variables import SPACING_MEDIUM
 from app.features.roles.state import RolesState
 
 
@@ -21,6 +22,6 @@ def roles_pagination() -> rx.Component:
             on_click=RolesState.next_roles_page,
             disabled=~RolesState.has_more_roles,
         ),
-        spacing="3",
+        spacing=SPACING_MEDIUM,
         align="center",
     )

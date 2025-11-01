@@ -1,5 +1,3 @@
-"""Keys components."""
-
 from app.features.keys.components.keys_create_form import keys_create_form
 from app.features.keys.components.keys_created_dialog import keys_created_dialog
 from app.features.keys.components.keys_delete_dialog import keys_delete_dialog
