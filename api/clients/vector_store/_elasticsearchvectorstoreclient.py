@@ -25,7 +25,7 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
         await super(AsyncElasticsearch, self).transport.close()
 
     async def create_collection(self, collection_id: int, vector_size: int) -> None:
-        if not await self.indices.exists(index=str(collection_id)):
+        if await self.indices.exists(index=str(collection_id)):
             return
 
         settings = {
