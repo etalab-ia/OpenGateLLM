@@ -78,8 +78,6 @@ class DocumentManager:
         collection_id = result.scalar_one()
         await session.commit()
 
-        await self.vector_store.create_collection(collection_id=collection_id, vector_size=self.vector_store_model._vector_size)
-
         return collection_id
 
     @check_dependencies(dependencies=["vector_store"])
@@ -199,6 +197,12 @@ class DocumentManager:
             raise CollectionNotFoundException()
 
         try:
+            # create index only when the first document is created to avoid increase shard with empty collections
+            await self.vector_store.create_collection(collection_id=collection_id, vector_size=self.vector_store_model._vector_size)
+        except Exception as e:
+            logger.exception(msg=f"Error during collection ({collection_id}) creation: {e}", exc_info=True)
+            raise VectorizationFailedException()
+        try:
             chunks = self._split(
                 document=document,
                 chunker=chunker,
@@ -236,6 +240,7 @@ class DocumentManager:
         except Exception as e:
             logger.exception(msg=f"Error during document creation: {e}")
             await self.delete_document(session=session, user_id=user_id, document_id=document_id)
+
             raise VectorizationFailedException(detail=f"Vectorization failed: {e}")
 
         return document_id

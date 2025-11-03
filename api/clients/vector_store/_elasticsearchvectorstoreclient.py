@@ -9,7 +9,8 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
     default_method = SearchMethod.HYBRID
 
     def __init__(self, *args, **kwargs):
-        kwargs.pop("type", None)  # remove type from kwargs to avoid passing it to the super class
+        self.number_of_shards = kwargs.pop("number_of_shards", 1)  # remove number_of_shards from kwargs to avoid passing it to the super class
+        self.number_of_replicas = kwargs.pop("number_of_replicas", 1)  # remove number_of_replicas from kwargs to avoid passing it to the super class
         AsyncElasticsearch.__init__(self, *args, **kwargs)
 
     async def check(self) -> bool:
@@ -23,7 +24,12 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
         await super(AsyncElasticsearch, self).transport.close()
 
     async def create_collection(self, collection_id: int, vector_size: int) -> None:
+        if not await self.indices.exists(index=str(collection_id)):
+            return
+
         settings = {
+            "number_of_shards": self.number_of_shards,
+            "number_of_replicas": self.number_of_replicas,
             "similarity": {"default": {"type": "BM25"}},
             "analysis": {
                 "filter": {
@@ -90,6 +96,9 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
         await self.indices.create(index=str(collection_id), mappings=mappings, settings=settings)
 
     async def delete_collection(self, collection_id: int) -> None:
+        if not await self.indices.exists(index=str(collection_id)):
+            return
+
         await self.indices.delete(index=str(collection_id))
 
     async def get_collections(self) -> list[int]:
