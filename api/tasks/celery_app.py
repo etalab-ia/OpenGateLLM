@@ -58,13 +58,13 @@ celery_app.conf.update(
 # Priority queues (RabbitMQ only). We lazily declare per-model queues elsewhere; here we set defaults.
 if configuration.settings.celery_broker_url and configuration.settings.celery_broker_url.startswith("amqp://"):
     # Use a default catch-all queue with priority enabled; model-specific queues reuse same arguments.
-    celery_app.conf.task_queues = (
+    celery_app.conf.task_queues = [
         Queue(
             f"{configuration.settings.celery_default_queue_prefix}.default",
             routing_key=f"{configuration.settings.celery_default_queue_prefix}.default",
             queue_arguments={"x-max-priority": configuration.settings.celery_task_max_priority},
         ),
-    )
+    ]
     celery_app.conf.task_default_queue = f"{configuration.settings.celery_default_queue_prefix}.default"
     celery_app.conf.task_default_exchange = ""
     celery_app.conf.task_default_routing_key = f"{configuration.settings.celery_default_queue_prefix}.default"

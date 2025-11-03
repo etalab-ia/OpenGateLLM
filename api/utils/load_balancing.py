@@ -1,7 +1,7 @@
 from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
 
-from api.helpers.models.load_balancing import LeastBusyLoadBalancingStrategy, ShuffleLoadBalancingStrategy
+from api.helpers.load_balancing import LeastBusyLoadBalancingStrategy, ShuffleLoadBalancingStrategy
 from api.schemas.admin.routers import RouterLoadBalancingStrategy as RouterLoadBalancingStrategyName
 from api.schemas.core.metrics import MetricType
 

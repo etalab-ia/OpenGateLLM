@@ -19,8 +19,8 @@ from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 from api.sql.models import User as UserTable
+from api.tasks import add_consumer, apply_load_balancing_with_queuing, delete_consumer
 from api.tasks.celery_app import celery_app
-from api.tasks.queuing import apply_load_balancing_with_queuing
 from api.utils.exceptions import (
     InconsistentModelMaxContextLengthException,
     InconsistentModelVectorSizeException,
@@ -121,6 +121,7 @@ class ModelRegistry:
                     user_id=None,
                     session=session,
                 )
+
                 logger.info(f"Router {model.name} are created (id: {router_id})")
             except RouterAlreadyExistsException:
                 logger.warning(f"Router {model.name} already exists, skipping.")
@@ -134,6 +135,9 @@ class ModelRegistry:
             self._aliases[router.id] = [router.name]
             if router.aliases is not None:
                 self._aliases[router.id] += router.aliases
+
+            if not self.task_always_eager:
+                add_consumer.apply_async(args=[f"{self.queue_name_prefix}.{router.id}"], queue=f"{self.queue_name_prefix}.default")
 
             for provider in model.providers:
                 try:
@@ -221,6 +225,8 @@ class ModelRegistry:
             )
             result = await session.execute(query)
             router_id = result.scalar_one()
+            if not self.task_always_eager:
+                add_consumer.apply_async(args=[f"{self.queue_name_prefix}.{router_id}"], queue=f"{self.queue_name_prefix}.default")
         except IntegrityError:
             await session.rollback()
             raise RouterAlreadyExistsException()
@@ -261,6 +267,9 @@ class ModelRegistry:
             result.scalar_one()
         except NoResultFound:
             raise RouterNotFoundException()
+        finally:
+            if not self.task_always_eager:
+                delete_consumer.apply_async(args=[f"{self.queue_name_prefix}.{router_id}"], queue=f"{self.queue_name_prefix}.default")
 
         # Delete will cascade to providers and aliases due to foreign key constraints
         await session.execute(delete(RouterTable).where(RouterTable.id == router_id))

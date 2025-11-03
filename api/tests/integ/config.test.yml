@@ -18,7 +18,7 @@ models:
   
   - name: albert-small
     type: text-generation
-    routing_strategy: round_robin
+    load_balancing_strategy: shuffle
     aliases: ["meta-llama/Llama-3.1-8B-Instruct"]
     cost_prompt_tokens: 1
     cost_completion_tokens: 3

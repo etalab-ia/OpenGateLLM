@@ -65,3 +65,13 @@ def apply_load_balancing_with_queuing(
         return {"status_code": 504, "body": {"detail": "Model invocation exceeded the soft time limit"}}
     except Exception as e:  # pragma: no cover - defensive
         return {"status_code": 500, "body": {"detail": type(e).__name__}}
+
+
+@celery_app.task(name="add.consumer")
+def add_consumer(queue_name: str):
+    celery_app.control.add_consumer(queue_name)
+
+
+@celery_app.task(name="delete.consumer")
+def delete_consumer(queue_name: str):
+    celery_app.control.cancel_consumer(queue_name)

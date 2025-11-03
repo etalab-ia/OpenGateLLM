@@ -43,6 +43,7 @@ class CreateProvider(BaseModel):
             self.model_carbon_footprint_active_params = self.model_carbon_footprint_total_params
         if self.model_carbon_footprint_active_params is not None and self.model_carbon_footprint_total_params is None:
             self.model_carbon_footprint_total_params = self.model_carbon_footprint_active_params
+        return self
 
 
 class CreateProviderResponse(BaseModel):
