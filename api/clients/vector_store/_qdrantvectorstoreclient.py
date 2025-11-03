@@ -28,6 +28,7 @@ class QdrantVectorStoreClient(BaseVectorStoreClient, AsyncQdrantClient):
     default_method = SearchMethod.SEMANTIC
 
     def __init__(self, *args, **kwargs):
+        kwargs.pop("type", None)  # remove type from kwargs to avoid passing it to the super class
         AsyncQdrantClient.__init__(self, *args, **kwargs)
 
     async def check(self) -> bool:

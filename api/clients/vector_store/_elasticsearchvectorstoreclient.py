@@ -9,6 +9,7 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
     default_method = SearchMethod.HYBRID
 
     def __init__(self, *args, **kwargs):
+        kwargs.pop("type", None)  # remove type from kwargs to avoid passing it to the super class
         self.number_of_shards = kwargs.pop("number_of_shards", 1)  # remove number_of_shards from kwargs to avoid passing it to the super class
         self.number_of_replicas = kwargs.pop("number_of_replicas", 1)  # remove number_of_replicas from kwargs to avoid passing it to the super class
         AsyncElasticsearch.__init__(self, *args, **kwargs)
