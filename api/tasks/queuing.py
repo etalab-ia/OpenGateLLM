@@ -47,15 +47,20 @@ def apply_load_balancing_with_queuing(
         qos_metric, qos_value = [(metric, value) for id, metric, value in candidates if id == provider_id][0]
         can_be_forwarded = apply_sync_qos_policy(provider_id=provider_id, qos_metric=qos_metric, qos_value=qos_value, redis_client=redis_client)
         if can_be_forwarded:
-            return {"status_code": 200, "provider_id": provider_id}
+            return {
+                "status_code": 200,
+                "provider_id": provider_id,
+                "requeue_count": self.request.retries,
+                "performance_indicator": performance_indicator,
+            }
         else:
             raise self.retry(countdown=task_retry_countdown, max_retries=task_max_retries)
 
     except Retry:
         raise
     except MaxRetriesExceededError:
-        return {"status_code": 503, "body": {"detail": "Max retries exceeded"}}
+        return {"status_code": 503, "requeue_count": self.request.retries, "body": {"detail": "Max retries exceeded"}}
     except SoftTimeLimitExceeded:
-        return {"status_code": 504, "body": {"detail": "Model invocation exceeded the soft time limit"}}
+        return {"status_code": 504, "requeue_count": self.request.retries, "body": {"detail": "Model invocation exceeded the soft time limit"}}
     except Exception as e:  # pragma: no cover - defensive
-        return {"status_code": 500, "body": {"detail": type(e).__name__}}
+        return {"status_code": 500, "requeue_count": self.request.retries, "body": {"detail": type(e).__name__}}

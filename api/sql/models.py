@@ -20,6 +20,8 @@ class Usage(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     datetime: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
+    get_client_duration = Mapped[int | None]
+    requeue_count = Mapped[int | None]
     duration: Mapped[int | None]
     time_to_first_token: Mapped[int | None]  # Time to first token in milliseconds for streaming chat requests
     user_id: Mapped[int | None] = mapped_column(ForeignKey(column="user.id", ondelete="SET NULL"))
@@ -28,6 +30,12 @@ class Usage(Base):
     method: Mapped[HTTPMethod | None]
     model: Mapped[str | None]
     request_model: Mapped[str | None]
+    strategy = Mapped[str]
+    policy = Mapped[str | None]
+    performance_score = Mapped[float | None]
+    current_parallel_requests = Mapped[int]
+    max_parallel_requests = Mapped[int | None]
+    priority = Mapped[int]
     prompt_tokens: Mapped[int | None]
     completion_tokens: Mapped[float | None]
     total_tokens: Mapped[int | None]
