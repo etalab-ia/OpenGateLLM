@@ -40,7 +40,7 @@ These metrics are used for monitoring and can be exposed via Prometheus when ena
 
 ### Prerequisites
 
-Redis Stack Server 7.2+ is required (includes the time-series module).
+Redis Stack Server 7.4+ is required (includes the time-series module).
 
 ### Configuration
 
@@ -52,10 +52,10 @@ Add a `redis` container in the `services` section of your `compose.yml` file:
 services:
   [...]
   redis:
-    image: redis/redis-stack-server:7.2.0-v11
+    image: redis/redis-stack-server:7.4.0-v7
     restart: always
     environment:
-      REDIS_ARGS: "--dir /data --requirepass ${REDIS_PASSWORD:-changeme} --user ${REDIS_USER:-redis} on >password ~* allcommands --save 60 1 --appendonly yes"
+      REDIS_ARGS: "--loadmodule /opt/redis-stack/lib/redistimeseries.so --dir /data --requirepass ${REDIS_PASSWORD:-changeme} --user ${REDIS_USER:-redis} on >password ~* allcommands --save 60 1 --appendonly yes"
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
@@ -65,6 +65,7 @@ services:
       interval: 4s
       timeout: 10s
       retries: 5
+      start_period: 60s
 
 volumes:
   redis:

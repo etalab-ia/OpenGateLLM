@@ -54,7 +54,7 @@ services:
       start_period: 60s
 
   redis:
-    image: redis/redis-stack-server:7.2.0-v11
+    image: redis/redis-stack-server:7.4.0-v7
     restart: always
     environment:
       REDIS_ARGS: "--dir /data --requirepass ${REDIS_PASSWORD:-changeme} --user ${REDIS_USER:-redis} on >password ~* allcommands --save 60 1 --appendonly yes"
@@ -67,6 +67,7 @@ services:
       interval: 4s
       timeout: 10s
       retries: 5
+      start_period: 60s
 
 volumes:
   postgres:
