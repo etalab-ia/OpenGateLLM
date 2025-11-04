@@ -172,7 +172,7 @@ class TestAuth:
         response = client.get(url=f"/v1{ENDPOINT__ME_INFO}", headers=headers)
         assert response.status_code == 200, response.text
 
-    def test_create_token_after_max_token_expiration_days(self, client: TestClient, roles: tuple[dict, dict]):
+    def test_create_token_after_key_max_expiration_days(self, client: TestClient, roles: tuple[dict, dict]):
         role_with_permissions, role_without_permissions = roles
 
         # Create a user with no expiration
@@ -194,7 +194,7 @@ class TestAuth:
             json={
                 "name": f"test_token_{str(uuid4())}",
                 "user": user_id,
-                "expires_at": int((time.time()) + (configuration.settings.auth_max_token_expiration_days + 10) * 86400 + 1),
+                "expires_at": int((time.time()) + (configuration.settings.auth_key_max_expiration_days + 10) * 86400 + 1),
             },
         )
         assert response.status_code == 400, response.text

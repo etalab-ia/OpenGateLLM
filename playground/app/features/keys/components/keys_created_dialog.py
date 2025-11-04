@@ -21,7 +21,7 @@ def keys_created_dialog() -> rx.Component:
             rx.dialog.title(
                 rx.hstack(
                     rx.icon("check_check", size=ICON_SIZE_XL, color=rx.color("green", 11)),
-                    "API Key Created Successfully!",
+                    "API Key created successfully!",
                     spacing=SPACING_SMALL,
                     align="center",
                 )
@@ -47,12 +47,6 @@ def keys_created_dialog() -> rx.Component:
                         size=SIZE_MEDIUM,
                     ),
                     spacing=SPACING_SMALL,
-                    width="100%",
-                ),
-                rx.callout(
-                    "⚠️ Make sure to copy this key now. For security reasons, it won't be shown again.",
-                    icon="shield-alert",
-                    color_scheme="orange",
                     width="100%",
                 ),
                 rx.dialog.close(

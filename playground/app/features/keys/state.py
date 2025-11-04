@@ -1,11 +1,12 @@
 """API Keys management state."""
 
-import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import httpx
 import reflex as rx
 
+from app.core.configuration import configuration
 from app.features.auth.state import AuthState
 from app.features.keys.models import ApiKey, FormattedApiKey, Limit
 
@@ -36,7 +37,13 @@ class KeysState(AuthState):
     @rx.var
     def min_expiry_date(self) -> str:
         """Get today's date as minimum for expiry date picker."""
-        return datetime.datetime.now().strftime("%Y-%m-%d")
+        return datetime.now().strftime("%Y-%m-%d")
+
+    @rx.var
+    def max_expiry_date(self) -> str | None:
+        """Get the maximum expiry date."""
+        if configuration.settings.auth_key_max_expiration_days is not None:
+            return (datetime.now() + timedelta(days=configuration.settings.auth_key_max_expiration_days)).strftime("%Y-%m-%d")
 
     @rx.var
     def formatted_limits(self) -> list[Limit]:
@@ -77,8 +84,8 @@ class KeysState(AuthState):
                     id=key.id,
                     name=key.name,
                     token=key.token,
-                    created_at=datetime.datetime.fromtimestamp(key.created_at).strftime("%Y-%m-%d %H:%M"),
-                    expires_at="Never" if key.expires_at is None else datetime.datetime.fromtimestamp(key.expires_at).strftime("%Y-%m-%d %H:%M"),
+                    created_at=datetime.fromtimestamp(key.created_at).strftime("%Y-%m-%d %H:%M"),
+                    expires_at="Never" if key.expires_at is None else datetime.fromtimestamp(key.expires_at).strftime("%Y-%m-%d %H:%M"),
                 )
             )
         return formatted_keys
@@ -151,7 +158,7 @@ class KeysState(AuthState):
 
                 if response.status_code == 201:
                     data = response.json()
-                    self.created_key = data.get("token", "")
+                    self.created_key = data.get("key", "")
                     self.is_created_dialog_open = True
                     yield rx.toast.success("API key created successfully", position="bottom-right")
                     # Yield to update UI and show the dialog

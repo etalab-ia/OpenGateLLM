@@ -64,6 +64,10 @@ class BaseConfig(BaseSettings):
     model_config = ConfigDict(extra="allow")
 
 
+class Settings(BaseConfig):
+    auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
+
+
 class Playground(BaseConfig):
     api_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
     app_title: str = Field(default="OpenGateLLM", description="The title of the application.")
@@ -77,7 +81,8 @@ class Playground(BaseConfig):
 
 
 class ConfigFile(BaseConfig):
-    playground: Playground = Field(default_factory=Playground, description="The playground configuration.")
+    playground: Playground = Field(default_factory=Playground, description="The playground configuration fields.")
+    settings: Settings = Field(default_factory=Settings, description="General settings configuration fields.")  # fmt: off
 
 
 class Configuration(BaseSettings):
@@ -95,14 +100,11 @@ class Configuration(BaseSettings):
         with open(file=values.config_file) as file:
             lines = file.readlines()
 
-        # remove commented lines
         uncommented_lines = [line for line in lines if not line.lstrip().startswith("#")]
-
-        # replace environment variables
         file_content = cls.replace_environment_variables(file_content="".join(uncommented_lines))
-        # load config
         config = ConfigFile(**yaml.safe_load(stream=file_content))
 
+        values.settings = config.settings
         values.playground = config.playground
 
         return values

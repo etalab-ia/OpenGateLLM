@@ -138,7 +138,7 @@ async def _convert_modelrouterschema_to_modelrouter(configuration: Configuration
 async def _setup_identity_access_manager(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
     global_context.identity_access_manager = IdentityAccessManager(
         master_key=configuration.settings.auth_master_key,
-        max_token_expiration_days=configuration.settings.auth_max_token_expiration_days,
+        key_max_expiration_days=configuration.settings.auth_key_max_expiration_days,
         playground_session_duration=configuration.settings.auth_playground_session_duration,
     )
 

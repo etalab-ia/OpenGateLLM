@@ -42,9 +42,9 @@ class IdentityAccessManager:
     TOKEN_PREFIX = "sk-"
     PLAYGROUND_KEY_NAME = "playground"
 
-    def __init__(self, master_key: str, max_token_expiration_days: int | None = None, playground_session_duration: int = 3600):
+    def __init__(self, master_key: str, key_max_expiration_days: int | None = None, playground_session_duration: int = 3600):
         self.master_key = master_key
-        self.max_token_expiration_days = max_token_expiration_days
+        self.key_max_expiration_days = key_max_expiration_days
         self.playground_session_duration = playground_session_duration
 
     def _hash_password(self, password: str) -> str:
@@ -499,11 +499,11 @@ class IdentityAccessManager:
         return organizations
 
     async def create_token(self, session: AsyncSession, user_id: int, name: str, expires_at: int | None = None) -> tuple[int, str]:
-        if self.max_token_expiration_days:
+        if self.key_max_expiration_days:
             if expires_at is None:
-                expires_at = int(dt.datetime.now(tz=dt.UTC).timestamp()) + self.max_token_expiration_days * 86400
-            elif expires_at > int(dt.datetime.now(tz=dt.UTC).timestamp()) + self.max_token_expiration_days * 86400:
-                raise InvalidTokenExpirationException(detail=f"Token expiration timestamp cannot be greater than {self.max_token_expiration_days} days from now.")  # fmt: off
+                expires_at = int(dt.datetime.now(tz=dt.UTC).timestamp()) + self.key_max_expiration_days * 86400
+            elif expires_at > int(dt.datetime.now(tz=dt.UTC).timestamp()) + self.key_max_expiration_days * 86400:
+                raise InvalidTokenExpirationException(detail=f"Token expiration timestamp cannot be greater than {self.key_max_expiration_days} days from now.")  # fmt: off
 
         result = await session.execute(statement=select(UserTable).where(UserTable.id == user_id))
         try:

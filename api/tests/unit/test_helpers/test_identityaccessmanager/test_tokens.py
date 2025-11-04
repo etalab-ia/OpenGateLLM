@@ -43,7 +43,7 @@ def _ts_now():
 
 @pytest.mark.asyncio
 async def test_create_token_success_and_masking(session: AsyncSession):
-    iam = IdentityAccessManager(master_key="secret", max_token_expiration_days=10)
+    iam = IdentityAccessManager(master_key="secret", key_max_expiration_days=10)
 
     # user exists
     session.execute = AsyncMock()
@@ -73,7 +73,7 @@ async def test_create_token_user_not_found(session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_create_token_invalid_expiration_window(session: AsyncSession):
-    iam = IdentityAccessManager(master_key="secret", max_token_expiration_days=1)
+    iam = IdentityAccessManager(master_key="secret", key_max_expiration_days=1)
     session.execute = AsyncMock(return_value=_Result(scalar_one=MagicMock(id=1)))
 
     too_far = _ts_now() + 3 * 86400

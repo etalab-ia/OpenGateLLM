@@ -26,13 +26,13 @@ The master key is a special API key defined in the `config.yml` file under the `
 settings:
   [...]
   auth_master_key: 'changeme'
-  auth_max_token_expiration_days: 365
+  auth_key_max_expiration_days: 365
   auth_playground_session_duration: 3600
 ```
 
 The following parameters are used for authentication:
 - `auth_master_key`: The master API key for administrative access
-- `auth_max_token_expiration_days`: Maximum number of days an API key can be valid
+- `auth_key_max_expiration_days`: Maximum number of days an API key can be valid
 - `auth_playground_session_duration`: Session duration in seconds for playground access
 
 For more information, see [Configuration](../../getting-started/configuration.md) documentation.

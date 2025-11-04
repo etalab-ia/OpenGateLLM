@@ -443,7 +443,7 @@ class Settings(ConfigBaseModel):
 
     # auth
     auth_master_key: constr(strip_whitespace=True, min_length=1) = Field(default="changeme", description="Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys.")  # fmt: off
-    auth_max_token_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
+    auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a new API key to be valid.")  # fmt: off
     auth_playground_session_duration: int = Field(default=3600, ge=1, description="Duration of the playground session in seconds.")  # fmt: off
 
     # rate_limiting
@@ -534,7 +534,7 @@ class ConfigFile(ConfigBaseModel):
 
     models: list[Model] = Field(min_length=1, description="Models used by the API. At least one model must be defined.")  # fmt: off
     dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the API.")  # fmt: off
-    settings: Settings = Field(default_factory=Settings, description="Settings used by the API.")  # fmt: off
+    settings: Settings = Field(default_factory=Settings, description="General settings configuration fields.")  # fmt: off
 
     @field_validator("settings", mode="before")
     def set_default_settings(cls, settings) -> Any:

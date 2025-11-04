@@ -2,7 +2,7 @@
 
 import reflex as rx
 
-from app.core.variables import SIZE_MEDIUM, SPACING_MEDIUM, SPACING_TINY, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE, TEXT_SIZE_SMALL
+from app.core.variables import SIZE_MEDIUM, SPACING_MEDIUM, SPACING_TINY, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
 from app.features.keys.state import KeysState
 
 
@@ -13,7 +13,7 @@ def keys_create_form() -> rx.Component:
             rx.heading("Create new API key", size=TEXT_SIZE_LARGE),
             rx.grid(
                 rx.vstack(
-                    rx.text("Key Name *", size=TEXT_SIZE_LABEL, weight="bold"),
+                    rx.text("Key name *", size=TEXT_SIZE_LABEL, weight="bold"),
                     rx.input(
                         placeholder="e.g., Production API Key",
                         value=KeysState.new_key_name,
@@ -24,18 +24,22 @@ def keys_create_form() -> rx.Component:
                     width="100%",
                 ),
                 rx.vstack(
-                    rx.text("Expires At (optional)", size=TEXT_SIZE_LABEL, weight="bold"),
+                    rx.hstack(
+                        rx.text("Expires at", size=TEXT_SIZE_LABEL, weight="bold"),
+                        rx.tooltip(
+                            rx.icon("info", size=14, color=rx.color("mauve", 10)),
+                            content=f"The API key will be valid until the specified date and time (maximum: {KeysState.max_expiry_date}).",
+                        ),
+                        spacing="1",
+                        align="center",
+                    ),
                     rx.input(
                         type="date",
                         value=KeysState.new_key_expires_at_date,
                         on_change=KeysState.set_new_key_expires_at_date,
                         min=KeysState.min_expiry_date,
+                        max=KeysState.max_expiry_date,
                         width="100%",
-                    ),
-                    rx.text(
-                        "Leave empty for no expiration",
-                        size=TEXT_SIZE_SMALL,
-                        color=rx.color("mauve", 9),
                     ),
                     spacing=SPACING_TINY,
                     width="100%",

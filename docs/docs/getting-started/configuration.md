@@ -47,7 +47,7 @@ Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateL
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. |  | changeme |  |  |
-| auth_max_token_expiration_days | integer | Maximum number of days for a token to be valid. |  | None |  |  |
+| auth_key_max_expiration_days | integer | Maximum number of days for a token to be valid. |  | None |  |  |
 | auth_playground_session_duration | integer | Duration of the playground session in seconds. |  | 3600 |  |  |
 | celery_broker_url | string | Celery broker URL (e.g. redis://localhost:6379/0 or amqp://user:pass@host:5672//). Required if celery_task_always_eager is false. |  | None |  |  |
 | celery_default_queue_prefix | string | Prefix used for per-model Celery queues (queue name = prefix + router_name). |  | model. |  |  |
