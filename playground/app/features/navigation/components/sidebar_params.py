@@ -139,7 +139,7 @@ def sidebar_params() -> rx.Component:
                 ),
                 # Max Tokens
                 param_section(
-                    "Max Completion Tokens",
+                    "Max completion tokens",
                     [
                         rx.hstack(
                             rx.slider(
@@ -163,7 +163,7 @@ def sidebar_params() -> rx.Component:
                 ),
                 # Frequency Penalty
                 param_section(
-                    "Freq. Penalty",
+                    "Frequence penalty",
                     [
                         rx.hstack(
                             rx.slider(
@@ -187,7 +187,7 @@ def sidebar_params() -> rx.Component:
                 ),
                 # Presence Penalty
                 param_section(
-                    "Pres. Penalty",
+                    "Presence penalty",
                     [
                         rx.hstack(
                             rx.slider(
@@ -226,7 +226,7 @@ def sidebar_params() -> rx.Component:
                 ),
                 # Stop sequences
                 param_section(
-                    "Stop Sequences",
+                    "Stop sequences",
                     [
                         rx.text_area(
                             placeholder="Stop sequences (one per line)",
@@ -251,7 +251,7 @@ def sidebar_params() -> rx.Component:
         width="320px",
         height="100vh",
         background_color=rx.color("mauve", 2),
-        border_left=f"1px solid {rx.color('mauve', 3)}",
+        border_left=f"1px solid {rx.color("mauve", 3)}",
         position="fixed",
         right="0",
         top="0",

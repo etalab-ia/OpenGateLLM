@@ -3,18 +3,13 @@
 import reflex as rx
 
 from app.core.variables import (
-    HEADING_SIZE_SECTION,
-    MAX_CARD_WIDTH,
     PADDING_PAGE,
-    SPACING_LARGE,
     SPACING_XL,
 )
 from app.features.usage.components import (
-    usage_chart,
+    usage_dashboard,
     usage_header,
-    usage_pagination,
-    usage_table,
-    usage_time_filters,
+    usage_limits_table,
 )
 
 
@@ -24,33 +19,8 @@ def usage_page() -> rx.Component:
         rx.scroll_area(
             rx.vstack(
                 usage_header(),
-                # Time filters (apply to both table and chart)
-                usage_time_filters(),
-                # Chart card
-                rx.card(
-                    rx.vstack(
-                        usage_chart(),
-                        width="100%",
-                    ),
-                    width="100%",
-                    max_width=MAX_CARD_WIDTH,
-                ),
-                # Table card
-                rx.card(
-                    rx.vstack(
-                        rx.heading("Usage details", size=HEADING_SIZE_SECTION),
-                        usage_table(),
-                        rx.hstack(
-                            usage_pagination(),
-                            width="100%",
-                            justify="end",
-                        ),
-                        spacing=SPACING_LARGE,
-                        width="100%",
-                    ),
-                    width="100%",
-                    max_width=MAX_CARD_WIDTH,
-                ),
+                usage_limits_table(),
+                usage_dashboard(),
                 spacing=SPACING_XL,
                 width="100%",
                 padding=PADDING_PAGE,

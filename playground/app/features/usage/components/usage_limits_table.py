@@ -11,11 +11,11 @@ from app.core.variables import (
     SPACING_TINY,
     TEXT_SIZE_LABEL,
 )
-from app.features.limits.components.limits_row import limits_row
-from app.features.limits.state import LimitsState
+from app.features.usage.components.usage_limits_row import usage_limits_row
+from app.features.usage.state import UsageState
 
 
-def limits_table() -> rx.Component:
+def usage_limits_table() -> rx.Component:
     """Table displaying rate limits."""
     return rx.card(
         rx.vstack(
@@ -26,7 +26,7 @@ def limits_table() -> rx.Component:
             ),
             rx.divider(),
             rx.cond(
-                LimitsState.formatted_limits.length() > 0,
+                UsageState.formatted_limits.length() > 0,
                 rx.table.root(
                     rx.table.header(
                         rx.table.row(
@@ -78,7 +78,7 @@ def limits_table() -> rx.Component:
                         ),
                     ),
                     rx.table.body(
-                        rx.foreach(LimitsState.models_list, limits_row),
+                        rx.foreach(UsageState.models_list, usage_limits_row),
                     ),
                     variant="surface",
                     width="100%",

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 import reflex as rx
 
 from app.features.auth.state import AuthState
+from app.features.keys.models import Limit
 
 
 class UsageItem(BaseModel):
@@ -58,15 +59,13 @@ class UsageState(AuthState):
         rows: list[dict[str, Any]] = []
         for u in self.usage:
             dt_str = dt.datetime.fromtimestamp(u.datetime).strftime("%Y-%m-%d %H:%M")
-            rows.append(
-                {
-                    "datetime": dt_str,
-                    "endpoint": u.endpoint,
-                    "model": u.model,
-                    "tokens": f"{u.prompt_tokens} → {u.completion_tokens}",
-                    "cost": f"{u.cost:.4f}",
-                }
-            )
+            rows.append({
+                "datetime": dt_str,
+                "endpoint": u.endpoint,
+                "model": u.model,
+                "tokens": f"{u.prompt_tokens} → {u.completion_tokens}",
+                "cost": f"{u.cost:.4f}",
+            })
         return rows
 
     @rx.var
@@ -79,12 +78,10 @@ class UsageState(AuthState):
         # sort by day
         result: list[dict[str, Any]] = []
         for k in sorted(buckets.keys()):
-            result.append(
-                {
-                    "day": k,
-                    "count": buckets[k],
-                }
-            )
+            result.append({
+                "day": k,
+                "count": buckets[k],
+            })
         return result
 
     @rx.event
@@ -179,3 +176,32 @@ class UsageState(AuthState):
             yield
             async for _ in self.load_usage():
                 yield
+
+    @rx.var
+    def formatted_limits(self) -> list[Limit]:
+        """Get formatted limits from user data."""
+        limits = []
+        for limit_dict in self.user_limits:
+            limits.append(
+                Limit(
+                    model=limit_dict.get("model", ""),
+                    type=limit_dict.get("type", ""),
+                    value=limit_dict.get("value"),
+                )
+            )
+        return limits
+
+    @rx.var
+    def limits_by_model(self) -> dict[str, dict[str, int | None]]:
+        """Group limits by model for table display."""
+        result = {}
+        for limit in self.formatted_limits:
+            if limit.model not in result:
+                result[limit.model] = {"rpm": None, "rpd": None, "tpm": None, "tpd": None}
+            result[limit.model][limit.type.lower()] = limit.value
+        return result
+
+    @rx.var
+    def models_list(self) -> list[str]:
+        """Get list of models from limits."""
+        return list(self.limits_by_model.keys())

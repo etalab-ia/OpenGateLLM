@@ -6,7 +6,6 @@ from app.features.auth.state import AuthState
 from app.features.chat.page import chat_page_content
 from app.features.keys.page import keys_page
 from app.features.keys.state import KeysState
-from app.features.limits.page import limits_page
 from app.features.organizations.page import organizations_page
 from app.features.organizations.state import OrganizationsState
 from app.features.roles.page import roles_page
@@ -48,25 +47,6 @@ def keys() -> rx.Component:
         rx.cond(
             ~AuthState.is_master,
             keys_page(),
-            rx.center(
-                rx.vstack(
-                    rx.icon("shield-alert", size=64, color=rx.color("red", 9)),
-                    rx.heading("Access Denied", size="8"),
-                    rx.text("Master user cannot access this page.", size="4"),
-                    spacing="4",
-                ),
-                height="100vh",
-            ),
-        )
-    )
-
-
-def limits() -> rx.Component:
-    """Rate limits page."""
-    return authenticated_page(
-        rx.cond(
-            ~AuthState.is_master,
-            limits_page(),
             rx.center(
                 rx.vstack(
                     rx.icon("shield-alert", size=64, color=rx.color("red", 9)),
@@ -176,7 +156,6 @@ app = rx.App(
 app.add_page(index, route="/")
 app.add_page(account, route="/account")
 app.add_page(keys, route="/keys", on_load=KeysState.load_keys)
-app.add_page(limits, route="/limits")
 app.add_page(usage, route="/usage", on_load=UsageState.load_usage)
 app.add_page(roles, route="/roles", on_load=RolesState.load_roles)
 app.add_page(users, route="/users", on_load=[UsersState.load_users, UsersState.load_roles, UsersState.load_organizations])

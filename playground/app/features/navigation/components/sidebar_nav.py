@@ -60,7 +60,6 @@ def sidebar_nav() -> rx.Component:
                         nav_item("Account", "user", "/account"),
                         nav_item("API Keys", "key", "/keys"),
                         nav_item("Usage", "bar-chart-3", "/usage"),
-                        nav_item("Rate Limits", "gauge", "/limits"),
                         width="100%",
                     ),
                 ),

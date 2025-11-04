@@ -6,7 +6,6 @@ from app.features.usage.state import UsageState
 def usage_chart() -> rx.Component:
     """Area chart showing requests per day."""
     return rx.vstack(
-        rx.heading("Requests per day", size="5"),
         rx.recharts.area_chart(
             rx.recharts.area(
                 data_key="count",

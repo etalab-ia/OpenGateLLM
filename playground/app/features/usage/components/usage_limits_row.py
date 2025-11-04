@@ -2,12 +2,12 @@
 
 import reflex as rx
 
-from app.features.limits.state import LimitsState
+from app.features.usage.state import UsageState
 
 
-def limits_row(model: str) -> rx.Component:
+def usage_limits_row(model: str) -> rx.Component:
     """Display a row with all limits for a model."""
-    limits = LimitsState.limits_by_model[model]
+    limits = UsageState.limits_by_model[model]
 
     def limit_cell(limit_type: str) -> rx.Component:
         """Create a cell for a limit value."""
