@@ -54,7 +54,7 @@ Ne donne pas d'explications, ne mets pas de guillemets, réponds uniquement avec
         redis_client: AsyncRedis,
         user_info: UserInfo,
     ) -> str:
-        model_provider = await model_registry.get_model_provider(
+        model_provider, _ = await model_registry.get_model_provider(
             model=self.query_model,
             endpoint=ENDPOINT__CHAT_COMPLETIONS,
             user_info=user_info,

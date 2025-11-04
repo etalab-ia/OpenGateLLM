@@ -64,7 +64,7 @@ async def ocr(
         }
 
         try:
-            model_provider = await model_registry.get_model_provider(
+            model_provider, _ = await model_registry.get_model_provider(
                 model=model,
                 endpoint=ENDPOINT__OCR,
                 user_info=request_context.get().user_info,

@@ -14,6 +14,7 @@ from api.schemas.core.configuration import Model as ModelConfiguration
 from api.schemas.core.metrics import MetricType
 from api.schemas.me import UserInfo
 from api.schemas.models import Model, ModelCosts, ModelType
+from api.schemas.usage import TaskMetrics
 from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
@@ -714,7 +715,9 @@ class ModelRegistry:
                 searched_router_id = router_id
         return searched_router_id
 
-    async def get_model_provider(self, model: str, endpoint: str, user_info: UserInfo, session: AsyncSession, redis_client: AsyncRedis) -> int:
+    async def get_model_provider(
+        self, model: str, endpoint: str, user_info: UserInfo, session: AsyncSession, redis_client: AsyncRedis
+    ) -> tuple[ModelProvider, TaskMetrics]:
         """
         Get a model provider for a given model, endpoint, user priority, session and redis client.
 
@@ -739,6 +742,8 @@ class ModelRegistry:
         if (router.cost_prompt_tokens != 0 or router.cost_completion_tokens != 0) and user_info.budget == 0:
             raise InsufficientBudgetException()
 
+        priority = max(0, min(int(user_info.priority), self.task_max_priority - 1))  # 0-(n-1) usable priorities (n levels)
+        strategy = router._routing_strategy
         providers = await self.get_providers(router_id=router.id, provider_id=None, session=session)
 
         # Eager path
@@ -762,8 +767,11 @@ class ModelRegistry:
 
             provider.cost_prompt_tokens = router.cost_prompt_tokens
             provider.cost_completion_tokens = router.cost_completion_tokens
-
-            return provider
+            task_metrics = TaskMetrics(
+                strategy=strategy,
+                priority=priority,
+            )
+            return provider, task_metrics
 
         # Celery path
         candidates = []
@@ -771,7 +779,6 @@ class ModelRegistry:
             qos_metric = provider.qos_metric.value if provider.qos_metric is not None else None
             candidates.append((provider.id, qos_metric, provider.qos_value))
 
-        priority = max(0, min(int(user_info.priority), self.task_max_priority - 1))  # 0-(n-1) usable priorities (n levels)
         task = apply_load_balancing_with_queuing.apply_async(
             args=[
                 candidates,  # candidates
@@ -794,6 +801,9 @@ class ModelRegistry:
                 raise TimeoutError(f"Task {task.id} timed out after {self.task_soft_time_limit} seconds")
             await asyncio.sleep(0.1)  # TODO: variabiliser
 
+        duration = loop.time() - start_time
+        duration = round(1000 * duration)  # float seconds to int milliseconds
+
         try:
             result = async_result.result  # direct access is safe after ready() returns True
             if result["status_code"] != 200:
@@ -802,7 +812,16 @@ class ModelRegistry:
             provider.cost_prompt_tokens = router.cost_prompt_tokens
             provider.cost_completion_tokens = router.cost_completion_tokens
 
-            return provider
+            task_metrics = TaskMetrics(
+                strategy=strategy,
+                policy=provider.qos_policy,
+                priority=priority,
+                requeue_count=result.get("requeue_count", 0),
+                get_client_duration=duration,
+                performance_score=result.get("performance_indicator", None),
+            )
+
+            return provider, task_metrics
 
         except Exception as e:
             logger.warning(f"Error retrieving result for task {task.id}: {e}")

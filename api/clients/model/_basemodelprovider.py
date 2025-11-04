@@ -89,13 +89,16 @@ class BaseModelProvider(ABC):
 
         return getattr(module, f"{type.capitalize()}ModelProvider")
 
-    def _get_usage(self, json: dict, data: dict | list[dict], stream: bool, endpoint: str, request_latency: float = 0.0) -> Usage | None:
+    def _get_usage(
+        self, json: dict, data: dict | list[dict], additional_data: dict[str, Any], stream: bool, endpoint: str, request_latency: float = 0.0
+    ) -> Usage | None:
         """
         Get usage data from request and response.
 
         Args:
             json(dict): The JSON body of the request.
             data(dict): The data of the response.
+            additional_data(dict): Additional data notably containing task metrics
             stream(bool): Whether the response is a stream.
 
         Returns:
@@ -162,16 +165,31 @@ class BaseModelProvider(ABC):
                         usage.carbon.kWh.max = 0.0
                     usage.carbon.kWh.max += detail.usage.carbon.kWh.max
 
+                usage.observability.client_url = self.url
+                usage.observability.max_parallel_requests = self.max_parallel_requests
+                usage.observability.current_parallel_requests = self.get_current_parallel_requests()
+
+                task_metrics = additional_data.get("task_metrics", {})
+                usage.observability.task_metrics.strategy = task_metrics.get("strategy", "")
+                usage.observability.task_metrics.priority = task_metrics.get("priority", 0)
+                usage.observability.task_metrics.requeue_count = task_metrics.get("requeue_count", 0)
+                usage.observability.task_metrics.get_client_duration = task_metrics.get("get_client_duration", 0)
+                usage.observability.task_metrics.performance_score = task_metrics.get("performance_score", None)
+
             except Exception as e:
                 logger.exception(msg=f"Failed to compute usage values for endpoint {endpoint}: {e}.")
 
         return usage
 
-    def _get_additional_data(self, json: dict, data: dict | list[dict], stream: bool, endpoint: str, request_latency: float = 0.0) -> dict:
+    def _get_additional_data(
+        self, json: dict, data: dict | list[dict], additional_data: dict[str, Any], stream: bool, endpoint: str, request_latency: float = 0.0
+    ) -> dict:
         """
         Get additional data from request and response.
         """
-        usage = self._get_usage(json=json, data=data, stream=stream, endpoint=endpoint, request_latency=request_latency)
+        usage = self._get_usage(
+            json=json, data=data, additional_data=additional_data, stream=stream, endpoint=endpoint, request_latency=request_latency
+        )
         request_id = usage.details[-1].id if usage and usage.details else generate_request_id()
         additional_data = {"model": self.name, "id": request_id}
 
@@ -233,7 +251,12 @@ class BaseModelProvider(ABC):
         content_type = response.headers.get("Content-Type", "")
         if content_type == "application/json":
             data = response.json()
-            data.update(self._get_additional_data(json=json, data=data, stream=False, endpoint=endpoint, request_latency=request_latency))
+            data.update(
+                self._get_additional_data(
+                    json=json, data=data, additional_data=additional_data, stream=False, endpoint=endpoint, request_latency=request_latency
+                )
+            )
+            additional_data.pop("task_metrics")
             data.update(additional_data)
             response = httpx.Response(status_code=response.status_code, content=dumps(data))
 
@@ -412,7 +435,12 @@ class BaseModelProvider(ABC):
         # normal case
         extra_chunk = content  # based on last chunk to conserve the chunk structure
         extra_chunk.update({"choices": []})
-        extra_chunk.update(self._get_additional_data(json=json, data=chunks, stream=True, endpoint=endpoint, request_latency=request_latency))
+        extra_chunk.update(
+            self._get_additional_data(
+                json=json, data=chunks, additional_data=additional_data, stream=True, endpoint=endpoint, request_latency=request_latency
+            )
+        )
+        extra_chunk.pop("task_metrics")
         extra_chunk.update(additional_data)
 
         return extra_chunk

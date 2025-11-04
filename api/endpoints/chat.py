@@ -91,13 +91,15 @@ async def chat_completions(
     )
     additional_data = {"search_results": results} if results else {}
 
-    model_provider = await model_registry.get_model_provider(
+    model_provider, task_metrics = await model_registry.get_model_provider(
         model=body["model"],
         endpoint=ENDPOINT__CHAT_COMPLETIONS,
         user_info=request_context.get().user_info,
         session=session,
         redis_client=redis_client,
     )
+
+    additional_data["task_metrics"] = task_metrics.model_dump()
 
     if not body.get("stream", False):
         response = await model_provider.forward_request(

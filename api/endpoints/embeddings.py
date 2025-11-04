@@ -26,7 +26,7 @@ async def embeddings(
     Creates an embedding vector representing the input text.
     """
 
-    model_provider = await model_registry.get_model_provider(
+    model_provider, _ = await model_registry.get_model_provider(
         model=body.model,
         endpoint=ENDPOINT__EMBEDDINGS,
         user_info=request_context.get().user_info,

@@ -409,7 +409,7 @@ class DocumentManager:
         if not collection_ids:
             return []  # to avoid a request to create a query vector
 
-        provider = await model_registry.get_model_provider(
+        provider, _ = await model_registry.get_model_provider(
             model=self.vector_store_model,
             endpoint=ENDPOINT__EMBEDDINGS,
             session=session,
@@ -536,7 +536,7 @@ class DocumentManager:
         model_registry: ModelRegistry,
         user_info: UserInfo,
     ) -> None:
-        provider = await model_registry.get_model_provider(
+        provider, _ = await model_registry.get_model_provider(
             model=self.vector_store_model,
             endpoint=ENDPOINT__EMBEDDINGS,
             session=session,

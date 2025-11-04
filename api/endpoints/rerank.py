@@ -25,7 +25,7 @@ async def rerank(
     """
     Creates an ordered array with each text assigned a relevance score, based on the query.
     """
-    model_provider = await model_registry.get_model_provider(
+    model_provider, _ = await model_registry.get_model_provider(
         model=body.model,
         endpoint=ENDPOINT__RERANK,
         user_info=request_context.get().user_info,
