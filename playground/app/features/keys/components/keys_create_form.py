@@ -47,11 +47,7 @@ def keys_create_form() -> rx.Component:
             rx.hstack(
                 rx.spacer(),
                 rx.button(
-                    rx.cond(
-                        KeysState.create_key_loading,
-                        rx.spinner(size=SIZE_MEDIUM),
-                        "Create",
-                    ),
+                    rx.cond(KeysState.create_key_loading, rx.spinner(size=SIZE_MEDIUM), "Create"),
                     on_click=KeysState.create_key,
                     disabled=KeysState.create_key_loading,
                 ),

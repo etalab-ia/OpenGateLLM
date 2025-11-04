@@ -6,11 +6,7 @@ from app.core.variables import (
     PADDING_PAGE,
     SPACING_XL,
 )
-from app.features.account.components import (
-    account_header,
-    account_info_card,
-    account_security_card,
-)
+from app.features.account.components import account_header, account_info_card, account_password_card
 
 
 def account_page() -> rx.Component:
@@ -20,7 +16,7 @@ def account_page() -> rx.Component:
             rx.vstack(
                 account_header(),
                 account_info_card(),
-                account_security_card(),
+                account_password_card(),
                 spacing=SPACING_XL,
                 width="100%",
                 padding=PADDING_PAGE,

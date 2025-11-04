@@ -4,10 +4,8 @@ import reflex as rx
 
 from app.core.variables import (
     HEADING_SIZE_SECTION,
-    ICON_SIZE_MEDIUM,
     MARGIN_SMALL,
     MAX_CARD_WIDTH,
-    SPACING_LARGE,
     SPACING_MEDIUM,
     SPACING_TINY,
     TEXT_SIZE_LABEL,
@@ -58,15 +56,16 @@ def account_info_card() -> rx.Component:
                     spacing=SPACING_TINY,
                     width="100%",
                 ),
-                rx.button(
-                    rx.icon("save", size=ICON_SIZE_MEDIUM),
-                    "Save",
-                    on_click=AccountState.update_name,
-                    loading=AccountState.update_name_loading,
-                    disabled=AccountState.update_name_loading,
+                rx.hstack(
+                    rx.spacer(),
+                    rx.button(
+                        "Save",
+                        on_click=AccountState.update_name,
+                        loading=AccountState.update_name_loading,
+                        disabled=AccountState.update_name_loading,
+                    ),
                     width="100%",
                 ),
-                spacing=SPACING_LARGE,
                 width="100%",
             ),
             spacing=SPACING_MEDIUM,
