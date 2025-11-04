@@ -44,24 +44,66 @@ def account() -> rx.Component:
 
 def keys() -> rx.Component:
     """API Keys management page."""
-    return authenticated_page(keys_page())
+    return authenticated_page(
+        rx.cond(
+            ~AuthState.is_master,
+            keys_page(),
+            rx.center(
+                rx.vstack(
+                    rx.icon("shield-alert", size=64, color=rx.color("red", 9)),
+                    rx.heading("Access Denied", size="8"),
+                    rx.text("Master user cannot access this page.", size="4"),
+                    spacing="4",
+                ),
+                height="100vh",
+            ),
+        )
+    )
 
 
 def limits() -> rx.Component:
     """Rate limits page."""
-    return authenticated_page(limits_page())
+    return authenticated_page(
+        rx.cond(
+            ~AuthState.is_master,
+            limits_page(),
+            rx.center(
+                rx.vstack(
+                    rx.icon("shield-alert", size=64, color=rx.color("red", 9)),
+                    rx.heading("Access Denied", size="8"),
+                    rx.text("Master user cannot access this page.", size="4"),
+                    spacing="4",
+                ),
+                height="100vh",
+            ),
+        )
+    )
 
 
 def usage() -> rx.Component:
     """Usage page."""
-    return authenticated_page(usage_page())
+    return authenticated_page(
+        rx.cond(
+            ~AuthState.is_master,
+            usage_page(),
+            rx.center(
+                rx.vstack(
+                    rx.icon("shield-alert", size=64, color=rx.color("red", 9)),
+                    rx.heading("Access Denied", size="8"),
+                    rx.text("Master user cannot access this page.", size="4"),
+                    spacing="4",
+                ),
+                height="100vh",
+            ),
+        )
+    )
 
 
 def roles() -> rx.Component:
     """Roles management page (admin only)."""
     return authenticated_page(
         rx.cond(
-            RolesState.is_admin,
+            AuthState.is_admin,
             roles_page(),
             rx.center(
                 rx.vstack(
@@ -80,7 +122,7 @@ def users() -> rx.Component:
     """Users management page (admin only)."""
     return authenticated_page(
         rx.cond(
-            UsersState.is_admin,
+            AuthState.is_admin,
             users_page(),
             rx.center(
                 rx.vstack(
@@ -99,7 +141,7 @@ def organizations() -> rx.Component:
     """Organizations management page (admin only)."""
     return authenticated_page(
         rx.cond(
-            OrganizationsState.is_admin,
+            AuthState.is_admin,
             organizations_page(),
             rx.center(
                 rx.vstack(

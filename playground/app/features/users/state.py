@@ -57,11 +57,6 @@ class UsersState(ChatState):
     available_organizations: list[dict] = []
 
     @rx.var
-    def is_admin(self) -> bool:
-        """Check if user has admin permission."""
-        return "admin" in self.user_permissions
-
-    @rx.var
     def users_with_formatted_dates(self) -> list[FormattedUser]:
         """Get users with formatted dates."""
         formatted = []

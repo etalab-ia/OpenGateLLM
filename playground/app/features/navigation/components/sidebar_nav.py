@@ -61,14 +61,14 @@ def sidebar_nav() -> rx.Component:
                         nav_item("API Keys", "key", "/keys"),
                         nav_item("Usage", "bar-chart-3", "/usage"),
                         nav_item("Rate Limits", "gauge", "/limits"),
-                        nav_item("Chat", "message-square", "/"),
                         width="100%",
                     ),
                 ),
+                nav_item("Chat", "message-square", "/"),
                 rx.cond(
                     AuthState.is_admin,
                     rx.box(
-                        rx.divider(margin_y="0.5em"),
+                        rx.divider(),
                         nav_item("Roles", "shield", "/roles"),
                         nav_item("Users", "users", "/users"),
                         nav_item("Organizations", "building", "/organizations"),

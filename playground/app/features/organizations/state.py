@@ -35,11 +35,6 @@ class OrganizationsState(ChatState):
     edit_organization_loading: bool = False
 
     @rx.var
-    def is_admin(self) -> bool:
-        """Check if user has admin permission."""
-        return "admin" in self.user_permissions
-
-    @rx.var
     def organizations_with_formatted_dates(self) -> list[FormattedOrganization]:
         """Get organizations with formatted dates."""
         formatted = []
