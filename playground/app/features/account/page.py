@@ -6,7 +6,6 @@ from app.core.variables import (
     PADDING_PAGE,
     SPACING_XL,
 )
-
 from app.features.account.components import (
     account_header,
     account_info_card,

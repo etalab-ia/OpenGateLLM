@@ -297,4 +297,3 @@ def organizations_list() -> rx.Component:
         width="100%",
         max_width=MAX_CARD_WIDTH,
     )
-

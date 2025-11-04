@@ -7,7 +7,6 @@ from app.core.variables import (
     ICON_SIZE_MEDIUM,
     MARGIN_MEDIUM,
 )
-
 from app.features.usage.state import UsageState
 
 

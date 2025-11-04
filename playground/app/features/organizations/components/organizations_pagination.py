@@ -28,4 +28,3 @@ def organizations_pagination() -> rx.Component:
         spacing=SPACING_SMALL,
         align="center",
     )
-

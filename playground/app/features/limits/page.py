@@ -6,7 +6,6 @@ from app.core.variables import (
     PADDING_PAGE,
     SPACING_XL,
 )
-
 from app.features.limits.components import limits_header, limits_table
 
 

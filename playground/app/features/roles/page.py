@@ -1,5 +1,3 @@
-"""Roles management page composition."""
-
 import reflex as rx
 
 from app.core.variables import PADDING_PAGE, SPACING_XL

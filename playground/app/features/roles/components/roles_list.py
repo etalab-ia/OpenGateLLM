@@ -1,9 +1,6 @@
-"""Roles list component with sorting and pagination."""
-
 import reflex as rx
 
 from app.core.variables import (
-    HEADING_SIZE_FORM,
     HEADING_SIZE_SECTION,
     ICON_SIZE_EMPTY_STATE,
     ICON_SIZE_MEDIUM,

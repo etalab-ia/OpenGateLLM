@@ -1,5 +1,3 @@
-"""Usage chart component."""
-
 import reflex as rx
 
 from app.features.usage.state import UsageState

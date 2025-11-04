@@ -18,4 +18,3 @@ def organizations_page() -> rx.Component:
         padding=PADDING_PAGE,
         width="100%",
     )
-

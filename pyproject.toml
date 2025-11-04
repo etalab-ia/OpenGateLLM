@@ -104,7 +104,7 @@ ignore = [
 
 [tool.ruff.lint.isort]
 force-sort-within-sections = true
-known-first-party = ["config", "utils", "api"]
+known-first-party = ["config", "utils", "api", "app"]
 forced-separate = ["tests"]
 
 [tool.ruff.lint.isort.sections]

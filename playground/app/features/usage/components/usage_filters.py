@@ -1,5 +1,3 @@
-"""Usage table pagination filters component."""
-
 import reflex as rx
 
 from app.features.usage.state import UsageState

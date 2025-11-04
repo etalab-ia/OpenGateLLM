@@ -513,11 +513,13 @@ class RolesState(ChatState):
 
             # Add new limit
             new_limits = [{"model": lim.model, "type": lim.type, "value": lim.value} for lim in role.limits]
-            new_limits.append({
-                "model": self.new_limit_model.strip(),
-                "type": self.new_limit_type,
-                "value": int(self.new_limit_value) if self.new_limit_value.strip() else None,
-            })
+            new_limits.append(
+                {
+                    "model": self.new_limit_model.strip(),
+                    "type": self.new_limit_type,
+                    "value": int(self.new_limit_value) if self.new_limit_value.strip() else None,
+                }
+            )
 
             payload = {"limits": new_limits}
 

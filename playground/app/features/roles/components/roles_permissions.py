@@ -8,7 +8,6 @@ from app.core.variables import (
     ICON_SIZE_MEDIUM,
     MAX_CARD_WIDTH,
     PADDING_PAGE,
-    SELECT_MEDIUM_WIDTH,
     SIZE_MEDIUM,
     SPACING_MEDIUM,
     SPACING_SMALL,

@@ -1,5 +1,3 @@
-"""Roles pagination component."""
-
 import reflex as rx
 
 from app.core.variables import SPACING_MEDIUM

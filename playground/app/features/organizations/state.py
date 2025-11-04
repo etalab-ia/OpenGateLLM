@@ -301,4 +301,3 @@ class OrganizationsState(ChatState):
         finally:
             self.edit_organization_loading = False
             yield
-

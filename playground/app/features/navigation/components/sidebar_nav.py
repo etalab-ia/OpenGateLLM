@@ -54,13 +54,19 @@ def sidebar_nav() -> rx.Component:
             ),
             # Navigation items
             rx.vstack(
-                nav_item("Account", "user", "/account"),
-                nav_item("API Keys", "key", "/keys"),
-                nav_item("Usage", "bar-chart-3", "/usage"),
-                nav_item("Rate Limits", "gauge", "/limits"),
-                nav_item("Chat", "message-square", "/"),
                 rx.cond(
-                    AuthState.user_permissions.contains("admin"),
+                    ~AuthState.is_master,
+                    rx.box(
+                        nav_item("Account", "user", "/account"),
+                        nav_item("API Keys", "key", "/keys"),
+                        nav_item("Usage", "bar-chart-3", "/usage"),
+                        nav_item("Rate Limits", "gauge", "/limits"),
+                        nav_item("Chat", "message-square", "/"),
+                        width="100%",
+                    ),
+                ),
+                rx.cond(
+                    AuthState.is_admin,
                     rx.box(
                         rx.divider(margin_y="0.5em"),
                         nav_item("Roles", "shield", "/roles"),

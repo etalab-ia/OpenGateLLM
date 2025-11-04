@@ -107,6 +107,16 @@ class AuthState(rx.State):
             self.is_loading = False
             yield
 
+    @rx.var
+    def is_admin(self) -> bool:
+        """Check if user has admin permission."""
+        return "admin" in self.user_permissions
+
+    @rx.var
+    def is_master(self) -> bool:
+        """Check if user is master."""
+        return self.user_id == 0
+
     @rx.event
     def logout(self):
         """Handle logout."""
