@@ -62,7 +62,7 @@ class RolesState(ChatState):
                 FormattedRole(
                     id=role.id,
                     name=role.name,
-                    permissions=role.permissions,
+                    permissions=[permission.replace("_", " ").capitalize() for permission in role.permissions],
                     limits=role.limits,
                     users=role.users,
                     created_at=datetime.datetime.fromtimestamp(role.created_at).strftime("%Y-%m-%d %H:%M"),
@@ -447,7 +447,7 @@ class RolesState(ChatState):
                 if r.id == role_id:
                     role = r
                     break
-            
+
             if role is None:
                 yield rx.toast.error("Role not found", position="bottom-right")
                 self.add_limit_loading = False
@@ -456,9 +456,7 @@ class RolesState(ChatState):
 
             # Remove existing limits for this model, then add new ones
             new_limits = [
-                {"model": lim.model, "type": lim.type, "value": lim.value}
-                for lim in role.limits
-                if lim.model != self.new_limit_model.strip()
+                {"model": lim.model, "type": lim.type, "value": lim.value} for lim in role.limits if lim.model != self.new_limit_model.strip()
             ]
             new_limits.extend(limits_to_add)
 
@@ -512,7 +510,7 @@ class RolesState(ChatState):
                 if r.id == role_id:
                     role = r
                     break
-            
+
             if role is None:
                 yield rx.toast.error("Role not found", position="bottom-right")
                 self.delete_limit_loading = False
@@ -520,11 +518,7 @@ class RolesState(ChatState):
                 return
 
             # Remove all limits for this model
-            new_limits = [
-                {"model": lim.model, "type": lim.type, "value": lim.value}
-                for lim in role.limits
-                if lim.model != model
-            ]
+            new_limits = [{"model": lim.model, "type": lim.type, "value": lim.value} for lim in role.limits if lim.model != model]
 
             payload = {"limits": new_limits}
 
