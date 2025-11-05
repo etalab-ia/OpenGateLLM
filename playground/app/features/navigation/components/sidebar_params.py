@@ -2,6 +2,7 @@
 
 import reflex as rx
 
+from app.core.variables import ICON_SIZE_TINY
 from app.features.chat.state import ChatState
 
 
@@ -25,7 +26,7 @@ def param_section(title: str, children: list, description: str | None = None) ->
                 color=rx.color("mauve", 12),
             ),
             rx.tooltip(
-                rx.icon("info", size=14, color=rx.color("mauve", 10)),
+                rx.icon("info", size=ICON_SIZE_TINY, color=rx.color("mauve", 10)),
                 content=description,
             ),
             spacing="1",

@@ -2,6 +2,7 @@
 
 import reflex as rx
 
+from app.core.variables import ICON_SIZE_TINY
 from app.features.chat.state import ChatState
 
 
@@ -95,7 +96,7 @@ def navbar():
         rx.badge(
             ChatState.current_chat,
             rx.tooltip(
-                rx.icon("info", size=14),
+                rx.icon("info", size=ICON_SIZE_TINY),
                 content="The current selected chat.",
             ),
             size="3",
@@ -114,6 +115,6 @@ def navbar():
         justify_content="space-between",
         align_items="center",
         padding="12px",
-        border_bottom=f"1px solid {rx.color('mauve', 3)}",
+        border_bottom=f"1px solid {rx.color("mauve", 3)}",
         background_color=rx.color("mauve", 2),
     )

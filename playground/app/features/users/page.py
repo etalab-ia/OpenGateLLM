@@ -1,7 +1,7 @@
 import reflex as rx
 
 from app.core.variables import PADDING_PAGE, SPACING_XL
-from app.features.users.components import users_header, users_list
+from app.features.users.components import user_create_form, users_header, users_list
 
 
 def users_page() -> rx.Component:
@@ -10,7 +10,7 @@ def users_page() -> rx.Component:
         rx.scroll_area(
             rx.vstack(
                 users_header(),
-                # Main users list with create/edit/delete functionality
+                user_create_form(),
                 users_list(),
                 spacing=SPACING_XL,
                 width="100%",

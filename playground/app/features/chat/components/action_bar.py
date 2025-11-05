@@ -12,12 +12,6 @@ def action_bar() -> rx.Component:
             rx.form(
                 rx.hstack(
                     rx.input(
-                        rx.input.slot(
-                            rx.tooltip(
-                                rx.icon("info", size=18),
-                                content="Enter a question to get a response.",
-                            )
-                        ),
                         placeholder="Type your message...",
                         id="question",
                         flex="1",
@@ -41,7 +35,7 @@ def action_bar() -> rx.Component:
                 width="100%",
             ),
             rx.text(
-                "I can make mistakes, please always verify my sources and answers.",
+                "Models can make mistakes, please always verify sources and answers.",
                 text_align="center",
                 font_size=".75em",
                 color=rx.color("mauve", 10),
@@ -57,7 +51,7 @@ def action_bar() -> rx.Component:
         padding_y="16px",
         backdrop_filter="auto",
         backdrop_blur="lg",
-        border_top=f"1px solid {rx.color('mauve', 3)}",
+        border_top=f"1px solid {rx.color("mauve", 3)}",
         background_color=rx.color("mauve", 2),
         width="100%",
     )

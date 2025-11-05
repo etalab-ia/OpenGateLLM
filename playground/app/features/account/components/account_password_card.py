@@ -2,7 +2,7 @@
 
 import reflex as rx
 
-from app.core.variables import MARGIN_SMALL, SPACING_MEDIUM, SPACING_TINY, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
+from app.core.variables import ICON_SIZE_TINY, MARGIN_SMALL, SPACING_MEDIUM, SPACING_TINY, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
 from app.features.account.state import AccountState
 
 
@@ -33,7 +33,7 @@ def account_password_card() -> rx.Component:
                     rx.hstack(
                         rx.text("New password", size=TEXT_SIZE_LABEL, weight="bold"),
                         rx.tooltip(
-                            rx.icon("info", size=14, color=rx.color("mauve", 10)),
+                            rx.icon("info", size=ICON_SIZE_TINY, color=rx.color("mauve", 10)),
                             content="The new password must be at least 8 characters long.",
                         ),
                         spacing="1",
@@ -53,7 +53,7 @@ def account_password_card() -> rx.Component:
                     rx.hstack(
                         rx.text("Confirm new password", size=TEXT_SIZE_LABEL, weight="bold"),
                         rx.tooltip(
-                            rx.icon("info", size=14, color=rx.color("mauve", 10)),
+                            rx.icon("info", size=ICON_SIZE_TINY, color=rx.color("mauve", 10)),
                             content="The new password and the confirm new password must be the same.",
                         ),
                         spacing="1",

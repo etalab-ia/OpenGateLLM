@@ -2,7 +2,7 @@
 
 import reflex as rx
 
-from app.core.variables import SIZE_MEDIUM, SPACING_MEDIUM, SPACING_TINY, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
+from app.core.variables import ICON_SIZE_TINY, SIZE_MEDIUM, SPACING_MEDIUM, SPACING_TINY, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
 from app.features.keys.state import KeysState
 
 
@@ -27,7 +27,7 @@ def keys_create_form() -> rx.Component:
                     rx.hstack(
                         rx.text("Expires at", size=TEXT_SIZE_LABEL, weight="bold"),
                         rx.tooltip(
-                            rx.icon("info", size=14, color=rx.color("mauve", 10)),
+                            rx.icon("info", size=ICON_SIZE_TINY, color=rx.color("mauve", 10)),
                             content=f"The API key will be valid until the specified date and time (maximum: {KeysState.max_expiry_date}).",
                         ),
                         spacing="1",

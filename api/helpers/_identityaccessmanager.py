@@ -28,6 +28,7 @@ from api.utils.exceptions import (
     InvalidCurrentPasswordException,
     InvalidTokenExpirationException,
     OrganizationNotFoundException,
+    ReservedEmailException,
     RoleAlreadyExistsException,
     RoleNotFoundException,
     TokenNotFoundException,
@@ -239,6 +240,9 @@ class IdentityAccessManager:
         expires_at: int | None = None,
         priority: int = 0,
     ) -> int:
+        if email == "master":
+            raise ReservedEmailException()
+
         expires_at = func.to_timestamp(expires_at) if expires_at is not None else None
 
         # check if role exists
@@ -337,6 +341,10 @@ class IdentityAccessManager:
 
         # update the user
         email = email if email is not None else user.email
+
+        if email == "master":
+            raise ReservedEmailException()
+
         name = name if name is not None else user.name
         iss = iss if iss is not None else user.iss
         sub = sub if sub is not None else user.sub

@@ -112,9 +112,9 @@ class UsersState(ChatState):
         return [str(role["id"]) for role in self.available_roles]
 
     @rx.var
-    def organizations_list_for_dropdown(self) -> list[str]:
+    def organizations_list_for_dropdown(self) -> list[dict[str, str]]:
         """Get list of organization IDs formatted for dropdown."""
-        return [""] + [str(org["id"]) for org in self.available_organizations]
+        return [{"id": "None", "name": "Without organization"}] + self.available_organizations
 
     # Event handlers
     @rx.event
@@ -147,7 +147,12 @@ class UsersState(ChatState):
     @rx.event
     async def set_filter_organization(self, value: str):
         """Set organization filter and reload."""
-        self.filter_organization = int(value) if value else None
+        if value == "none":
+            self.filter_organization = None  # Special value for "without organization"
+        elif value:
+            self.filter_organization = int(value)
+        else:
+            self.filter_organization = None
         self.users_page = 1
         yield
         async for _ in self.load_users():
@@ -222,7 +227,11 @@ class UsersState(ChatState):
                     self.edit_user_role = str(user.role)
                     self.edit_user_organization = str(user.organization) if user.organization else ""
                     self.edit_user_budget = str(user.budget) if user.budget is not None else ""
-                    self.edit_user_expires_at = str(user.expires_at) if user.expires_at else ""
+                    # Convert timestamp to date format (YYYY-MM-DD)
+                    if user.expires_at:
+                        self.edit_user_expires_at = datetime.datetime.fromtimestamp(user.expires_at).strftime("%Y-%m-%d")
+                    else:
+                        self.edit_user_expires_at = ""
                     self.edit_user_priority = str(user.priority)
                     break
 
@@ -404,9 +413,14 @@ class UsersState(ChatState):
 
             if self.new_user_expires_at.strip():
                 try:
-                    payload["expires_at"] = int(self.new_user_expires_at)
+                    # Convert date string (YYYY-MM-DD) to timestamp
+                    date_obj = datetime.datetime.strptime(self.new_user_expires_at.strip(), "%Y-%m-%d")
+                    # Set time to end of day (23:59:59)
+                    date_obj = date_obj.replace(hour=23, minute=59, second=59)
+                    expires_timestamp = int(date_obj.timestamp())
+                    payload["expires_at"] = expires_timestamp
                 except ValueError:
-                    yield rx.toast.warning("Expires at must be a timestamp", position="bottom-right")
+                    yield rx.toast.warning("Invalid date format", position="bottom-right")
                     self.create_user_loading = False
                     yield
                     return
@@ -530,9 +544,14 @@ class UsersState(ChatState):
 
             if self.edit_user_expires_at.strip():
                 try:
-                    payload["expires_at"] = int(self.edit_user_expires_at)
+                    # Convert date string (YYYY-MM-DD) to timestamp
+                    date_obj = datetime.datetime.strptime(self.edit_user_expires_at.strip(), "%Y-%m-%d")
+                    # Set time to end of day (23:59:59)
+                    date_obj = date_obj.replace(hour=23, minute=59, second=59)
+                    expires_timestamp = int(date_obj.timestamp())
+                    payload["expires_at"] = expires_timestamp
                 except ValueError:
-                    yield rx.toast.warning("Expires at must be a timestamp", position="bottom-right")
+                    yield rx.toast.warning("Invalid date format", position="bottom-right")
                     self.edit_user_loading = False
                     yield
                     return

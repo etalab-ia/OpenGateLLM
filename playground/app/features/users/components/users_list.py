@@ -1,22 +1,19 @@
 import reflex as rx
 
 from app.core.variables import (
-    HEADING_SIZE_FORM,
     HEADING_SIZE_SECTION,
     ICON_SIZE_EMPTY_STATE,
     ICON_SIZE_MEDIUM,
-    MARGIN_MEDIUM,
-    MAX_DIALOG_WIDTH,
     PADDING_PAGE,
     SIZE_MEDIUM,
     SPACING_LARGE,
     SPACING_MEDIUM,
     SPACING_NONE,
     SPACING_SMALL,
-    SPACING_TINY,
     TEXT_SIZE_LABEL,
     TEXT_SIZE_LARGE,
 )
+from app.features.users.components.user_update_form import user_update_form
 from app.features.users.components.users_pagination import users_pagination
 from app.features.users.models import FormattedUser
 from app.features.users.state import UsersState
@@ -140,297 +137,6 @@ def user_item(user: FormattedUser) -> rx.Component:
     )
 
 
-def create_user_form() -> rx.Component:
-    """Form to create a new user."""
-    return rx.card(
-        rx.vstack(
-            rx.heading("Create new user", size=HEADING_SIZE_FORM),
-            rx.grid(
-                rx.vstack(
-                    rx.text("Email *", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.input(
-                        placeholder="user@example.com",
-                        value=UsersState.new_user_email,
-                        on_change=UsersState.set_new_user_email,
-                        disabled=UsersState.create_user_loading,
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.text("Name", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.input(
-                        placeholder="User name",
-                        value=UsersState.new_user_name,
-                        on_change=UsersState.set_new_user_name,
-                        disabled=UsersState.create_user_loading,
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.text("Password *", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.input(
-                        placeholder="Password",
-                        type="password",
-                        value=UsersState.new_user_password,
-                        on_change=UsersState.set_new_user_password,
-                        disabled=UsersState.create_user_loading,
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.text("Role *", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.select.root(
-                        rx.select.trigger(placeholder="Select role", width="100%"),
-                        rx.select.content(
-                            rx.foreach(
-                                UsersState.available_roles,
-                                lambda role: rx.select.item(role["name"], value=role["id"].to(str)),
-                            ),
-                        ),
-                        value=UsersState.new_user_role,
-                        on_change=UsersState.set_new_user_role,
-                        disabled=UsersState.create_user_loading,
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.text("Organization", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.select.root(
-                        rx.select.trigger(placeholder="None (optional)", width="100%"),
-                        rx.select.content(
-                            rx.foreach(
-                                UsersState.available_organizations,
-                                lambda org: rx.select.item(org["name"], value=org["id"].to(str)),
-                            ),
-                        ),
-                        value=UsersState.new_user_organization,
-                        on_change=UsersState.set_new_user_organization,
-                        disabled=UsersState.create_user_loading,
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.text("Budget", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.input(
-                        placeholder="Budget (empty = unlimited)",
-                        type="number",
-                        value=UsersState.new_user_budget,
-                        on_change=UsersState.set_new_user_budget,
-                        disabled=UsersState.create_user_loading,
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.text("Expires at (timestamp)", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.input(
-                        placeholder="Timestamp (empty = never)",
-                        type="number",
-                        value=UsersState.new_user_expires_at,
-                        on_change=UsersState.set_new_user_expires_at,
-                        disabled=UsersState.create_user_loading,
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.text("Priority", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.input(
-                        placeholder="0",
-                        type="number",
-                        value=UsersState.new_user_priority,
-                        on_change=UsersState.set_new_user_priority,
-                        disabled=UsersState.create_user_loading,
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                columns="2",
-                spacing=SPACING_MEDIUM,
-                width="100%",
-            ),
-            rx.hstack(
-                rx.spacer(),
-                rx.button(
-                    rx.cond(
-                        UsersState.create_user_loading,
-                        rx.spinner(size=SIZE_MEDIUM),
-                        "Create User",
-                    ),
-                    on_click=UsersState.create_user,
-                    disabled=UsersState.create_user_loading,
-                ),
-                width="100%",
-            ),
-            spacing=SPACING_MEDIUM,
-            width="100%",
-        ),
-        width="100%",
-    )
-
-
-def edit_user_dialog() -> rx.Component:
-    """Dialog for editing a user."""
-    return rx.dialog.root(
-        rx.dialog.content(
-            rx.dialog.title("Edit User"),
-            rx.dialog.description(
-                "Update user information. Leave fields empty to keep current values.",
-            ),
-            rx.grid(
-                rx.vstack(
-                    rx.text("Email", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.input(
-                        placeholder="user@example.com",
-                        value=UsersState.edit_user_email,
-                        on_change=UsersState.set_edit_user_email,
-                        disabled=UsersState.edit_user_loading,
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.text("Name", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.input(
-                        placeholder="User name",
-                        value=UsersState.edit_user_name,
-                        on_change=UsersState.set_edit_user_name,
-                        disabled=UsersState.edit_user_loading,
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.text("New Password", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.input(
-                        placeholder="Leave empty to keep current",
-                        type="password",
-                        value=UsersState.edit_user_password,
-                        on_change=UsersState.set_edit_user_password,
-                        disabled=UsersState.edit_user_loading,
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.text("Role", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.select.root(
-                        rx.select.trigger(placeholder="Select role", width="100%"),
-                        rx.select.content(
-                            rx.foreach(
-                                UsersState.available_roles,
-                                lambda role: rx.select.item(role["name"], value=role["id"].to(str)),
-                            ),
-                        ),
-                        value=UsersState.edit_user_role,
-                        on_change=UsersState.set_edit_user_role,
-                        disabled=UsersState.edit_user_loading,
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.text("Organization", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.select.root(
-                        rx.select.trigger(placeholder="None (optional)", width="100%"),
-                        rx.select.content(
-                            rx.foreach(
-                                UsersState.available_organizations,
-                                lambda org: rx.select.item(org["name"], value=org["id"].to(str)),
-                            ),
-                        ),
-                        value=UsersState.edit_user_organization,
-                        on_change=UsersState.set_edit_user_organization,
-                        disabled=UsersState.edit_user_loading,
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.text("Budget", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.input(
-                        placeholder="Budget (empty = unlimited)",
-                        type="number",
-                        value=UsersState.edit_user_budget,
-                        on_change=UsersState.set_edit_user_budget,
-                        disabled=UsersState.edit_user_loading,
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.text("Expires at (timestamp)", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.input(
-                        placeholder="Timestamp (empty = never)",
-                        type="number",
-                        value=UsersState.edit_user_expires_at,
-                        on_change=UsersState.set_edit_user_expires_at,
-                        disabled=UsersState.edit_user_loading,
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.text("Priority", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.input(
-                        placeholder="0",
-                        type="number",
-                        value=UsersState.edit_user_priority,
-                        on_change=UsersState.set_edit_user_priority,
-                        disabled=UsersState.edit_user_loading,
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                columns="2",
-                spacing=SPACING_MEDIUM,
-                width="100%",
-            ),
-            rx.hstack(
-                rx.dialog.close(
-                    rx.button(
-                        "Cancel",
-                        variant="soft",
-                        color_scheme="gray",
-                        on_click=lambda: UsersState.set_user_to_edit(None),
-                    ),
-                ),
-                rx.button(
-                    rx.cond(
-                        UsersState.edit_user_loading,
-                        rx.spinner(size=SIZE_MEDIUM),
-                        "Update",
-                    ),
-                    on_click=UsersState.update_user,
-                    disabled=UsersState.edit_user_loading,
-                ),
-                spacing=SPACING_MEDIUM,
-                justify="end",
-                margin_top=MARGIN_MEDIUM,
-            ),
-            max_width=MAX_DIALOG_WIDTH,
-        ),
-        open=UsersState.is_edit_user_dialog_open,
-    )
-
-
 def delete_user_dialog() -> rx.Component:
     """Dialog for deleting a user."""
     return rx.alert_dialog.root(
@@ -508,8 +214,9 @@ def users_filters() -> rx.Component:
             on_change=UsersState.set_filter_role,
         ),
         rx.select.root(
-            rx.select.trigger(placeholder="All organizations", size="2", width="150px"),
+            rx.select.trigger(placeholder="All organizations", size="2", width="180px"),
             rx.select.content(
+                rx.select.item("Without organization", value="none"),
                 rx.foreach(
                     UsersState.available_organizations,
                     lambda org: rx.select.item(org["name"], value=org["id"].to(str)),
@@ -530,7 +237,6 @@ def users_filters() -> rx.Component:
 def users_list() -> rx.Component:
     """Display list of users with sorting and pagination."""
     return rx.vstack(
-        create_user_form(),
         rx.card(
             rx.vstack(
                 rx.hstack(
@@ -595,7 +301,7 @@ def users_list() -> rx.Component:
             ),
             width="100%",
         ),
-        edit_user_dialog(),
+        user_update_form(),
         delete_user_dialog(),
         spacing=SPACING_LARGE,
         width="100%",

@@ -66,6 +66,7 @@ class BaseConfig(BaseSettings):
 
 class Settings(BaseConfig):
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
+    celery_task_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in celery tasks.")  # fmt: off
 
 
 class Playground(BaseConfig):

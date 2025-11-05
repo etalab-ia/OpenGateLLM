@@ -127,7 +127,7 @@ def edit_organization_dialog() -> rx.Component:
                 "Update the organization name.",
             ),
             rx.vstack(
-                rx.text("Organization Name *", size=TEXT_SIZE_LABEL, weight="bold"),
+                rx.text("Organization name *", size=TEXT_SIZE_LABEL, weight="bold"),
                 rx.input(
                     placeholder="Organization name",
                     value=OrganizationsState.edit_organization_name,
