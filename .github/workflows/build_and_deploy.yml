@@ -3,7 +3,7 @@ name: Build and deploy when pushing on main
 on:
   push:
     branches:
-      - main
+      - 489-replace-streamlit-by-reflex-for-playground
   release:
     types: 
       - published
@@ -16,7 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       API_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/api
-      IMAGE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || 'latest' }}
+      #IMAGE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || 'latest' }}
+      IMAGE_TAG: "489-replace-streamlit-by-reflex-for-playground"
     outputs:
       commit_title: ${{ steps.get_head_commit_title.outputs.title }}
     steps:
@@ -53,7 +54,8 @@ jobs:
     env:
       GITHUB_PLAYGROUND_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/playground
       GITLAB_PLAYGROUND_IMAGE_NAME: registry.gitlab.com/${{ secrets.GITLAB_PROJECT_PATH }}/playground
-      IMAGE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || 'latest' }}
+      #IMAGE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || 'latest' }}
+      IMAGE_TAG: "489-replace-streamlit-by-reflex-for-playground"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -79,6 +81,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          build-args: |
+            CONFIG_FILE=.github/workflows/assets/playground.config.yml
+            FAVICON=.github/workflows/assets/favicon.ico
           file: ./playground/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
@@ -86,12 +91,14 @@ jobs:
           cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
           cache-to: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache,mode=max
 
-      - name: Build and push Albert API playground image to GitLab
+      - name: Build and push Albert API playground image to GitLab - dev environment
         uses: docker/build-push-action@v6
         with:
           context: .
           build-args: |
-            CONFIG_FILE=${{ secrets.PLAYGROUND_CONFIG_FILE }}
+            REFLEX_BACKEND_URL=https://albert.api.dev.etalab.gouv.fr
+            REFLEX_FRONTEND_URL=https://albert.api.dev.etalab.gouv.fr
+            CONFIG_FILE=.github/workflows/assets/playground.config.yml
             FAVICON=.github/workflows/assets/favicon.ico
           file: ./playground/Dockerfile
           platforms: linux/amd64,linux/arm64

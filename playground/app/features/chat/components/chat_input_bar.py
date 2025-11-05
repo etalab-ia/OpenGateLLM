@@ -5,8 +5,8 @@ import reflex as rx
 from app.features.chat.state import ChatState
 
 
-def action_bar() -> rx.Component:
-    """The action bar to send a new message."""
+def chat_input_bar() -> rx.Component:
+    """The sidebar with sampling parameters."""
     return rx.box(
         rx.vstack(
             rx.form(

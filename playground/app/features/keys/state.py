@@ -18,6 +18,13 @@ class KeysState(AuthState):
     keys: list[ApiKey] = []
     keys_loading: bool = False
 
+    # Pagination for keys
+    keys_page: int = 1
+    keys_limit: int = 10
+    keys_total: int = 0
+    keys_order_by: str = "id"
+    keys_order_direction: str = "asc"
+
     # Create key form
     new_key_name: str = ""
     new_key_expires_at_date: str = ""  # Date in YYYY-MM-DD format
@@ -90,6 +97,18 @@ class KeysState(AuthState):
             )
         return formatted_keys
 
+    @rx.var
+    def keys_total_pages(self) -> int:
+        """Calculate total pages for keys."""
+        if self.keys_total == 0:
+            return 0
+        return (self.keys_total + self.keys_limit - 1) // self.keys_limit
+
+    @rx.var
+    def has_more_keys(self) -> bool:
+        """Check if there are more keys to load."""
+        return self.keys_page < self.keys_total_pages
+
     @rx.event
     async def load_keys(self):
         """Load all API keys."""
@@ -100,9 +119,17 @@ class KeysState(AuthState):
         yield
 
         try:
+            params = {
+                "offset": (self.keys_page - 1) * self.keys_limit,
+                "limit": self.keys_limit,
+                "order_by": self.keys_order_by,
+                "order_direction": self.keys_order_direction,
+            }
+
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.api_url}/v1/me/keys",
+                    f"{self.opengatellm_url}/v1/me/keys",
+                    params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=10.0,
                 )
@@ -110,7 +137,17 @@ class KeysState(AuthState):
                 response.raise_for_status()
                 data = response.json()
                 keys_data = data.get("data", [])
+
+                # Count before filtering for accurate pagination
+                keys_count_before_filter = len(keys_data)
                 self.keys = [ApiKey(**key) for key in keys_data if key["name"] != "playground"]
+
+                # Estimate total (API doesn't return total, so we estimate)
+                # Use the count before filtering to determine if there are more pages
+                if keys_count_before_filter < self.keys_limit:
+                    self.keys_total = (self.keys_page - 1) * self.keys_limit + len(self.keys)
+                else:
+                    self.keys_total = self.keys_page * self.keys_limit + 1
 
         except Exception as e:
             yield rx.toast.error(f"Error loading keys: {str(e)}", position="bottom-right")
@@ -150,7 +187,7 @@ class KeysState(AuthState):
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.api_url}/v1/me/keys",
+                    f"{self.opengatellm_url}/v1/me/keys",
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     json=payload,
                     timeout=10.0,
@@ -201,7 +238,7 @@ class KeysState(AuthState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
-                    f"{self.api_url}/v1/me/keys/{key_id}",
+                    f"{self.opengatellm_url}/v1/me/keys/{key_id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=10.0,
                 )
@@ -254,3 +291,39 @@ class KeysState(AuthState):
     @rx.event
     def set_new_key_expires_at_date(self, value: str):
         self.new_key_expires_at_date = value
+
+    @rx.event
+    async def set_keys_order_by(self, value: str):
+        """Set order by field and reload."""
+        self.keys_order_by = value
+        self.keys_page = 1
+        yield
+        async for _ in self.load_keys():
+            yield
+
+    @rx.event
+    async def set_keys_order_direction(self, value: str):
+        """Set order direction and reload."""
+        self.keys_order_direction = value
+        self.keys_page = 1
+        yield
+        async for _ in self.load_keys():
+            yield
+
+    @rx.event
+    async def prev_keys_page(self):
+        """Go to previous page of keys."""
+        if self.keys_page > 1:
+            self.keys_page -= 1
+            yield
+            async for _ in self.load_keys():
+                yield
+
+    @rx.event
+    async def next_keys_page(self):
+        """Go to next page of keys."""
+        if self.has_more_keys:
+            self.keys_page += 1
+            yield
+            async for _ in self.load_keys():
+                yield

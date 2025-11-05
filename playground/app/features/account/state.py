@@ -61,7 +61,7 @@ class AccountState(AuthState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
-                    f"{self.api_url}/v1/me/info",
+                    f"{self.opengatellm_url}/v1/me/info",
                     headers={
                         "Authorization": f"Bearer {self.api_key}",
                         "Content-Type": "application/json",
@@ -86,7 +86,7 @@ class AccountState(AuthState):
         except httpx.TimeoutException:
             yield rx.toast.error("Request timeout", position="bottom-right")
         except httpx.ConnectError:
-            yield rx.toast.error(f"Cannot connect to API at {self.api_url}", position="bottom-right")
+            yield rx.toast.error(f"Cannot connect to API at {self.opengatellm_url}", position="bottom-right")
         except Exception as e:
             yield rx.toast.error(f"An error occurred: {str(e)}", position="bottom-right")
         finally:
@@ -112,7 +112,7 @@ class AccountState(AuthState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
-                    f"{self.api_url}/v1/me/info",
+                    f"{self.opengatellm_url}/v1/me/info",
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     json={"name": self.edit_name.strip()},
                     timeout=10.0,
@@ -142,7 +142,7 @@ class AccountState(AuthState):
         except httpx.TimeoutException:
             yield rx.toast.error("Request timeout", position="bottom-right")
         except httpx.ConnectError:
-            yield rx.toast.error(f"Cannot connect to API at {self.api_url}", position="bottom-right")
+            yield rx.toast.error(f"Cannot connect to API at {self.opengatellm_url}", position="bottom-right")
         except Exception as e:
             yield rx.toast.error(str(e), position="bottom-right")
         finally:

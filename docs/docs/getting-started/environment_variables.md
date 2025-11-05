@@ -17,13 +17,14 @@ For adapt the playground docker image for your deployment, you can build it with
 | Argument | Type | Default | Description |
 | --- | --- | --- | --- |
 | CONFIG_FILE | str | `"config.example.yml"` | Path to your configuration file. |
-| API_HOST | str | `"api"` | Host name of the API. By default, `api` is the hostname in docker compose file. |
+| REFLEX_BACKEND_URL | str | `"http://localhost:8500"` | URL of the backend API. |
+| REFLEX_FRONTEND_URL | str | `"http://localhost:8501"` | URL of the frontend application. |
+| REFLEX_FRONTEND_PATH | str | `""` | Path of the frontend application. |
 | FAVICON | str | `"./playground/assets/favicon.ico"` | Path to your favicon file. |
 
 Example: 
 ```bash
  docker build --build-arg \
  CONFIG_FILE=config.yml \
- API_HOST=api \
  FAVICON=./playground/assets/favicon.ico \
  --file playground/Dockerfile --tag playground:latest .

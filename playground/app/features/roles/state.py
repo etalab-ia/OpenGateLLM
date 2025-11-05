@@ -226,7 +226,7 @@ class RolesState(ChatState):
 
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.api_url}/v1/admin/roles",
+                    f"{self.opengatellm_url}/v1/admin/roles",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=10.0,
@@ -295,7 +295,7 @@ class RolesState(ChatState):
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.api_url}/v1/admin/roles",
+                    f"{self.opengatellm_url}/v1/admin/roles",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     timeout=10.0,
@@ -327,7 +327,7 @@ class RolesState(ChatState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
-                    f"{self.api_url}/v1/admin/roles/{role_id}",
+                    f"{self.opengatellm_url}/v1/admin/roles/{role_id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=10.0,
                 )
@@ -369,7 +369,7 @@ class RolesState(ChatState):
 
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
-                    f"{self.api_url}/v1/admin/roles/{self.role_to_edit}",
+                    f"{self.opengatellm_url}/v1/admin/roles/{self.role_to_edit}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     timeout=10.0,
@@ -464,7 +464,7 @@ class RolesState(ChatState):
 
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
-                    f"{self.api_url}/v1/admin/roles/{role_id}",
+                    f"{self.opengatellm_url}/v1/admin/roles/{role_id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     timeout=10.0,
@@ -524,7 +524,7 @@ class RolesState(ChatState):
 
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
-                    f"{self.api_url}/v1/admin/roles/{role_id}",
+                    f"{self.opengatellm_url}/v1/admin/roles/{role_id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     timeout=10.0,

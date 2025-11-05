@@ -27,7 +27,9 @@ class FormattedUser(BaseModel):
     sub: str | None
     iss: str | None
     role: int
+    role_name: str
     organization: int | None
+    organization_name: str | None
     budget: float | None
     expires_at: int | None
     created_at: str

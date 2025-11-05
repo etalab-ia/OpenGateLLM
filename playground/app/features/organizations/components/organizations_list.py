@@ -92,14 +92,15 @@ def create_organization_form() -> rx.Component:
     return rx.card(
         rx.vstack(
             rx.heading("Create new organization", size=TEXT_SIZE_LARGE),
+            rx.input(
+                placeholder="Organization name",
+                value=OrganizationsState.new_organization_name,
+                on_change=OrganizationsState.set_new_organization_name,
+                disabled=OrganizationsState.create_organization_loading,
+                width="100%",
+            ),
             rx.hstack(
-                rx.input(
-                    placeholder="Organization name",
-                    value=OrganizationsState.new_organization_name,
-                    on_change=OrganizationsState.set_new_organization_name,
-                    disabled=OrganizationsState.create_organization_loading,
-                    width="100%",
-                ),
+                rx.spacer(),
                 rx.button(
                     rx.cond(
                         OrganizationsState.create_organization_loading,
@@ -109,6 +110,8 @@ def create_organization_form() -> rx.Component:
                     on_click=OrganizationsState.create_organization,
                     disabled=OrganizationsState.create_organization_loading,
                 ),
+                spacing=SPACING_MEDIUM,
+                justify="end",
                 width="100%",
             ),
             spacing=SPACING_MEDIUM,

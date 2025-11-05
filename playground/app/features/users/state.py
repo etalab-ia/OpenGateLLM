@@ -24,6 +24,8 @@ class UsersState(ChatState):
     # Filters
     filter_role: int | None = None
     filter_organization: int | None = None
+    filter_role_value: str = "all"  # Display value for select
+    filter_organization_value: str = "all"  # Display value for select
 
     # Create user form
     new_user_email: str = ""
@@ -57,6 +59,16 @@ class UsersState(ChatState):
     available_organizations: list[dict] = []
 
     @rx.var
+    def roles_map(self) -> dict[int, str]:
+        """Map role IDs to names."""
+        return {role["id"]: role["name"] for role in self.available_roles}
+
+    @rx.var
+    def organizations_map(self) -> dict[int, str]:
+        """Map organization IDs to names."""
+        return {org["id"]: org["name"] for org in self.available_organizations}
+
+    @rx.var
     def users_with_formatted_dates(self) -> list[FormattedUser]:
         """Get users with formatted dates."""
         formatted = []
@@ -64,6 +76,12 @@ class UsersState(ChatState):
             expires_at_formatted = None
             if user.expires_at:
                 expires_at_formatted = datetime.datetime.fromtimestamp(user.expires_at).strftime("%Y-%m-%d %H:%M")
+
+            # Get role and organization names
+            role_name = self.roles_map.get(user.role, f"Role {user.role}")
+            organization_name = None
+            if user.organization is not None:
+                organization_name = self.organizations_map.get(user.organization, f"Org {user.organization}")
 
             formatted.append(
                 FormattedUser(
@@ -73,7 +91,9 @@ class UsersState(ChatState):
                     sub=user.sub,
                     iss=user.iss,
                     role=user.role,
+                    role_name=role_name,
                     organization=user.organization,
+                    organization_name=organization_name,
                     budget=user.budget,
                     expires_at=user.expires_at,
                     created_at=datetime.datetime.fromtimestamp(user.created_at).strftime("%Y-%m-%d %H:%M"),
@@ -138,7 +158,8 @@ class UsersState(ChatState):
     @rx.event
     async def set_filter_role(self, value: str):
         """Set role filter and reload."""
-        self.filter_role = int(value) if value else None
+        self.filter_role_value = value
+        self.filter_role = int(value) if value and value != "all" else None
         self.users_page = 1
         yield
         async for _ in self.load_users():
@@ -147,9 +168,10 @@ class UsersState(ChatState):
     @rx.event
     async def set_filter_organization(self, value: str):
         """Set organization filter and reload."""
+        self.filter_organization_value = value
         if value == "none":
             self.filter_organization = None  # Special value for "without organization"
-        elif value:
+        elif value and value != "all":
             self.filter_organization = int(value)
         else:
             self.filter_organization = None
@@ -300,7 +322,7 @@ class UsersState(ChatState):
 
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.api_url}/v1/admin/users",
+                    f"{self.opengatellm_url}/v1/admin/users",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=10.0,
@@ -334,7 +356,7 @@ class UsersState(ChatState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.api_url}/v1/admin/roles",
+                    f"{self.opengatellm_url}/v1/admin/roles",
                     params={"offset": 0, "limit": 100},
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=10.0,
@@ -357,7 +379,7 @@ class UsersState(ChatState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.api_url}/v1/admin/organizations",
+                    f"{self.opengatellm_url}/v1/admin/organizations",
                     params={"offset": 0, "limit": 100},
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=10.0,
@@ -436,7 +458,7 @@ class UsersState(ChatState):
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.api_url}/v1/admin/users",
+                    f"{self.opengatellm_url}/v1/admin/users",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     timeout=10.0,
@@ -481,7 +503,7 @@ class UsersState(ChatState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
-                    f"{self.api_url}/v1/admin/users/{user_id}",
+                    f"{self.opengatellm_url}/v1/admin/users/{user_id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=10.0,
                 )
@@ -569,7 +591,7 @@ class UsersState(ChatState):
 
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
-                    f"{self.api_url}/v1/admin/users/{self.user_to_edit}",
+                    f"{self.opengatellm_url}/v1/admin/users/{self.user_to_edit}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     timeout=10.0,

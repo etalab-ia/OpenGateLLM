@@ -91,7 +91,7 @@ settings:
 # -------------------------------- playground ---------------------------------
 playground:
 playground:
-  api_url: http://${API_HOST:-localhost}:8000
+  opengatellm_url: ${OPENGATELLM_URL:-http://localhost:8000}
   # app_title: # optional - default: OpenGateLLM
   # theme_has_background: # optional - default: True
   # theme_accent_color: # optional - default: purple

@@ -70,7 +70,8 @@ class Settings(BaseConfig):
 
 
 class Playground(BaseConfig):
-    api_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
+    opengatellm_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
+    default_model: str | None = Field(default=None, description="The first model selected in chat page.")
     app_title: str = Field(default="OpenGateLLM", description="The title of the application.")
     theme_has_background: bool = Field(default=True, description="Whether the theme has a background.")
     theme_accent_color: str = Field(default="purple", description="The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.")  # fmt: off

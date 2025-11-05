@@ -1,5 +1,3 @@
-"""Left navigation sidebar component."""
-
 import reflex as rx
 
 from app.core.configuration import configuration
@@ -37,7 +35,7 @@ def nav_item(label: str, icon: str, page: str) -> rx.Component:
     )
 
 
-def sidebar_nav() -> rx.Component:
+def sidebar() -> rx.Component:
     """Left navigation sidebar."""
     return rx.box(
         rx.vstack(
@@ -54,6 +52,7 @@ def sidebar_nav() -> rx.Component:
             ),
             # Navigation items
             rx.vstack(
+                nav_item("Chat", "message-square", "/"),
                 rx.cond(
                     ~AuthState.is_master,
                     rx.box(
@@ -63,7 +62,6 @@ def sidebar_nav() -> rx.Component:
                         width="100%",
                     ),
                 ),
-                nav_item("Chat", "message-square", "/"),
                 rx.cond(
                     AuthState.is_admin,
                     rx.box(

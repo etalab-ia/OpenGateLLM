@@ -261,79 +261,84 @@ def role_limits_table_compact(role: FormattedRole) -> rx.Component:
 def role_accordion_item(role: FormattedRole) -> rx.Component:
     """Display a single role as an accordion item."""
     return rx.accordion.item(
-        header=rx.hstack(
-            rx.vstack(
-                rx.hstack(
-                    rx.text(
-                        role.name,
-                        size=TEXT_SIZE_LARGE,
-                        weight="bold",
-                        color=rx.color("mauve", 12),
+        header=rx.vstack(
+            rx.hstack(
+                rx.vstack(
+                    rx.hstack(
+                        rx.text(
+                            role.name,
+                            size=TEXT_SIZE_LARGE,
+                            weight="bold",
+                            color=rx.color("mauve", 12),
+                        ),
+                        rx.badge(
+                            role.id.to(str),
+                            variant="soft",
+                            color_scheme="blue",
+                        ),
+                        rx.badge(
+                            role.users.to(str) + " user" + rx.cond(role.users != 1, "s", ""),
+                            variant="soft",
+                            color_scheme="green",
+                        ),
+                        spacing=SPACING_SMALL,
                     ),
-                    rx.badge(
-                        role.id.to(str),
+                    rx.hstack(
+                        rx.text(
+                            f"Created: {role.created_at}",
+                            size=TEXT_SIZE_LABEL,
+                            color=rx.color("mauve", 9),
+                        ),
+                        rx.text("•", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 9)),
+                        rx.text(
+                            f"Updated: {role.updated_at}",
+                            size=TEXT_SIZE_LABEL,
+                            color=rx.color("mauve", 9),
+                        ),
+                        spacing=SPACING_SMALL,
+                    ),
+                    rx.hstack(
+                        rx.text(
+                            role.permissions.length().to(str) + " permission" + rx.cond(role.permissions.length() != 1, "s", ""),
+                            size=TEXT_SIZE_LABEL,
+                            color=rx.color("mauve", 10),
+                        ),
+                        rx.text("•", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 9)),
+                        rx.text(
+                            role.limits.length().to(str) + " limit" + rx.cond(role.limits.length() != 1, "s", ""),
+                            size=TEXT_SIZE_LABEL,
+                            color=rx.color("mauve", 10),
+                        ),
+                        spacing=SPACING_SMALL,
+                    ),
+                    spacing=SPACING_SMALL,
+                    align_items="start",
+                    flex="1",
+                ),
+                rx.hstack(
+                    rx.button(
+                        rx.icon("pencil", size=ICON_SIZE_MEDIUM),
+                        on_click=lambda: RolesState.set_role_to_edit(role.id),
                         variant="soft",
                         color_scheme="blue",
+                        size=TEXT_SIZE_LABEL,
                     ),
-                    rx.badge(
-                        role.users.to(str) + " user" + rx.cond(role.users != 1, "s", ""),
+                    rx.button(
+                        rx.icon("trash-2", size=ICON_SIZE_MEDIUM),
+                        on_click=lambda: RolesState.set_role_to_delete(role.id),
                         variant="soft",
-                        color_scheme="green",
+                        color_scheme="red",
+                        size=TEXT_SIZE_LABEL,
                     ),
                     spacing=SPACING_SMALL,
                 ),
-                rx.hstack(
-                    rx.text(
-                        f"Created: {role.created_at}",
-                        size=TEXT_SIZE_LABEL,
-                        color=rx.color("mauve", 9),
-                    ),
-                    rx.text("•", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 9)),
-                    rx.text(
-                        f"Updated: {role.updated_at}",
-                        size=TEXT_SIZE_LABEL,
-                        color=rx.color("mauve", 9),
-                    ),
-                    spacing=SPACING_SMALL,
-                ),
-                rx.hstack(
-                    rx.text(
-                        role.permissions.length().to(str) + " permission" + rx.cond(role.permissions.length() != 1, "s", ""),
-                        size=TEXT_SIZE_LABEL,
-                        color=rx.color("mauve", 10),
-                    ),
-                    rx.text("•", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 9)),
-                    rx.text(
-                        role.limits.length().to(str) + " limit" + rx.cond(role.limits.length() != 1, "s", ""),
-                        size=TEXT_SIZE_LABEL,
-                        color=rx.color("mauve", 10),
-                    ),
-                    spacing=SPACING_SMALL,
-                ),
-                spacing=SPACING_SMALL,
-                align_items="start",
-                flex="1",
+                width="100%",
+                align="center",
+                justify="between",
             ),
-            rx.hstack(
-                rx.button(
-                    rx.icon("pencil", size=ICON_SIZE_MEDIUM),
-                    on_click=lambda: RolesState.set_role_to_edit(role.id),
-                    variant="soft",
-                    color_scheme="blue",
-                    size=TEXT_SIZE_LABEL,
-                ),
-                rx.button(
-                    rx.icon("trash-2", size=ICON_SIZE_MEDIUM),
-                    on_click=lambda: RolesState.set_role_to_delete(role.id),
-                    variant="soft",
-                    color_scheme="red",
-                    size=TEXT_SIZE_LABEL,
-                ),
-                spacing=SPACING_SMALL,
-            ),
+            rx.divider(),
+            spacing=SPACING_SMALL,
             width="100%",
-            align="center",
-            justify="between",
         ),
         content=rx.vstack(
             rx.heading("Special permissions", size=TEXT_SIZE_MEDIUM),

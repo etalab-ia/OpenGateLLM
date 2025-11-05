@@ -10,8 +10,8 @@ def chat() -> rx.Component:
     """List all the messages in a single conversation."""
     return rx.auto_scroll(
         rx.cond(
-            ChatState.selected_chat.length() > 0,
-            rx.foreach(ChatState.selected_chat, message),
+            ChatState.messages.length() > 0,
+            rx.foreach(ChatState.messages, message),
             rx.center(
                 rx.vstack(
                     rx.icon("message-square", size=48, color=rx.color("mauve", 8)),

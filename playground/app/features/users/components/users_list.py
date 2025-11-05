@@ -5,6 +5,7 @@ from app.core.variables import (
     ICON_SIZE_EMPTY_STATE,
     ICON_SIZE_MEDIUM,
     PADDING_PAGE,
+    SELECT_MEDIUM_WIDTH,
     SIZE_MEDIUM,
     SPACING_LARGE,
     SPACING_MEDIUM,
@@ -53,16 +54,16 @@ def user_item(user: FormattedUser) -> rx.Component:
                 ),
                 rx.hstack(
                     rx.text(
-                        "Role: " + user.role.to(str),
+                        "Role: " + user.role_name,
                         size=TEXT_SIZE_LABEL,
                         color=rx.color("mauve", 10),
                     ),
                     rx.cond(
-                        user.organization,
+                        user.organization_name,
                         rx.fragment(
                             rx.text("•", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 9)),
                             rx.text(
-                                "Org: " + user.organization.to(str),
+                                "Org: " + user.organization_name,
                                 size=TEXT_SIZE_LABEL,
                                 color=rx.color("mauve", 10),
                             ),
@@ -199,34 +200,27 @@ def users_filters() -> rx.Component:
     return rx.hstack(
         rx.text("Filters", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
         rx.select.root(
-            rx.select.trigger(placeholder="All roles", size="2", width="150px"),
+            rx.select.trigger(size="2", width=SELECT_MEDIUM_WIDTH),
             rx.select.content(
+                rx.select.item("All roles", value="all"),
                 rx.foreach(
                     UsersState.available_roles,
                     lambda role: rx.select.item(role["name"], value=role["id"].to(str)),
                 ),
             ),
-            value=rx.cond(
-                UsersState.filter_role,
-                UsersState.filter_role.to(str),
-                "",
-            ),
+            value=UsersState.filter_role_value,
             on_change=UsersState.set_filter_role,
         ),
         rx.select.root(
-            rx.select.trigger(placeholder="All organizations", size="2", width="180px"),
+            rx.select.trigger(size="2", width=SELECT_MEDIUM_WIDTH),
             rx.select.content(
-                rx.select.item("Without organization", value="none"),
+                rx.select.item("All organizations", value="none"),
                 rx.foreach(
                     UsersState.available_organizations,
                     lambda org: rx.select.item(org["name"], value=org["id"].to(str)),
                 ),
             ),
-            value=rx.cond(
-                UsersState.filter_organization,
-                UsersState.filter_organization.to(str),
-                "",
-            ),
+            value=UsersState.filter_organization_value,
             on_change=UsersState.set_filter_organization,
         ),
         spacing=SPACING_SMALL,

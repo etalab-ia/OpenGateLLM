@@ -14,7 +14,27 @@ from app.core.variables import (
     TEXT_SIZE_LARGE,
 )
 from app.features.keys.components.keys_item import keys_item
+from app.features.keys.components.keys_pagination import keys_pagination
 from app.features.keys.state import KeysState
+
+
+def keys_sorting() -> rx.Component:
+    """Sorting controls for keys."""
+    return rx.hstack(
+        rx.text("Sort by", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+        rx.select(
+            ["id", "name", "created_at"],
+            value=KeysState.keys_order_by,
+            on_change=KeysState.set_keys_order_by,
+        ),
+        rx.select(
+            ["asc", "desc"],
+            value=KeysState.keys_order_direction,
+            on_change=KeysState.set_keys_order_direction,
+        ),
+        spacing=SPACING_SMALL,
+        align="center",
+    )
 
 
 def keys_list() -> rx.Component:
@@ -28,8 +48,11 @@ def keys_list() -> rx.Component:
                     variant="soft",
                     color_scheme="blue",
                 ),
+                rx.spacer(),
+                keys_sorting(),
                 align="center",
                 spacing=SPACING_SMALL,
+                width="100%",
             ),
             rx.divider(),
             rx.cond(
@@ -64,6 +87,14 @@ def keys_list() -> rx.Component:
                         width="100%",
                         padding=PADDING_PAGE,
                     ),
+                ),
+            ),
+            rx.cond(
+                KeysState.keys.length() > 0,
+                rx.hstack(
+                    keys_pagination(),
+                    width="100%",
+                    justify="end",
                 ),
             ),
             spacing=SPACING_MEDIUM,

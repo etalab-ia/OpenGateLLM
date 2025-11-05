@@ -2,15 +2,16 @@
 
 import reflex as rx
 
-from app.features.chat.components import action_bar, chat
-from app.features.navigation.components.navbar import navbar
+from app.features.chat.components import chat, chat_input_bar, chat_params_sidebar
+from app.features.chat.components.chat_header import chat_header
 
 
 def chat_page_content() -> rx.Component:
     return rx.vstack(
-        navbar(),
+        chat_header(),
         chat(),
-        action_bar(),
+        chat_input_bar(),
+        chat_params_sidebar(),
         background_color=rx.color("mauve", 1),
         color=rx.color("mauve", 12),
         height="100vh",

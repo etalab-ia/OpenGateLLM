@@ -12,19 +12,11 @@ from app.features.chat.models import QA
 class ChatState(AuthState):
     """The main chat state."""
 
-    # A dict from the chat name to the list of questions and answers.
-    _chats: dict[str, list[QA]] = {
-        "New Chat": [],
-    }
-
-    # The current chat name.
-    current_chat = "New Chat"
+    # List of questions and answers for the chat.
+    _messages: list[QA] = []
 
     # Whether we are processing the question.
     processing: bool = False
-
-    # Whether the new chat modal is open.
-    is_modal_open: bool = False
 
     # Sampling parameters
     model: str = ""
@@ -39,72 +31,19 @@ class ChatState(AuthState):
     seed_str: str = ""
     stop_sequences: str = ""
 
-    @rx.event
-    def create_chat(self, form_data: dict[str, Any]):
-        """Create a new chat."""
-        # Add the new chat to the list of chats.
-        new_chat_name = form_data["new_chat_name"]
-        self.current_chat = new_chat_name
-        self._chats[new_chat_name] = []
-        self.is_modal_open = False
-
-    @rx.event
-    def set_is_modal_open(self, is_open: bool):
-        """Set the new chat modal open state.
-
-        Args:
-            is_open: Whether the modal is open.
-        """
-        self.is_modal_open = is_open
-
     @rx.var
-    def selected_chat(self) -> list[QA]:
-        """Get the list of questions and answers for the current chat.
+    def messages(self) -> list[QA]:
+        """Get the list of questions and answers.
 
         Returns:
             The list of questions and answers.
         """
-        return self._chats[self.current_chat] if self.current_chat in self._chats else []
+        return self._messages
 
     @rx.event
-    def delete_chat(self, chat_name: str):
-        """Delete the current chat."""
-        if chat_name not in self._chats:
-            return
-        del self._chats[chat_name]
-        if len(self._chats) == 0:
-            self._chats = {
-                "New Chat": [],
-            }
-        if self.current_chat not in self._chats:
-            self.current_chat = list(self._chats.keys())[0]
-
-    @rx.event
-    def set_chat(self, chat_name: str):
-        """Set the name of the current chat.
-
-        Args:
-            chat_name: The name of the chat.
-        """
-        self.current_chat = chat_name
-
-    @rx.event
-    def set_new_chat_name(self, new_chat_name: str):
-        """Set the name of the new chat.
-
-        Args:
-            new_chat_name: The name of the new chat.
-        """
-        self.new_chat_name = new_chat_name
-
-    @rx.var
-    def chat_titles(self) -> list[str]:
-        """Get the list of chat titles.
-
-        Returns:
-            The list of chat names.
-        """
-        return list(self._chats.keys())
+    def clear_chat(self):
+        """Clear the chat history."""
+        self._messages = []
 
     @rx.event
     async def load_models(self):
@@ -121,7 +60,7 @@ class ChatState(AuthState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.api_url}/v1/models",
+                    f"{self.opengatellm_url}/v1/models",
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=10.0,
                 )
@@ -207,7 +146,7 @@ class ChatState(AuthState):
 
         # Add the question to the list of questions.
         qa = QA(question=question, answer="")
-        self._chats[self.current_chat].append(qa)
+        self._messages.append(qa)
 
         # Clear the input and start the processing.
         self.processing = True
@@ -215,7 +154,7 @@ class ChatState(AuthState):
 
         # Build the messages.
         messages = []
-        for qa in self._chats[self.current_chat]:
+        for qa in self._messages:
             messages.append({"role": "user", "content": qa["question"]})
             if qa["answer"]:
                 messages.append({"role": "assistant", "content": qa["answer"]})
@@ -254,7 +193,7 @@ class ChatState(AuthState):
                 async with httpx.AsyncClient() as client:
                     async with client.stream(
                         "POST",
-                        f"{self.api_url}/v1/chat/completions",
+                        f"{self.opengatellm_url}/v1/chat/completions",
                         headers={
                             "Authorization": f"Bearer {self.api_key}",
                             "Content-Type": "application/json",
@@ -264,7 +203,7 @@ class ChatState(AuthState):
                     ) as response:
                         if response.status_code != 200:
                             error_text = await response.aread()
-                            self._chats[self.current_chat][-1]["answer"] = f"Error: {error_text.decode()}"
+                            self._messages[-1]["answer"] = f"Error: {error_text.decode()}"
                             self.processing = False
                             yield
                             return
@@ -283,8 +222,8 @@ class ChatState(AuthState):
                                         delta = chunk["choices"][0].get("delta", {})
                                         content = delta.get("content")
                                         if content:
-                                            self._chats[self.current_chat][-1]["answer"] += content
-                                            self._chats = self._chats
+                                            self._messages[-1]["answer"] += content
+                                            self._messages = self._messages
                                             yield
                                 except Exception:
                                     continue
@@ -292,7 +231,7 @@ class ChatState(AuthState):
                 # Non-streaming response
                 async with httpx.AsyncClient() as client:
                     response = await client.post(
-                        f"{self.api_url}/v1/chat/completions",
+                        f"{self.opengatellm_url}/v1/chat/completions",
                         headers={
                             "Authorization": f"Bearer {self.api_key}",
                             "Content-Type": "application/json",
@@ -302,20 +241,20 @@ class ChatState(AuthState):
                     )
 
                     if response.status_code != 200:
-                        self._chats[self.current_chat][-1]["answer"] = f"Error: {response.text}"
+                        self._messages[-1]["answer"] = f"Error: {response.text}"
                     else:
                         data = response.json()
                         if data.get("choices") and len(data["choices"]) > 0:
                             content = data["choices"][0]["message"]["content"]
-                            self._chats[self.current_chat][-1]["answer"] = content
+                            self._messages[-1]["answer"] = content
 
                     yield
 
         except httpx.TimeoutException:
-            self._chats[self.current_chat][-1]["answer"] = "Error: Request timeout"
+            self._messages[-1]["answer"] = "Error: Request timeout"
             yield
         except Exception as e:
-            self._chats[self.current_chat][-1]["answer"] = f"Error: {str(e)}"
+            self._messages[-1]["answer"] = f"Error: {str(e)}"
             yield
 
         # Toggle the processing flag.

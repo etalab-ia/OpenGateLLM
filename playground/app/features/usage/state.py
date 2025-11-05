@@ -129,7 +129,7 @@ class UsageState(AuthState):
 
             async with httpx.AsyncClient() as client:
                 resp = await client.get(
-                    f"{self.api_url}/v1/usage",
+                    f"{self.opengatellm_url}/v1/usage",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=10.0,

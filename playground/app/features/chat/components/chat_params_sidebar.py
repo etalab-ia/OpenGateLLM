@@ -50,7 +50,7 @@ def param_section(title: str, children: list, description: str | None = None) ->
     )
 
 
-def sidebar_params() -> rx.Component:
+def chat_params_sidebar() -> rx.Component:
     """Right sidebar with sampling parameters."""
     return rx.box(
         rx.scroll_area(

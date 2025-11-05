@@ -13,12 +13,21 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv pip install ".[playground]"
 
-ARG CONFIG_FILE=config.example.yml API_HOST=api FAVICON=./playground/assets/favicon.ico
-COPY $CONFIG_FILE config.yml
+ARG CONFIG_FILE=config.example.yml \
+    FAVICON=./playground/assets/favicon.ico \
+    REFLEX_BACKEND_URL=http://localhost:8500 \
+    REFLEX_FRONTEND_URL=http://localhost:8501 \
+    REFLEX_FRONTEND_PATH=''
+
+COPY $CONFIG_FILE ./config.yml
 COPY ./playground/ .
 COPY $FAVICON ./assets/favicon.ico
 
-ENV CONFIG_FILE=config.yml API_HOST=$API_HOST API_URL=http://localhost:8501
+ENV CONFIG_FILE=config.yml \
+    REFLEX_BACKEND_URL=$REFLEX_BACKEND_URL \
+    REFLEX_FRONTEND_URL=$REFLEX_FRONTEND_URL \
+    REFLEX_FRONTEND_PATH=$REFLEX_FRONTEND_PATH
+
 RUN .venv/bin/reflex export --frontend-only --no-zip  --loglevel debug
 
 FROM python:3.12-slim
@@ -39,11 +48,13 @@ COPY --chown=opengatellm:opengatellm ./playground/assets ./assets
 COPY --chown=opengatellm:opengatellm ./playground/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --chown=opengatellm:opengatellm ./playground/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+COPY --from=builder --chown=opengatellm:opengatellm /playground/config.yml ./config.yml
 COPY --from=builder --chown=opengatellm:opengatellm /playground/.venv ./.venv
 COPY --from=builder --chown=opengatellm:opengatellm /playground/.web/build/client /usr/share/nginx/html
 
-ENV PATH="/playground/.venv/bin:${PATH}"
-ENV PYTHONPATH="/playground:${PYTHONPATH}"
+ENV CONFIG_FILE=config.yml \
+    PATH="/playground/.venv/bin:${PATH}" \
+    PYTHONPATH="/playground:"
 
 RUN chown -R opengatellm:opengatellm /playground /var/lib/nginx /var/log/nginx /run /etc/supervisor /usr/share/nginx/html
 

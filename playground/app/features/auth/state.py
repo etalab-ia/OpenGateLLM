@@ -29,7 +29,7 @@ class AuthState(rx.State):
     # Loading state
     is_loading: bool = False
 
-    api_url: str = configuration.playground.api_url
+    opengatellm_url: str = configuration.playground.opengatellm_url
 
     # Form fields
     email_input: str = ""
@@ -51,7 +51,7 @@ class AuthState(rx.State):
         try:
             async with httpx.AsyncClient() as client:
                 # Login to get API key
-                response = await client.post(f"{self.api_url}/v1/auth/login", json={"email": email, "password": password}, timeout=10.0)
+                response = await client.post(f"{self.opengatellm_url}/v1/auth/login", json={"email": email, "password": password}, timeout=10.0)
                 if response.status_code != 200:
                     error_detail = response.json().get("detail", "Login failed")
                     yield rx.toast.error(error_detail, position="bottom-right")
@@ -64,7 +64,7 @@ class AuthState(rx.State):
                 api_key_id = login_data.get("id")
 
                 # Get user info
-                response = await client.get(f"{self.api_url}/v1/me/info", headers={"Authorization": f"Bearer {api_key}"}, timeout=10.0)
+                response = await client.get(f"{self.opengatellm_url}/v1/me/info", headers={"Authorization": f"Bearer {api_key}"}, timeout=10.0)
 
                 if response.status_code != 200:
                     yield rx.toast.error("Failed to fetch user info", position="bottom-right")
@@ -100,7 +100,7 @@ class AuthState(rx.State):
         except httpx.TimeoutException:
             yield rx.toast.error("Request timeout. Please check if the API is running.", position="bottom-right")
         except httpx.ConnectError:
-            yield rx.toast.error(f"Cannot connect to API at {self.api_url}. Please check the URL.", position="bottom-right")
+            yield rx.toast.error(f"Cannot connect to API at {self.opengatellm_url}. Please check the URL.", position="bottom-right")
         except Exception as e:
             yield rx.toast.error(f"An error occurred: {str(e)}", position="bottom-right")
         finally:

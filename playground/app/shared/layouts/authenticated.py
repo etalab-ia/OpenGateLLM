@@ -4,43 +4,30 @@ import reflex as rx
 
 from app.features.auth.components.login_form import login_page
 from app.features.chat.state import ChatState
-from app.features.navigation.components.sidebar_nav import sidebar_nav
-from app.features.navigation.components.sidebar_params import sidebar_params
+from app.features.navigation.components.sidebar import sidebar
 
 
-def authenticated_page(content: rx.Component, with_sidebar_params: bool = False) -> rx.Component:
+def authenticated_page(content: rx.Component, margin_left: str | None = "250px", margin_right: str | None = None):
     """Wrap content with authentication check and navigation.
 
     Args:
         content: The page content to wrap.
-        with_sidebar_params: Whether to include the right sidebar with parameters.
+        margin_left: The left margin of the content.
+        margin_right: The right margin of the content.
 
     Returns:
         A component with authentication and navigation.
     """
 
-    def page_content():
-        if with_sidebar_params:
-            return rx.box(
-                sidebar_nav(),
-                rx.box(
-                    content,
-                    margin_left="250px",
-                    margin_right="320px",
-                ),
-                sidebar_params(),
-            )
-        else:
-            return rx.box(
-                sidebar_nav(),
-                rx.box(
-                    content,
-                    margin_left="250px",
-                ),
-            )
-
     return rx.cond(
         ChatState.is_authenticated,
-        page_content(),
+        rx.box(
+            sidebar(),
+            rx.box(
+                content,
+                margin_left=margin_left,
+                margin_right=margin_right,
+            ),
+        ),
         login_page(),
     )

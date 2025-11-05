@@ -146,7 +146,7 @@ class OrganizationsState(ChatState):
 
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{self.api_url}/v1/admin/organizations",
+                    f"{self.opengatellm_url}/v1/admin/organizations",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=10.0,
@@ -189,7 +189,7 @@ class OrganizationsState(ChatState):
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.api_url}/v1/admin/organizations",
+                    f"{self.opengatellm_url}/v1/admin/organizations",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     timeout=10.0,
@@ -227,7 +227,7 @@ class OrganizationsState(ChatState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
-                    f"{self.api_url}/v1/admin/organizations/{organization_id}",
+                    f"{self.opengatellm_url}/v1/admin/organizations/{organization_id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=10.0,
                 )
@@ -268,7 +268,7 @@ class OrganizationsState(ChatState):
 
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
-                    f"{self.api_url}/v1/admin/organizations/{self.organization_to_edit}",
+                    f"{self.opengatellm_url}/v1/admin/organizations/{self.organization_to_edit}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     timeout=10.0,
