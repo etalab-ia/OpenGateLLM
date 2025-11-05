@@ -23,16 +23,9 @@ class RolesState(ChatState):
     roles_order_by: str = "id"
     roles_order_direction: str = "asc"
 
-    # Selected role for limits
-    limits_selected_role_id: int | None = None
-    limits_selected_role_name: str = ""
-
     # Selected role for permissions
     permissions_selected_role_id: int | None = None
     permissions_selected_role_name: str = ""
-
-    # Limits filters
-    limits_filter_model: str = "all"
 
     # Create role form
     new_role_name: str = ""
@@ -49,17 +42,16 @@ class RolesState(ChatState):
     edit_role_permissions: list[str] = []
     edit_role_loading: bool = False
 
-    # Add limit form
+    # Add limit form (per role)
     new_limit_model: str = ""
-    new_limit_type: str = "rpm"
-    new_limit_value: str = ""
+    new_limit_rpm: str = ""
+    new_limit_rpd: str = ""
+    new_limit_tpm: str = ""
+    new_limit_tpd: str = ""
     add_limit_loading: bool = False
 
     # Delete limit
     delete_limit_loading: bool = False
-
-    # Available limit types
-    available_limit_types: list[str] = ["rpm", "rpd", "tpm", "tpd"]
 
     @rx.var
     def roles_with_formatted_dates(self) -> list[FormattedRole]:
@@ -80,16 +72,6 @@ class RolesState(ChatState):
         return formatted
 
     @rx.var
-    def limits_selected_role(self) -> Role | None:
-        """Get the selected role for limits."""
-        if self.limits_selected_role_id is None:
-            return None
-        for role in self.roles:
-            if role.id == self.limits_selected_role_id:
-                return role
-        return None
-
-    @rx.var
     def permissions_selected_role(self) -> Role | None:
         """Get the selected role for permissions."""
         if self.permissions_selected_role_id is None:
@@ -100,42 +82,27 @@ class RolesState(ChatState):
         return None
 
     @rx.var
-    def selected_role_limits(self) -> list[Limit]:
-        """Get limits for selected role."""
-        role = self.limits_selected_role
-        if role is None:
-            return []
-        return role.limits
+    def roles_limits_by_model(self) -> dict[int, dict[str, dict[str, int | None]]]:
+        """Get limits grouped by model for each role. Returns dict[role_id][model][limit_type] = value."""
+        result = {}
+        for role in self.roles:
+            role_limits = {}
+            for limit in role.limits:
+                if limit.model not in role_limits:
+                    role_limits[limit.model] = {"rpm": None, "rpd": None, "tpm": None, "tpd": None}
+                role_limits[limit.model][limit.type.lower()] = limit.value
+            result[role.id] = role_limits
+        return result
 
     @rx.var
-    def filtered_limits(self) -> list[Limit]:
-        """Get filtered limits for selected role."""
-        limits = self.selected_role_limits
-        if self.limits_filter_model == "all":
-            return limits
-        return [limit for limit in limits if limit.model == self.limits_filter_model]
-
-    @rx.var
-    def limits_models_list(self) -> list[str]:
-        """Get list of unique models from selected role limits."""
-        role = self.limits_selected_role
-        if role is None:
-            return []
-        models_set = set()
-        for limit in role.limits:
-            models_set.add(limit.model)
-        models_list = []
-        for model in models_set:
-            models_list.append(model)
-        models_list.sort()
-        return models_list
-
-    @rx.var
-    def limits_models_list_with_all(self) -> list[str]:
-        """Get list of models with 'all' option prepended."""
-        models = self.limits_models_list
-        result = ["all"]
-        result.extend(models)
+    def roles_models_lists(self) -> dict[int, list[str]]:
+        """Get list of models for each role. Returns dict[role_id] = [models]."""
+        result = {}
+        for role in self.roles:
+            models_set = set()
+            for limit in role.limits:
+                models_set.add(limit.model)
+            result[role.id] = sorted(list(models_set))
         return result
 
     @rx.var
@@ -161,11 +128,6 @@ class RolesState(ChatState):
         return self.role_to_edit is not None
 
     @rx.var
-    def has_limits_selected_role(self) -> bool:
-        """Check if a role is selected for limits."""
-        return self.limits_selected_role_id is not None
-
-    @rx.var
     def roles_list_for_dropdown(self) -> list[dict[str, str | int]]:
         """Get list of roles formatted for dropdown."""
         return [{"label": role.name, "value": str(role.id)} for role in self.roles]
@@ -188,26 +150,6 @@ class RolesState(ChatState):
         yield
         async for _ in self.load_roles():
             yield
-
-    @rx.event
-    def set_limits_selected_role(self, value: str):
-        """Set selected role for limits."""
-        if value:
-            role_id = int(value)
-            for role in self.roles:
-                if role.id == role_id:
-                    self.limits_selected_role_id = role_id
-                    self.limits_selected_role_name = role.name
-                    self.limits_filter_model = "all"
-                    break
-        else:
-            self.limits_selected_role_id = None
-            self.limits_selected_role_name = ""
-
-    @rx.event
-    def set_limits_filter_model(self, value: str):
-        """Set limits filter model."""
-        self.limits_filter_model = value
 
     @rx.event
     def set_new_role_name(self, value: str):
@@ -246,19 +188,24 @@ class RolesState(ChatState):
         self.new_limit_model = value
 
     @rx.event
-    def set_new_limit_type(self, value: str):
-        """Set new limit type."""
-        self.new_limit_type = value
+    def set_new_limit_rpm(self, value: str):
+        """Set new limit RPM value."""
+        self.new_limit_rpm = value
 
     @rx.event
-    def set_new_limit_value(self, value: str):
-        """Set new limit value."""
-        self.new_limit_value = value
+    def set_new_limit_rpd(self, value: str):
+        """Set new limit RPD value."""
+        self.new_limit_rpd = value
 
     @rx.event
-    def set_new_permission(self, value: str):
-        """Set new permission."""
-        self.new_permission = value
+    def set_new_limit_tpm(self, value: str):
+        """Set new limit TPM value."""
+        self.new_limit_tpm = value
+
+    @rx.event
+    def set_new_limit_tpd(self, value: str):
+        """Set new limit TPD value."""
+        self.new_limit_tpd = value
 
     @rx.event
     async def load_roles(self):
@@ -452,50 +399,74 @@ class RolesState(ChatState):
             yield
 
     @rx.event
-    async def add_limit(self):
-        """Add a limit to selected role."""
-        if self.limits_selected_role_id is None:
-            yield rx.toast.warning("No role selected", position="bottom-right")
-            return
-
+    async def add_limit(self, role_id: int):
+        """Add limits for a model to a role (all 4 types at once)."""
         if not self.new_limit_model.strip():
             yield rx.toast.warning("Model is required", position="bottom-right")
             return
 
-        try:
-            value = int(self.new_limit_value) if self.new_limit_value.strip() else None
-            if value is not None and value < 0:
-                yield rx.toast.warning("Value must be >= 0", position="bottom-right")
-                return
-        except ValueError:
-            yield rx.toast.warning("Value must be a number", position="bottom-right")
-            return
+        # Parse and validate all 4 limit values
+        limits_to_add = []
+        limit_values = {
+            "rpm": self.new_limit_rpm,
+            "rpd": self.new_limit_rpd,
+            "tpm": self.new_limit_tpm,
+            "tpd": self.new_limit_tpd,
+        }
+
+        for limit_type, value_str in limit_values.items():
+            if value_str.strip():
+                try:
+                    value = int(value_str)
+                    if value < 0:
+                        yield rx.toast.warning(f"{limit_type.upper()} value must be >= 0", position="bottom-right")
+                        return
+                    limits_to_add.append({
+                        "model": self.new_limit_model.strip(),
+                        "type": limit_type,
+                        "value": value,
+                    })
+                except ValueError:
+                    yield rx.toast.warning(f"{limit_type.upper()} value must be a number", position="bottom-right")
+                    return
+            else:
+                # Empty value means unlimited (None)
+                limits_to_add.append({
+                    "model": self.new_limit_model.strip(),
+                    "type": limit_type,
+                    "value": None,
+                })
 
         self.add_limit_loading = True
         yield
 
         try:
-            # Get current role limits
-            role = self.limits_selected_role
+            # Get current role
+            role = None
+            for r in self.roles:
+                if r.id == role_id:
+                    role = r
+                    break
+            
             if role is None:
                 yield rx.toast.error("Role not found", position="bottom-right")
                 self.add_limit_loading = False
                 yield
                 return
 
-            # Add new limit
-            new_limits = [{"model": lim.model, "type": lim.type, "value": lim.value} for lim in role.limits]
-            new_limits.append({
-                "model": self.new_limit_model.strip(),
-                "type": self.new_limit_type,
-                "value": int(self.new_limit_value) if self.new_limit_value.strip() else None,
-            })
+            # Remove existing limits for this model, then add new ones
+            new_limits = [
+                {"model": lim.model, "type": lim.type, "value": lim.value}
+                for lim in role.limits
+                if lim.model != self.new_limit_model.strip()
+            ]
+            new_limits.extend(limits_to_add)
 
             payload = {"limits": new_limits}
 
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
-                    f"{self.api_url}/v1/admin/roles/{self.limits_selected_role_id}",
+                    f"{self.api_url}/v1/admin/roles/{role_id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     timeout=10.0,
@@ -503,14 +474,16 @@ class RolesState(ChatState):
 
                 if response.status_code == 204:
                     self.new_limit_model = ""
-                    self.new_limit_type = "rpm"
-                    self.new_limit_value = ""
-                    yield rx.toast.success("Limit added successfully", position="bottom-right")
+                    self.new_limit_rpm = ""
+                    self.new_limit_rpd = ""
+                    self.new_limit_tpm = ""
+                    self.new_limit_tpd = ""
+                    yield rx.toast.success("Limits added successfully", position="bottom-right")
                     # Reload roles
                     async for _ in self.load_roles():
                         yield
                 else:
-                    error_detail = response.json().get("detail", "Failed to add limit")
+                    error_detail = response.json().get("detail", "Failed to add limits")
                     if isinstance(error_detail, list) and len(error_detail) > 0:
                         first_error = error_detail[0]
                         if isinstance(first_error, dict):
@@ -527,46 +500,49 @@ class RolesState(ChatState):
             yield
 
     @rx.event
-    async def delete_limit(self, model: str, limit_type: str):
-        """Delete a limit from selected role."""
-        if self.limits_selected_role_id is None:
-            return
-
+    async def delete_model_limits(self, role_id: int, model: str):
+        """Delete all limits for a specific model from a role."""
         self.delete_limit_loading = True
         yield
 
         try:
-            role = self.limits_selected_role
+            # Get current role
+            role = None
+            for r in self.roles:
+                if r.id == role_id:
+                    role = r
+                    break
+            
             if role is None:
                 yield rx.toast.error("Role not found", position="bottom-right")
                 self.delete_limit_loading = False
                 yield
                 return
 
-            # Remove the limit
+            # Remove all limits for this model
             new_limits = [
                 {"model": lim.model, "type": lim.type, "value": lim.value}
                 for lim in role.limits
-                if not (lim.model == model and lim.type == limit_type)
+                if lim.model != model
             ]
 
             payload = {"limits": new_limits}
 
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
-                    f"{self.api_url}/v1/admin/roles/{self.limits_selected_role_id}",
+                    f"{self.api_url}/v1/admin/roles/{role_id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     timeout=10.0,
                 )
 
                 if response.status_code == 204:
-                    yield rx.toast.success("Limit deleted successfully", position="bottom-right")
+                    yield rx.toast.success("Limits deleted successfully", position="bottom-right")
                     # Reload roles
                     async for _ in self.load_roles():
                         yield
                 else:
-                    error_detail = response.json().get("detail", "Failed to delete limit")
+                    error_detail = response.json().get("detail", "Failed to delete limits")
                     yield rx.toast.error(str(error_detail), position="bottom-right")
 
         except Exception as e:

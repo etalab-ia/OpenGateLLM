@@ -4,25 +4,94 @@ from app.core.variables import (
     HEADING_SIZE_SECTION,
     ICON_SIZE_EMPTY_STATE,
     ICON_SIZE_MEDIUM,
+    ICON_SIZE_TINY,
     PADDING_PAGE,
     SIZE_MEDIUM,
     SPACING_LARGE,
     SPACING_MEDIUM,
-    SPACING_NONE,
     SPACING_SMALL,
+    SPACING_TINY,
     TEXT_SIZE_LABEL,
     TEXT_SIZE_LARGE,
+    TEXT_SIZE_MEDIUM,
 )
 from app.features.roles.components.role_update_form import role_update_form
+from app.features.roles.components.roles_limits import add_limit_form, model_limits_row
 from app.features.roles.components.roles_pagination import roles_pagination
 from app.features.roles.models import FormattedRole
 from app.features.roles.state import RolesState
 
 
-def role_item(role: FormattedRole) -> rx.Component:
-    """Display a single role item."""
-    return rx.box(
-        rx.hstack(
+def role_limits_table_compact(role: FormattedRole) -> rx.Component:
+    """Compact limits table for a specific role."""
+    models_list = RolesState.roles_models_lists[role.id]
+
+    return rx.table.root(
+        rx.table.header(
+            rx.table.row(
+                rx.table.column_header_cell("Model"),
+                rx.table.column_header_cell(
+                    rx.tooltip(
+                        rx.hstack(
+                            rx.text("RPM"),
+                            rx.icon("info", size=ICON_SIZE_TINY),
+                            spacing=SPACING_TINY,
+                            align="center",
+                        ),
+                        content="Requests Per Minute",
+                    ),
+                ),
+                rx.table.column_header_cell(
+                    rx.tooltip(
+                        rx.hstack(
+                            rx.text("RPD"),
+                            rx.icon("info", size=ICON_SIZE_TINY),
+                            spacing=SPACING_TINY,
+                            align="center",
+                        ),
+                        content="Requests Per Day",
+                    ),
+                ),
+                rx.table.column_header_cell(
+                    rx.tooltip(
+                        rx.hstack(
+                            rx.text("TPM"),
+                            rx.icon("info", size=ICON_SIZE_TINY),
+                            spacing=SPACING_TINY,
+                            align="center",
+                        ),
+                        content="Tokens Per Minute",
+                    ),
+                ),
+                rx.table.column_header_cell(
+                    rx.tooltip(
+                        rx.hstack(
+                            rx.text("TPD"),
+                            rx.icon("info", size=ICON_SIZE_TINY),
+                            spacing=SPACING_TINY,
+                            align="center",
+                        ),
+                        content="Tokens Per Day",
+                    ),
+                ),
+                rx.table.column_header_cell(justify="end"),
+            ),
+        ),
+        rx.table.body(
+            rx.foreach(
+                models_list,
+                lambda model: model_limits_row(role.id, model),
+            ),
+        ),
+        variant="surface",
+        width="100%",
+    )
+
+
+def role_accordion_item(role: FormattedRole) -> rx.Component:
+    """Display a single role as an accordion item."""
+    return rx.accordion.item(
+        header=rx.hstack(
             rx.vstack(
                 rx.hstack(
                     rx.text(
@@ -95,10 +164,53 @@ def role_item(role: FormattedRole) -> rx.Component:
             width="100%",
             align="center",
             justify="between",
-            padding_y="0.75em",
         ),
-        rx.divider(),
-        width="100%",
+        content=rx.vstack(
+            rx.cond(
+                role.permissions.length() > 0,
+                rx.vstack(
+                    rx.heading("Permissions", size=TEXT_SIZE_MEDIUM),
+                    rx.hstack(
+                        rx.foreach(
+                            role.permissions,
+                            lambda perm: rx.badge(
+                                perm,
+                                variant="soft",
+                                color_scheme="purple",
+                            ),
+                        ),
+                        spacing=SPACING_SMALL,
+                        wrap="wrap",
+                    ),
+                    spacing=SPACING_TINY,
+                    align_items="start",
+                    width="100%",
+                ),
+            ),
+            rx.vstack(
+                rx.heading("Rate limits", size=TEXT_SIZE_MEDIUM),
+                rx.cond(
+                    role.limits.length() > 0,
+                    role_limits_table_compact(role),
+                    rx.center(
+                        rx.text(
+                            "No limits configured",
+                            size=TEXT_SIZE_LABEL,
+                            color=rx.color("mauve", 9),
+                        ),
+                        width="100%",
+                        padding="1em",
+                    ),
+                ),
+                add_limit_form(role.id),
+                spacing=SPACING_SMALL,
+                align_items="start",
+                width="100%",
+            ),
+            spacing=SPACING_MEDIUM,
+            width="100%",
+        ),
+        value=role.id.to(str),
     )
 
 
@@ -187,10 +299,11 @@ def roles_list() -> rx.Component:
                     ),
                     rx.cond(
                         RolesState.roles.length() > 0,
-                        rx.vstack(
-                            rx.foreach(RolesState.roles_with_formatted_dates, role_item),
-                            spacing=SPACING_NONE,
+                        rx.accordion.root(
+                            rx.foreach(RolesState.roles_with_formatted_dates, role_accordion_item),
+                            collapsible=True,
                             width="100%",
+                            variant="ghost",
                         ),
                         rx.center(
                             rx.vstack(

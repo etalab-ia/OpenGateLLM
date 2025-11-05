@@ -4,7 +4,6 @@ from app.core.variables import PADDING_PAGE, SPACING_XL
 from app.features.roles.components import (
     role_create_form,
     roles_header,
-    roles_limits,
     roles_list,
 )
 
@@ -17,8 +16,6 @@ def roles_page() -> rx.Component:
                 roles_header(),
                 role_create_form(),
                 roles_list(),
-                # Box 2: Limits management with filters
-                roles_limits(),
                 spacing=SPACING_XL,
                 width="100%",
                 padding=PADDING_PAGE,
