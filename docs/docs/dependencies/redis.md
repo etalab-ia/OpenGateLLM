@@ -113,3 +113,32 @@ For more information about the configuration file, see [Configuration](../gettin
         ```
 
         Theses metrics are stored in Redis time-series module to determine request prioritisation. For more information about request prioritisation, see [request prioritisation documentation](../models/request_prioritisation.md).
+
+### Security
+
+We recommend securing your Redis instance by keeping the version up-to-date.
+For production environment, we also recommend :
+- enabling protected mode
+- deactivating default user
+- create specific users with limited permissions
+- logging to specific log files
+- disabling syslog
+- disabling dangerous commands (FLUSHALL, FLUSHDB, etc.)
+
+It can be done by configuring the `REDIS_ARGS` environment variable in the `docker-compose.yml` or with a redis.conf file.
+Also consider this security hardening for your docker compose service.
+
+```
+  redis:
+    [...]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64M
+```
