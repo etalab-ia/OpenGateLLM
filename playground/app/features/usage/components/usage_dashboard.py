@@ -2,7 +2,7 @@
 
 import reflex as rx
 
-from app.core.variables import HEADING_SIZE_SECTION, MAX_CARD_WIDTH, SPACING_LARGE, SPACING_SMALL, TEXT_SIZE_LABEL
+from app.core.variables import HEADING_SIZE_SECTION, SPACING_LARGE, SPACING_SMALL, TEXT_SIZE_LABEL
 from app.features.usage.components.usage_chart import usage_chart
 from app.features.usage.components.usage_pagination import usage_pagination
 from app.features.usage.components.usage_table import usage_table
@@ -50,6 +50,5 @@ def usage_dashboard() -> rx.Component:
             ),
         ),
         width="100%",
-        max_width=MAX_CARD_WIDTH,
         spacing=SPACING_LARGE,
     )

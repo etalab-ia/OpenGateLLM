@@ -36,6 +36,7 @@ class RolesState(ChatState):
 
     # Create role form
     new_role_name: str = ""
+    new_role_permissions: list[str] = []
     create_role_loading: bool = False
 
     # Delete role
@@ -45,6 +46,7 @@ class RolesState(ChatState):
     # Edit role
     role_to_edit: int | None = None
     edit_role_name: str = ""
+    edit_role_permissions: list[str] = []
     edit_role_loading: bool = False
 
     # Add limit form
@@ -55,16 +57,6 @@ class RolesState(ChatState):
 
     # Delete limit
     delete_limit_loading: bool = False
-
-    # Add permission
-    new_permission: str = ""
-    add_permission_loading: bool = False
-
-    # Delete permission
-    delete_permission_loading: bool = False
-
-    # Available permissions (from schema)
-    available_permissions: list[str] = ["admin", "create_public_collection", "read_metric", "provide_models"]
 
     # Available limit types
     available_limit_types: list[str] = ["rpm", "rpd", "tpm", "tpd"]
@@ -147,20 +139,6 @@ class RolesState(ChatState):
         return result
 
     @rx.var
-    def selected_role_permissions(self) -> list[str]:
-        """Get permissions for selected role."""
-        role = self.permissions_selected_role
-        if role is None:
-            return []
-        return role.permissions
-
-    @rx.var
-    def available_permissions_to_add(self) -> list[str]:
-        """Get permissions that can be added to selected role."""
-        current_perms = self.selected_role_permissions
-        return [p for p in self.available_permissions if p not in current_perms]
-
-    @rx.var
     def roles_total_pages(self) -> int:
         """Calculate total pages for roles."""
         if self.roles_total == 0:
@@ -186,11 +164,6 @@ class RolesState(ChatState):
     def has_limits_selected_role(self) -> bool:
         """Check if a role is selected for limits."""
         return self.limits_selected_role_id is not None
-
-    @rx.var
-    def has_permissions_selected_role(self) -> bool:
-        """Check if a role is selected for permissions."""
-        return self.permissions_selected_role_id is not None
 
     @rx.var
     def roles_list_for_dropdown(self) -> list[dict[str, str | int]]:
@@ -232,20 +205,6 @@ class RolesState(ChatState):
             self.limits_selected_role_name = ""
 
     @rx.event
-    def set_permissions_selected_role(self, value: str):
-        """Set selected role for permissions."""
-        if value:
-            role_id = int(value)
-            for role in self.roles:
-                if role.id == role_id:
-                    self.permissions_selected_role_id = role_id
-                    self.permissions_selected_role_name = role.name
-                    break
-        else:
-            self.permissions_selected_role_id = None
-            self.permissions_selected_role_name = ""
-
-    @rx.event
     def set_limits_filter_model(self, value: str):
         """Set limits filter model."""
         self.limits_filter_model = value
@@ -266,12 +225,14 @@ class RolesState(ChatState):
         if role_id is None:
             self.role_to_edit = None
             self.edit_role_name = ""
+            self.edit_role_permissions = []
         else:
             self.role_to_edit = role_id
             # Find role and populate edit form
             for role in self.roles:
                 if role.id == role_id:
                     self.edit_role_name = role.name
+                    self.edit_role_permissions = list(role.permissions)
                     break
 
     @rx.event
@@ -354,6 +315,20 @@ class RolesState(ChatState):
             self.roles_loading = False
             yield
 
+    def toggle_new_role_permission(self, permission: str, checked: bool):
+        """Toggle a permission in the new role permissions list."""
+        if checked and permission not in self.new_role_permissions:
+            self.new_role_permissions.append(permission)
+        elif not checked and permission in self.new_role_permissions:
+            self.new_role_permissions.remove(permission)
+
+    def toggle_edit_role_permission(self, permission: str, checked: bool):
+        """Toggle a permission in the edit role permissions list."""
+        if checked and permission not in self.edit_role_permissions:
+            self.edit_role_permissions.append(permission)
+        elif not checked and permission in self.edit_role_permissions:
+            self.edit_role_permissions.remove(permission)
+
     @rx.event
     async def create_role(self):
         """Create a new role."""
@@ -367,7 +342,7 @@ class RolesState(ChatState):
         try:
             payload = {
                 "name": self.new_role_name.strip(),
-                "permissions": [],
+                "permissions": self.new_role_permissions,
                 "limits": [],
             }
 
@@ -381,6 +356,7 @@ class RolesState(ChatState):
 
                 if response.status_code == 201:
                     self.new_role_name = ""
+                    self.new_role_permissions = []
                     yield rx.toast.success("Role created successfully", position="bottom-right")
                     # Reload roles
                     async for _ in self.load_roles():
@@ -427,7 +403,7 @@ class RolesState(ChatState):
 
     @rx.event
     async def update_role(self):
-        """Update a role name."""
+        """Update a role name and permissions."""
         if self.role_to_edit is None:
             return
 
@@ -441,6 +417,7 @@ class RolesState(ChatState):
         try:
             payload = {
                 "name": self.edit_role_name.strip(),
+                "permissions": self.edit_role_permissions,
             }
 
             async with httpx.AsyncClient() as client:
@@ -596,104 +573,6 @@ class RolesState(ChatState):
             yield rx.toast.error(f"Error: {str(e)}", position="bottom-right")
         finally:
             self.delete_limit_loading = False
-            yield
-
-    @rx.event
-    async def add_permission(self):
-        """Add a permission to selected role."""
-        if self.permissions_selected_role_id is None:
-            yield rx.toast.warning("No role selected", position="bottom-right")
-            return
-
-        if not self.new_permission:
-            yield rx.toast.warning("Permission is required", position="bottom-right")
-            return
-
-        self.add_permission_loading = True
-        yield
-
-        try:
-            role = self.permissions_selected_role
-            if role is None:
-                yield rx.toast.error("Role not found", position="bottom-right")
-                self.add_permission_loading = False
-                yield
-                return
-
-            # Add new permission
-            new_permissions = list(role.permissions)
-            if self.new_permission not in new_permissions:
-                new_permissions.append(self.new_permission)
-
-            payload = {"permissions": new_permissions}
-
-            async with httpx.AsyncClient() as client:
-                response = await client.patch(
-                    f"{self.api_url}/v1/admin/roles/{self.permissions_selected_role_id}",
-                    json=payload,
-                    headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
-                    timeout=10.0,
-                )
-
-                if response.status_code == 204:
-                    self.new_permission = ""
-                    yield rx.toast.success("Permission added successfully", position="bottom-right")
-                    # Reload roles
-                    async for _ in self.load_roles():
-                        yield
-                else:
-                    error_detail = response.json().get("detail", "Failed to add permission")
-                    yield rx.toast.error(str(error_detail), position="bottom-right")
-
-        except Exception as e:
-            yield rx.toast.error(f"Error: {str(e)}", position="bottom-right")
-        finally:
-            self.add_permission_loading = False
-            yield
-
-    @rx.event
-    async def delete_permission(self, permission: str):
-        """Delete a permission from selected role."""
-        if self.permissions_selected_role_id is None:
-            return
-
-        self.delete_permission_loading = True
-        yield
-
-        try:
-            role = self.permissions_selected_role
-            if role is None:
-                yield rx.toast.error("Role not found", position="bottom-right")
-                self.delete_permission_loading = False
-                yield
-                return
-
-            # Remove the permission
-            new_permissions = [p for p in role.permissions if p != permission]
-
-            payload = {"permissions": new_permissions}
-
-            async with httpx.AsyncClient() as client:
-                response = await client.patch(
-                    f"{self.api_url}/v1/admin/roles/{self.permissions_selected_role_id}",
-                    json=payload,
-                    headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
-                    timeout=10.0,
-                )
-
-                if response.status_code == 204:
-                    yield rx.toast.success("Permission deleted successfully", position="bottom-right")
-                    # Reload roles
-                    async for _ in self.load_roles():
-                        yield
-                else:
-                    error_detail = response.json().get("detail", "Failed to delete permission")
-                    yield rx.toast.error(str(error_detail), position="bottom-right")
-
-        except Exception as e:
-            yield rx.toast.error(f"Error: {str(e)}", position="bottom-right")
-        finally:
-            self.delete_permission_loading = False
             yield
 
     @rx.event

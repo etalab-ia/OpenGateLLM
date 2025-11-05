@@ -4,7 +4,6 @@ from app.core.variables import (
     HEADING_SIZE_SECTION,
     ICON_SIZE_EMPTY_STATE,
     ICON_SIZE_MEDIUM,
-    MAX_CARD_WIDTH,
     PADDING_PAGE,
     SIZE_MEDIUM,
     SPACING_MEDIUM,
@@ -205,5 +204,4 @@ def roles_limits() -> rx.Component:
             width="100%",
         ),
         width="100%",
-        max_width=MAX_CARD_WIDTH,
     )

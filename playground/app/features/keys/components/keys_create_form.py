@@ -15,7 +15,7 @@ def keys_create_form() -> rx.Component:
                 rx.vstack(
                     rx.text("Key name *", size=TEXT_SIZE_LABEL, weight="bold"),
                     rx.input(
-                        placeholder="e.g., Production API Key",
+                        placeholder="Key name",
                         value=KeysState.new_key_name,
                         on_change=KeysState.set_new_key_name,
                         width="100%",

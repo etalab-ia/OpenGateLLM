@@ -5,7 +5,6 @@
 # ============================================================================
 
 # Component widths
-MAX_CARD_WIDTH = "1200px"  # Main cards width (lists, tables)
 MAX_DIALOG_WIDTH = "600px"  # Dialogs and modals width
 SELECT_SMALL_WIDTH = "150px"  # Small select components
 SELECT_MEDIUM_WIDTH = "200px"  # Medium select components

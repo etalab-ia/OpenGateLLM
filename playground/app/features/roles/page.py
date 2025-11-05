@@ -2,10 +2,10 @@ import reflex as rx
 
 from app.core.variables import PADDING_PAGE, SPACING_XL
 from app.features.roles.components import (
+    role_create_form,
     roles_header,
     roles_limits,
     roles_list,
-    roles_permissions,
 )
 
 
@@ -15,12 +15,10 @@ def roles_page() -> rx.Component:
         rx.scroll_area(
             rx.vstack(
                 roles_header(),
-                # Box 1: Roles list with sorting and pagination
+                role_create_form(),
                 roles_list(),
                 # Box 2: Limits management with filters
                 roles_limits(),
-                # Box 3: Permissions management
-                roles_permissions(),
                 spacing=SPACING_XL,
                 width="100%",
                 padding=PADDING_PAGE,

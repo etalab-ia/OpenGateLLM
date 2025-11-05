@@ -5,7 +5,6 @@ import reflex as rx
 from app.core.variables import (
     HEADING_SIZE_SECTION,
     ICON_SIZE_EMPTY_STATE,
-    MAX_CARD_WIDTH,
     PADDING_PAGE,
     SIZE_MEDIUM,
     SPACING_MEDIUM,
@@ -71,5 +70,4 @@ def keys_list() -> rx.Component:
             width="100%",
         ),
         width="100%",
-        max_width=MAX_CARD_WIDTH,
     )

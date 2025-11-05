@@ -2,14 +2,7 @@
 
 import reflex as rx
 
-from app.core.variables import (
-    HEADING_SIZE_SECTION,
-    MARGIN_SMALL,
-    MAX_CARD_WIDTH,
-    SPACING_MEDIUM,
-    SPACING_TINY,
-    TEXT_SIZE_LABEL,
-)
+from app.core.variables import HEADING_SIZE_SECTION, MARGIN_SMALL, SPACING_MEDIUM, SPACING_TINY, TEXT_SIZE_LABEL
 from app.features.account.state import AccountState
 
 
@@ -37,7 +30,7 @@ def account_info_card() -> rx.Component:
                 rx.vstack(
                     rx.text("Name", size=TEXT_SIZE_LABEL, weight="bold"),
                     rx.input(
-                        placeholder="Enter your name",
+                        placeholder="Name",
                         value=AccountState.edit_name,
                         on_change=AccountState.set_edit_name,
                         on_mount=AccountState.load_current_name,
@@ -72,5 +65,4 @@ def account_info_card() -> rx.Component:
             width="100%",
         ),
         width="100%",
-        max_width=MAX_CARD_WIDTH,
     )

@@ -2,14 +2,7 @@
 
 import reflex as rx
 
-from app.core.variables import (
-    MARGIN_SMALL,
-    MAX_CARD_WIDTH,
-    SPACING_MEDIUM,
-    SPACING_TINY,
-    TEXT_SIZE_LABEL,
-    TEXT_SIZE_LARGE,
-)
+from app.core.variables import MARGIN_SMALL, SPACING_MEDIUM, SPACING_TINY, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
 from app.features.account.state import AccountState
 
 
@@ -27,7 +20,7 @@ def account_password_card() -> rx.Component:
                 rx.vstack(
                     rx.text("Current password", size=TEXT_SIZE_LABEL, weight="bold"),
                     rx.input(
-                        placeholder="Enter current password",
+                        placeholder="Current password",
                         type="password",
                         value=AccountState.current_password,
                         on_change=AccountState.set_current_password,
@@ -47,7 +40,7 @@ def account_password_card() -> rx.Component:
                         align="center",
                     ),
                     rx.input(
-                        placeholder="Enter new password",
+                        placeholder="New password",
                         type="password",
                         value=AccountState.new_password,
                         on_change=AccountState.set_new_password,
@@ -67,7 +60,7 @@ def account_password_card() -> rx.Component:
                         align="center",
                     ),
                     rx.input(
-                        placeholder="Confirm new password",
+                        placeholder="New password",
                         type="password",
                         value=AccountState.confirm_password,
                         on_change=AccountState.set_confirm_password,
@@ -93,5 +86,4 @@ def account_password_card() -> rx.Component:
             width="100%",
         ),
         width="100%",
-        max_width=MAX_CARD_WIDTH,
     )

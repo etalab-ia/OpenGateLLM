@@ -2,15 +2,7 @@
 
 import reflex as rx
 
-from app.core.variables import (
-    HEADING_SIZE_SECTION,
-    ICON_SIZE_TINY,
-    MAX_CARD_WIDTH,
-    SPACING_MEDIUM,
-    SPACING_SMALL,
-    SPACING_TINY,
-    TEXT_SIZE_LABEL,
-)
+from app.core.variables import HEADING_SIZE_SECTION, ICON_SIZE_TINY, SPACING_MEDIUM, SPACING_SMALL, SPACING_TINY, TEXT_SIZE_LABEL
 from app.features.usage.components.usage_limits_row import usage_limits_row
 from app.features.usage.state import UsageState
 
@@ -93,5 +85,4 @@ def usage_limits_table() -> rx.Component:
             width="100%",
         ),
         width="100%",
-        max_width=MAX_CARD_WIDTH,
     )

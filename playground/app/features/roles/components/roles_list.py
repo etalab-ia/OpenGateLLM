@@ -4,19 +4,16 @@ from app.core.variables import (
     HEADING_SIZE_SECTION,
     ICON_SIZE_EMPTY_STATE,
     ICON_SIZE_MEDIUM,
-    MARGIN_MEDIUM,
-    MAX_CARD_WIDTH,
-    MAX_DIALOG_WIDTH,
     PADDING_PAGE,
     SIZE_MEDIUM,
     SPACING_LARGE,
     SPACING_MEDIUM,
     SPACING_NONE,
     SPACING_SMALL,
-    SPACING_TINY,
     TEXT_SIZE_LABEL,
     TEXT_SIZE_LARGE,
 )
+from app.features.roles.components.role_update_form import role_update_form
 from app.features.roles.components.roles_pagination import roles_pagination
 from app.features.roles.models import FormattedRole
 from app.features.roles.state import RolesState
@@ -105,85 +102,6 @@ def role_item(role: FormattedRole) -> rx.Component:
     )
 
 
-def create_role_form() -> rx.Component:
-    """Form to create a new role."""
-    return rx.card(
-        rx.vstack(
-            rx.heading("Create new role", size=TEXT_SIZE_LARGE),
-            rx.hstack(
-                rx.input(
-                    placeholder="Role name",
-                    value=RolesState.new_role_name,
-                    on_change=RolesState.set_new_role_name,
-                    disabled=RolesState.create_role_loading,
-                    width="100%",
-                ),
-                rx.button(
-                    rx.cond(
-                        RolesState.create_role_loading,
-                        rx.spinner(size=SIZE_MEDIUM),
-                        "Create",
-                    ),
-                    on_click=RolesState.create_role,
-                    disabled=RolesState.create_role_loading,
-                ),
-                width="100%",
-            ),
-            spacing=SPACING_MEDIUM,
-            width="100%",
-        ),
-        width="100%",
-    )
-
-
-def edit_role_dialog() -> rx.Component:
-    """Dialog for editing a role."""
-    return rx.dialog.root(
-        rx.dialog.content(
-            rx.dialog.title("Edit Role"),
-            rx.dialog.description(
-                "Update the role name.",
-            ),
-            rx.vstack(
-                rx.text("Role Name *", size=TEXT_SIZE_LABEL, weight="bold"),
-                rx.input(
-                    placeholder="Role name",
-                    value=RolesState.edit_role_name,
-                    on_change=RolesState.set_edit_role_name,
-                    disabled=RolesState.edit_role_loading,
-                    width="100%",
-                ),
-                spacing=SPACING_TINY,
-                width="100%",
-            ),
-            rx.hstack(
-                rx.dialog.close(
-                    rx.button(
-                        "Cancel",
-                        variant="soft",
-                        color_scheme="gray",
-                        on_click=lambda: RolesState.set_role_to_edit(None),
-                    ),
-                ),
-                rx.button(
-                    rx.cond(
-                        RolesState.edit_role_loading,
-                        rx.spinner(size=SIZE_MEDIUM),
-                        "Update",
-                    ),
-                    on_click=RolesState.update_role,
-                    disabled=RolesState.edit_role_loading,
-                ),
-                spacing=SPACING_MEDIUM,
-                justify="end",
-                margin_top=MARGIN_MEDIUM,
-            ),
-            max_width=MAX_DIALOG_WIDTH,
-        ),
-        open=RolesState.is_edit_role_dialog_open,
-    )
-
-
 def delete_role_dialog() -> rx.Component:
     """Dialog for deleting a role."""
     return rx.alert_dialog.root(
@@ -244,7 +162,6 @@ def roles_sorting() -> rx.Component:
 def roles_list() -> rx.Component:
     """Display list of roles with sorting and pagination."""
     return rx.vstack(
-        create_role_form(),
         rx.card(
             rx.vstack(
                 rx.hstack(
@@ -308,9 +225,8 @@ def roles_list() -> rx.Component:
             ),
             width="100%",
         ),
-        edit_role_dialog(),
+        role_update_form(),
         delete_role_dialog(),
         spacing=SPACING_LARGE,
         width="100%",
-        max_width=MAX_CARD_WIDTH,
     )

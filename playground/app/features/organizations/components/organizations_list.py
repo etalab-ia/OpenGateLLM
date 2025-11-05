@@ -7,7 +7,6 @@ from app.core.variables import (
     ICON_SIZE_EMPTY_STATE,
     ICON_SIZE_MEDIUM,
     MARGIN_MEDIUM,
-    MAX_CARD_WIDTH,
     MAX_DIALOG_WIDTH,
     PADDING_PAGE,
     SIZE_MEDIUM,
@@ -295,5 +294,4 @@ def organizations_list() -> rx.Component:
         delete_organization_dialog(),
         spacing=SPACING_LARGE,
         width="100%",
-        max_width=MAX_CARD_WIDTH,
     )
