@@ -12,13 +12,7 @@ from pydantic_settings import BaseSettings
 import yaml
 
 from api.schemas.models import ModelType
-from api.utils.variables import (
-    DEFAULT_APP_NAME,
-    DEFAULT_TIMEOUT,
-    ROUTER__ADMIN,
-    ROUTER__AUTH,
-    ROUTERS,
-)
+from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, ROUTER__ADMIN, ROUTER__AUTH, ROUTERS
 
 # utils ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -414,9 +408,10 @@ class Tokenizer(str, Enum):
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#settings")
 class Settings(ConfigBaseModel):
-    # other
+    # general
     disabled_routers: list[Routers] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["embeddings"]])  # fmt: off
     hidden_routers: list[Routers] = Field(default_factory=list, description="Routers are enabled but hidden in the swagger and the documentation of the API.", examples=[["admin"]])  # fmt: off
+    app_title: str | None = Field(default="Albert API", description="Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API"])  # fmt: off
 
     # metrics
     metrics_retention_ms: int = Field(default=40000, ge=1, description="Retention time for metrics in milliseconds.")  # fmt: off
@@ -429,7 +424,6 @@ class Settings(ConfigBaseModel):
     log_format: str | None = Field(default="[%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s", description="Logging format of the API.")  # fmt: off
 
     # swagger
-    swagger_title: str | None = Field(default="Albert API", description="Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API"])  # fmt: off
     swagger_summary: str | None = Field(default="Albert API connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title.", description="Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API connect to your models."])  # fmt: off
     swagger_version: str | None = Field(default="latest", description="Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["2.5.0"])  # fmt: off
     swagger_description: str | None = Field(default="[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)", description="Display description of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)"])  # fmt: off
@@ -528,10 +522,6 @@ class Settings(ConfigBaseModel):
 # load config ----------------------------------------------------------------------------------------------------------------------------------------
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#all-configuration")
 class ConfigFile(ConfigBaseModel):
-    """
-    Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateLLM/blob/main/config.example.yml) for an example of configuration.
-    """
-
     models: list[Model] = Field(min_length=1, description="Models used by the API. At least one model must be defined.")  # fmt: off
     dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the API.")  # fmt: off
     settings: Settings = Field(default_factory=Settings, description="General settings configuration fields.")  # fmt: off

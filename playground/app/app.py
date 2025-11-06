@@ -144,13 +144,13 @@ def organizations() -> rx.Component:
 # Create the app with theme configuration
 app = rx.App(
     theme=rx.theme(
-        has_background=configuration.playground.theme_has_background,
-        accent_color=configuration.playground.theme_accent_color,
-        appearance=configuration.playground.theme_appearance,
-        gray_color=configuration.playground.theme_gray_color,
-        panel_background=configuration.playground.theme_panel_background,
-        radius=configuration.playground.theme_radius,
-        scaling=configuration.playground.theme_scaling,
+        has_background=configuration.settings.playground_theme_has_background,
+        accent_color=configuration.settings.playground_theme_accent_color,
+        appearance=configuration.settings.playground_theme_appearance,
+        gray_color=configuration.settings.playground_theme_gray_color,
+        panel_background=configuration.settings.playground_theme_panel_background,
+        radius=configuration.settings.playground_theme_radius,
+        scaling=configuration.settings.playground_theme_scaling,
     ),
     head_components=[
         rx.el.link(rel="icon", type="image/x-icon", href="/favicon.ico"),

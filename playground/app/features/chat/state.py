@@ -5,6 +5,7 @@ from typing import Any
 import httpx
 import reflex as rx
 
+from app.core.configuration import configuration
 from app.features.auth.state import AuthState
 from app.features.chat.models import QA
 
@@ -67,7 +68,13 @@ class ChatState(AuthState):
                 response.raise_for_status()
                 data = response.json()
                 models = data.get("data", [])
-                self.available_models = [model.get("id") for model in models if model.get("type") in ["text-generation", "image-text-to-text"]]
+                models = sorted([model.get("id") for model in models if model.get("type") in ["text-generation", "image-text-to-text"]])
+
+                if configuration.settings.playground_default_model in models:
+                    models.remove(configuration.settings.playground_default_model)
+                    models.insert(0, configuration.settings.playground_default_model)
+
+                self.available_models = models
                 if not self.model and self.available_models:
                     self.model = self.available_models[0]
 

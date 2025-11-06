@@ -1,7 +1,6 @@
 settings:
-  auth_key_max_expiration_days: 365
-
-playground:
-  opengatellm_url: ${OPENGATELLM_URL}
   app_title: Albert API
-  theme_accent_color: indigo
+  auth_key_max_expiration_days: 365
+  playground_opengatellm_url: ${OPENGATELLM_URL}
+  playground_default_model: ${PLAYGROUND_DEFAULT_MODEL}
+  playground_theme_accent_color: indigo

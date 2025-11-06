@@ -1,6 +1,6 @@
 # Configuration
 
-OpenGateLLM requires configuring a configuration file. This defines models, dependencies, and settings parameters.
+OpenGateLLM requires configuring a configuration file. This defines models, dependencies, and settings parameters. Playground and API need a configuration file (could be the same file), see [API configuration](#api-configuration) and [Playground configuration](#playground-configuration).
 
 By default, the configuration file must be `./config.yml` file.
 
@@ -29,9 +29,113 @@ models:
         key: ${OPENAI_API_KEY}
         model_name: gpt-4o-mini
 ```
-<br></br>
 
-# All settings
+## Example
+
+The following is an example of configuration file:
+
+```yaml
+# ----------------------------------- models ------------------------------------
+models:
+  - name: albert-testbed
+    type: text-generation
+    # aliases: ["model-alias"]
+    # owned_by: Me
+    # routing_strategy: shuffle
+    providers:
+      - type: vllm
+        url: http://albert-testbed.etalab.gouv.fr:8000
+        # key: sk-xxx
+        model_name: "gemma3:1b"
+        # timeout: 60
+        # model_cost_prompt_tokens: 0.10
+        # model_cost_completion_tokens: 0.10
+        # model_carbon_footprint_zone: FRA
+        # model_carbon_footprint_total_params: 8
+        # model_carbon_footprint_active_params: 8
+  
+# -------------------------------- dependencies ---------------------------------
+dependencies:
+  postgres: # required
+    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-localhost}:${POSTGRES_PORT:-5432}/postgres
+    echo: False
+    pool_size: 5
+    connect_args:
+      server_settings:
+        statement_timeout: "120s"
+      command_timeout: 60
+
+  redis: # required
+    host: ${REDIS_HOST:-localhost}
+    port: ${REDIS_PORT:-6379}
+    password: ${REDIS_PASSWORD:-changeme}
+
+  # elasticsearch:
+  #   number_of_shards: 1
+  #   number_of_replicas: 0
+  #   hosts: "http://localhost:9200"
+  #   basic_auth:
+  #     - "elastic"
+  #     - ${ELASTIC_PASSWORD}
+
+  # brave:
+  #   headers:
+  #     Accept: application/json
+  #     X-Subscription-Token: ${BRAVE_API_KEY}
+  #   country: "fr"
+  #   safesearch: "strict"
+
+  # sentry:
+  #   dsn: ${SENTRY_DSN}
+
+# ---------------------------------- settings -----------------------------------
+settings:
+  # session_secret_key: ${SESSION_SECRET_KEY}
+  # disabled_routers: ["admin", "audio"]
+  # usage_tokenizer: tiktoken_gpt2
+  # app_title: My OpenGateLLM API
+
+  # log_level: INFO
+  # log_format: [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s
+
+  # swagger_version: 1.0.0
+  # swagger_contact_url: https://github.com/etalab-ia/OpenGateLLM
+  # swagger_contact_email: john.doe@example.com
+  # swagger_docs_url: /docs
+  # swagger_redoc_url: /redoc
+
+  auth_master_username: master
+  auth_master_key: changeme
+  # auth_max_token_expiration_days: 365
+
+  # rate_limiting_strategy: fixed_window
+
+  # monitoring_sentry_enabled: False
+  # monitoring_postgres_enabled: False
+  # monitoring_prometheus_enabled: False
+
+  # vector_store_model: my-model
+
+  # search_web_query_model: my-model
+  # search_web_limited_domains: ["google.com", "wikipedia.org"]
+  # search_web_user_agent: None
+
+  # search_multi_agents_synthesis_model: my-model
+  # search_multi_agents_reranker_model: my-model
+
+  playground_opengatellm_url: http://localhost:8000
+  # playground_default_model: my-model
+  # playground_theme_has_background: True
+  # playground_theme_accent_color: purple
+  # playground_theme_appearance: dark
+  # playground_theme_gray_color: gray
+  # playground_theme_panel_background: solid
+  # playground_theme_radius: medium
+  # playground_theme_scaling: 100%
+
+```
+
+## API configuration
 Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateLLM/blob/main/config.example.yml) for an example of configuration.
 <br></br>
 
@@ -39,15 +143,16 @@ Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateL
 | --- | --- | --- | --- | --- | --- | --- |
 | dependencies | object | Dependencies used by the API. For details of configuration, see the [Dependencies section](#dependencies). |  |  |  |  |
 | models | array | Models used by the API. At least one model must be defined. For details of configuration, see the [Model section](#model). |  |  |  |  |
-| settings | object | Settings used by the API. For details of configuration, see the [Settings section](#settings). |  |  |  |  |
+| settings | object | General settings configuration fields. For details of configuration, see the [Settings section](#settings). |  |  |  |  |
 
 <br></br>
 
-## Settings
+### Settings
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
+| app_title | string | Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | Albert API |  | Albert API |
+| auth_key_max_expiration_days | integer | Maximum number of days for a new API key to be valid. |  | None |  |  |
 | auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. |  | changeme |  |  |
-| auth_key_max_expiration_days | integer | Maximum number of days for a token to be valid. |  | None |  |  |
 | auth_playground_session_duration | integer | Duration of the playground session in seconds. |  | 3600 |  |  |
 | celery_broker_url | string | Celery broker URL (e.g. redis://localhost:6379/0 or amqp://user:pass@host:5672//). Required if celery_task_always_eager is false. |  | None |  |  |
 | celery_default_queue_prefix | string | Prefix used for per-model Celery queues (queue name = prefix + router_name). |  | model. |  |  |
@@ -80,14 +185,13 @@ Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateL
 | swagger_redoc_url | string | Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | /redoc |  |  |
 | swagger_summary | string | Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | Albert API connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title. |  | Albert API connect to your models. |
 | swagger_terms_of_service | string | A URL to the Terms of Service for the API in swagger UI. If provided, this has to be a URL. |  | None |  | https://example.com/terms-of-service |
-| swagger_title | string | Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | Albert API |  | Albert API |
 | swagger_version | string | Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | latest |  | 2.5.0 |
 | usage_tokenizer | string | Tokenizer used to compute usage of the API. |  | tiktoken_gpt2 | • tiktoken_gpt2<br></br>• tiktoken_r50k_base<br></br>• tiktoken_p50k_base<br></br>• tiktoken_p50k_edit<br></br>• tiktoken_cl100k_base<br></br>• tiktoken_o200k_base |  |
 | vector_store_model | string | Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch or Qdrant). This model must be defined in the `models` section and have type `text-embeddings-inference`. |  | None |  |  |
 
 <br></br>
 
-## Model
+### Model
 In the models section, you define a list of models. Each model is a set of API providers for that model. Users will access the models specified in
 this section using their *name*. Load balancing is performed between the different providers of the requested model. All providers in a model must
 serve the same type of model (text-generation or text-embeddings-inference, etc.). We recommend that all providers of a model serve exactly the same
@@ -112,7 +216,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 
 <br></br>
 
-### ModelProvider
+#### ModelProvider
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | key | string | Model provider API key. |  | None |  | sk-1234567890 |
@@ -131,14 +235,14 @@ For more information to configure model providers, see the [ModelProvider sectio
 
 <br></br>
 
-## Dependencies
+### Dependencies
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | albert | object | If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section. For details of configuration, see the [AlbertDependency section](#albertdependency). |  | None |  |  |
 | brave | object | If provided, Brave API is used to web search. Cannot be used with DuckDuckGo dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://api-dashboard.search.brave.com/app/documentation/web-search/query for more information. For details of configuration, see the [BraveDependency section](#bravedependency). |  | None |  |  |
 | centralesupelec | object |  For details of configuration, see the [CentraleSupelecDependency section](#centralesupelecdependency). |  | None |  |  |
 | duckduckgo | object | If provided, DuckDuckGo API is used to web search. Cannot be used with Brave dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://www.searchapi.io/docs/duckduckgo-api for more information. For details of configuration, see the [DuckDuckGoDependency section](#duckduckgodependency). |  | None |  |  |
-| elasticsearch | object | Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). |  | None |  |  |
+| elasticsearch | object | Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information. Some others arguments are available to configure the Elasticsearch index. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). |  | None |  |  |
 | marker | object | If provided, Marker API is used to parse pdf documents. Cannot be used with Albert dependency concurrently. Pass arguments to call Marker API in this section. For details of configuration, see the [MarkerDependency section](#markerdependency). |  | None |  |  |
 | postgres | object | Pass all postgres python SDK arguments, see https://github.com/etalab-ia/opengatellm/blob/main/docs/dependencies/postgres.md for more information. For details of configuration, see the [PostgresDependency section](#postgresdependency). |  |  |  |  |
 | proconnect | object | ProConnect configuration for the API. See https://github.com/etalab-ia/albert-api/blob/main/docs/oauth2_encryption.md for more information. For details of configuration, see the [ProConnect section](#proconnect). |  | None |  |  |
@@ -148,19 +252,19 @@ For more information to configure model providers, see the [ModelProvider sectio
 
 <br></br>
 
-### SentryDependency
+#### SentryDependency
 
 <br></br>
 
-### RedisDependency
+#### RedisDependency
 
 <br></br>
 
-### QdrantDependency
+#### QdrantDependency
 
 <br></br>
 
-### ProConnect
+#### ProConnect
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | allowed_domains | string | Comma-separated list of domains allowed to sign in via ProConnect (e.g. 'gouv.fr,example.com'). Only fronted on the specified domains will be allowed to authenticate using proconnect. |  | localhost,gouv.fr |  |  |
@@ -173,14 +277,14 @@ For more information to configure model providers, see the [ModelProvider sectio
 
 <br></br>
 
-### PostgresDependency
+#### PostgresDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | url | string | PostgreSQL connection url. |  |  |  |  |
 
 <br></br>
 
-### MarkerDependency
+#### MarkerDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | headers | object | Marker API request headers. |  |  |  | `{'Authorization': 'Bearer my-api-key'}` |
@@ -189,11 +293,15 @@ For more information to configure model providers, see the [ModelProvider sectio
 
 <br></br>
 
-### ElasticsearchDependency
+#### ElasticsearchDependency
+| Attribute | Type | Description | Required | Default | Values | Examples |
+| --- | --- | --- | --- | --- | --- | --- |
+| number_of_replicas | integer | Number of replicas for the Elasticsearch index. |  | 1 |  | 1 |
+| number_of_shards | integer | Number of shards for the Elasticsearch index. |  | 1 |  | 1 |
 
 <br></br>
 
-### DuckDuckGoDependency
+#### DuckDuckGoDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | headers | object | DuckDuckGo API request headers. | False |  |  | `{}` |
@@ -202,11 +310,11 @@ For more information to configure model providers, see the [ModelProvider sectio
 
 <br></br>
 
-### CentraleSupelecDependency
+#### CentraleSupelecDependency
 
 <br></br>
 
-### BraveDependency
+#### BraveDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | headers | object | Brave API request headers. | True |  |  | `{'X-Subscription-Token': 'my-api-key'}` |
@@ -215,12 +323,44 @@ For more information to configure model providers, see the [ModelProvider sectio
 
 <br></br>
 
-### AlbertDependency
+#### AlbertDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | headers | object | Albert API request headers. |  |  |  | `{'Authorization': 'Bearer my-api-key'}` |
 | timeout | integer | Timeout for the Albert API requests. |  | 300 |  | 10 |
 | url | string | Albert API url. |  | https://albert.api.etalab.gouv.fr |  |  |
+
+<br></br>
+
+## Playground configuration
+The following parameters allow you to configure the Playground application. The configuration file can be shared with the API, as the sections are
+identical and compatible. Some parameters are common to both the API and the Playground (for example, `app_title`).
+
+For Plagroud deployment, some environment variables are required to be set, like Reflex backend URL. See
+[Environment variables](../getting-started/environment_variables.md#playground) for more information.
+<br></br>
+
+| Attribute | Type | Description | Required | Default | Values | Examples |
+| --- | --- | --- | --- | --- | --- | --- |
+| settings | object | General settings configuration fields. Some fields are common to the API and the playground. For details of configuration, see the [Settings section](#settings). |  |  |  |  |
+
+<br></br>
+
+### Settings
+| Attribute | Type | Description | Required | Default | Values | Examples |
+| --- | --- | --- | --- | --- | --- | --- |
+| app_title | string | The title of the application. |  | OpenGateLLM |  |  |
+| auth_key_max_expiration_days | integer | Maximum number of days for a token to be valid. |  | None |  |  |
+| celery_task_max_priority | integer | Maximum allowed priority in celery tasks. |  | 10 |  |  |
+| playground_default_model | string | The first model selected in chat page. |  | None |  |  |
+| playground_opengatellm_url | string | The URL of the OpenGateLLM API. |  | http://localhost:8000 |  |  |
+| playground_theme_accent_color | string | The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors. |  | purple |  |  |
+| playground_theme_appearance | string | The appearance of the theme. |  | light |  |  |
+| playground_theme_gray_color | string | The secondary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors. |  | gray |  |  |
+| playground_theme_has_background | boolean | Whether the theme has a background. |  | True |  |  |
+| playground_theme_panel_background | string | Whether panel backgrounds are translucent: 'solid' | 'translucent'. |  | solid |  |  |
+| playground_theme_radius | string | The radius of the theme. Can be 'small', 'medium', or 'large'. |  | medium |  |  |
+| playground_theme_scaling | string | The scaling of the theme. |  | 100% |  |  |
 
 <br></br>
 

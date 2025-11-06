@@ -1,6 +1,6 @@
 # Configuration
 
-OpenGateLLM requires configuring a configuration file. This defines models, dependencies, and settings parameters.
+OpenGateLLM requires configuring a configuration file. This defines models, dependencies, and settings parameters. Playground and API need a configuration file (could be the same file), see [API configuration](#api-configuration) and [Playground configuration](#playground-configuration).
 
 By default, the configuration file must be `./config.yml` file.
 

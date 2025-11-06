@@ -60,31 +60,46 @@ def custom_validation_error(url: str | None = None):
     return decorator
 
 
-class BaseConfig(BaseSettings):
+class ConfigBaseModel(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-class Settings(BaseConfig):
+@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#redisdependency")
+class RedisDependency(ConfigBaseModel):
+    pass
+    # All args of pydantic redis client is allowed
+
+
+class Dependencies(ConfigBaseModel):
+    redis: RedisDependency  = Field(..., description="Pass all redis python SDK arguments, see https://redis.readthedocs.io/en/stable/connections.html for more information.")  # fmt: off
+
+
+class Settings(ConfigBaseModel):
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
     celery_task_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in celery tasks.")  # fmt: off
-
-
-class Playground(BaseConfig):
-    opengatellm_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
-    default_model: str | None = Field(default=None, description="The first model selected in chat page.")
     app_title: str = Field(default="OpenGateLLM", description="The title of the application.")
-    theme_has_background: bool = Field(default=True, description="Whether the theme has a background.")
-    theme_accent_color: str = Field(default="purple", description="The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.")  # fmt: off
-    theme_appearance: str = Field(default="light", description="The appearance of the theme.")
-    theme_gray_color: str = Field(default="gray", description="The secondary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.")  # fmt: off
-    theme_panel_background: str = Field(default="solid", description="Whether panel backgrounds are translucent: 'solid' | 'translucent'.")
-    theme_radius: str = Field(default="medium", description="The radius of the theme. Can be 'small', 'medium', or 'large'.")
-    theme_scaling: str = Field(default="100%", description="The scaling of the theme.")
+
+    playground_opengatellm_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
+    playground_default_model: str | None = Field(default=None, description="The first model selected in chat page.")
+    playground_theme_has_background: bool = Field(default=True, description="Whether the theme has a background.")
+    playground_theme_accent_color: str = Field(default="purple", description="The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.")  # fmt: off
+    playground_theme_appearance: str = Field(default="light", description="The appearance of the theme.")
+    playground_theme_gray_color: str = Field(default="gray", description="The secondary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.")  # fmt: off
+    playground_theme_panel_background: str = Field(default="solid", description="Whether panel backgrounds are translucent: 'solid' | 'translucent'.")
+    playground_theme_radius: str = Field(default="medium", description="The radius of the theme. Can be 'small', 'medium', or 'large'.")
+    playground_theme_scaling: str = Field(default="100%", description="The scaling of the theme.")
 
 
-class ConfigFile(BaseConfig):
-    playground: Playground = Field(default_factory=Playground, description="The playground configuration fields.")
-    settings: Settings = Field(default_factory=Settings, description="General settings configuration fields.")  # fmt: off
+class ConfigFile(ConfigBaseModel):
+    """
+    The following parameters allow you to configure the Playground application. The configuration file can be shared with the API, as the sections are
+    identical and compatible. Some parameters are common to both the API and the Playground (for example, `app_title`).
+
+    For Plagroud deployment, some environment variables are required to be set, like Reflex backend URL. See
+    [Environment variables](../getting-started/environment_variables.md#playground) for more information.
+    """
+
+    settings: Settings = Field(default_factory=Settings, description="General settings configuration fields. Some fields are common to the API and the playground.")  # fmt: off
 
 
 class Configuration(BaseSettings):
@@ -107,7 +122,6 @@ class Configuration(BaseSettings):
         config = ConfigFile(**yaml.safe_load(stream=file_content))
 
         values.settings = config.settings
-        values.playground = config.playground
 
         return values
 

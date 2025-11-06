@@ -12,7 +12,7 @@ In addition to the configuration file (see the [configuration documentation](./c
 
 ## Playground
 
-For adapt the playground docker image for your deployment, you can build it with the following arguments:
+For adapt the playground docker image for your deployment, you can build it with the following arguments. For more information, consult the [reflex self-hosting documentation](https://reflex.dev/docs/hosting/self-hosting/).
 
 | Argument | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -28,3 +28,4 @@ Example:
  CONFIG_FILE=config.yml \
  FAVICON=./playground/assets/favicon.ico \
  --file playground/Dockerfile --tag playground:latest .
+```

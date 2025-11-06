@@ -2,28 +2,21 @@
 models:
   - name: albert-testbed
     type: text-generation
+    # aliases: ["model-alias"]
+    # owned_by: Me
+    # routing_strategy: shuffle
     providers:
       - type: vllm
         url: http://albert-testbed.etalab.gouv.fr:8000
+        # key: sk-xxx
         model_name: "gemma3:1b"
-      
-  # - name: # required - example: my-llm
-  #   type: # required - values: text-image-to-text, text-generation, text-embeddings-inference
-  #   aliases: # optional - example: ["model-alias"]
-  #   owned_by: # optional - example: "Me"
-  #   routing_strategy: # optional - default: shuffle - values: shuffle, round_robin
-  #   providers:
-  #     - type: # required - example: "openai" - values: vllm, tei, openai, albert
-  #       url: # required - example: "https://api.openai.com" (without /v1 suffix)
-  #       key: # required - example: "sk-1234567890"
-  #       timeout: # optional - default: 10
-  #       model_name: # required - example: "gpt-4o"
-  #       model_cost_prompt_tokens: # optional - default: None - example: 0.10
-  #       model_cost_completion_tokens: # optional - default: None - example: 0.10
-  #       model_carbon_footprint_zone: # optional - default: "WOR" - values: country codes (ISO 3166-1 alpha-3 format)
-  #       model_carbon_footprint_total_params: # optional - default: None - example: 8
-  #       model_carbon_footprint_active_params: # optional - default: None - example: 8
-
+        # timeout: 60
+        # model_cost_prompt_tokens: 0.10
+        # model_cost_completion_tokens: 0.10
+        # model_carbon_footprint_zone: FRA
+        # model_carbon_footprint_total_params: 8
+        # model_carbon_footprint_active_params: 8
+  
 # -------------------------------- dependencies ---------------------------------
 dependencies:
   postgres: # required
@@ -40,63 +33,65 @@ dependencies:
     port: ${REDIS_PORT:-6379}
     password: ${REDIS_PASSWORD:-changeme}
 
-  # qdrant: {} # optional
-  # elastic: {} # optional
-  # marker: {} # optional
-  # albert: {} # optional
-  # brave: {} # optional
-  # duckduckgo: {} # optional
-  # secretiveshell: {} # optional
-  # sentry: {} # optional
+  # elasticsearch:
+  #   number_of_shards: 1
+  #   number_of_replicas: 0
+  #   hosts: "http://localhost:9200"
+  #   basic_auth:
+  #     - "elastic"
+  #     - ${ELASTIC_PASSWORD}
+
+  # brave:
+  #   headers:
+  #     Accept: application/json
+  #     X-Subscription-Token: ${BRAVE_API_KEY}
+  #   country: "fr"
+  #   safesearch: "strict"
+
+  # sentry:
+  #   dsn: ${SENTRY_DSN}
 
 # ---------------------------------- settings -----------------------------------
 settings:
-  # session_secret_key: # optional
+  # session_secret_key: ${SESSION_SECRET_KEY}
+  # disabled_routers: ["admin", "audio"]
+  # usage_tokenizer: tiktoken_gpt2
+  # app_title: My OpenGateLLM API
 
-  # disabled_routers: # optional - default: [] - values: ["agents", "audio", "chat", "chunks", "collections", "completions", "documents", "embeddings", "files", "models", "ocr", "parse", "rerank", "roles", "search", "tokens", "users", "usage"]
+  # log_level: INFO
+  # log_format: [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s
 
-  # usage_tokenizer: # optional - default: tiktoken_gpt2 - values: tiktoken_gpt2, tiktoken_r50k_base, tiktoken_p50k_base, tiktoken_p50k_edit, tiktoken_cl100k_base, tiktoken_o200k_base
+  # swagger_version: 1.0.0
+  # swagger_contact_url: https://github.com/etalab-ia/OpenGateLLM
+  # swagger_contact_email: john.doe@example.com
+  # swagger_docs_url: /docs
+  # swagger_redoc_url: /redoc
 
-  # log_level: # optional - default: INFO - values: DEBUG, INFO, WARNING, ERROR, CRITICAL
-  # log_format: # optional - default: "[%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s"
+  auth_master_username: master
+  auth_master_key: changeme
+  # auth_max_token_expiration_days: 365
 
-  # swagger_title: # optional - default: OpenGateLLM
-  # swagger_version: # optional - default: 1.0.0
-  # swagger_contact_url: # optional - default: https://github.com/etalab-ia/OpenGateLLM
-  # swagger_contact_email: # optional - default: None - example: john.doe@example.com
-  # swagger_docs_url: # optional - default: /docs
-  # swagger_redoc_url: # optional - default: /redoc
+  # rate_limiting_strategy: fixed_window
 
-  # mcp_max_iterations: # optional - default: 2
+  # monitoring_sentry_enabled: True
+  # monitoring_postgres_enabled: True
+  # monitoring_prometheus_enabled: True
 
-  # auth_master_username: # optional - default: master
-  # auth_master_key: # optional - default: changeme
-  # auth_max_token_expiration_days: # optional - default: None, ex: 365
+  # vector_store_model: my-model
 
-  # rate_limiting_strategy: # optional - default: fixed_window - values: fixed_window, sliding_window
+  # search_web_query_model: my-model
+  # search_web_limited_domains: ["google.com", "wikipedia.org"]
+  # search_web_user_agent: None
 
-  # monitoring_sentry_enabled: # optional - default: False
-  # monitoring_postgres_enabled: # optional - default: False
-  # monitoring_prometheus_enabled: # optional - default: False
+  # search_multi_agents_synthesis_model: my-model
+  # search_multi_agents_reranker_model: my-model
 
-  # vector_store_model: # optional - default: None - required if elasticsearch or qdrant in dependencies - example: "my-model"
-
-  # search_web_query_model: # optional - default: None - required if brave or duckduckgo in dependencies
-  # search_web_limited_domains: # optional - default: None - example: ["google.com", "wikipedia.org"]
-  # search_web_user_agent: # optional - default: None
-
-  # search_multi_agents_synthesis_model: # optional - default: None - example: "my-model"
-  # search_multi_agents_reranker_model: # optional - default: None - example: "my-model"
-
-# -------------------------------- playground ---------------------------------
-playground:
-playground:
-  opengatellm_url: ${OPENGATELLM_URL:-http://localhost:8000}
-  # app_title: # optional - default: OpenGateLLM
-  # theme_has_background: # optional - default: True
-  # theme_accent_color: # optional - default: purple
-  # theme_appearance: # optional - default: dark
-  # theme_gray_color: # optional - default: gray
-  # theme_panel_background: # optional - default: solid
-  # theme_radius: # optional - default: medium
-  # theme_scaling: # optional - default: 100%
+  playground_opengatellm_url: http://localhost:8000
+  # playground_default_model: my-model
+  # playground_theme_has_background: True
+  # playground_theme_accent_color: purple
+  # playground_theme_appearance: dark
+  # playground_theme_gray_color: gray
+  # playground_theme_panel_background: solid
+  # playground_theme_radius: medium
+  # playground_theme_scaling: 100%

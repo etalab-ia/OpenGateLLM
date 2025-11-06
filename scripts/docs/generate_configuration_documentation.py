@@ -1,12 +1,17 @@
 import argparse
 import os
+import sys
 
-from api.schemas.core.configuration import ConfigFile
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, PROJECT_ROOT)
+sys.path.insert(0, os.path.join(PROJECT_ROOT, "playground"))
+os.environ["CONFIG_FILE"] = os.path.join(PROJECT_ROOT, "config.example.yml")
 
-BASE_DIR = os.path.dirname(__file__)
+from api.schemas.core.configuration import ConfigFile as ApiConfigFile  # noqa: E402 # type: ignore
+from app.core.configuration import ConfigFile as PlaygroundConfigFile  # noqa: E402 # type: ignore
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--output", type=str, default=os.path.join("./docs/docs/getting-started/configuration.md"))
-parser.add_argument("--header", type=str, default=os.path.join("./scripts/docs/configuration_header.md"))
 
 
 def get_documentation_data(title: str, data: list, properties: dict, defs: dict, header: str = "", level: int = 1):
@@ -70,17 +75,31 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
     return data
 
 
+def get_example_configuration(config_example: str):
+    data = f"""
+## Example
+
+The following is an example of configuration file:
+
+```yaml
+{config_example}
+```
+
+"""
+
+    return data
+
+
 def convert_field_to_string_if_dict(field):
     if isinstance(field, dict):
         return "`" + str(field) + "`"
     return field
 
 
-def convert_to_markdown(data: list, header: str):
-    markdown = header + "\n<br></br>\n\n"
-
+def convert_to_markdown(data: list):
+    markdown = ""
     for item in reversed(data):
-        markdown += f"{"#" * item["level"]} {item["title"]}\n"
+        markdown += f"{"#" * (item["level"] + 1)} {item["title"]}\n"
         if item["header"]:
             markdown += f"{item["header"]}\n<br></br>\n\n"
 
@@ -109,19 +128,36 @@ if __name__ == "__main__":
     args = parser.parse_args()
     assert args.output.endswith(".md"), f"Output file must end with .md ({args.output})"
     assert os.path.exists(os.path.dirname(args.output)), f"Output directory does not exist ({os.path.dirname(args.output)})"
-    assert os.path.exists(args.header), f"Header file does not exist ({args.header})"
 
-    schema = ConfigFile.model_json_schema()
-    properties = schema["properties"]
-    defs = schema["$defs"]
-
-    data = get_documentation_data(title="All settings", data=[], properties=properties, header=schema.get("description", ""), defs=defs)
-
-    with open(file=args.header) as f:
+    with open(file=os.path.join("./scripts/docs/configuration_header.md")) as f:
         header = f.read()
         f.close()
+    markdown = header + "\n"
 
-    markdown = convert_to_markdown(data=data, header=header)
+    with open(file=os.path.join("config.example.yml")) as f:
+        config_example = f.read()
+        f.close()
+    markdown += get_example_configuration(config_example=config_example)
+
+    schema = ApiConfigFile.model_json_schema()
+    api_data = get_documentation_data(
+        title="API configuration",
+        data=[],
+        properties=schema["properties"],
+        header=schema.get("description", ""),
+        defs=schema["$defs"],
+    )
+    markdown += convert_to_markdown(data=api_data)
+
+    schema = PlaygroundConfigFile.model_json_schema()
+    playground_data = get_documentation_data(
+        title="Playground configuration",
+        data=[],
+        properties=schema["properties"],
+        header=schema.get("description", ""),
+        defs=schema["$defs"],
+    )
+    markdown += convert_to_markdown(data=playground_data)
 
     with open(file=args.output, mode="w") as f:
         f.write(markdown)

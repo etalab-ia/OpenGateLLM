@@ -138,7 +138,7 @@ settings:
   session_secret_key: -ftzKBct7qN22sgnkI9ApWD2ny_dHQVlPd2OPDSk5MM
   usage_tokenizer: tiktoken_gpt2
   log_level: DEBUG
-  auth_max_token_expiration_days: 365
+  auth_key_max_expiration_days: 365
   monitoring_sentry_enabled: False
   monitoring_postgres_enabled: True
   monitoring_prometheus_enabled: True
