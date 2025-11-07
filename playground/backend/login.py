@@ -39,7 +39,7 @@ class User(BaseModel):
     limits: list[Limit]
     permissions: list[str]
     budget: float | None = None
-    expires_at: int | None = None
+    expires: int | None = None
     created: int | None = None
     updated: int | None = None
     proconnect_token: str | None = None
@@ -68,7 +68,7 @@ def login(user_name: str, user_password: str) -> dict:
         limits=[Limit(**limit) for limit in user["limits"]],
         permissions=user["permissions"],
         budget=user["budget"],
-        expires_at=user["expires_at"],
+        expires=user["expires"],
         created=user["created"],
         updated=user["updated"],
     )
@@ -101,7 +101,7 @@ def oauth_login(api_key: str, api_key_id: str, proconnect_token: str = None):
         limits=[Limit(**limit) for limit in user["limits"]],
         permissions=user["permissions"],
         budget=user["budget"],
-        expires_at=user["expires_at"],
+        expires=user["expires"],
         created=user["created"],
         updated=user["updated"],
     )

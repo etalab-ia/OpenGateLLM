@@ -50,7 +50,7 @@ def resources_selector(resource: Literal["collection", "role", "user", "document
         resources = get_users(
             offset=st.session_state.get(key, 0), limit=per_page, role=resource_filter, order_by=order_by, order_direction=order_direction
         )
-        new_resource = {"name": None, "expires_at": None, "id": None, "role": None}
+        new_resource = {"name": None, "expires": None, "id": None, "role": None}
 
         data = pd.DataFrame(
             data=[
@@ -58,7 +58,7 @@ def resources_selector(resource: Literal["collection", "role", "user", "document
                     "ID": user["id"],
                     "Email": user["email"],
                     "Name": user["name"],
-                    "Expires at": pd.to_datetime(user["expires_at"], unit="s") if user["expires_at"] else None,
+                    "Expires at": pd.to_datetime(user["expires"], unit="s") if user["expires"] else None,
                     "Created at": pd.to_datetime(user["created"], unit="s"),
                     "Updated at": pd.to_datetime(user["updated"], unit="s"),
                 }
@@ -377,11 +377,11 @@ def input_new_user_budget(selected_user: dict):
     return new_user_budget
 
 
-def input_new_user_expires_at(selected_user: dict):
+def input_new_user_expires(selected_user: dict):
     disabled = (not st.session_state.get("update_user", False) and not st.session_state.get("new_user", False)) or (st.session_state["no_users_in_selected_role"] and not st.session_state.get("new_user", False))  # fmt: off
-    expires_at = pd.to_datetime(selected_user["expires_at"], unit="s") if selected_user else None
-    no_expiration = st.toggle(label="No expiration", key="create_user_no_expiration", value=expires_at is None, disabled=disabled)
-    new_user_expires_at = st.date_input(label="Expires at", key="create_user_expires_at", value=expires_at, disabled=disabled or no_expiration)
-    new_user_expires_at = None if no_expiration or pd.isna(new_user_expires_at) else int(pd.Timestamp(new_user_expires_at).timestamp())
+    expires = pd.to_datetime(selected_user["expires"], unit="s") if selected_user else None
+    no_expiration = st.toggle(label="No expiration", key="create_user_no_expiration", value=expires is None, disabled=disabled)
+    new_user_expires = st.date_input(label="Expires at", key="create_user_expires", value=expires, disabled=disabled or no_expiration)
+    new_user_expires = None if no_expiration or pd.isna(new_user_expires) else int(pd.Timestamp(new_user_expires).timestamp())
 
-    return new_user_expires_at
+    return new_user_expires

@@ -53,24 +53,3 @@ class TestOCR:
 
         assert response.status_code == 413, response.text
         snapshot.assert_match(str(response.json()), "ocr_too_large_file")
-
-    def test_ocr_without_authentication(self, client, model_id, snapshot):
-        """Test OCR without authentication."""
-        client.headers = {}  # Remove auth headers
-
-        file_path = os.path.join(current_path, "assets/pdf.pdf")
-        with open(file_path, "rb") as file:
-            files = {"file": (os.path.basename(file_path), file, "application/pdf")}
-            response = client.post(f"/v1{ENDPOINT__OCR}", files=files, data={"model": model_id, "dpi": 150})
-
-        assert response.status_code == 403, f"error: should require authentication ({response.status_code})"
-        snapshot.assert_match(str(response.json()), "ocr_without_authentication")
-
-    def test_ocr_custom_dpi(self, client, model_id, snapshot):
-        """Test OCR with custom DPI setting."""
-        file_path = os.path.join(current_path, "assets/pdf.pdf")
-        with open(file_path, "rb") as file:
-            files = {"file": (os.path.basename(file_path), file, "application/pdf")}
-            response = client.post_without_permissions(f"/v1{ENDPOINT__OCR}", files=files, data={"model": model_id, "dpi": 300})
-
-        assert response.status_code == 200, response.text

@@ -1,5 +1,6 @@
 import redis.asyncio as redis
 from redis.asyncio import Redis as AsyncRedis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers.models import ModelRegistry
 from api.utils.context import global_context
@@ -29,3 +30,18 @@ async def get_redis_client() -> AsyncRedis:
     yield client
 
     await client.aclose()
+
+
+async def get_postgres_session() -> AsyncSession:
+    """
+    Get a PostgreSQL session from the global context.
+
+    Returns:
+        AsyncSession: A PostgreSQL session instance.
+    """
+
+    async for session in global_context.postgres_session():
+        yield session
+
+        if session.in_transaction():
+            await session.close()

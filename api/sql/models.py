@@ -96,7 +96,7 @@ class User(Base):
     role_id: Mapped[int] = mapped_column(ForeignKey(column="role.id", ondelete="RESTRICT"))
     organization_id: Mapped[int | None] = mapped_column(ForeignKey(column="organization.id", ondelete="RESTRICT"))
     budget: Mapped[float | None]
-    expires_at: Mapped[dt.datetime | None]
+    expires: Mapped[dt.datetime | None]
     created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
     updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
     priority: Mapped[int] = mapped_column(default=0)  # User priority: higher value means higher priority for rate limiting / scheduling (0 = default)
@@ -122,7 +122,7 @@ class Token(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="CASCADE"))
     name: Mapped[str | None]
     token: Mapped[str | None]
-    expires_at: Mapped[dt.datetime | None]
+    expires: Mapped[dt.datetime | None]
     created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
 
     user: Mapped["User"] = relationship(back_populates="token")

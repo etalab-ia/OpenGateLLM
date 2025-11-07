@@ -57,7 +57,7 @@ def update_role(role: int, name: str | None = None, permissions: list | None = N
     st.rerun()
 
 
-def create_user(email: str, password: str, role: int, name: str | None = None, expires_at: int | None = None, budget: float | None = None):
+def create_user(email: str, password: str, role: int, name: str | None = None, expires: int | None = None, budget: float | None = None):
     if not email:
         st.toast("User email is required", icon="❌")
         return
@@ -75,7 +75,7 @@ def create_user(email: str, password: str, role: int, name: str | None = None, e
 
     response = requests.post(
         url=f"{configuration.playground.api_url}/v1/admin/users",
-        json={"email": email, "name": name, "role": role, "expires_at": expires_at, "budget": budget, "password": password},
+        json={"email": email, "name": name, "role": role, "expires": expires, "budget": budget, "password": password},
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},
     )
 
@@ -110,7 +110,7 @@ def update_user(
     current_password: str | None = None,
     password: str | None = None,
     role: int | None = None,
-    expires_at: int | None = None,
+    expires: int | None = None,
     budget: float | None = None,
 ):
     email = email.strip() if email else None
@@ -124,7 +124,7 @@ def update_user(
             "current_password": current_password,
             "password": password,
             "role": role,
-            "expires_at": expires_at,
+            "expires": expires,
             "budget": budget,
         },
         headers={"Authorization": f"Bearer {st.session_state["user"].api_key}"},

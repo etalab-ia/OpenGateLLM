@@ -4,6 +4,8 @@ from types import SimpleNamespace
 
 from fastapi import FastAPI
 import redis.asyncio as redis
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 from api.clients.parser import BaseParserClient as ParserClient
 from api.clients.vector_store import BaseVectorStoreClient as VectorStoreClient
@@ -52,6 +54,7 @@ async def lifespan(app: FastAPI):
 
     # setup global context
     await _setup_redis_pool(configuration=configuration, global_context=global_context, dependencies=dependencies)
+    await _setup_postgres_session(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_model_registry(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_identity_access_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_limiter(configuration=configuration, global_context=global_context, dependencies=dependencies)
@@ -77,7 +80,13 @@ async def _setup_redis_pool(configuration: Configuration, global_context: Global
 
     global_context.redis_pool = redis_pool
 
-    return redis_pool
+
+async def _setup_postgres_session(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+    """Setup the PostgreSQL session by creating the session pool."""
+
+    engine = create_async_engine(**configuration.dependencies.postgres.model_dump())
+    postgres_session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    global_context.postgres_session_factory = postgres_session_factory
 
 
 async def _setup_model_registry(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):

@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
-from api.schemas.admin.roles import PermissionType, Role, RoleRequest, Roles, RolesResponse, RoleUpdateRequest
+from api.schemas.admin.roles import CreateRole, PermissionType, Role, Roles, RolesResponse, RoleUpdateRequest
 from api.sql.session import get_db_session
 from api.utils.context import global_context
 from api.utils.variables import ENDPOINT__ADMIN_ROLES, ROUTER__ADMIN
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 )
 async def create_role(
     request: Request,
-    body: RoleRequest = Body(description="The role creation request."),
+    body: CreateRole = Body(description="The role creation request."),
     session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:
     """

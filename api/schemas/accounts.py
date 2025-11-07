@@ -8,6 +8,7 @@ from api.schemas import BaseModel
 class AccountUsage(BaseModel):
     """Schema for individual account usage record."""
 
+    object: Literal["accountUsage"] = "accountUsage"
     id: int
     datetime: int = Field(description="Timestamp in seconds")
     duration: int | None = None
@@ -29,7 +30,7 @@ class AccountUsage(BaseModel):
     kgco2eq_max: float | None = None
 
 
-class AccountUsageResponse(BaseModel):
+class AccountUsages(BaseModel):
     """Schema for list of account usage records."""
 
     object: Literal["list"] = "list"

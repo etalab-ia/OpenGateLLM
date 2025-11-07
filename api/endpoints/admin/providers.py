@@ -26,7 +26,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 )
 async def create_provider(
     request: Request,
-    body: CreateProvider = Body(description="The model provider creation request."),
+    body: CreateProvider,
     session: AsyncSession = Depends(get_db_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> CreateProviderResponse:

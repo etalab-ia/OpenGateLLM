@@ -60,7 +60,7 @@ async def test_create_user_success(session: AsyncSession, iam: IdentityAccessMan
         role_id=1,
         organization_id=None,
         budget=12.5,
-        expires_at=int(dt.datetime.now(tz=dt.UTC).timestamp()) + 100,
+        expires=int(dt.datetime.now(tz=dt.UTC).timestamp()) + 100,
         sub="sub123",
     )
 
@@ -112,7 +112,7 @@ async def test_update_user_success_all_fields(session: AsyncSession, iam: Identi
     # select user with join role
     session.execute = AsyncMock(
         side_effect=[
-            _Result(all_rows=[MagicMock(id=1, name="alice", role_id=1, budget=None, expires_at=None, role="role")]),
+            _Result(all_rows=[MagicMock(id=1, name="alice", role_id=1, budget=None, expires=None, role="role")]),
             _Result(scalar_one=1),  # check new role exists when different
             _Result(scalar_one=1),  # check organization exists
             None,  # update
@@ -126,7 +126,7 @@ async def test_update_user_success_all_fields(session: AsyncSession, iam: Identi
         role_id=2,
         organization_id=3,
         budget=100.0,
-        expires_at=int(dt.datetime.now(tz=dt.UTC).timestamp()) + 100,
+        expires=int(dt.datetime.now(tz=dt.UTC).timestamp()) + 100,
     )
 
     session.commit.assert_awaited()
@@ -144,7 +144,7 @@ async def test_update_user_not_found(session: AsyncSession, iam: IdentityAccessM
 async def test_update_user_role_missing(session: AsyncSession, iam: IdentityAccessManager):
     session.execute = AsyncMock(
         side_effect=[
-            _Result(all_rows=[MagicMock(id=1, name="alice", role_id=1, budget=None, expires_at=None, role="role")]),
+            _Result(all_rows=[MagicMock(id=1, name="alice", role_id=1, budget=None, expires=None, role="role")]),
             _Result(scalar_one=NoResultFound()),
         ]
     )
@@ -157,7 +157,7 @@ async def test_update_user_role_missing(session: AsyncSession, iam: IdentityAcce
 async def test_update_user_org_missing(session: AsyncSession, iam: IdentityAccessManager):
     session.execute = AsyncMock(
         side_effect=[
-            _Result(all_rows=[MagicMock(id=1, name="alice", role_id=1, budget=None, expires_at=None, role="role")]),
+            _Result(all_rows=[MagicMock(id=1, name="alice", role_id=1, budget=None, expires=None, role="role")]),
             _Result(scalar_one=NoResultFound()),  # organization lookup -> not found
         ]
     )
@@ -176,7 +176,7 @@ async def test_get_users_filters_and_not_found(session: AsyncSession, iam: Ident
                 "role": 1,
                 "organization": None,
                 "budget": None,
-                "expires_at": None,
+                "expires": None,
                 "created": 10,
                 "updated": 11,
                 "email": "alice@example.com",
@@ -229,7 +229,7 @@ async def test_get_user_info_by_id_success(session: AsyncSession, iam: IdentityA
         "role": 2,
         "organization": None,
         "budget": 10.0,
-        "expires_at": 123,
+        "expires": 123,
         "created": 10,
         "updated": 11,
         "email": "alice@example.com",
@@ -292,7 +292,7 @@ async def test_get_user_info_by_id_success(session: AsyncSession, iam: IdentityA
     assert user.name == "alice"
     assert user.organization is None
     assert user.budget == 10.0
-    assert user.expires_at == 123
+    assert user.expires == 123
     assert user.created == 10
     assert user.updated == 11
     assert len(user.permissions) == 1
@@ -308,7 +308,7 @@ async def test_get_user_info_by_email_success(session: AsyncSession, iam: Identi
         "role": 3,
         "organization": 9,
         "budget": None,
-        "expires_at": None,
+        "expires": None,
         "created": 20,
         "updated": 21,
         "email": "bob@example.com",
@@ -366,7 +366,7 @@ async def test_get_user_info_by_email_success(session: AsyncSession, iam: Identi
     assert user.name == "bob"
     assert user.organization == 9
     assert user.budget is None
-    assert user.expires_at is None
+    assert user.expires is None
     assert user.created == 20
     assert user.updated == 21
     assert any(p.value == "admin" for p in user.permissions)
@@ -390,7 +390,7 @@ async def test_get_users_with_id_and_role_id(session: AsyncSession, iam: Identit
                 "role": 1,
                 "organization": None,
                 "budget": None,
-                "expires_at": None,
+                "expires": None,
                 "created": 10,
                 "updated": 11,
                 "email": "alice@example.com",
@@ -420,7 +420,7 @@ async def test_get_users_with_role_id_only(session: AsyncSession, iam: IdentityA
                 "role": 1,
                 "organization": None,
                 "budget": None,
-                "expires_at": None,
+                "expires": None,
                 "created": 10,
                 "updated": 11,
                 "email": "alice@example.com",
@@ -435,7 +435,7 @@ async def test_get_users_with_role_id_only(session: AsyncSession, iam: IdentityA
                 "role": 1,
                 "organization": None,
                 "budget": None,
-                "expires_at": None,
+                "expires": None,
                 "created": 20,
                 "updated": 21,
                 "email": "bob@example.com",
@@ -464,7 +464,7 @@ async def test_get_users_with_id_only(session: AsyncSession, iam: IdentityAccess
                 "role": 1,
                 "organization": None,
                 "budget": None,
-                "expires_at": None,
+                "expires": None,
                 "created": 10,
                 "updated": 11,
                 "email": "alice@example.com",
@@ -494,7 +494,7 @@ async def test_get_users_no_params(session: AsyncSession, iam: IdentityAccessMan
                 "role": 1,
                 "organization": None,
                 "budget": None,
-                "expires_at": None,
+                "expires": None,
                 "created": 10,
                 "updated": 11,
                 "email": "alice@example.com",
@@ -509,7 +509,7 @@ async def test_get_users_no_params(session: AsyncSession, iam: IdentityAccessMan
                 "role": 1,
                 "organization": None,
                 "budget": None,
-                "expires_at": None,
+                "expires": None,
                 "created": 20,
                 "updated": 21,
                 "email": "bob@example.com",

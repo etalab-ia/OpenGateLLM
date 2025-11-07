@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.schemas.admin.roles import PermissionType
-from api.schemas.admin.tokens import Token, TokenRequest, Tokens, TokensResponse
+from api.schemas.admin.tokens import CreateToken, Token, Tokens, TokensResponse
 from api.sql.session import get_db_session
 from api.utils.context import global_context
 from api.utils.variables import ENDPOINT__ADMIN_TOKENS, ROUTER__ADMIN
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 )
 async def create_token(
     request: Request,
-    body: TokenRequest = Body(description="The token creation request."),
+    body: CreateToken = Body(description="The token creation request."),
     session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:
     """
@@ -33,7 +33,7 @@ async def create_token(
         session=session,
         user_id=body.user,
         name=body.name,
-        expires_at=body.expires_at,
+        expires=body.expires,
     )
 
     return JSONResponse(status_code=201, content={"id": token_id, "token": token})

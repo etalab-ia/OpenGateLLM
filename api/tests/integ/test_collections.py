@@ -220,7 +220,7 @@ class TestCollections:
 
         assert collection["description"] == params["description"]
 
-    def test_update_collection_updated_at(self, client: TestClient):
+    def test_update_collection_updated(self, client: TestClient):
         params = {"name": f"test_collection_{str(uuid4())}", "visibility": CollectionVisibility.PRIVATE}
         response = client.post_without_permissions(url=f"/v1{ENDPOINT__COLLECTIONS}", json=params)
         assert response.status_code == 201, response.text

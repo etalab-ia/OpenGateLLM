@@ -46,7 +46,7 @@ col1, col2 = st.columns(spec=2)
 with col1:
     st.metric(
         label="Account expiration",
-        value=pd.to_datetime(st.session_state["user"].expires_at, unit="s").strftime("%d %b %Y") if st.session_state["user"].expires_at else None,
+        value=pd.to_datetime(st.session_state["user"].expires, unit="s").strftime("%d %b %Y") if st.session_state["user"].expires else None,
         border=False,
     )
 with col2:
@@ -189,7 +189,7 @@ st.dataframe(
             "Name": [token["name"] for token in tokens],
             "Token": [token["token"] for token in tokens],
             "Created at": [pd.to_datetime(token["created"], unit="s") for token in tokens],
-            "Expiration": [pd.to_datetime(token["expires_at"], unit="s") for token in tokens],
+            "Expiration": [pd.to_datetime(token["expires"], unit="s") for token in tokens],
         }
     ).style.apply(
         lambda x: [
@@ -215,10 +215,10 @@ with col1:
     with st.expander(label="Create an API key", icon=":material/add_circle:"):
         token_name = st.text_input(label="API key name", placeholder="Enter a name for your API key", help="Please refresh data after creating an API key.", icon=":material/key:")  # fmt: off
         max_value = dt.datetime.now() + dt.timedelta(days=configuration.playground.auth_max_token_expiration_days) if configuration.playground.auth_max_token_expiration_days else None  # fmt: off
-        expires_at = st.date_input(label="Expires at",  min_value=dt.datetime.now(), max_value=max_value, value=max_value, help="Expiration date of the API key.")  # fmt: off
+        expires = st.date_input(label="Expires at",  min_value=dt.datetime.now(), max_value=max_value, value=max_value, help="Expiration date of the API key.")  # fmt: off
         if st.button(label="Create", disabled=not token_name or st.session_state["user"].name == configuration.playground.auth_master_username):
-            expires_at = round(int(expires_at.strftime("%s"))) if expires_at else None
-            create_token(name=token_name, expires_at=expires_at)
+            expires = round(int(expires.strftime("%s"))) if expires else None
+            create_token(name=token_name, expires=expires)
 
 with col2:
     with st.expander(label="Delete an API key", icon=":material/delete_forever:"):

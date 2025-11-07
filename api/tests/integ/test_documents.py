@@ -10,7 +10,7 @@ from api.utils.variables import ENDPOINT__COLLECTIONS, ENDPOINT__DOCUMENTS
 
 
 @pytest.fixture(scope="module")
-def collection(client, record_with_vcr):
+def collection(client):
     response = client.post_without_permissions(
         url=f"/v1{ENDPOINT__COLLECTIONS}",
         json={"name": f"test_collection_{str(uuid4())}", "visibility": CollectionVisibility.PRIVATE},

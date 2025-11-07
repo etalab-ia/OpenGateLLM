@@ -9,7 +9,7 @@ from playground.frontend.utils import (
     input_new_role_permissions,
     input_new_user_budget,
     input_new_user_email,
-    input_new_user_expires_at,
+    input_new_user_expires,
     input_new_user_name,
     input_new_user_password,
     input_new_user_role_id,
@@ -111,7 +111,7 @@ new_user_name = input_new_user_name(selected_user=selected_user)
 current_password, new_user_password = input_new_user_password()
 new_user_role_id = input_new_user_role_id(selected_role=selected_role, roles=roles)
 new_user_budget = input_new_user_budget(selected_user=selected_user)
-new_user_expires_at = input_new_user_expires_at(selected_user=selected_user)
+new_user_expires = input_new_user_expires(selected_user=selected_user)
 
 
 if st.session_state.get("new_user", False):
@@ -123,7 +123,7 @@ if st.session_state.get("new_user", False):
                 password=new_user_password,
                 role=new_user_role_id,
                 budget=new_user_budget,
-                expires_at=new_user_expires_at,
+                expires=new_user_expires,
             )
 
 if st.session_state.get("update_user", False):
@@ -137,7 +137,7 @@ if st.session_state.get("update_user", False):
                 password=new_user_password,
                 budget=new_user_budget,
                 role=new_user_role_id,
-                expires_at=new_user_expires_at,
+                expires=new_user_expires,
             )
 
 with st.sidebar:

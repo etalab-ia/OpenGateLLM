@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.helpers._usagemanager import UsageManager
-from api.schemas.accounts import AccountUsageResponse
+from api.schemas.accounts import AccountUsages
 from api.schemas.admin.users import User
 from api.sql.session import get_db_session
 from api.utils.variables import ENDPOINT__USAGE, ROUTER__USAGE
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__USAGE.title()])
     path=ENDPOINT__USAGE,
     dependencies=[Security(dependency=AccessController())],
     status_code=200,
-    response_model=AccountUsageResponse,
+    response_model=AccountUsages,
 )
 async def get_account_usage(
     request: Request,
@@ -58,7 +58,7 @@ async def get_account_usage(
     pagination_meta = UsageManager.calculate_pagination_metadata(aggregation_data["total_count"], page, limit)
 
     # Build response
-    response = AccountUsageResponse(
+    response = AccountUsages(
         data=usage_data,
         total=aggregation_data["total_count"],
         total_requests=aggregation_data["total_requests"],

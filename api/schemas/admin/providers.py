@@ -44,6 +44,8 @@ class CreateProvider(BaseModel):
         if self.model_carbon_footprint_active_params is not None and self.model_carbon_footprint_total_params is None:
             self.model_carbon_footprint_total_params = self.model_carbon_footprint_active_params
 
+        return self
+
 
 class CreateProviderResponse(BaseModel):
     id: int = Field(..., description="ID of the created provider.")  # fmt: off

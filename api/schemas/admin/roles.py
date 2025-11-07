@@ -48,7 +48,7 @@ class RolesResponse(BaseModel):
     id: int
 
 
-class RoleRequest(BaseModel):
+class CreateRole(BaseModel):
     name: constr(strip_whitespace=True, min_length=1)
     permissions: list[PermissionType] | None = []
     limits: list[Limit] = []

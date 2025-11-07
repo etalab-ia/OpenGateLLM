@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="module")
-def text_generation_vllm_model() -> tuple[str, str]:
+def text_generation_vllm_model(name: str = None) -> tuple[str, str]:
     model_name = f"text-generation-model-{uuid4()}"
     port = 8090
     process = run_openmockllm(port=port, model_name=model_name, backend="vllm")
@@ -39,14 +39,14 @@ def text_embeddings_inference_tei_model() -> tuple[str, str]:
 def text_generation_router(client: TestClient) -> int:
     """Get an existing text-generation router from config"""
     payload = CreateRouter(name=f"test-router-{uuid4()}", type=ModelType.TEXT_GENERATION)
-    response = client.post_with_permissions(url=f"v1{ENDPOINT__ADMIN_ROUTERS}", json=payload.model_dump())
+    response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}", json=payload.model_dump())
     assert response.status_code == 201, response.text
 
     router_id = response.json()["id"]
 
     yield router_id
 
-    client.delete_with_permissions(url=f"v1{ENDPOINT__ADMIN_ROUTERS}/{router_id}")
+    client.delete_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}/{router_id}")
     assert response.status_code == 204, response.text
 
 
@@ -54,13 +54,13 @@ def text_generation_router(client: TestClient) -> int:
 def text_embeddings_inference_router(client: TestClient) -> int:
     """Get an existing text-embeddings-inference router from config"""
     payload = CreateRouter(name=f"test-router-{uuid4()}", type=ModelType.TEXT_EMBEDDINGS_INFERENCE)
-    response = client.post_with_permissions(url=f"v1{ENDPOINT__ADMIN_ROUTERS}", json=payload.model_dump())
+    response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}", json=payload.model_dump())
     assert response.status_code == 201, response.text
     router_id = response.json()["id"]
 
     yield router_id
 
-    client.delete_with_permissions(url=f"v1{ENDPOINT__ADMIN_ROUTERS}/{router_id}")
+    client.delete_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}/{router_id}")
     assert response.status_code == 204, response.text
 
 
@@ -89,7 +89,7 @@ class TestAdminProviders:
             qos_value=None,
         )
 
-        response = client.post_with_permissions(url=f"v1{ENDPOINT__ADMIN_PROVIDERS}", json=payload.model_dump())
+        response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_PROVIDERS}", json=payload.model_dump())
         assert response.status_code == 201, response.text
 
     def test_create_router_with_text_embeddings_inference_model(
@@ -115,5 +115,5 @@ class TestAdminProviders:
             qos_value=None,
         )
 
-        response = client.post_with_permissions(url=f"v1{ENDPOINT__ADMIN_PROVIDERS}", json=payload.model_dump())
+        response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_PROVIDERS}", json=payload.model_dump())
         assert response.status_code == 201, response.text
