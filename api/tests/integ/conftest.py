@@ -88,14 +88,18 @@ def engine(worker_id):
 @pytest.fixture(scope="session")
 def async_engine(worker_id):
     """Create asynchronous database engine for tests"""
-    db_url = configuration.dependencies.postgres.model_dump().get("url").replace("postgresql://", "postgresql+asyncpg://")
+    db_url = configuration.dependencies.postgres.model_dump().get("url").replace("+asyncpg", "")
+    db_url = f"{db_url}_{worker_id}" if worker_id != "master" else f"{db_url}_test"
+
+    # Ensure the URL uses the asyncpg driver
+    async_db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
 
     # Create database if it doesn't exist
     if not database_exists(url=db_url):
         create_database(url=db_url)
         Base.metadata.create_all(bind=create_engine(url=db_url))
 
-    async_engine = create_async_engine(url=db_url)
+    async_engine = create_async_engine(url=async_db_url)
 
     # Use sync engine for metadata operations
     sync_engine = create_engine(url=db_url)

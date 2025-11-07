@@ -24,7 +24,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.PROVIDE_MODELS]))],
     status_code=201,
 )
-async def create_router_provider(
+async def create_provider(
     request: Request,
     body: CreateProvider = Body(description="The model provider creation request."),
     session: AsyncSession = Depends(get_db_session),
@@ -56,7 +56,7 @@ async def create_router_provider(
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.PROVIDE_MODELS]))],
     status_code=204,
 )
-async def delete_router_provider(
+async def delete_provider(
     request: Request,
     provider: int = Path(description="The ID of the provider to delete."),
     session: AsyncSession = Depends(get_db_session),
@@ -76,7 +76,7 @@ async def delete_router_provider(
     status_code=200,
     response_model=Provider,
 )
-async def get_router_provider(
+async def get_provider(
     request: Request,
     router: int = Path(description="The ID of the router to get the provider for."),
     provider: int = Path(description="The ID of the provider to get."),
