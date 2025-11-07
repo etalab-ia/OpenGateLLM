@@ -70,7 +70,7 @@ class AccessController:
         if request.url.path.endswith(ENDPOINT__CHAT_COMPLETIONS) and request.method in ["POST", "PATCH"]:
             await self._check_chat_completions(body=body, user_info=user_info, postgres_session=postgres_session)
 
-        if request.url.path.endswith(ENDPOINT__COLLECTIONS) and request.method in ["POST"]:
+        if request.url.path.endswith(ENDPOINT__COLLECTIONS) and request.method in ["POST", "PATCH"]:
             await self._check_collections(body=body, user_info=user_info, postgres_session=postgres_session)
 
         if request.url.path.endswith(ENDPOINT__EMBEDDINGS) and request.method in ["POST"]:
