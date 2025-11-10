@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field, constr
+from pydantic import StringConstraints
 
 from api.schemas import BaseModel
 
@@ -11,16 +11,7 @@ class CollectionVisibility(str, Enum):
     PUBLIC = "public"
 
 
-class CollectionRequest(BaseModel):
-    name: constr(strip_whitespace=True, min_length=1) = Field(description="The name of the collection.")
-    description: str | None = Field(default=None, description="The description of the collection.")
-    visibility: CollectionVisibility = Field(default=CollectionVisibility.PRIVATE, description="The type of the collection. Public collections are available to all users, private collections are only available to the user who created them.")  # fmt: off
-
-
-class CollectionUpdateRequest(BaseModel):
-    name: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="The name of the collection.")
-    description: str | None = Field(default=None, description="The description of the collection.")
-    visibility: CollectionVisibility | None = Field(default=None, description="The type of the collection. Public collections are available to all users, private collections are only available to the user who created them.")  # fmt: off
+CollectionName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class Collection(BaseModel):

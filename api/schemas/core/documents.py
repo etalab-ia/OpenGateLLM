@@ -18,6 +18,7 @@ class ParserParams(BaseModel):
 
 class FileType(str, Enum):
     PDF = "pdf"
+    PARQUET = "parquet"
     HTML = "html"
     JSON = "json"
     MD = "md"

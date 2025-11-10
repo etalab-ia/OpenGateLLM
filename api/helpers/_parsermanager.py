@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 class ParserManager:
     EXTENSION_MAP: dict[str, FileType] = {
         ".pdf": FileType.PDF,
+        ".parquet": FileType.PARQUET,
         ".html": FileType.HTML,
         ".htm": FileType.HTML,
         ".md": FileType.MD,
@@ -27,6 +28,11 @@ class ParserManager:
     VALID_CONTENT_TYPES: dict[FileType, set[str]] = {
         FileType.PDF: {
             "application/pdf",
+            "application/octet-stream",
+        },
+        FileType.PARQUET: {
+            "application/x-parquet",
+            "application/vnd.apache.parquet",
             "application/octet-stream",
         },
         FileType.HTML: {
@@ -104,6 +110,10 @@ class ParserManager:
     async def parse_file(self, **params) -> ParsedDocument:
         params = ParserParams(**params)
         file_type = self._detect_file_type(file=params.file)
+
+        # Parquet files are only supported in collections endpoints, not for document parsing
+        if file_type == FileType.PARQUET:
+            raise UnsupportedFileTypeException(detail="Parquet files cannot be parsed as documents.")
 
         method_map = {FileType.PDF: self._parse_pdf, FileType.HTML: self._parse_html, FileType.MD: self._parse_md, FileType.TXT: self._parse_txt}
 

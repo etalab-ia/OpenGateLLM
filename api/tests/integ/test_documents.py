@@ -13,7 +13,7 @@ from api.utils.variables import ENDPOINT__COLLECTIONS, ENDPOINT__DOCUMENTS
 def collection(client, record_with_vcr):
     response = client.post_without_permissions(
         url=f"/v1{ENDPOINT__COLLECTIONS}",
-        json={"name": f"test_collection_{str(uuid4())}", "visibility": CollectionVisibility.PRIVATE},
+        data={"name": f"test_collection_{str(uuid4())}", "visibility": CollectionVisibility.PRIVATE.value},
     )
     assert response.status_code == 201, response.text
     collection_id = response.json()["id"]

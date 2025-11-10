@@ -434,6 +434,7 @@ class TestParserManagerEdgeCases:
         """Test that all expected file extensions are mapped."""
         expected_extensions = {
             ".pdf": FileType.PDF,
+            ".parquet": FileType.PARQUET,
             ".html": FileType.HTML,
             ".htm": FileType.HTML,
             ".md": FileType.MD,
@@ -447,9 +448,21 @@ class TestParserManagerEdgeCases:
     def test_valid_content_types_completeness(self):
         """Test that all file types have valid content types defined."""
         for file_type in FileType:
-            if file_type in [FileType.PDF, FileType.HTML, FileType.MD, FileType.TXT]:
+            if file_type in [FileType.PDF, FileType.HTML, FileType.MD, FileType.TXT, FileType.PARQUET]:
                 assert file_type in ParserManager.VALID_CONTENT_TYPES
                 assert len(ParserManager.VALID_CONTENT_TYPES[file_type]) > 0
+
+    @pytest.mark.asyncio
+    async def test_parquet_file_rejected_in_parse(self):
+        """Test that parquet files are explicitly rejected in parse_file."""
+        manager = ParserManager(parser=None)
+
+        # Creating a mock parquet file
+        file = create_binary_upload_file(b"PAR1\x00\x00\x00fake", "test.parquet", "application/octet-stream")
+
+        # Should raise UnsupportedFileTypeException
+        with pytest.raises(UnsupportedFileTypeException) as exc_info:
+            await manager.parse_file(file=file)
 
     @pytest.mark.asyncio
     async def test_parser_client_without_supported_format(self):

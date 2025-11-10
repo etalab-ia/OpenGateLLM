@@ -275,9 +275,10 @@ class AccessController:
         await self._check_budget(user_info=user_info, model=body.get("model"))
 
     async def _check_collections(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:
-        body = await self._safely_parse_body(request)
+        form = await request.form()
+        visibility = form.get("visibility")
 
-        if body.get("visibility") == CollectionVisibility.PUBLIC and PermissionType.CREATE_PUBLIC_COLLECTION not in user_info.permissions:
+        if visibility == CollectionVisibility.PUBLIC.value and PermissionType.CREATE_PUBLIC_COLLECTION not in user_info.permissions:
             raise InsufficientPermissionException("Missing permission to update collection visibility to public.")
 
     async def _check_embeddings(self, user_info: UserInfo, limits: dict[str, _UserModelLimits], request: Request) -> None:

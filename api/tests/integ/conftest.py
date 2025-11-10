@@ -340,18 +340,21 @@ def client(test_client: TestClient, tokens: tuple[dict, dict]) -> Generator[Test
     # user
     client.get_without_permissions = partial(client.get, headers={"Authorization": f"Bearer {token_without_permissions["token"]}"})
     client.post_without_permissions = partial(client.post, headers={"Authorization": f"Bearer {token_without_permissions["token"]}"})
+    client.put_without_permissions = partial(client.put, headers={"Authorization": f"Bearer {token_without_permissions["token"]}"})
     client.delete_without_permissions = partial(client.delete, headers={"Authorization": f"Bearer {token_without_permissions["token"]}"})
     client.patch_without_permissions = partial(client.patch, headers={"Authorization": f"Bearer {token_without_permissions["token"]}"})
 
     # admin
     client.get_with_permissions = partial(client.get, headers={"Authorization": f"Bearer {token_with_permissions["token"]}"})
     client.post_with_permissions = partial(client.post, headers={"Authorization": f"Bearer {token_with_permissions["token"]}"})
+    client.put_with_permissions = partial(client.put, headers={"Authorization": f"Bearer {token_with_permissions["token"]}"})
     client.delete_with_permissions = partial(client.delete, headers={"Authorization": f"Bearer {token_with_permissions["token"]}"})
     client.patch_with_permissions = partial(client.patch, headers={"Authorization": f"Bearer {token_with_permissions["token"]}"})
 
     # root
     client.get_master = partial(client.get, headers={"Authorization": f"Bearer {configuration.settings.auth_master_key}"})
     client.post_master = partial(client.post, headers={"Authorization": f"Bearer {configuration.settings.auth_master_key}"})
+    client.put_master = partial(client.put, headers={"Authorization": f"Bearer {configuration.settings.auth_master_key}"})
     client.delete_master = partial(client.delete, headers={"Authorization": f"Bearer {configuration.settings.auth_master_key}"})
     client.patch_master = partial(client.patch, headers={"Authorization": f"Bearer {configuration.settings.auth_master_key}"})
 

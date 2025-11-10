@@ -47,7 +47,7 @@ Create a collection named *tutorial*. A collection is a group of documents that 
 
 
 ```python
-response = requests.post(urljoin(base_url, "/v1/collections"), json={"name": "tutorial"}, headers=headers)
+response = requests.post(urljoin(base_url, "/v1/collections"), data={"name": "tutorial"}, headers=headers)
 response.raise_for_status()
 
 response = response.json()

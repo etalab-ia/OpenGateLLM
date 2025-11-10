@@ -8,6 +8,7 @@ from redis import Redis
 
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.schemas.admin.roles import LimitType
+from api.schemas.collections import CollectionVisibility
 from api.utils.configuration import configuration
 from api.utils.variables import (
     ENDPOINT__ADMIN_ROLES,
@@ -402,7 +403,7 @@ class TestAuth:
         response = client.post(
             url=f"/v1{ENDPOINT__COLLECTIONS}",
             headers=headers1,
-            json={"name": f"collection_user1_{str(uuid4())}", "visibility": "private"},
+            data={"name": f"collection_user1_{str(uuid4())}", "visibility": CollectionVisibility.PRIVATE.value},
         )
         assert response.status_code == 201, response.text
         collection_id = response.json()["id"]

@@ -14,7 +14,7 @@ def setup(client: TestClient, record_with_vcr):
     # Create a collection
     response = client.post_without_permissions(
         url=f"/v1{ENDPOINT__COLLECTIONS}",
-        json={"name": f"test_collection_{uuid4()}", "visibility": CollectionVisibility.PRIVATE},
+        data={"name": f"test_collection_{uuid4()}", "visibility": CollectionVisibility.PRIVATE.value},
     )
     assert response.status_code == 201
     COLLECTION_ID = response.json()["id"]

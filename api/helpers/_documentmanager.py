@@ -13,6 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.clients.vector_store import BaseVectorStoreClient
 from api.helpers.data.chunkers import NoSplitter, RecursiveCharacterTextSplitter
+from api.helpers.documents.documents_updater import DocumentsUpdater
+from api.helpers.files.parquet import ParquetDataExtractor, ParquetReader
 from api.helpers.models.routers import ModelRouter
 from api.schemas.chunks import Chunk
 from api.schemas.collections import Collection, CollectionVisibility
@@ -275,7 +277,6 @@ class DocumentManager:
         # chunks count
         for document in documents:
             document.chunks = await self.vector_store.get_chunk_count(collection_id=document.collection_id, document_id=document.id)
-
         return documents
 
     @check_dependencies(dependencies=["vector_store"])
@@ -490,3 +491,118 @@ class DocumentManager:
 
             # insert chunks and vectors
             await self.vector_store.upsert(collection_id=collection_id, chunks=batch, embeddings=embeddings)
+
+    @check_dependencies(dependencies=["vector_store"])
+    async def update_collection_from_parquet(
+        self,
+        session: AsyncSession,
+        user_id: int,
+        collection_id: int,
+        parquet_file: UploadFile,
+        force_update: bool = False,
+    ) -> dict:
+        """
+        Update a collection from a Parquet file
+        .
+
+        This method orchestrates the entire update process by:
+        1. Validating collection access
+        2. Reading and validating the Parquet file
+        3. Processing each document and its chunks
+        4. Computing hashes for change detection
+        5. Creating/updating documents in the vector store
+
+        Args:
+            session: Database session
+            user_id: ID of the user performing the update
+            collection_id: Target collection ID
+            parquet_file: Uploaded Parquet file
+            force_update: If True, delete all existing documents before processing
+
+        Returns:
+            dict: Statistics about the update operation
+                - added_documents: Number of new documents added
+                - updated_documents: Number of existing documents updated
+                - deleted_documents: Number of documents deleted (only with force_update=True)
+                - total_chunks_processed: Total number of chunks processed
+        """
+        # Verify collection exists and user has access
+        result = await session.execute(
+            statement=select(CollectionTable).where(CollectionTable.id == collection_id).where(CollectionTable.user_id == user_id)
+        )
+        try:
+            result.scalar_one()
+        except NoResultFound:
+            raise CollectionNotFoundException()
+
+        # Read and validate Parquet file
+        table, available_columns, has_chunk_index = await ParquetReader.read_and_validate(parquet_file=parquet_file)
+        # Initialize statistics and get existing documents
+        stats = {"added_documents": 0, "updated_documents": 0, "deleted_documents": 0, "total_chunks_processed": 0}
+
+        existing_docs_result = await session.execute(
+            statement=select(DocumentTable.id, DocumentTable.name).where(DocumentTable.collection_id == collection_id)
+        )
+        existing_docs_map = {row.name: row.id for row in existing_docs_result.all()}
+
+        if not existing_docs_map:  # Create collection in vector store if it does not exist
+            try:
+                await self.vector_store.create_collection(
+                    collection_id=collection_id,
+                    vector_size=self.vector_store_model._vector_size,
+                )
+            except Exception as e:
+                logger.exception(msg=f"Error during collection ({collection_id}) creation: {e}", exc_info=True)
+                raise VectorizationFailedException()
+
+        # Handle force update (delete all existing documents)
+        if force_update and existing_docs_map:
+            document_ids = list(existing_docs_map.values())
+            logger.info(f"Force update: deleting {len(document_ids)} documents from collection {collection_id}")
+
+            for document_id in document_ids:
+                await self.delete_document(session=session, user_id=user_id, document_id=document_id)
+
+            stats["deleted_documents"] = len(document_ids)
+            existing_docs_map = {}
+
+        # Prepare table for processing
+        table = ParquetReader.sort_table(table=table, has_chunk_index=has_chunk_index)
+        metadata_columns = ParquetReader.identify_metadata_columns(available_columns=available_columns, has_chunk_index=has_chunk_index)
+
+        # Get unique documents
+        unique_docs = ParquetDataExtractor.get_unique_document_names(table=table)
+
+        logger.info(
+            f"Processing {len(unique_docs)} documents from parquet file " f"(chunk_index: {has_chunk_index}, metadata_columns: {metadata_columns})"
+        )
+
+        # Initialize documents updater
+        updater = DocumentsUpdater(
+            vector_store=self.vector_store,
+            upsert_callback=self._upsert,
+            delete_document_callback=self.delete_document,
+        )
+
+        # Process each document
+        for document_name in unique_docs:
+            # Filter table for this specific document
+            document_table = ParquetDataExtractor.filter_document_table(table=table, document_name=document_name)
+
+            # Process document
+            await updater.process_document(
+                session=session,
+                user_id=user_id,
+                collection_id=collection_id,
+                document_name=document_name,
+                document_table=document_table,
+                available_columns=available_columns,
+                metadata_columns=metadata_columns,
+                has_chunk_index=has_chunk_index,
+                existing_docs_map=existing_docs_map,
+                force_update=force_update,
+                stats=stats,
+            )
+
+        logger.info(f"Collection update complete. Stats: {stats}")
+        return stats

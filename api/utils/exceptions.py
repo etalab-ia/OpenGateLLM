@@ -123,6 +123,7 @@ class OrganizationNotFoundException(HTTPException):
 # 413
 class FileSizeLimitExceededException(HTTPException):
     MAX_CONTENT_SIZE = 20 * 1024 * 1024  # 20MB
+    MAX_PARQUET_CONTENT_SIZE = 20 * 1024 * 1024  # 20MB
 
     def __init__(self, detail: str = f"File size limit exceeded (max: {MAX_CONTENT_SIZE} bytes).") -> None:
         super().__init__(status_code=413, detail=detail)
@@ -136,6 +137,11 @@ class ParsingDocumentFailedException(HTTPException):
 
 class InvalidJSONFormatException(HTTPException):
     def __init__(self, detail: str = "Invalid JSON format.") -> None:
+        super().__init__(status_code=422, detail=detail)
+
+
+class InvalidPARQUETFormatException(HTTPException):
+    def __init__(self, detail: str = "Invalid PARQUET format.") -> None:
         super().__init__(status_code=422, detail=detail)
 
 
