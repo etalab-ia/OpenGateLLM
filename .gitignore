@@ -215,3 +215,7 @@ uv.lock
 compose.yml
 *.ipynb
 !docs/tutorials/*.ipynb
+playground/.web
+playground/.states
+playground/.gitignore
+playground/requirements.txt
