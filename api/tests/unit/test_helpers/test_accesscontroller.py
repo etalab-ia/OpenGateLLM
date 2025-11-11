@@ -3,6 +3,8 @@ from unittest.mock import AsyncMock, MagicMock
 from fastapi import Request
 import pytest
 
+from api.helpers._accesscontroller import AccessController
+
 
 class MockUploadFile:
     """Mock UploadFile for testing"""
@@ -17,8 +19,6 @@ class MockUploadFile:
 class TestAccessController:
     @pytest.fixture
     def access_controller(self):
-        from api.helpers._accesscontroller import AccessController
-
         return AccessController()
 
     @pytest.mark.asyncio

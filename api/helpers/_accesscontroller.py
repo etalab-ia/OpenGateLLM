@@ -59,7 +59,7 @@ class AccessController:
     ) -> User:
         user_info, key_id = await self._check_api_key(request=request, api_key=api_key, session=session)
         await self._check_permissions(permissions=user_info.permissions)
-        body = await self.__safely_parse_body(request)
+        body = await self._safely_parse_body(request)
 
         # add authenticated user to request state for logging usages
         context = request_context.get()
@@ -242,7 +242,7 @@ class AccessController:
                 called_router_id = router_id
         return called_router_id
 
-    async def __safely_parse_body(self, request: Request) -> dict:
+    async def _safely_parse_body(self, request: Request) -> dict:
         """Safely parse request body as JSON or form data, handling encoding errors."""
         try:
             # Check content type to determine parsing strategy

@@ -1,18 +1,15 @@
-from fastapi.testclient import TestClient
+import json
+from unittest.mock import AsyncMock, MagicMock
 
-from api.main import app
-from api.schemas.auth import LoginResponse
+import pytest
+
+from api.endpoints.auth import login
+from api.schemas.auth import Login, LoginResponse
 from api.utils.context import global_context
 from api.utils.exceptions import InvalidPasswordException
 
 
-class _FakeUser:
-    def __init__(self, id=1):
-        self.id = id
-
-
 class MockIdentityAccessManagerSuccess:
-    HEADERS = {"Authorization": "Bearer sk-test-api-key"}
     LOGIN_KEY_ID = 7
     LOGIN_KEY = "sk-test-token"
 
@@ -25,25 +22,39 @@ class MockIdentityAccessManagerFail:
         raise InvalidPasswordException
 
 
-def test_playground_login_success():
-    # Inject MockIdentityAccessManagerSuccess that will succeed
+@pytest.mark.asyncio
+async def test_login_success():
+    """Test successful login returns correct token and id"""
+    # Mock dependencies
     global_context.identity_access_manager = MockIdentityAccessManagerSuccess()
+    mock_request = MagicMock()
+    mock_session = AsyncMock()
 
-    client = TestClient(app)
+    # Create login body
+    body = Login(email="user@example.com", password="secret")
 
-    response = client.post("/v1/auth/login", json={"email": "user@example.com", "password": "secret"})
+    # Call endpoint directly
+    response = await login(request=mock_request, body=body, session=mock_session)
+
+    # Verify response
     assert response.status_code == 200
-    data = LoginResponse(**response.json())
+    response_data = json.loads(response.body.decode())
+    data = LoginResponse(**response_data)
     assert data.key == MockIdentityAccessManagerSuccess.LOGIN_KEY
     assert data.id == MockIdentityAccessManagerSuccess.LOGIN_KEY_ID
 
 
-def test_playground_login_invalid_credentials():
-    # Inject MockIdentityAccessManagerFail that will fail verification
+@pytest.mark.asyncio
+async def test_login_invalid_credentials():
+    """Test login with invalid credentials raises exception"""
+    # Mock dependencies
     global_context.identity_access_manager = MockIdentityAccessManagerFail()
+    mock_request = MagicMock()
+    mock_session = AsyncMock()
 
-    client = TestClient(app)
+    # Create login body
+    body = Login(email="user@example.com", password="wrong")
 
-    responses = client.post("/v1/auth/login", json={"email": "user@example.com", "password": "wrong"})
-    assert responses.status_code == InvalidPasswordException().status_code
-    assert responses.json()["detail"] == InvalidPasswordException().detail
+    # Call endpoint and expect exception
+    with pytest.raises(InvalidPasswordException):
+        await login(request=mock_request, body=body, session=mock_session)

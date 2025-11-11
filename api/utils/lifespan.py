@@ -93,7 +93,7 @@ async def _setup_model_registry(configuration: Configuration, global_context: Gl
     """Setup the model registry by fetching the models defined in the DB and the configuration. Basic conflict handling between the DB and config."""
     async for session in get_db_session():
         global_context.model_registry = ModelRegistry(
-            app_name=configuration.settings.swagger_title,
+            app_title=configuration.settings.app_title,
             task_always_eager=configuration.settings.celery_task_max_priority,
             task_soft_time_limit=configuration.settings.celery_task_soft_time_limit,
             task_max_priority=configuration.settings.celery_task_max_priority,

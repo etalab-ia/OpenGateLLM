@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from api.schemas.core.configuration import CountryCodes
+from api.schemas.admin.providers import ProviderCarbonFootprintZone
 from api.schemas.usage import CarbonFootprintUsage, CarbonFootprintUsageKgCO2eq, CarbonFootprintUsageKWh
 from api.utils.carbon import get_carbon_footprint
 
@@ -22,7 +22,7 @@ class TestGetCarbonFootprint:
         # Given
         active_params = 0
         total_params = None
-        model_zone = CountryCodes.WOR
+        model_zone = ProviderCarbonFootprintZone.WOR
         token_count = 1
         request_latency = 0.01
         expected_carbon_footprint = CarbonFootprintUsage(
@@ -37,7 +37,7 @@ class TestGetCarbonFootprint:
         # Given
         active_params = 0
         total_params = 0
-        model_zone = CountryCodes.WOR
+        model_zone = ProviderCarbonFootprintZone.WOR
         token_count = 0
         request_latency = 0.01
         expected_carbon_footprint = CarbonFootprintUsage(
@@ -52,7 +52,7 @@ class TestGetCarbonFootprint:
         # Given
         active_params = 0
         total_params = 0
-        model_zone = CountryCodes.WOR
+        model_zone = ProviderCarbonFootprintZone.WOR
         token_count = 10
         request_latency = -0.01
         # When-Then
@@ -64,15 +64,13 @@ class TestGetCarbonFootprint:
         mocked_electricity_mix = mocker.patch("api.utils.carbon.electricity_mixes.find_electricity_mix")
         mocked_electricity_mix.return_value = SimpleNamespace(adpe=1, pe=2, gwp=3)
         mocked_compute_llm_impacts = mocker.patch("api.utils.carbon.compute_llm_impacts")
-        mocked_compute_llm_impacts.return_value = dict_to_namespace(
-            {
-                "energy": {"value": {"min": 1, "max": 2}},
-                "gwp": {"value": {"min": 0, "max": 3}},
-            }
-        )
+        mocked_compute_llm_impacts.return_value = dict_to_namespace({
+            "energy": {"value": {"min": 1, "max": 2}},
+            "gwp": {"value": {"min": 0, "max": 3}},
+        })
         active_params = 1
         total_params = 1
-        model_zone = CountryCodes.WOR
+        model_zone = ProviderCarbonFootprintZone.WOR
         token_count = 1
         request_latency = 0.01
         expected_carbon_footprint = CarbonFootprintUsage(

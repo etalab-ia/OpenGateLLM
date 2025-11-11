@@ -89,7 +89,7 @@ class ModelRegistry:
 
     def __init__(
         self,
-        app_name: str,
+        app_title: str,
         task_always_eager: bool,
         task_max_priority: int,
         task_soft_time_limit: int,
@@ -97,7 +97,7 @@ class ModelRegistry:
         task_retry_countdown: int,
         queue_name_prefix: str,
     ) -> None:
-        self.app_name = app_name
+        self.app_title = app_title
         self.task_always_eager = task_always_eager
         self.task_max_priority = task_max_priority
         self.task_soft_time_limit = task_soft_time_limit
@@ -673,7 +673,7 @@ class ModelRegistry:
 
             # get organization name as owned by
             if user_info.id == 0 or user_info.organization is None:
-                owned_by = self.app_name
+                owned_by = self.app_title
             else:
                 query = (
                     select(UserTable.id, OrganizationTable.name.label("owned_by"))
@@ -682,7 +682,7 @@ class ModelRegistry:
                 )
                 result = await session.execute(query)
                 owned_by = result.all()[0].owned_by
-                owned_by = owned_by if owned_by else self.app_name
+                owned_by = owned_by if owned_by else self.app_title
 
             models.append(
                 Model(
