@@ -68,7 +68,7 @@ async def test_login_success_user(session: AsyncSession, iam: IdentityAccessMana
             organization=None,
             budget=None,
             permissions=[PermissionType.READ_METRIC],
-            limits=[Limit(model="gpt-4", type=LimitType.TPM, value=100)],
+            limits=[Limit(router=1, type=LimitType.TPM, value=100)],
             expires=None,
             created=10,
             updated=11,

@@ -202,11 +202,29 @@ async def test_get_user_info_master_user(iam: IdentityAccessManager, session: As
     # When user_id is 0, returns master info with all permissions and all non-zero limits
     from types import SimpleNamespace
 
-    # Provide a fake model_registry with models list to avoid NoneType error by patching the module variable used
+    # Provide a fake model_registry with async get_routers returning routers with ids
     import api.helpers._identityaccessmanager as iam_mod
     from api.schemas.admin.roles import LimitType, PermissionType
 
-    monkeypatch.setattr(iam_mod.global_context, "model_registry", SimpleNamespace(models=["gpt-4"]), raising=False)
+    class _Router:
+        def __init__(self, router_id: int):
+            self.id = router_id
+
+    original_user_info = iam_mod.UserInfo
+
+    class _UserInfo(original_user_info):
+        def __init__(self, **kwargs):
+            kwargs.setdefault("created", 0)
+            kwargs.setdefault("updated", 0)
+            super().__init__(**kwargs)
+
+    monkeypatch.setattr(
+        iam_mod.global_context,
+        "model_registry",
+        SimpleNamespace(get_routers=AsyncMock(return_value=[_Router(1)])),
+        raising=False,
+    )
+    monkeypatch.setattr(iam_mod, "UserInfo", _UserInfo, raising=False)
 
     user = await iam.get_user_info(session=session, user_id=0)
 
@@ -218,6 +236,8 @@ async def test_get_user_info_master_user(iam: IdentityAccessManager, session: As
     # limits list is built from global_context.model_registry.models; we only assert structure
     assert all(limit.value is None or limit.value >= 0 for limit in user.limits)
     assert all(limit.type in list(LimitType) for limit in user.limits)
+    assert user.created == 0
+    assert user.updated == 0
 
 
 @pytest.mark.asyncio
@@ -245,9 +265,9 @@ async def test_get_user_info_by_id_success(session: AsyncSession, iam: IdentityA
             return dict(self._data)
 
     class _LimitRow:
-        def __init__(self, role_id, model, type, value):
+        def __init__(self, role_id, router_id, type, value):
             self.role_id = role_id
-            self.model = model
+            self.router_id = router_id
             self.type = type
             self.value = value
 
@@ -263,9 +283,7 @@ async def test_get_user_info_by_id_success(session: AsyncSession, iam: IdentityA
 
     from api.schemas.admin.roles import LimitType, PermissionType
 
-    limits_iter = [
-        _LimitRow(2, "gpt-4", LimitType.TPM, 100),
-    ]
+    limits_iter = [_LimitRow(2, 101, LimitType.TPM, 100)]
     permissions_iter = [
         _PermissionRow(2, PermissionType.READ_METRIC),
     ]
@@ -324,9 +342,9 @@ async def test_get_user_info_by_email_success(session: AsyncSession, iam: Identi
             return dict(self._data)
 
     class _LimitRow:
-        def __init__(self, role_id, model, type, value):
+        def __init__(self, role_id, router_id, type, value):
             self.role_id = role_id
-            self.model = model
+            self.router_id = router_id
             self.type = type
             self.value = value
 
@@ -341,9 +359,7 @@ async def test_get_user_info_by_email_success(session: AsyncSession, iam: Identi
     roles_rows = [
         _RowDict({"id": 3, "name": "role", "created": 200, "updated": 201, "users": 1}),
     ]
-    limits_iter = [
-        _LimitRow(3, "mistral", LimitType.RPM, 200),
-    ]
+    limits_iter = [_LimitRow(3, 202, LimitType.RPM, 200)]
     permissions_iter = [
         _PermissionRow(3, PermissionType.ADMIN),
     ]
@@ -370,7 +386,7 @@ async def test_get_user_info_by_email_success(session: AsyncSession, iam: Identi
     assert user.created == 20
     assert user.updated == 21
     assert any(p.value == "admin" for p in user.permissions)
-    assert any(limit.model == "mistral" and limit.value == 200 for limit in user.limits)
+    assert any(limit.router == 202 and limit.type == LimitType.RPM and limit.value == 200 for limit in user.limits)
 
 
 @pytest.mark.asyncio

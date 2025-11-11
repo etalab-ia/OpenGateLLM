@@ -22,7 +22,7 @@ class MockIdentityAccessManagerSuccess:
     GET_ROLE_ID = 2
     GET_ROLE_NAME = "test_role"
     GET_ROLE_PERMISSIONS = [PermissionType.ADMIN.value]
-    GET_ROLE_LIMITS = [Limit(model="test_model", type=LimitType.TPM, value=100)]
+    GET_ROLE_LIMITS = [Limit(router=1, type=LimitType.TPM, value=100)]
     GET_ROLE_USERS = 10
     GET_ROLE_CREATED_AT = 1202932932
     GET_ROLE_UPDATED_AT = 1202932932
@@ -195,7 +195,7 @@ class MockIdentityAccessManagerFail:
             organization=None,
             budget=None,
             permissions=[PermissionType.ADMIN],
-            limits=[Limit(model="test_model", type=LimitType.TPM, value=100)],
+            limits=[Limit(router=1, type=LimitType.TPM, value=100)],
             expires=None,
             created=0,
             updated=0,

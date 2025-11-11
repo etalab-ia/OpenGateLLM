@@ -9,7 +9,7 @@ on:
   workflow_dispatch: # Add this to allow manual triggering
 
 jobs:
-  test-unit:
+  unit-tests:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,7 +19,7 @@ jobs:
         run: |
           cp config.example.yml config.yml
 
-      - name: Run tests with coverage and publish unit badge
+      - name: Run unit tests with coverage and publish unit badge
         run: |
           # Install uv
           curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -39,7 +39,7 @@ jobs:
           mkdir -p .github/badges
           COVERAGE=$(python -c "import xml.etree.ElementTree as ET; print(ET.parse('coverage.xml').getroot().get('line-rate'))")
           COVERAGE_PCT=$(printf "%.2f" $(echo "${COVERAGE} * 100" | bc))
-          echo "{\"schemaVersion\":1,\"label\":\"unit coverage\",\"message\":\"${COVERAGE_PCT}%\",\"color\":\"$(if (( $(echo \"${COVERAGE_PCT} >= 80\" | bc -l) )); then echo "green"; elif (( $(echo \"${COVERAGE_PCT} >= 70\" | bc -l) )); then echo "yellow"; else echo "red"; fi)\"}" > .github/badges/coverage-unit.json
+          echo "{\"schemaVersion\":1,\"label\":\"coverage\",\"message\":\"${COVERAGE_PCT}%\",\"color\":\"$(if (( $(echo \"${COVERAGE_PCT} >= 80\" | bc -l) )); then echo "green"; elif (( $(echo \"${COVERAGE_PCT} >= 70\" | bc -l) )); then echo "yellow"; else echo "red"; fi)\"}" > .github/badges/coverage.json
 
       - name: Commit unit coverage badge
         uses: stefanzweifel/git-auto-commit-action@v4
@@ -49,7 +49,7 @@ jobs:
           commit_user_name: "GitHub Actions"
           commit_user_email: "actions@github.com"
 
-  test-integ:
+  integration-tests:
     runs-on: ubuntu-latest
 
     steps:
@@ -63,7 +63,7 @@ jobs:
         BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
         ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}
 
-    - name: Run tests
+    - name: Run integration tests
       run: |
         # Install uv
         curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -78,20 +78,6 @@ jobs:
 
         # Run integration tests
         make test-integ action=run execute=local
-
-        mkdir -p .github/badges
-        # Extract coverage percentage from coverage.xml
-        COVERAGE=$(python -c "import xml.etree.ElementTree as ET; print(ET.parse('coverage.xml').getroot().get('line-rate'))")
-        COVERAGE_PCT=$(printf "%.2f" $(echo "${COVERAGE} * 100" | bc))
-        echo "{\"schemaVersion\":1,\"label\":\"coverage\",\"message\":\"${COVERAGE_PCT}%\",\"color\":\"$(if (( $(echo "${COVERAGE_PCT} >= 80" | bc -l) )); then echo "green"; elif (( $(echo "${COVERAGE_PCT} >= 70" | bc -l) )); then echo "yellow"; else echo "red"; fi)\"}" > .github/badges/coverage.json
-
-    - name: Commit coverage badge
-      uses: stefanzweifel/git-auto-commit-action@v4
-      with:
-        commit_message: Update coverage badge
-        file_pattern: .github/badges/coverage.json
-        commit_user_name: "GitHub Actions"
-        commit_user_email: "actions@github.com"
 
     - name: Tear down Docker Compose
       if: always()

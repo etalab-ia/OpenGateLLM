@@ -48,7 +48,7 @@ async def test_create_role_success(session: AsyncSession, iam: IdentityAccessMan
     role_id = await iam.create_role(
         session=session,
         name="analyst",
-        limits=[Limit(model="gpt-4", type=LimitType.TPM, value=100)],
+        limits=[Limit(router=1, type=LimitType.TPM, value=100)],
         permissions=[PermissionType.READ_METRIC],
     )
 
@@ -100,8 +100,8 @@ async def test_update_role_name_limits_permissions(session: AsyncSession, iam: I
         role_id=10,
         name="power-user",
         limits=[
-            Limit(model="gpt-4", type=LimitType.TPM, value=100),
-            Limit(model="gpt-4", type=LimitType.RPM, value=200),
+            Limit(router=1, type=LimitType.TPM, value=100),
+            Limit(router=1, type=LimitType.RPM, value=200),
         ],
         permissions=[PermissionType.READ_METRIC, PermissionType.READ_METRIC],  # duplicate intentional
     )
@@ -119,9 +119,9 @@ class _RowDict:
 
 
 class _LimitRow:
-    def __init__(self, role_id, model, type, value):  # noqa: A003 - match attribute names used by code
+    def __init__(self, role_id, router_id, type, value):  # noqa: A003 - match attribute names used by code
         self.role_id = role_id
-        self.model = model
+        self.router_id = router_id
         self.type = type
         self.value = value
 
@@ -144,8 +144,8 @@ async def test_get_roles_with_details(session: AsyncSession, iam: IdentityAccess
     roles_result = _Result(all_rows=roles_rows)
     # Step 3: limits
     limits_iter = [
-        _LimitRow(1, "gpt-4", LimitType.TPM, 100),
-        _LimitRow(2, "gpt-4", LimitType.RPM, 200),
+        _LimitRow(role_id=1, router_id=1, type=LimitType.TPM, value=100),
+        _LimitRow(role_id=2, router_id=1, type=LimitType.RPM, value=200),
     ]
     limits_result = _Result(iterate_rows=limits_iter)
     # Step 4: permissions
@@ -162,7 +162,7 @@ async def test_get_roles_with_details(session: AsyncSession, iam: IdentityAccess
     assert len(roles) == 2
     first = next(r for r in roles if r.id == 1)
     assert first.users == 3
-    assert any(limit.model == "gpt-4" and limit.type == LimitType.TPM for limit in first.limits)
+    assert any(limit.router == 1 and limit.type == LimitType.TPM for limit in first.limits)
     assert PermissionType.ADMIN in first.permissions
 
 

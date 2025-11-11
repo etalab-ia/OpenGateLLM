@@ -42,14 +42,14 @@ models:
     # aliases: ["model-alias"]
     # owned_by: Me
     # routing_strategy: shuffle
+    # cost_prompt_tokens: 0.10
+    # cost_completion_tokens: 0.10
     providers:
       - type: vllm
         url: http://albert-testbed.etalab.gouv.fr:8000
         # key: sk-xxx
         model_name: "gemma3:1b"
         # timeout: 60
-        # model_cost_prompt_tokens: 0.10
-        # model_cost_completion_tokens: 0.10
         # model_carbon_footprint_zone: FRA
         # model_carbon_footprint_total_params: 8
         # model_carbon_footprint_active_params: 8
@@ -66,9 +66,7 @@ dependencies:
       command_timeout: 60
 
   redis: # required
-    host: ${REDIS_HOST:-localhost}
-    port: ${REDIS_PORT:-6379}
-    password: ${REDIS_PASSWORD:-changeme}
+    url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
 
   # elasticsearch:
   #   number_of_shards: 1
@@ -110,9 +108,9 @@ settings:
 
   # rate_limiting_strategy: fixed_window
 
-  # monitoring_sentry_enabled: False
-  # monitoring_postgres_enabled: False
-  # monitoring_prometheus_enabled: False
+  # monitoring_sentry_enabled: True
+  # monitoring_postgres_enabled: True
+  # monitoring_prometheus_enabled: True
 
   # vector_store_model: my-model
 
@@ -136,9 +134,6 @@ settings:
 ```
 
 ## API configuration
-Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateLLM/blob/main/config.example.yml) for an example of configuration.
-<br></br>
-
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | dependencies | object | Dependencies used by the API. For details of configuration, see the [Dependencies section](#dependencies). |  |  |  |  |
@@ -150,12 +145,12 @@ Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateL
 ### Settings
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
-| app_title | string | Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | Albert API |  | Albert API |
+| app_title | string | Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | OpenGateLLM |  | Albert API |
 | auth_key_max_expiration_days | integer | Maximum number of days for a new API key to be valid. |  | None |  |  |
 | auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. |  | changeme |  |  |
 | auth_playground_session_duration | integer | Duration of the playground session in seconds. |  | 3600 |  |  |
 | celery_broker_url | string | Celery broker URL (e.g. redis://localhost:6379/0 or amqp://user:pass@host:5672//). Required if celery_task_always_eager is false. |  | None |  |  |
-| celery_default_queue_prefix | string | Prefix used for per-model Celery queues (queue name = {prefix}.{router_id}). |  | router |  |  |
+| celery_default_queue_prefix | string | Prefix used for per-model Celery queues (queue name = `<prefix>.<router_id>`). |  | router |  |  |
 | celery_result_backend | string | Celery result backend URL (e.g. redis://localhost:6379/1 or rpc://). If not provided, results may not persist across workers. |  | None |  |  |
 | celery_task_always_eager | boolean | Execute Celery tasks locally (synchronously) without a broker. Set to false in production to use the configured broker/result backend. |  | True |  |  |
 | celery_task_eager_propagates | boolean | If true, exceptions in eager mode propagate immediately (useful for tests/development). |  | True |  |  |
@@ -168,7 +163,6 @@ Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateL
 | hidden_routers | array | Routers are enabled but hidden in the swagger and the documentation of the API. |  |  | • admin<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• documents<br></br>• embeddings<br></br>• ... | ['admin'] |
 | log_format | string | Logging format of the API. |  | [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s |  |  |
 | log_level | string | Logging level of the API. |  | INFO | • DEBUG<br></br>• INFO<br></br>• WARNING<br></br>• ERROR<br></br>• CRITICAL |  |
-| metrics_retention_ms | integer | Retention time for metrics in milliseconds. |  | 40000 |  |  |
 | monitoring_postgres_enabled | boolean | If true, the log usage will be written in the PostgreSQL database. |  | True |  |  |
 | monitoring_prometheus_enabled | boolean | If true, Prometheus metrics will be exposed in the `/metrics` endpoint. |  | True |  |  |
 | rate_limiting_strategy | string | Rate limiting strategy for the API. |  | fixed_window | • moving_window<br></br>• fixed_window<br></br>• sliding_window |  |
@@ -185,10 +179,6 @@ Refer to the [configuration example file](https://github.com/etalab-ia/OpenGateL
 | swagger_redoc_url | string | Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | /redoc |  |  |
 | swagger_summary | string | Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | OpenGateLLM connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title. |  | Albert API connect to your models. |
 | swagger_terms_of_service | string | A URL to the Terms of Service for the API in swagger UI. If provided, this has to be a URL. |  | None |  | https://example.com/terms-of-service |
-<<<<<<< HEAD
-=======
-| swagger_title | string | Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | OpenGateLLM |  | My API |
->>>>>>> f2cf455 (feat: model provision by SQL)
 | swagger_version | string | Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | latest |  | 2.5.0 |
 | usage_tokenizer | string | Tokenizer used to compute usage of the API. |  | tiktoken_gpt2 | • tiktoken_gpt2<br></br>• tiktoken_r50k_base<br></br>• tiktoken_p50k_base<br></br>• tiktoken_p50k_edit<br></br>• tiktoken_cl100k_base<br></br>• tiktoken_o200k_base |  |
 | vector_store_model | string | Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch or Qdrant). This model must be defined in the `models` section and have type `text-embeddings-inference`. |  | None |  |  |
@@ -220,13 +210,12 @@ For more information to configure model providers, see the [ModelProvider sectio
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | key | string | Model provider API key. |  | None |  | sk-1234567890 |
-| max_parallel_requests | integer | The maximum number of requests handled in parallel by the server, used with a parallel requests based QoS |  | None |  | 50 |
 | model_carbon_footprint_active_params | number | Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai |  | None |  | 8 |
 | model_carbon_footprint_total_params | number | Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai |  | None |  | 8 |
 | model_carbon_footprint_zone | string | Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai |  | WOR | • ABW<br></br>• AFG<br></br>• AGO<br></br>• AIA<br></br>• ALA<br></br>• ALB<br></br>• AND<br></br>• ARE<br></br>• ... | WOR |
 | model_name | string | Model name from the model provider. |  |  |  | gpt-4o |
-| performance_threshold | number | The performance threshold to not exceed when using a performance based QoS |  | None |  | 0.5 |
-| qos_policy | string | The quality of service to apply when using asynchronous dispatching, to choose whether or not the server is ready to handle the request. |  | warning-log | • warning-log<br></br>• performance-threshold<br></br>• parallel-requests-threshold | performance-threshold |
+| qos_metric | string | The metric to use for the quality of service. If not provided, no QoS policy is applied. |  | None | • ttft<br></br>• latency<br></br>• inflight<br></br>• performance | inflight |
+| qos_value | number | The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc. |  | None |  | 0.5 |
 | timeout | integer | Timeout for the model provider requests, after user receive an 500 error (model is too busy). |  | 300 |  | 10 |
 | type | string | Model provider type. |  |  | • albert<br></br>• openai<br></br>• tei<br></br>• vllm | openai |
 | url | string | Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI). |  | None |  | https://api.openai.com |
@@ -253,14 +242,10 @@ For more information to configure model providers, see the [ModelProvider sectio
 
 <br></br>
 
-<<<<<<< HEAD
 #### RedisDependency
-=======
-### RedisDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | url | string | Redis connection url. |  |  |  |  |
->>>>>>> f2cf455 (feat: model provision by SQL)
 
 <br></br>
 
@@ -314,15 +299,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 
 <br></br>
 
-<<<<<<< HEAD
-#### CentraleSupelecDependency
-
-<br></br>
-
 #### BraveDependency
-=======
-### BraveDependency
->>>>>>> f2cf455 (feat: model provision by SQL)
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | headers | object | Brave API request headers. | True |  |  | `{'X-Subscription-Token': 'my-api-key'}` |
