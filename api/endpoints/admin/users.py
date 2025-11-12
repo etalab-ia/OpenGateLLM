@@ -37,7 +37,7 @@ async def create_user(
         role_id=body.role,
         organization_id=body.organization,
         budget=body.budget,
-        expires=body.expires,
+        expires_at=body.expires_at,
         priority=body.priority if body.priority is not None else 0,
     )
 
@@ -86,7 +86,7 @@ async def update_user(
         role_id=body.role,
         organization_id=body.organization,
         budget=body.budget,
-        expires=body.expires,
+        expires_at=body.expires_at,
         priority=body.priority,
     )
 

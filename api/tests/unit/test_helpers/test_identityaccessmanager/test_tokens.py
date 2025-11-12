@@ -54,7 +54,7 @@ async def test_create_token_success_and_masking(session: AsyncSession):
     ]
 
     with patch.object(iam, "_encode_token", return_value="sk-abc123456789xyz") as enc:
-        token_id, app_token = await iam.create_token(session, user_id=1, name="dev", expires=_ts_now() + 100)
+        token_id, app_token = await iam.create_token(session, user_id=1, name="dev", expires_at=_ts_now() + 100)
 
     assert token_id == 123
     assert app_token.startswith("sk-")
@@ -79,7 +79,7 @@ async def test_create_token_invalid_expiration_window(session: AsyncSession):
     too_far = _ts_now() + 3 * 86400
 
     with pytest.raises(InvalidTokenExpirationException):
-        await iam.create_token(session, user_id=1, name="dev", expires=too_far)
+        await iam.create_token(session, user_id=1, name="dev", expires_at=too_far)
 
 
 @pytest.mark.asyncio
@@ -135,8 +135,8 @@ async def test_delete_tokens_by_name(session: AsyncSession):
 async def test_get_tokens_filters_and_exclude_expired(session: AsyncSession):
     iam = IdentityAccessManager(master_key="secret")
     rows = [
-        MagicMock(_mapping={"id": 1, "name": "dev", "token": "sk-xxxx", "user": 1, "expires": None, "created": 10}),
-        MagicMock(_mapping={"id": 2, "name": "ops", "token": "sk-yyyy", "user": 1, "expires": 11, "created": 12}),
+        MagicMock(_mapping={"id": 1, "name": "dev", "token": "sk-xxxx", "user": 1, "expires_at": None, "created": 10}),
+        MagicMock(_mapping={"id": 2, "name": "ops", "token": "sk-yyyy", "user": 1, "expires_at": 11, "created": 12}),
     ]
     session.execute = AsyncMock(return_value=_Result(all_rows=rows))
 
@@ -170,7 +170,7 @@ async def test_check_token_ok(session: AsyncSession):
                             "token": "sk-abcdef",
                             "name": "dev",
                             "created": 1755243926,
-                            "expires": None,
+                            "expires_at": None,
                         }
                     )
                 ]

@@ -252,7 +252,7 @@ class DocumentManager:
         for chunk in chunks:
             chunk.metadata["collection_id"] = collection_id
             chunk.metadata["document_id"] = document_id
-            chunk.metadata["document_created"] = round(time.time())
+            chunk.metadata["document_created_at"] = round(time.time())
         try:
             await self._upsert(
                 chunks=chunks,

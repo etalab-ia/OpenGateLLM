@@ -1,22 +1,22 @@
 from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
 
-from api.helpers.models.load_balancing import LeastBusyLoadBalancingStrategy, ShuffleLoadBalancingStrategy
-from api.schemas.admin.routers import RouterLoadBalancingStrategy
+from api.helpers.load_balancing import LeastBusyLoadBalancingStrategy, ShuffleLoadBalancingStrategy
+from api.schemas.admin.routers import RouterLoadBalancingStrategy as RouterLoadBalancingStrategyName
 from api.schemas.core.metrics import MetricType
 
 
 def apply_sync_load_balancing(
-    load_balancing_strategy: RouterLoadBalancingStrategy,
+    load_balancing_strategy_name: RouterLoadBalancingStrategyName,
     candidates: list[int],
-    redis_client: Redis | None = None,
+    redis_client: Redis,
     load_balancing_metric: MetricType = MetricType.TTFT,
 ) -> tuple[int, float | None]:
     """
     Get a provider to handle the request based on the specified routing strategy.
 
     Args:
-        load_balancing_strategy (RouterLoadBalancingStrategy): The routing strategy to use for selecting a provider
+        load_balancing_strategy (RouterLoadBalancingStrategyName): The routing strategy to use for selecting a provider
         candidates (list[int]): The list of provider candidates (provider IDs) to choose from
         load_balancing_metric (MetricType): The type of metric to use for performance evaluation
         redis_client (Redis | None): Redis client instance, required for least busy strategy
@@ -26,9 +26,9 @@ def apply_sync_load_balancing(
             - provider_id (int): The chosen provider ID
             - performance_indicator (float | None): Performance metric for the chosen provider, if applicable
     """
-    if load_balancing_strategy == RouterLoadBalancingStrategy.LEAST_BUSY:
+    if load_balancing_strategy_name == RouterLoadBalancingStrategyName.LEAST_BUSY:
         load_balancing_strategy = LeastBusyLoadBalancingStrategy(redis_client=redis_client, load_balancing_metric=load_balancing_metric)
-    else:  # load_balancing_strategy == RouterLoadBalancingStrategy.SHUFFLE:
+    else:  # load_balancing_strategy == RouterLoadBalancingStrategyName.SHUFFLE:
         load_balancing_strategy = ShuffleLoadBalancingStrategy()
 
     provider_id, performance_indicator = load_balancing_strategy.apply_sync_strategy(candidates=candidates)
@@ -37,16 +37,16 @@ def apply_sync_load_balancing(
 
 
 async def apply_async_load_balancing(
-    load_balancing_strategy: RouterLoadBalancingStrategy,
+    load_balancing_strategy_name: RouterLoadBalancingStrategyName,
     candidates: list[int],
-    redis_client: AsyncRedis | None = None,
+    redis_client: AsyncRedis,
     load_balancing_metric: MetricType = MetricType.TTFT,
 ) -> tuple[int, float | None]:
     """
     Get a provider to handle the request based on the specified routing strategy.
 
     Args:
-        load_balancing_strategy (RouterLoadBalancingStrategy): The routing strategy to use for selecting a provider
+        load_balancing_strategy (RouterLoadBalancingStrategyName): The routing strategy to use for selecting a provider
         candidates (list[int]): The list of provider candidates (provider IDs) to choose from
         redis_client (AsyncRedis | None): Redis client instance, required for least busy strategy
         load_balancing_metric (MetricType): The type of metric to use for performance evaluation
@@ -57,9 +57,9 @@ async def apply_async_load_balancing(
             - performance_indicator (float | None): Performance metric for the chosen provider, if applicable
     """
     performance_indicator = None
-    if load_balancing_strategy == RouterLoadBalancingStrategy.LEAST_BUSY:
+    if load_balancing_strategy_name == RouterLoadBalancingStrategyName.LEAST_BUSY:
         load_balancing_strategy = LeastBusyLoadBalancingStrategy(redis_client=redis_client, load_balancing_metric=load_balancing_metric)
-    else:  # load_balancing_strategy == RouterLoadBalancingStrategy.SHUFFLE:
+    else:  # load_balancing_strategy_name == RouterLoadBalancingStrategyName.SHUFFLE:
         load_balancing_strategy = ShuffleLoadBalancingStrategy()
 
     provider_id, performance_indicator = await load_balancing_strategy.apply_async_strategy(candidates=candidates)

@@ -37,7 +37,7 @@ def get_redis_client() -> Redis:
     return Redis.from_pool(connection_pool=_redis_pool)
 
 
-celery_app = Celery(main=configuration.settings.app_title)
+celery_app = Celery(main=configuration.settings.swagger_title)
 
 # Base configuration
 celery_app.conf.update(

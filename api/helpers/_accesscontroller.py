@@ -108,7 +108,7 @@ class AccessController:
                 budget=None,
                 limits=[],
                 permissions=[permission for permission in PermissionType],
-                expires=None,
+                expires_at=None,
                 created=0,
                 updated=0,
                 organization_id=0,
@@ -124,7 +124,7 @@ class AccessController:
             user_info = await global_context.identity_access_manager.get_user_info(session=session, user_id=user_id)
 
             # invalid token if user is expired, except for /me and /me/role endpoints
-            if user_info.expires and user_info.expires < time.time() and not request.url.path.endswith(ENDPOINT__ME_INFO):
+            if user_info.expires_at and user_info.expires_at < time.time() and not request.url.path.endswith(ENDPOINT__ME_INFO):
                 raise InvalidAPIKeyException()
 
         return user_info, key_id

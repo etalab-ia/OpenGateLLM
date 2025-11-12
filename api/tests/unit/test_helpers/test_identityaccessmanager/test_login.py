@@ -69,7 +69,7 @@ async def test_login_success_user(session: AsyncSession, iam: IdentityAccessMana
             budget=None,
             permissions=[PermissionType.READ_METRIC],
             limits=[Limit(router=1, type=LimitType.TPM, value=100)],
-            expires=None,
+            expires_at=None,
             created=10,
             updated=11,
         )
@@ -108,7 +108,7 @@ async def test_login_wrong_password(session: AsyncSession, iam: IdentityAccessMa
             budget=None,
             permissions=[],
             limits=[],
-            expires=None,
+            expires_at=None,
             created=0,
             updated=0,
         )

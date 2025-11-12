@@ -19,8 +19,8 @@ from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 from api.sql.models import User as UserTable
+from api.tasks import add_consumer, apply_load_balancing_with_queuing, delete_consumer
 from api.tasks.celery_app import celery_app
-from api.tasks.queuing import apply_load_balancing_with_queuing
 from api.utils.exceptions import (
     InconsistentModelMaxContextLengthException,
     InconsistentModelVectorSizeException,
@@ -89,7 +89,7 @@ class ModelRegistry:
 
     def __init__(
         self,
-        app_title: str,
+        app_name: str,
         task_always_eager: bool,
         task_max_priority: int,
         task_soft_time_limit: int,
@@ -97,7 +97,7 @@ class ModelRegistry:
         task_retry_countdown: int,
         queue_name_prefix: str,
     ) -> None:
-        self.app_title = app_title
+        self.app_name = app_name
         self.task_always_eager = task_always_eager
         self.task_max_priority = task_max_priority
         self.task_soft_time_limit = task_soft_time_limit
@@ -125,13 +125,17 @@ class ModelRegistry:
             except RouterAlreadyExistsException:
                 logger.warning(f"Router {model.name} already exists, skipping.")
             except Exception as e:
-                session.rollback()
+                await session.rollback()
                 logger.error(f"Error creating router {model.name}: {e}")
                 raise e
 
             routers = await self.get_routers(router_id=None, name=model.name, session=session)
             router = routers[0]
-            self._aliases[router.id] = [router.name] + router.aliases
+            self._aliases[router.id] = [router.name]
+            if router.aliases is not None:
+                self._aliases[router.id] += router.aliases
+            if not self.task_always_eager:
+                add_consumer.apply_async(args=[f"{self.queue_name_prefix}.{router.id}"], queue=f"{self.queue_name_prefix}.default")
 
             for provider in model.providers:
                 try:
@@ -146,15 +150,15 @@ class ModelRegistry:
                         model_carbon_footprint_zone=provider.model_carbon_footprint_zone,
                         model_carbon_footprint_total_params=provider.model_carbon_footprint_total_params,
                         model_carbon_footprint_active_params=provider.model_carbon_footprint_active_params,
-                        qos_metric=provider.qos_metric,
-                        qos_value=provider.qos_value,
+                        qos_metric_type=provider.qos_metric,
+                        qos_threshold=provider.qos_threshold,
                         session=session,
                     )
                 except ProviderAlreadyExistsException:
                     logger.warning(f"\tProvider {provider.model_name} already exists, skipping.")
                     continue
                 except Exception as e:
-                    session.rollback()
+                    await session.rollback()
                     logger.error(f"Error creating provider {provider.model_name} for router {model.name}: {e}")
                     raise
                 logging.info(f"\tProvider {provider.model_name} created for router {model.name} with ID {provider_id}")
@@ -170,7 +174,7 @@ class ModelRegistry:
                     model_carbon_footprint_total_params=provider.model_carbon_footprint_total_params,
                     model_carbon_footprint_active_params=provider.model_carbon_footprint_active_params,
                     qos_metric=provider.qos_metric,
-                    qos_value=provider.qos_value,
+                    qos_threshold=provider.qos_threshold,
                 )
                 model_provider.id = provider.id
                 self._model_providers[provider.id] = model_provider
@@ -219,6 +223,8 @@ class ModelRegistry:
             )
             result = await session.execute(query)
             router_id = result.scalar_one()
+            if not self.task_always_eager:
+                add_consumer.apply_async(args=[f"{self.queue_name_prefix}.{router_id}"], queue=f"{self.queue_name_prefix}.default")
         except IntegrityError:
             await session.rollback()
             raise RouterAlreadyExistsException()
@@ -259,6 +265,9 @@ class ModelRegistry:
             result.scalar_one()
         except NoResultFound:
             raise RouterNotFoundException()
+        finally:
+            if not self.task_always_eager:
+                delete_consumer.apply_async(args=[f"{self.queue_name_prefix}.{router_id}"], queue=f"{self.queue_name_prefix}.default")
 
         # Delete will cascade to providers and aliases due to foreign key constraints
         await session.execute(delete(RouterTable).where(RouterTable.id == router_id))
@@ -300,7 +309,7 @@ class ModelRegistry:
         # Check alias integrity in aliases of other routers
         if aliases:
             for alias in aliases:
-                if alias in router.aliases:
+                if router.aliases is not None and alias in router.aliases:
                     raise RouterAliasAlreadyExistsException()
 
         # Update router properties
@@ -329,7 +338,9 @@ class ModelRegistry:
         await session.commit()
 
         if name is not None:
-            self._aliases[router_id] = [name] + router.aliases
+            self._aliases[router_id] = [name]
+            if router.aliases is not None:
+                self._aliases[router.id] += router.aliases
         if aliases is not None:
             self._aliases[router_id] = [router.name] + aliases
 
@@ -427,8 +438,8 @@ class ModelRegistry:
         model_carbon_footprint_zone: ProviderCarbonFootprintZone,
         model_carbon_footprint_total_params: float | None,
         model_carbon_footprint_active_params: float | None,
-        qos_metric: MetricType | None,
-        qos_value: float | None,
+        qos_metric_type: MetricType | None,
+        qos_threshold: float | None,
         session: AsyncSession,
     ) -> int:
         """
@@ -445,8 +456,8 @@ class ModelRegistry:
             model_carbon_footprint_zone(ProviderCarbonFootprintZone | None): ProviderCarbonFootprintZone
             model_carbon_footprint_total_params: float | None
             model_carbon_footprint_active_params: float | None
-            qos_metric(MetricType | None): QoS metric. If None, no QoS policy is applied.
-            qos_value(float | None): Optional QoS value
+            qos_metric_type(MetricType | None): QoS metric. If None, no QoS policy is applied.
+            qos_threshold(float | None): Optional QoS value
             session(AsyncSession): Database session
         Returns:
             The provider ID
@@ -477,8 +488,8 @@ class ModelRegistry:
                 model_carbon_footprint_zone=model_carbon_footprint_zone,
                 model_carbon_footprint_total_params=model_carbon_footprint_total_params,
                 model_carbon_footprint_active_params=model_carbon_footprint_active_params,
-                qos_metric=qos_metric,
-                qos_value=qos_value,
+                qos_metric=qos_metric_type,
+                qos_threshold=qos_threshold,
             )
         except AssertionError:
             raise ProviderNotReachableException()
@@ -497,7 +508,7 @@ class ModelRegistry:
 
         # Create provider
         try:
-            qos_metric = qos_metric.value if qos_metric is not None else None
+            qos_metric = qos_metric_type.value if qos_metric_type is not None else None
             query = (
                 insert(ProviderTable)
                 .values(
@@ -512,7 +523,7 @@ class ModelRegistry:
                     model_carbon_footprint_total_params=model_carbon_footprint_total_params,
                     model_carbon_footprint_active_params=model_carbon_footprint_active_params,
                     qos_metric=qos_metric,
-                    qos_value=qos_value,
+                    qos_threshold=qos_threshold,
                     max_context_length=provider.max_context_length,
                     vector_size=provider.vector_size,
                 )
@@ -534,7 +545,6 @@ class ModelRegistry:
 
     async def delete_provider(
         self,
-        router_id: int,
         provider_id: int,
         user_id: int,
         session: AsyncSession,
@@ -550,12 +560,7 @@ class ModelRegistry:
         """
         # Check if provider exists
         try:
-            query = (
-                select(ProviderTable)
-                .where(ProviderTable.id == provider_id)
-                .where(ProviderTable.user_id == user_id)
-                .where(ProviderTable.router_id == router_id)
-            )
+            query = select(ProviderTable).where(ProviderTable.id == provider_id).where(ProviderTable.user_id == user_id)
             result = await session.execute(query)
             result.scalar_one()
         except NoResultFound:
@@ -598,7 +603,7 @@ class ModelRegistry:
             ProviderTable.model_carbon_footprint_total_params,
             ProviderTable.model_carbon_footprint_active_params,
             ProviderTable.qos_metric,
-            ProviderTable.qos_value,
+            ProviderTable.qos_threshold,
             cast(func.extract("epoch", ProviderTable.created), Integer).label("created"),
             cast(func.extract("epoch", ProviderTable.updated), Integer).label("updated"),
         ).where(ProviderTable.router_id == router_id)
@@ -630,7 +635,7 @@ class ModelRegistry:
                     model_carbon_footprint_total_params=row["model_carbon_footprint_total_params"],
                     model_carbon_footprint_active_params=row["model_carbon_footprint_active_params"],
                     qos_metric=qos_metric,
-                    qos_value=row["qos_value"],
+                    qos_threshold=row["qos_threshold"],
                     created=row["created"],
                     updated=row["updated"],
                 )
@@ -673,7 +678,7 @@ class ModelRegistry:
 
             # get organization name as owned by
             if user_info.id == 0 or user_info.organization is None:
-                owned_by = self.app_title
+                owned_by = self.app_name
             else:
                 query = (
                     select(UserTable.id, OrganizationTable.name.label("owned_by"))
@@ -682,7 +687,7 @@ class ModelRegistry:
                 )
                 result = await session.execute(query)
                 owned_by = result.all()[0].owned_by
-                owned_by = owned_by if owned_by else self.app_title
+                owned_by = owned_by if owned_by else self.app_name
 
             models.append(
                 Model(
@@ -714,12 +719,14 @@ class ModelRegistry:
                 searched_router_id = router_id
         return searched_router_id
 
-    async def get_model_provider(self, model: str, endpoint: str, user_info: UserInfo, session: AsyncSession, redis_client: AsyncRedis) -> int:
+    async def get_model_provider(
+        self, model: str, endpoint: str, user_info: UserInfo, session: AsyncSession, redis_client: AsyncRedis
+    ) -> ModelProvider:
         """
         Get a model provider for a given model, endpoint, user priority, session and redis client.
 
         Args:
-            providers(List[Provider]): The model name
+            model(str): The AI model to use
             endpoint(str): The type of endpoint called
             user_info(UserInfo): The user priority
             session(AsyncSession): Database session
@@ -744,9 +751,9 @@ class ModelRegistry:
         # Eager path
         if self.task_always_eager:
             candidates = [provider.id for provider in providers]
-            provider_id, _ = await apply_async_load_balancing(
+            provider_id, performance_indicator = await apply_async_load_balancing(
                 candidates=candidates,
-                load_balancing_strategy=router.load_balancing_strategy,
+                load_balancing_strategy_name=router.load_balancing_strategy,
                 load_balancing_metric=MetricType.TTFT,
                 redis_client=redis_client,
             )
@@ -754,7 +761,8 @@ class ModelRegistry:
             can_be_forwarded = await apply_async_qos_policy(
                 provider_id=provider_id,
                 qos_metric=provider.qos_metric,
-                qos_value=provider.qos_value,
+                qos_threshold=provider.qos_threshold,
+                performance_indicator=performance_indicator,
                 redis_client=redis_client,
             )
             if not can_be_forwarded:
@@ -769,7 +777,7 @@ class ModelRegistry:
         candidates = []
         for provider in providers:
             qos_metric = provider.qos_metric.value if provider.qos_metric is not None else None
-            candidates.append((provider.id, qos_metric, provider.qos_value))
+            candidates.append((provider.id, qos_metric, provider.qos_threshold))
 
         priority = max(0, min(int(user_info.priority), self.task_max_priority - 1))  # 0-(n-1) usable priorities (n levels)
         task = apply_load_balancing_with_queuing.apply_async(

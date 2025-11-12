@@ -14,16 +14,16 @@ class UserUpdateRequest(BaseModel):
     role: int | None = Field(default=None, description="The new role ID. If None, the user role is not changed.")  # fmt: off
     organization: int | None = Field(default=None, description="The new organization ID. If None, the user will be removed from the organization if he was in one.")  # fmt: off
     budget: float | None = Field(default=None, description="The new budget. If None, the user will have no budget.")  # fmt: off
-    expires: int | None = Field(default=None, description="The new expiration timestamp. If None, the user will never expire.")  # fmt: off
+    expires_at: int | None = Field(default=None, description="The new expiration timestamp. If None, the user will never expire.")  # fmt: off
     priority: int | None = Field(default=None, ge=0, description="The new user priority. Higher value means higher priority. If None, unchanged.")  # fmt: off
 
-    @field_validator("expires", mode="before")
-    def must_be_future(cls, expires):
-        if isinstance(expires, int):
-            if expires <= int(dt.datetime.now(tz=dt.UTC).timestamp()):
+    @field_validator("expires_at", mode="before")
+    def must_be_future(cls, expires_at):
+        if isinstance(expires_at, int):
+            if expires_at <= int(dt.datetime.now(tz=dt.UTC).timestamp()):
                 raise ValueError("Wrong timestamp, must be in the future.")
 
-        return expires
+        return expires_at
 
 
 class UsersResponse(BaseModel):
@@ -37,16 +37,16 @@ class CreateUser(BaseModel):
     role: int = Field(description="The role ID.")
     organization: int | None = Field(default=None, description="The organization ID.")
     budget: float | None = Field(default=None, description="The budget.")
-    expires: int | None = Field(default=None, description="The expiration timestamp.")
+    expires_at: int | None = Field(default=None, description="The expiration timestamp.")
     priority: int | None = Field(default=0, ge=0, description="The user priority. Higher value means higher priority. 0 is default.")  # fmt: off
 
-    @field_validator("expires", mode="before")
-    def must_be_future(cls, expires):
-        if isinstance(expires, int):
-            if expires <= int(dt.datetime.now(tz=dt.UTC).timestamp()):
+    @field_validator("expires_at", mode="before")
+    def must_be_future(cls, expires_at):
+        if isinstance(expires_at, int):
+            if expires_at <= int(dt.datetime.now(tz=dt.UTC).timestamp()):
                 raise ValueError("Wrong timestamp, must be in the future.")
 
-        return expires
+        return expires_at
 
 
 class User(BaseModel):
@@ -59,7 +59,7 @@ class User(BaseModel):
     role: int = Field(description="The user role ID.")
     organization: int | None = Field(default=None, description="The user organization ID.")
     budget: float | None = Field(default=None, description="The user budget. If None, the user has unlimited budget.")
-    expires: int | None = Field(default=None, description="The user expiration timestamp. If None, the user will never expire.")
+    expires_at: int | None = Field(default=None, description="The user expiration timestamp. If None, the user will never expire.")
     created: int = Field(description="The user creation timestamp.")
     updated: int = Field(description="The user update timestamp.")
     priority: int = Field(description="The user priority (higher = higher priority).")

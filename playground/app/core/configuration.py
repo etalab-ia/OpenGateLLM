@@ -79,7 +79,7 @@ class Dependencies(ConfigBaseModel):
 class Settings(ConfigBaseModel):
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
     celery_task_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in celery tasks.")  # fmt: off
-    app_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application.")
+    swagger_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application.")
 
     playground_opengatellm_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
     playground_default_model: str | None = Field(default=None, description="The first model selected in chat page.")
@@ -95,7 +95,7 @@ class Settings(ConfigBaseModel):
 class ConfigFile(ConfigBaseModel):
     """
     The following parameters allow you to configure the Playground application. The configuration file can be shared with the API, as the sections are
-    identical and compatible. Some parameters are common to both the API and the Playground (for example, `app_title`).
+    identical and compatible. Some parameters are common to both the API and the Playground (for example, `swagger_title`).
 
     For Plagroud deployment, some environment variables are required to be set, like Reflex backend URL. See
     [Environment variables](../getting-started/environment_variables.md#playground) for more information.

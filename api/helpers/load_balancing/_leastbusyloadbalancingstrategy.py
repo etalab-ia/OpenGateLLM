@@ -6,7 +6,7 @@ import random
 from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
 
-from api.helpers.models.load_balancing import BaseLoadBalancingStrategy
+from api.helpers.load_balancing import BaseLoadBalancingStrategy
 from api.schemas.core.metrics import MetricType
 from api.utils.variables import METRIC__TIMESERIE_PREFIX, METRIC__TIMESERIE_RETENTION_SECONDS
 
@@ -30,6 +30,7 @@ class LeastBusyLoadBalancingStrategy(BaseLoadBalancingStrategy):
         """
         self.metric = load_balancing_metric
         self.redis_client = redis_client
+        self.percentile = 0.95  # TODO: variabiliser
 
     def apply_sync_strategy(self, candidates: list[int]) -> tuple[int, float]:
         scores = {}
@@ -50,7 +51,7 @@ class LeastBusyLoadBalancingStrategy(BaseLoadBalancingStrategy):
             values = [v for _, v in series]
             values.sort()
 
-            idx = math.ceil(0.95 * len(values)) - 1
+            idx = math.ceil(self.percentile * len(values)) - 1
             scores[provider_id] = values[idx]
 
         min_value = min(scores.values())
@@ -61,7 +62,7 @@ class LeastBusyLoadBalancingStrategy(BaseLoadBalancingStrategy):
     async def apply_async_strategy(self, candidates: list[int]) -> tuple[int, float]:
         scores = {}
         for provider_id in candidates:
-            cutoff = datetime.now() - timedelta(hours=self.cutoff_hours)
+            cutoff = datetime.now() - timedelta(seconds=METRIC__TIMESERIE_RETENTION_SECONDS)
             key = f"{METRIC__TIMESERIE_PREFIX}:{self.metric}:{provider_id}"  # currently only TTFT is supported
             try:
                 result = await self.redis_client.ts().range(key, from_time=int(cutoff.timestamp() * 1000) if cutoff else 0, to_time="+")

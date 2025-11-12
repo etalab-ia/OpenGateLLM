@@ -91,7 +91,7 @@ settings:
   # session_secret_key: ${SESSION_SECRET_KEY}
   # disabled_routers: ["admin", "audio"]
   # usage_tokenizer: tiktoken_gpt2
-  # app_title: My OpenGateLLM API
+  # swagger_title: My OpenGateLLM API
 
   # log_level: INFO
   # log_format: [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s
@@ -145,7 +145,7 @@ settings:
 ### Settings
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
-| app_title | string | Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | OpenGateLLM |  | Albert API |
+| swagger_title | string | Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | Albert API |  | Albert API |
 | auth_key_max_expiration_days | integer | Maximum number of days for a new API key to be valid. |  | None |  |  |
 | auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. |  | changeme |  |  |
 | auth_playground_session_duration | integer | Duration of the playground session in seconds. |  | 3600 |  |  |
@@ -319,7 +319,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 
 ## Playground configuration
 The following parameters allow you to configure the Playground application. The configuration file can be shared with the API, as the sections are
-identical and compatible. Some parameters are common to both the API and the Playground (for example, `app_title`).
+identical and compatible. Some parameters are common to both the API and the Playground (for example, `swagger_title`).
 
 For Plagroud deployment, some environment variables are required to be set, like Reflex backend URL. See
 [Environment variables](../getting-started/environment_variables.md#playground) for more information.
@@ -334,7 +334,7 @@ For Plagroud deployment, some environment variables are required to be set, like
 ### Settings
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
-| app_title | string | The title of the application. |  | OpenGateLLM |  |  |
+| swagger_title | string | The title of the application. |  | OpenGateLLM |  |  |
 | auth_key_max_expiration_days | integer | Maximum number of days for a token to be valid. |  | None |  |  |
 | celery_task_max_priority | integer | Maximum allowed priority in celery tasks. |  | 10 |  |  |
 | playground_default_model | string | The first model selected in chat page. |  | None |  |  |

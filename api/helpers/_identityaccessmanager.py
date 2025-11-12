@@ -59,9 +59,9 @@ class IdentityAccessManager:
         token = token.split(IdentityAccessManager.TOKEN_PREFIX)[1]
         return jwt.decode(token=token, key=self.master_key, algorithms=["HS256"])
 
-    def _encode_token(self, user_id: int, token_id: int, expires: int | None = None) -> str:
+    def _encode_token(self, user_id: int, token_id: int, expires_at: int | None = None) -> str:
         return IdentityAccessManager.TOKEN_PREFIX + jwt.encode(
-            claims={"user_id": user_id, "token_id": token_id, "expires": expires},
+            claims={"user_id": user_id, "token_id": token_id, "expires_at": expires_at},
             key=self.master_key,
             algorithm="HS256",
         )
@@ -243,13 +243,13 @@ class IdentityAccessManager:
         iss: str | None = None,
         organization_id: int | None = None,
         budget: float | None = None,
-        expires: int | None = None,
+        expires_at: int | None = None,
         priority: int = 0,
     ) -> int:
         if email == "master":
             raise ReservedEmailException()
 
-        expires = func.to_timestamp(expires) if expires is not None else None
+        expires_at = func.to_timestamp(expires_at) if expires_at is not None else None
 
         # check if role exists
         result = await session.execute(statement=select(RoleTable.id).where(RoleTable.id == role_id))
@@ -281,7 +281,7 @@ class IdentityAccessManager:
                     role_id=role_id,
                     organization_id=organization_id,
                     budget=budget,
-                    expires=expires,
+                    expires_at=expires_at,
                     priority=priority,
                 )
                 .returning(UserTable.id)
@@ -319,7 +319,7 @@ class IdentityAccessManager:
         role_id: int | None = None,
         organization_id: int | None = None,
         budget: float | None = None,
-        expires: int | None = None,
+        expires_at: int | None = None,
         priority: int | None = None,
     ) -> None:
         # check if user exists
@@ -333,7 +333,7 @@ class IdentityAccessManager:
                 UserTable.name,
                 UserTable.role_id,
                 UserTable.budget,
-                UserTable.expires,
+                UserTable.expires_at,
                 UserTable.priority,
                 RoleTable.name.label("role"),
             )
@@ -354,7 +354,7 @@ class IdentityAccessManager:
         name = name if name is not None else user.name
         iss = iss if iss is not None else user.iss
         sub = sub if sub is not None else user.sub
-        expires = func.to_timestamp(expires) if expires is not None else None
+        expires_at = func.to_timestamp(expires_at) if expires_at is not None else None
         new_priority = priority if priority is not None else user.priority
 
         if role_id is not None and role_id != user.role_id:
@@ -397,7 +397,7 @@ class IdentityAccessManager:
                 role_id=role_id,
                 organization_id=organization_id,
                 budget=budget,
-                expires=expires,
+                expires_at=expires_at,
                 priority=new_priority,
             )
             .where(UserTable.id == user.id)
@@ -424,7 +424,7 @@ class IdentityAccessManager:
                 UserTable.role_id.label("role"),
                 UserTable.organization_id.label("organization"),
                 UserTable.budget,
-                cast(func.extract("epoch", UserTable.expires), Integer).label("expires"),
+                cast(func.extract("epoch", UserTable.expires_at), Integer).label("expires_at"),
                 cast(func.extract("epoch", UserTable.created), Integer).label("created"),
                 cast(func.extract("epoch", UserTable.updated), Integer).label("updated"),
                 UserTable.email,
@@ -516,11 +516,11 @@ class IdentityAccessManager:
 
         return organizations
 
-    async def create_token(self, session: AsyncSession, user_id: int, name: str, expires: int | None = None) -> tuple[int, str]:
+    async def create_token(self, session: AsyncSession, user_id: int, name: str, expires_at: int | None = None) -> tuple[int, str]:
         if self.key_max_expiration_days:
-            if expires is None:
-                expires = int(dt.datetime.now(tz=dt.UTC).timestamp()) + self.key_max_expiration_days * 86400
-            elif expires > int(dt.datetime.now(tz=dt.UTC).timestamp()) + self.key_max_expiration_days * 86400:
+            if expires_at is None:
+                expires_at = int(dt.datetime.now(tz=dt.UTC).timestamp()) + self.key_max_expiration_days * 86400
+            elif expires_at > int(dt.datetime.now(tz=dt.UTC).timestamp()) + self.key_max_expiration_days * 86400:
                 raise InvalidTokenExpirationException(detail=f"Token expiration timestamp cannot be greater than {self.key_max_expiration_days} days from now.")  # fmt: off
 
         result = await session.execute(statement=select(UserTable).where(UserTable.id == user_id))
@@ -535,12 +535,12 @@ class IdentityAccessManager:
         await session.commit()
 
         # generate the token
-        token = self._encode_token(user_id=user.id, token_id=token_id, expires=expires)
+        token = self._encode_token(user_id=user.id, token_id=token_id, expires_at=expires_at)
 
         # update the token
-        expires = func.to_timestamp(expires) if expires is not None else None
+        expires_at = func.to_timestamp(expires_at) if expires_at is not None else None
         await session.execute(
-            statement=update(table=TokenTable).values(token=f"{token[:8]}...{token[-8:]}", expires=expires).where(TokenTable.id == token_id)
+            statement=update(table=TokenTable).values(token=f"{token[:8]}...{token[-8:]}", expires_at=expires_at).where(TokenTable.id == token_id)
         )
         await session.commit()
 
@@ -564,12 +564,12 @@ class IdentityAccessManager:
         old_token_ids = [row[0] for row in old_token_result.all()]
 
         if self.playground_session_duration is None:
-            expires = None
+            expires_at = None
         else:
-            expires = int((datetime.now() + timedelta(seconds=self.playground_session_duration)).timestamp())
+            expires_at = int((datetime.now() + timedelta(seconds=self.playground_session_duration)).timestamp())
 
         # Create a new token
-        token_id, token = await self.create_token(session, user_id, name, expires=expires)
+        token_id, token = await self.create_token(session, user_id, name, expires_at=expires_at)
 
         # Update Usage table to point to the new token_id for old token references
         if old_token_ids:
@@ -631,7 +631,7 @@ class IdentityAccessManager:
                 TokenTable.name,
                 TokenTable.token,
                 TokenTable.user_id.label("user"),
-                cast(func.extract("epoch", TokenTable.expires), Integer).label("expires"),
+                cast(func.extract("epoch", TokenTable.expires_at), Integer).label("expires_at"),
                 cast(func.extract("epoch", TokenTable.created), Integer).label("created"),
             )
             .offset(offset=offset)
@@ -646,7 +646,7 @@ class IdentityAccessManager:
             statement = statement.where(TokenTable.id == token_id)
 
         if exclude_expired is not None:
-            statement = statement.where(or_(TokenTable.expires.is_(None), TokenTable.expires >= func.now()))
+            statement = statement.where(or_(TokenTable.expires_at.is_(None), TokenTable.expires_at >= func.now()))
 
         result = await session.execute(statement=statement)
         tokens = [Token(**row._mapping) for row in result.all()]
@@ -673,14 +673,14 @@ class IdentityAccessManager:
 
     async def invalidate_token(self, session: AsyncSession, token_id: int, user_id: int) -> None:
         """
-        Invalidate a token by setting its expires to the current timestamp
+        Invalidate a token by setting its expires_at to the current timestamp
 
         Args:
             session: Database session
             token_id: ID of the token to invalidate
             user_id: ID of the user who owns the token (for security)
         """
-        await session.execute(update(TokenTable).where(TokenTable.id == token_id).where(TokenTable.user_id == user_id).values(expires=func.now()))
+        await session.execute(update(TokenTable).where(TokenTable.id == token_id).where(TokenTable.user_id == user_id).values(expires_at=func.now()))
         await session.commit()
 
     async def get_user(
@@ -740,7 +740,7 @@ class IdentityAccessManager:
                 budget=user.budget,
                 permissions=role.permissions,
                 limits=limits,
-                expires=user.expires,
+                expires_at=user.expires_at,
                 created=user.created,
                 updated=user.updated,
                 priority=user.priority,

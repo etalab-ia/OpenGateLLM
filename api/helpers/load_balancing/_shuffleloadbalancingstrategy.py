@@ -1,6 +1,6 @@
 import random
 
-from api.helpers.models.load_balancing import BaseLoadBalancingStrategy
+from api.helpers.load_balancing import BaseLoadBalancingStrategy
 
 
 class ShuffleLoadBalancingStrategy(BaseLoadBalancingStrategy):

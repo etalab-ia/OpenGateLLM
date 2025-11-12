@@ -421,21 +421,25 @@ class RolesState(ChatState):
                     if value < 0:
                         yield rx.toast.warning(f"{limit_type.upper()} value must be >= 0", position="bottom-right")
                         return
-                    limits_to_add.append({
-                        "model": self.new_limit_model.strip(),
-                        "type": limit_type,
-                        "value": value,
-                    })
+                    limits_to_add.append(
+                        {
+                            "model": self.new_limit_model.strip(),
+                            "type": limit_type,
+                            "value": value,
+                        }
+                    )
                 except ValueError:
                     yield rx.toast.warning(f"{limit_type.upper()} value must be a number", position="bottom-right")
                     return
             else:
                 # Empty value means unlimited (None)
-                limits_to_add.append({
-                    "model": self.new_limit_model.strip(),
-                    "type": limit_type,
-                    "value": None,
-                })
+                limits_to_add.append(
+                    {
+                        "model": self.new_limit_model.strip(),
+                        "type": limit_type,
+                        "value": None,
+                    }
+                )
 
         self.add_limit_loading = True
         yield

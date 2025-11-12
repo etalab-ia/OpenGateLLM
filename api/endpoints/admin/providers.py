@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Depends, Path, Query, Request, Security
+from fastapi import APIRouter, Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,8 +44,8 @@ async def create_provider(
         model_carbon_footprint_zone=body.model_carbon_footprint_zone,
         model_carbon_footprint_total_params=body.model_carbon_footprint_total_params,
         model_carbon_footprint_active_params=body.model_carbon_footprint_active_params,
-        qos_metric=body.qos_metric,
-        qos_value=body.qos_value,
+        qos_metric_type=body.qos_metric,
+        qos_threshold=body.qos_threshold,
         session=session,
     )
     return JSONResponse(status_code=201, content=CreateProviderResponse(id=provider_id).model_dump())
@@ -86,9 +86,9 @@ async def get_provider(
     """
     Get a model provider by router and provider IDs.
     """
-    provider = await model_registry.get_providers(router_id=router, provider_id=provider, session=session)
+    found_providers = await model_registry.get_providers(router_id=router, provider_id=provider, session=session)
 
-    return JSONResponse(status_code=200, content=provider[0])
+    return JSONResponse(status_code=200, content=found_providers[0])
 
 
 @router.get(
@@ -99,7 +99,7 @@ async def get_provider(
 )
 async def get_providers(
     request: Request,
-    router: int | None = Query(default=None, description="Filter providers by router ID."),
+    router: int = Query(description="Filter providers by router ID."),
     session: AsyncSession = Depends(get_db_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> JSONResponse:

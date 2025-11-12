@@ -59,13 +59,15 @@ class UsageState(AuthState):
         rows: list[dict[str, Any]] = []
         for u in self.usage:
             dt_str = dt.datetime.fromtimestamp(u.datetime).strftime("%Y-%m-%d %H:%M")
-            rows.append({
-                "datetime": dt_str,
-                "endpoint": u.endpoint,
-                "model": u.model,
-                "tokens": f"{u.prompt_tokens} → {u.completion_tokens}",
-                "cost": f"{u.cost:.4f}",
-            })
+            rows.append(
+                {
+                    "datetime": dt_str,
+                    "endpoint": u.endpoint,
+                    "model": u.model,
+                    "tokens": f"{u.prompt_tokens} → {u.completion_tokens}",
+                    "cost": f"{u.cost:.4f}",
+                }
+            )
         return rows
 
     @rx.var
@@ -78,10 +80,12 @@ class UsageState(AuthState):
         # sort by day
         result: list[dict[str, Any]] = []
         for k in sorted(buckets.keys()):
-            result.append({
-                "day": k,
-                "count": buckets[k],
-            })
+            result.append(
+                {
+                    "day": k,
+                    "count": buckets[k],
+                }
+            )
         return result
 
     @rx.event

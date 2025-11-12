@@ -54,7 +54,7 @@ class BaseModelProvider(ABC):
         model_carbon_footprint_total_params: int | None,
         model_carbon_footprint_active_params: int | None,
         qos_metric: MetricType | None,
-        qos_value: float | None,
+        qos_threshold: float | None,
     ) -> None:
         self.name = model_name
 
@@ -65,7 +65,7 @@ class BaseModelProvider(ABC):
         self.key = key
         self.timeout = timeout
         self.qos_metric = qos_metric
-        self.qos_value = qos_value
+        self.qos_threshold = qos_threshold
 
         self.id = None  # set by the ModelRegistry when the provider is created
         self.cost_prompt_tokens = None  # set by the ModelRegistry when the provider is retrieved
@@ -203,11 +203,11 @@ class BaseModelProvider(ABC):
         if json and "model" in json:
             json["model"] = self.name
 
-        return url, json, files, data
+        return url, None, json, files, data
 
     def _format_response(
         self,
-        json: dict,
+        json: dict | None,
         response: httpx.Response,
         endpoint: str,
         additional_data: dict[str, Any] | None = None,
@@ -311,7 +311,7 @@ class BaseModelProvider(ABC):
             httpx.Response: The response from the API.
         """
 
-        url, json, files, data = self._format_request(json=json, files=files, data=data, endpoint=endpoint)
+        url, _, json, files, data = self._format_request(json=json, files=files, data=data, endpoint=endpoint)
         if not additional_data:
             additional_data = {}
 
@@ -443,7 +443,7 @@ class BaseModelProvider(ABC):
         if additional_data is None:
             additional_data = {}
 
-        url, json, files, data = self._format_request(json=json, files=files, data=data, endpoint=endpoint)
+        url, _, json, files, data = self._format_request(json=json, files=files, data=data, endpoint=endpoint)
 
         async with httpx.AsyncClient(timeout=self.timeout) as async_client:
             inflight_key = f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{self.id}"

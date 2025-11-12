@@ -25,4 +25,3 @@ def keys_pagination() -> rx.Component:
         spacing=SPACING_MEDIUM,
         align="center",
     )
-
