@@ -55,16 +55,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Docker Compose
-      run: |
-        cp .github/.env.ci.example .github/.env.ci
-        make test-integ action=up execute=local
-      env:
-        BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
-        ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}
-
     - name: Run integration tests
       run: |
+        cp .github/.env.ci.example .github/.env.ci
+
         # Install uv
         curl -LsSf https://astral.sh/uv/install.sh | sh
         echo "$HOME/.local/bin" >> $GITHUB_PATH
@@ -72,12 +66,16 @@ jobs:
         # Create a local virtual environment and install dependencies
         "$HOME/.local/bin/uv" venv
         "$HOME/.local/bin/uv" pip install -p .venv/bin/python ".[api,playground,dev,test]"
+        "$HOME/.local/bin/uv" pip install git+https://github.com/etalab-ia/openmockllm.git
 
         # Activate venv for the test run
         . .venv/bin/activate
 
         # Run integration tests
-        make test-integ action=run execute=local
+        make test-integ action=all execute=local
+      env:
+        BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
+        ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}
 
     - name: Tear down Docker Compose
       if: always()
