@@ -23,7 +23,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Getting Started',
+      label: 'Getting started',
       items: [
         'getting-started/quickstart',
         'getting-started/configuration',
@@ -96,6 +96,10 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Contributing',
+      link: {
+        type: 'doc',
+        id: 'contributing/index',
+      },
       items:  [
               'contributing/development-environment',
               'contributing/commit-hooks',

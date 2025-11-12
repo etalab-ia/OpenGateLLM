@@ -1,16 +1,21 @@
-[![Version](https://img.shields.io/github/v/release/etalab-ia/OpenGateLLM?color=blue&label=version)](https://github.com/etalab-ia/OpenGateLLM/releases)
-[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/etalab-ia/OpenGateLLM/refs/heads/main/.github/badges/coverage.json)](https://github.com/etalab-ia/OpenGateLLM)
-[![License](https://img.shields.io/github/license/etalab-ia/OpenGateLLM?color=green&label=license)](https://github.com/etalab-ia/OpenGateLLM/blob/main/LICENSE)
-[![Stars](https://img.shields.io/github/stars/etalab-ia/OpenGateLLM?color=yellow&label=stars)](https://github.com/etalab-ia/OpenGateLLM/stargazers)
+---
+id: intro
+sidebar_position: 1
+sidebar_label: Introduction
+---
 
-<img src="./docs/static/img/logo.svg" alt="Logo" width="128" height="128">
+import ContributorsStatic from '@site/src/components/ContributorsStatic';
 
-# OpenGateLLM
-### **[Documentation](https://docs.opengatellm.org) | [API Reference](https://albert.api.etalab.gouv.fr/documentation)**
+# OpenGateLLM documentation
 
-> [!WARNING]
-> **The API is still under beta version, major breaking changes may occur.**
+Welcome to the OpenGateLLM official documentation! This comprehensive guide will walk you through 
+everything you need to know to run, configure, and extend OpenGateLLM. 
 
+:::warning
+The API is still under beta version, major breaking changes may occur.
+:::
+
+## What is OpenGateLLM?
 
 OpenGateLLM is an open-source, production-ready API gateway, optimized for self-hosted models. It's designed to centralize, secure, and manage Generative AI access in a sovereign and cost-effective way.
 
@@ -27,7 +32,7 @@ OpenGateLLM addresses three critical challenges for organizations:
 - High compatibility - Seamlessly integrates with GenAI ecosystem frameworks by OpenAI-compatible API
 - Production-ready - Engineered to handle high loads with advanced QoS features
 
-![OpenGateLLM architecture](docs/static/img/ogl_architecture.png)
+![OpenGateLLM architecture](../static/img/ogl_architecture.png)
 
 **OpenGateLLM is an alternative to...**
 
@@ -44,60 +49,56 @@ OpenGateLLM addresses three critical challenges for organizations:
         <tr><td>:electric_plug: OpenAI Compatibility</td><td>✅</td><td>✅</td><td>✅</td></tr>
         <tr><td>:open_book: [Open-source](https://github.com/etalab-ia/OpenGateLLM)</td><td>✅</td><td>✅</td><td>✅</td></tr>
         <tr><td>:computer: [Self-hostable](./getting-started/quickstart.md)</td><td>✅</td><td>✅</td><td>✅</td></tr>
-        <tr><td>:money_with_wings: <b>Free (all features)</b></td><td>✅</td><td>❌</td><td>✅</td></tr>
+        <tr><td>:money_with_wings: **Free (all features)**</td><td>✅</td><td>❌</td><td>✅</td></tr>
         <tr><td>:factory: Support commercial and self-hosted models</td><td>✅</td><td>✅</td><td>✅</td></tr>
         <!-- User management -->
-        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>Account management</b></td></tr>
+        <tr><td colSpan={4} style={{textAlign: 'center', fontWeight: 'bold'}}>Account management</td></tr>
         <tr><td>:game_die: Playground UI</td><td>✅</td><td>✅</td><td>✅</td></tr>
         <tr><td>:bust_in_silhouette: User management (API keys, budget...)</td><td>✅</td><td>✅</td><td>✅</td></tr>
         <tr><td>:office: Organization management</td><td>🚧</td><td>✅</td><td>❌</td></tr>
         <tr><td>:pencil2: Project management</td><td>🔜</td><td>✅</td><td>❌</td></tr>
         <tr><td>:key: SSO support</td><td>🚧</td><td>✅</td><td>❌</td></tr>
         <!-- High load optimization -->
-        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>High load features</b></td></tr>
+        <tr><td colSpan={4} style={{textAlign: 'center', fontWeight: 'bold'}}>High load features</td></tr>
         <tr><td>:hourglass: Rate limiting</td><td>✅</td><td>❌</td><td>❌</td></tr>
         <tr><td>:zap: Requests prioritization</td><td>✅</td><td>✅</td><td>❌</td></tr>
         <tr><td>:chart_with_upwards_trend: Quality of service thresholds</td><td>✅</td><td>✅</td><td>❌</td></tr>
         <tr><td>:twisted_rightwards_arrows: Model load balancing</td><td>✅</td><td>✅</td><td>❌</td></tr>
         <tr><td>:arrows_counterclockwise: Model fallback</td><td>🔜</td><td>✅</td><td>❌</td></tr>
         <!-- Monitoring & analytics -->
-        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>Monitoring & analytics</b></td></tr>
+        <tr><td colSpan={4} style={{textAlign: 'center', fontWeight: 'bold'}}>Monitoring & analytics</td></tr>
         <tr><td>:bar_chart: Usage tracking</td><td>✅</td><td>❌</td><td>❌</td></tr>
         <tr><td>:chart_with_upwards_trend: Carbon footprint</td><td>✅</td><td>❌</td><td>❌</td></tr>
         <tr><td>:link: Prometheus integration</td><td>✅</td><td>❌</td><td>❌</td></tr>
         <!-- Privacy & security -->
-        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>Privacy & security</b></td></tr>
+        <tr><td colSpan={4} style={{textAlign: 'center', fontWeight: 'bold'}}>Privacy & security</td></tr>
         <tr><td>:no_entry_sign: No chat history storage</td><td>✅</td><td>❌</td><td>❌</td></tr>
         <tr><td>:lock: Role-based access control</td><td>✅</td><td>❌</td><td>❌</td></tr>
+
     </tbody>
 </table>
-
 Legend: *✅ supported* — *❌ not supported* — *🚧 work in progress* — *🔜 in roadmap*
 
-### 🚀 Quickstart
-***
-Deploy and start using OpenGateLLM in minutes with our quickstart guide [here](https://docs.opengatellm.etalab.gouv.fr/docs/getting-started/quickstart).
+## Quickstart
 
-### 🤝 Contribute
-***
+Get started with OpenGateLLM in minutes with our quickstart guide [here](./getting-started/quickstart.md).
 
-This project exists thanks to all the people who contribute. OpenGateLLM thrives on open-source contributions. Join our community! 
+## Community & support
 
-Check out our [Contribution Guide](https://docs.opengatellm.org/docs/contributing) to get started.
+OpenGateLLM is developed by [Etalab](https://www.numerique.gouv.fr/numerique-etat/dinum/) since July 2024, the French government's open data and AI 
+task force, with the support of [CentraleSupélec](https://www.centralesupelec.fr).
 
-### 🗺️ Roadmap
-***
+This project exists thanks to all the people who contribute. OpenGateLLM thrives on open-source contributions. Join our community! Whether you're 
+fixing bugs, adding features, or improving documentation, we welcome your help. Check out our [Contributing Guide](./contributing/index.md) to get started.
+
+**Thanks to all contributors :heart:**
+
+<ContributorsStatic />
+
+### Roadmap
 
 OpenGateLLM is still under *beta version*, major breaking changes may occur. Check our current roadmap [here](https://github.com/etalab-ia/OpenGateLLM/discussions/425) to see what we are working on.
 
+### License
 
-### 🎖️ Sponsors
-***
-
-<div id="toc">
-  <ul align="center" style="list-style: none">
-<a href="https://www.numerique.gouv.fr/numerique-etat/dinum/" ><img src="./docs/static/img/dinum_logo.png" alt="DINUM logo" width="300" style="margin-right: 40px"></a>
-<a href="https://www.centralesupelec.fr"><img src="./docs/static/img/centralsupelec_logo.png" alt="CentraleSupélec logo" width="200" style="margin-right: 40px"></a>
-  </ul>
-</div>
-
+OpenGateLLM is open-source software licensed under the [MIT License](https://github.com/etalab-ia/OpenGateLLM/blob/main/LICENSE).
