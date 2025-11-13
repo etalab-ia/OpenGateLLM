@@ -66,7 +66,6 @@ jobs:
         # Create a local virtual environment and install dependencies
         "$HOME/.local/bin/uv" venv
         "$HOME/.local/bin/uv" pip install -p .venv/bin/python ".[api,playground,dev,test]"
-        "$HOME/.local/bin/uv" pip install git+https://github.com/etalab-ia/openmockllm.git
 
         # Activate venv for the test run
         . .venv/bin/activate

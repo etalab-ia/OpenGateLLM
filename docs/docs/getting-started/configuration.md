@@ -200,7 +200,8 @@ For more information to configure model providers, see the [ModelProvider sectio
 | aliases | array | Aliases of the model. It will be used to identify the model by users. |  |  |  | ['model-alias', 'model-alias-2'] |
 | cost_completion_tokens | number | Model costs completion tokens for user budget computation. The cost is by 1M tokens. |  | 0.0 |  | 0.1 |
 | cost_prompt_tokens | number | Model costs prompt tokens for user budget computation. The cost is by 1M tokens. |  | 0.0 |  | 0.1 |
-| load_balancing_strategy | string | Routing strategy for load balancing between providers of the model. It will be used to identify the model type. |  | shuffle | • shuffle<br></br>• least_busy | round_robin |
+| load_balancing_strategy | string | Routing strategy for load balancing between providers of the model. It will be used to identify the model type. |  | shuffle | • shuffle<br></br>• least_busy | least_busy |
+| name | string | Unique name exposed to clients when selecting the model. |  |  |  | gpt-4o |
 | providers | array | API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type. For details of configuration, see the [ModelProvider section](#modelprovider). |  |  |  |  |
 | type | string | Type of the model. It will be used to identify the model type. |  |  | • image-text-to-text<br></br>• automatic-speech-recognition<br></br>• text-embeddings-inference<br></br>• text-generation<br></br>• text-classification | text-generation |
 
@@ -210,8 +211,8 @@ For more information to configure model providers, see the [ModelProvider sectio
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | key | string | Model provider API key. |  | None |  | sk-1234567890 |
-| model_carbon_footprint_active_params | number | Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai |  | None |  | 8 |
-| model_carbon_footprint_total_params | number | Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai |  | None |  | 8 |
+| model_carbon_footprint_active_params | integer | Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai |  | None |  | 8 |
+| model_carbon_footprint_total_params | integer | Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai |  | None |  | 8 |
 | model_carbon_footprint_zone | string | Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai |  | WOR | • ABW<br></br>• AFG<br></br>• AGO<br></br>• AIA<br></br>• ALA<br></br>• ALB<br></br>• AND<br></br>• ARE<br></br>• ... | WOR |
 | model_name | string | Model name from the model provider. |  |  |  | gpt-4o |
 | qos_metric | string | The metric to use for the quality of service. If not provided, no QoS policy is applied. |  | None | • ttft<br></br>• latency<br></br>• inflight<br></br>• performance | inflight |

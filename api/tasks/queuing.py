@@ -27,7 +27,7 @@ async def apply_load_balancing_and_qos_policy_without_queuing(
         load_balancing_metric=load_balancing_metric,
         redis_client=redis_client,
     )
-    qos_metric, qos_value = [(metric, value) for provider_id, metric, value in candidates if provider_id == provider_id][0]
+    qos_metric, qos_value = [(metric, value) for id, metric, value in candidates if id == provider_id][0]
 
     can_be_forwarded = await apply_async_qos_policy(
         provider_id=provider_id,

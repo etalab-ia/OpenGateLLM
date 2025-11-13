@@ -80,7 +80,7 @@ for finder, name, ispkg in pkgutil.walk_packages(base_pkg.__path__, base_pkg.__n
         if router_name in configuration.settings.hidden_routers:
             module.router.include_in_schema = False
         # legacy routers dont support hooks
-        if module.router.tags[0] != "Legacy":
+        if module.router.tags and module.router.tags[0] != "Legacy":
             add_hooks(router=module.router)
 
         app.include_router(router=module.router, include_in_schema=module.router.include_in_schema)
