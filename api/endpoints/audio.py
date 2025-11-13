@@ -1,3 +1,4 @@
+from contextvars import ContextVar
 from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Request, Security, UploadFile
@@ -38,7 +39,7 @@ async def audio_transcriptions(
     model_registry: ModelRegistry = Depends(get_model_registry),
     redis_client: AsyncRedis = Depends(get_redis_client),
     session: AsyncSession = Depends(get_db_session),
-    request_context: RequestContext = Depends(get_request_context),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse | PlainTextResponse:
     """
     Transcribes audio into the input language.

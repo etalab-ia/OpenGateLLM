@@ -1,3 +1,4 @@
+from contextvars import ContextVar
 from io import BytesIO
 import logging
 from urllib.parse import urlparse
@@ -52,7 +53,7 @@ Ne donne pas d'explications, ne mets pas de guillemets, réponds uniquement avec
         model_registry: ModelRegistry,
         session: AsyncSession,
         redis_client: AsyncRedis,
-        request_context: RequestContext,
+        request_context: ContextVar[RequestContext],
     ) -> str:
         model_provider = await model_registry.get_model_provider(
             model=self.query_model,

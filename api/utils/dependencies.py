@@ -1,3 +1,5 @@
+from contextvars import ContextVar
+
 import redis.asyncio as redis
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,12 +9,12 @@ from api.schemas.core.context import RequestContext
 from api.utils.context import global_context, request_context
 
 
-def get_request_context() -> RequestContext:
+def get_request_context() -> ContextVar[RequestContext]:
     """
-    Get the RequestContext instance from the global context.
+    Get the RequestContext ContextVar from the global context.
 
     Returns:
-        RequestContext: The RequestContext instance.
+        ContextVar[RequestContext]: The RequestContext ContextVar instance.
     """
 
     return request_context

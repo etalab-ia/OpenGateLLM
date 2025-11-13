@@ -1,3 +1,4 @@
+from contextvars import ContextVar
 import json
 from typing import Literal
 from uuid import UUID
@@ -50,7 +51,7 @@ async def create_document(
     session: AsyncSession = Depends(get_db_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
-    request_context: RequestContext = Depends(get_request_context),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
     file: UploadFile = FileForm,
     collection: int = CollectionForm,
     # parse params
@@ -128,7 +129,7 @@ async def get_document(
     request: Request,
     document: int = Path(description="The document ID"),
     session: AsyncSession = Depends(get_db_session),
-    request_context: RequestContext = Depends(get_request_context),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Get a document by ID.
@@ -149,7 +150,7 @@ async def get_documents(
     limit: int | None = Query(default=10, ge=1, le=100, description="The number of documents to return"),
     offset: int | UUID = Query(default=0, description="The offset of the first document to return"),
     session: AsyncSession = Depends(get_db_session),
-    request_context: RequestContext = Depends(get_request_context),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Get all documents ID from a collection.
@@ -178,7 +179,7 @@ async def delete_document(
     request: Request,
     document: int = Path(description="The document ID"),
     session: AsyncSession = Depends(get_db_session),
-    request_context: RequestContext = Depends(get_request_context),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> Response:
     """
     Delete a document.

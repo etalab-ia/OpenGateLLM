@@ -1,3 +1,5 @@
+from contextvars import ContextVar
+
 from fastapi import APIRouter, Depends, Request, Security
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis as AsyncRedis
@@ -21,7 +23,7 @@ async def rerank(
     model_registry: ModelRegistry = Depends(get_model_registry),
     redis_client: AsyncRedis = Depends(get_redis_client),
     session: AsyncSession = Depends(get_db_session),
-    request_context: RequestContext = Depends(get_request_context),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Creates an ordered array with each text assigned a relevance score, based on the query.

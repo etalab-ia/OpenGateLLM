@@ -51,7 +51,7 @@ class AuthState(rx.State):
         try:
             async with httpx.AsyncClient() as client:
                 # Login to get API key
-                response = await client.post(f"{self.opengatellm_url}/v1/auth/login", json={"email": email, "password": password}, timeout=10.0)
+                response = await client.post(f"{self.opengatellm_url}/v1/auth/login", json={"email": email, "password": password}, timeout=60.0)
                 if response.status_code != 200:
                     error_detail = response.json().get("detail", "Login failed")
                     yield rx.toast.error(error_detail, position="bottom-right")
@@ -64,7 +64,7 @@ class AuthState(rx.State):
                 api_key_id = login_data.get("id")
 
                 # Get user info
-                response = await client.get(f"{self.opengatellm_url}/v1/me/info", headers={"Authorization": f"Bearer {api_key}"}, timeout=10.0)
+                response = await client.get(f"{self.opengatellm_url}/v1/me/info", headers={"Authorization": f"Bearer {api_key}"}, timeout=60.0)
 
                 if response.status_code != 200:
                     yield rx.toast.error("Failed to fetch user info", position="bottom-right")

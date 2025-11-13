@@ -1,3 +1,5 @@
+from contextvars import ContextVar
+
 from fastapi import APIRouter, Depends, Request, Security
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis as AsyncRedis
@@ -23,7 +25,7 @@ async def search(
     session: AsyncSession = Depends(get_db_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
-    request_context: RequestContext = Depends(get_request_context),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Get relevant chunks from the collections and a query.

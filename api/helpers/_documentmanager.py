@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from contextvars import ContextVar
 from functools import wraps
 from itertools import batched
 import logging
@@ -183,7 +184,7 @@ class DocumentManager:
         session: AsyncSession,
         redis_client: AsyncRedis,
         model_registry: ModelRegistry,
-        request_context: RequestContext,
+        request_context: ContextVar[RequestContext],
         collection_id: int,
         document: ParsedDocument,
         chunker: Chunker,
@@ -376,7 +377,7 @@ class DocumentManager:
         session: AsyncSession,
         redis_client: AsyncRedis,
         model_registry: ModelRegistry,
-        request_context: RequestContext,
+        request_context: ContextVar[RequestContext],
         collection_ids: list[int],
         prompt: str,
         method: str,
@@ -447,7 +448,7 @@ class DocumentManager:
         session: AsyncSession,
         model_registry: ModelRegistry,
         redis_client: AsyncRedis,
-        request_context: RequestContext,
+        request_context: ContextVar[RequestContext],
         prompt: str,
         k: int = 5,
     ) -> int | None:
@@ -540,7 +541,7 @@ class DocumentManager:
         redis_client: AsyncRedis,
         session: AsyncSession,
         model_registry: ModelRegistry,
-        request_context: RequestContext,
+        request_context: ContextVar[RequestContext],
     ) -> None:
         provider = await model_registry.get_model_provider(
             model=self.vector_store_model,

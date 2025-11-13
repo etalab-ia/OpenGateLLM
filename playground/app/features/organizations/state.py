@@ -149,7 +149,7 @@ class OrganizationsState(ChatState):
                     f"{self.opengatellm_url}/v1/admin/organizations",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=10.0,
+                    timeout=60.0,
                 )
 
                 if response.status_code == 200:
@@ -192,7 +192,7 @@ class OrganizationsState(ChatState):
                     f"{self.opengatellm_url}/v1/admin/organizations",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
-                    timeout=10.0,
+                    timeout=60.0,
                 )
 
                 if response.status_code == 201:
@@ -229,7 +229,7 @@ class OrganizationsState(ChatState):
                 response = await client.delete(
                     f"{self.opengatellm_url}/v1/admin/organizations/{organization_id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=10.0,
+                    timeout=60.0,
                 )
 
                 if response.status_code == 204:
@@ -271,7 +271,7 @@ class OrganizationsState(ChatState):
                     f"{self.opengatellm_url}/v1/admin/organizations/{self.organization_to_edit}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
-                    timeout=10.0,
+                    timeout=60.0,
                 )
 
                 if response.status_code == 204:

@@ -6,6 +6,7 @@ import time
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
+import httpx
 
 from api.schemas.admin.providers import CreateProvider, ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.roles import CreateRole, Limit, LimitType
@@ -52,10 +53,64 @@ def run_openmockllm(test_id: str, **kwargs) -> subprocess.Popen:
 
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    time.sleep(1)
-
-    process.url = f"http://localhost:{port}"
+    url = f"http://localhost:{port}"
+    process.url = url
     process.model_name = model_name
+
+    # Wait for the server to be ready with health check
+    max_retries = 30  # 30 seconds max wait time
+    retry_interval = 1  # Check every second
+    for attempt in range(max_retries):
+        # Check if process has terminated unexpectedly
+        returncode = process.poll()
+        if returncode is not None:
+            # Process has terminated, try to read stderr for error message
+            error_msg = "Unknown error"
+            try:
+                # Use wait with timeout to avoid blocking indefinitely
+                process.wait(timeout=0.1)
+                # Process has finished, try to read stderr
+                if process.stderr:
+                    stderr_data = process.stderr.read()
+                    if stderr_data:
+                        error_msg = stderr_data.decode(errors="replace")
+            except (subprocess.TimeoutExpired, AttributeError):
+                # stderr might not be readable or process already finished
+                pass
+            raise RuntimeError(f"openmockllm process failed to start. " f"Process exited with code {returncode}. Error: {error_msg}")
+
+        try:
+            # Check if the server is responding by calling /v1/models endpoint
+            response = httpx.get(f"{url}/v1/models", timeout=2)
+            if response.status_code == 200:
+                logger.info(f"openmockllm server is ready at {url} (attempt {attempt + 1})")
+                return process
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.RequestError):
+            # Server not ready yet, wait and retry
+            if attempt < max_retries - 1:
+                time.sleep(retry_interval)
+            else:
+                # Final attempt failed, check process status
+                returncode = process.poll()
+                if returncode is not None:
+                    error_msg = "Unknown error"
+                    try:
+                        process.wait(timeout=0.1)
+                        if process.stderr:
+                            stderr_data = process.stderr.read()
+                            if stderr_data:
+                                error_msg = stderr_data.decode(errors="replace")
+                    except (subprocess.TimeoutExpired, AttributeError):
+                        pass
+                    raise RuntimeError(
+                        f"openmockllm process failed to start after {max_retries} attempts. "
+                        f"Process exited with code {returncode}. Error: {error_msg}"
+                    )
+                else:
+                    raise RuntimeError(
+                        f"openmockllm server at {url} did not become ready after {max_retries} attempts. "
+                        f"Process is still running but not responding."
+                    )
 
     return process
 

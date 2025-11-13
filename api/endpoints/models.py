@@ -1,3 +1,5 @@
+from contextvars import ContextVar
+
 from fastapi import APIRouter, Depends, Path, Request, Security
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +29,7 @@ async def get_model(
     model: str = Path(description="The name of the model to get."),
     model_registry: ModelRegistry = Depends(get_model_registry),
     session: AsyncSession = Depends(get_db_session),
-    request_context: RequestContext = Depends(get_request_context),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Get a model by name and provide basic information.
@@ -49,7 +51,7 @@ async def get_models(
     request: Request,
     model_registry: ModelRegistry = Depends(get_model_registry),
     session: AsyncSession = Depends(get_db_session),
-    request_context: RequestContext = Depends(get_request_context),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Lists the currently available models and provides basic information.

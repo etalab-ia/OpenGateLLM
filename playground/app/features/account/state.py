@@ -70,7 +70,7 @@ class AccountState(AuthState):
                         "current_password": self.current_password,
                         "password": self.new_password,
                     },
-                    timeout=10.0,
+                    timeout=60.0,
                 )
 
                 if response.status_code == 204:
@@ -115,7 +115,7 @@ class AccountState(AuthState):
                     f"{self.opengatellm_url}/v1/me/info",
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     json={"name": self.edit_name.strip()},
-                    timeout=10.0,
+                    timeout=60.0,
                 )
 
                 if response.status_code == 204:

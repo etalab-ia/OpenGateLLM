@@ -63,7 +63,7 @@ class ChatState(AuthState):
                 response = await client.get(
                     f"{self.opengatellm_url}/v1/models",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=10.0,
+                    timeout=60.0,
                 )
                 response.raise_for_status()
                 data = response.json()

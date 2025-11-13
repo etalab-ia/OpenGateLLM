@@ -132,7 +132,7 @@ class UsageState(AuthState):
                     f"{self.opengatellm_url}/v1/usage",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=10.0,
+                    timeout=60.0,
                 )
 
                 if resp.status_code != 200:

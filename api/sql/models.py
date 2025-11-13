@@ -24,10 +24,10 @@ class Usage(Base):
     time_to_first_token: Mapped[int | None]  # Time to first token in milliseconds for streaming chat requests
 
     # foreign keys
-    user_id: Mapped[int | None] = mapped_column(ForeignKey(column="user.id", ondelete="SET NULL"))
-    token_id: Mapped[int | None] = mapped_column(ForeignKey(column="token.id", ondelete="SET NULL"))
-    router_id: Mapped[int | None] = mapped_column(ForeignKey(column="router.id", ondelete="SET NULL"))
-    provider_id: Mapped[int | None] = mapped_column(ForeignKey(column="provider.id", ondelete="SET NULL"))
+    user_id: Mapped[int | None] = mapped_column(ForeignKey(column="user.id", ondelete="SET NULL"), index=True)
+    token_id: Mapped[int | None] = mapped_column(ForeignKey(column="token.id", ondelete="SET NULL"), index=True)
+    router_id: Mapped[int | None] = mapped_column(ForeignKey(column="router.id", ondelete="SET NULL"), index=True)
+    provider_id: Mapped[int | None] = mapped_column(ForeignKey(column="provider.id", ondelete="SET NULL"), index=True)
 
     # identifiers (useful for historical analysis when foreign keys are deleted)
     user_email: Mapped[str | None]

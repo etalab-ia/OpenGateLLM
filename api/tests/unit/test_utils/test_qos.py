@@ -71,7 +71,7 @@ class TestApplySyncQosPolicy:
         result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, redis_client)
         # Then
         assert result is True
-        redis_client.get.assert_called_once_with(f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{provider_id}")
+        redis_client.get.assert_not_called()
 
     def test_apply_sync_qos_policy_return_true_when_qos_metric_is_not_inflight(self):
         # Given
@@ -96,7 +96,7 @@ class TestApplySyncQosPolicy:
         result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, redis_client)
         # Then
         assert result is True
-        redis_client.get.assert_called_once_with(f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{provider_id}")
+        redis_client.get.assert_not_called()
 
 
 class TestApplyAsyncQosPolicy:
@@ -168,7 +168,7 @@ class TestApplyAsyncQosPolicy:
         result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, redis_client)
         # Then
         assert result is True
-        redis_client.get.assert_awaited_once_with(f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{provider_id}")
+        redis_client.get.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_apply_async_qos_policy_return_true_when_qos_metric_is_not_inflight(self):
@@ -195,4 +195,4 @@ class TestApplyAsyncQosPolicy:
         result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, redis_client)
         # Then
         assert result is True
-        redis_client.get.assert_awaited_once_with(f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{provider_id}")
+        redis_client.get.assert_not_awaited()

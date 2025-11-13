@@ -19,7 +19,6 @@ from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Permission as PermissionTable
 from api.sql.models import Role as RoleTable
 from api.sql.models import Token as TokenTable
-from api.sql.models import Usage as UsageTable
 from api.sql.models import User as UserTable
 from api.utils.configuration import configuration
 from api.utils.context import global_context
@@ -559,9 +558,10 @@ class IdentityAccessManager:
         Returns:
             Tuple containing the new token_id and token
         """
-        # Get the old token_id for tokens with the same name and user_id
-        old_token_result = await session.execute(statement=select(TokenTable.id).where(TokenTable.user_id == user_id, TokenTable.name == name))
-        old_token_ids = [row[0] for row in old_token_result.all()]
+        # delete old for tokens with the same name and user_id
+        query = delete(TokenTable).where(TokenTable.user_id == user_id, TokenTable.name == name)
+        await session.execute(query)
+        await session.commit()
 
         if self.playground_session_duration is None:
             expires = None
@@ -570,21 +570,6 @@ class IdentityAccessManager:
 
         # Create a new token
         token_id, token = await self.create_token(session, user_id, name, expires=expires)
-
-        # Update Usage table to point to the new token_id for old token references
-        if old_token_ids:
-            await session.execute(statement=update(UsageTable).values(token_id=token_id).where(UsageTable.token_id.in_(old_token_ids)))
-
-        # Delete all old tokens with the same name and user_id (excluding the newly created one)
-        if old_token_ids:
-            await session.execute(
-                statement=delete(TokenTable).where(
-                    TokenTable.user_id == user_id,
-                    TokenTable.name == name,
-                    TokenTable.id.in_(old_token_ids),
-                )
-            )
-            await session.commit()
 
         return token_id, token
 

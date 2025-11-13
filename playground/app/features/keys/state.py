@@ -131,7 +131,7 @@ class KeysState(AuthState):
                     f"{self.opengatellm_url}/v1/me/keys",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=10.0,
+                    timeout=60.0,
                 )
 
                 response.raise_for_status()
@@ -190,7 +190,7 @@ class KeysState(AuthState):
                     f"{self.opengatellm_url}/v1/me/keys",
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     json=payload,
-                    timeout=10.0,
+                    timeout=60.0,
                 )
 
                 if response.status_code == 201:
@@ -240,7 +240,7 @@ class KeysState(AuthState):
                 response = await client.delete(
                     f"{self.opengatellm_url}/v1/me/keys/{key_id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=10.0,
+                    timeout=60.0,
                 )
 
                 if response.status_code == 204:

@@ -1,3 +1,4 @@
+from contextvars import ContextVar
 from io import BytesIO
 import json
 from pathlib import Path
@@ -31,7 +32,7 @@ async def upload_file(
     redis_client: AsyncRedis = Depends(get_redis_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
     session: AsyncSession = Depends(get_db_session),
-    request_context: RequestContext = Depends(get_request_context),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
     **[DEPRECATED]** Upload a file to be processed, chunked, and stored into a vector database. Supported file types : pdf, html, json.

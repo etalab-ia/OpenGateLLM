@@ -72,7 +72,7 @@ class TestGetCarbonFootprint:
         total_params = 1
         model_zone = ProviderCarbonFootprintZone.WOR
         token_count = 1
-        request_latency = 0.01
+        request_latency = 10  # 10 milliseconds, will be converted to 0.01 seconds
         expected_carbon_footprint = CarbonFootprintUsage(
             kWh=CarbonFootprintUsageKWh(min=1.0, max=2.0), kgCO2eq=CarbonFootprintUsageKgCO2eq(min=0.0, max=3.0)
         )
@@ -83,7 +83,7 @@ class TestGetCarbonFootprint:
             "model_active_parameter_count": 1,
             "model_total_parameter_count": 1,
             "output_token_count": 1,
-            "request_latency": 0.01,
+            "request_latency": 0.01,  # converted from milliseconds to seconds
         }
         # When
         result = get_carbon_footprint(active_params, total_params, model_zone, token_count, request_latency)

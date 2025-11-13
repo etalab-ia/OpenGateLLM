@@ -1,4 +1,5 @@
 import asyncio
+from contextvars import ContextVar
 import logging
 
 from celery.result import AsyncResult
@@ -693,7 +694,7 @@ class ModelRegistry:
         endpoint: str,
         session: AsyncSession,
         redis_client: AsyncRedis,
-        request_context: RequestContext,
+        request_context: ContextVar[RequestContext],
     ) -> int:
         """
         Get a model provider for a given model, endpoint, user priority, session and redis client.
@@ -703,7 +704,7 @@ class ModelRegistry:
             endpoint(str): The type of endpoint called
             session(AsyncSession): Database session
             redis_client(AsyncRedis): Redis client
-            request_context(RequestContext): Request context
+            request_context(ContextVar[RequestContext]): Request context
         Returns:
             ModelProvider: The chosen provider
         """

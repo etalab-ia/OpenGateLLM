@@ -1,3 +1,5 @@
+from contextvars import ContextVar
+
 from fastapi import APIRouter, Depends, Request, Security
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis as AsyncRedis
@@ -37,7 +39,7 @@ async def chat_completions(
     model_registry: ModelRegistry = Depends(get_model_registry),
     session: AsyncSession = Depends(get_db_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
-    request_context: RequestContext = Depends(get_request_context),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse | StreamingResponseWithStatusCode:
     """Creates a model response for the given chat conversation.
 
@@ -52,7 +54,7 @@ async def chat_completions(
         inner_session: AsyncSession,
         inner_redis_client: AsyncRedis,
         inner_model_registry: ModelRegistry,
-        inner_request_context: RequestContext,
+        inner_request_context: ContextVar[RequestContext],
     ) -> tuple[ChatCompletionRequest, list[Search]]:
         results = []
         if initial_body.search:

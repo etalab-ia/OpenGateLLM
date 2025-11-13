@@ -1,3 +1,4 @@
+from contextvars import ContextVar
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -37,7 +38,7 @@ async def test_create_document_collection_no_longer_exists():
     mock_document = ParsedDocument(data=[mock_data])
     mock_redis_client = AsyncMock()
     mock_model_registry = AsyncMock()
-    mock_request_context = RequestContext(
+    mock_request_context_obj = RequestContext(
         id="123",
         client="test",
         method="POST",
@@ -46,6 +47,9 @@ async def test_create_document_collection_no_longer_exists():
         token_id=1,
         usage=Usage(),
     )
+    # Use a real ContextVar instead of a mock
+    mock_request_context = ContextVar("test_request_context", default=mock_request_context_obj)
+    mock_request_context.set(mock_request_context_obj)
 
     # Test that the exception is raised with the correct message
     with pytest.raises(CollectionNotFoundException) as exc_info:
@@ -317,7 +321,7 @@ async def test_create_document_success(monkeypatch):
     mock_document = ParsedDocument(data=[mock_page])
     mock_redis = AsyncMock()
     mock_model_registry = AsyncMock()
-    mock_request_context = RequestContext(
+    mock_request_context_obj = RequestContext(
         id="123",
         client="test",
         method="POST",
@@ -326,6 +330,9 @@ async def test_create_document_success(monkeypatch):
         token_id=1,
         usage=Usage(),
     )
+    # Use a real ContextVar instead of a mock
+    mock_request_context = ContextVar("test_request_context", default=mock_request_context_obj)
+    mock_request_context.set(mock_request_context_obj)
     document_id = await document_manager.create_document(
         session=mock_session,
         redis_client=mock_redis,
@@ -394,7 +401,7 @@ async def test_search_chunks_returns_empty_when_no_collections():
     mock_model_registry = AsyncMock()
     mock_model_registry.get_model_provider = AsyncMock()
 
-    mock_request_context = RequestContext(
+    mock_request_context_obj = RequestContext(
         id="123",
         client="test",
         method="POST",
@@ -403,6 +410,9 @@ async def test_search_chunks_returns_empty_when_no_collections():
         token_id=1,
         usage=Usage(),
     )
+    # Use a real ContextVar instead of a mock
+    mock_request_context = ContextVar("test_request_context", default=mock_request_context_obj)
+    mock_request_context.set(mock_request_context_obj)
 
     result = await document_manager.search_chunks(
         session=mock_session,
