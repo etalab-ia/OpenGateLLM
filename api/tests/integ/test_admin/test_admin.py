@@ -72,7 +72,7 @@ class TestAuth:
         response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_no_expiration_id}")
         assert response.status_code == 200, response.text
         user_data = response.json()
-        assert user_data["expires_at"] is None, response.text
+        assert user_data["expires"] is None, response.text
 
         # Try to create user with expiration set to 5 minutes in the past (should fail)
         past_expiration = int((datetime.now() - timedelta(minutes=5)).timestamp())
@@ -82,7 +82,7 @@ class TestAuth:
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
                 "role": role_without_permissions["id"],
-                "expires_at": past_expiration,
+                "expires": past_expiration,
                 "password": "test-password",
             },
         )
@@ -96,7 +96,7 @@ class TestAuth:
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
                 "role": role_without_permissions["id"],
-                "expires_at": future_expiration,
+                "expires": future_expiration,
                 "password": "test-password",
             },
         )
@@ -107,22 +107,22 @@ class TestAuth:
         response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_with_expiration_id}")
         assert response.status_code == 200, response.text
         user_data = response.json()
-        assert user_data["expires_at"] == future_expiration, "User should have correct expiration time"
+        assert user_data["expires"] == future_expiration, "User should have correct expiration time"
 
         # Update expiration to now
         future_current = int((datetime.now() + timedelta(seconds=10)).timestamp())
-        response = client.patch_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_with_expiration_id}", json={"expires_at": future_current})
+        response = client.patch_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_with_expiration_id}", json={"expires": future_current})
         assert response.status_code == 204, response.text
 
         # Check updated expiration
         response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_with_expiration_id}")
         assert response.status_code == 200, response.text
         user_data = response.json()
-        assert user_data["expires_at"] == future_current, "User should have updated expiration time"
+        assert user_data["expires"] == future_current, "User should have updated expiration time"
 
         # Try to update expiration to past time (should fail)
         past_expiration = int((datetime.now() - timedelta(minutes=5)).timestamp())
-        response = client.patch_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_with_expiration_id}", json={"expires_at": past_expiration})
+        response = client.patch_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_with_expiration_id}", json={"expires": past_expiration})
         assert response.status_code == 422, "Should reject update with past expiration time"
 
     def test_user_account_expiration_access(self, client: TestClient, roles: tuple[dict, dict]):
@@ -138,7 +138,7 @@ class TestAuth:
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
                 "role": role_without_permissions["id"],
-                "expires_at": future_expiration,
+                "expires": future_expiration,
                 "password": "test-password",
             },
         )
@@ -148,7 +148,7 @@ class TestAuth:
         # Create token for this user
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
-            json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires_at": future_expiration + 60},
+            json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires": future_expiration + 60},
         )
         assert response.status_code == 201, response.text
         token = response.json()["token"]
@@ -195,7 +195,7 @@ class TestAuth:
             json={
                 "name": f"test_token_{str(uuid4())}",
                 "user": user_id,
-                "expires_at": int((time.time()) + (configuration.settings.auth_key_max_expiration_days + 10) * 86400 + 1),
+                "expires": int((time.time()) + (configuration.settings.auth_key_max_expiration_days + 10) * 86400 + 1),
             },
         )
         assert response.status_code == 400, response.text
@@ -233,7 +233,7 @@ class TestAuth:
         # Create a token for this user
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
-            json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires_at": int((time.time()) + 60 * 10), "password": "test-password"},
+            json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires": int((time.time()) + 60 * 10), "password": "test-password"},
         )
         assert response.status_code == 201, response.text
         token = response.json()["token"]
@@ -319,7 +319,7 @@ class TestAuth:
         # Create a token for this user
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
-            json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires_at": int((time.time()) + 60 * 10)},
+            json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires": int((time.time()) + 60 * 10)},
         )
         assert response.status_code == 201, response.text
         token = response.json()["token"]
@@ -424,7 +424,7 @@ class TestAuth:
         # Create token for second user with the same name using admin credentials
         response = client.post_with_permissions(
             url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
-            json={"name": token_name, "user": user2_id, "expires_at": int((time.time()) + 300)},
+            json={"name": token_name, "user": user2_id, "expires": int((time.time()) + 300)},
         )
         assert response.status_code == 201, response.text
         user2_token_id = response.json()["id"]

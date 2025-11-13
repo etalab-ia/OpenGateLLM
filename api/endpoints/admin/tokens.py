@@ -33,7 +33,7 @@ async def create_token(
         session=session,
         user_id=body.user,
         name=body.name,
-        expires_at=body.expires_at,
+        expires=body.expires,
     )
 
     return JSONResponse(status_code=201, content={"id": token_id, "token": token})

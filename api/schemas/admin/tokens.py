@@ -14,15 +14,15 @@ class TokensResponse(BaseModel):
 class CreateToken(BaseModel):
     name: constr(strip_whitespace=True, min_length=1)
     user: int = Field(description="User ID to create the token for another user (by default, the current user). Required CREATE_USER permission.")  # fmt: off
-    expires_at: int | None = Field(None, description="Timestamp in seconds")
+    expires: int | None = Field(None, description="Timestamp in seconds")
 
-    @field_validator("expires_at", mode="before")
-    def must_be_future(cls, expires_at):
-        if isinstance(expires_at, int):
-            if expires_at <= int(dt.datetime.now(tz=dt.UTC).timestamp()):
+    @field_validator("expires", mode="before")
+    def must_be_future(cls, expires):
+        if isinstance(expires, int):
+            if expires <= int(dt.datetime.now(tz=dt.UTC).timestamp()):
                 raise ValueError("Wrong timestamp, must be in the future.")
 
-        return expires_at
+        return expires
 
 
 class Token(BaseModel):
@@ -31,7 +31,7 @@ class Token(BaseModel):
     name: str
     token: str
     user: int
-    expires_at: int | None = None
+    expires: int | None = None
     created: int
 
 

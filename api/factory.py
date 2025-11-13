@@ -31,7 +31,7 @@ def create_app(db_func=None, *args, **kwargs) -> FastAPI:
         sentry_sdk.init(**configuration.dependencies.sentry.model_dump())
 
     app = FastAPI(
-        title=configuration.settings.swagger_title,
+        title=configuration.settings.app_title,
         summary=configuration.settings.swagger_summary,
         version=configuration.settings.swagger_version,
         description=configuration.settings.swagger_description,

@@ -60,7 +60,7 @@ async def create_key(
         session=session,
         user_id=request_context.get().user_info.id,
         name=body.name,
-        expires_at=body.expires_at,
+        expires=body.expires,
     )
 
     return JSONResponse(status_code=201, content={"id": token_id, "key": token})
@@ -93,7 +93,7 @@ async def get_key(
 
     keys = await global_context.identity_access_manager.get_tokens(session=session, user_id=request_context.get().user_info.id, token_id=key)
     key = keys[0]
-    key = Key(id=key.id, name=key.name, token=key.token, expires_at=key.expires_at, created=key.created)
+    key = Key(id=key.id, name=key.name, token=key.token, expires=key.expires, created=key.created)
 
     return JSONResponse(content=key.model_dump(), status_code=200)
 
@@ -119,6 +119,6 @@ async def get_keys(
         order_by=order_by,
         order_direction=order_direction,
     )
-    data = [Key(id=key.id, name=key.name, token=key.token, expires_at=key.expires_at, created=key.created) for key in data]
+    data = [Key(id=key.id, name=key.name, token=key.token, expires=key.expires, created=key.created) for key in data]
 
     return JSONResponse(content=Keys(data=data).model_dump(), status_code=200)

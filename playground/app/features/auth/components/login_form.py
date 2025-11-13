@@ -12,7 +12,7 @@ def login_page() -> rx.Component:
         rx.card(
             rx.vstack(
                 rx.heading(
-                    configuration.settings.swagger_title,
+                    configuration.settings.app_title,
                     size="8",
                     margin_bottom="0.5em",
                 ),

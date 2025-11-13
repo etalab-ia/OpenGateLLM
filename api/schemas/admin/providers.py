@@ -32,7 +32,7 @@ class CreateProvider(BaseModel):
     model_carbon_footprint_total_params: float | None = Field(default=None, ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
     model_carbon_footprint_active_params: float | None = Field(default=None, ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
     qos_metric: MetricType | None = Field(default=None, description="The metric to use for the quality of service policy. If not provided, no QoS policy is applied.")  # fmt: off
-    qos_threshold: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")  # fmt: off
+    qos_limit: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")  # fmt: off
 
     @model_validator(mode="after")
     def validate_model_carbon_footprint_params(self):
@@ -65,7 +65,7 @@ class Provider(BaseModel):
     model_carbon_footprint_total_params: float | None = Field(ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
     model_carbon_footprint_active_params: float | None = Field(ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
     qos_metric: MetricType | None = Field(description="The metric to use for the QoS policy. If not provided, no QoS policy is applied.")  # fmt: off
-    qos_threshold: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")  # fmt: off
+    qos_limit: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")  # fmt: off
     created: int | None = Field(default=None, description="Time of creation, as Unix timestamp.")  # fmt: off
     updated: int | None = Field(default=None, description="Time of last update, as Unix timestamp.")  # fmt: off
 

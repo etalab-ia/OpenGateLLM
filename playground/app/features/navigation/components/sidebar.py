@@ -42,7 +42,7 @@ def sidebar() -> rx.Component:
             # Header
             rx.hstack(
                 rx.heading(
-                    configuration.settings.swagger_title,
+                    configuration.settings.app_title,
                     size="5",
                     color=rx.color("accent", 11),
                 ),

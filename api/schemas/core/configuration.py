@@ -87,7 +87,7 @@ class ModelProvider(ConfigBaseModel):
     model_carbon_footprint_total_params: float | None = Field(default=None, ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     model_carbon_footprint_active_params: float | None = Field(default=None, ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     qos_metric: MetricType | None = Field(default=None, description="The metric to use for the quality of service. If not provided, no QoS policy is applied.", examples=[MetricType.INFLIGHT.value])  # fmt: off
-    qos_threshold: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.", examples=[0.5])  # fmt: off
+    qos_limit: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.", examples=[0.5])  # fmt: off
 
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#model")
@@ -300,7 +300,7 @@ class Settings(ConfigBaseModel):
     # general
     disabled_routers: list[Routers] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["embeddings"]])  # fmt: off
     hidden_routers: list[Routers] = Field(default_factory=list, description="Routers are enabled but hidden in the swagger and the documentation of the API.", examples=[["admin"]])  # fmt: off
-    swagger_title: str | None = Field(default=DEFAULT_APP_NAME, description="Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API"])  # fmt: off
+    app_title: str | None = Field(default=DEFAULT_APP_NAME, description="Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["Albert API"])  # fmt: off
 
     # usage tokenizer
     usage_tokenizer: Tokenizer = Field(default=Tokenizer.TIKTOKEN_GPT2, description="Tokenizer used to compute usage of the API.")  # fmt: off

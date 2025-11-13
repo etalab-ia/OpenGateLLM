@@ -26,7 +26,7 @@ def apply_load_balancing_with_queuing(
     """Apply load balancing and qos policy to the candidates.
 
     Args:
-        candidates (list[tuple[int, MetricType | None, float | None]]): The list of provider candidates, tuple of (provider_id, qos_metric, qos_threshold) to choose from
+        candidates (list[tuple[int, MetricType | None, float | None]]): The list of provider candidates, tuple of (provider_id, qos_metric, qos_limit) to choose from
         load_balancing_strategy (RouterLoadBalancingStrategyName): The load balancing strategy to use
         load_balancing_metric (MetricType): The metric type to use for performance evaluation
         task_retry_countdown (int): The countdown to wait before retrying the task
@@ -44,11 +44,11 @@ def apply_load_balancing_with_queuing(
             redis_client=redis_client,
             load_balancing_metric=load_balancing_metric,
         )
-        qos_metric, qos_threshold = [(metric, threshold) for candidate_id, metric, threshold in candidates if candidate_id == provider_id][0]
+        qos_metric, qos_limit = [(metric, threshold) for candidate_id, metric, threshold in candidates if candidate_id == provider_id][0]
         can_be_forwarded = apply_sync_qos_policy(
             provider_id=provider_id,
             qos_metric=qos_metric,
-            qos_threshold=qos_threshold,
+            qos_limit=qos_limit,
             performance_indicator=performance_indicator,
             redis_client=redis_client,
         )

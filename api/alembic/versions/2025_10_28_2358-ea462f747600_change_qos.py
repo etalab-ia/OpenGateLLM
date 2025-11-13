@@ -26,7 +26,7 @@ def upgrade() -> None:
     metrictype.create(op.get_bind(), checkfirst=True)
     
     op.add_column('router_provider', sa.Column('qos_metric', metrictype, nullable=True))
-    op.add_column('router_provider', sa.Column('qos_threshold', sa.Float(), nullable=True))
+    op.add_column('router_provider', sa.Column('qos_limit', sa.Float(), nullable=True))
     op.drop_column('router_provider', 'max_parallel_requests')
     op.drop_column('router_provider', 'qos_policy')
     op.drop_column('router_provider', 'performance_threshold')
@@ -39,7 +39,7 @@ def downgrade() -> None:
     op.add_column('router_provider', sa.Column('performance_threshold', sa.DOUBLE_PRECISION(precision=53), autoincrement=False, nullable=True))
     op.add_column('router_provider', sa.Column('qos_policy', sa.VARCHAR(), autoincrement=False, nullable=False))
     op.add_column('router_provider', sa.Column('max_parallel_requests', sa.INTEGER(), autoincrement=False, nullable=True))
-    op.drop_column('router_provider', 'qos_threshold')
+    op.drop_column('router_provider', 'qos_limit')
     op.drop_column('router_provider', 'qos_metric')
     
     # Drop the metrictype enum after removing the columns

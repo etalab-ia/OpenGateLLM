@@ -89,7 +89,7 @@ class ModelRegistry:
 
     def __init__(
         self,
-        app_name: str,
+        app_title: str,
         task_always_eager: bool,
         task_max_priority: int,
         task_soft_time_limit: int,
@@ -97,7 +97,7 @@ class ModelRegistry:
         task_retry_countdown: int,
         queue_name_prefix: str,
     ) -> None:
-        self.app_name = app_name
+        self.app_title = app_title
         self.task_always_eager = task_always_eager
         self.task_max_priority = task_max_priority
         self.task_soft_time_limit = task_soft_time_limit
@@ -151,7 +151,7 @@ class ModelRegistry:
                         model_carbon_footprint_total_params=provider.model_carbon_footprint_total_params,
                         model_carbon_footprint_active_params=provider.model_carbon_footprint_active_params,
                         qos_metric_type=provider.qos_metric,
-                        qos_threshold=provider.qos_threshold,
+                        qos_limit=provider.qos_limit,
                         session=session,
                     )
                 except ProviderAlreadyExistsException:
@@ -174,7 +174,7 @@ class ModelRegistry:
                     model_carbon_footprint_total_params=provider.model_carbon_footprint_total_params,
                     model_carbon_footprint_active_params=provider.model_carbon_footprint_active_params,
                     qos_metric=provider.qos_metric,
-                    qos_threshold=provider.qos_threshold,
+                    qos_limit=provider.qos_limit,
                 )
                 model_provider.id = provider.id
                 self._model_providers[provider.id] = model_provider
@@ -439,7 +439,7 @@ class ModelRegistry:
         model_carbon_footprint_total_params: float | None,
         model_carbon_footprint_active_params: float | None,
         qos_metric_type: MetricType | None,
-        qos_threshold: float | None,
+        qos_limit: float | None,
         session: AsyncSession,
     ) -> int:
         """
@@ -457,7 +457,7 @@ class ModelRegistry:
             model_carbon_footprint_total_params: float | None
             model_carbon_footprint_active_params: float | None
             qos_metric_type(MetricType | None): QoS metric. If None, no QoS policy is applied.
-            qos_threshold(float | None): Optional QoS value
+            qos_limit(float | None): Optional QoS value
             session(AsyncSession): Database session
         Returns:
             The provider ID
@@ -489,7 +489,7 @@ class ModelRegistry:
                 model_carbon_footprint_total_params=model_carbon_footprint_total_params,
                 model_carbon_footprint_active_params=model_carbon_footprint_active_params,
                 qos_metric=qos_metric_type,
-                qos_threshold=qos_threshold,
+                qos_limit=qos_limit,
             )
         except AssertionError:
             raise ProviderNotReachableException()
@@ -523,7 +523,7 @@ class ModelRegistry:
                     model_carbon_footprint_total_params=model_carbon_footprint_total_params,
                     model_carbon_footprint_active_params=model_carbon_footprint_active_params,
                     qos_metric=qos_metric,
-                    qos_threshold=qos_threshold,
+                    qos_limit=qos_limit,
                     max_context_length=provider.max_context_length,
                     vector_size=provider.vector_size,
                 )
@@ -603,7 +603,7 @@ class ModelRegistry:
             ProviderTable.model_carbon_footprint_total_params,
             ProviderTable.model_carbon_footprint_active_params,
             ProviderTable.qos_metric,
-            ProviderTable.qos_threshold,
+            ProviderTable.qos_limit,
             cast(func.extract("epoch", ProviderTable.created), Integer).label("created"),
             cast(func.extract("epoch", ProviderTable.updated), Integer).label("updated"),
         ).where(ProviderTable.router_id == router_id)
@@ -635,7 +635,7 @@ class ModelRegistry:
                     model_carbon_footprint_total_params=row["model_carbon_footprint_total_params"],
                     model_carbon_footprint_active_params=row["model_carbon_footprint_active_params"],
                     qos_metric=qos_metric,
-                    qos_threshold=row["qos_threshold"],
+                    qos_limit=row["qos_limit"],
                     created=row["created"],
                     updated=row["updated"],
                 )
@@ -678,7 +678,7 @@ class ModelRegistry:
 
             # get organization name as owned by
             if user_info.id == 0 or user_info.organization is None:
-                owned_by = self.app_name
+                owned_by = self.app_title
             else:
                 query = (
                     select(UserTable.id, OrganizationTable.name.label("owned_by"))
@@ -687,7 +687,7 @@ class ModelRegistry:
                 )
                 result = await session.execute(query)
                 owned_by = result.all()[0].owned_by
-                owned_by = owned_by if owned_by else self.app_name
+                owned_by = owned_by if owned_by else self.app_title
 
             models.append(
                 Model(
@@ -761,7 +761,7 @@ class ModelRegistry:
             can_be_forwarded = await apply_async_qos_policy(
                 provider_id=provider_id,
                 qos_metric=provider.qos_metric,
-                qos_threshold=provider.qos_threshold,
+                qos_limit=provider.qos_limit,
                 performance_indicator=performance_indicator,
                 redis_client=redis_client,
             )
@@ -777,7 +777,7 @@ class ModelRegistry:
         candidates = []
         for provider in providers:
             qos_metric = provider.qos_metric.value if provider.qos_metric is not None else None
-            candidates.append((provider.id, qos_metric, provider.qos_threshold))
+            candidates.append((provider.id, qos_metric, provider.qos_limit))
 
         priority = max(0, min(int(user_info.priority), self.task_max_priority - 1))  # 0-(n-1) usable priorities (n levels)
         task = apply_load_balancing_with_queuing.apply_async(

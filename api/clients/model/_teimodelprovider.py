@@ -38,7 +38,7 @@ class TeiModelProvider(BaseModelProvider):
         model_carbon_footprint_total_params: int | None,
         model_carbon_footprint_active_params: int | None,
         qos_metric: MetricType | None,
-        qos_threshold: float | None,
+        qos_limit: float | None,
     ) -> None:
         """
         Initialize the TEI model client and check if the model is available.
@@ -52,7 +52,7 @@ class TeiModelProvider(BaseModelProvider):
             model_carbon_footprint_total_params=model_carbon_footprint_total_params,
             model_carbon_footprint_active_params=model_carbon_footprint_active_params,
             qos_metric=qos_metric,
-            qos_threshold=qos_threshold,
+            qos_limit=qos_limit,
         )
 
         # check if model is available

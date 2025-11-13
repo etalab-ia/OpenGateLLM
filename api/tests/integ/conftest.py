@@ -134,7 +134,7 @@ def tokens(test_client: TestClient, users: tuple[dict, dict]) -> tuple[dict, dic
     # create token admin
     response = test_client.post(
         url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
-        json={"user": user_with_permissions["id"], "name": "test-token-admin", "expires_at": int(time.time()) + 300},
+        json={"user": user_with_permissions["id"], "name": "test-token-admin", "expires": int(time.time()) + 300},
         headers=headers,
     )
     response.raise_for_status()
@@ -143,7 +143,7 @@ def tokens(test_client: TestClient, users: tuple[dict, dict]) -> tuple[dict, dic
     # create token user
     response = test_client.post(
         url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
-        json={"user": user_without_permissions["id"], "name": "test-token-user", "expires_at": int(time.time()) + 300},
+        json={"user": user_without_permissions["id"], "name": "test-token-user", "expires": int(time.time()) + 300},
         headers=headers,
     )
     response.raise_for_status()

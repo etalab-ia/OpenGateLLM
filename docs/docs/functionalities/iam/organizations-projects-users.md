@@ -79,7 +79,7 @@ Users represent entities that can access the API. Each user must have an email, 
 - `role`: Role ID that determines permissions and limits (required)
 - `organization`: Organization ID (optional)
 - `budget`: Budget limit for the user (optional, see [Budget](../budget.md))
-- `expires_at`: Unix timestamp when the user account expires (optional)
+- `expires`: Unix timestamp when the user account expires (optional)
 
 :::info
 Users also have `sub` and `iss` fields for OAuth2/ProConnect authentication. These are `null` when using email/password authentication.
@@ -100,7 +100,7 @@ Users also have `sub` and `iss` fields for OAuth2/ProConnect authentication. The
       "role": 1,
       "organization": 1,
       "budget": 100.0,
-      "expires_at": 1735689600
+      "expires": 1735689600
     }'
   ```
   </TabItem>

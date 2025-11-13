@@ -16,7 +16,7 @@ class TestApplySyncQosPolicy:
         redis_client = MagicMock()
         redis_client.get.return_value = b"5"
         # When
-        result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, redis_client)
+        result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, None, redis_client)
         # Then
         assert result is True
         redis_client.get.assert_called_once_with(f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{provider_id}")
@@ -29,7 +29,7 @@ class TestApplySyncQosPolicy:
         redis_client = MagicMock()
         redis_client.get.return_value = b"15"
         # When
-        result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, redis_client)
+        result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, None, redis_client)
         # Then
         assert result is False
         redis_client.get.assert_called_once_with(f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{provider_id}")
@@ -42,7 +42,7 @@ class TestApplySyncQosPolicy:
         redis_client = MagicMock()
         redis_client.get.return_value = b"10"
         # When
-        result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, redis_client)
+        result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, None, redis_client)
         # Then
         assert result is True
         redis_client.get.assert_called_once_with(f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{provider_id}")
@@ -55,7 +55,7 @@ class TestApplySyncQosPolicy:
         redis_client = MagicMock()
         redis_client.get.return_value = None
         # When
-        result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, redis_client)
+        result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, None, redis_client)
         # Then
         assert result is True
         redis_client.get.assert_called_once_with(f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{provider_id}")
@@ -68,7 +68,7 @@ class TestApplySyncQosPolicy:
         redis_client = MagicMock()
         redis_client.get.return_value = b"15"
         # When
-        result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, redis_client)
+        result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, None, redis_client)
         # Then
         assert result is True
         redis_client.get.assert_called_once_with(f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{provider_id}")
@@ -80,7 +80,7 @@ class TestApplySyncQosPolicy:
         qos_value = 10.0
         redis_client = MagicMock()
         # When
-        result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, redis_client)
+        result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, None, redis_client)
         # Then
         assert result is True
         redis_client.get.assert_not_called()
@@ -93,7 +93,7 @@ class TestApplySyncQosPolicy:
         redis_client = MagicMock()
         redis_client.get.return_value = None
         # When
-        result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, redis_client)
+        result = apply_sync_qos_policy(provider_id, qos_metric, qos_value, None, redis_client)
         # Then
         assert result is True
         redis_client.get.assert_called_once_with(f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{provider_id}")
@@ -109,7 +109,7 @@ class TestApplyAsyncQosPolicy:
         redis_client = AsyncMock()
         redis_client.get.return_value = b"5"
         # When
-        result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, redis_client)
+        result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, None, redis_client)
         # Then
         assert result is True
         redis_client.get.assert_awaited_once_with(f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{provider_id}")
@@ -123,7 +123,7 @@ class TestApplyAsyncQosPolicy:
         redis_client = AsyncMock()
         redis_client.get.return_value = b"15"
         # When
-        result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, redis_client)
+        result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, None, redis_client)
         # Then
         assert result is False
         redis_client.get.assert_awaited_once_with(f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{provider_id}")
@@ -137,7 +137,7 @@ class TestApplyAsyncQosPolicy:
         redis_client = AsyncMock()
         redis_client.get.return_value = b"10"
         # When
-        result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, redis_client)
+        result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, None, redis_client)
         # Then
         assert result is True
         redis_client.get.assert_awaited_once_with(f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{provider_id}")
@@ -151,7 +151,7 @@ class TestApplyAsyncQosPolicy:
         redis_client = AsyncMock()
         redis_client.get.return_value = None
         # When
-        result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, redis_client)
+        result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, None, redis_client)
         # Then
         assert result is True
         redis_client.get.assert_awaited_once_with(f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{provider_id}")
@@ -165,7 +165,7 @@ class TestApplyAsyncQosPolicy:
         redis_client = AsyncMock()
         redis_client.get.return_value = b"15"
         # When
-        result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, redis_client)
+        result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, None, redis_client)
         # Then
         assert result is True
         redis_client.get.assert_awaited_once_with(f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{provider_id}")
@@ -178,7 +178,7 @@ class TestApplyAsyncQosPolicy:
         qos_value = 10.0
         redis_client = AsyncMock()
         # When
-        result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, redis_client)
+        result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, None, redis_client)
         # Then
         assert result is True
         redis_client.get.assert_not_awaited()
@@ -192,7 +192,7 @@ class TestApplyAsyncQosPolicy:
         redis_client = AsyncMock()
         redis_client.get.return_value = None
         # When
-        result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, redis_client)
+        result = await apply_async_qos_policy(provider_id, qos_metric, qos_value, None, redis_client)
         # Then
         assert result is True
         redis_client.get.assert_awaited_once_with(f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{provider_id}")

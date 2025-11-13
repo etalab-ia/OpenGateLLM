@@ -13,7 +13,7 @@ The master key is a special administrative API key defined in your configuration
 
 - `name`: Descriptive name for the API key (required)
 - `user`: User ID to create the API key for (required, must have `ADMIN` permission)
-- `expires_at`: Unix timestamp when the API key expires (optional)
+- `expires`: Unix timestamp when the API key expires (optional)
 
 :::warning
 The API key is only shown once when created. Make sure to save it securely. You will not be able to retrieve the full key value again.
@@ -30,7 +30,7 @@ The API key is only shown once when created. Make sure to save it securely. You 
     -d '{
       "name": "Development API Key",
       "user": 1,
-      "expires_at": 1735689600
+      "expires": 1735689600
     }'
   ```
   </TabItem>
@@ -61,4 +61,4 @@ API keys in OpenGateLLM follow the format: `sk-<encoded_token>`
 The token is a JWT (JSON Web Token) that contains:
 - `user_id`: The ID of the user who owns the key
 - `token_id`: The unique identifier for this specific API key
-- `expires_at`: The expiration timestamp (if set)
+- `expires`: The expiration timestamp (if set)
