@@ -22,7 +22,7 @@ def get_carbon_footprint(
         total_params(Optional[int]): Total number of parameters (in millions or billions, must match compute_llm_impacts expectations)
         model_zone(CountryCodes): Electricity mix zone (Alpha-3 of the country code)
         token_count(int): Number of output tokens
-        request_latency(float): Latency of the inference (in seconds)
+        request_latency(float): Latency of the inference (in milliseconds)
 
     Returns:
         CarbonFootprintUsage: Computed carbon footprint
@@ -44,7 +44,7 @@ def get_carbon_footprint(
         if_electricity_mix_adpe=electricity_mix.adpe,
         if_electricity_mix_pe=electricity_mix.pe,
         if_electricity_mix_gwp=electricity_mix.gwp,
-        request_latency=request_latency,
+        request_latency=request_latency / 1000,  # convert to seconds
     )
     carbon_footprint = CarbonFootprintUsage(
         kWh=CarbonFootprintUsageKWh(min=impacts.energy.value.min, max=impacts.energy.value.max),

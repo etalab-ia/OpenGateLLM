@@ -12,14 +12,8 @@ from api.schemas.admin.users import User
 from api.schemas.collections import CollectionVisibility
 from api.schemas.me import UserInfo
 from api.sql.session import get_db_session
-from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context
-from api.utils.exceptions import (
-    InsufficientPermissionException,
-    InvalidAPIKeyException,
-    InvalidAuthenticationSchemeException,
-    RateLimitExceeded,
-)
+from api.utils.exceptions import InsufficientPermissionException, InvalidAPIKeyException, InvalidAuthenticationSchemeException, RateLimitExceeded
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -33,8 +27,6 @@ from api.utils.variables import (
 )
 
 logger = logging.getLogger(__name__)
-
-settings = configuration.settings
 
 
 class AccessController:
@@ -67,28 +59,28 @@ class AccessController:
         context.token_id = key_id
 
         if request.url.path.endswith(ENDPOINT__AUDIO_TRANSCRIPTIONS) and request.method in ["POST"]:
-            await self._check_audio_transcription(body=body, user_info=user_info)
+            await self._check_audio_transcription(body=body, user_info=user_info, session=session)
 
         if request.url.path.endswith(ENDPOINT__CHAT_COMPLETIONS) and request.method in ["POST", "PATCH"]:
-            await self._check_chat_completions(body=body, user_info=user_info)
+            await self._check_chat_completions(body=body, user_info=user_info, session=session)
 
         if request.url.path.endswith(ENDPOINT__COLLECTIONS) and request.method in ["POST"]:
-            await self._check_collections(body=body, user_info=user_info)
+            await self._check_collections(body=body, user_info=user_info, session=session)
 
         if request.url.path.endswith(ENDPOINT__EMBEDDINGS) and request.method in ["POST"]:
-            await self._check_embeddings(body=body, user_info=user_info)
+            await self._check_embeddings(body=body, user_info=user_info, session=session)
 
         if request.url.path.endswith(ENDPOINT__FILES) and request.method in ["POST"]:
-            await self._check_files(user_info=user_info)
+            await self._check_files(user_info=user_info, session=session)
 
         if request.url.path.endswith(ENDPOINT__OCR) and request.method in ["POST"]:
-            await self._check_ocr(body=body, user_info=user_info)
+            await self._check_ocr(body=body, user_info=user_info, session=session)
 
         if request.url.path.endswith(ENDPOINT__RERANK) and request.method in ["POST"]:
-            await self._check_rerank(body=body, user_info=user_info)
+            await self._check_rerank(body=body, user_info=user_info, session=session)
 
         if request.url.path.endswith(ENDPOINT__SEARCH) and request.method in ["POST"]:
-            await self._check_search(body=body, user_info=user_info)
+            await self._check_search(body=body, user_info=user_info, session=session)
 
         return user_info
 
@@ -178,69 +170,71 @@ class AccessController:
             remaining = await global_context.limiter.remaining(user_id=user_info.id, router_id=router_id, type=LimitType.TPD, value=tpd)
             raise RateLimitExceeded(detail=f"{str(tpd)} input tokens per day exceeded (remaining: {remaining}).")
 
-    async def _check_audio_transcription(self, body: dict, user_info: UserInfo) -> None:
-        router_id = self.__get_called_router_id(model=body.get("model"))
+    async def _check_audio_transcription(self, body: dict, user_info: UserInfo, session: AsyncSession) -> None:
+        router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), session=session)
         if router_id is None:
             return
         await self._check_limits(user_info=user_info, router_id=router_id)
 
-    async def _check_chat_completions(self, body: dict, user_info: UserInfo) -> None:
-        router_id = self.__get_called_router_id(model=body.get("model"))
+    async def _check_chat_completions(self, body: dict, user_info: UserInfo, session: AsyncSession) -> None:
+        router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), session=session)
         if router_id is None:
             return
-        await self._check_limits(user_info=user_info, router_id=router_id)
-
-        if body.get("search", False):  # count the search request as one request to the search model (embeddings)
-            router_id = self.__get_called_router_id(model=global_context.document_manager.vector_store_model)
-            await self._check_limits(user_info=user_info, router_id=router_id)
 
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__CHAT_COMPLETIONS, body=body)
+
+        if body.get("search", False):  # count the search request as one request to the search model (embeddings)
+            search_router_id = await global_context.model_registry.get_router_id_from_model_name(
+                model_name=global_context.document_manager.vector_store_model,
+                session=session,
+            )
+            await self._check_limits(user_info=user_info, router_id=search_router_id, prompt_tokens=prompt_tokens)
+
         await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
-    async def _check_collections(self, body: dict, user_info: UserInfo) -> None:
+    async def _check_collections(self, body: dict, user_info: UserInfo, session: AsyncSession) -> None:
         if body.get("visibility") == CollectionVisibility.PUBLIC and PermissionType.CREATE_PUBLIC_COLLECTION not in user_info.permissions:
             raise InsufficientPermissionException("Missing permission to update collection visibility to public.")
 
-    async def _check_embeddings(self, body: dict, user_info: UserInfo) -> None:
-        router_id = self.__get_called_router_id(model=body.get("model"))
+    async def _check_embeddings(self, body: dict, user_info: UserInfo, session: AsyncSession) -> None:
+        router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), session=session)
         if router_id is None:
             return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__EMBEDDINGS, body=body)
         await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
-    async def _check_files(self, user_info: UserInfo) -> None:
-        router_id = self.__get_called_router_id(model=global_context.document_manager.vector_store_model)
+    async def _check_files(self, user_info: UserInfo, session: AsyncSession) -> None:
+        router_id = await global_context.model_registry.get_router_id_from_model_name(
+            model_name=global_context.document_manager.vector_store_model,
+            session=session,
+        )
         if router_id is None:
             return
         await self._check_limits(user_info=user_info, router_id=router_id)
 
-    async def _check_ocr(self, body: dict, user_info: UserInfo) -> None:
-        router_id = self.__get_called_router_id(model=body.get("model"))
+    async def _check_ocr(self, body: dict, user_info: UserInfo, session: AsyncSession) -> None:
+        router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), session=session)
         if router_id is None:
             return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__OCR, body=body)
         await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
-    async def _check_rerank(self, body: dict, user_info: UserInfo) -> None:
-        router_id = self.__get_called_router_id(model=body.get("model"))
+    async def _check_rerank(self, body: dict, user_info: UserInfo, session: AsyncSession) -> None:
+        router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), session=session)
         if router_id is None:
             return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__RERANK, body=body)
         await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
-    async def _check_search(self, body: dict, user_info: UserInfo) -> None:
-        router_id = self.__get_called_router_id(model=global_context.document_manager.vector_store_model)
+    async def _check_search(self, body: dict, user_info: UserInfo, session: AsyncSession) -> None:
+        router_id = await global_context.model_registry.get_router_id_from_model_name(
+            model_name=global_context.document_manager.vector_store_model,
+            session=session,
+        )
         if router_id is None:
             return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__SEARCH, body=body)
         await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
-
-    def __get_called_router_id(self, model: str) -> int:
-        called_router_id = None
-        for router_id, aliases in global_context.model_registry._aliases.items():
-            if model in aliases:
-                called_router_id = router_id
-        return called_router_id
 
     async def _safely_parse_body(self, request: Request) -> dict:
         """Safely parse request body as JSON or form data, handling encoding errors."""

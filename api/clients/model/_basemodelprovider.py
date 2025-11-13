@@ -495,9 +495,9 @@ class BaseModelProvider(ABC):
                                 buffer.append(last_chunks)
 
                                 end_time = time.perf_counter()
-                                request_latency = int((end_time - start_time) * 1_000)
+                                request_latency = int((end_time - start_time) * 1000)  # ms
                                 if first_token_time is not None:
-                                    ttft = int((first_token_time - start_time) * 1_000_000)
+                                    ttft = int((first_token_time - start_time) * 1000)  # ms
                                 else:
                                     logger.warning(f"Time to first token could not be determined for request {request_context.get().id}.")
                                     ttft = None
@@ -509,7 +509,7 @@ class BaseModelProvider(ABC):
                                     additional_data=additional_data,
                                     request_latency=request_latency,
                                 )
-                                await self._log_performance_metric(redis_client=redis_client, ttft=ttft, latency=int(request_latency * 1_000))
+                                await self._log_performance_metric(redis_client=redis_client, ttft=ttft, latency=int(request_latency))
 
                                 # if error case, yield chunk
                                 if extra_chunk is None:

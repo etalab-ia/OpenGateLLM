@@ -7,6 +7,8 @@ from redis.asyncio import ConnectionPool
 
 from api.schemas.admin.roles import LimitType
 from api.schemas.core.configuration import LimitingStrategy
+from api.schemas.me import UserInfo
+from api.utils.exceptions import InsufficientPermissionException, RateLimitExceeded
 
 logger = logging.getLogger(__name__)
 
@@ -78,3 +80,48 @@ class Limiter:
         except Exception:
             logger.error(msg="Error during rate limit remaining.")
             logger.error(msg=traceback.format_exc())
+
+    async def check_user_limits(self, user_info: UserInfo, router_id: int, prompt_tokens: int | None = None) -> None:
+        if user_info.id == 0:
+            return
+
+        tpm, tpd, rpm, rpd = 0, 0, 0, 0
+        for limit in user_info.limits:
+            if limit.router == router_id and limit.type == LimitType.TPM:
+                tpm = limit.value
+            elif limit.router == router_id and limit.type == LimitType.TPD:
+                tpd = limit.value
+            elif limit.router == router_id and limit.type == LimitType.RPM:
+                rpm = limit.value
+            elif limit.router == router_id and limit.type == LimitType.RPD:
+                rpd = limit.value
+
+        if 0 in [tpm, tpd, rpm, rpd]:
+            raise InsufficientPermissionException(detail="Insufficient permissions to access the model.")
+
+        # RPM
+        check = await self.hit(user_id=user_info.id, router_id=router_id, type=LimitType.RPM, value=rpm)
+        if not check:
+            remaining = await self.remaining(user_id=user_info.id, router_id=router_id, type=LimitType.RPM, value=rpm)
+            raise RateLimitExceeded(detail=f"{str(rpm)} requests per minute exceeded (remaining: {remaining}).")
+
+        # RPD
+        check = await self.hit(user_id=user_info.id, router_id=router_id, type=LimitType.RPD, value=rpd)
+        if not check:
+            remaining = await self.remaining(user_id=user_info.id, router_id=router_id, type=LimitType.RPD, value=rpd)
+            raise RateLimitExceeded(detail=f"{str(rpd)} requests per day exceeded (remaining: {remaining}).")
+
+        if not prompt_tokens:
+            return
+
+        # TPM
+        check = await self.hit(user_id=user_info.id, router_id=router_id, type=LimitType.TPM, value=tpm, cost=prompt_tokens)
+        if not check:
+            remaining = await self.remaining(user_id=user_info.id, router_id=router_id, type=LimitType.TPM, value=tpm)
+            raise RateLimitExceeded(detail=f"{str(tpm)} input tokens per minute exceeded (remaining: {remaining}).")
+
+        # TPD
+        check = await self.hit(user_id=user_info.id, router_id=router_id, type=LimitType.TPD, value=tpd, cost=prompt_tokens)
+        if not check:
+            remaining = await self.remaining(user_id=user_info.id, router_id=router_id, type=LimitType.TPD, value=tpd)
+            raise RateLimitExceeded(detail=f"{str(tpd)} input tokens per day exceeded (remaining: {remaining}).")

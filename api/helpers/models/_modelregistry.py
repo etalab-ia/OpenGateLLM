@@ -3,7 +3,7 @@ import logging
 
 from celery.result import AsyncResult
 from redis.asyncio import Redis as AsyncRedis
-from sqlalchemy import Integer, cast, delete, func, insert, select, update
+from sqlalchemy import Integer, cast, delete, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -105,7 +105,6 @@ class ModelRegistry:
         self.task_max_retries = task_max_retries
         self.task_retry_countdown = task_retry_countdown
 
-        self._aliases: dict[int, list[str]] = {}  # {router_id: [name, alias1, alias2, ...]}
         self._model_providers: dict[int, ModelProvider] = {}
 
     async def _import_model_configuration(self, models: list[ModelConfiguration], session: AsyncSession) -> None:
@@ -131,7 +130,6 @@ class ModelRegistry:
 
             routers = await self.get_routers(router_id=None, name=model.name, session=session)
             router = routers[0]
-            self._aliases[router.id] = [router.name] + router.aliases
 
             for provider in model.providers:
                 try:
@@ -151,13 +149,13 @@ class ModelRegistry:
                         session=session,
                     )
                 except ProviderAlreadyExistsException:
-                    logger.warning(f"\tProvider {provider.model_name} already exists, skipping.")
+                    logger.warning(f"Provider {provider.model_name} already exists for router {model.name} (skipping)")
                     continue
                 except Exception as e:
                     session.rollback()
-                    logger.error(f"Error creating provider {provider.model_name} for router {model.name}: {e}")
-                    raise
-                logging.info(f"\tProvider {provider.model_name} created for router {model.name} with ID {provider_id}")
+                    logger.error(f"Provider {provider.model_name} failed to be created for router {model.name} ({e})")
+                    raise e
+                logging.info(f"Provider {provider.model_name} successfully created for router {model.name} (id: {provider_id})")
 
             providers = await self.get_providers(router_id=router.id, provider_id=None, session=session)
             for provider in providers:
@@ -240,8 +238,6 @@ class ModelRegistry:
 
         await session.commit()
 
-        self._aliases[router_id] = [name] + aliases
-
         return router_id
 
     async def delete_router(self, router_id: int, session: AsyncSession) -> None:
@@ -263,8 +259,6 @@ class ModelRegistry:
         # Delete will cascade to providers and aliases due to foreign key constraints
         await session.execute(delete(RouterTable).where(RouterTable.id == router_id))
         await session.commit()
-
-        del self._aliases[router_id]
 
     async def update_router(
         self,
@@ -299,9 +293,11 @@ class ModelRegistry:
 
         # Check alias integrity in aliases of other routers
         if aliases:
-            for alias in aliases:
-                if alias in router.aliases:
-                    raise RouterAliasAlreadyExistsException()
+            query = select(RouterAliasTable.router_id).where(RouterAliasTable.value.in_(aliases)).where(RouterAliasTable.router_id != router_id)
+            result = await session.execute(query)
+            conflicting_aliases = result.scalars().all()
+            if conflicting_aliases:
+                raise RouterAliasAlreadyExistsException()
 
         # Update router properties
         update_values = {}
@@ -327,11 +323,6 @@ class ModelRegistry:
             await session.execute(query)
 
         await session.commit()
-
-        if name is not None:
-            self._aliases[router_id] = [name] + router.aliases
-        if aliases is not None:
-            self._aliases[router_id] = [router.name] + aliases
 
     async def get_routers(self, router_id: int | None, name: str | None, session: AsyncSession) -> list[Router]:
         """
@@ -457,7 +448,7 @@ class ModelRegistry:
             elif type == ProviderType.ALBERT:
                 url = "https://albert.api.etalab.gouv.fr"
             else:
-                MissingProviderURLException()
+                raise MissingProviderURLException()
 
         # Check if router exists
 
@@ -698,21 +689,28 @@ class ModelRegistry:
 
         return models
 
-    def _get_router_id_from_model_name(self, model: str) -> int | None:
+    async def get_router_id_from_model_name(self, model_name: str, session: AsyncSession) -> int | None:
         """
-        Useful method the AccessController and Lifespan to get the router ID from a model name.
+        Retrieve the router ID from a model name, return None if the model name is not found.
 
         Args:
-            model(str): The model name
+            model_name(str): The model name
 
         Returns:
             The router ID
         """
-        searched_router_id = None
-        for router_id, aliases in self._aliases.items():
-            if model in aliases:
-                searched_router_id = router_id
-        return searched_router_id
+        query = (
+            select(RouterTable.id)
+            .where(or_(RouterTable.name == model_name, RouterAliasTable.value == model_name))
+            .join(RouterAliasTable, RouterAliasTable.router_id == RouterTable.id)
+        )
+        result = await session.execute(query)
+        router_id = result.scalar_one_or_none()
+
+        if router_id is not None:
+            return router_id
+
+        return None
 
     async def get_model_provider(self, model: str, endpoint: str, user_info: UserInfo, session: AsyncSession, redis_client: AsyncRedis) -> int:
         """

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Depends, Path, Query, Request, Security
+from fastapi import APIRouter, Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -78,7 +78,6 @@ async def delete_provider(
 )
 async def get_provider(
     request: Request,
-    router: int = Path(description="The ID of the router to get the provider for."),
     provider: int = Path(description="The ID of the provider to get."),
     session: AsyncSession = Depends(get_db_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
@@ -86,9 +85,10 @@ async def get_provider(
     """
     Get a model provider by router and provider IDs.
     """
-    provider = await model_registry.get_providers(router_id=router, provider_id=provider, session=session)
+    providers = await model_registry.get_providers(router_id=router, provider_id=provider, session=session)
+    provider = providers[0]
 
-    return JSONResponse(status_code=200, content=provider[0])
+    return JSONResponse(status_code=200, content=provider.model_dump())
 
 
 @router.get(

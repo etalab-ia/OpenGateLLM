@@ -129,7 +129,19 @@ async def _setup_document_manager(configuration: Configuration, global_context: 
         global_context.document_manager = None
         return
 
-    assert global_context.model_registry._get_router_id_from_model_name(model=configuration.settings.vector_store_model), "Vector store model not found."  # fmt: off
+    async for session in get_db_session():
+        router_id = await global_context.model_registry.get_router_id_from_model_name(
+            model_name=configuration.settings.vector_store_model,
+            session=session,
+        )
+    assert router_id is not None, "Vector store model not found."
+
+    global_context.document_manager = DocumentManager(
+        vector_store=dependencies.vector_store,
+        vector_store_model=configuration.settings.vector_store_model,
+        parser_manager=parser_manager,
+        web_search_manager=web_search_manager,
+    )
 
     if dependencies.web_search_engine:
         web_search_manager = WebSearchManager(
