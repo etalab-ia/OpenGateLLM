@@ -35,8 +35,8 @@ def keys_create_form() -> rx.Component:
                     ),
                     rx.input(
                         type="date",
-                        value=KeysState.new_key_expires_at_date,
-                        on_change=KeysState.set_new_key_expires_at_date,
+                        value=KeysState.new_key_expires_date,
+                        on_change=KeysState.set_new_key_expires_date,
                         min=KeysState.min_expiry_date,
                         max=KeysState.max_expiry_date,
                         width="100%",

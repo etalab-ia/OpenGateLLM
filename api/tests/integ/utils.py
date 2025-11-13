@@ -1,7 +1,9 @@
 import datetime as dt
 import logging
+import random
 import subprocess
 import time
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
@@ -22,8 +24,15 @@ from api.utils.variables import (
 logger = logging.getLogger(__name__)
 
 
-def run_openmockllm(port: int, model_name: str = "openmockllm", **kwargs) -> subprocess.Popen:
+def generate_test_id(prefix: str) -> str:
+    return f"{prefix}_{dt.datetime.now().strftime("%Y%m%d%H%M%S")}_{uuid4()}"
+
+
+def run_openmockllm(test_id: str, **kwargs) -> subprocess.Popen:
     """Run the openmockllm process and return the process object."""
+
+    model_name = f"{test_id}_model"
+    port = random.randint(40000, 41000)
 
     # Kill any process listening on the specified port
     try:
@@ -44,12 +53,16 @@ def run_openmockllm(port: int, model_name: str = "openmockllm", **kwargs) -> sub
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     time.sleep(1)
+
+    process.url = f"http://localhost:{port}"
+    process.model_name = model_name
+
     return process
 
 
-def kill_openmockllm(process: subprocess.Popen, port: int, model_name: str) -> None:
+def kill_openmockllm(process: subprocess.Popen) -> None:
     process.terminate()
-    logger.info(f"vllm model - terminated (http://localhost:{port} - {model_name})")
+    logger.info(f"openmockllm model - terminated ({process.url} - {process.model_name})")
     try:
         process.wait(timeout=5)
     except subprocess.TimeoutExpired:

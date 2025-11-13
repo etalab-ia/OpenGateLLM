@@ -17,9 +17,9 @@ from api.schemas.audio import (
     AudioTranscriptionTemperatureForm,
     AudioTranscriptionTimestampGranularitiesForm,
 )
+from api.schemas.core.context import RequestContext
 from api.sql.session import get_db_session
-from api.utils.context import request_context
-from api.utils.dependencies import get_model_registry, get_redis_client
+from api.utils.dependencies import get_model_registry, get_redis_client, get_request_context
 from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS, ROUTER__AUDIO
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__AUDIO.title()])
@@ -38,6 +38,7 @@ async def audio_transcriptions(
     model_registry: ModelRegistry = Depends(get_model_registry),
     redis_client: AsyncRedis = Depends(get_redis_client),
     session: AsyncSession = Depends(get_db_session),
+    request_context: RequestContext = Depends(get_request_context),
 ) -> JSONResponse | PlainTextResponse:
     """
     Transcribes audio into the input language.
@@ -58,9 +59,9 @@ async def audio_transcriptions(
     model_provider = await model_registry.get_model_provider(
         model=model,
         endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS,
-        user_info=request_context.get().user_info,
         session=session,
         redis_client=redis_client,
+        request_context=request_context,
     )
 
     response = await model_provider.forward_request(
@@ -72,6 +73,8 @@ async def audio_transcriptions(
     )
 
     if response_format == "text":
-        return PlainTextResponse(content=response.text)
+        response = PlainTextResponse(content=response.text, status_code=response.status_code)
+    else:
+        response = JSONResponse(content=AudioTranscription(**response.json()).model_dump(), status_code=response.status_code)
 
-    return JSONResponse(content=AudioTranscription(**response.json()).model_dump(), status_code=response.status_code)
+    return response

@@ -12,9 +12,9 @@ class User(BaseModel):
     role: int
     organization: int | None
     budget: float | None
-    expires_at: int | None
-    created_at: int
-    updated_at: int
+    expires: int | None
+    created: int
+    updated: int
     priority: int
 
 
@@ -31,8 +31,8 @@ class FormattedUser(BaseModel):
     organization: int | None
     organization_name: str | None
     budget: float | None
-    expires_at: int | None
-    created_at: str
-    updated_at: str
+    expires: int | None
+    created: str
+    updated: str
     priority: int
-    expires_at_formatted: str | None
+    expires_formatted: str | None

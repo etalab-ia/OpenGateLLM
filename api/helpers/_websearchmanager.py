@@ -10,7 +10,7 @@ from starlette.datastructures import Headers
 
 from api.clients.web_search_engine import BaseWebSearchEngineClient as WebSearchEngineClient
 from api.helpers.models import ModelRegistry
-from api.schemas.me import UserInfo
+from api.schemas.core.context import RequestContext
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS
 
 logger = logging.getLogger(__name__)
@@ -52,12 +52,12 @@ Ne donne pas d'explications, ne mets pas de guillemets, réponds uniquement avec
         model_registry: ModelRegistry,
         session: AsyncSession,
         redis_client: AsyncRedis,
-        user_info: UserInfo,
+        request_context: RequestContext,
     ) -> str:
         model_provider = await model_registry.get_model_provider(
             model=self.query_model,
             endpoint=ENDPOINT__CHAT_COMPLETIONS,
-            user_info=user_info,
+            request_context=request_context,
             session=session,
             redis_client=redis_client,
         )

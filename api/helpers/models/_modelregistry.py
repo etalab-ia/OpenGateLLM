@@ -11,7 +11,8 @@ from api.clients.model import BaseModelProvider as ModelProvider
 from api.schemas.admin.providers import Provider, ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import Router, RouterLoadBalancingStrategy
 from api.schemas.core.configuration import Model as ModelConfiguration
-from api.schemas.core.metrics import MetricType
+from api.schemas.core.context import RequestContext
+from api.schemas.core.metrics import Metric
 from api.schemas.me import UserInfo
 from api.schemas.models import Model, ModelCosts, ModelType
 from api.sql.models import Organization as OrganizationTable
@@ -20,14 +21,13 @@ from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 from api.sql.models import User as UserTable
 from api.tasks.celery_app import celery_app
-from api.tasks.queuing import apply_load_balancing_with_queuing
+from api.tasks.queuing import apply_load_balancing_and_qos_policy_with_queuing, apply_load_balancing_and_qos_policy_without_queuing
 from api.utils.exceptions import (
     InconsistentModelMaxContextLengthException,
     InconsistentModelVectorSizeException,
     InsufficientBudgetException,
     InvalidProviderTypeException,
     MissingProviderURLException,
-    ModelIsTooBusyException,
     ModelNotFoundException,
     ProviderAlreadyExistsException,
     ProviderNotFoundException,
@@ -38,8 +38,6 @@ from api.utils.exceptions import (
     TaskFailedException,
     WrongModelTypeException,
 )
-from api.utils.load_balancing import apply_async_load_balancing
-from api.utils.qos import apply_async_qos_policy
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -105,8 +103,6 @@ class ModelRegistry:
         self.task_max_retries = task_max_retries
         self.task_retry_countdown = task_retry_countdown
 
-        self._model_providers: dict[int, ModelProvider] = {}
-
     async def _import_model_configuration(self, models: list[ModelConfiguration], session: AsyncSession) -> None:
         for model in models:
             try:
@@ -156,22 +152,6 @@ class ModelRegistry:
                     logger.error(f"Provider {provider.model_name} failed to be created for router {model.name} ({e})")
                     raise e
                 logging.info(f"Provider {provider.model_name} successfully created for router {model.name} (id: {provider_id})")
-
-            providers = await self.get_providers(router_id=router.id, provider_id=None, session=session)
-            for provider in providers:
-                model_provider = ModelProvider.import_module(provider.type)(
-                    url=provider.url,
-                    key=provider.key,
-                    timeout=provider.timeout,
-                    model_name=provider.model_name,
-                    model_carbon_footprint_zone=provider.model_carbon_footprint_zone,
-                    model_carbon_footprint_total_params=provider.model_carbon_footprint_total_params,
-                    model_carbon_footprint_active_params=provider.model_carbon_footprint_active_params,
-                    qos_metric=provider.qos_metric,
-                    qos_value=provider.qos_value,
-                )
-                model_provider.id = provider.id
-                self._model_providers[provider.id] = model_provider
 
     async def create_router(
         self,
@@ -416,9 +396,9 @@ class ModelRegistry:
         timeout: int,
         model_name: str,
         model_carbon_footprint_zone: ProviderCarbonFootprintZone,
-        model_carbon_footprint_total_params: float | None,
-        model_carbon_footprint_active_params: float | None,
-        qos_metric: MetricType | None,
+        model_carbon_footprint_total_params: int | None,
+        model_carbon_footprint_active_params: int | None,
+        qos_metric: Metric | None,
         qos_value: float | None,
         session: AsyncSession,
     ) -> int:
@@ -434,9 +414,9 @@ class ModelRegistry:
             timeout(int): Request timeout
             model_name(str): Model name
             model_carbon_footprint_zone(ProviderCarbonFootprintZone | None): ProviderCarbonFootprintZone
-            model_carbon_footprint_total_params: float | None
-            model_carbon_footprint_active_params: float | None
-            qos_metric(MetricType | None): QoS metric. If None, no QoS policy is applied.
+            model_carbon_footprint_total_params: int | None
+            model_carbon_footprint_active_params: int | None
+            qos_metric(Metric | None): QoS metric. If None, no QoS policy is applied.
             qos_value(float | None): Optional QoS value
             session(AsyncSession): Database session
         Returns:
@@ -450,8 +430,7 @@ class ModelRegistry:
             else:
                 raise MissingProviderURLException()
 
-        # Check if router exists
-
+        # check if router exists
         routers = await self.get_routers(router_id=router_id, name=None, session=session)
         router = routers[0]
 
@@ -468,17 +447,22 @@ class ModelRegistry:
                 model_carbon_footprint_zone=model_carbon_footprint_zone,
                 model_carbon_footprint_total_params=model_carbon_footprint_total_params,
                 model_carbon_footprint_active_params=model_carbon_footprint_active_params,
-                qos_metric=qos_metric,
-                qos_value=qos_value,
             )
-        except AssertionError:
+            max_context_length = await provider.get_max_context_length()
+            if router.type == ModelType.TEXT_EMBEDDINGS_INFERENCE:
+                vector_size = await provider.get_vector_size()
+            else:
+                vector_size = None
+
+        except AssertionError as e:
+            logger.debug(f"Provider {provider.name} not reachable: {e}", exc_info=True)
             raise ProviderNotReachableException()
 
         # consistency check
         if router.providers > 0:
-            if router.vector_size != provider.vector_size:
+            if router.vector_size != vector_size:
                 raise InconsistentModelVectorSizeException()
-            if router.max_context_length != provider.max_context_length:
+            if router.max_context_length != max_context_length:
                 raise InconsistentModelMaxContextLengthException()
 
         # carbon footprint is only supported for text generation and image text to text models
@@ -504,8 +488,8 @@ class ModelRegistry:
                     model_carbon_footprint_active_params=model_carbon_footprint_active_params,
                     qos_metric=qos_metric,
                     qos_value=qos_value,
-                    max_context_length=provider.max_context_length,
-                    vector_size=provider.vector_size,
+                    max_context_length=max_context_length,
+                    vector_size=vector_size,
                 )
                 .returning(ProviderTable.id)
             )
@@ -516,10 +500,6 @@ class ModelRegistry:
         except IntegrityError:
             await session.rollback()
             raise ProviderAlreadyExistsException()
-
-        # store provider in memory
-        provider.id = provider_id
-        self._model_providers[provider_id] = provider
 
         return provider_id
 
@@ -556,8 +536,6 @@ class ModelRegistry:
         query = delete(ProviderTable).where(ProviderTable.id == provider_id).where(ProviderTable.user_id == user_id)
         await session.execute(query)
         await session.commit()
-
-        del self._model_providers[provider_id]
 
     async def get_providers(
         self,
@@ -605,7 +583,7 @@ class ModelRegistry:
 
         providers = []
         for row in rows:
-            qos_metric = MetricType(row["qos_metric"]) if row["qos_metric"] is not None else None
+            qos_metric = Metric(row["qos_metric"]) if row["qos_metric"] is not None else None
             user_id = 0 if row["user_id"] is None else row["user_id"]  # 0 corresponds to master user ID
             providers.append(
                 Provider(
@@ -641,7 +619,7 @@ class ModelRegistry:
         try:
             routers = await self.get_routers(router_id=None, name=name, session=session)
         except RouterNotFoundException:
-            raise ModelNotFoundException
+            raise ModelNotFoundException()
 
         models = []
         for router in routers:
@@ -654,26 +632,23 @@ class ModelRegistry:
 
             if not has_access:
                 if name is not None:
-                    raise ModelNotFoundException
+                    raise ModelNotFoundException()
                 continue
 
             if router.providers == 0:
                 if name is not None:
-                    raise ModelNotFoundException
+                    raise ModelNotFoundException()
                 continue
 
             # get organization name as owned by
-            if user_info.id == 0 or user_info.organization is None:
-                owned_by = self.app_title
-            else:
-                query = (
-                    select(UserTable.id, OrganizationTable.name.label("owned_by"))
-                    .join(UserTable, UserTable.organization_id == OrganizationTable.id)
-                    .where(UserTable.id == router.user_id)
-                )
-                result = await session.execute(query)
-                owned_by = result.all()[0].owned_by
-                owned_by = owned_by if owned_by else self.app_title
+            query = (
+                select(OrganizationTable.name.label("owned_by"))
+                .join(UserTable, UserTable.organization_id == OrganizationTable.id)
+                .where(UserTable.id == router.user_id)
+            )
+            result = await session.execute(query)
+            owned_by = result.scalar_one_or_none()
+            owned_by = owned_by if owned_by else self.app_title
 
             models.append(
                 Model(
@@ -712,96 +687,113 @@ class ModelRegistry:
 
         return None
 
-    async def get_model_provider(self, model: str, endpoint: str, user_info: UserInfo, session: AsyncSession, redis_client: AsyncRedis) -> int:
+    async def get_model_provider(
+        self,
+        model: str,
+        endpoint: str,
+        session: AsyncSession,
+        redis_client: AsyncRedis,
+        request_context: RequestContext,
+    ) -> int:
         """
         Get a model provider for a given model, endpoint, user priority, session and redis client.
 
         Args:
             providers(List[Provider]): The model name
             endpoint(str): The type of endpoint called
-            user_info(UserInfo): The user priority
             session(AsyncSession): Database session
             redis_client(AsyncRedis): Redis client
+            request_context(RequestContext): Request context
         Returns:
             ModelProvider: The chosen provider
         """
         try:
             routers = await self.get_routers(router_id=None, name=model, session=session)
         except RouterNotFoundException:
-            raise ModelNotFoundException
+            raise ModelNotFoundException()
 
         router = routers[0]
+        request_context.get().router_id = router.id
+        request_context.get().router_name = router.name
+
         if router.type not in self.ENDPOINT_MODEL_TYPE_TABLE[endpoint]:
             raise WrongModelTypeException()
 
-        if (router.cost_prompt_tokens != 0 or router.cost_completion_tokens != 0) and user_info.budget == 0:
+        if (router.cost_prompt_tokens != 0 or router.cost_completion_tokens != 0) and request_context.get().user_info.budget == 0:
             raise InsufficientBudgetException()
 
         providers = await self.get_providers(router_id=router.id, provider_id=None, session=session)
 
-        # Eager path
-        if self.task_always_eager:
-            candidates = [provider.id for provider in providers]
-            provider_id, _ = await apply_async_load_balancing(
-                candidates=candidates,
-                load_balancing_strategy=router.load_balancing_strategy,
-                load_balancing_metric=MetricType.TTFT,
-                redis_client=redis_client,
-            )
-            provider = self._model_providers[provider_id]
-            can_be_forwarded = await apply_async_qos_policy(
-                provider_id=provider_id,
-                qos_metric=provider.qos_metric,
-                qos_value=provider.qos_value,
-                redis_client=redis_client,
-            )
-            if not can_be_forwarded:
-                raise ModelIsTooBusyException()
+        if len(providers) == 0:
+            raise ModelNotFoundException()
 
-            provider.cost_prompt_tokens = router.cost_prompt_tokens
-            provider.cost_completion_tokens = router.cost_completion_tokens
-
-            return provider
-
-        # Celery path
-        candidates = []
+        # select candidates for load balancing
+        candidates: list[tuple[int, Metric | None, float | None]] = []
         for provider in providers:
-            qos_metric = provider.qos_metric.value if provider.qos_metric is not None else None
+            qos_metric = provider.qos_metric if provider.qos_metric is not None else None
             candidates.append((provider.id, qos_metric, provider.qos_value))
 
-        priority = max(0, min(int(user_info.priority), self.task_max_priority - 1))  # 0-(n-1) usable priorities (n levels)
-        task = apply_load_balancing_with_queuing.apply_async(
-            args=[
-                candidates,  # candidates
-                router.load_balancing_strategy,  # load_balancing_strategy
-                MetricType.TTFT,  # load_balancing_metric
-                self.task_retry_countdown,  # task_retry_countdown
-                self.task_max_retries,  # task_max_retries
-            ],
-            queue=f"{self.queue_name_prefix}.{router.id}",
-            priority=priority,
+        # eager path: without queuing
+        if self.task_always_eager:
+            provider_id = await apply_load_balancing_and_qos_policy_without_queuing(
+                candidates=candidates,
+                load_balancing_strategy=router.load_balancing_strategy,
+                load_balancing_metric=Metric.TTFT,
+                redis_client=redis_client,
+            )
+
+        # celery path: with queuing
+        else:
+            priority = max(0, min(int(request_context.get().user_info.priority), self.task_max_priority - 1))  # 0-(n-1) usable priorities (n levels)
+            task = apply_load_balancing_and_qos_policy_with_queuing.apply_async(
+                args=[
+                    candidates,  # candidates
+                    router.load_balancing_strategy,  # load_balancing_strategy
+                    Metric.TTFT,  # load_balancing_metric
+                    self.task_retry_countdown,  # task_retry_countdown
+                    self.task_max_retries,  # task_max_retries
+                ],
+                queue=f"{self.queue_name_prefix}.{router.id}",
+                priority=priority,
+            )
+
+            async_result = AsyncResult(id=task.id, app=celery_app)
+            loop = asyncio.get_event_loop()
+            start_time = loop.time()
+
+            # wait until the task is ready or timeout is reached
+            while not async_result.ready():
+                if loop.time() - start_time > self.task_soft_time_limit:
+                    raise TimeoutError(f"Task {task.id} timed out after {self.task_soft_time_limit} seconds")
+                await asyncio.sleep(0.1)  # TODO: variabiliser
+
+            try:
+                result = async_result.result  # direct access is safe after ready() returns True
+                if result["status_code"] != 200:
+                    raise TaskFailedException(status_code=result["status_code"], detail=result["body"]["detail"])
+                provider_id = result["provider_id"]
+
+            except Exception as e:
+                logger.warning(f"Error retrieving result for task {task.id}: {e}")
+                raise TaskFailedException(detail=str(e))
+
+        providers = await self.get_providers(router_id=router.id, provider_id=provider_id, session=session)
+        provider = providers[0]
+
+        model_provider = ModelProvider.import_module(type=provider.type)(
+            url=provider.url,
+            key=provider.key,
+            timeout=provider.timeout,
+            model_name=provider.model_name,
+            model_carbon_footprint_zone=provider.model_carbon_footprint_zone,
+            model_carbon_footprint_total_params=provider.model_carbon_footprint_total_params,
+            model_carbon_footprint_active_params=provider.model_carbon_footprint_active_params,
         )
+        model_provider.id = provider.id
+        model_provider.cost_prompt_tokens = router.cost_prompt_tokens
+        model_provider.cost_completion_tokens = router.cost_completion_tokens
 
-        async_result = AsyncResult(id=task.id, app=celery_app)
-        loop = asyncio.get_event_loop()
-        start_time = loop.time()
+        request_context.get().provider_id = provider.id
+        request_context.get().provider_model_name = provider.model_name
 
-        # wait until the task is ready or timeout is reached
-        while not async_result.ready():
-            if loop.time() - start_time > self.task_soft_time_limit:
-                raise TimeoutError(f"Task {task.id} timed out after {self.task_soft_time_limit} seconds")
-            await asyncio.sleep(0.1)  # TODO: variabiliser
-
-        try:
-            result = async_result.result  # direct access is safe after ready() returns True
-            if result["status_code"] != 200:
-                raise TaskFailedException(status_code=result["status_code"], detail=result["body"]["detail"])
-            provider = self._model_providers[result["provider_id"]]
-            provider.cost_prompt_tokens = router.cost_prompt_tokens
-            provider.cost_completion_tokens = router.cost_completion_tokens
-
-            return provider
-
-        except Exception as e:
-            logger.warning(f"Error retrieving result for task {task.id}: {e}")
-            raise TaskFailedException(detail=str(e))
+        return model_provider

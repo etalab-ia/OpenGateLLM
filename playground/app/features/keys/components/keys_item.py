@@ -35,7 +35,7 @@ def keys_item(key: FormattedApiKey) -> rx.Component:
                     spacing="2",
                 ),
                 rx.text(
-                    f"Created: {key.created_at} • Expires: {key.expires_at}",
+                    f"Created: {key.created} • Expires: {key.expires}",
                     size="1",
                     color=rx.color("mauve", 9),
                 ),

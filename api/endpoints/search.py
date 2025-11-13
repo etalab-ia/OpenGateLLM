@@ -5,10 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
+from api.schemas.core.context import RequestContext
 from api.schemas.search import Searches, SearchRequest
 from api.sql.session import get_db_session
-from api.utils.context import global_context, request_context
-from api.utils.dependencies import get_model_registry, get_redis_client
+from api.utils.context import global_context
+from api.utils.dependencies import get_model_registry, get_redis_client, get_request_context
 from api.utils.exceptions import CollectionNotFoundException
 from api.utils.variables import ENDPOINT__SEARCH, ROUTER__SEARCH
 
@@ -22,6 +23,7 @@ async def search(
     session: AsyncSession = Depends(get_db_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
+    request_context: RequestContext = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Get relevant chunks from the collections and a query.
@@ -34,13 +36,13 @@ async def search(
         session=session,
         redis_client=redis_client,
         model_registry=model_registry,
+        request_context=request_context,
         collection_ids=body.collections,
         prompt=body.prompt,
         method=body.method,
         limit=body.limit,
         offset=body.offset,
         rff_k=body.rff_k,
-        user_info=request_context.get().user_info,
         web_search=body.web_search,
     )
     usage = request_context.get().usage

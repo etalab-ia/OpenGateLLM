@@ -45,7 +45,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: Update unit coverage badge
-          file_pattern: .github/badges/coverage-unit.json
+          file_pattern: .github/badges/coverage.json
           commit_user_name: "GitHub Actions"
           commit_user_email: "actions@github.com"
 

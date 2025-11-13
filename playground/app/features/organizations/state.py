@@ -43,8 +43,8 @@ class OrganizationsState(ChatState):
                 FormattedOrganization(
                     id=org.id,
                     name=org.name,
-                    created_at=datetime.datetime.fromtimestamp(org.created_at).strftime("%Y-%m-%d %H:%M"),
-                    updated_at=datetime.datetime.fromtimestamp(org.updated_at).strftime("%Y-%m-%d %H:%M"),
+                    created=datetime.datetime.fromtimestamp(org.created).strftime("%Y-%m-%d %H:%M"),
+                    updated=datetime.datetime.fromtimestamp(org.updated).strftime("%Y-%m-%d %H:%M"),
                 )
             )
         return formatted

@@ -12,7 +12,7 @@ import yaml
 
 from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
-from api.schemas.core.metrics import MetricType
+from api.schemas.core.metrics import Metric
 from api.schemas.models import ModelType
 from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, ROUTER__ADMIN, ROUTER__AUTH, ROUTERS
 
@@ -86,7 +86,7 @@ class ModelProvider(ConfigBaseModel):
     model_carbon_footprint_zone: ProviderCarbonFootprintZone = Field(default=ProviderCarbonFootprintZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])  # fmt: off
     model_carbon_footprint_total_params: float | None = Field(default=None, ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     model_carbon_footprint_active_params: float | None = Field(default=None, ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
-    qos_metric: MetricType | None = Field(default=None, description="The metric to use for the quality of service. If not provided, no QoS policy is applied.", examples=[MetricType.INFLIGHT.value])  # fmt: off
+    qos_metric: Metric | None = Field(default=None, description="The metric to use for the quality of service. If not provided, no QoS policy is applied.", examples=[Metric.INFLIGHT.value])  # fmt: off
     qos_value: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.", examples=[0.5])  # fmt: off
 
 
@@ -102,9 +102,10 @@ class Model(ConfigBaseModel):
     For more information to configure model providers, see the [ModelProvider section](#modelprovider).
     """
 
+    name: constr(strip_whitespace=True, min_length=1, max_length=64) = Field(..., description="Unique name exposed to clients when selecting the model.", examples=["gpt-4o"])  # fmt: off
     type: ModelType = Field(..., description="Type of the model. It will be used to identify the model type.", examples=["text-generation"])  # fmt: off
     aliases: list[constr(strip_whitespace=True, min_length=1, max_length=64)] = Field(default_factory=list, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]])  # fmt: off
-    load_balancing_strategy: RouterLoadBalancingStrategy = Field(default=RouterLoadBalancingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["round_robin"])  # fmt: off
+    load_balancing_strategy: RouterLoadBalancingStrategy = Field(default=RouterLoadBalancingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["least_busy"])  # fmt: off
     cost_prompt_tokens: float = Field(default=0.0, ge=0.0, description="Model costs prompt tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
     cost_completion_tokens: float = Field(default=0.0, ge=0.0, description="Model costs completion tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
     providers: list[ModelProvider] = Field(..., description="API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type.")  # fmt: off
@@ -356,7 +357,7 @@ class Settings(ConfigBaseModel):
     celery_task_retry_countdown: int = Field(default=1,ge=1, description="Number of seconds before retrying a failed celery task.")  # fmt: off
     celery_task_max_retries: int = Field(default=120, ge=1, description="Maximum number of retries for celery tasks.")  # fmt: off
     celery_task_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in celery tasks.")  # fmt: off
-    celery_default_queue_prefix: str = Field(default="router", description="Prefix used for per-model Celery queues (queue name = `<prefix>.<router_id>`).")  # fmt: off
+    celery_default_queue_prefix: constr(strip_whitespace=True, min_length=1) = Field(default="router", description="Prefix used for per-model Celery queues (queue name = `<prefix>.<router_id>`).")  # fmt: off
 
     @model_validator(mode="after")
     def validate_model(cls, values) -> Any:

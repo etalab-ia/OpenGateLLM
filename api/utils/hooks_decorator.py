@@ -12,7 +12,7 @@ from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithSt
 from api.sql.models import Usage, User
 from api.sql.session import get_db_session
 from api.utils.configuration import configuration
-from api.utils.context import global_context, request_context
+from api.utils.context import request_context
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ def hooks(func):
         start_time = datetime.now()
         usage = Usage(datetime=start_time, endpoint="N/A")
 
-        # get the request context
+        # get the request context (initial values)
         context = request_context.get()
         if context.user_info is None:
             logger.info(f"No user ID found in request, skipping usage logging ({context.endpoint}).")
@@ -51,15 +51,19 @@ def hooks(func):
         if not request:
             raise Exception("No request found in args or kwargs")
 
-        # extract usage from request
-        await extract_usage_from_request(usage=usage, request=request)
-
         # extract usage from response
         response = None  # initialize in case of early exception not from func
         try:
             # call the endpoint
             response = await func(*args, **kwargs)
 
+            context = request_context.get()
+            usage.router_id = context.router_id
+            usage.provider_id = context.provider_id
+            usage.router_name = context.router_name
+            usage.provider_model_name = context.provider_model_name
+
+            # @TODO: set usage in request_context in BaseModelProvider and retrieve it from there instead of parsing the response here
             # extract usage from streaming response
             if isinstance(response, StreamingResponse):
                 # extract_usage_from_streaming_response calls perform_log internally
@@ -72,27 +76,16 @@ def hooks(func):
                 return response
 
         except HTTPException as e:
+            context = request_context.get()
+            usage.router_id = context.router_id
+            usage.provider_id = context.provider_id
+            usage.router_name = context.router_name
+            usage.provider_model_name = context.provider_model_name
             usage.status = e.status_code
             asyncio.create_task(log_usage(response=None, usage=usage, start_time=start_time))
             raise e  # Re-raise the exception for FastAPI to handle
 
     return wrapper
-
-
-async def extract_usage_from_request(usage: Usage, request: Request):
-    content_type = request.headers.get("Content-Type", "")
-
-    if content_type.startswith("multipart/form-data"):
-        body = await request.form()
-        body = {key: value for key, value in body.items()}
-        usage.request_model = body.get("model")  # TODO: recupérer le router_id depuis la request_context
-    else:
-        try:
-            body = await request.body()
-            body = json.loads(body.decode("utf-8")) if body else {}
-            usage.request_model = body.get("model")
-        except Exception as e:
-            logger.warning(f"Failed to parse JSON request body ({request.url.path}): {e}")
 
 
 def extract_usage_from_streaming_response(response: StreamingResponse, start_time: datetime, usage: Usage) -> StreamingResponseWithStatusCode:
@@ -112,9 +105,7 @@ def extract_usage_from_streaming_response(response: StreamingResponse, start_tim
                 response_status_code = response.status_code
 
             try:
-                usage.time_to_first_token = (
-                    int((datetime.now() - start_time).total_seconds() * 1000) if usage.time_to_first_token is None else usage.time_to_first_token
-                )
+                usage.ttft = int((datetime.now() - start_time).total_seconds() * 1000) if usage.ttft is None else usage.ttft
                 buffer.append(content)  # Appends only the content part
             except Exception:
                 logger.warning("Failed to process chunk in streaming response for usage/buffer calculations")
@@ -211,12 +202,6 @@ async def log_usage(response: Response | None, usage: Usage, start_time: datetim
     # Set usage.status based on the response object ONLY if not already set by streaming logic.
     if usage.status is None:
         usage.status = response.status_code if hasattr(response, "status_code") else None
-
-    if usage.request_model:
-        for router_id, aliases in global_context.model_registry._aliases.items():
-            if usage.request_model in aliases:
-                usage.request_model = aliases[0]
-                break
 
     async for session in get_db_session():
         session.add(usage)

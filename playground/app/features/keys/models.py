@@ -9,8 +9,8 @@ class ApiKey(BaseModel):
     id: int
     name: str
     token: str
-    expires_at: int | None = None
-    created_at: int
+    expires: int | None = None
+    created: int
 
 
 class FormattedApiKey(BaseModel):
@@ -19,8 +19,8 @@ class FormattedApiKey(BaseModel):
     id: int
     name: str
     token: str
-    created_at: str
-    expires_at: str
+    created: str
+    expires: str
 
 
 class Limit(BaseModel):

@@ -9,7 +9,7 @@ from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderTyp
 from api.schemas.admin.roles import LimitType, PermissionType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.collections import CollectionVisibility
-from api.schemas.core.metrics import MetricType
+from api.schemas.core.metrics import Metric
 from api.schemas.models import ModelType
 
 Base = declarative_base()
@@ -22,12 +22,24 @@ class Usage(Base):
     datetime: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
     duration: Mapped[int | None]
     time_to_first_token: Mapped[int | None]  # Time to first token in milliseconds for streaming chat requests
+
+    # foreign keys
     user_id: Mapped[int | None] = mapped_column(ForeignKey(column="user.id", ondelete="SET NULL"))
     token_id: Mapped[int | None] = mapped_column(ForeignKey(column="token.id", ondelete="SET NULL"))
+    router_id: Mapped[int | None] = mapped_column(ForeignKey(column="router.id", ondelete="SET NULL"))
+    provider_id: Mapped[int | None] = mapped_column(ForeignKey(column="provider.id", ondelete="SET NULL"))
+
+    # identifiers (useful for historical analysis when foreign keys are deleted)
+    user_email: Mapped[str | None]
+    token_name: Mapped[str | None]
+    router_name: Mapped[str | None]
+    provider_model_name: Mapped[str | None]
+
+    # request
     endpoint: Mapped[str]
     method: Mapped[HTTPMethod | None]
-    model: Mapped[str | None]
-    request_model: Mapped[str | None]
+
+    # response
     prompt_tokens: Mapped[int | None]
     completion_tokens: Mapped[float | None]
     total_tokens: Mapped[int | None]
@@ -40,6 +52,8 @@ class Usage(Base):
 
     user: Mapped["User"] = relationship(back_populates="usage")
     token: Mapped[Optional["Token"]] = relationship(back_populates="usage")
+    router: Mapped[Optional["Router"]] = relationship(back_populates="usage")
+    provider: Mapped[Optional["Provider"]] = relationship(back_populates="usage")
 
 
 class Role(Base):
@@ -183,6 +197,7 @@ class Router(Base):
     alias: Mapped[list["RouterAlias"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
     provider: Mapped[list["Provider"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
     limit: Mapped[list["Limit"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
+    usage: Mapped[list["Usage"]] = relationship(back_populates="router", passive_deletes=True)
 
 
 class RouterAlias(Base):
@@ -196,7 +211,7 @@ class RouterAlias(Base):
 
 
 class Provider(Base):
-    __tablename__ = "router_provider"
+    __tablename__ = "provider"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     router_id: Mapped[int] = mapped_column(ForeignKey(column="router.id", ondelete="CASCADE"))
@@ -209,7 +224,7 @@ class Provider(Base):
     model_carbon_footprint_zone: Mapped[ProviderCarbonFootprintZone | None]
     model_carbon_footprint_total_params: Mapped[int | None]
     model_carbon_footprint_active_params: Mapped[int | None]
-    qos_metric: Mapped[MetricType | None]
+    qos_metric: Mapped[Metric | None]
     qos_value: Mapped[float | None]
     max_context_length: Mapped[int | None]
     vector_size: Mapped[int | None]
@@ -218,5 +233,6 @@ class Provider(Base):
 
     router: Mapped["Router"] = relationship(back_populates="provider")
     user: Mapped["User"] = relationship(back_populates="provider")
+    usage: Mapped[list["Usage"]] = relationship(back_populates="provider", passive_deletes=True)
 
     __table_args__ = (UniqueConstraint("url", "model_name", name="unique_provider_url_model_name"),)

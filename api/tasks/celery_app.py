@@ -33,7 +33,7 @@ def get_redis_client() -> Redis:
         RuntimeError: If called before worker initialization (e.g., in eager mode without pool setup).
     """
     if _redis_pool is None:
-        raise RuntimeError("Redis pool not initialized. This function should only be called " "within Celery tasks after worker initialization.")
+        raise RuntimeError("Redis pool not initialized. This function should only be called within Celery tasks after worker initialization.")
     return Redis.from_pool(connection_pool=_redis_pool)
 
 

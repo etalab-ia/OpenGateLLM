@@ -8,11 +8,6 @@ class WrongSearchMethodException(HTTPException):
         super().__init__(status_code=400, detail=detail)
 
 
-class WebSearchNotAvailableException(HTTPException):
-    def __init__(self, detail: str = "Web search is not available."):
-        super().__init__(status_code=400, detail=detail)
-
-
 class InsufficientBudgetException(HTTPException):
     def __init__(self, detail: str = "Insufficient budget."):
         super().__init__(status_code=400, detail=detail)
@@ -222,6 +217,11 @@ class UnsupportedFileUploadException(HTTPException):
 
 
 # 424
+class WebSearchNotAvailableException(HTTPException):
+    def __init__(self, detail: str = "Web search is not available."):
+        super().__init__(status_code=424, detail=detail)
+
+
 class ProviderNotReachableException(HTTPException):
     def __init__(self, detail: str = "Model provider not reachable.") -> None:
         super().__init__(status_code=424, detail=detail)

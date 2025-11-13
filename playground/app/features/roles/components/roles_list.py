@@ -285,13 +285,13 @@ def role_accordion_item(role: FormattedRole) -> rx.Component:
                     ),
                     rx.hstack(
                         rx.text(
-                            f"Created: {role.created_at}",
+                            f"Created: {role.created}",
                             size=TEXT_SIZE_LABEL,
                             color=rx.color("mauve", 9),
                         ),
                         rx.text("•", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 9)),
                         rx.text(
-                            f"Updated: {role.updated_at}",
+                            f"Updated: {role.updated}",
                             size=TEXT_SIZE_LABEL,
                             color=rx.color("mauve", 9),
                         ),
@@ -426,7 +426,7 @@ def roles_sorting() -> rx.Component:
     return rx.hstack(
         rx.text("Sort by", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
         rx.select(
-            ["id", "name", "created_at", "updated_at"],
+            ["id", "name", "created", "updated"],
             value=RolesState.roles_order_by,
             on_change=RolesState.set_roles_order_by,
         ),

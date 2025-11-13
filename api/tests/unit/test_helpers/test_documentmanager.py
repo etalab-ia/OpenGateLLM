@@ -7,9 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.helpers._documentmanager import DocumentManager
 from api.schemas.chunks import Chunk
 from api.schemas.collections import CollectionVisibility
+from api.schemas.core.context import RequestContext
 from api.schemas.documents import Chunker
 from api.schemas.me import UserInfo
 from api.schemas.parse import ParsedDocument, ParsedDocumentMetadata, ParsedDocumentPage
+from api.schemas.usage import Usage
 from api.utils.exceptions import CollectionNotFoundException
 
 
@@ -35,7 +37,15 @@ async def test_create_document_collection_no_longer_exists():
     mock_document = ParsedDocument(data=[mock_data])
     mock_redis_client = AsyncMock()
     mock_model_registry = AsyncMock()
-    mock_user_info = UserInfo(id=1, email="test@test.com", name="Test User", permissions=[], limits=[], expires=None, created=0, updated=0)
+    mock_request_context = RequestContext(
+        id="123",
+        client="test",
+        method="POST",
+        endpoint="/v1/search",
+        user_info=UserInfo(id=1, email="test@test.com", name="Test User", permissions=[], limits=[], expires=None, created=0, updated=0),
+        token_id=1,
+        usage=Usage(),
+    )
 
     # Test that the exception is raised with the correct message
     with pytest.raises(CollectionNotFoundException) as exc_info:
@@ -43,7 +53,7 @@ async def test_create_document_collection_no_longer_exists():
             session=mock_session,
             redis_client=mock_redis_client,
             model_registry=mock_model_registry,
-            user_info=mock_user_info,
+            request_context=mock_request_context,
             collection_id=123,
             document=mock_document,
             chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
@@ -307,13 +317,20 @@ async def test_create_document_success(monkeypatch):
     mock_document = ParsedDocument(data=[mock_page])
     mock_redis = AsyncMock()
     mock_model_registry = AsyncMock()
-    mock_user = UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[], expires=None, created=0, updated=0)
-
+    mock_request_context = RequestContext(
+        id="123",
+        client="test",
+        method="POST",
+        endpoint="/v1/search",
+        user_info=UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[], expires=None, created=0, updated=0),
+        token_id=1,
+        usage=Usage(),
+    )
     document_id = await document_manager.create_document(
         session=mock_session,
         redis_client=mock_redis,
         model_registry=mock_model_registry,
-        user_info=mock_user,
+        request_context=mock_request_context,
         collection_id=123,
         document=mock_document,
         chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
@@ -376,13 +393,22 @@ async def test_search_chunks_returns_empty_when_no_collections():
     mock_redis = AsyncMock()
     mock_model_registry = AsyncMock()
     mock_model_registry.get_model_provider = AsyncMock()
-    mock_user = UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[], expires=None, created=0, updated=0)
+
+    mock_request_context = RequestContext(
+        id="123",
+        client="test",
+        method="POST",
+        endpoint="/v1/search",
+        user_info=UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[], expires=None, created=0, updated=0),
+        token_id=1,
+        usage=Usage(),
+    )
 
     result = await document_manager.search_chunks(
         session=mock_session,
         redis_client=mock_redis,
         model_registry=mock_model_registry,
-        user_info=mock_user,
+        request_context=mock_request_context,
         collection_ids=[],
         prompt="hello",
         method="similarity",

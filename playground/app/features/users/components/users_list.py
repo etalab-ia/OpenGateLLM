@@ -84,22 +84,22 @@ def user_item(user: FormattedUser) -> rx.Component:
                 ),
                 rx.hstack(
                     rx.text(
-                        f"Created: {user.created_at}",
+                        f"Created: {user.created}",
                         size=TEXT_SIZE_LABEL,
                         color=rx.color("mauve", 9),
                     ),
                     rx.text("•", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 9)),
                     rx.text(
-                        f"Updated: {user.updated_at}",
+                        f"Updated: {user.updated}",
                         size=TEXT_SIZE_LABEL,
                         color=rx.color("mauve", 9),
                     ),
                     rx.cond(
-                        user.expires_at_formatted,
+                        user.expires_formatted,
                         rx.fragment(
                             rx.text("•", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 9)),
                             rx.text(
-                                "Expires: " + user.expires_at_formatted,
+                                "Expires: " + user.expires_formatted,
                                 size=TEXT_SIZE_LABEL,
                                 color=rx.color("red", 10),
                             ),
@@ -181,7 +181,7 @@ def users_sorting() -> rx.Component:
     return rx.hstack(
         rx.text("Sort by", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
         rx.select(
-            ["id", "name", "created_at", "updated_at"],
+            ["id", "name", "created", "updated"],
             value=UsersState.users_order_by,
             on_change=UsersState.set_users_order_by,
         ),

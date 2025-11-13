@@ -45,7 +45,8 @@ class UsageManager:
         """
         return (
             UsageModel.user_id == user_id,
-            UsageModel.model.is_not(None),
+            UsageModel.router_name.is_not(None),
+            UsageModel.provider_model_name.is_not(None),
             UsageModel.datetime >= datetime.fromtimestamp(date_from),
             UsageModel.datetime <= datetime.fromtimestamp(date_to),
         )
@@ -139,8 +140,8 @@ class UsageManager:
                     token_id=record.token_id,
                     endpoint=record.endpoint,
                     method=record.method.value if record.method else None,
-                    model=record.model,
-                    request_model=record.request_model,
+                    model=record.provider_model_name,
+                    request_model=record.router_name,
                     prompt_tokens=record.prompt_tokens,
                     completion_tokens=record.completion_tokens,
                     total_tokens=record.total_tokens,

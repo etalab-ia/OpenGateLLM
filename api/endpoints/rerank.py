@@ -5,10 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
+from api.schemas.core.context import RequestContext
 from api.schemas.rerank import RerankRequest, Reranks
 from api.sql.session import get_db_session
-from api.utils.context import request_context
-from api.utils.dependencies import get_model_registry, get_redis_client
+from api.utils.dependencies import get_model_registry, get_redis_client, get_request_context
 from api.utils.variables import ENDPOINT__RERANK, ROUTER__RERANK
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__RERANK.title()])
@@ -21,6 +21,7 @@ async def rerank(
     model_registry: ModelRegistry = Depends(get_model_registry),
     redis_client: AsyncRedis = Depends(get_redis_client),
     session: AsyncSession = Depends(get_db_session),
+    request_context: RequestContext = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Creates an ordered array with each text assigned a relevance score, based on the query.
@@ -28,9 +29,9 @@ async def rerank(
     model_provider = await model_registry.get_model_provider(
         model=body.model,
         endpoint=ENDPOINT__RERANK,
-        user_info=request_context.get().user_info,
         session=session,
         redis_client=redis_client,
+        request_context=request_context,
     )
     response = await model_provider.forward_request(method="POST", json=body.model_dump(), endpoint=ENDPOINT__RERANK, redis_client=redis_client)
 

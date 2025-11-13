@@ -17,8 +17,8 @@ class Role(BaseModel):
     permissions: list[str]
     limits: list[Limit]
     users: int
-    created_at: int
-    updated_at: int
+    created: int
+    updated: int
 
 
 class FormattedRole(BaseModel):
@@ -29,5 +29,5 @@ class FormattedRole(BaseModel):
     permissions: list[str]
     limits: list[Limit]
     users: int
-    created_at: str
-    updated_at: str
+    created: str
+    updated: str

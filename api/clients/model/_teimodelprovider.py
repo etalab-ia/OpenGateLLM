@@ -3,9 +3,7 @@ from typing import Any
 from urllib.parse import urljoin
 
 import httpx
-import requests
 
-from api.schemas.core.metrics import MetricType
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -37,8 +35,6 @@ class TeiModelProvider(BaseModelProvider):
         model_carbon_footprint_zone: str | None,
         model_carbon_footprint_total_params: int | None,
         model_carbon_footprint_active_params: int | None,
-        qos_metric: MetricType | None,
-        qos_value: float | None,
     ) -> None:
         """
         Initialize the TEI model client and check if the model is available.
@@ -51,33 +47,21 @@ class TeiModelProvider(BaseModelProvider):
             model_carbon_footprint_zone=model_carbon_footprint_zone,
             model_carbon_footprint_total_params=model_carbon_footprint_total_params,
             model_carbon_footprint_active_params=model_carbon_footprint_active_params,
-            qos_metric=qos_metric,
-            qos_value=qos_value,
         )
 
-        # check if model is available
-        url = urljoin(base=str(self.url), url=self.ENDPOINT_TABLE[ENDPOINT__MODELS])
+    async def get_max_context_length(self) -> int | None:
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[ENDPOINT__MODELS].lstrip("/"))
 
-        response = requests.get(url=url, headers=self.headers, timeout=self.timeout)
-        assert response.status_code == 200, f"Failed to get models list ({response.status_code})."
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url=url, headers=self.headers, timeout=self.timeout)
+            assert response.status_code == 200, f"Model is not reachable ({response.status_code})."
 
-        response = response.json()
-        assert self.name == response["model_id"], f"Model not found ({self.name})."
+        data = response.json()
+        assert self.name == data["model_id"], f"Model not found ({self.name})."
 
-        # set attributes of the model
-        self.max_context_length = response.get("max_input_length")
+        max_context_length = data.get("max_input_length")
 
-        # set vector size
-        response = requests.post(
-            url=urljoin(base=self.url, url=self.ENDPOINT_TABLE[ENDPOINT__EMBEDDINGS]),
-            headers=self.headers,
-            json={"model": self.name, "input": "hello world"},
-            timeout=self.timeout,
-        )
-        if response.status_code == 200:
-            self.vector_size = len(response.json()["data"][0]["embedding"])
-        else:
-            self.vector_size = None
+        return max_context_length
 
     def _format_request(
         self, json: dict | None = None, files: dict | None = None, data: dict | None = None
@@ -94,7 +78,7 @@ class TeiModelProvider(BaseModelProvider):
             tuple: The formatted request composed of the url, json, files and data.
         """
         # self.endpoint is set by the ModelRouter
-        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[self.endpoint])
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[self.endpoint].lstrip("/"))
         if json and "model" in json:
             json["model"] = self.name
 

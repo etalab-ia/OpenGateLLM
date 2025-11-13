@@ -1,79 +1,49 @@
 import logging
-from uuid import uuid4
 
 from fastapi.testclient import TestClient
 import pytest
 
 from api.schemas.admin.providers import CreateProvider, ProviderCarbonFootprintZone, ProviderType
-from api.schemas.admin.routers import CreateRouter
 from api.schemas.models import ModelType
-from api.tests.integ.utils import kill_openmockllm, run_openmockllm
-from api.utils.variables import ENDPOINT__ADMIN_PROVIDERS, ENDPOINT__ADMIN_ROUTERS
+from api.tests.integ.utils import create_router, generate_test_id, kill_openmockllm, run_openmockllm
+from api.utils.variables import ENDPOINT__ADMIN_PROVIDERS
 
 logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="module")
-def text_generation_vllm_model(name: str = None) -> tuple[str, str]:
-    model_name = f"text-generation-model-{uuid4()}"
-    port = 8090
-    process = run_openmockllm(port=port, model_name=model_name, backend="vllm")
+def setup_text_generation_router(client: TestClient):
+    test_id = generate_test_id(prefix="TestAdminProviders")
+    process = run_openmockllm(test_id=test_id, backend="vllm")
+    try:
+        router_id = create_router(model_name=process.model_name, model_type=ModelType.TEXT_GENERATION, client=client)
 
-    yield model_name, f"http://localhost:{port}"
+        yield router_id, process.model_name, process.url
 
-    kill_openmockllm(process=process, port=port, model_name=model_name)
-
-
-@pytest.fixture(scope="module")
-def text_embeddings_inference_tei_model() -> tuple[str, str]:
-    model_name = f"text-embeddings-inference-model-{uuid4()}"
-    port = 8091
-    process = run_openmockllm(port=port, model_name=model_name, backend="tei")
-
-    yield model_name, f"http://localhost:{port}"
-
-    kill_openmockllm(process=process, port=port, model_name=model_name)
+    except Exception as e:
+        raise e
+    finally:
+        kill_openmockllm(process=process)
 
 
 @pytest.fixture(scope="module")
-def text_generation_router(client: TestClient) -> int:
-    """Get an existing text-generation router from config"""
-    payload = CreateRouter(name=f"test-router-{uuid4()}", type=ModelType.TEXT_GENERATION)
-    response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}", json=payload.model_dump())
-    assert response.status_code == 201, response.text
+def setup_text_embeddings_inference_router(client: TestClient):
+    test_id = generate_test_id(prefix="TestAdminProviders")
+    process = run_openmockllm(test_id=test_id, backend="tei")
+    try:
+        router_id = create_router(model_name=process.model_name, model_type=ModelType.TEXT_EMBEDDINGS_INFERENCE, client=client)
 
-    router_id = response.json()["id"]
-
-    yield router_id
-
-    client.delete_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}/{router_id}")
-    assert response.status_code == 204, response.text
-
-
-@pytest.fixture(scope="module")
-def text_embeddings_inference_router(client: TestClient) -> int:
-    """Get an existing text-embeddings-inference router from config"""
-    payload = CreateRouter(name=f"test-router-{uuid4()}", type=ModelType.TEXT_EMBEDDINGS_INFERENCE)
-    response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}", json=payload.model_dump())
-    assert response.status_code == 201, response.text
-    router_id = response.json()["id"]
-
-    yield router_id
-
-    client.delete_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}/{router_id}")
-    assert response.status_code == 204, response.text
+        yield router_id, process.model_name, process.url
+    except Exception as e:
+        raise e
+    finally:
+        kill_openmockllm(process=process)
 
 
 @pytest.mark.usefixtures("client")
 class TestAdminProviders:
-    def test_create_provider_with_text_generation_model(
-        self,
-        client: TestClient,
-        text_generation_vllm_model: tuple[str, str],
-        text_generation_router: int,
-    ):
-        model_name, url = text_generation_vllm_model
-        router_id = text_generation_router
+    def test_create_provider_with_text_generation_model(self, client: TestClient, setup_text_generation_router: tuple[int, str]):
+        router_id, model_name, url = setup_text_generation_router
 
         payload = CreateProvider(
             router=router_id,
@@ -92,14 +62,8 @@ class TestAdminProviders:
         response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_PROVIDERS}", json=payload.model_dump())
         assert response.status_code == 201, response.text
 
-    def test_create_router_with_text_embeddings_inference_model(
-        self,
-        client: TestClient,
-        text_embeddings_inference_tei_model: tuple[str, str],
-        text_embeddings_inference_router: int,
-    ):
-        model_name, url = text_embeddings_inference_tei_model
-        router_id = text_embeddings_inference_router
+    def test_create_router_with_text_embeddings_inference_model(self, client: TestClient, setup_text_embeddings_inference_router: tuple[int, str]):
+        router_id, model_name, url = setup_text_embeddings_inference_router
 
         payload = CreateProvider(
             router=router_id,

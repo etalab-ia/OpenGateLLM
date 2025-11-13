@@ -18,8 +18,8 @@ from api.helpers.data.chunkers import NoSplitter, RecursiveCharacterTextSplitter
 from api.helpers.models import ModelRegistry
 from api.schemas.chunks import Chunk
 from api.schemas.collections import Collection, CollectionVisibility
+from api.schemas.core.context import RequestContext
 from api.schemas.documents import Chunker, Document
-from api.schemas.me import UserInfo
 from api.schemas.parse import ParsedDocument, ParsedDocumentOutputFormat
 from api.schemas.search import Search
 from api.sql.models import Collection as CollectionTable
@@ -183,7 +183,7 @@ class DocumentManager:
         session: AsyncSession,
         redis_client: AsyncRedis,
         model_registry: ModelRegistry,
-        user_info: UserInfo,
+        request_context: RequestContext,
         collection_id: int,
         document: ParsedDocument,
         chunker: Chunker,
@@ -198,7 +198,9 @@ class DocumentManager:
     ) -> int:
         # check if collection exists and prepare document chunks in a single transaction
         result = await session.execute(
-            statement=select(CollectionTable).where(CollectionTable.id == collection_id).where(CollectionTable.user_id == user_info.id)
+            statement=select(CollectionTable)
+            .where(CollectionTable.id == collection_id)
+            .where(CollectionTable.user_id == request_context.get().user_info.id)
         )
         try:
             result.scalar_one()
@@ -260,11 +262,11 @@ class DocumentManager:
                 redis_client=redis_client,
                 session=session,
                 model_registry=model_registry,
-                user_info=user_info,
+                request_context=request_context,
             )
         except Exception as e:
             logger.exception(msg=f"Error during document creation: {e}")
-            await self.delete_document(session=session, user_id=user_info.id, document_id=document_id)
+            await self.delete_document(session=session, user_id=request_context.get().user_info.id, document_id=document_id)
             raise VectorizationFailedException(detail=f"Vectorization failed: {e}")
 
         return document_id
@@ -374,7 +376,7 @@ class DocumentManager:
         session: AsyncSession,
         redis_client: AsyncRedis,
         model_registry: ModelRegistry,
-        user_info: UserInfo,
+        request_context: RequestContext,
         collection_ids: list[int],
         prompt: str,
         method: str,
@@ -391,7 +393,7 @@ class DocumentManager:
                 session=session,
                 model_registry=model_registry,
                 redis_client=redis_client,
-                user_info=user_info,
+                request_context=request_context,
                 prompt=prompt,
                 k=web_search_k,
             )
@@ -403,7 +405,7 @@ class DocumentManager:
             result = await session.execute(
                 statement=select(CollectionTable)
                 .where(CollectionTable.id == collection_id)
-                .where(or_(CollectionTable.user_id == user_info.id, CollectionTable.visibility == CollectionVisibility.PUBLIC))
+                .where(or_(CollectionTable.user_id == request_context.get().user_info.id, CollectionTable.visibility == CollectionVisibility.PUBLIC))
             )
             try:
                 result.scalar_one()
@@ -418,7 +420,7 @@ class DocumentManager:
             endpoint=ENDPOINT__EMBEDDINGS,
             session=session,
             redis_client=redis_client,
-            user_info=user_info,
+            request_context=request_context,
         )
 
         response = await self._create_embeddings(provider=provider, input_texts=[prompt], redis_client=redis_client)
@@ -435,7 +437,7 @@ class DocumentManager:
             score_threshold=score_threshold,
         )
         if web_collection_id:
-            await self.delete_collection(session=session, user_id=user_info.id, collection_id=web_collection_id)
+            await self.delete_collection(session=session, user_id=request_context.get().user_info.id, collection_id=web_collection_id)
 
         return searches
 
@@ -445,7 +447,7 @@ class DocumentManager:
         session: AsyncSession,
         model_registry: ModelRegistry,
         redis_client: AsyncRedis,
-        user_info: UserInfo,
+        request_context: RequestContext,
         prompt: str,
         k: int = 5,
     ) -> int | None:
@@ -454,7 +456,7 @@ class DocumentManager:
             model_registry=model_registry,
             session=session,
             redis_client=redis_client,
-            user_info=user_info,
+            request_context=request_context,
         )
         web_results = await self.web_search_manager.get_results(query=web_query, k=k)
         collection_id = None
@@ -462,7 +464,7 @@ class DocumentManager:
             collection_id = await self.create_collection(
                 session=session,
                 name=f"tmp_web_collection_{uuid4()}",
-                user_id=user_info.id,
+                user_id=request_context.get().user_info.id,
                 visibility=CollectionVisibility.PRIVATE,
             )
             for file in web_results:
@@ -478,7 +480,7 @@ class DocumentManager:
                     session=session,
                     redis_client=redis_client,
                     model_registry=model_registry,
-                    user_info=user_info,
+                    request_context=request_context,
                     collection_id=collection_id,
                     document=document,
                     chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
@@ -538,13 +540,13 @@ class DocumentManager:
         redis_client: AsyncRedis,
         session: AsyncSession,
         model_registry: ModelRegistry,
-        user_info: UserInfo,
+        request_context: RequestContext,
     ) -> None:
         provider = await model_registry.get_model_provider(
             model=self.vector_store_model,
             endpoint=ENDPOINT__EMBEDDINGS,
             session=session,
-            user_info=user_info,
+            request_context=request_context,
             redis_client=redis_client,
         )
 

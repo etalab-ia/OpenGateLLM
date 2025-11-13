@@ -7,11 +7,12 @@ from api.helpers._accesscontroller import AccessController
 from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 from api.helpers.models import ModelRegistry
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionRequest
+from api.schemas.core.context import RequestContext
 from api.schemas.exception import HTTPExceptionModel
 from api.schemas.search import Search
 from api.sql.session import get_db_session
-from api.utils.context import global_context, request_context
-from api.utils.dependencies import get_model_registry, get_redis_client
+from api.utils.context import global_context
+from api.utils.dependencies import get_model_registry, get_redis_client, get_request_context
 from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, WrongModelTypeException
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ROUTER__CHAT
 
@@ -36,6 +37,7 @@ async def chat_completions(
     model_registry: ModelRegistry = Depends(get_model_registry),
     session: AsyncSession = Depends(get_db_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
+    request_context: RequestContext = Depends(get_request_context),
 ) -> JSONResponse | StreamingResponseWithStatusCode:
     """Creates a model response for the given chat conversation.
 
@@ -50,6 +52,7 @@ async def chat_completions(
         inner_session: AsyncSession,
         inner_redis_client: AsyncRedis,
         inner_model_registry: ModelRegistry,
+        inner_request_context: RequestContext,
     ) -> tuple[ChatCompletionRequest, list[Search]]:
         results = []
         if initial_body.search:
@@ -57,7 +60,7 @@ async def chat_completions(
                 raise CollectionNotFoundException()
 
             results = await global_context.document_manager.search_chunks(
-                user_info=request_context.get().user_info,
+                request_context=request_context,
                 session=inner_session,
                 redis_client=inner_redis_client,
                 model_registry=inner_model_registry,
@@ -88,15 +91,15 @@ async def chat_completions(
         inner_session=session,
         inner_redis_client=redis_client,
         inner_model_registry=model_registry,
+        inner_request_context=request_context,
     )
     additional_data = {"search_results": results} if results else {}
-
     model_provider = await model_registry.get_model_provider(
         model=body["model"],
         endpoint=ENDPOINT__CHAT_COMPLETIONS,
-        user_info=request_context.get().user_info,
         session=session,
         redis_client=redis_client,
+        request_context=request_context,
     )
 
     if not body.get("stream", False):

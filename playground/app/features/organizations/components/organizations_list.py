@@ -44,13 +44,13 @@ def organization_item(org: FormattedOrganization) -> rx.Component:
                 ),
                 rx.hstack(
                     rx.text(
-                        f"Created: {org.created_at}",
+                        f"Created: {org.created}",
                         size=TEXT_SIZE_LABEL,
                         color=rx.color("mauve", 9),
                     ),
                     rx.text("•", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 9)),
                     rx.text(
-                        f"Updated: {org.updated_at}",
+                        f"Updated: {org.updated}",
                         size=TEXT_SIZE_LABEL,
                         color=rx.color("mauve", 9),
                     ),
@@ -212,7 +212,7 @@ def organizations_sorting() -> rx.Component:
     return rx.hstack(
         rx.text("Sort by", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
         rx.select(
-            ["id", "name", "created_at", "updated_at"],
+            ["id", "name", "created", "updated"],
             value=OrganizationsState.organizations_order_by,
             on_change=OrganizationsState.set_organizations_order_by,
         ),

@@ -14,7 +14,7 @@ import httpx
 from redis.asyncio import Redis as AsyncRedis
 
 from api.schemas.admin.providers import ProviderType
-from api.schemas.core.metrics import MetricType
+from api.schemas.core.metrics import Metric
 from api.schemas.usage import Detail, Usage
 from api.utils.carbon import get_carbon_footprint
 from api.utils.context import generate_request_id, global_context, request_context
@@ -53,8 +53,6 @@ class BaseModelProvider(ABC):
         model_carbon_footprint_zone: str | None,
         model_carbon_footprint_total_params: int | None,
         model_carbon_footprint_active_params: int | None,
-        qos_metric: MetricType | None,
-        qos_value: float | None,
     ) -> None:
         self.name = model_name
 
@@ -64,8 +62,6 @@ class BaseModelProvider(ABC):
         self.url = url
         self.key = key
         self.timeout = timeout
-        self.qos_metric = qos_metric
-        self.qos_value = qos_value
 
         self.id = None  # set by the ModelRegistry when the provider is created
         self.cost_prompt_tokens = None  # set by the ModelRegistry when the provider is retrieved
@@ -88,6 +84,29 @@ class BaseModelProvider(ABC):
         module = importlib.import_module(f"api.clients.model._{type.value}modelprovider")
 
         return getattr(module, f"{type.capitalize()}ModelProvider")
+
+    @staticmethod
+    async def get_max_context_length(self) -> int | None:
+        """
+        Get the max context length of the model provider to store in the database. Useful
+        to check provider consistency.
+        """
+        pass
+
+    async def get_vector_size(self) -> int | None:
+        if self.ENDPOINT_TABLE[ENDPOINT__EMBEDDINGS] is None:
+            return None
+
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[ENDPOINT__EMBEDDINGS].lstrip("/"))
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url=url, headers=self.headers, json={"model": self.name, "input": "hello world"}, timeout=self.timeout)
+            assert response.status_code == 200, f"Model is not reachable ({response.status_code})."
+
+        data = response.json()["data"]
+        vector_size = len(data[0]["embedding"])
+
+        return vector_size
 
     def _get_usage(self, json: dict, data: dict | list[dict], stream: bool, endpoint: str, request_latency: float = 0.0) -> Usage | None:
         """
@@ -199,7 +218,7 @@ class BaseModelProvider(ABC):
         Returns:
             tuple: The formatted request composed of the url, headers, json, files and data.
         """
-        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[endpoint])
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[endpoint].lstrip("/"))
         if json and "model" in json:
             json["model"] = self.name
 
@@ -269,7 +288,7 @@ class BaseModelProvider(ABC):
         """
         try:
             if ttft is not None:
-                key = f"{METRIC__TIMESERIE_PREFIX}:{MetricType.TTFT.value}:{self.id}"
+                key = f"{METRIC__TIMESERIE_PREFIX}:{Metric.TTFT.value}:{self.id}"
                 await self._ensure_timeseries_exists(redis_client, key)
                 await redis_client.ts().add(key, "*", ttft)
         except Exception:
@@ -278,7 +297,7 @@ class BaseModelProvider(ABC):
 
         try:
             if latency is not None:
-                key = f"{METRIC__TIMESERIE_PREFIX}:{MetricType.LATENCY.value}:{self.id}"
+                key = f"{METRIC__TIMESERIE_PREFIX}:{Metric.LATENCY.value}:{self.id}"
                 await self._ensure_timeseries_exists(redis_client, key)
                 await redis_client.ts().add(key, "*", latency)
         except Exception:
@@ -315,7 +334,7 @@ class BaseModelProvider(ABC):
         if not additional_data:
             additional_data = {}
 
-        inflight_key = f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{self.id}"
+        inflight_key = f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{self.id}"
         try:
             try:
                 await redis_client.incr(inflight_key)
@@ -446,7 +465,7 @@ class BaseModelProvider(ABC):
         url, json, files, data = self._format_request(json=json, files=files, data=data, endpoint=endpoint)
 
         async with httpx.AsyncClient(timeout=self.timeout) as async_client:
-            inflight_key = f"{METRIC__GAUGE_PREFIX}:{MetricType.INFLIGHT.value}:{self.id}"
+            inflight_key = f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{self.id}"
             try:
                 await redis_client.incr(inflight_key)
             except Exception:

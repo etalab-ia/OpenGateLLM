@@ -49,9 +49,8 @@ class UsageTokenizer:
 
             elif endpoint == ENDPOINT__OCR:
                 prompt_tokens = len(self.tokenizer.encode(str(body.get("prompt", ""))))
-
-            else:
-                raise ValueError(f"Endpoint {endpoint} not supported")
+            else:  # for other endpoints, we don't count the tokens
+                prompt_tokens = 0
         except Exception:  # to avoid request format error before schema validation
             prompt_tokens = 0
 

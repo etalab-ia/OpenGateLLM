@@ -3,7 +3,19 @@ from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers.models import ModelRegistry
-from api.utils.context import global_context
+from api.schemas.core.context import RequestContext
+from api.utils.context import global_context, request_context
+
+
+def get_request_context() -> RequestContext:
+    """
+    Get the RequestContext instance from the global context.
+
+    Returns:
+        RequestContext: The RequestContext instance.
+    """
+
+    return request_context
 
 
 def get_model_registry() -> ModelRegistry:

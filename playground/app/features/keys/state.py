@@ -27,7 +27,7 @@ class KeysState(AuthState):
 
     # Create key form
     new_key_name: str = ""
-    new_key_expires_at_date: str = ""  # Date in YYYY-MM-DD format
+    new_key_expires_date: str = ""  # Date in YYYY-MM-DD format
     create_key_loading: bool = False
     created_key: str = ""  # Store the created key to show once
     is_created_dialog_open: bool = False  # Explicit state for dialog
@@ -91,8 +91,8 @@ class KeysState(AuthState):
                     id=key.id,
                     name=key.name,
                     token=key.token,
-                    created_at=datetime.fromtimestamp(key.created_at).strftime("%Y-%m-%d %H:%M"),
-                    expires_at="Never" if key.expires_at is None else datetime.fromtimestamp(key.expires_at).strftime("%Y-%m-%d %H:%M"),
+                    created=datetime.fromtimestamp(key.created).strftime("%Y-%m-%d %H:%M"),
+                    expires="Never" if key.expires is None else datetime.fromtimestamp(key.expires).strftime("%Y-%m-%d %H:%M"),
                 )
             )
         return formatted_keys
@@ -170,15 +170,15 @@ class KeysState(AuthState):
         try:
             payload: dict[str, Any] = {"name": self.new_key_name.strip()}
 
-            # Add expires_at if provided
-            if self.new_key_expires_at_date.strip():
+            # Add expires if provided
+            if self.new_key_expires_date.strip():
                 try:
                     # Convert date string (YYYY-MM-DD) to timestamp
-                    date_obj = datetime.datetime.strptime(self.new_key_expires_at_date.strip(), "%Y-%m-%d")
+                    date_obj = datetime.datetime.strptime(self.new_key_expires_date.strip(), "%Y-%m-%d")
                     # Set time to end of day (23:59:59)
                     date_obj = date_obj.replace(hour=23, minute=59, second=59)
                     expires_timestamp = int(date_obj.timestamp())
-                    payload["expires_at"] = expires_timestamp
+                    payload["expires"] = expires_timestamp
                 except ValueError:
                     yield rx.toast.warning("Invalid date format", position="bottom-right")
                     self.create_key_loading = False
@@ -202,7 +202,7 @@ class KeysState(AuthState):
                     yield
                     # Clear form
                     self.new_key_name = ""
-                    self.new_key_expires_at_date = ""
+                    self.new_key_expires_date = ""
                     # Reload keys
                     async for _ in self.load_keys():
                         yield
@@ -289,8 +289,8 @@ class KeysState(AuthState):
         self.new_key_name = value
 
     @rx.event
-    def set_new_key_expires_at_date(self, value: str):
-        self.new_key_expires_at_date = value
+    def set_new_key_expires_date(self, value: str):
+        self.new_key_expires_date = value
 
     @rx.event
     async def set_keys_order_by(self, value: str):

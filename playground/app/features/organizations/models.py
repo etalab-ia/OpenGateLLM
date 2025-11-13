@@ -8,8 +8,8 @@ class Organization(BaseModel):
 
     id: int
     name: str
-    created_at: int
-    updated_at: int
+    created: int
+    updated: int
 
 
 class FormattedOrganization(BaseModel):
@@ -17,5 +17,5 @@ class FormattedOrganization(BaseModel):
 
     id: int
     name: str
-    created_at: str
-    updated_at: str
+    created: str
+    updated: str

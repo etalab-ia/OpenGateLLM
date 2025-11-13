@@ -4,11 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
+from api.schemas.core.context import RequestContext
 from api.schemas.exception import HTTPExceptionModel
 from api.schemas.models import Model, Models
 from api.sql.session import get_db_session
-from api.utils.context import request_context
-from api.utils.dependencies import get_model_registry
+from api.utils.dependencies import get_model_registry, get_request_context
 from api.utils.exceptions import ModelNotFoundException
 from api.utils.variables import ENDPOINT__MODELS, ROUTER__MODELS
 
@@ -27,11 +27,11 @@ async def get_model(
     model: str = Path(description="The name of the model to get."),
     model_registry: ModelRegistry = Depends(get_model_registry),
     session: AsyncSession = Depends(get_db_session),
+    request_context: RequestContext = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Get a model by name and provide basic information.
     """
-
     models = await model_registry.get_models(name=model, user_info=request_context.get().user_info, session=session)
     model = models[0]
 
@@ -46,12 +46,14 @@ async def get_model(
     responses={ModelNotFoundException().status_code: {"model": HTTPExceptionModel, "description": {ModelNotFoundException().detail}}},
 )
 async def get_models(
-    request: Request, model_registry: ModelRegistry = Depends(get_model_registry), session: AsyncSession = Depends(get_db_session)
+    request: Request,
+    model_registry: ModelRegistry = Depends(get_model_registry),
+    session: AsyncSession = Depends(get_db_session),
+    request_context: RequestContext = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Lists the currently available models and provides basic information.
     """
-
     models = await model_registry.get_models(name=None, user_info=request_context.get().user_info, session=session)
 
     return JSONResponse(content=Models(data=models).model_dump(), status_code=200)

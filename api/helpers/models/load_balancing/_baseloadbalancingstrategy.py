@@ -15,6 +15,7 @@ class BaseLoadBalancingStrategy(ABC):
         """
         pass
 
+    @abstractmethod
     async def apply_async_strategy(self, candidates: list[int]) -> tuple[int, float | None]:
         """
         Apply the async load balancing strategy to the candidates.

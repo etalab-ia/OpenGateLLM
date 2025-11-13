@@ -23,7 +23,7 @@ def keys_sorting() -> rx.Component:
     return rx.hstack(
         rx.text("Sort by", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
         rx.select(
-            ["id", "name", "created_at"],
+            ["id", "name", "created"],
             value=KeysState.keys_order_by,
             on_change=KeysState.set_keys_order_by,
         ),

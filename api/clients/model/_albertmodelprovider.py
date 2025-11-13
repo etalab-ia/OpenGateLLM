@@ -1,8 +1,7 @@
 from urllib.parse import urljoin
 
-import requests
+import httpx
 
-from api.schemas.core.metrics import MetricType
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -34,8 +33,6 @@ class AlbertModelProvider(BaseModelProvider):
         model_carbon_footprint_zone: str | None,
         model_carbon_footprint_total_params: int | None,
         model_carbon_footprint_active_params: int | None,
-        qos_metric: MetricType | None,
-        qos_value: float | None,
     ) -> None:
         """
         Initialize the Albert model provider and check if the model is available.
@@ -48,32 +45,20 @@ class AlbertModelProvider(BaseModelProvider):
             model_carbon_footprint_zone=model_carbon_footprint_zone,
             model_carbon_footprint_total_params=model_carbon_footprint_total_params,
             model_carbon_footprint_active_params=model_carbon_footprint_active_params,
-            qos_metric=qos_metric,
-            qos_value=qos_value,
         )
 
-        # check if model is available
-        url = urljoin(base=str(self.url), url=self.ENDPOINT_TABLE[ENDPOINT__MODELS])
+    async def get_max_context_length(self) -> int | None:
+        url = urljoin(base=str(self.url), url=self.ENDPOINT_TABLE[ENDPOINT__MODELS].lstrip("/"))
 
-        response = requests.get(url=url, headers=self.headers, timeout=self.timeout)
-        assert response.status_code == 200, f"Failed to get models list ({response.status_code})."
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url=url, headers=self.headers, timeout=self.timeout)
+            assert response.status_code == 200, f"Model is not reachable ({response.status_code})."
 
-        response = response.json()["data"]
-        response = [model for model in response if model["id"] == self.name or self.name in model["aliases"]]
-        assert len(response) == 1, f"Model not found ({self.name})."
+        data = response.json()["data"]
+        models = [model for model in data if model["id"] == self.name or self.name in model["aliases"]]
+        assert len(models) == 1, f"Model not found ({self.name})."
 
-        # set attributes of the model
-        response = response[0]
-        self.max_context_length = response.get("max_context_length")
+        model = models[0]
+        max_context_length = model.get("max_context_length")
 
-        # set vector size
-        response = requests.post(
-            url=urljoin(base=self.url, url=self.ENDPOINT_TABLE[ENDPOINT__EMBEDDINGS]),
-            headers=self.headers,
-            json={"model": self.name, "input": "hello world"},
-            timeout=self.timeout,
-        )
-        if response.status_code == 200:
-            self.vector_size = len(response.json()["data"][0]["embedding"])
-        else:
-            self.vector_size = None
+        return max_context_length

@@ -1,7 +1,5 @@
 import datetime as dt
-import random
 from time import sleep
-from uuid import uuid4
 
 from fastapi.testclient import TestClient
 import pytest
@@ -9,23 +7,30 @@ import pytest
 from api.schemas.accounts import AccountUsages
 from api.schemas.admin.providers import ProviderType
 from api.schemas.models import ModelType
-from api.tests.integ.utils import create_provider, create_role, create_router, create_token, create_user, kill_openmockllm, run_openmockllm
+from api.tests.integ.utils import (
+    create_provider,
+    create_role,
+    create_router,
+    create_token,
+    create_user,
+    generate_test_id,
+    kill_openmockllm,
+    run_openmockllm,
+)
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__USAGE
 
 
 @pytest.fixture(scope="module")
 def setup_model_and_user(client: TestClient):
-    test_id = f"test_TestUsage_{dt.datetime.now().strftime("%Y%m%d%H%M%S")}_{uuid4()}"
-    model_name = f"{test_id}_model"
-    port = random.randint(40000, 41000)
-    process = run_openmockllm(port=port, model_name=model_name, backend="vllm")
+    test_id = generate_test_id(prefix="TestUsage")
+    process = run_openmockllm(test_id=test_id, backend="vllm")
     try:
-        router_id = create_router(model_name=model_name, model_type=ModelType.TEXT_GENERATION, client=client)
+        router_id = create_router(model_name=process.model_name, model_type=ModelType.TEXT_GENERATION, client=client)
         create_provider(
             router_id=router_id,
-            provider_url=f"http://localhost:{port}",
+            provider_url=process.url,
             provider_key=None,
-            provider_name=model_name,
+            provider_name=process.model_name,
             provider_type=ProviderType.VLLM,
             client=client,
         )
@@ -33,11 +38,11 @@ def setup_model_and_user(client: TestClient):
         user_id = create_user(role_id=role_id, client=client)
         key_id, key = create_token(user_id=user_id, token_name=f"test-token-{dt.datetime.now().strftime("%Y%m%d%H%M%S")}", client=client)
 
-        yield user_id, key_id, key, model_name
+        yield user_id, key_id, key, process.model_name
     except Exception as e:
         raise e
     finally:
-        kill_openmockllm(process=process, port=port, model_name=model_name)
+        kill_openmockllm(process=process)
 
 
 @pytest.mark.usefixtures("client")
@@ -56,7 +61,7 @@ class TestUsage:
         )
         assert response.status_code == 200, response.text
 
-        sleep(1)
+        sleep(2)
 
         # get usage
         response = client.get(url=f"/v1{ENDPOINT__USAGE}", headers={"Authorization": f"Bearer {key}"})

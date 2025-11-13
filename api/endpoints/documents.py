@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
+from api.schemas.core.context import RequestContext
 from api.schemas.documents import (
     Chunker,
     ChunkerForm,
@@ -35,8 +36,8 @@ from api.schemas.parse import (
     ParsedDocumentOutputFormat,
 )
 from api.sql.session import get_db_session
-from api.utils.context import global_context, request_context
-from api.utils.dependencies import get_model_registry, get_redis_client
+from api.utils.context import global_context
+from api.utils.dependencies import get_model_registry, get_redis_client, get_request_context
 from api.utils.exceptions import CollectionNotFoundException, DocumentNotFoundException, FileSizeLimitExceededException, InvalidJSONFormatException
 from api.utils.variables import ENDPOINT__DOCUMENTS, ROUTER__DOCUMENTS
 
@@ -49,6 +50,7 @@ async def create_document(
     session: AsyncSession = Depends(get_db_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
+    request_context: RequestContext = Depends(get_request_context),
     file: UploadFile = FileForm,
     collection: int = CollectionForm,
     # parse params
@@ -96,7 +98,7 @@ async def create_document(
     )
 
     document_id = await global_context.document_manager.create_document(
-        user_info=request_context.get().user_info,
+        request_context=request_context,
         session=session,
         redis_client=redis_client,
         model_registry=model_registry,
@@ -126,6 +128,7 @@ async def get_document(
     request: Request,
     document: int = Path(description="The document ID"),
     session: AsyncSession = Depends(get_db_session),
+    request_context: RequestContext = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Get a document by ID.
@@ -146,6 +149,7 @@ async def get_documents(
     limit: int | None = Query(default=10, ge=1, le=100, description="The number of documents to return"),
     offset: int | UUID = Query(default=0, description="The offset of the first document to return"),
     session: AsyncSession = Depends(get_db_session),
+    request_context: RequestContext = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Get all documents ID from a collection.
@@ -174,6 +178,7 @@ async def delete_document(
     request: Request,
     document: int = Path(description="The document ID"),
     session: AsyncSession = Depends(get_db_session),
+    request_context: RequestContext = Depends(get_request_context),
 ) -> Response:
     """
     Delete a document.

@@ -29,9 +29,9 @@ async def embeddings(
     model_provider = await model_registry.get_model_provider(
         model=body.model,
         endpoint=ENDPOINT__EMBEDDINGS,
-        user_info=request_context.get().user_info,
         session=session,
         redis_client=redis_client,
+        request_context=request_context,
     )
     response = await model_provider.forward_request(method="POST", json=body.model_dump(), endpoint=ENDPOINT__EMBEDDINGS, redis_client=redis_client)
 

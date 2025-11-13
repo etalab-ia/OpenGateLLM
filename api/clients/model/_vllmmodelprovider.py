@@ -1,8 +1,7 @@
 from urllib.parse import urljoin
 
-import requests
+import httpx
 
-from api.schemas.core.metrics import MetricType
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -17,7 +16,7 @@ from ._basemodelprovider import BaseModelProvider
 
 class VllmModelProvider(BaseModelProvider):
     ENDPOINT_TABLE = {
-        ENDPOINT__AUDIO_TRANSCRIPTIONS: "v1/audio/transcriptions",
+        ENDPOINT__AUDIO_TRANSCRIPTIONS: "/v1/audio/transcriptions",
         ENDPOINT__CHAT_COMPLETIONS: "/v1/chat/completions",
         ENDPOINT__EMBEDDINGS: "/v1/embeddings",
         ENDPOINT__MODELS: "/v1/models",
@@ -34,8 +33,6 @@ class VllmModelProvider(BaseModelProvider):
         model_carbon_footprint_zone: str | None,
         model_carbon_footprint_total_params: int | None,
         model_carbon_footprint_active_params: int | None,
-        qos_metric: MetricType | None,
-        qos_value: float | None,
     ) -> None:
         """
         Initialize the vLLM model provider and check if the model is available.
@@ -48,22 +45,20 @@ class VllmModelProvider(BaseModelProvider):
             model_carbon_footprint_zone=model_carbon_footprint_zone,
             model_carbon_footprint_total_params=model_carbon_footprint_total_params,
             model_carbon_footprint_active_params=model_carbon_footprint_active_params,
-            qos_metric=qos_metric,
-            qos_value=qos_value,
         )
 
-        # check if model is available
-        url = urljoin(base=str(self.url), url=self.ENDPOINT_TABLE[ENDPOINT__MODELS])
-        response = requests.get(url=url, headers=self.headers, timeout=self.timeout)
-        assert response.status_code == 200, f"Failed to get models list ({response.status_code})."
+    async def get_max_context_length(self) -> int | None:
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[ENDPOINT__MODELS].lstrip("/"))
 
-        response = response.json()["data"]
-        response = [model for model in response if model["id"] == self.name]
-        assert len(response) == 1, f"Model not found ({self.name})."
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url=url, headers=self.headers, timeout=self.timeout)
+            assert response.status_code == 200, f"Model is not reachable ({response.status_code})."
 
-        # set attributes of the model
-        response = response[0]
-        self.max_context_length = response.get("max_model_len")
+        data = response.json()
+        models = [model for model in data["data"] if model["id"] == self.name]
+        assert len(models) == 1, f"Model not found ({self.name})."
 
-        # set vector size
-        self.vector_size = None
+        model = models[0]
+        max_context_length = model.get("max_model_len")
+
+        return max_context_length

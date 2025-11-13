@@ -8,14 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
+from api.schemas.core.context import RequestContext
 from api.schemas.core.documents import FileType
 from api.schemas.ocr import DPIForm, ModelForm, PromptForm
 from api.schemas.parse import FileForm, ParsedDocument, ParsedDocumentMetadata, ParsedDocumentPage
 from api.schemas.usage import Usage
 from api.sql.session import get_db_session
-from api.utils.context import global_context, request_context
-from api.utils.dependencies import get_model_registry, get_redis_client
-from api.utils.exceptions import FileSizeLimitExceededException, TaskFailedException
+from api.utils.context import global_context
+from api.utils.dependencies import get_model_registry, get_redis_client, get_request_context
+from api.utils.exceptions import FileSizeLimitExceededException
 from api.utils.variables import ENDPOINT__OCR, ROUTER__OCR
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__OCR.upper()])
@@ -31,6 +32,7 @@ async def ocr(
     model_registry: ModelRegistry = Depends(get_model_registry),
     redis_client: AsyncRedis = Depends(get_redis_client),
     session: AsyncSession = Depends(get_db_session),
+    request_context: RequestContext = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Extracts text from PDF files using OCR.
@@ -63,16 +65,13 @@ async def ocr(
             "stream": False,
         }
 
-        try:
-            model_provider = await model_registry.get_model_provider(
-                model=model,
-                endpoint=ENDPOINT__OCR,
-                user_info=request_context.get().user_info,
-                session=session,
-                redis_client=redis_client,
-            )
-        except TaskFailedException as e:
-            return JSONResponse(content=e.detail, status_code=e.status_code)
+        model_provider = await model_registry.get_model_provider(
+            model=model,
+            endpoint=ENDPOINT__OCR,
+            session=session,
+            redis_client=redis_client,
+            request_context=request_context,
+        )
 
         response = await model_provider.forward_request(method="POST", json=payload, endpoint=ENDPOINT__OCR, redis_client=redis_client)
         status = response.status_code

@@ -5,7 +5,7 @@ import pycountry
 from pydantic import Field, constr, model_validator
 
 from api.schemas import BaseModel
-from api.schemas.core.metrics import MetricType
+from api.schemas.core.metrics import Metric
 from api.utils.variables import DEFAULT_TIMEOUT
 
 # Add world as a country code, default value of the carbon footprint computation framework
@@ -29,9 +29,9 @@ class CreateProvider(BaseModel):
     timeout: int = Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 500 error (model is too busy).")  # fmt: off
     model_name: str = Field(..., description="Model name from the model provider.")  # fmt: off
     model_carbon_footprint_zone: ProviderCarbonFootprintZone = Field(default=ProviderCarbonFootprintZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")  # fmt: off
-    model_carbon_footprint_total_params: float | None = Field(default=None, ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
-    model_carbon_footprint_active_params: float | None = Field(default=None, ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
-    qos_metric: MetricType | None = Field(default=None, description="The metric to use for the quality of service policy. If not provided, no QoS policy is applied.")  # fmt: off
+    model_carbon_footprint_total_params: int | None = Field(default=None, ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
+    model_carbon_footprint_active_params: int | None = Field(default=None, ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
+    qos_metric: Metric | None = Field(default=None, description="The metric to use for the quality of service policy. If not provided, no QoS policy is applied.")  # fmt: off
     qos_value: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")  # fmt: off
 
     @model_validator(mode="after")
@@ -52,7 +52,7 @@ class CreateProviderResponse(BaseModel):
 
 
 class Provider(BaseModel):
-    object: Literal["routerProvider"] = "routerProvider"
+    object: Literal["provider"] = "provider"
     id: int = Field(..., description="Provider ID.")  # fmt: off
     router_id: int = Field(..., description="ID of the router that owns the provider.")  # fmt: off
     user_id: int = Field(..., description="ID of the user that owns the provider.")  # fmt: off
@@ -62,9 +62,9 @@ class Provider(BaseModel):
     timeout: int = Field(..., description="Timeout for the provider requests, after user receive an 500 error (model is too busy).")  # fmt: off
     model_name: str = Field(..., description="Model name from the model provider.")  # fmt: off
     model_carbon_footprint_zone: ProviderCarbonFootprintZone = Field(default=ProviderCarbonFootprintZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])  # fmt: off
-    model_carbon_footprint_total_params: float | None = Field(ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
-    model_carbon_footprint_active_params: float | None = Field(ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
-    qos_metric: MetricType | None = Field(description="The metric to use for the QoS policy. If not provided, no QoS policy is applied.")  # fmt: off
+    model_carbon_footprint_total_params: int | None = Field(ge=0.0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
+    model_carbon_footprint_active_params: int | None = Field(ge=0.0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
+    qos_metric: Metric | None = Field(description="The metric to use for the QoS policy. If not provided, no QoS policy is applied.")  # fmt: off
     qos_value: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")  # fmt: off
     created: int | None = Field(default=None, description="Time of creation, as Unix timestamp.")  # fmt: off
     updated: int | None = Field(default=None, description="Time of last update, as Unix timestamp.")  # fmt: off

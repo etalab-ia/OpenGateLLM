@@ -52,9 +52,12 @@ async def set_request_context(request: Request, call_next):
     request_context.set(
         RequestContext(
             id=generate_request_id(),
+            user_info=None,
+            token_id=None,
+            router_id=None,
+            provider_id=None,
             method=request.method,
             endpoint=request.url.path,
-            client=request.client.host,
             usage=Usage(),
         )
     )

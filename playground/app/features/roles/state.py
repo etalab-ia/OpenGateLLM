@@ -65,8 +65,8 @@ class RolesState(ChatState):
                     permissions=[permission.replace("_", " ").capitalize() for permission in role.permissions],
                     limits=role.limits,
                     users=role.users,
-                    created_at=datetime.datetime.fromtimestamp(role.created_at).strftime("%Y-%m-%d %H:%M"),
-                    updated_at=datetime.datetime.fromtimestamp(role.updated_at).strftime("%Y-%m-%d %H:%M"),
+                    created=datetime.datetime.fromtimestamp(role.created).strftime("%Y-%m-%d %H:%M"),
+                    updated=datetime.datetime.fromtimestamp(role.updated).strftime("%Y-%m-%d %H:%M"),
                 )
             )
         return formatted
@@ -245,8 +245,8 @@ class RolesState(ChatState):
                             permissions=r["permissions"],
                             limits=[Limit(**lim) for lim in r["limits"]],
                             users=r.get("users", 0),
-                            created_at=r["created_at"],
-                            updated_at=r["updated_at"],
+                            created=r["created"],
+                            updated=r["updated"],
                         )
                         for r in roles_data
                     ]

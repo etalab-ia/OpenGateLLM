@@ -9,9 +9,6 @@ A single model can have multiple clients.
 In the example below, the `turbo` model is configured with two clients: an OpenAI client and a vLLM client.  
 The model can be called either using its ID (`turbo`) or using the alias defined in the `aliases` field (`turbo-alias`).
 
-The routing strategy is set to `round_robin`, meaning that requests are distributed alternately between the two clients.  
-For more details on routing strategies, see [deployment](../deployment.md).
-
 Each client calls a different model, specified by the `model` field.  
 For example, the OpenAI client calls `gpt-3.5-turbo`, while the vLLM client calls `meta-llama/Llama-3.1-8B-Instruct`.
 
@@ -23,7 +20,7 @@ models:
   - id: turbo
     type: text-generation
     aliases: ['turbo-alias']
-    routing_strategy: round_robin
+    load_balancing_strategy: least_busy
     clients:
       - model: gpt-3.5-turbo
         type: openai
@@ -101,87 +98,3 @@ Each defines an `ENDPOINT_TABLE` mapping the supported external API endpoints to
 ### Shuffle
 
 The `shuffle` strategy randomly distributes requests among available clients in a balanced way
-
-### Round robin
-
-The `round_robin` strategy alternates requests between clients in sequence.
-
-```mermaid
-flowchart LR
-	user1@{ label: "user", shape: "circle" }
-	registry1@{ label: "**Model registry**" }
-	router1@{ shape: "rounded", label: "Model router<br>my-embeddings-model" }
-    router2@{ shape: "rounded", label: "**Model router<br>my-language-model**" }
-    client1@{ shape: "rounded", label: "TEI model client<br>bge-m3" }
-    client2@{ shape: "rounded", label: "**vLLM model client<br>llama3.1-8b**" }
-    client3@{ shape: "rounded", label: "vLLM model client<br>llama3.1-8b" }
-    backend1@{ shape: "stadium", label: "TEI API<br>bge-m3" }
-    backend2@{ shape: "stadium", label: "**vLLM API<br>llama3.1-8b**" }
-    backend3@{ shape: "stadium", label: "vLLM API<br>llama3.1-8b" }
-
-    registry1 ==x router1
-    registry1 ==> router2
-    router1 ==> client1
-    router2 ==> client2
-    router2 ==x client3
-	client1 ==> backend1
-	client2 ==> backend2
-	client3 ==> backend3
-
-	user1 ---|"/v1/chat/completions<br>model request:<br>**my-language-model**"| registry1@{ shape: "diam", label: "Model registry" }
-	style user1 fill:#FFDE59
-	linkStyle 1 stroke:#00BF63
-	linkStyle 0 stroke:#FF3131
-	linkStyle 3 stroke:#00BF63
-	style registry1 stroke-width:1px,fill:#7ED957
-	style router2 fill:#7ED957
-	style client3 fill:#D9D9D9
-	style router1 fill:#D9D9D9
-	style client1 fill:#D9D9D9
-	style client2 fill:#7ED957
-	linkStyle 4 stroke:#FF3131
-	linkStyle 6 stroke:#00BF63
-	style backend2 fill:#7ED957
-```
-
-```mermaid
-sequenceDiagram
-    actor user as User
-    box rgba(33,66,99,0.1) OpenGateLLM
-    participant route as Route
-    participant registry as ModelRegistry
-    participant router as ModelRouter
-    participant client as ModelClient
-    end
-    participant backend as Inference backend
-    
-    user -->>+ route: HTTP request
-    Note over user,route: Ex. /v1/chat/completions
-    route -->>+ registry: Called model existed ?
-    alt Called model exists
-        registry -->>+ route: Return the called model router 
-    
-    else Called model does not exist.
-        registry -->>+ user: 404 Model not found
-    end
-
-    route -->>+ router: Have you model client for the called endpoint (model type checking) ?
-    alt Model router have a compatible model client
-        router -->>+ route: Return a model client among compatible clients (load balancing)
-    else Model router have no compatible model client
-        client -->>+ user: 400 Wrong model type
-    end
-
-    route -->>+ client: Forward request
-    opt
-    client -->>+ client: Format request if different from standard
-    end
-
-    client -->>+ backend: Forward request
-    backend -->>+ client: Response
-    opt
-    client -->>+ client: Format response if different from standard
-    end
-    client -->>+ user: Forward response
-    Note over user,route: {"message": "Hello"}
-```

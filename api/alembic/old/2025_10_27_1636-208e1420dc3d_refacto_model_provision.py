@@ -28,7 +28,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=True),
     sa.Column('name', sa.String(), nullable=False),
-    sa.Column('type', sa.Enum('IMAGE_TEXT_TO_TEXT', 'AUTOMATIC_SPEECH_RECOGNITION', 'TEXT_EMBEDDINGS_INFERENCE', 'TEXT_GENERATION', 'TEXT_CLASSIFICATION', name='modeltype'), nullable=False),
+    sa.Column('type', sa.Enum('IMAGE_TEXT_TO_TEXT', 'AUTOMATIC_SPEECH_RECOGNITION', 'TEXT_EMBEDDINGS_INFERENCE', 'TEXT_GENERATION', 'TEXT_CLASSIFICATION', name='modeltype'), nullable=False, create_type=False),
     sa.Column('load_balancing_strategy', sa.Enum('SHUFFLE', 'LEAST_BUSY', name='routerloadbalancingstrategy'), nullable=False),
     sa.Column('cost_prompt_tokens', sa.Float(), nullable=False),
     sa.Column('cost_completion_tokens', sa.Float(), nullable=False),
