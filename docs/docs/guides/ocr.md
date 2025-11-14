@@ -25,7 +25,7 @@ base_url = "https://albert.api.etalab.gouv.fr/v1"
 api_key = os.getenv("ALBERT_API_KEY")
 client = OpenAI(base_url=base_url, api_key=api_key)
 
-headers = {"Authorization": f"Bearer {api_key}"} # for requests
+headers = {"Authorization": f"Bearer {api_key}"}  # for requests
 ```
 
 Retrieve the list of available models with `/v1/models` endpoint to perform OCR. Theses models have the type `image-text-to-text`.
@@ -51,7 +51,6 @@ response.raise_for_status()
 
 pdf_bytes = response.content
 print(f"PDF content (base64 encoded): {pdf_bytes}")
-
 ```
 
 > ```
@@ -73,7 +72,6 @@ data = response.json()
 print("OCR result:")
 for page in data["data"]:
     print(page["content"][:300], "...")
-
 ```
 
 > ```

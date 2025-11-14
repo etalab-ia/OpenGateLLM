@@ -14,6 +14,7 @@ For the following tutorial, we use [DINUM](https://www.numerique.gouv.fr/) insta
 
 import os
 from urllib.parse import urljoin
+
 from openai import OpenAI
 import requests
 ```
@@ -100,7 +101,6 @@ response.raise_for_status()
 
 response = response.json()
 print("Documents in collection:", response["documents"])
-
 ```
 
 > ```
@@ -128,7 +128,6 @@ for result in results:
     print("Content:", result["chunk"]["content"], end="\n\n")
     print("Metadata:", result["chunk"]["metadata"])
     print("\n")
-
 ```
 
 > ```

@@ -13,6 +13,7 @@ For the following tutorial, we use [DINUM](https://www.numerique.gouv.fr/) insta
 %pip install -qU openai
 
 import os
+
 from openai import OpenAI
 ```
 
