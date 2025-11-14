@@ -2,11 +2,12 @@ from importlib import import_module
 import logging
 import pkgutil
 
-from fastapi import APIRouter, Depends, FastAPI, Request, Response
+from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.dependencies.utils import get_dependant
 from prometheus_fastapi_instrumentator import Instrumentator
 import sentry_sdk
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.responses import JSONResponse
 
 from api.helpers._accesscontroller import AccessController
 from api.schemas.admin.roles import PermissionType
@@ -93,5 +94,5 @@ if ROUTER__MONITORING not in configuration.settings.disabled_routers:
         app.instrumentator.expose(app=app, should_gzip=True, tags=[ROUTER__MONITORING.title()], dependencies=[Depends(dependency=AccessController(permissions=[PermissionType.READ_METRIC]))], include_in_schema=include_in_schema)  # fmt: off
 
     @app.get(path="/health", tags=[ROUTER__MONITORING.title()], include_in_schema=include_in_schema)
-    def health() -> Response:
-        return Response(status_code=200)
+    def health() -> JSONResponse:
+        return JSONResponse(content={"status": "ok"}, status_code=200)
