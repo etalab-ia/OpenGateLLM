@@ -86,7 +86,11 @@ help:
 	@if [ "$(services)" = "" ]; then \
 		services=$$(docker compose --file $(compose) config --services 2>/dev/null); \
 	fi;
-	@docker compose --env-file $(env) --file $(compose) up $$services --detach --quiet-pull --wait
+	@if [ "$(compose)" = "compose.ci.yml" ] ; then \
+		docker compose --env-file $(env) --file $(compose) up $$services --detach --quiet-pull --no-build --wait; \
+	else \
+		docker compose --env-file $(env) --file $(compose) up $$services --detach --quiet-pull --wait; \
+	fi
 	@sleep 4
 	for service in $$services; do \
 		if ! $(MAKE) --silent .check-service-status service=$$service env=$(env) compose=$(compose); then \
@@ -248,6 +252,10 @@ test-integ:
 			exit 1; \
 		fi; \
 		echo "✅ Integration tests completed."; \
+	fi
+	@if [ "$(action)" = "down" ]; then \
+		docker compose --file .github/compose.ci.yml --env-file .github/.env.ci down; \
+		echo "✅ Docker Compose services stopped."; \
 	fi
 
 .PHONY: help test-unit test-integ lint setup quickstart dev

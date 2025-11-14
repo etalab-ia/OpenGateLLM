@@ -45,8 +45,10 @@ class LeastBusyLoadBalancingStrategy(BaseLoadBalancingStrategy):
                 logger.error(f"Failed to fetch timeseries for {key}: {e}", exc_info=True)
                 self.redis_client.reset()
                 series = []
+
             if not series:
-                raise ValueError("Series is empty")
+                scores[provider_id] = float("inf")
+                continue
 
             values = [v for _, v in series]
             values.sort()
@@ -72,8 +74,10 @@ class LeastBusyLoadBalancingStrategy(BaseLoadBalancingStrategy):
                 logger.error(f"Failed to fetch timeseries for {key}: {e}", exc_info=True)
                 await self.redis_client.reset()
                 series = []
+
             if not series:
-                raise ValueError("Series is empty")
+                scores[provider_id] = float("inf")
+                continue
 
             values = [v for _, v in series]
             values.sort()

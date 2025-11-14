@@ -65,7 +65,7 @@ def apply_load_balancing_and_qos_policy_with_queuing(
     try:
         redis_client = get_redis_client()
 
-        provider_id, performance_indicator = apply_sync_load_balancing(
+        provider_id, _ = apply_sync_load_balancing(
             load_balancing_strategy=load_balancing_strategy,
             candidates=[provider_id for provider_id, _, _ in candidates],
             redis_client=redis_client,

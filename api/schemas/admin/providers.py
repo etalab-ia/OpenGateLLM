@@ -35,14 +35,18 @@ class CreateProvider(BaseModel):
     qos_value: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")  # fmt: off
 
     @model_validator(mode="after")
-    def validate_model_carbon_footprint_params(self):
+    def validate_model(self):
         """
         If total params are provided and not active params are provided, active params will be set to total params (and vice versa).
+        If QoS metric is provided and not QoS value is provided, raise an error.
         """
         if self.model_carbon_footprint_total_params is not None and self.model_carbon_footprint_active_params is None:
             self.model_carbon_footprint_active_params = self.model_carbon_footprint_total_params
         if self.model_carbon_footprint_active_params is not None and self.model_carbon_footprint_total_params is None:
             self.model_carbon_footprint_total_params = self.model_carbon_footprint_active_params
+
+        if self.qos_metric is not None and self.qos_value is None:
+            raise ValueError("QoS value is required if QoS metric is provided.")
 
         return self
 
