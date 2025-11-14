@@ -39,4 +39,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: Update docs
-          file_pattern: ./docs/getting-started/configuration.md ./docs/docs/guides/*.md
+          file_pattern: ./docs/docs/getting-started/configuration.md ./docs/docs/guides/*.md
