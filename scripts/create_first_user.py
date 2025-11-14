@@ -19,18 +19,21 @@ if __name__ == "__main__":
     assert response.status_code == 200, response.text
     routers = response.json()["data"]
 
+    role_name = "my-first-role"
+    role_permissions = ["admin"]
+    role_limits = []
+
     # Create a new admin role
-    limits = []
     for router in routers:
-        limits.append({"router": router["id"], "type": "rpm", "value": None})
-        limits.append({"router": router["id"], "type": "rpd", "value": None})
-        limits.append({"router": router["id"], "type": "tpm", "value": None})
-        limits.append({"router": router["id"], "type": "tpd", "value": None})
+        role_limits.append({"router": router["id"], "type": "rpm", "value": None})
+        role_limits.append({"router": router["id"], "type": "rpd", "value": None})
+        role_limits.append({"router": router["id"], "type": "tpm", "value": None})
+        role_limits.append({"router": router["id"], "type": "tpd", "value": None})
 
     response = requests.post(
         url=f"{args.api_url}/v1/admin/roles",
         headers=headers,
-        json={"name": "my-first-role", "permissions": ["admin"], "limits": limits},
+        json={"name": role_name, "permissions": role_permissions, "limits": role_limits},
     )
     if response.status_code == 409:
         response = requests.get(f"{args.api_url}/v1/admin/roles", headers=headers)
@@ -70,12 +73,18 @@ if __name__ == "__main__":
 
     key = response.json()["token"]
 
-    print(f"""
-╔═════════════════════════════════════════════════════════════════════════════ 
-║ 👤 {message}
-╚═════════════════════════════════════════════════════════════════════════════
+    display_limits = "\n                   ".join([f"{router["name"]} → unlimited" for router in routers])
 
-* Email:       {args.first_email}
-* Password:    {args.first_password}
-* API key:     {key}
+    print(f"""
+\033[32;1m✔ {message} \033[0m
+
+\033[32;1mRole:\033[0m              {role_name}
+\033[32;1mRole permissions:\033[0m  {",".join(role_permissions)}
+\033[32;1mRole limits: \033[0m      
+                   {display_limits}
+
+\033[32;1mEmail:\033[0m             {args.first_email}
+\033[32;1mPassword:\033[0m          {args.first_password}\033
+
+\033[32;1mAPI key:\033[0m           {key}
 """)

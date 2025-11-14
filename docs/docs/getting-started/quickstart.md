@@ -31,7 +31,6 @@ OpenGateLLM is running at its most basic version, with the following features:
 | Master API key | changeme |
 :::
 
-
 You can test that the API is running with:
 
 ```bash 
@@ -45,11 +44,17 @@ curl -X POST "http://localhost:8080/v1/chat/completions" \
 `albert-testbed` is a gemma3 model, running on cpu. It is not meant for production use, only dev purposes.
 :::
 
-
 ### Create a first user
 
 You can create a non-admin user with the following command:
+
 ```bash
 make create-user
 ```
-The default created user will be `me` and its password `changeme`.
+
+The default created user will be `me` and its password `changeme`. The script create a role with `admin` permissions and no limits on all models. You
+can edit the role and limits after creation by using the API or the Playground UI (see [Roles and permissions](../../functionalities/iam/roles-permissions-rate-limitings.md)).
+
+:::warning
+If you add a new model, you will need to create a new role with the appropriate permissions and limits or update the existing role with the appropriate limits.
+:::
