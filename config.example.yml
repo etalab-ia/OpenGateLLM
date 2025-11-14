@@ -84,7 +84,7 @@ settings:
   # search_multi_agents_synthesis_model: my-model
   # search_multi_agents_reranker_model: my-model
 
-  playground_opengatellm_url: http://localhost:8000
+  playground_opengatellm_url: ${OPENGATELLM_URL:-http://localhost:8000}
   # playground_default_model: my-model
   # playground_theme_has_background: True
   # playground_theme_accent_color: purple

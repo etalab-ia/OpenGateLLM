@@ -15,7 +15,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 ARG CONFIG_FILE=config.example.yml \
     FAVICON=./playground/assets/favicon.ico \
-    REFLEX_BACKEND_URL=http://localhost:8500 \
+    REFLEX_BACKEND_URL=http://localhost:8501 \
     REFLEX_FRONTEND_URL=http://localhost:8501 \
     REFLEX_FRONTEND_PATH=''
 
@@ -58,7 +58,7 @@ ENV CONFIG_FILE=config.yml \
 
 RUN chown -R opengatellm:opengatellm /playground /var/lib/nginx /var/log/nginx /run /etc/supervisor /usr/share/nginx/html
 
-EXPOSE 80
+EXPOSE 8501
 
 USER opengatellm
 

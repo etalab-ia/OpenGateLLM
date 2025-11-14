@@ -32,8 +32,17 @@ if __name__ == "__main__":
         headers=headers,
         json={"name": "my-first-role", "permissions": ["admin"], "limits": limits},
     )
-    assert response.status_code == 201, response.text
-    role_id = response.json()["id"]
+    if response.status_code == 409:
+        response = requests.get(f"{args.api_url}/v1/admin/roles", headers=headers)
+        assert response.status_code == 200, response.text
+        roles = response.json()["data"]
+        for role in roles:
+            if role["name"] == "my-first-role":
+                role_id = role["id"]
+                break
+    else:
+        assert response.status_code == 201, response.text
+        role_id = response.json()["id"]
 
     # Create a new admin user
     response = requests.post(
@@ -41,8 +50,19 @@ if __name__ == "__main__":
         headers=headers,
         json={"email": args.first_email, "name": args.first_email, "password": args.first_password, "role": role_id},
     )
-    assert response.status_code == 201, response.text
-    user_id = response.json()["id"]
+    if response.status_code == 409:
+        response = requests.get(f"{args.api_url}/v1/admin/users", headers=headers)
+        assert response.status_code == 200, response.text
+        users = response.json()["data"]
+        for user in users:
+            if user["email"] == args.first_email:
+                user_id = user["id"]
+                break
+        message = "User already exists, new api key created."
+    else:
+        message = "User created with success."
+        assert response.status_code == 201, response.text
+        user_id = response.json()["id"]
 
     # Create a new token for the admin user
     response = requests.post(url=f"{args.api_url}/v1/admin/tokens", headers=headers, json={"user": user_id, "name": "my-first-token"})
@@ -51,8 +71,11 @@ if __name__ == "__main__":
     key = response.json()["token"]
 
     print(f"""
-New user created:
-- Email: {args.first_email}
-- Password: {args.first_password}
-- API key: {key}
+╔═════════════════════════════════════════════════════════════════════════════ 
+║ 👤 {message}
+╚═════════════════════════════════════════════════════════════════════════════
+
+* Email:       {args.first_email}
+* Password:    {args.first_password}
+* API key:     {key}
 """)

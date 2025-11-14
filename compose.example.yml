@@ -20,13 +20,16 @@ services:
   playground:
     image: ghcr.io/etalab-ia/opengatellm/playground:latest
     environment:
-      - "API_HOST=${API_HOST:-api}"
-      - "TZ=Europe/Paris"
+      - "OPENGATELLM_URL=${OPENGATELLM_URL:-http://api:8000}"
+      - "REDIS_HOST=redis"
+      - "REDIS_PORT=6379"
     ports:
       - 8501:8501
     volumes:
       - "./${CONFIG_FILE:-config.yml}:/config.yml:ro"
     depends_on:
+      redis:
+        condition: service_healthy
       postgres:
         condition: service_healthy
 

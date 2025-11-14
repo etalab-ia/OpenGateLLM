@@ -4,7 +4,7 @@ import os
 import re
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, constr, field_validator, model_validator
 from pydantic import ValidationError as PydanticValidationError
 from pydantic_settings import BaseSettings
 import yaml
@@ -68,12 +68,11 @@ class ConfigBaseModel(BaseModel):
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#redisdependency")
 class RedisDependency(ConfigBaseModel):
-    pass
-    # All args of pydantic redis client is allowed
+    url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
 
 
 class Dependencies(ConfigBaseModel):
-    redis: RedisDependency  = Field(..., description="Pass all redis python SDK arguments, see https://redis.readthedocs.io/en/stable/connections.html for more information.")  # fmt: off
+    redis: RedisDependency | None = Field(default=None, description="Set the Redis connection url to use as stage manager. See https://reflex.dev/docs/api-reference/config/ for more information.")  # fmt: off
 
 
 class Settings(ConfigBaseModel):
@@ -101,6 +100,7 @@ class ConfigFile(ConfigBaseModel):
     [Environment variables](../getting-started/environment_variables.md#playground) for more information.
     """
 
+    dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the playground.")  # fmt: off
     settings: Settings = Field(default_factory=Settings, description="General settings configuration fields. Some fields are common to the API and the playground.")  # fmt: off
 
 
@@ -123,6 +123,7 @@ class Configuration(BaseSettings):
         file_content = cls.replace_environment_variables(file_content="".join(uncommented_lines))
         config = ConfigFile(**yaml.safe_load(stream=file_content))
 
+        values.dependencies = config.dependencies
         values.settings = config.settings
 
         return values

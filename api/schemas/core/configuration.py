@@ -190,7 +190,7 @@ class MarkerDependency(ConfigBaseModel):
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#postgresdependency")
 class PostgresDependency(ConfigBaseModel):
     # All args of pydantic postgres client is allowed
-    url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^postgresql", description="PostgreSQL connection url.")  # fmt: off
+    url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^postgresql", description="PostgreSQL connection url.", examples=["postgresql://postgres:changeme@localhost:5432/postgres"])  # fmt: off
 
     @field_validator("url", mode="after")
     def force_async(cls, url):
@@ -209,7 +209,7 @@ class SentryDependency(ConfigBaseModel):
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#redisdependency")
 class RedisDependency(ConfigBaseModel):
-    url: str = Field(description="Redis connection url.")  # fmt: off
+    url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
 
 
 class ProConnect(ConfigBaseModel):

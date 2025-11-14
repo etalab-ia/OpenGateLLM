@@ -706,6 +706,10 @@ class IdentityAccessManager:
                 budget=None,
                 permissions=[permission for permission in PermissionType],
                 limits=[Limit(router=router.id, type=type, value=None) for router in routers for type in LimitType],
+                expires=None,
+                created=0,
+                updated=0,
+                priority=None,
             )
         else:
             users = await self.get_users(session=session, user_id=user_id, email=email)
