@@ -96,7 +96,7 @@ dependencies:
   elasticsearch:
     hosts: http://${ELASTICSEARCH_HOST:-elasticsearch}:${ELASTICSEARCH_PORT:-9200}
     basic_auth:
-      - ${ELASTIC_USERNAME:-elastic}
+      - ${ELASTIC_USERNAME:-elasticsearch}
       - ${ELASTIC_PASSWORD:-changeme}
 
   secretiveshell:

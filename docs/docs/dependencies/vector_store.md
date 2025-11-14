@@ -39,7 +39,7 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
-      - "ELASTIC_USERNAME=${ELASTICSEARCH_USER:-elastic}"
+      - "ELASTIC_USERNAME=${ELASTICSEARCH_USER:-elasticsearch}"
       - "ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-changeme}"
     volumes:
       - elasticsearch:/usr/share/elasticsearch/data
@@ -63,7 +63,7 @@ For more information about the configuration file, see [Configuration](../gettin
       elasticsearch:
         hosts: http://${ELASTICSEARCH_HOST:-elasticsearch}:${ELASTICSEARCH_PORT:-9200}
         basic_auth:
-          - ${ELASTIC_USERNAME:-elastic}
+          - ${ELASTIC_USERNAME:-elasticsearch}
           - ${ELASTIC_PASSWORD:-changeme}
     ```
 

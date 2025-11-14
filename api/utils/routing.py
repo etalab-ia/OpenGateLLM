@@ -84,8 +84,10 @@ async def apply_routing_with_queuing(
             raise TaskFailedException(status_code=result["status_code"], detail=result["body"]["detail"])
         provider_id = result["provider_id"]
 
+    except TaskFailedException:
+        raise
     except Exception as e:
         logger.warning(f"Error retrieving result for task {task.id}: {e}")
-        raise TaskFailedException(detail=str(e))
+        raise TaskFailedException(status_code=500, detail=str(e))
 
     return provider_id
