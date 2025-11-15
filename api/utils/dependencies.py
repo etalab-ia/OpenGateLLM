@@ -54,7 +54,8 @@ async def get_postgres_session() -> AsyncSession:
         AsyncSession: A PostgreSQL session instance.
     """
 
-    async for session in global_context.postgres_session():
+    session_factory = global_context.postgres_session_factory
+    async with session_factory() as session:
         yield session
 
         if session.in_transaction():

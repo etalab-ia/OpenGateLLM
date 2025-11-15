@@ -8,7 +8,7 @@ from api.helpers._accesscontroller import AccessController
 from api.helpers._usagemanager import UsageManager
 from api.schemas.accounts import AccountUsages
 from api.schemas.admin.users import User
-from api.sql.session import get_db_session
+from api.utils.dependencies import get_postgres_session
 from api.utils.variables import ENDPOINT__USAGE, ROUTER__USAGE
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__USAGE.title()])
@@ -28,7 +28,7 @@ async def get_account_usage(
     order_direction: Literal["asc", "desc"] = Query(default="desc", description="Order direction"),
     date_from: int = Query(default=None, description="Start date as Unix timestamp (default: 30 days ago)"),
     date_to: int = Query(default=None, description="End date as Unix timestamp (default: now)"),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     current_user: User = Depends(AccessController()),
 ) -> JSONResponse:
     """

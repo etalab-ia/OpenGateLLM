@@ -9,8 +9,7 @@ from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
 from api.schemas.exception import HTTPExceptionModel
 from api.schemas.models import Model, Models
-from api.sql.session import get_db_session
-from api.utils.dependencies import get_model_registry, get_request_context
+from api.utils.dependencies import get_model_registry, get_postgres_session, get_request_context
 from api.utils.exceptions import ModelNotFoundException
 from api.utils.variables import ENDPOINT__MODELS, ROUTER__MODELS
 
@@ -28,7 +27,7 @@ async def get_model(
     request: Request,
     model: str = Path(description="The name of the model to get."),
     model_registry: ModelRegistry = Depends(get_model_registry),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
@@ -50,7 +49,7 @@ async def get_model(
 async def get_models(
     request: Request,
     model_registry: ModelRegistry = Depends(get_model_registry),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """

@@ -11,9 +11,8 @@ from api.schemas.admin.providers import (
     Providers,
 )
 from api.schemas.admin.roles import PermissionType
-from api.sql.session import get_db_session
 from api.utils.context import request_context
-from api.utils.dependencies import get_model_registry
+from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import ENDPOINT__ADMIN_PROVIDERS, ROUTER__ADMIN
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
@@ -27,7 +26,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 async def create_provider(
     request: Request,
     body: CreateProvider,
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> CreateProviderResponse:
     """
@@ -59,7 +58,7 @@ async def create_provider(
 async def delete_provider(
     request: Request,
     provider: int = Path(description="The ID of the provider to delete."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> Response:
     """
@@ -79,7 +78,7 @@ async def delete_provider(
 async def get_provider(
     request: Request,
     provider: int = Path(description="The ID of the provider to get."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> JSONResponse:
     """
@@ -100,7 +99,7 @@ async def get_provider(
 async def get_providers(
     request: Request,
     router: int | None = Query(default=None, description="Filter providers by router ID."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> JSONResponse:
     """

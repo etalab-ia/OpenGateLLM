@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.helpers._accesscontroller import AccessController
 from api.schemas.admin.roles import PermissionType
 from api.schemas.admin.tokens import CreateToken, Token, Tokens, TokensResponse
-from api.sql.session import get_db_session
 from api.utils.context import global_context
+from api.utils.dependencies import get_postgres_session
 from api.utils.variables import ENDPOINT__ADMIN_TOKENS, ROUTER__ADMIN
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 async def create_token(
     request: Request,
     body: CreateToken = Body(description="The token creation request."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Create a new token.
@@ -48,7 +48,7 @@ async def delete_token(
     request: Request,
     user: int = Path(description="The user ID of the user to delete the token for."),
     token: int = Path(description="The token ID of the token to delete."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
     """
     Delete a token.
@@ -68,7 +68,7 @@ async def delete_token(
 async def get_token(
     request: Request,
     token: int = Path(description="The token ID of the token to get."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get your token by id.
@@ -92,7 +92,7 @@ async def get_tokens(
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the tokens to get."),
     order_by: Literal["id", "name", "created"] = Query(default="id", description="The field to order the tokens by."),
     order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the tokens by."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get all your tokens.

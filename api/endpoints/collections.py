@@ -4,8 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.schemas.collections import Collection, CollectionRequest, Collections, CollectionUpdateRequest, CollectionVisibility
-from api.sql.session import get_db_session
 from api.utils.context import global_context, request_context
+from api.utils.dependencies import get_postgres_session
 from api.utils.exceptions import CollectionNotFoundException
 from api.utils.variables import ENDPOINT__COLLECTIONS, ROUTER__COLLECTIONS
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__COLLECTIONS.title()])
 
 
 @router.post(path=ENDPOINT__COLLECTIONS, dependencies=[Security(dependency=AccessController())], status_code=201)
-async def create_collection(request: Request, body: CollectionRequest, session: AsyncSession = Depends(get_db_session)) -> JSONResponse:
+async def create_collection(request: Request, body: CollectionRequest, session: AsyncSession = Depends(get_postgres_session)) -> JSONResponse:
     """
     Create a new collection.
     """
@@ -40,7 +40,7 @@ async def create_collection(request: Request, body: CollectionRequest, session: 
 async def get_collection(
     request: Request,
     collection: int = Path(..., description="The collection ID"),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get a collection by ID.
@@ -64,7 +64,7 @@ async def get_collections(
     visibility: CollectionVisibility | None = Query(default=None, description="Filter by collection visibility."),
     offset: int = Query(default=0, ge=0, description="The offset of the collections to get."),
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the collections to get."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get list of collections.
@@ -88,7 +88,7 @@ async def get_collections(
 async def delete_collection(
     request: Request,
     collection: int = Path(..., description="The collection ID"),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
     """
     Delete a collection.
@@ -110,7 +110,7 @@ async def update_collection(
     request: Request,
     collection: int = Path(..., description="The collection ID"),
     body: CollectionUpdateRequest = Body(..., description="The collection to update."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
     """
     Update a collection.

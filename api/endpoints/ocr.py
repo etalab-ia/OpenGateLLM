@@ -14,9 +14,8 @@ from api.schemas.core.documents import FileType
 from api.schemas.ocr import DPIForm, ModelForm, PromptForm
 from api.schemas.parse import FileForm, ParsedDocument, ParsedDocumentMetadata, ParsedDocumentPage
 from api.schemas.usage import Usage
-from api.sql.session import get_db_session
 from api.utils.context import global_context
-from api.utils.dependencies import get_model_registry, get_redis_client, get_request_context
+from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
 from api.utils.exceptions import FileSizeLimitExceededException
 from api.utils.variables import ENDPOINT__OCR, ROUTER__OCR
 
@@ -32,7 +31,7 @@ async def ocr(
     prompt: str = PromptForm,
     model_registry: ModelRegistry = Depends(get_model_registry),
     redis_client: AsyncRedis = Depends(get_redis_client),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """

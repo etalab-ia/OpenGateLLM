@@ -16,9 +16,8 @@ from api.schemas.core.context import RequestContext
 from api.schemas.core.documents import JsonFile
 from api.schemas.files import ChunkerArgs, FileResponse, FilesRequest
 from api.schemas.parse import ParsedDocumentOutputFormat
-from api.sql.session import get_db_session
 from api.utils.context import global_context
-from api.utils.dependencies import get_model_registry, get_redis_client, get_request_context
+from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
 from api.utils.exceptions import CollectionNotFoundException, FileSizeLimitExceededException, InvalidJSONFormatException
 from api.utils.variables import ENDPOINT__FILES
 
@@ -31,7 +30,7 @@ async def upload_file(
     request: FilesRequest = Body(...),
     redis_client: AsyncRedis = Depends(get_redis_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """

@@ -6,9 +6,8 @@ from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
 from api.schemas.admin.roles import PermissionType
 from api.schemas.admin.routers import CreateRouter, CreateRouterResponse, Router, Routers, UpdateRouter
-from api.sql.session import get_db_session
 from api.utils.context import request_context
-from api.utils.dependencies import get_model_registry
+from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import ENDPOINT__ADMIN_ROUTERS, ROUTER__ADMIN
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
@@ -18,7 +17,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 async def create_router(
     request: Request,
     body: CreateRouter = Body(description="The router creation request."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> CreateRouterResponse:
     """
@@ -45,7 +44,7 @@ async def create_router(
 async def delete_router(
     request: Request,
     router: int = Path(description="The ID of the router to delete (router ID, eg. 123)."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> Response:
     """
@@ -65,7 +64,7 @@ async def update_router(
     request: Request,
     router: int = Path(description="The ID of the router to update (router ID, eg. 123)."),
     body: UpdateRouter = Body(description="The router update request."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> Response:
     """
@@ -95,7 +94,7 @@ async def update_router(
 async def get_router(
     request: Request,
     router: int = Path(description="The ID of the router to get (router ID, eg. 123)."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> JSONResponse:
     """
@@ -114,7 +113,7 @@ async def get_router(
 )
 async def get_routers(
     request: Request,
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> JSONResponse:
     """

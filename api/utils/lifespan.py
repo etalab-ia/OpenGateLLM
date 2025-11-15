@@ -19,9 +19,9 @@ from api.helpers._websearchmanager import WebSearchManager
 from api.helpers.models import ModelRegistry
 from api.schemas.core.configuration import Configuration
 from api.schemas.core.context import GlobalContext
-from api.sql.session import get_db_session
 from api.utils.configuration import get_configuration
 from api.utils.context import global_context
+from api.utils.dependencies import get_postgres_session
 from api.utils.logging import init_logger
 
 logger = init_logger(name=__name__)
@@ -91,7 +91,7 @@ async def _setup_postgres_session(configuration: Configuration, global_context: 
 
 async def _setup_model_registry(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
     """Setup the model registry by fetching the models defined in the DB and the configuration. Basic conflict handling between the DB and config."""
-    async for session in get_db_session():
+    async for session in get_postgres_session():
         global_context.model_registry = ModelRegistry(
             app_title=configuration.settings.app_title,
             task_always_eager=configuration.settings.celery_task_always_eager,
@@ -129,7 +129,7 @@ async def _setup_document_manager(configuration: Configuration, global_context: 
         global_context.document_manager = None
         return
 
-    async for session in get_db_session():
+    async for session in get_postgres_session():
         router_id = await global_context.model_registry.get_router_id_from_model_name(
             model_name=configuration.settings.vector_store_model,
             session=session,

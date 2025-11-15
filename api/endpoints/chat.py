@@ -12,9 +12,8 @@ from api.schemas.chat import ChatCompletion, ChatCompletionChunk, ChatCompletion
 from api.schemas.core.context import RequestContext
 from api.schemas.exception import HTTPExceptionModel
 from api.schemas.search import Search
-from api.sql.session import get_db_session
 from api.utils.context import global_context
-from api.utils.dependencies import get_model_registry, get_redis_client, get_request_context
+from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
 from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, WrongModelTypeException
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ROUTER__CHAT
 
@@ -37,7 +36,7 @@ async def chat_completions(
     request: Request,
     body: ChatCompletionRequest,
     model_registry: ModelRegistry = Depends(get_model_registry),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse | StreamingResponseWithStatusCode:

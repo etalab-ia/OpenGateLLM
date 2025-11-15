@@ -13,9 +13,9 @@ from api.helpers._accesscontroller import AccessController
 from api.helpers.auth_encryption import encrypt_redirect_data
 from api.schemas.admin.tokens import OAuth2LogoutRequest
 from api.schemas.admin.users import User
-from api.sql.session import get_db_session
 from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context
+from api.utils.dependencies import get_postgres_session
 from api.utils.variables import ENDPOINT__AUTH_CALLBACK, ENDPOINT__AUTH_LOGOUT, ROUTER__AUTH
 
 from .token import perform_proconnect_logout
@@ -101,7 +101,7 @@ async def oauth2_login(request: Request, oauth2_client=Depends(get_oauth2_client
 
 
 @router.get(path=ENDPOINT__AUTH_CALLBACK)
-async def oauth2_callback(request: Request, session: AsyncSession = Depends(get_db_session), oauth2_client=Depends(get_oauth2_client)):
+async def oauth2_callback(request: Request, session: AsyncSession = Depends(get_postgres_session), oauth2_client=Depends(get_oauth2_client)):
     """
     Handle OAuth2 callback from ProConnect
     """
@@ -172,7 +172,7 @@ async def logout(
     request: Request,
     logout_request: OAuth2LogoutRequest,
     user: User = Security(AccessController()),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     oauth2_client=Depends(get_oauth2_client),
 ):
     """

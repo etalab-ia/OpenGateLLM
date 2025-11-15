@@ -6,9 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
 from api.schemas.embeddings import Embeddings, EmbeddingsRequest
-from api.sql.session import get_db_session
 from api.utils.context import request_context
-from api.utils.dependencies import get_model_registry, get_redis_client
+from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client
 from api.utils.variables import ENDPOINT__EMBEDDINGS, ROUTER__EMBEDDINGS
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__EMBEDDINGS.title()])
@@ -20,7 +19,7 @@ async def embeddings(
     body: EmbeddingsRequest,
     model_registry: ModelRegistry = Depends(get_model_registry),
     redis_client: AsyncRedis = Depends(get_redis_client),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Creates an embedding vector representing the input text.

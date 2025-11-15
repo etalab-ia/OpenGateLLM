@@ -10,9 +10,9 @@ from starlette.responses import StreamingResponse
 
 from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 from api.sql.models import Usage, User
-from api.sql.session import get_db_session
 from api.utils.configuration import configuration
 from api.utils.context import request_context
+from api.utils.dependencies import get_postgres_session
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +203,7 @@ async def log_usage(response: Response | None, usage: Usage, start_time: datetim
     if usage.status is None:
         usage.status = response.status_code if hasattr(response, "status_code") else None
 
-    async for session in get_db_session():
+    async for session in get_postgres_session():
         session.add(usage)
         try:
             await session.commit()
@@ -230,7 +230,7 @@ async def update_budget(usage: Usage):
         return
 
     # Decrease the user's budget by the calculated cost with proper locking
-    async for session in get_db_session():
+    async for session in get_postgres_session():
         try:
             async with session.begin():
                 # Use SELECT FOR UPDATE to lock the user row during the transaction. This prevents concurrent modifications to the budget

@@ -6,15 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.schemas.me import CreateKey, CreateKeyResponse, Key, Keys, UpdateUserRequest, UserInfo
-from api.sql.session import get_db_session
 from api.utils.context import global_context, request_context
+from api.utils.dependencies import get_postgres_session
 from api.utils.variables import ENDPOINT__ME_INFO, ENDPOINT__ME_KEYS, ROUTER__ME
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__ME.title()])
 
 
 @router.get(path=ENDPOINT__ME_INFO, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=UserInfo)
-async def get_user(request: Request, session: AsyncSession = Depends(get_db_session)) -> JSONResponse:
+async def get_user(request: Request, session: AsyncSession = Depends(get_postgres_session)) -> JSONResponse:
     """
     Get information about the current user.
     """
@@ -28,7 +28,7 @@ async def get_user(request: Request, session: AsyncSession = Depends(get_db_sess
 async def update_user(
     request: Request,
     body: UpdateUserRequest = Body(description="The user update request."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
     """
     Update information about the current user.
@@ -50,7 +50,7 @@ async def update_user(
 async def create_key(
     request: Request,
     body: CreateKey = Body(description="The token creation request."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Create a new API key.
@@ -70,7 +70,7 @@ async def create_key(
 async def delete_key(
     request: Request,
     key: int = Path(description="The key ID of the key to delete."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
     """
     Delete a API key.
@@ -85,7 +85,7 @@ async def delete_key(
 async def get_key(
     request: Request,
     key: int = Path(description="The key ID of the key to get."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get your token by id.
@@ -105,7 +105,7 @@ async def get_keys(
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the tokens to get."),
     order_by: Literal["id", "name", "created"] = Query(default="id", description="The field to order the tokens by."),
     order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the tokens by."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get all your tokens.

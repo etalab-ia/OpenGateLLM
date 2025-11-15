@@ -19,8 +19,7 @@ from api.schemas.audio import (
     AudioTranscriptionTimestampGranularitiesForm,
 )
 from api.schemas.core.context import RequestContext
-from api.sql.session import get_db_session
-from api.utils.dependencies import get_model_registry, get_redis_client, get_request_context
+from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
 from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS, ROUTER__AUDIO
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__AUDIO.title()])
@@ -38,7 +37,7 @@ async def audio_transcriptions(
     timestamp_granularities: list[str] = AudioTranscriptionTimestampGranularitiesForm,
     model_registry: ModelRegistry = Depends(get_model_registry),
     redis_client: AsyncRedis = Depends(get_redis_client),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse | PlainTextResponse:
     """

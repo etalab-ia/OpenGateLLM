@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.schemas.admin.roles import CreateRole, PermissionType, Role, Roles, RolesResponse, RoleUpdateRequest
-from api.sql.session import get_db_session
 from api.utils.context import global_context
+from api.utils.dependencies import get_postgres_session
 from api.utils.variables import ENDPOINT__ADMIN_ROLES, ROUTER__ADMIN
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 async def create_role(
     request: Request,
     body: CreateRole = Body(description="The role creation request."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Create a new role.
@@ -43,7 +43,7 @@ async def create_role(
 async def delete_role(
     request: Request,
     role: int = Path(description="The ID of the role to delete."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
     """
     Delete a role.
@@ -63,7 +63,7 @@ async def update_role(
     request: Request,
     role: int = Path(description="The ID of the role to update."),
     body: RoleUpdateRequest = Body(description="The role update request."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
     """
     Update a role.
@@ -89,7 +89,7 @@ async def update_role(
 async def get_role(
     request: Request,
     role: int = Path(description="The ID of the role to get."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get a role by id.
@@ -112,7 +112,7 @@ async def get_roles(
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the roles to get."),
     order_by: Literal["id", "name", "created", "updated"] = Query(default="id", description="The field to order the roles by."),
     order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the roles by."),
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get all roles.

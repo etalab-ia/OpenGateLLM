@@ -96,4 +96,4 @@ def ensure_queue_exists(queue_name: str) -> None:
 
 # Import tasks to ensure they are registered with Celery
 # This ensures that when the worker starts, all tasks are available
-from api.tasks import routing  # noqa: F401
+from api.tasks import routing  # noqa: F401,E402

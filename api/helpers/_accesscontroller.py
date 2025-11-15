@@ -11,8 +11,8 @@ from api.schemas.admin.roles import LimitType, PermissionType
 from api.schemas.admin.users import User
 from api.schemas.collections import CollectionVisibility
 from api.schemas.me import UserInfo
-from api.sql.session import get_db_session
 from api.utils.context import global_context, request_context
+from api.utils.dependencies import get_postgres_session
 from api.utils.exceptions import InsufficientPermissionException, InvalidAPIKeyException, InvalidAuthenticationSchemeException, RateLimitExceeded
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
@@ -46,7 +46,7 @@ class AccessController:
         self,
         request: Request,
         api_key: Annotated[HTTPAuthorizationCredentials, Depends(HTTPBearer())],
-        session: AsyncSession = Depends(get_db_session),
+        session: AsyncSession = Depends(get_postgres_session),
     ) -> User:
         user_info, key_id = await self._check_api_key(request=request, api_key=api_key, session=session)
         await self._check_permissions(permissions=user_info.permissions)

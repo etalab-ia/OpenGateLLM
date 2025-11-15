@@ -9,9 +9,8 @@ from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
 from api.schemas.search import Searches, SearchRequest
-from api.sql.session import get_db_session
 from api.utils.context import global_context
-from api.utils.dependencies import get_model_registry, get_redis_client, get_request_context
+from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
 from api.utils.exceptions import CollectionNotFoundException
 from api.utils.variables import ENDPOINT__SEARCH, ROUTER__SEARCH
 
@@ -22,7 +21,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__SEARCH.title()])
 async def search(
     request: Request,
     body: SearchRequest,
-    session: AsyncSession = Depends(get_db_session),
+    session: AsyncSession = Depends(get_postgres_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
