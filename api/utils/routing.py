@@ -79,26 +79,60 @@ async def apply_routing_with_queuing(
     )
 
     async_result = AsyncResult(id=task.id, app=celery_app)
+    initial_state = async_result.state
+    logger.info(f"Task {task.id} sent to queue '{queue_name}', initial state: {initial_state}, waiting for result...")
+
     loop = asyncio.get_event_loop()
     start_time = loop.time()
 
     task_interval = 0.1  # polling interval to check if the task is ready
     task_timeout = 0.2  # estimed task execution time
+    max_wait_time = max_retries * (retry_countdown + task_timeout)
+    logger.debug(f"Task {task.id}: Polling for result (max wait: {max_wait_time}s, interval: {task_interval}s)")
+
+    poll_count = 0
+    last_state = initial_state
     while not async_result.ready():
-        if loop.time() - start_time > max_retries * (retry_countdown + task_timeout):
+        elapsed = loop.time() - start_time
+        current_state = async_result.state
+
+        # Log state changes
+        if current_state != last_state:
+            logger.info(f"Task {task.id}: State changed from {last_state} to {current_state} (elapsed: {elapsed:.2f}s)")
+            last_state = current_state
+
+        if elapsed > max_wait_time:
+            logger.error(f"Task {task.id}: Timeout after {elapsed:.2f}s (state: {current_state})")
+            # Try to get more info about the task
+            try:
+                info = async_result.info
+                logger.error(f"Task {task.id}: Info={info}")
+            except Exception as e:
+                logger.error(f"Task {task.id}: Could not get task info: {e}")
             raise ModelIsTooBusyException(detail=f"Model is too busy after {max_retries * retry_countdown} seconds")
+
+        poll_count += 1
+        if poll_count % 10 == 0:  # Log every second (10 * 0.1s)
+            logger.debug(f"Task {task.id}: Still waiting... (elapsed: {elapsed:.2f}s, state: {current_state})")
+
         await asyncio.sleep(task_interval)
 
     try:
+        state = async_result.state
+        logger.info(f"Task {task.id}: Completed with state={state}")
         result = async_result.result  # direct access is safe after ready() returns True
+        logger.debug(f"Task {task.id}: Result={result}")
+
         if result["status_code"] != 200:
+            logger.error(f"Task {task.id}: Failed with status_code={result["status_code"]}, detail={result.get("body", {}).get("detail", "N/A")}")
             raise TaskFailedException(status_code=result["status_code"], detail=result["body"]["detail"])
         provider_id = result["provider_id"]
+        logger.info(f"Task {task.id}: Successfully returned provider_id={provider_id}")
 
     except TaskFailedException:
         raise
     except Exception as e:
-        logger.warning(f"Error retrieving result for task {task.id}: {e}")
+        logger.error(f"Task {task.id}: Error retrieving result: {e}", exc_info=True)
         raise TaskFailedException(status_code=500, detail=str(e))
 
     return provider_id

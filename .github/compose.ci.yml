@@ -10,6 +10,7 @@ services:
       - "../api/tests/integ/config.test.yml:/config.yml:ro"
     environment:
       - RABBITMQ_HOST=rabbitmq
+      - CELERY_EXTRA_ARGS=${CELERY_EXTRA_ARGS:-}
     depends_on:
       redis:
         condition: service_healthy
