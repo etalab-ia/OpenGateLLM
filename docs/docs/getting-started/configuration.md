@@ -121,7 +121,7 @@ settings:
   # search_multi_agents_synthesis_model: my-model
   # search_multi_agents_reranker_model: my-model
 
-  playground_opengatellm_url: http://localhost:8000
+  playground_opengatellm_url: ${OPENGATELLM_URL:-http://localhost:8000}
   # playground_default_model: my-model
   # playground_theme_has_background: True
   # playground_theme_accent_color: purple
@@ -246,7 +246,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 #### RedisDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
-| url | string | Redis connection url. |  |  |  |  |
+| url | string | Redis connection url. |  |  |  | redis://:changeme@localhost:6379 |
 
 <br></br>
 
@@ -270,7 +270,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 #### PostgresDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
-| url | string | PostgreSQL connection url. |  |  |  |  |
+| url | string | PostgreSQL connection url. |  |  |  | postgresql://postgres:changeme@localhost:5432/postgres |
 
 <br></br>
 
@@ -328,6 +328,7 @@ For Plagroud deployment, some environment variables are required to be set, like
 
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
+| dependencies | object | Dependencies used by the playground. For details of configuration, see the [Dependencies section](#dependencies). |  |  |  |  |
 | settings | object | General settings configuration fields. Some fields are common to the API and the playground. For details of configuration, see the [Settings section](#settings). |  |  |  |  |
 
 <br></br>
@@ -347,6 +348,20 @@ For Plagroud deployment, some environment variables are required to be set, like
 | playground_theme_panel_background | string | Whether panel backgrounds are translucent: 'solid' | 'translucent'. |  | solid |  |  |
 | playground_theme_radius | string | The radius of the theme. Can be 'small', 'medium', or 'large'. |  | medium |  |  |
 | playground_theme_scaling | string | The scaling of the theme. |  | 100% |  |  |
+
+<br></br>
+
+### Dependencies
+| Attribute | Type | Description | Required | Default | Values | Examples |
+| --- | --- | --- | --- | --- | --- | --- |
+| redis | object | Set the Redis connection url to use as stage manager. See https://reflex.dev/docs/api-reference/config/ for more information. For details of configuration, see the [RedisDependency section](#redisdependency). |  | None |  |  |
+
+<br></br>
+
+#### RedisDependency
+| Attribute | Type | Description | Required | Default | Values | Examples |
+| --- | --- | --- | --- | --- | --- | --- |
+| url | string | Redis connection url. |  |  |  | redis://:changeme@localhost:6379 |
 
 <br></br>
 
