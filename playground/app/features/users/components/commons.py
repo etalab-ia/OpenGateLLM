@@ -153,7 +153,7 @@ def user_form_fields(
                 disabled=disabled,
                 width="100%",
                 min=0,
-                max=configuration.settings.celery_task_max_priority,
+                max=configuration.settings.routing_max_priority,
             ),
             spacing=SPACING_TINY,
             width="100%",

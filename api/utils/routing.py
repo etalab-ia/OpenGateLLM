@@ -20,6 +20,8 @@ async def apply_routing_without_queuing(
     providers: list[Provider],
     load_balancing_strategy: RouterLoadBalancingStrategy,
     load_balancing_metric: Metric,
+    max_retries: int,
+    retry_countdown: int,
     redis_client: AsyncRedis,
 ) -> int:
     if len(providers) == 1:
@@ -34,9 +36,20 @@ async def apply_routing_without_queuing(
 
     qos_metric, qos_limit = [(provider.qos_metric, provider.qos_limit) for provider in providers if provider.id == provider_id][0]
 
-    can_be_forwarded = await apply_async_qos_policy(provider_id=provider_id, qos_metric=qos_metric, qos_limit=qos_limit, redis_client=redis_client)
+    can_be_forwarded = False
+    for _ in range(max_retries):
+        can_be_forwarded = await apply_async_qos_policy(
+            provider_id=provider_id,
+            qos_metric=qos_metric,
+            qos_limit=qos_limit,
+            redis_client=redis_client,
+        )
+        if can_be_forwarded:
+            break
+        await asyncio.sleep(retry_countdown)
+
     if not can_be_forwarded:
-        raise ModelIsTooBusyException()
+        raise ModelIsTooBusyException(detail=f"Model is too busy after {max_retries * retry_countdown} seconds")
 
     return provider_id
 
@@ -45,10 +58,10 @@ async def apply_routing_with_queuing(
     providers: list[Provider],
     load_balancing_strategy: RouterLoadBalancingStrategy,
     load_balancing_metric: Metric,
-    queue_name: str,
-    priority: int,
     retry_countdown: int,
     max_retries: int,
+    queue_name: str,
+    priority: int,
 ) -> int:
     candidates = [(provider.id, provider.qos_metric, provider.qos_limit) for provider in providers]
     ensure_queue_exists(queue_name)
@@ -69,11 +82,12 @@ async def apply_routing_with_queuing(
     loop = asyncio.get_event_loop()
     start_time = loop.time()
 
-    # wait until the task is ready or timeout is reached
+    task_interval = 0.1  # polling interval to check if the task is ready
+    task_timeout = 0.2  # estimed task execution time
     while not async_result.ready():
-        if loop.time() - start_time > max_retries * retry_countdown:
-            raise TimeoutError(f"Task {task.id} timed out after {max_retries * retry_countdown} seconds")
-        await asyncio.sleep(0.1)  # TODO: variabiliser
+        if loop.time() - start_time > max_retries * (retry_countdown + task_timeout):
+            raise ModelIsTooBusyException(detail=f"Model is too busy after {max_retries * retry_countdown} seconds")
+        await asyncio.sleep(task_interval)
 
     try:
         result = async_result.result  # direct access is safe after ready() returns True

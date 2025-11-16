@@ -270,7 +270,8 @@ class BaseModelProvider(ABC):
             # Check if the time series already exists
             await redis_client.ts().info(key)
         except Exception:
-            # Time series doesn't exist, create it with retention
+            # Time series doesn't exist, create it with retention and duplicate policy
+            # duplicate_policy="LAST" allows overwriting values with the same timestamp
             try:
                 await redis_client.ts().create(key, retention_msecs=REDIS__TIMESERIE_RETENTION_SECONDS * 1000, duplicate_policy="LAST")
             except Exception:
@@ -290,7 +291,7 @@ class BaseModelProvider(ABC):
             if ttft is not None:
                 key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{Metric.TTFT.value}:{self.id}"
                 await self._ensure_timeseries_exists(redis_client, key)
-                await redis_client.ts().add(key, "*", ttft)
+                await redis_client.ts().add(key=key, timestamp=int(time.time() * 1000), value=ttft)
         except Exception:
             logger.error(f"Failed to log request metrics (TTFT) in redis (id: {self.id})", exc_info=True)
             await redis_client.reset()
@@ -299,7 +300,8 @@ class BaseModelProvider(ABC):
             if latency is not None:
                 key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{Metric.LATENCY.value}:{self.id}"
                 await self._ensure_timeseries_exists(redis_client, key)
-                await redis_client.ts().add(key, "*", latency)
+                # Use milliseconds timestamp to avoid collisions
+                await redis_client.ts().add(key=key, timestamp=int(time.time() * 1000), value=latency)
         except Exception:
             logger.error(f"Failed to log request metrics (latency) in redis (id: {self.id})", exc_info=True)
             await redis_client.reset()
@@ -337,7 +339,7 @@ class BaseModelProvider(ABC):
         inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
         try:
             try:
-                await redis_client.incr(inflight_key)
+                await redis_client.incr(name=inflight_key)
             except Exception:
                 logger.error("Unable to increment redis inflight key")
 
@@ -367,7 +369,7 @@ class BaseModelProvider(ABC):
                     raise HTTPException(status_code=response.status_code, detail=message)
         finally:
             try:
-                await redis_client.decr(inflight_key)
+                await redis_client.decr(name=inflight_key)
             except Exception:
                 logger.error("Unable to decrement redis requests inflight key")
 
@@ -467,7 +469,7 @@ class BaseModelProvider(ABC):
         async with httpx.AsyncClient(timeout=self.timeout) as async_client:
             inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
             try:
-                await redis_client.incr(inflight_key)
+                await redis_client.incr(name=inflight_key)
             except Exception:
                 logger.error("Unable to increment redis requests inflight key")
 
@@ -546,6 +548,6 @@ class BaseModelProvider(ABC):
                 yield dumps({"detail": type(e).__name__}).encode(), 500
             finally:
                 try:
-                    await redis_client.decr(inflight_key)
+                    await redis_client.decr(name=inflight_key)
                 except Exception:
                     logger.error("Unable to decrement redis requests inflight key")

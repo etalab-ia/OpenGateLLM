@@ -6,9 +6,7 @@ from kombu import Queue
 from redis import ConnectionPool, Redis
 
 from api.utils.configuration import configuration
-from api.utils.variables import PREFIX__CELERY_QUEUE_ROUTING
 
-settings = configuration.settings
 logger = logging.getLogger(__name__)
 
 # Redis connection pool - initialized when worker starts
@@ -21,6 +19,8 @@ def init_redis_pool(**kwargs):
     global _redis_pool
     _redis_pool = ConnectionPool.from_url(url=configuration.dependencies.redis.url)
     logger.info("Redis connection pool initialized for Celery worker")
+    # import tasks to ensure they are registered with Celery
+    # from api.tasks import routing  # noqa: F401,E402
 
 
 def get_redis_client() -> Redis:
@@ -39,59 +39,60 @@ def get_redis_client() -> Redis:
 
 
 celery_app = Celery(main=configuration.settings.app_title)
+# Alias for imports and worker startup script
+
 
 # Base configuration
 celery_app.conf.update(
-    task_always_eager=configuration.settings.celery_task_always_eager,
-    task_eager_propagates=configuration.settings.celery_task_eager_propagates,
-    broker_url=configuration.settings.celery_broker_url,
-    result_backend=configuration.settings.celery_result_backend,
-    worker_prefetch_multiplier=1,
+    broker_url=configuration.dependencies.celery.broker_url,
+    result_backend=configuration.dependencies.celery.result_backend,
+    worker_prefetch_multiplier=configuration.dependencies.celery.worker_prefetch_multiplier,
+    timezone=configuration.dependencies.celery.timezone,
+    enable_utc=configuration.dependencies.celery.enable_utc,
+    task_max_priority=configuration.settings.routing_max_priority,
     task_acks_late=True,
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
-    timezone="UTC",
-    enable_utc=True,
     task_create_missing_queues=True,  # Enable dynamic queue creation
 )
-
-# Priority queues (RabbitMQ only). We lazily declare per-model queues elsewhere; here we set defaults.
-if configuration.settings.celery_broker_url and configuration.settings.celery_broker_url.startswith("amqp://"):
-    # Use a default catch-all queue with priority enabled; model-specific queues reuse same arguments.
-    celery_app.conf.task_queues = (
-        Queue(
-            name=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
-            routing_key=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
-            queue_arguments={"x-max-priority": configuration.settings.celery_task_max_priority},
-        ),
-    )
-    celery_app.conf.task_default_queue = f"{PREFIX__CELERY_QUEUE_ROUTING}.default"
-    celery_app.conf.task_default_exchange = ""
-    celery_app.conf.task_default_routing_key = f"{PREFIX__CELERY_QUEUE_ROUTING}.default"
-    celery_app.conf.task_queue_max_priority = configuration.settings.celery_task_max_priority
 
 
 def ensure_queue_exists(queue_name: str) -> None:
     """
     Ensure a queue exists with proper configuration (priority support for RabbitMQ).
-    This function declares the queue if it doesn't exist yet, ensuring it has the correct
-    arguments for priority queues when using RabbitMQ. With task_create_missing_queues=True,
-    queues are created automatically when tasks are sent, but we still need to declare them
-    with proper arguments for RabbitMQ priority queues.
+    This function declares the queue with priority arguments, even if it already exists.
+    This ensures that queues created automatically by task_create_missing_queues=True
+    are properly configured with priority support.
 
     Args:
         queue_name: The name of the queue to ensure exists
     """
-    if settings.celery_task_always_eager:
+    if configuration.dependencies.celery is None:
         return
 
-    queue = Queue(queue_name, routing_key=queue_name, queue_arguments={"x-max-priority": configuration.settings.celery_task_max_priority})
+    # Create queue definition with priority arguments
+    queue = Queue(queue_name, routing_key=queue_name, queue_arguments={"x-max-priority": configuration.settings.routing_max_priority + 1})
+
+    # Add to task_queues configuration
     existing_queues = celery_app.conf.task_queues or ()
     queue_names = {q.name for q in existing_queues}
     if queue_name not in queue_names:
         celery_app.conf.task_queues = existing_queues + (queue,)
-        celery_app.control.add_consumer(queue_name)
+
+    # Force declaration of the queue in RabbitMQ with priority arguments
+    # This will update existing queues or create new ones with the correct arguments
+    try:
+        with celery_app.connection() as conn:
+            queue.declare(channel=conn.channel())
+            logger.debug(f"Queue '{queue_name}' declared with priority support (x-max-priority={configuration.settings.routing_max_priority + 1})")
+    except Exception as e:
+        logger.warning(f"Failed to declare queue '{queue_name}' with priority arguments: {e}")
+        # Fallback: try to add consumer (for worker processes)
+        try:
+            celery_app.control.add_consumer(queue_name)
+        except Exception:
+            pass
 
 
 # Import tasks to ensure they are registered with Celery

@@ -50,7 +50,7 @@ api = [
     "uvicorn==0.37.0",
     "python-multipart==0.0.20",
     "html-to-markdown==1.4.0",
-    "celery==5.4.0"
+    "celery==5.5.3"
 
 ]
 dev = [

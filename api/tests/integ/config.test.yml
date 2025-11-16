@@ -99,12 +99,12 @@ dependencies:
       - ${ELASTIC_USERNAME:-elasticsearch}
       - ${ELASTIC_PASSWORD:-changeme}
 
-  secretiveshell:
-    url: http://${SECRETIVESHELL_HOST:-secretiveshell}:${SECRETIVESHELL_PORT:-8000}
-
   albert:
     headers:
       Authorization: Bearer ${ALBERT_API_KEY}
+  
+  celery:
+    broker_url: amqp://${RABBITMQ_USER:-rabbitmq}:${RABBITMQ_PASSWORD:-changeme}@${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}/
 
   brave:
     headers:
@@ -156,6 +156,3 @@ settings:
   search_web_user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
   search_multi_agents_synthesis_model: albert-large
   search_multi_agents_reranker_model: albert-small
-  celery_task_always_eager: ${CELERY_TASK_ALWAYS_EAGER:-false}
-  celery_broker_url: amqp://${RABBITMQ_USER:-rabbitmq}:${RABBITMQ_PASSWORD:-changeme}@${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}/
-  celery_result_backend: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/1
