@@ -7,15 +7,14 @@ services:
       dockerfile: api/Dockerfile
       target: worker
     volumes:
-      - "../api/tests/integ/config.test.yml:/config.yml:ro"
+      - "../${CONFIG_FILE}:/config.yml:ro"
     environment:
       - RABBITMQ_HOST=rabbitmq
+      - CELERY_EXTRA_ARGS=${CELERY_EXTRA_ARGS:-}
     depends_on:
       redis:
         condition: service_healthy
       rabbitmq:
-        condition: service_healthy
-      postgres:
         condition: service_healthy
 
   postgres:
@@ -35,8 +34,8 @@ services:
       - "15672:15672"
       - "${RABBITMQ_PORT:-5672}:5672"
     environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-rabbitmq}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-changeme}
+      - RABBITMQ_DEFAULT_USER=rabbitmq
+      - RABBITMQ_DEFAULT_PASS=changeme
     healthcheck:
       test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping && rabbitmqctl -q status"]
       interval: 5s
@@ -53,8 +52,8 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
-      - "ELASTIC_USERNAME=${ELASTICSEARCH_USER:-elasticsearch}"
-      - "ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-changeme}"
+      - "ELASTIC_USERNAME=elasticsearch"
+      - "ELASTIC_PASSWORD=changeme"
     volumes:
       - elasticsearch:/usr/share/elasticsearch/data
     healthcheck:

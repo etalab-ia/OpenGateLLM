@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 from billiard.exceptions import SoftTimeLimitExceeded
@@ -5,12 +6,14 @@ from celery.exceptions import MaxRetriesExceededError, Retry
 
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.core.metrics import Metric
-from api.tasks.celery_app import celery_app, get_redis_client
+from api.tasks import app, get_redis_client
 from api.utils.load_balancing import apply_sync_load_balancing
 from api.utils.qos import apply_sync_qos_policy
 
+logger = logging.getLogger(__name__)
 
-@celery_app.task(name="model.invoke", bind=True)
+
+@app.task(name="routing.apply", bind=True)
 def apply_routing(
     self,
     candidates: list[tuple[int, Metric | None, float | None]],
@@ -35,7 +38,6 @@ def apply_routing(
     """
     try:
         redis_client = get_redis_client()
-
         provider_id, _ = apply_sync_load_balancing(
             load_balancing_strategy=load_balancing_strategy,
             candidates=[provider_id for provider_id, _, _ in candidates],
@@ -44,6 +46,7 @@ def apply_routing(
         )
         qos_metric, qos_limit = [(metric, value) for id, metric, value in candidates if id == provider_id][0]
         can_be_forwarded = apply_sync_qos_policy(provider_id=provider_id, qos_metric=qos_metric, qos_limit=qos_limit, redis_client=redis_client)
+
         if can_be_forwarded:
             return {"status_code": 200, "provider_id": provider_id}
         else:
@@ -52,8 +55,11 @@ def apply_routing(
     except Retry:
         raise
     except MaxRetriesExceededError:
+        logger.error(f"Task {self.request.id}: Max retries exceeded", exc_info=True)
         return {"status_code": 503, "body": {"detail": "Max retries exceeded"}}
     except SoftTimeLimitExceeded:
+        logger.error(f"Task {self.request.id}: Soft time limit exceeded", exc_info=True)
         return {"status_code": 504, "body": {"detail": "Model invocation exceeded the soft time limit"}}
     except Exception as e:  # pragma: no cover - defensive
+        logger.exception(f"Task {self.request.id}: An unexpected error occurred", exc_info=True)
         return {"status_code": 500, "body": {"detail": type(e).__name__}}

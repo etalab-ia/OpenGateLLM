@@ -91,13 +91,14 @@ async def _setup_postgres_session(configuration: Configuration, global_context: 
 
 async def _setup_model_registry(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
     """Setup the model registry by fetching the models defined in the DB and the configuration. Basic conflict handling between the DB and config."""
+    queuing_enabled = configuration.dependencies.celery is not None
     async for session in get_postgres_session():
         global_context.model_registry = ModelRegistry(
             app_title=configuration.settings.app_title,
-            task_always_eager=configuration.settings.celery_task_always_eager,
-            task_max_priority=configuration.settings.celery_task_max_priority,
-            task_max_retries=configuration.settings.celery_task_max_retries,
-            task_retry_countdown=configuration.settings.celery_task_retry_countdown,
+            queuing_enabled=queuing_enabled,
+            max_priority=configuration.settings.routing_max_priority,
+            max_retries=configuration.settings.routing_max_retries,
+            retry_countdown=configuration.settings.routing_retry_countdown,
         )
         await global_context.model_registry.setup(models=configuration.models, session=session)
 

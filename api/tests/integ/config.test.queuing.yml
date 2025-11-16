@@ -103,6 +103,9 @@ dependencies:
     headers:
       Authorization: Bearer ${ALBERT_API_KEY}
   
+  celery:
+    broker_url: amqp://rabbitmq:changeme@localhost:${RABBITMQ_PORT:-5672}/
+
   brave:
     headers:
       Accept: application/json

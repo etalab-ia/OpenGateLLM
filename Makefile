@@ -6,7 +6,6 @@ service ?= both
 env ?= .env
 action ?= all
 compose ?= compose.yml
-execute ?= local
 
 # help -----------------------------------------------------------------------------------------------------------------------------------------------
 help:
@@ -27,11 +26,10 @@ help:
 	@echo "test-unit								Run unit tests"
 	@echo "lint									Run linter"
 	@echo ""
-	@echo "test-integ [action=up|run|all] [execute=local|docker]	Run integration tests"
+	@echo "test-integ [action=up|run|all]	Run integration tests"
 	@echo ""
 	@echo " action						Optional, 'up' to start services without running tests, 'run' to run tests without"
 	@echo "							starting services, 'all' to start services and run tests. Default: all"
-	@echo " execute						Optional, run integration tests in local or docker environment. Default: local"
 	@echo ""
 
 # utils ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -177,77 +175,23 @@ create-user:
 			echo "❌ ALBERT_API_KEY and BRAVE_API_KEY must be set (exported in environment or in .github/.env.ci) to run the integration tests"; \
 			exit 1; \
 		fi'
-	@bash -c 'set -a; . .github/.env.ci; \
-	if [ "$(execute)" = "local" ]; then \
-		if [ $$POSTGRES_HOST != "localhost" ]; then \
-			echo "❌ POSTGRES_HOST must be set to 'localhost' in order to run the integration tests local execute"; \
-			exit 1; \
-		fi; \
-		if [ $$REDIS_HOST != "localhost" ]; then \
-			echo "❌ REDIS_HOST must be set to 'localhost' in order to run the integration tests local execute"; \
-			exit 1; \
-		fi; \
-		if [ $$ELASTICSEARCH_HOST != "localhost" ]; then \
-			echo "❌ ELASTICSEARCH_HOST must be set to 'localhost' in order to run the integration tests local execute"; \
-			exit 1; \
-		fi; \
-	else \
-		if [ $$POSTGRES_HOST != "postgres" ]; then \
-			echo "❌ POSTGRES_HOST must be set to 'postgres' in order to run the integration tests in docker execute"; \
-			exit 1; \
-		fi; \
-		if [ $$REDIS_HOST != "redis" ]; then \
-			echo "❌ REDIS_HOST must be set to 'redis' in order to run the integration tests in docker execute"; \
-			exit 1; \
-		fi; \
-		if [ $$ELASTICSEARCH_HOST != "elasticsearch" ]; then \
-			echo "❌ ELASTICSEARCH_HOST must be set to 'elasticsearch' in order to run the integration tests in docker execute"; \
-			exit 1; \
-		fi; \
-		if [ $$POSTGRES_PORT != "5432" ]; then \
-			echo "❌ POSTGRES_PORT must be set to '5432' in order to run the integration tests in docker execute"; \
-			exit 1; \
-		fi; \
-		if [ $$REDIS_PORT != "6379" ]; then \
-			echo "❌ REDIS_PORT must be set to '6379' in order to run the integration tests in docker execute"; \
-			exit 1; \
-		fi; \
-		if [ $$ELASTICSEARCH_PORT != "9200" ]; then \
-			echo "❌ ELASTICSEARCH_PORT must be set to '9200' in order to run the integration tests in docker execute"; \
-			exit 1; \
-		fi; \
-	fi'
-	@if [ "$(execute)" = "local" ]; then \
-		services=$$(docker compose --file .github/compose.ci.yml config --services 2>/dev/null | grep -v -E "^(api|playground)$$" | tr "\n" " "); \
-	fi; \
-	if ! $(MAKE) --silent .docker-compose env=.github/.env.ci compose=.github/compose.ci.yml services="$$services"; then \
+	if ! $(MAKE) --silent .docker-compose env=.github/.env.ci compose=.github/compose.ci.yml; then \
 		exit 1; \
 	fi
 
 .test-integ-run:
-	@if [ "$(execute)" = "local" ]; then \
-		bash -c 'set -a; . .github/.env.ci; \
-		CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ --config-file=pyproject.toml --cov=./api --cov-report=xml'; \
-	elif [ "$(execute)" = "docker" ]; then \
-		docker compose --file .github/compose.ci.yml --env-file .github/.env.ci run -T --user $$(id -u):$$(id -g) -v $$(pwd)/api:/api api pytest api/tests --cov=./api --cov-report=xml; \
-	fi
+	bash -c 'set -a; . .github/.env.ci; \
+	PYTHONPATH=. pytest api/tests/integ --config-file=pyproject.toml --cov=./api --cov-report=xml'; \
 
 test-integ:
-	@if [ "$(execute)" != "local" ] && [ "$(execute)" != "docker" ]; then \
-		echo "❌ Error: execute must be 'local' or 'docker'"; \
-		echo "Usage: make test-integ [action=up|run|all] [execute=local|docker]"; \
-		echo "Use 'make help' for more information."; \
-		exit 1; \
-	fi
-
 	@if [ "$(action)" = "up" ] || [ "$(action)" = "all" ]; then \
-		if ! $(MAKE) --silent .test-integ-up execute=$(execute); then \
+		if ! $(MAKE) --silent .test-integ-up; then \
 			exit 1; \
 		fi; \
-		echo "✅ Environment setup completed: run tests with 'make test-integ action=run execute=$(execute)'"; \
+		echo "✅ Environment setup completed: run tests with 'make test-integ action=run'"; \
 	fi
 	@if [ "$(action)" = "run" ] || [ "$(action)" = "all" ]; then \
-		if ! $(MAKE) --silent .test-integ-run execute=$(execute); then \
+		if ! $(MAKE) --silent .test-integ-run; then \
 			exit 1; \
 		fi; \
 		echo "✅ Integration tests completed."; \

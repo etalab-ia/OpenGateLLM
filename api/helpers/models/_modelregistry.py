@@ -19,7 +19,7 @@ from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 from api.sql.models import User as UserTable
-from api.tasks.celery_app import ensure_queue_exists
+from api.tasks import ensure_queue_exists
 from api.utils.exceptions import (
     InconsistentModelMaxContextLengthException,
     InconsistentModelVectorSizeException,
@@ -87,16 +87,16 @@ class ModelRegistry:
     def __init__(
         self,
         app_title: str,
-        task_always_eager: bool,
-        task_max_priority: int,
-        task_max_retries: int,
-        task_retry_countdown: int,
+        queuing_enabled: bool,
+        max_priority: int,
+        max_retries: int,
+        retry_countdown: int,
     ) -> None:
         self.app_title = app_title
-        self.task_always_eager = task_always_eager
-        self.task_max_priority = task_max_priority
-        self.task_max_retries = task_max_retries
-        self.task_retry_countdown = task_retry_countdown
+        self.queuing_enabled = queuing_enabled
+        self.max_priority = max_priority
+        self.max_retries = max_retries
+        self.retry_countdown = retry_countdown
 
     async def setup(self, models: list[ModelConfiguration], session: AsyncSession) -> None:
         """
@@ -156,7 +156,7 @@ class ModelRegistry:
                     raise e
                 logging.info(f"Provider {provider.model_name} successfully created for router {model.name} (id: {provider_id})")
 
-            if not self.task_always_eager:
+            if self.queuing_enabled:
                 routers = await self.get_routers(router_id=None, name=None, session=session)
                 for router in routers:
                     ensure_queue_exists(queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router.id}")
@@ -226,7 +226,7 @@ class ModelRegistry:
 
         await session.commit()
 
-        if not self.task_always_eager:
+        if self.queuing_enabled:
             ensure_queue_exists(queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router_id}")
 
         return router_id
@@ -250,6 +250,8 @@ class ModelRegistry:
         # Delete will cascade to providers and aliases due to foreign key constraints
         await session.execute(delete(RouterTable).where(RouterTable.id == router_id))
         await session.commit()
+
+        # TODO: delete queue
 
     async def update_router(
         self,
@@ -732,24 +734,27 @@ class ModelRegistry:
         if len(providers) == 0:
             raise ModelNotFoundException()
 
-        elif self.task_always_eager:
-            provider_id = await apply_routing_without_queuing(
-                providers=providers,
-                load_balancing_strategy=router.load_balancing_strategy,
-                load_balancing_metric=Metric.TTFT,
-                redis_client=redis_client,
-            )
-
-        else:
-            priority = max(0, min(int(request_context.get().user_info.priority), self.task_max_priority - 1))  # 0-(n-1) usable priorities (n levels)
+        elif self.queuing_enabled:
+            # ensure priority is between 0 and max_priority
+            priority = max(0, min(int(request_context.get().user_info.priority), self.max_priority))
             provider_id = await apply_routing_with_queuing(
                 providers=providers,
                 load_balancing_strategy=router.load_balancing_strategy,
                 load_balancing_metric=Metric.TTFT,
+                retry_countdown=self.retry_countdown,
+                max_retries=self.max_retries,
                 queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router.id}",
                 priority=priority,
-                retry_countdown=self.task_retry_countdown,
-                max_retries=self.task_max_retries,
+            )
+
+        else:
+            provider_id = await apply_routing_without_queuing(
+                providers=providers,
+                load_balancing_strategy=router.load_balancing_strategy,
+                load_balancing_metric=Metric.TTFT,
+                retry_countdown=self.retry_countdown,
+                max_retries=self.max_retries,
+                redis_client=redis_client,
             )
 
         providers = await self.get_providers(router_id=router.id, provider_id=provider_id, session=session)

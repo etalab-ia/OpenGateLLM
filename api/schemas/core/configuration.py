@@ -2,6 +2,7 @@ from enum import Enum
 from functools import wraps
 import logging
 import os
+from pathlib import Path
 import re
 from typing import Any, Literal
 
@@ -131,6 +132,7 @@ class WebSearchEngineType(str, Enum):
 
 class DependencyType(str, Enum):
     ALBERT = "albert"
+    CELERY = "celery"
     BRAVE = "brave"
     DUCKDUCKGO = "duckduckgo"
     ELASTICSEARCH = "elasticsearch"
@@ -146,6 +148,14 @@ class AlbertDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(default="https://albert.api.etalab.gouv.fr", description="Albert API url.")  # fmt: off
     headers: dict[str, str] = Field(default_factory=dict, description="Albert API request headers.", examples=[{"Authorization": "Bearer my-api-key"}])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Albert API requests.", examples=[10])  # fmt: off
+
+
+@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#celery")
+class CeleryDependency(ConfigBaseModel):
+    broker_url: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Celery broker url like Redis (redis://) or RabbitMQ (amqp://). If not provided, use redis dependency as broker.")  # fmt: off
+    result_backend: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Celery result backend url. If not provided, use redis dependency as result backend.")  # fmt: off
+    timezone: str = Field(default="UTC", description="Timezone.", examples=["UTC"])  # fmt: off
+    enable_utc: bool = Field(default=True, description="Enable UTC.", examples=[True])  # fmt: off
 
 
 @custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#brave")
@@ -229,6 +239,7 @@ class EmptyDepencency(ConfigBaseModel):
 @custom_validation_error(url="https://github.com/etalab-ia/albert-api/blob/main/docs/configuration.md#dependencies")
 class Dependencies(ConfigBaseModel):
     albert: AlbertDependency | None = Field(default=None, description="If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section.")  # fmt: off
+    celery: CeleryDependency | None = Field(default=None, description="If provided, Celery is used to run tasks asynchronously with queues. Pass arguments to call Celery in this section.")  # fmt: off
     brave: BraveDependency | None = Field(default=None, description="If provided, Brave API is used to web search. Cannot be used with DuckDuckGo dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://api-dashboard.search.brave.com/app/documentation/web-search/query for more information.")  # fmt: off
     duckduckgo: DuckDuckGoDependency | None = Field(default=None, description="If provided, DuckDuckGo API is used to web search. Cannot be used with Brave dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://www.searchapi.io/docs/duckduckgo-api for more information.")  # fmt: off
     elasticsearch: ElasticsearchDependency | None = Field(default=None, description="Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information. Some others arguments are available to configure the Elasticsearch index. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency).")  # fmt: off
@@ -240,7 +251,27 @@ class Dependencies(ConfigBaseModel):
     proconnect: ProConnect | None = Field(default=None, description="ProConnect configuration for the API. See https://github.com/etalab-ia/albert-api/blob/main/docs/oauth2_encryption.md for more information.")  # fmt: off
 
     @model_validator(mode="after")
-    def validate_dependencies(cls, values):
+    def complete_celery(self):
+        if self.celery is not None:
+            if self.celery.broker_url is None:
+                self.celery.broker_url = self.redis.url
+            if self.celery.result_backend is None:
+                self.celery.result_backend = self.redis.url
+
+            logging.info("Celery queuing is enabled.")
+
+        return self
+
+    @model_validator(mode="after")
+    def validate_dependencies(self):
+        """
+        Check if only one dependency of each family is provided. For example, VectorStoreType can be Qdrant or Elasticsearch, but not both.
+
+        The vector store dependency can be Qdrant or Elasticsearch, it is converted into a single attribute called "vector_store".
+        The parser dependency can be Albert or Marker, it is converted into a single attribute called "parser".
+        The web search engine dependency can be Brave or DuckDuckGo, it is converted into a single attribute called "web_search_engine".
+        """
+
         def create_attribute(name: str, type: Enum, values: Any):
             candidates = [item for item in type if getattr(values, item.value) is not None]
 
@@ -268,11 +299,11 @@ class Dependencies(ConfigBaseModel):
 
             return values
 
-        values = create_attribute(name="web_search_engine", type=WebSearchEngineType, values=values)
-        values = create_attribute(name="parser", type=ParserType, values=values)
-        values = create_attribute(name="vector_store", type=VectorStoreType, values=values)
+        self = create_attribute(name="web_search_engine", type=WebSearchEngineType, values=self)
+        self = create_attribute(name="parser", type=ParserType, values=self)
+        self = create_attribute(name="vector_store", type=VectorStoreType, values=self)
 
-        return values
+        return self
 
 
 # settings -------------------------------------------------------------------------------------------------------------------------------------------
@@ -302,6 +333,11 @@ class Settings(ConfigBaseModel):
     disabled_routers: list[Routers] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["embeddings"]])  # fmt: off
     hidden_routers: list[Routers] = Field(default_factory=list, description="Routers are enabled but hidden in the swagger and the documentation of the API.", examples=[["admin"]])  # fmt: off
     app_title: str | None = Field(default=DEFAULT_APP_NAME, description="Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["My API"])  # fmt: off
+
+    # routing
+    routing_max_retries: int = Field(default=3, ge=1, description="Maximum number of retries for routing tasks.")  # fmt: off
+    routing_retry_countdown: int = Field(default=3, ge=1, description="Number of seconds before retrying a failed routing task.")  # fmt: off
+    routing_max_priority: int = Field(default=4, ge=0, le=10, description="Maximum allowed priority in routing tasks.")  # fmt: off
 
     # usage tokenizer
     usage_tokenizer: Tokenizer = Field(default=Tokenizer.TIKTOKEN_GPT2, description="Tokenizer used to compute usage of the API.")  # fmt: off
@@ -347,36 +383,22 @@ class Settings(ConfigBaseModel):
 
     front_url: str = Field(default="http://localhost:8501", description="Front-end URL for the application.")
 
-    # celery
-    # TODO: pass celery as dependency
-    celery_task_always_eager: bool = Field(default=True, description="Execute Celery tasks locally (synchronously) without a broker. Set to false in production to use the configured broker/result backend.")  # fmt: off
-    celery_task_eager_propagates: bool = Field(default=True, description="If true, exceptions in eager mode propagate immediately (useful for tests/development).")  # fmt: off
-    celery_broker_url: str | None = Field(default=None, description="Celery broker URL (e.g. redis://localhost:6379/0 or amqp://user:pass@host:5672/). Required if celery_task_always_eager is false.")  # fmt: off
-    celery_result_backend: str | None = Field(default=None,description="Celery result backend URL (e.g. redis://localhost:6379/1 or rpc://). If not provided, results may not persist across workers.")  # fmt: off
-    celery_task_retry_countdown: int = Field(default=1,ge=1, description="Number of seconds before retrying a failed celery task.")  # fmt: off
-    celery_task_max_retries: int = Field(default=120, ge=1, description="Maximum number of retries for celery tasks.")  # fmt: off
-    celery_task_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in celery tasks.")  # fmt: off
-
     @model_validator(mode="after")
-    def validate_model(cls, values) -> Any:
-        if values.session_secret_key is None:
+    def validate_model(self) -> Any:
+        if self.session_secret_key is None:
             logging.warning("Session secret key not provided, using master key.")  # fmt: off
-            values.session_secret_key = values.auth_master_key
+            self.session_secret_key = self.auth_master_key
 
-        if len(values.auth_master_key) < 32:
+        if len(self.auth_master_key) < 32:
             logging.warning("Auth master key is too short for production, it should be at least 32 characters.")  # fmt: off
 
-        if any(router in values.hidden_routers for router in [ROUTER__ADMIN, ROUTER__AUTH]):
+        if any(router in self.hidden_routers for router in [ROUTER__ADMIN, ROUTER__AUTH]):
             logging.warning("Admin router should be hidden in production.")  # fmt: off
 
-        if ROUTER__AUTH not in values.hidden_routers:
+        if ROUTER__AUTH not in self.hidden_routers:
             logging.warning("Auth router should be hidden in production.")  # fmt: off
 
-        # Celery validation
-        if not values.celery_task_always_eager and not values.celery_broker_url:
-            raise ValueError("celery_broker_url must be set when celery_task_always_eager is False")
-
-        return values
+        return self
 
 
 # load config ----------------------------------------------------------------------------------------------------------------------------------------
@@ -393,12 +415,12 @@ class ConfigFile(ConfigBaseModel):
         return settings
 
     @model_validator(mode="after")
-    def validate_models(cls, values) -> Any:
+    def validate_models(self) -> Any:
         # get all models and aliases for each model type
         models = {"all": []}
         for model_type in ModelType:
             models[model_type.value] = []
-            for model in values.models:
+            for model in self.models:
                 if model.type == model_type:
                     model_names_and_aliases = [alias for alias in model.aliases] + [model.name]
                     models[model_type.value].extend(model_names_and_aliases)
@@ -413,17 +435,17 @@ class ConfigFile(ConfigBaseModel):
             raise ValueError(f"Duplicated model or alias names found: {", ".join(set(duplicated_models))}")
 
         # check for interdependencies
-        if values.dependencies.vector_store:
-            assert values.settings.vector_store_model, "Vector store model must be defined in settings section."
-            assert values.settings.vector_store_model in models["all"], "Vector store model must be defined in models section."
-            assert values.settings.vector_store_model in models[ModelType.TEXT_EMBEDDINGS_INFERENCE.value], f"The vector store model must have type {ModelType.TEXT_EMBEDDINGS_INFERENCE}."  # fmt: off
+        if self.dependencies.vector_store:
+            assert self.settings.vector_store_model, "Vector store model must be defined in settings section."
+            assert self.settings.vector_store_model in models["all"], "Vector store model must be defined in models section."
+            assert self.settings.vector_store_model in models[ModelType.TEXT_EMBEDDINGS_INFERENCE.value], f"The vector store model must have type {ModelType.TEXT_EMBEDDINGS_INFERENCE}."  # fmt: off
 
-        if values.dependencies.web_search_engine:
-            assert values.settings.search_web_query_model, "Web search query model must be defined in settings section."
-            assert values.settings.search_web_query_model in models["all"], "Web search query model must be defined in models section."
-            assert values.settings.search_web_query_model in models[ModelType.IMAGE_TEXT_TO_TEXT.value] + models[ModelType.TEXT_GENERATION.value], f"Web search query model must be defined in models section with type {ModelType.TEXT_GENERATION} or {ModelType.IMAGE_TEXT_TO_TEXT}."  # fmt: off
+        if self.dependencies.web_search_engine:
+            assert self.settings.search_web_query_model, "Web search query model must be defined in settings section."
+            assert self.settings.search_web_query_model in models["all"], "Web search query model must be defined in models section."
+            assert self.settings.search_web_query_model in models[ModelType.IMAGE_TEXT_TO_TEXT.value] + models[ModelType.TEXT_GENERATION.value], f"Web search query model must be defined in models section with type {ModelType.TEXT_GENERATION} or {ModelType.IMAGE_TEXT_TO_TEXT}."  # fmt: off
 
-        return values
+        return self
 
 
 class Configuration(BaseSettings):
@@ -434,27 +456,27 @@ class Configuration(BaseSettings):
 
     @field_validator("config_file", mode="before")
     def config_file_exists(cls, config_file):
-        assert os.path.exists(path=config_file), f"Config file ({config_file}) not found."
+        assert Path(config_file).is_file(), f"Config file ({config_file}) not found."
         return config_file
 
     @model_validator(mode="after")
-    def setup_config(cls, values) -> Any:
-        with open(file=values.config_file) as file:
+    def setup_config(self) -> Any:
+        with open(file=self.config_file) as file:
             lines = file.readlines()
 
         # remove commented lines
         uncommented_lines = [line for line in lines if not line.lstrip().startswith("#")]
 
         # replace environment variables
-        file_content = cls.replace_environment_variables(file_content="".join(uncommented_lines))
+        file_content = self.replace_environment_variables(file_content="".join(uncommented_lines))
         # load config
         config = ConfigFile(**yaml.safe_load(stream=file_content))
 
-        values.models = config.models
-        values.dependencies = config.dependencies
-        values.settings = config.settings
+        self.models = config.models
+        self.dependencies = config.dependencies
+        self.settings = config.settings
 
-        return values
+        return self
 
     @classmethod
     def replace_environment_variables(cls, file_content):

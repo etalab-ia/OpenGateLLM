@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        with_queuing: [with queuing, without queuing]
+        config_file: [api/tests/integ/config.test.yml, api/tests/integ/config.test.queuing.yml]
 
     steps:
     - uses: actions/checkout@v4
@@ -76,14 +76,19 @@ jobs:
         # Activate venv for the test run
         . .venv/bin/activate
 
+        echo "Listing files in root:"
+        ls -la .
+        echo "Listing files in api/tests/integ:"
+        ls -la api/tests/integ
+
         # Run integration tests
-        make test-integ action=all execute=local
+        make test-integ action=all
       env:
-        CELERY_TASK_ALWAYS_EAGER: ${{ matrix.with_queuing == 'with queuing' && 'false' || 'true' }}
+        CONFIG_FILE: ${{ matrix.config_file }}
         BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
         ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}
-
+    
     - name: Tear down Docker Compose
       if: always()
       run: |
-        make test-integ action=down execute=docker
+        make test-integ action=down

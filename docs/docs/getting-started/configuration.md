@@ -149,13 +149,6 @@ settings:
 | auth_key_max_expiration_days | integer | Maximum number of days for a new API key to be valid. |  | None |  |  |
 | auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. |  | changeme |  |  |
 | auth_playground_session_duration | integer | Duration of the playground session in seconds. |  | 3600 |  |  |
-| celery_broker_url | string | Celery broker URL (e.g. redis://localhost:6379/0 or amqp://user:pass@host:5672/). Required if celery_task_always_eager is false. |  | None |  |  |
-| celery_result_backend | string | Celery result backend URL (e.g. redis://localhost:6379/1 or rpc://). If not provided, results may not persist across workers. |  | None |  |  |
-| celery_task_always_eager | boolean | Execute Celery tasks locally (synchronously) without a broker. Set to false in production to use the configured broker/result backend. |  | True |  |  |
-| celery_task_eager_propagates | boolean | If true, exceptions in eager mode propagate immediately (useful for tests/development). |  | True |  |  |
-| celery_task_max_priority | integer | Maximum allowed priority in celery tasks. |  | 10 |  |  |
-| celery_task_max_retries | integer | Maximum number of retries for celery tasks. |  | 120 |  |  |
-| celery_task_retry_countdown | integer | Number of seconds before retrying a failed celery task. |  | 1 |  |  |
 | disabled_routers | array | Disabled routers to limits services of the API. |  |  | • admin<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• documents<br></br>• embeddings<br></br>• ... | ['embeddings'] |
 | front_url | string | Front-end URL for the application. |  | http://localhost:8501 |  |  |
 | hidden_routers | array | Routers are enabled but hidden in the swagger and the documentation of the API. |  |  | • admin<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• documents<br></br>• embeddings<br></br>• ... | ['admin'] |
@@ -164,6 +157,9 @@ settings:
 | monitoring_postgres_enabled | boolean | If true, the log usage will be written in the PostgreSQL database. |  | True |  |  |
 | monitoring_prometheus_enabled | boolean | If true, Prometheus metrics will be exposed in the `/metrics` endpoint. |  | True |  |  |
 | rate_limiting_strategy | string | Rate limiting strategy for the API. |  | fixed_window | • moving_window<br></br>• fixed_window<br></br>• sliding_window |  |
+| routing_max_priority | integer | Maximum allowed priority in routing tasks. |  | 10 |  |  |
+| routing_max_retries | integer | Maximum number of retries for routing tasks. |  | 3 |  |  |
+| routing_retry_countdown | integer | Number of seconds before retrying a failed routing task. |  | 3 |  |  |
 | search_web_limited_domains | array | Limited domains for the web search. If provided, the web search will be limited to these domains. |  |  |  |  |
 | search_web_query_model | string | Model used to query the web in the web search. Is required if a web search dependency is provided (Brave or DuckDuckGo). This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`. |  | None |  |  |
 | search_web_user_agent | string | User agent to scrape the web. If provided, the web search will use this user agent. |  | None |  |  |
@@ -226,6 +222,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 | --- | --- | --- | --- | --- | --- | --- |
 | albert | object | If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section. For details of configuration, see the [AlbertDependency section](#albertdependency). |  | None |  |  |
 | brave | object | If provided, Brave API is used to web search. Cannot be used with DuckDuckGo dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://api-dashboard.search.brave.com/app/documentation/web-search/query for more information. For details of configuration, see the [BraveDependency section](#bravedependency). |  | None |  |  |
+| celery | object | If provided, Celery is used to run tasks asynchronously with queues. Pass arguments to call Celery in this section. For details of configuration, see the [CeleryDependency section](#celerydependency). |  | None |  |  |
 | duckduckgo | object | If provided, DuckDuckGo API is used to web search. Cannot be used with Brave dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://www.searchapi.io/docs/duckduckgo-api for more information. For details of configuration, see the [DuckDuckGoDependency section](#duckduckgodependency). |  | None |  |  |
 | elasticsearch | object | Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information. Some others arguments are available to configure the Elasticsearch index. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). |  | None |  |  |
 | marker | object | If provided, Marker API is used to parse pdf documents. Cannot be used with Albert dependency concurrently. Pass arguments to call Marker API in this section. For details of configuration, see the [MarkerDependency section](#markerdependency). |  | None |  |  |
@@ -298,6 +295,16 @@ For more information to configure model providers, see the [ModelProvider sectio
 
 <br></br>
 
+#### CeleryDependency
+| Attribute | Type | Description | Required | Default | Values | Examples |
+| --- | --- | --- | --- | --- | --- | --- |
+| broker_url | string | Celery broker url like Redis (redis://) or RabbitMQ (amqp://). If not provided, use redis dependency as broker. |  | None |  |  |
+| enable_utc | boolean | Enable UTC. |  | True |  | True |
+| result_backend | string | Celery result backend url. If not provided, use redis dependency as result backend. |  | None |  |  |
+| timezone | string | Timezone. |  | UTC |  | UTC |
+
+<br></br>
+
 #### BraveDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -336,7 +343,6 @@ For Plagroud deployment, some environment variables are required to be set, like
 | --- | --- | --- | --- | --- | --- | --- |
 | app_title | string | The title of the application. |  | OpenGateLLM |  |  |
 | auth_key_max_expiration_days | integer | Maximum number of days for a token to be valid. |  | None |  |  |
-| celery_task_max_priority | integer | Maximum allowed priority in celery tasks. |  | 10 |  |  |
 | playground_default_model | string | The first model selected in chat page. |  | None |  |  |
 | playground_opengatellm_url | string | The URL of the OpenGateLLM API. |  | http://localhost:8000 |  |  |
 | playground_theme_accent_color | string | The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors. |  | purple |  |  |
@@ -346,6 +352,7 @@ For Plagroud deployment, some environment variables are required to be set, like
 | playground_theme_panel_background | string | Whether panel backgrounds are translucent: 'solid' | 'translucent'. |  | solid |  |  |
 | playground_theme_radius | string | The radius of the theme. Can be 'small', 'medium', or 'large'. |  | medium |  |  |
 | playground_theme_scaling | string | The scaling of the theme. |  | 100% |  |  |
+| routing_max_priority | integer | Maximum allowed priority in routing tasks. |  | 10 |  |  |
 
 <br></br>
 
