@@ -84,7 +84,7 @@ if __name__ == "__main__":
                    {display_limits}
 
 \033[32;1mEmail:\033[0m             {args.first_email}
-\033[32;1mPassword:\033[0m          {args.first_password}\033
+\033[32;1mPassword:\033[0m          {args.first_password}
 
 \033[32;1mAPI key:\033[0m           {key}
 """)
