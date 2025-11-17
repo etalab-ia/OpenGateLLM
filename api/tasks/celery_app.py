@@ -2,11 +2,9 @@ import logging
 
 from celery import Celery
 from celery.signals import worker_init, worker_ready
-from celery.worker.control import Panel
 from kombu import Queue
 from redis import ConnectionPool, Redis
 
-from api.tasks import routing  # noqa: F401
 from api.utils.configuration import configuration
 
 logger = logging.getLogger(__name__)
@@ -133,73 +131,74 @@ if configuration.dependencies.celery is not None:
     ensure_queue_exists("celery")
 
 
-# Override the default add_consumer command to use queue definitions from task_queues
-# This ensures that when add_consumer() is called, it uses the queue definition
-# from task_queues which includes priority arguments, avoiding PreconditionFailed errors
-def add_consumer_with_priority(state, queue=None, exchange=None, exchange_type="direct", routing_key=None, **options):
-    """
-    Custom add_consumer command that uses queue definition from task_queues.
-    This ensures that queues are declared with priority arguments.
-    """
-    if not queue:
-        return {"error": "queue name is required"}
+# # Override the default add_consumer command to use queue definitions from task_queues
+# # This ensures that when add_consumer() is called, it uses the queue definition
+# # from task_queues which includes priority arguments, avoiding PreconditionFailed errors
+# def add_consumer_with_priority(state, queue=None, exchange=None, exchange_type="direct", routing_key=None, **options):
+#     """
+#     Custom add_consumer command that uses queue definition from task_queues.
+#     This ensures that queues are declared with priority arguments.
+#     """
+#     if not queue:
+#         return {"error": "queue name is required"}
 
-    # Find the queue definition in task_queues
-    queue_def = None
-    if celery_app.conf.task_queues:
-        for q in celery_app.conf.task_queues:
-            if q.name == queue:
-                queue_def = q
-                break
+#     # Find the queue definition in task_queues
+#     queue_def = None
+#     if celery_app.conf.task_queues:
+#         for q in celery_app.conf.task_queues:
+#             if q.name == queue:
+#                 queue_def = q
+#                 break
 
-    # If queue not found in task_queues, create it with priority arguments
-    if not queue_def:
-        logger.info(f"Queue '{queue}' not found in task_queues, creating with priority arguments")
-        # Create queue definition with priority arguments
-        queue_def = Queue(
-            queue,
-            routing_key=routing_key or queue,
-            exchange=exchange,
-            exchange_type=exchange_type or "direct",
-            queue_arguments={"x-max-priority": configuration.settings.routing_max_priority + 1},
-        )
-        # Add to task_queues for future reference
-        existing_queues = celery_app.conf.task_queues or ()
-        queue_names = {q.name for q in existing_queues}
-        if queue not in queue_names:
-            celery_app.conf.task_queues = existing_queues + (queue_def,)
+#     # If queue not found in task_queues, create it with priority arguments
+#     if not queue_def:
+#         logger.info(f"Queue '{queue}' not found in task_queues, creating with priority arguments")
+#         # Create queue definition with priority arguments
+#         queue_def = Queue(
+#             queue,
+#             routing_key=routing_key or queue,
+#             exchange=exchange,
+#             exchange_type=exchange_type or "direct",
+#             queue_arguments={"x-max-priority": configuration.settings.routing_max_priority + 1},
+#         )
+#         # Add to task_queues for future reference
+#         existing_queues = celery_app.conf.task_queues or ()
+#         queue_names = {q.name for q in existing_queues}
+#         if queue not in queue_names:
+#             celery_app.conf.task_queues = existing_queues + (queue_def,)
 
-    # Use the queue definition which includes priority arguments
-    logger.info(f"Adding consumer for queue '{queue}' using definition with priority arguments")
-    consumer = state.consumer
-    if hasattr(consumer, "add_task_queue"):
-        consumer.add_task_queue(queue_def)
-        return {"ok": f"added consumer for queue '{queue}'"}
-    else:
-        # Fallback: try to create queue manually
-        logger.warning("Consumer does not have add_task_queue method, trying alternative approach")
-        try:
-            # Use the default implementation by creating a queue manually
-            from kombu import Exchange
+#     # Use the queue definition which includes priority arguments
+#     logger.info(f"Adding consumer for queue '{queue}' using definition with priority arguments")
+#     consumer = state.consumer
+#     if hasattr(consumer, "add_task_queue"):
+#         consumer.add_task_queue(queue_def)
+#         return {"ok": f"added consumer for queue '{queue}'"}
+#     else:
+#         # Fallback: try to create queue manually
+#         logger.warning("Consumer does not have add_task_queue method, trying alternative approach")
+#         try:
+#             # Use the default implementation by creating a queue manually
+#             from kombu import Exchange
 
-            ex = Exchange(exchange or queue, type=exchange_type or "direct")
-            q = Queue(
-                queue,
-                exchange=ex,
-                routing_key=routing_key or queue,
-                queue_arguments={"x-max-priority": configuration.settings.routing_max_priority + 1},
-            )
-            consumer.add_task_queue(q)
-            return {"ok": f"added consumer for queue '{queue}'"}
-        except Exception as e:
-            logger.error(f"Failed to add consumer for queue '{queue}': {e}", exc_info=True)
-            return {"error": str(e)}
+#             ex = Exchange(exchange or queue, type=exchange_type or "direct")
+#             q = Queue(
+#                 queue,
+#                 exchange=ex,
+#                 routing_key=routing_key or queue,
+#                 queue_arguments={"x-max-priority": configuration.settings.routing_max_priority + 1},
+#             )
+#             consumer.add_task_queue(q)
+#             return {"ok": f"added consumer for queue '{queue}'"}
+#         except Exception as e:
+#             logger.error(f"Failed to add consumer for queue '{queue}': {e}", exc_info=True)
+#             return {"error": str(e)}
 
 
-# Register the custom add_consumer command to override the default one
-# This must be done after celery_app is created
-Panel.register(add_consumer_with_priority, name="add_consumer")
+# # Register the custom add_consumer command to override the default one
+# # This must be done after celery_app is created
+# Panel.register(add_consumer_with_priority, name="add_consumer")
 
 
 # # Import tasks to ensure they are registered with Celery
 # # This ensures that when the worker starts, all tasks are available
+from api.tasks import routing  # noqa: F401,E402

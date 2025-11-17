@@ -109,7 +109,7 @@ async def apply_routing_with_queuing(
                 logger.error(f"Task {task.id}: Info={info}")
             except Exception as e:
                 logger.error(f"Task {task.id}: Could not get task info: {e}")
-            raise ModelIsTooBusyException(detail=f"Model is too busy after {max_retries * retry_countdown} seconds")
+            raise ModelIsTooBusyException(detail=f"Model is too busy after {max_wait_time} seconds")
 
         poll_count += 1
         if poll_count % 10 == 0:  # Log every second (10 * 0.1s)
