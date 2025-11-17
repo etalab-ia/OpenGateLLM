@@ -709,7 +709,7 @@ class IdentityAccessManager:
                 expires=None,
                 created=0,
                 updated=0,
-                priority=None,
+                priority=0,
             )
         else:
             users = await self.get_users(session=session, user_id=user_id, email=email)
