@@ -22,12 +22,16 @@ async def apply_routing_without_queuing(
     load_balancing_metric: Metric,
     redis_client: AsyncRedis,
 ) -> int:
-    provider_id, _ = await apply_async_load_balancing(
-        candidates=[provider.id for provider in providers],
-        load_balancing_strategy=load_balancing_strategy,
-        load_balancing_metric=load_balancing_metric,
-        redis_client=redis_client,
-    )
+    if len(providers) == 1:
+        provider_id = providers[0].id
+    else:
+        provider_id, _ = await apply_async_load_balancing(
+            candidates=[provider.id for provider in providers],
+            load_balancing_strategy=load_balancing_strategy,
+            load_balancing_metric=load_balancing_metric,
+            redis_client=redis_client,
+        )
+
     qos_metric, qos_limit = [(provider.qos_metric, provider.qos_limit) for provider in providers if provider.id == provider_id][0]
 
     can_be_forwarded = await apply_async_qos_policy(
