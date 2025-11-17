@@ -2,7 +2,7 @@ from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
 
 from api.schemas.core.metrics import Metric
-from api.utils.variables import METRIC__GAUGE_PREFIX
+from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE
 
 
 def apply_sync_qos_policy(provider_id: int, qos_metric: Metric, qos_limit: float | None, redis_client: Redis) -> bool:
@@ -12,7 +12,7 @@ def apply_sync_qos_policy(provider_id: int, qos_metric: Metric, qos_limit: float
         return can_be_forwarded
 
     if qos_metric == Metric.INFLIGHT:
-        inflight_requests = redis_client.get(f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{provider_id}")
+        inflight_requests = redis_client.get(f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{provider_id}")
         if inflight_requests is not None:
             inflight_requests = int(inflight_requests)
             if inflight_requests > qos_limit:
@@ -28,7 +28,7 @@ async def apply_async_qos_policy(provider_id: int, qos_metric: Metric, qos_limit
         return can_be_forwarded
 
     if qos_metric == Metric.INFLIGHT:
-        inflight_requests = await redis_client.get(f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{provider_id}")
+        inflight_requests = await redis_client.get(f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{provider_id}")
         if inflight_requests is not None:
             inflight_requests = int(inflight_requests)
             if inflight_requests > qos_limit:

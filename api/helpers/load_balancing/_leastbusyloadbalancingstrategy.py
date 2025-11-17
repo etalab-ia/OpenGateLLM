@@ -8,7 +8,7 @@ from redis.asyncio import Redis as AsyncRedis
 
 from api.helpers.load_balancing import BaseLoadBalancingStrategy
 from api.schemas.core.metrics import Metric
-from api.utils.variables import METRIC__TIMESERIE_PREFIX, METRIC__TIMESERIE_RETENTION_SECONDS
+from api.utils.variables import PREFIX__REDIS_METRIC_TIMESERIE, REDIS__TIMESERIE_RETENTION_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +35,8 @@ class LeastBusyLoadBalancingStrategy(BaseLoadBalancingStrategy):
     def apply_sync_strategy(self, candidates: list[int]) -> tuple[int, float]:
         scores = {}
         for provider_id in candidates:
-            cutoff = datetime.now() - timedelta(seconds=METRIC__TIMESERIE_RETENTION_SECONDS)
-            key = f"{METRIC__TIMESERIE_PREFIX}:{self.metric}:{provider_id}"  # currently only TTFT is supported
+            cutoff = datetime.now() - timedelta(seconds=REDIS__TIMESERIE_RETENTION_SECONDS)
+            key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{self.metric}:{provider_id}"  # currently only TTFT is supported
             try:
                 result = self.redis_client.ts().range(key, from_time=int(cutoff.timestamp() * 1000) if cutoff else 0, to_time="+")
                 series = [(ts, val) for ts, val in result]
@@ -64,8 +64,8 @@ class LeastBusyLoadBalancingStrategy(BaseLoadBalancingStrategy):
     async def apply_async_strategy(self, candidates: list[int]) -> tuple[int, float]:
         scores = {}
         for provider_id in candidates:
-            cutoff = datetime.now() - timedelta(seconds=METRIC__TIMESERIE_RETENTION_SECONDS)
-            key = f"{METRIC__TIMESERIE_PREFIX}:{self.metric}:{provider_id}"  # currently only TTFT is supported
+            cutoff = datetime.now() - timedelta(seconds=REDIS__TIMESERIE_RETENTION_SECONDS)
+            key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{self.metric}:{provider_id}"  # currently only TTFT is supported
             try:
                 result = await self.redis_client.ts().range(key, from_time=int(cutoff.timestamp() * 1000) if cutoff else 0, to_time="+")
                 series = [(ts, val) for ts, val in result]

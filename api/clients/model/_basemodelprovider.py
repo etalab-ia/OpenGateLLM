@@ -26,9 +26,9 @@ from api.utils.variables import (
     ENDPOINT__MODELS,
     ENDPOINT__OCR,
     ENDPOINT__RERANK,
-    METRIC__GAUGE_PREFIX,
-    METRIC__TIMESERIE_PREFIX,
-    METRIC__TIMESERIE_RETENTION_SECONDS,
+    PREFIX__REDIS_METRIC_GAUGE,
+    PREFIX__REDIS_METRIC_TIMESERIE,
+    REDIS__TIMESERIE_RETENTION_SECONDS,
 )
 
 logger = logging.getLogger(__name__)
@@ -272,7 +272,7 @@ class BaseModelProvider(ABC):
         except Exception:
             # Time series doesn't exist, create it with retention
             try:
-                await redis_client.ts().create(key, retention_msecs=METRIC__TIMESERIE_RETENTION_SECONDS * 1000)
+                await redis_client.ts().create(key, retention_msecs=REDIS__TIMESERIE_RETENTION_SECONDS * 1000, duplicate_policy="LAST")
             except Exception:
                 # Time series might have been created by another concurrent request, ignore
                 pass
@@ -288,7 +288,7 @@ class BaseModelProvider(ABC):
         """
         try:
             if ttft is not None:
-                key = f"{METRIC__TIMESERIE_PREFIX}:{Metric.TTFT.value}:{self.id}"
+                key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{Metric.TTFT.value}:{self.id}"
                 await self._ensure_timeseries_exists(redis_client, key)
                 await redis_client.ts().add(key, "*", ttft)
         except Exception:
@@ -297,7 +297,7 @@ class BaseModelProvider(ABC):
 
         try:
             if latency is not None:
-                key = f"{METRIC__TIMESERIE_PREFIX}:{Metric.LATENCY.value}:{self.id}"
+                key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{Metric.LATENCY.value}:{self.id}"
                 await self._ensure_timeseries_exists(redis_client, key)
                 await redis_client.ts().add(key, "*", latency)
         except Exception:
@@ -334,7 +334,7 @@ class BaseModelProvider(ABC):
         if not additional_data:
             additional_data = {}
 
-        inflight_key = f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{self.id}"
+        inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
         try:
             try:
                 await redis_client.incr(inflight_key)
@@ -465,7 +465,7 @@ class BaseModelProvider(ABC):
         url, json, files, data = self._format_request(json=json, files=files, data=data, endpoint=endpoint)
 
         async with httpx.AsyncClient(timeout=self.timeout) as async_client:
-            inflight_key = f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{self.id}"
+            inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
             try:
                 await redis_client.incr(inflight_key)
             except Exception:

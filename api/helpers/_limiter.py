@@ -9,6 +9,7 @@ from api.schemas.admin.roles import LimitType
 from api.schemas.core.configuration import LimitingStrategy
 from api.schemas.me import UserInfo
 from api.utils.exceptions import InsufficientPermissionException, RateLimitExceeded
+from api.utils.variables import PREFIX__REDIS_RATE_LIMIT
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ class Limiter:
             elif type == LimitType.RPD:
                 limit = RateLimitItemPerDay(amount=value)
 
-            result = await self.strategy.hit(limit, f"{type.value}:{user_id}:{router_id}", cost=cost)
+            result = await self.strategy.hit(limit, f"{PREFIX__REDIS_RATE_LIMIT}:{type.value}:{user_id}:{router_id}", cost=cost)
             return result
 
         except Exception:
@@ -74,7 +75,7 @@ class Limiter:
             elif type == LimitType.RPD:
                 limit = RateLimitItemPerDay(amount=value)
 
-            window = await self.strategy.get_window_stats(limit, f"{type.value}:{user_id}:{router_id}")
+            window = await self.strategy.get_window_stats(limit, f"{PREFIX__REDIS_RATE_LIMIT}:{type.value}:{user_id}:{router_id}")
             return window.remaining
 
         except Exception:

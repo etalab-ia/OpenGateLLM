@@ -4,7 +4,7 @@ import pytest
 
 from api.schemas.core.metrics import Metric
 from api.utils.qos import apply_async_qos_policy, apply_sync_qos_policy
-from api.utils.variables import METRIC__GAUGE_PREFIX
+from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE
 
 
 class TestApplySyncQosPolicy:
@@ -19,7 +19,7 @@ class TestApplySyncQosPolicy:
         result = apply_sync_qos_policy(provider_id, qos_metric, qos_limit, redis_client)
         # Then
         assert result is True
-        redis_client.get.assert_called_once_with(f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{provider_id}")
+        redis_client.get.assert_called_once_with(f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{provider_id}")
 
     def test_apply_sync_qos_policy_return_false_when_inflight_requests_exceeds_limit(self):
         # Given
@@ -32,7 +32,7 @@ class TestApplySyncQosPolicy:
         result = apply_sync_qos_policy(provider_id, qos_metric, qos_limit, redis_client)
         # Then
         assert result is False
-        redis_client.get.assert_called_once_with(f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{provider_id}")
+        redis_client.get.assert_called_once_with(f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{provider_id}")
 
     def test_apply_sync_qos_policy_return_false_when_inflight_requests_equals_limit(self):
         # Given
@@ -45,7 +45,7 @@ class TestApplySyncQosPolicy:
         result = apply_sync_qos_policy(provider_id, qos_metric, qos_limit, redis_client)
         # Then
         assert result is True
-        redis_client.get.assert_called_once_with(f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{provider_id}")
+        redis_client.get.assert_called_once_with(f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{provider_id}")
 
     def test_apply_sync_qos_policy_return_true_when_inflight_requests_not_in_redis(self):
         # Given
@@ -58,7 +58,7 @@ class TestApplySyncQosPolicy:
         result = apply_sync_qos_policy(provider_id, qos_metric, qos_limit, redis_client)
         # Then
         assert result is True
-        redis_client.get.assert_called_once_with(f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{provider_id}")
+        redis_client.get.assert_called_once_with(f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{provider_id}")
 
     def test_apply_sync_qos_policy_return_true_when_qos_limit_is_none(self):
         # Given
@@ -112,7 +112,7 @@ class TestApplyAsyncQosPolicy:
         result = await apply_async_qos_policy(provider_id, qos_metric, qos_limit, redis_client)
         # Then
         assert result is True
-        redis_client.get.assert_awaited_once_with(f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{provider_id}")
+        redis_client.get.assert_awaited_once_with(f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{provider_id}")
 
     @pytest.mark.asyncio
     async def test_apply_async_qos_policy_return_false_when_inflight_requests_exceeds_limit(self):
@@ -126,7 +126,7 @@ class TestApplyAsyncQosPolicy:
         result = await apply_async_qos_policy(provider_id, qos_metric, qos_limit, redis_client)
         # Then
         assert result is False
-        redis_client.get.assert_awaited_once_with(f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{provider_id}")
+        redis_client.get.assert_awaited_once_with(f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{provider_id}")
 
     @pytest.mark.asyncio
     async def test_apply_async_qos_policy_return_true_when_inflight_requests_equals_limit(self):
@@ -140,7 +140,7 @@ class TestApplyAsyncQosPolicy:
         result = await apply_async_qos_policy(provider_id, qos_metric, qos_limit, redis_client)
         # Then
         assert result is True
-        redis_client.get.assert_awaited_once_with(f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{provider_id}")
+        redis_client.get.assert_awaited_once_with(f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{provider_id}")
 
     @pytest.mark.asyncio
     async def test_apply_async_qos_policy_return_true_when_inflight_requests_not_in_redis(self):
@@ -154,7 +154,7 @@ class TestApplyAsyncQosPolicy:
         result = await apply_async_qos_policy(provider_id, qos_metric, qos_limit, redis_client)
         # Then
         assert result is True
-        redis_client.get.assert_awaited_once_with(f"{METRIC__GAUGE_PREFIX}:{Metric.INFLIGHT.value}:{provider_id}")
+        redis_client.get.assert_awaited_once_with(f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{provider_id}")
 
     @pytest.mark.asyncio
     async def test_apply_async_qos_policy_return_true_when_qos_limit_is_none(self):
