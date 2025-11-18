@@ -61,14 +61,14 @@ if configuration.settings.celery_broker_url and configuration.settings.celery_br
     # Use a default catch-all queue with priority enabled; model-specific queues reuse same arguments.
     celery_app.conf.task_queues = (
         Queue(
-            name=f"{configuration.settings.celery_default_queue_prefix}.default",
+            name=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
             routing_key=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
             queue_arguments={"x-max-priority": configuration.settings.celery_task_max_priority},
         ),
     )
-    celery_app.conf.task_default_queue = f"{configuration.settings.celery_default_queue_prefix}.default"
+    celery_app.conf.task_default_queue = f"{PREFIX__CELERY_QUEUE_ROUTING}.default"
     celery_app.conf.task_default_exchange = ""
-    celery_app.conf.task_default_routing_key = f"{configuration.settings.celery_default_queue_prefix}.default"
+    celery_app.conf.task_default_routing_key = f"{PREFIX__CELERY_QUEUE_ROUTING}.default"
     celery_app.conf.task_queue_max_priority = configuration.settings.celery_task_max_priority
 
 
