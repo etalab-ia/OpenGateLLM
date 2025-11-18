@@ -34,12 +34,7 @@ async def apply_routing_without_queuing(
 
     qos_metric, qos_limit = [(provider.qos_metric, provider.qos_limit) for provider in providers if provider.id == provider_id][0]
 
-    can_be_forwarded = await apply_async_qos_policy(
-        provider_id=provider_id,
-        qos_metric=qos_metric,
-        qos_limit=qos_limit,
-        redis_client=redis_client,
-    )
+    can_be_forwarded = await apply_async_qos_policy(provider_id=provider_id, qos_metric=qos_metric, qos_limit=qos_limit, redis_client=redis_client)
     if not can_be_forwarded:
         raise ModelIsTooBusyException()
 
@@ -52,14 +47,12 @@ async def apply_routing_with_queuing(
     load_balancing_metric: Metric,
     queue_name: str,
     priority: int,
-    max_priority: int,
     retry_countdown: int,
     max_retries: int,
 ) -> int:
     candidates = [(provider.id, provider.qos_metric, provider.qos_limit) for provider in providers]
     ensure_queue_exists(queue_name)
 
-    priority = max(0, min(int(priority), max_priority - 1))  # 0-(n-1) usable priorities (n levels)
     task = apply_routing.apply_async(
         args=[
             candidates,  # candidates

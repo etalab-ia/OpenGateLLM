@@ -734,21 +734,22 @@ class ModelRegistry:
         if len(providers) == 0:
             raise ModelNotFoundException()
 
-        if self.task_always_eager:
+        elif self.task_always_eager:
             provider_id = await apply_routing_without_queuing(
                 providers=providers,
                 load_balancing_strategy=router.load_balancing_strategy,
                 load_balancing_metric=Metric.TTFT,
                 redis_client=redis_client,
             )
+
         else:
+            priority = max(0, min(int(request_context.get().user_info.priority), self.task_max_priority - 1))  # 0-(n-1) usable priorities (n levels)
             provider_id = await apply_routing_with_queuing(
                 providers=providers,
                 load_balancing_strategy=router.load_balancing_strategy,
                 load_balancing_metric=Metric.TTFT,
                 queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router.id}",
-                priority=request_context.get().user_info.priority,
-                max_priority=self.task_max_priority,
+                priority=priority,
                 retry_countdown=self.task_retry_countdown,
                 max_retries=self.task_max_retries,
             )
