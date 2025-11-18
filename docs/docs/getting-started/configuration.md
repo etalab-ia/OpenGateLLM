@@ -157,7 +157,7 @@ settings:
 | monitoring_postgres_enabled | boolean | If true, the log usage will be written in the PostgreSQL database. |  | True |  |  |
 | monitoring_prometheus_enabled | boolean | If true, Prometheus metrics will be exposed in the `/metrics` endpoint. |  | True |  |  |
 | rate_limiting_strategy | string | Rate limiting strategy for the API. |  | fixed_window | • moving_window<br></br>• fixed_window<br></br>• sliding_window |  |
-| routing_max_priority | integer | Maximum allowed priority in routing tasks. |  | 10 |  |  |
+| routing_max_priority | integer | Maximum allowed priority in routing tasks. |  | 4 |  |  |
 | routing_max_retries | integer | Maximum number of retries for routing tasks. |  | 3 |  |  |
 | routing_retry_countdown | integer | Number of seconds before retrying a failed routing task. |  | 3 |  |  |
 | search_web_limited_domains | array | Limited domains for the web search. If provided, the web search will be limited to these domains. |  |  |  |  |
