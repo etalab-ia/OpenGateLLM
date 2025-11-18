@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.helpers._accesscontroller import AccessController
 from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 from api.helpers.models import ModelRegistry
-from api.schemas.chat import ChatCompletion, ChatCompletionChunk, ChatCompletionRequest
+from api.schemas.chat import ChatCompletion, ChatCompletionChunk, CreateChatCompletion
 from api.schemas.core.context import RequestContext
 from api.schemas.exception import HTTPExceptionModel
 from api.schemas.search import Search
@@ -34,7 +34,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
 )
 async def chat_completions(
     request: Request,
-    body: ChatCompletionRequest,
+    body: CreateChatCompletion,
     model_registry: ModelRegistry = Depends(get_model_registry),
     session: AsyncSession = Depends(get_postgres_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
@@ -49,12 +49,12 @@ async def chat_completions(
 
     # retrieval augmentation generation
     async def retrieval_augmentation_generation(
-        initial_body: ChatCompletionRequest,
+        initial_body: CreateChatCompletion,
         inner_session: AsyncSession,
         inner_redis_client: AsyncRedis,
         inner_model_registry: ModelRegistry,
         inner_request_context: ContextVar[RequestContext],
-    ) -> tuple[ChatCompletionRequest, list[Search]]:
+    ) -> tuple[CreateChatCompletion, list[Search]]:
         results = []
         if initial_body.search:
             if not global_context.document_manager:

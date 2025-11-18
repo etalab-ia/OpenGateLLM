@@ -94,7 +94,7 @@ class TestChat:
             "stream": True,
             "n": 1,
             "max_tokens": 10,
-            "min_tokens": 3,  # unknown param in ChatCompletionRequest schema
+            "min_tokens": 3,  # unknown param in CreateChatCompletion schema
         }
         response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
 

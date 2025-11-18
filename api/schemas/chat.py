@@ -25,7 +25,7 @@ class ChatSearchArgs(SearchArgs):
         return value
 
 
-class ChatCompletionRequest(BaseModel):
+class CreateChatCompletion(BaseModel):
     # only union between OpenAI fields and vLLM fields are defined. See https://github.com/vllm-project/vllm/blob/main/vllm/entrypoints/openai/protocol.py#L209
     messages: list = Field(description="A list of messages comprising the conversation so far.")  # fmt: off
     model: str = Field(description="ID of the model to use. Call `/v1/models` endpoint to get the list of available models, only `text-generation` model type is supported.")  # fmt: off
