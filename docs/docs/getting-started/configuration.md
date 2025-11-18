@@ -156,7 +156,6 @@ settings:
 | celery_task_max_priority | integer | Maximum allowed priority in celery tasks. |  | 10 |  |  |
 | celery_task_max_retries | integer | Maximum number of retries for celery tasks. |  | 120 |  |  |
 | celery_task_retry_countdown | integer | Number of seconds before retrying a failed celery task. |  | 1 |  |  |
-| celery_task_soft_time_limit | integer | Soft time limit (in seconds) applied to model invocation tasks. |  | 120 |  |  |
 | disabled_routers | array | Disabled routers to limits services of the API. |  |  | • admin<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• documents<br></br>• embeddings<br></br>• ... | ['embeddings'] |
 | front_url | string | Front-end URL for the application. |  | http://localhost:8501 |  |  |
 | hidden_routers | array | Routers are enabled but hidden in the swagger and the documentation of the API. |  |  | • admin<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• documents<br></br>• embeddings<br></br>• ... | ['admin'] |
