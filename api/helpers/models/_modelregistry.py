@@ -42,6 +42,7 @@ from api.utils.variables import (
     ENDPOINT__EMBEDDINGS,
     ENDPOINT__OCR,
     ENDPOINT__RERANK,
+    PREFIX__CELERY_QUEUE_ROUTING,
 )
 
 logger = logging.getLogger(__name__)
@@ -91,13 +92,11 @@ class ModelRegistry:
         task_soft_time_limit: int,
         task_max_retries: int,
         task_retry_countdown: int,
-        queue_name_prefix: str,
     ) -> None:
         self.app_title = app_title
         self.task_always_eager = task_always_eager
         self.task_max_priority = task_max_priority
         self.task_soft_time_limit = task_soft_time_limit
-        self.queue_name_prefix = queue_name_prefix
         self.task_max_retries = task_max_retries
         self.task_retry_countdown = task_retry_countdown
 
@@ -162,7 +161,7 @@ class ModelRegistry:
             if not self.task_always_eager:
                 routers = await self.get_routers(router_id=None, name=None, session=session)
                 for router in routers:
-                    ensure_queue_exists(f"{self.queue_name_prefix}.{router.id}")
+                    ensure_queue_exists(queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router.id}")
 
     async def create_router(
         self,
@@ -230,7 +229,7 @@ class ModelRegistry:
         await session.commit()
 
         if not self.task_always_eager:
-            ensure_queue_exists(f"{self.queue_name_prefix}.{router_id}")
+            ensure_queue_exists(queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router_id}")
 
         return router_id
 
@@ -747,7 +746,7 @@ class ModelRegistry:
                 providers=providers,
                 load_balancing_strategy=router.load_balancing_strategy,
                 load_balancing_metric=Metric.TTFT,
-                queue_name=f"{self.queue_name_prefix}.{router.id}",
+                queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router.id}",
                 priority=request_context.get().user_info.priority,
                 max_priority=self.task_max_priority,
                 retry_countdown=self.task_retry_countdown,

@@ -6,6 +6,7 @@ from kombu import Queue
 from redis import ConnectionPool, Redis
 
 from api.utils.configuration import configuration
+from api.utils.variables import PREFIX__CELERY_QUEUE_ROUTING
 
 settings = configuration.settings
 logger = logging.getLogger(__name__)
@@ -61,8 +62,8 @@ if configuration.settings.celery_broker_url and configuration.settings.celery_br
     # Use a default catch-all queue with priority enabled; model-specific queues reuse same arguments.
     celery_app.conf.task_queues = (
         Queue(
-            f"{configuration.settings.celery_default_queue_prefix}.default",
-            routing_key=f"{configuration.settings.celery_default_queue_prefix}.default",
+            name=f"{configuration.settings.celery_default_queue_prefix}.default",
+            routing_key=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
             queue_arguments={"x-max-priority": configuration.settings.celery_task_max_priority},
         ),
     )

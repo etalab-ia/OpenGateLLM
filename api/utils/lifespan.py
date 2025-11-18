@@ -97,7 +97,6 @@ async def _setup_model_registry(configuration: Configuration, global_context: Gl
             task_always_eager=configuration.settings.celery_task_always_eager,
             task_soft_time_limit=configuration.settings.celery_task_soft_time_limit,
             task_max_priority=configuration.settings.celery_task_max_priority,
-            queue_name_prefix=configuration.settings.celery_default_queue_prefix,  # TODO: rename to queue_name_prefix
             task_max_retries=configuration.settings.celery_task_max_retries,
             task_retry_countdown=configuration.settings.celery_task_retry_countdown,
         )
