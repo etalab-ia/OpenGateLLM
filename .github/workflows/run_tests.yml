@@ -76,6 +76,8 @@ jobs:
         # Activate venv for the test run
         . .venv/bin/activate
 
+        docker compose --env-file .github/.env.ci --file .github/compose.ci.yml up
+
         # Run integration tests
         make test-integ action=all execute=local
       env:

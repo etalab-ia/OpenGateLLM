@@ -78,7 +78,7 @@ models:
 # -------------------------------- dependencies ---------------------------------
 dependencies:
   postgres:
-    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
+    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@$localhost:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
     echo: False
     pool_size: 10
     max_overflow: 5
@@ -91,16 +91,13 @@ dependencies:
       command_timeout: 60
 
   redis:
-    url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
+    url: redis://:${REDIS_PASSWORD:-changeme}@$localhost:${REDIS_PORT:-6379}
 
   elasticsearch:
-    hosts: http://${ELASTICSEARCH_HOST:-elasticsearch}:${ELASTICSEARCH_PORT:-9200}
+    hosts: http://localhost:${ELASTICSEARCH_PORT:-9200}
     basic_auth:
       - ${ELASTIC_USERNAME:-elasticsearch}
       - ${ELASTIC_PASSWORD:-changeme}
-
-  secretiveshell:
-    url: http://${SECRETIVESHELL_HOST:-secretiveshell}:${SECRETIVESHELL_PORT:-8000}
 
   albert:
     headers:
@@ -157,5 +154,5 @@ settings:
   search_multi_agents_synthesis_model: albert-large
   search_multi_agents_reranker_model: albert-small
   celery_task_always_eager: ${CELERY_TASK_ALWAYS_EAGER:-false}
-  celery_broker_url: amqp://${RABBITMQ_USER:-rabbitmq}:${RABBITMQ_PASSWORD:-changeme}@${RABBITMQ_HOST:-rabbitmq}:${RABBITMQ_PORT:-5672}/
-  celery_result_backend: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/1
+  celery_broker_url: amqp://${RABBITMQ_USER:-rabbitmq}:${RABBITMQ_PASSWORD:-changeme}@localhost:${RABBITMQ_PORT:-5672}/
+  celery_result_backend: redis://:${REDIS_PASSWORD:-changeme}@localhost:${REDIS_PORT:-6379}/1
