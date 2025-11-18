@@ -150,7 +150,6 @@ settings:
 | auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. |  | changeme |  |  |
 | auth_playground_session_duration | integer | Duration of the playground session in seconds. |  | 3600 |  |  |
 | celery_broker_url | string | Celery broker URL (e.g. redis://localhost:6379/0 or amqp://user:pass@host:5672/). Required if celery_task_always_eager is false. |  | None |  |  |
-| celery_default_queue_prefix | string | Prefix used for per-model Celery queues (queue name = `<prefix>.<router_id>`). |  | router |  |  |
 | celery_result_backend | string | Celery result backend URL (e.g. redis://localhost:6379/1 or rpc://). If not provided, results may not persist across workers. |  | None |  |  |
 | celery_task_always_eager | boolean | Execute Celery tasks locally (synchronously) without a broker. Set to false in production to use the configured broker/result backend. |  | True |  |  |
 | celery_task_eager_propagates | boolean | If true, exceptions in eager mode propagate immediately (useful for tests/development). |  | True |  |  |
