@@ -357,7 +357,6 @@ class Settings(ConfigBaseModel):
     celery_task_retry_countdown: int = Field(default=1,ge=1, description="Number of seconds before retrying a failed celery task.")  # fmt: off
     celery_task_max_retries: int = Field(default=120, ge=1, description="Maximum number of retries for celery tasks.")  # fmt: off
     celery_task_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in celery tasks.")  # fmt: off
-    celery_default_queue_prefix: constr(strip_whitespace=True, min_length=1) = Field(default="router", description="Prefix used for per-model Celery queues (queue name = `<prefix>.<router_id>`).")  # fmt: off
 
     @model_validator(mode="after")
     def validate_model(cls, values) -> Any:
