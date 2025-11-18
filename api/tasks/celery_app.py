@@ -46,7 +46,6 @@ celery_app.conf.update(
     task_eager_propagates=configuration.settings.celery_task_eager_propagates,
     broker_url=configuration.settings.celery_broker_url,
     result_backend=configuration.settings.celery_result_backend,
-    task_soft_time_limit=configuration.settings.celery_task_soft_time_limit,
     worker_prefetch_multiplier=1,
     task_acks_late=True,
     task_serializer="json",

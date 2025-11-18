@@ -89,14 +89,12 @@ class ModelRegistry:
         app_title: str,
         task_always_eager: bool,
         task_max_priority: int,
-        task_soft_time_limit: int,
         task_max_retries: int,
         task_retry_countdown: int,
     ) -> None:
         self.app_title = app_title
         self.task_always_eager = task_always_eager
         self.task_max_priority = task_max_priority
-        self.task_soft_time_limit = task_soft_time_limit
         self.task_max_retries = task_max_retries
         self.task_retry_countdown = task_retry_countdown
 

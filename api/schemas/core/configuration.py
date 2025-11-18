@@ -353,7 +353,6 @@ class Settings(ConfigBaseModel):
     celery_task_eager_propagates: bool = Field(default=True, description="If true, exceptions in eager mode propagate immediately (useful for tests/development).")  # fmt: off
     celery_broker_url: str | None = Field(default=None, description="Celery broker URL (e.g. redis://localhost:6379/0 or amqp://user:pass@host:5672/). Required if celery_task_always_eager is false.")  # fmt: off
     celery_result_backend: str | None = Field(default=None,description="Celery result backend URL (e.g. redis://localhost:6379/1 or rpc://). If not provided, results may not persist across workers.")  # fmt: off
-    celery_task_soft_time_limit: int = Field(default=120, ge=1, description="Soft time limit (in seconds) applied to model invocation tasks.")  # fmt: off
     celery_task_retry_countdown: int = Field(default=1,ge=1, description="Number of seconds before retrying a failed celery task.")  # fmt: off
     celery_task_max_retries: int = Field(default=120, ge=1, description="Maximum number of retries for celery tasks.")  # fmt: off
     celery_task_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in celery tasks.")  # fmt: off
@@ -376,10 +375,6 @@ class Settings(ConfigBaseModel):
         # Celery validation
         if not values.celery_task_always_eager and not values.celery_broker_url:
             raise ValueError("celery_broker_url must be set when celery_task_always_eager is False")
-
-        if values.celery_task_max_retries * values.celery_task_retry_countdown != values.celery_task_soft_time_limit:
-            # TODO: remove soft time limit validation
-            raise ValueError("Celery soft time limit should match max_retry x retry_countdown")
 
         return values
 
