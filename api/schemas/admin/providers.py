@@ -17,6 +17,7 @@ ProviderCarbonFootprintZone = Enum("ProviderCarbonFootprintZone", country_codes_
 class ProviderType(str, Enum):
     ALBERT = "albert"
     OPENAI = "openai"
+    MISTRAL = "mistral"
     TEI = "tei"
     VLLM = "vllm"
 
