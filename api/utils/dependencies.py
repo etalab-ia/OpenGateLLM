@@ -4,6 +4,7 @@ import redis.asyncio as redis
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.helpers._usagemanager import UsageManager
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
 from api.utils.context import global_context, request_context
@@ -60,3 +61,14 @@ async def get_postgres_session() -> AsyncSession:
 
         if postgres_session.in_transaction():
             await postgres_session.close()
+
+
+async def get_usage_manager() -> UsageManager:
+    """
+    Get the UsageManager instance from the global context.
+
+    Returns:
+        UsageManager: The UsageManager instance.
+    """
+
+    return global_context.usage_manager

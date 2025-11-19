@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.schemas.admin.roles import LimitType, PermissionType
 from api.schemas.admin.users import User
 from api.schemas.collections import CollectionVisibility
-from api.schemas.me import UserInfo
+from api.schemas.me.info import UserInfo
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
 from api.utils.exceptions import InsufficientPermissionException, InvalidAPIKeyException, InvalidAuthenticationSchemeException, RateLimitExceeded
@@ -48,14 +48,15 @@ class AccessController:
         api_key: Annotated[HTTPAuthorizationCredentials, Depends(HTTPBearer())],
         postgres_session: AsyncSession = Depends(get_postgres_session),
     ) -> User:
-        user_info, key_id = await self._check_api_key(request=request, api_key=api_key, postgres_session=postgres_session)
+        user_info, key_id, key_name = await self._check_api_key(request=request, api_key=api_key, postgres_session=postgres_session)
         await self._check_permissions(permissions=user_info.permissions)
         body = await self._safely_parse_body(request)
 
         # add authenticated user to request state for logging usages
         context = request_context.get()
         context.user_info = user_info
-        context.token_id = key_id
+        context.key_id = key_id
+        context.key_name = key_name
 
         if request.url.path.endswith(ENDPOINT__AUDIO_TRANSCRIPTIONS) and request.method in ["POST"]:
             await self._check_audio_transcription(body=body, user_info=user_info, postgres_session=postgres_session)
@@ -106,9 +107,11 @@ class AccessController:
                 priority=0,
             )
             key_id = 0
-
+            key_name = "master"
         else:
-            user_id, key_id = await global_context.identity_access_manager.check_token(postgres_session=postgres_session, token=api_key.credentials)
+            user_id, key_id, key_name = await global_context.identity_access_manager.check_token(
+                postgres_session=postgres_session, token=api_key.credentials
+            )
             if not user_id:
                 raise InvalidAPIKeyException()
 
@@ -118,7 +121,7 @@ class AccessController:
             if user_info.expires and user_info.expires < time.time() and not request.url.path.endswith(ENDPOINT__ME_INFO):
                 raise InvalidAPIKeyException()
 
-        return user_info, key_id
+        return user_info, key_id, key_name
 
     async def _check_permissions(self, permissions: list[PermissionType]) -> None:
         if self.permissions and not all(perm in permissions for perm in self.permissions):

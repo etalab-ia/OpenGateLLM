@@ -1,177 +1,104 @@
-from datetime import datetime, timedelta
-import math
+import datetime as dt
+import time
 
-from sqlalchemy import asc, desc, func
+from sqlalchemy import Integer, cast, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from api.schemas.accounts import AccountUsage
-from api.sql.models import Usage as UsageModel
+from api.schemas.me.usage import (
+    CarbonFootprintUsage,
+    CarbonFootprintUsageKgCO2eq,
+    CarbonFootprintUsageKWh,
+    EndpointUsage,
+    MetricsUsage,
+    Usage,
+    UsageDetail,
+)
+from api.sql.models import Usage as UsageTable
 
 
 class UsageManager:
     """Manager class for handling usage-related database operations and data processing."""
 
-    @staticmethod
-    def normalize_date_range(date_from: int = None, date_to: int = None) -> tuple[int, int]:
-        """
-        Normalize date range with default values if not provided.
+    async def get_usages(
+        self,
+        postgres_session: AsyncSession,
+        user_id: int,
+        offset: int,
+        limit: int,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        endpoint: EndpointUsage | None = None,
+    ) -> list[Usage]:
+        if start_time is None:
+            start_time = int(time.time() - 30 * 24 * 60 * 60)
+        if end_time is None:
+            end_time = int(time.time())
 
-        Args:
-            date_from: Start date as Unix timestamp (default: 30 days ago)
-            date_to: End date as Unix timestamp (default: now)
-
-        Returns:
-            Tuple of (date_from, date_to) as Unix timestamps
-        """
-        if date_to is None:
-            date_to = int(datetime.now().timestamp())
-        if date_from is None:
-            date_from = int((datetime.now() - timedelta(days=30)).timestamp())
-        return date_from, date_to
-
-    @staticmethod
-    def build_base_filter(user_id: int, date_from: int, date_to: int) -> tuple:
-        """
-        Build base filter conditions for usage queries.
-
-        Args:
-            user_id: Current user ID
-            date_from: Start date as Unix timestamp
-            date_to: End date as Unix timestamp
-
-        Returns:
-            Tuple of filter conditions
-        """
-        return (
-            UsageModel.user_id == user_id,
-            UsageModel.router_name.is_not(None),
-            UsageModel.provider_model_name.is_not(None),
-            UsageModel.datetime >= datetime.fromtimestamp(date_from),
-            UsageModel.datetime <= datetime.fromtimestamp(date_to),
+        query = (
+            select(
+                UsageTable.router_name.label("model"),
+                UsageTable.token_name.label("key"),
+                UsageTable.endpoint,
+                UsageTable.prompt_tokens,
+                UsageTable.completion_tokens,
+                UsageTable.total_tokens,
+                UsageTable.cost,
+                UsageTable.latency,
+                UsageTable.ttft,
+                UsageTable.kwh_min,
+                UsageTable.kwh_max,
+                UsageTable.kgco2eq_min,
+                UsageTable.kgco2eq_max,
+                cast(func.extract("epoch", UsageTable.created), Integer).label("created"),
+            )
+            .where(
+                UsageTable.user_id == user_id,
+                UsageTable.status >= 200,
+                UsageTable.status < 300,
+                UsageTable.created >= dt.datetime.fromtimestamp(start_time),
+                UsageTable.created <= dt.datetime.fromtimestamp(end_time),
+            )
+            .order_by(UsageTable.created.desc())
+            .offset(offset)
+            .limit(limit)
         )
 
-    @staticmethod
-    def build_usage_query(base_filter: tuple, order_by: str, order_direction: str, page: int, limit: int):
-        """
-        Build the main usage query with ordering and pagination.
+        if endpoint is not None:
+            query = query.where(UsageTable.endpoint == endpoint.value)
 
-        Args:
-            base_filter: Base filter conditions
-            order_by: Field to order by
-            order_direction: Order direction (asc/desc)
-            page: Page number (1-based)
-            limit: Number of records per page
+        results = await postgres_session.execute(query)
+        usage_results = results.all()
 
-        Returns:
-            SQLAlchemy query object
-        """
-        query = select(UsageModel).where(*base_filter)
-
-        # Apply ordering
-        order_field = getattr(UsageModel, order_by)
-        if order_direction == "desc":
-            query = query.order_by(desc(order_field))
-        else:
-            query = query.order_by(asc(order_field))
-
-        # Apply pagination
-        offset = (page - 1) * limit
-        query = query.offset(offset).limit(limit)
-
-        return query
-
-    @staticmethod
-    async def get_usage_aggregation(postgres_session: AsyncSession, base_filter: tuple) -> dict:
-        """
-        Get aggregated usage statistics for the given filters.
-
-        Args:
-            postgres_session: Database postgres_session
-            base_filter: Base filter conditions
-
-        Returns:
-            Dictionary with aggregated values
-        """
-        # Total count query
-        count_query = select(func.count(UsageModel.id)).where(*base_filter)
-        count_result = await postgres_session.execute(count_query)
-        total_count = count_result.scalar()
-
-        # Aggregated values query
-        aggregation_query = select(
-            func.count(UsageModel.id).label("total_requests"),
-            func.coalesce(func.sum(UsageModel.cost), 0).label("total_albert_coins"),
-            func.coalesce(func.sum(UsageModel.total_tokens), 0).label("total_tokens"),
-            func.coalesce(func.avg((UsageModel.kgco2eq_min + UsageModel.kgco2eq_max) / 2) * 1000, 0).label("total_co2"),
-        ).where(*base_filter)
-
-        aggregation_result = await postgres_session.execute(aggregation_query)
-        aggregation_data = aggregation_result.first()
-
-        return {
-            "total_count": total_count,
-            "total_requests": aggregation_data.total_requests or 0,
-            "total_albert_coins": float(aggregation_data.total_albert_coins) if aggregation_data.total_albert_coins else 0.0,
-            "total_tokens": int(aggregation_data.total_tokens) if aggregation_data.total_tokens else 0,
-            "total_co2": float(aggregation_data.total_co2) if aggregation_data.total_co2 else 0.0,
-        }
-
-    @staticmethod
-    def convert_records_to_schema(usage_records) -> list[AccountUsage]:
-        """
-        Convert database records to AccountUsage schema objects.
-
-        Args:
-            usage_records: List of UsageModel records
-
-        Returns:
-            List of AccountUsage schema objects
-        """
-        usage_data = []
-        for record in usage_records:
-            usage_data.append(
-                AccountUsage(
-                    id=record.id,
-                    datetime=int(record.datetime.timestamp()),
-                    duration=record.duration,
-                    time_to_first_token=record.time_to_first_token,
-                    user_id=record.user_id,
-                    token_id=record.token_id,
-                    endpoint=record.endpoint,
-                    method=record.method.value if record.method else None,
-                    model=record.provider_model_name,
-                    request_model=record.router_name,
-                    prompt_tokens=record.prompt_tokens,
-                    completion_tokens=record.completion_tokens,
-                    total_tokens=record.total_tokens,
-                    cost=record.cost,
-                    status=record.status,
-                    kwh_min=record.kwh_min,
-                    kwh_max=record.kwh_max,
-                    kgco2eq_min=record.kgco2eq_min,
-                    kgco2eq_max=record.kgco2eq_max,
+        usages = []
+        for row in usage_results:
+            usages.append(
+                Usage(
+                    model=row.model,
+                    key=row.key,
+                    endpoint=row.endpoint,
+                    created=row.created,
+                    usage=UsageDetail(
+                        prompt_tokens=row.prompt_tokens,
+                        completion_tokens=row.completion_tokens,
+                        total_tokens=row.total_tokens,
+                        cost=row.cost,
+                        carbon=CarbonFootprintUsage(
+                            kWh=CarbonFootprintUsageKWh(
+                                min=row.kwh_min,
+                                max=row.kwh_max,
+                            ),
+                            kgCO2eq=CarbonFootprintUsageKgCO2eq(
+                                min=row.kgco2eq_min,
+                                max=row.kgco2eq_max,
+                            ),
+                        ),
+                        metrics=MetricsUsage(
+                            latency=row.latency,
+                            ttft=row.ttft,
+                        ),
+                    ),
                 )
             )
-        return usage_data
 
-    @staticmethod
-    def calculate_pagination_metadata(total_count: int, page: int, limit: int) -> dict:
-        """
-        Calculate pagination metadata.
-
-        Args:
-            total_count: Total number of records
-            page: Current page number
-            limit: Records per page
-
-        Returns:
-            Dictionary with pagination metadata
-        """
-        total_pages = math.ceil(total_count / limit) if total_count > 0 else 1
-        has_more = page < total_pages
-
-        return {
-            "total_pages": total_pages,
-            "has_more": has_more,
-        }
+        return usages

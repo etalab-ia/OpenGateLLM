@@ -34,10 +34,7 @@ make test-integ [action=up|down|run|all] [execute=local|docker]
 > - `up`: Setup environment without running tests
 > - `run`: Run tests without setup environment
 > - `all`: Setup environment and run tests
-
-> The `execute` parameter is optional and defaults to `local`. This parameter is used to specify the execution environment of tests:
-> - `local`: Run tests in local environment
-> - `docker`: Run tests in docker environment (like in CI/CD)
+> - `down`: Stop services
 
 > [!NOTE]
 > To run the integration tests locally, you need to set the following environment variables in the `.github/.env.ci` file:

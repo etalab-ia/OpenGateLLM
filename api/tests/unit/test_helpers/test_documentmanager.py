@@ -10,7 +10,7 @@ from api.schemas.chunks import Chunk
 from api.schemas.collections import CollectionVisibility
 from api.schemas.core.context import RequestContext
 from api.schemas.documents import Chunker
-from api.schemas.me import UserInfo
+from api.schemas.me.info import UserInfo
 from api.schemas.parse import ParsedDocument, ParsedDocumentMetadata, ParsedDocumentPage
 from api.schemas.usage import Usage
 from api.utils.exceptions import CollectionNotFoundException

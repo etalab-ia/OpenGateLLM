@@ -19,9 +19,7 @@ class Usage(Base):
     __tablename__ = "usage"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    datetime: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
-    duration: Mapped[int | None]
-    time_to_first_token: Mapped[int | None]  # Time to first token in milliseconds for streaming chat requests
+    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
 
     # foreign keys
     user_id: Mapped[int | None] = mapped_column(ForeignKey(column="user.id", ondelete="SET NULL"), index=True)
@@ -39,12 +37,16 @@ class Usage(Base):
     endpoint: Mapped[str]
     method: Mapped[HTTPMethod | None]
 
+    # metrics
+    latency: Mapped[int | None]
+    ttft: Mapped[int | None]
+
     # response
+    status: Mapped[int | None]
     prompt_tokens: Mapped[int | None]
     completion_tokens: Mapped[float | None]
     total_tokens: Mapped[int | None]
     cost: Mapped[float | None]
-    status: Mapped[int | None]
     kwh_min: Mapped[float | None]
     kwh_max: Mapped[float | None]
     kgco2eq_min: Mapped[float | None]

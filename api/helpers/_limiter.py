@@ -7,7 +7,7 @@ from redis.asyncio import ConnectionPool
 
 from api.schemas.admin.roles import LimitType
 from api.schemas.core.configuration import LimitingStrategy
-from api.schemas.me import UserInfo
+from api.schemas.me.info import UserInfo
 from api.utils.exceptions import InsufficientPermissionException, RateLimitExceeded
 from api.utils.variables import PREFIX__REDIS_RATE_LIMIT
 

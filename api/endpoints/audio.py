@@ -20,12 +20,14 @@ from api.schemas.audio import (
 )
 from api.schemas.core.context import RequestContext
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
+from api.utils.hooks_decorator import hooks
 from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS, ROUTER__AUDIO
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__AUDIO.title()])
 
 
 @router.post(path=ENDPOINT__AUDIO_TRANSCRIPTIONS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=AudioTranscription)  # fmt: off
+@hooks
 async def audio_transcriptions(
     request: Request,
     file: UploadFile = File(description="The audio file object (not file name) to transcribe, in one of these formats: mp3 or wav."),

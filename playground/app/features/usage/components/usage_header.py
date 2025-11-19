@@ -2,11 +2,7 @@
 
 import reflex as rx
 
-from app.core.variables import (
-    HEADING_SIZE_PAGE,
-    ICON_SIZE_MEDIUM,
-    MARGIN_MEDIUM,
-)
+from app.core.variables import HEADING_SIZE_PAGE, ICON_SIZE_MEDIUM, MARGIN_MEDIUM
 from app.features.usage.state import UsageState
 
 

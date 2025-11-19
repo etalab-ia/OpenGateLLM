@@ -14,6 +14,7 @@ from api.helpers._documentmanager import DocumentManager
 from api.helpers._identityaccessmanager import IdentityAccessManager
 from api.helpers._limiter import Limiter
 from api.helpers._parsermanager import ParserManager
+from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers._websearchmanager import WebSearchManager
 from api.helpers.models import ModelRegistry
@@ -54,6 +55,7 @@ async def lifespan(app: FastAPI):
 
     # setup global context
     await _setup_redis_pool(configuration=configuration, global_context=global_context, dependencies=dependencies)
+    await _setup_usage_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_postgres_session(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_model_registry(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_identity_access_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
@@ -79,6 +81,10 @@ async def _setup_redis_pool(configuration: Configuration, global_context: Global
     await redis_client.aclose()
 
     global_context.redis_pool = redis_pool
+
+
+async def _setup_usage_manager(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+    global_context.usage_manager = UsageManager()
 
 
 async def _setup_postgres_session(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):

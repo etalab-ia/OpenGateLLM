@@ -12,7 +12,7 @@ from api.schemas.admin.routers import Router, RouterLoadBalancingStrategy
 from api.schemas.core.configuration import Model as ModelConfiguration
 from api.schemas.core.context import RequestContext
 from api.schemas.core.metrics import Metric
-from api.schemas.me import UserInfo
+from api.schemas.me.info import UserInfo
 from api.schemas.models import Model, ModelCosts, ModelType
 from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Provider as ProviderTable

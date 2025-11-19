@@ -85,7 +85,7 @@ help:
 		services=$$(docker compose --file $(compose) config --services 2>/dev/null); \
 	fi;
 	@docker compose --env-file $(env) --file $(compose) up $$services --detach --quiet-pull --wait
-	@sleep 4
+	@sleep 2
 	for service in $$services; do \
 		if ! $(MAKE) --silent .check-service-status service=$$service env=$(env) compose=$(compose); then \
 			exit 1; \

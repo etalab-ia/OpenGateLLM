@@ -13,7 +13,7 @@ from api.schemas.admin.organizations import Organization
 from api.schemas.admin.roles import Limit, LimitType, PermissionType, Role
 from api.schemas.admin.tokens import Token
 from api.schemas.admin.users import User
-from api.schemas.me import UserInfo
+from api.schemas.me.info import UserInfo
 from api.sql.models import Limit as LimitTable
 from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Permission as PermissionTable
@@ -621,7 +621,7 @@ class IdentityAccessManager:
             )
             .offset(offset=offset)
             .limit(limit=limit)
-            .order_by(text(f"{order_by} {order_direction}"))
+            .order_by(text(text=f"{order_by} {order_direction}"))
         )
 
         if user_id is not None:
@@ -641,20 +641,20 @@ class IdentityAccessManager:
 
         return tokens
 
-    async def check_token(self, postgres_session: AsyncSession, token: str) -> tuple[int | None, int | None]:
+    async def check_token(self, postgres_session: AsyncSession, token: str) -> tuple[int | None, int | None, str | None]:
         try:
             claims = self._decode_token(token=token)
         except JWTError:
-            return None, None
+            return None, None, None
         except IndexError:  # malformed token (no token prefix)
-            return None, None
+            return None, None, None
 
         try:
-            await self.get_tokens(postgres_session, user_id=claims["user_id"], token_id=claims["token_id"], exclude_expired=True, limit=1)
+            tokens = await self.get_tokens(postgres_session, user_id=claims["user_id"], token_id=claims["token_id"], exclude_expired=True, limit=1)
         except TokenNotFoundException:
-            return None, None
+            return None, None, None
 
-        return claims["user_id"], claims["token_id"]
+        return claims["user_id"], claims["token_id"], tokens[0].name
 
     async def invalidate_token(self, postgres_session: AsyncSession, token_id: int, user_id: int) -> None:
         """

@@ -15,6 +15,7 @@ from api.schemas.search import Search
 from api.utils.context import global_context
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
 from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, WrongModelTypeException
+from api.utils.hooks_decorator import hooks
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ROUTER__CHAT
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
@@ -32,6 +33,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
         ModelIsTooBusyException().status_code: {"model": HTTPExceptionModel, "description": ModelIsTooBusyException().detail},
     },
 )
+@hooks
 async def chat_completions(
     request: Request,
     body: CreateChatCompletion,

@@ -10,12 +10,14 @@ from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
 from api.schemas.rerank import RerankRequest, Reranks
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
+from api.utils.hooks_decorator import hooks
 from api.utils.variables import ENDPOINT__RERANK, ROUTER__RERANK
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__RERANK.title()])
 
 
 @router.post(path=ENDPOINT__RERANK, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Reranks)
+@hooks
 async def rerank(
     request: Request,
     body: RerankRequest,

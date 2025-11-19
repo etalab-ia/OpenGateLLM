@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._identityaccessmanager import IdentityAccessManager
 from api.schemas.admin.roles import Limit, LimitType, PermissionType
-from api.schemas.me import UserInfo
+from api.schemas.me.info import UserInfo
 from api.utils.exceptions import InvalidCurrentPasswordException, UserNotFoundException
 
 
@@ -58,7 +58,7 @@ async def test_login_success_user(postgres_session: AsyncSession, iam: IdentityA
     hashed = bcrypt.hashpw(password_plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     # Mock get_user_info to return a valid user
-    from api.schemas.me import UserInfo
+    from api.schemas.me.info import UserInfo
 
     iam.get_user_info = AsyncMock(
         return_value=UserInfo(

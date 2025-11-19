@@ -1,7 +1,6 @@
 import asyncio
 from datetime import datetime
 import functools
-import json
 import logging
 
 from fastapi import HTTPException, Request, Response
@@ -27,8 +26,7 @@ def hooks(func):
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
-        start_time = datetime.now()
-        usage = Usage(datetime=start_time, endpoint="N/A")
+        usage = Usage(created=datetime.now(), endpoint="N/A")
 
         # get the request context (initial values)
         context = request_context.get()
@@ -38,11 +36,6 @@ def hooks(func):
         if context.user_info.id == 0:
             logger.info(f"Master user ID found in request, skipping usage logging ({context.endpoint}).")
             return await func(*args, **kwargs)
-
-        usage.user_id = context.user_info.id
-        usage.token_id = context.token_id
-        usage.endpoint = context.endpoint
-        usage.method = context.method
 
         # find the request object
         request = next((arg for arg in args if isinstance(arg, Request)), None)
@@ -57,138 +50,94 @@ def hooks(func):
             # call the endpoint
             response = await func(*args, **kwargs)
 
-            context = request_context.get()
-            usage.router_id = context.router_id
-            usage.provider_id = context.provider_id
-            usage.router_name = context.router_name
-            usage.provider_model_name = context.provider_model_name
-
-            # @TODO: set usage in request_context in BaseModelProvider and retrieve it from there instead of parsing the response here
-            # extract usage from streaming response
             if isinstance(response, StreamingResponse):
-                # extract_usage_from_streaming_response calls perform_log internally
-                return extract_usage_from_streaming_response(response=response, start_time=start_time, usage=usage)
+                return wrap_streaming_response(response=response, usage=usage)
 
-            # extract usage from non-streaming response
             else:
-                # extract_usage_from_response calls perform_log internally
-                asyncio.create_task(extract_usage_from_response(response=response, start_time=start_time, usage=usage))
-                return response
+                return wrap_unstreaming_response(response=response, usage=usage)
 
         except HTTPException as e:
-            context = request_context.get()
-            usage.router_id = context.router_id
-            usage.provider_id = context.provider_id
-            usage.router_name = context.router_name
-            usage.provider_model_name = context.provider_model_name
+            usage = set_usage_from_context(usage=usage)
             usage.status = e.status_code
-            asyncio.create_task(log_usage(response=None, usage=usage, start_time=start_time))
+            asyncio.create_task(log_usage(usage=usage))
             raise e  # Re-raise the exception for FastAPI to handle
 
     return wrapper
 
 
-def extract_usage_from_streaming_response(response: StreamingResponse, start_time: datetime, usage: Usage) -> StreamingResponseWithStatusCode:
+def set_usage_from_context(usage: Usage):
+    context = request_context.get()
+    usage.user_id = context.user_info.id
+    usage.user_email = context.user_info.email
+    usage.token_id = context.key_id
+    usage.token_name = context.key_name
+    usage.endpoint = context.endpoint
+    usage.method = context.method
+    usage.router_id = context.router_id
+    usage.provider_id = context.provider_id
+    usage.router_name = context.router_name
+    usage.provider_model_name = context.provider_model_name
+    usage.prompt_tokens = context.usage.prompt_tokens
+    usage.completion_tokens = context.usage.completion_tokens
+    usage.total_tokens = context.usage.total_tokens
+    usage.cost = context.usage.cost
+    usage.kwh_min = context.usage.carbon.kWh.min
+    usage.kwh_max = context.usage.carbon.kWh.max
+    usage.kgco2eq_min = context.usage.carbon.kgCO2eq.min
+    usage.kgco2eq_max = context.usage.carbon.kgCO2eq.max
+    usage.ttft = context.ttft
+    usage.latency = context.latency
+
+    return usage
+
+
+def wrap_unstreaming_response(response: Response, usage: Usage) -> Response:
+    """
+    Wrap a non-streaming response to capture the final status code and log usage.
+    Usage data is already populated from request_context, so no parsing is needed.
+    """
+
+    usage = set_usage_from_context(usage=usage)
+    usage.status = response.status_code
+
+    asyncio.create_task(log_usage(usage=usage))
+    asyncio.create_task(update_budget(usage=usage))
+
+    return response
+
+
+def wrap_streaming_response(response: StreamingResponse, usage: Usage) -> StreamingResponseWithStatusCode:
+    """
+    Wrap a streaming response to capture the final status code and log usage.
+    Usage data is already populated from request_context, so no parsing is needed.
+    """
     original_stream = response.body_iterator
-    buffer = []
 
     async def wrapped_stream():
-        nonlocal usage, buffer  # Add final_response_status_code
+        nonlocal usage
         response_status_code = None
 
-        async for chunk in original_stream:  # This item is (content, status_from_original_stream)
-            if isinstance(chunk, tuple):
-                content = chunk[0]
-                response_status_code = chunk[1]
-            else:
-                content = chunk
-                response_status_code = response.status_code
+        try:
+            async for chunk in original_stream:
+                if isinstance(chunk, tuple):
+                    response_status_code = chunk[1]
 
-            try:
-                usage.ttft = int((datetime.now() - start_time).total_seconds() * 1000) if usage.ttft is None else usage.ttft
-                buffer.append(content)  # Appends only the content part
-            except Exception:
-                logger.warning("Failed to process chunk in streaming response for usage/buffer calculations")
-                # Continue to yield the original item even if buffer append fails
-                pass
+                yield chunk
+        finally:
+            if response_status_code is not None:
+                usage.status = response_status_code
 
-            # Yield the original item from the downstream iterator.
-            # This preserves its structure, e.g., (content, original_status_code),
-            # ensuring the correct status code is passed to StreamingResponseWithStatusCode.
-            yield chunk
+            usage = set_usage_from_context(usage=usage)
 
-        if buffer:
-            for lines in buffer:
-                lines = lines.decode(encoding="utf-8").split(sep="\n\n")
-                for line in lines:
-                    line = line.strip()
-                    if not line.startswith("data: "):
-                        continue
-                    line = line.removeprefix("data: ")
-                    if not line:
-                        continue
-                    try:
-                        data = json.loads(line)
-                    except json.JSONDecodeError as e:
-                        logger.debug(f"Failed to decode JSON from streaming response ({e}) on the following chunk: {line}.")
-                        continue
+            print("write streaming response to database")
 
-                    # last chunk overrides previous chunks
-                    if data.get("model"):
-                        usage.model = data["model"]
-
-                    if data.get("usage"):
-                        usage.prompt_tokens = data["usage"]["prompt_tokens"]
-                        usage.completion_tokens = data["usage"]["completion_tokens"]
-                        usage.total_tokens = data["usage"]["total_tokens"]
-                        usage.cost = data["usage"].get("cost", None)
-                        usage.kwh_min = data["usage"].get("carbon", {}).get("kWh", {}).get("min", None)
-                        usage.kwh_max = data["usage"].get("carbon", {}).get("kWh", {}).get("max", None)
-                        usage.kgco2eq_min = data["usage"].get("carbon", {}).get("kgCO2eq", {}).get("min", None)
-                        usage.kgco2eq_max = data["usage"].get("carbon", {}).get("kgCO2eq", {}).get("max", None)
-
-        # Set usage.status with the captured status code before calling write_usage
-        if response_status_code is not None:
-            usage.status = response_status_code
-
-        asyncio.create_task(log_usage(response=response, usage=usage, start_time=start_time))
-        asyncio.create_task(update_budget(usage=usage))
+            asyncio.create_task(log_usage(usage=usage))
+            asyncio.create_task(update_budget(usage=usage))
 
     return StreamingResponseWithStatusCode(wrapped_stream(), media_type=response.media_type)
 
 
-async def extract_usage_from_response(response: Response, start_time: datetime, usage: Usage):
-    """
-    Extracts usage information from the response and logs it to the database.
-    This function captures the completion tokens from the response and calculates the duration of the request.
-    It also sets the status code of the response if available.
-    """
-
-    try:
-        body = {}
-        if hasattr(response, "body") and response.body:
-            body = json.loads(response.body)
-
-        usage.model = body.get("model", None)
-        response_usage = body.get("usage", {})
-        usage.prompt_tokens = response_usage.get("prompt_tokens", None)
-        usage.completion_tokens = response_usage.get("completion_tokens", None)
-        usage.total_tokens = response_usage.get("total_tokens", None)
-        usage.cost = response_usage.get("cost", None)
-        usage.kwh_min = response_usage.get("carbon", {}).get("kWh", {}).get("min", None)
-        usage.kwh_max = response_usage.get("carbon", {}).get("kWh", {}).get("max", None)
-        usage.kgco2eq_min = response_usage.get("carbon", {}).get("kgCO2eq", {}).get("min", None)
-        usage.kgco2eq_max = response_usage.get("carbon", {}).get("kgCO2eq", {}).get("max", None)
-
-    except Exception as e:
-        logger.warning(f"Failed to parse JSON response body: {response.body} ({e})")
-        return
-
-    asyncio.create_task(log_usage(response, usage, start_time))
-    asyncio.create_task(update_budget(usage=usage))
-
-
-async def log_usage(response: Response | None, usage: Usage, start_time: datetime):
+async def log_usage(usage: Usage):
     """
     Logs the usage information to the database.
     This function captures the duration of the request and sets the status code of the response if available.
@@ -196,12 +145,6 @@ async def log_usage(response: Response | None, usage: Usage, start_time: datetim
 
     if configuration.settings.monitoring_postgres_enabled is False:
         return
-
-    usage.duration = int((datetime.now() - start_time).total_seconds() * 1000)
-
-    # Set usage.status based on the response object ONLY if not already set by streaming logic.
-    if usage.status is None:
-        usage.status = response.status_code if hasattr(response, "status_code") else None
 
     async for postgres_session in get_postgres_session():
         postgres_session.add(usage)

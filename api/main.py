@@ -2,8 +2,7 @@ from importlib import import_module
 import logging
 import pkgutil
 
-from fastapi import APIRouter, Depends, FastAPI, Request
-from fastapi.dependencies.utils import get_dependant
+from fastapi import Depends, FastAPI, Request
 from prometheus_fastapi_instrumentator import Instrumentator
 import sentry_sdk
 from starlette.middleware.sessions import SessionMiddleware
@@ -15,7 +14,6 @@ from api.schemas.core.context import RequestContext
 from api.schemas.usage import Usage
 from api.utils.configuration import configuration
 from api.utils.context import generate_request_id, request_context
-from api.utils.hooks_decorator import hooks
 from api.utils.lifespan import lifespan
 from api.utils.variables import ROUTER__MONITORING
 
@@ -39,12 +37,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.add_middleware(SessionMiddleware, secret_key=configuration.settings.session_secret_key)
-
-
-def add_hooks(router: APIRouter) -> None:
-    for route in router.routes:
-        route.endpoint = hooks(route.endpoint)
-        route.dependant = get_dependant(path=route.path_format, call=route.endpoint)
 
 
 @app.middleware("http")
@@ -80,9 +72,6 @@ for finder, name, ispkg in pkgutil.walk_packages(base_pkg.__path__, base_pkg.__n
         # hidden routers
         if router_name in configuration.settings.hidden_routers:
             module.router.include_in_schema = False
-        # legacy routers dont support hooks
-        if module.router.tags and module.router.tags[0] != "Legacy":
-            add_hooks(router=module.router)
 
         app.include_router(router=module.router, include_in_schema=module.router.include_in_schema)
 

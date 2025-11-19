@@ -17,12 +17,14 @@ from api.schemas.usage import Usage
 from api.utils.context import global_context
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
 from api.utils.exceptions import FileSizeLimitExceededException
+from api.utils.hooks_decorator import hooks
 from api.utils.variables import ENDPOINT__OCR, ROUTER__OCR
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__OCR.upper()])
 
 
 @router.post(path=ENDPOINT__OCR, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=ParsedDocument)
+@hooks
 async def ocr(
     request: Request,
     file: UploadFile = FileForm,

@@ -143,7 +143,6 @@ class BaseModelProvider(ABC):
                         stream=stream,
                     )
 
-                # @TODO: don't compute carbon if model type is not text-generation or image-text-to-text
                 detail.usage.total_tokens = detail.usage.prompt_tokens + detail.usage.completion_tokens
                 detail.usage.carbon = get_carbon_footprint(
                     active_params=self.carbon_footprint_active_params,
@@ -196,6 +195,7 @@ class BaseModelProvider(ABC):
 
         if usage:
             additional_data["usage"] = usage.model_dump()
+            request_context.get().usage = usage
 
         return additional_data
 
@@ -283,6 +283,9 @@ class BaseModelProvider(ABC):
             ttft(int | None): The time to first token in microseconds (us).
             latency(int | None): The latency in milliseconds (ms).
         """
+        request_context.get().ttft = ttft
+        request_context.get().latency = latency
+
         try:
             if ttft is not None:
                 key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{Metric.TTFT.value}:{self.id}"

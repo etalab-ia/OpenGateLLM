@@ -9,7 +9,6 @@ from app.core.variables import (
 from app.features.usage.components import (
     usage_dashboard,
     usage_header,
-    usage_limits_table,
 )
 
 
@@ -19,7 +18,6 @@ def usage_page() -> rx.Component:
         rx.scroll_area(
             rx.vstack(
                 usage_header(),
-                usage_limits_table(),
                 usage_dashboard(),
                 spacing=SPACING_XL,
                 width="100%",

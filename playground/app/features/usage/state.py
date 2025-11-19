@@ -8,30 +8,47 @@ from pydantic import BaseModel
 import reflex as rx
 
 from app.features.auth.state import AuthState
-from app.features.keys.models import Limit
+
+_usage_endpoints = {
+    "All": None,
+    "Chat completions": "/v1/chat/completions",
+    "Embeddings": "/v1/embeddings",
+    "OCR": "/v1/ocr",
+    "Rerank": "/v1/rerank",
+    "Search": "/v1/search",
+}
 
 
 class UsageItem(BaseModel):
-    datetime: int
-    endpoint: str
-    model: str
-    prompt_tokens: int
-    completion_tokens: int
-    total_tokens: int
-    cost: float
+    created: int
+    endpoint: str | None
+    model: str | None
+    key: str | None
+    method: str | None
+    status: int | None
+    prompt_tokens: int | None
+    completion_tokens: int | None
+    total_tokens: int | None
+    cost: float | None
+    latency: int | None
+    ttft: int | None
+    kwh_min: float | None
+    kwh_max: float | None
+    kgco2eq_min: float | None
+    kgco2eq_max: float | None
 
 
 class UsageState(AuthState):
     """State for account usage listing and filters."""
 
     # Filters
-    date_from: str | None = None  # YYYY-MM-DD
-    date_to: str | None = None  # YYYY-MM-DD
+    date_from: str = (dt.datetime.now() - dt.timedelta(days=30)).strftime("%Y-%m-%d")
+    date_to: str = (dt.datetime.now() + dt.timedelta(days=1)).strftime("%Y-%m-%d")
+    endpoint: str = "All"
 
     # Pagination
     page: int = 1
-    total_pages: int = 0
-    total_count: int = 0
+    per_page: int = 20
     has_more: bool = False
 
     # Data
@@ -39,54 +56,20 @@ class UsageState(AuthState):
     loading: bool = False
 
     @rx.var
-    def min_to_date(self) -> str:
-        return self.date_from or ""
+    def endpoint_display_values(self) -> list[str]:
+        return list(_usage_endpoints.keys())
 
     @rx.var
-    def max_from_date(self) -> str:
-        return self.date_to or ""
+    def max_date(self) -> str:
+        return (dt.datetime.now()).strftime("%Y-%m-%d")
 
     @rx.var
     def date_from_value(self) -> str:
-        return self.date_from or ""
+        return self.date_from
 
     @rx.var
     def date_to_value(self) -> str:
         return self.date_to or ""
-
-    @rx.var
-    def usage_rows(self) -> list[dict[str, Any]]:
-        rows: list[dict[str, Any]] = []
-        for u in self.usage:
-            dt_str = dt.datetime.fromtimestamp(u.datetime).strftime("%Y-%m-%d %H:%M")
-            rows.append(
-                {
-                    "datetime": dt_str,
-                    "endpoint": u.endpoint,
-                    "model": u.model,
-                    "tokens": f"{u.prompt_tokens} → {u.completion_tokens}",
-                    "cost": f"{u.cost:.4f}",
-                }
-            )
-        return rows
-
-    @rx.var
-    def requests_per_day(self) -> list[dict[str, Any]]:
-        """Calculate number of requests per day for charting."""
-        buckets: dict[str, int] = {}
-        for u in self.usage:
-            day = dt.datetime.fromtimestamp(u.datetime).strftime("%Y-%m-%d")
-            buckets[day] = buckets.get(day, 0) + 1
-        # sort by day
-        result: list[dict[str, Any]] = []
-        for k in sorted(buckets.keys()):
-            result.append(
-                {
-                    "day": k,
-                    "count": buckets[k],
-                }
-            )
-        return result
 
     @rx.event
     def set_date_from(self, value: str):
@@ -101,6 +84,25 @@ class UsageState(AuthState):
         self.page = page
 
     @rx.event
+    def set_endpoint(self, value: str):
+        """Set the endpoint filter using the display key."""
+        self.endpoint = value
+
+    @rx.var
+    def usage_rows(self) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for row in self.usage:
+            rows.append({
+                "date": dt.datetime.fromtimestamp(row.created).strftime("%Y-%m-%d %H:%M"),
+                "endpoint": row.endpoint,
+                "model": row.model,
+                "tokens": "" if row.total_tokens == 0 else f"{row.prompt_tokens} → {row.completion_tokens}",
+                "cost": "" if row.cost == 0.0 else f"{row.cost:.4f}",
+                "kgCO2eq": "" if row.kgco2eq_min is None or row.kgco2eq_max is None else f"{round(row.kgco2eq_min, 5)} — {round(row.kgco2eq_max, 5)}",
+            })
+        return rows
+
+    @rx.event
     async def load_usage(self):
         if not self.is_authenticated or not self.api_key:
             return
@@ -109,56 +111,51 @@ class UsageState(AuthState):
         yield
 
         try:
-            params: dict[str, Any] = {
-                "page": self.page,
-                "limit": 20,
-                "order_by": "datetime",
-                "order_direction": "desc",
+            params = {
+                "offset": (self.page - 1) * self.per_page,
+                "limit": self.per_page,
+                "start_time": int(dt.datetime.strptime(self.date_from, "%Y-%m-%d").timestamp()),
+                "end_time": int(dt.datetime.strptime(self.date_to, "%Y-%m-%d").timestamp()),
             }
-
-            if self.date_from:
-                try:
-                    ts_from = int(dt.datetime.strptime(self.date_from, "%Y-%m-%d").replace(tzinfo=dt.UTC).timestamp())
-                    params["date_from"] = ts_from
-                except Exception:
-                    pass
-
-            if self.date_to:
-                try:
-                    # include end of day
-                    ts_to = int(dt.datetime.strptime(self.date_to, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=dt.UTC).timestamp())
-                    params["date_to"] = ts_to
-                except Exception:
-                    pass
-
+            if self.endpoint is not None:
+                endpoint_api_value = _usage_endpoints.get(self.endpoint, None)
+                if endpoint_api_value is not None:
+                    params["endpoint"] = endpoint_api_value
             async with httpx.AsyncClient() as client:
-                resp = await client.get(
-                    f"{self.opengatellm_url}/v1/usage",
+                response = await client.get(
+                    url=f"{self.opengatellm_url}/v1/me/usage",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=60.0,
                 )
 
-                if resp.status_code != 200:
-                    yield rx.toast.error(resp.json().get("detail", "Failed to load usage"), position="bottom-right")
+                if response.status_code != 200:
+                    yield rx.toast.error(response.json().get("detail", "Failed to load usage"), position="bottom-right")
                 else:
-                    data = resp.json()
-                    self.total_count = data.get("total", 0)
-                    self.total_pages = data.get("total_pages", 0)
-                    self.has_more = data.get("has_more", False)
+                    data = response.json()
                     items = data.get("data", [])
                     self.usage = [
                         UsageItem(
-                            datetime=item.get("datetime", 0),
+                            created=item.get("created", 0),
                             endpoint=item.get("endpoint", ""),
                             model=item.get("model", ""),
+                            key=item.get("key", ""),
+                            method=item.get("method", ""),
+                            status=item.get("status", 0),
                             prompt_tokens=item.get("prompt_tokens", 0),
                             completion_tokens=item.get("completion_tokens", 0),
                             total_tokens=item.get("total_tokens", 0),
-                            cost=item.get("cost", 0.0),
+                            cost=item.get("usage", {}).get("cost", 0.0),
+                            latency=item.get("usage", {}).get("metrics", {}).get("latency"),
+                            ttft=item.get("usage", {}).get("metrics", {}).get("ttft"),
+                            kwh_min=item.get("usage", {}).get("carbon", {}).get("kWh", {}).get("min", 0.0),
+                            kwh_max=item.get("usage", {}).get("carbon", {}).get("kWh", {}).get("max", 0.0),
+                            kgco2eq_min=item.get("usage", {}).get("carbon", {}).get("kgCO2eq", {}).get("min", 0.0),
+                            kgco2eq_max=item.get("usage", {}).get("carbon", {}).get("kgCO2eq", {}).get("max", 0.0),
                         )
                         for item in items
                     ]
+                    self.has_more = len(items) == self.per_page
         except Exception as e:
             yield rx.toast.error(str(e), position="bottom-right")
         finally:
@@ -175,37 +172,8 @@ class UsageState(AuthState):
 
     @rx.event
     async def next_page(self):
-        if self.has_more or (self.total_pages and self.page < self.total_pages):
+        if self.has_more:
             self.page += 1
             yield
             async for _ in self.load_usage():
                 yield
-
-    @rx.var
-    def formatted_limits(self) -> list[Limit]:
-        """Get formatted limits from user data."""
-        limits = []
-        for limit_dict in self.user_limits:
-            limits.append(
-                Limit(
-                    model=limit_dict.get("model", ""),
-                    type=limit_dict.get("type", ""),
-                    value=limit_dict.get("value"),
-                )
-            )
-        return limits
-
-    @rx.var
-    def limits_by_model(self) -> dict[str, dict[str, int | None]]:
-        """Group limits by model for table display."""
-        result = {}
-        for limit in self.formatted_limits:
-            if limit.model not in result:
-                result[limit.model] = {"rpm": None, "rpd": None, "tpm": None, "tpd": None}
-            result[limit.model][limit.type.lower()] = limit.value
-        return result
-
-    @rx.var
-    def models_list(self) -> list[str]:
-        """Get list of models from limits."""
-        return list(self.limits_by_model.keys())

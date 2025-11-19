@@ -12,12 +12,14 @@ from api.schemas.search import Searches, SearchRequest
 from api.utils.context import global_context
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
 from api.utils.exceptions import CollectionNotFoundException
+from api.utils.hooks_decorator import hooks
 from api.utils.variables import ENDPOINT__SEARCH, ROUTER__SEARCH
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__SEARCH.title()])
 
 
 @router.post(path=ENDPOINT__SEARCH, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Searches)
+@hooks
 async def search(
     request: Request,
     body: SearchRequest,

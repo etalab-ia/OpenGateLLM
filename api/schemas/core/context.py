@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from api.schemas.me import UserInfo
+from api.schemas.me.info import UserInfo
 from api.schemas.usage import Usage
 
 
@@ -13,6 +13,7 @@ class GlobalContext(BaseModel):
     document_manager: Any | None = None
     identity_access_manager: Any | None = None
     limiter: Any | None = None
+    usage_manager: Any | None = None
     model_registry: Any | None = None
     parser_manager: Any | None = None
     tokenizer: Any | None = None
@@ -30,7 +31,8 @@ class RequestContext(BaseModel):
 
     # request context
     user_info: UserInfo | None = None
-    token_id: int | None = None
+    key_id: int | None = None
+    key_name: str | None = None
     router_id: int | None = None
     provider_id: int | None = None
 
@@ -40,3 +42,5 @@ class RequestContext(BaseModel):
 
     # response
     usage: Usage | None = None
+    ttft: int | None = None
+    latency: int | None = None

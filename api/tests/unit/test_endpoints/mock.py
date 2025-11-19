@@ -2,7 +2,7 @@ from api.schemas.admin.organizations import Organization
 from api.schemas.admin.roles import Limit, LimitType, PermissionType, Role
 from api.schemas.admin.tokens import Token
 from api.schemas.admin.users import User
-from api.schemas.me import UserInfo
+from api.schemas.me.info import UserInfo
 from api.utils.exceptions import (
     InvalidCurrentPasswordException,
     RoleAlreadyExistsException,

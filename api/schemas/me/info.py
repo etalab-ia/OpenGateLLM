@@ -1,7 +1,6 @@
-import datetime as dt
-from typing import Annotated, Literal
+from typing import Literal
 
-from pydantic import Field, constr, field_validator
+from pydantic import Field
 
 from api.schemas import BaseModel
 from api.schemas.admin.roles import Limit, PermissionType
@@ -22,40 +21,8 @@ class UserInfo(BaseModel):
     updated: int = Field(description="The user update timestamp.")
 
 
-class UpdateUserRequest(BaseModel):
+class UpdateUserInfo(BaseModel):
     name: str | None = Field(default=None, description="The user name.")
     email: str | None = Field(default=None, description="The user email.")
     current_password: str | None = Field(default=None, description="The current user password.")
     password: str | None = Field(default=None, description="The new user password. If None, the user password is not changed.")
-
-
-class CreateKeyResponse(BaseModel):
-    id: int
-    token: str
-
-
-class CreateKey(BaseModel):
-    name: Annotated[str, constr(strip_whitespace=True, min_length=1)]
-    expires: int | None = Field(None, description="Timestamp in seconds")
-
-    @field_validator("expires", mode="before")
-    def must_be_future(cls, expires):
-        if isinstance(expires, int):
-            if expires <= int(dt.datetime.now(tz=dt.UTC).timestamp()):
-                raise ValueError("Wrong timestamp, must be in the future.")
-
-        return expires
-
-
-class Key(BaseModel):
-    object: Literal["key"] = "key"
-    id: int
-    name: str
-    token: str
-    expires: int | None = None
-    created: int
-
-
-class Keys(BaseModel):
-    object: Literal["list"] = "list"
-    data: list[Key]
