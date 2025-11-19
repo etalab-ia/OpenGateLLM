@@ -124,7 +124,7 @@ class AccessController:
         return user_info, key_id, key_name
 
     async def _check_permissions(self, permissions: list[PermissionType]) -> None:
-        if self.permissions and not all(perm in permissions for perm in self.permissions):
+        if self.permissions and not set(permissions).intersection(set(self.permissions)):
             raise InsufficientPermissionException()
 
     async def _check_limits(self, user_info: UserInfo, router_id: int, prompt_tokens: int | None = None) -> None:

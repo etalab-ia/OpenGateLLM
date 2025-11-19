@@ -20,7 +20,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 
 @router.post(
     path=ENDPOINT__ADMIN_PROVIDERS,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.PROVIDE_MODELS]))],
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
     status_code=201,
 )
 async def create_provider(
@@ -52,7 +52,7 @@ async def create_provider(
 
 @router.delete(
     path=ENDPOINT__ADMIN_PROVIDERS + "/{provider}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.PROVIDE_MODELS]))],
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
     status_code=204,
 )
 async def delete_provider(
@@ -92,7 +92,7 @@ async def get_provider(
 
 @router.get(
     path=ENDPOINT__ADMIN_PROVIDERS,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.PROVIDE_MODELS]))],
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
     status_code=200,
     response_model=Providers,
 )

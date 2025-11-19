@@ -57,7 +57,7 @@ async def delete_router(
 
 @router.patch(
     path=ENDPOINT__ADMIN_ROUTERS + "/{router}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType]))],
     status_code=204,
 )
 async def update_router(
@@ -87,7 +87,7 @@ async def update_router(
 
 @router.get(
     path=ENDPOINT__ADMIN_ROUTERS + "/{router}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.PROVIDE_MODELS]))],
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
     status_code=200,
     response_model=Router,
 )
@@ -107,7 +107,7 @@ async def get_router(
 
 @router.get(
     path=ENDPOINT__ADMIN_ROUTERS,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.PROVIDE_MODELS]))],
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
     status_code=200,
     response_model=Routers,
 )

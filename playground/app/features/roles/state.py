@@ -43,7 +43,7 @@ class RolesState(ChatState):
     edit_role_loading: bool = False
 
     # Add limit form (per role)
-    new_limit_model: str = ""
+    new_limit_router_name: str = ""
     new_limit_rpm: str = ""
     new_limit_rpd: str = ""
     new_limit_tpm: str = ""
@@ -52,6 +52,12 @@ class RolesState(ChatState):
 
     # Delete limit
     delete_limit_loading: bool = False
+
+    # Routers list for dropdown
+    available_routers: list[dict[str, str | int]] = []
+    routers_loading: bool = False
+    router_id_to_name: dict[int, str] = {}
+    router_name_to_id: dict[str, int] = {}
 
     @rx.var
     def roles_with_formatted_dates(self) -> list[FormattedRole]:
@@ -82,28 +88,35 @@ class RolesState(ChatState):
         return None
 
     @rx.var
-    def roles_limits_by_model(self) -> dict[int, dict[str, dict[str, int | None]]]:
-        """Get limits grouped by model for each role. Returns dict[role_id][model][limit_type] = value."""
+    def roles_limits_by_router(self) -> dict[int, dict[str, dict[str, int | None]]]:
+        """Get limits grouped by router name for each role. Returns dict[role_id][router_name][limit_type] = value."""
         result = {}
         for role in self.roles:
             role_limits = {}
             for limit in role.limits:
-                if limit.model not in role_limits:
-                    role_limits[limit.model] = {"rpm": None, "rpd": None, "tpm": None, "tpd": None}
-                role_limits[limit.model][limit.type.lower()] = limit.value
+                router_name = self.router_id_to_name.get(limit.router, str(limit.router))
+                if router_name not in role_limits:
+                    role_limits[router_name] = {"rpm": None, "rpd": None, "tpm": None, "tpd": None}
+                role_limits[router_name][limit.type.lower()] = limit.value
             result[role.id] = role_limits
         return result
 
     @rx.var
-    def roles_models_lists(self) -> dict[int, list[str]]:
-        """Get list of models for each role. Returns dict[role_id] = [models]."""
+    def roles_routers_lists(self) -> dict[int, list[str]]:
+        """Get list of router names for each role. Returns dict[role_id] = [router_names]."""
         result = {}
         for role in self.roles:
-            models_set = set()
+            routers_set = set()
             for limit in role.limits:
-                models_set.add(limit.model)
-            result[role.id] = sorted(list(models_set))
+                router_name = self.router_id_to_name.get(limit.router, str(limit.router))
+                routers_set.add(router_name)
+            result[role.id] = sorted(list(routers_set))
         return result
+
+    @rx.var
+    def routers_list_for_dropdown(self) -> list[str]:
+        """Get list of router names formatted for dropdown."""
+        return [router["name"] for router in self.available_routers]
 
     @rx.var
     def roles_total_pages(self) -> int:
@@ -183,9 +196,9 @@ class RolesState(ChatState):
         self.edit_role_name = value
 
     @rx.event
-    def set_new_limit_model(self, value: str):
-        """Set new limit model."""
-        self.new_limit_model = value
+    def set_new_limit_router_name(self, value: str):
+        """Set new limit router name."""
+        self.new_limit_router_name = value
 
     @rx.event
     def set_new_limit_rpm(self, value: str):
@@ -208,10 +221,49 @@ class RolesState(ChatState):
         self.new_limit_tpd = value
 
     @rx.event
+    async def load_routers(self):
+        """Load routers from API."""
+        if not self.is_authenticated or not self.api_key:
+            return
+
+        self.routers_loading = True
+        yield
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.opengatellm_url}/v1/admin/routers",
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    timeout=60.0,
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    routers_data = data.get("data", [])
+                    self.available_routers = [{"id": r["id"], "name": r["name"]} for r in routers_data]
+                    # Create bidirectional mapping
+                    self.router_id_to_name = {r["id"]: r["name"] for r in routers_data}
+                    self.router_name_to_id = {r["name"]: r["id"] for r in routers_data}
+                else:
+                    error_detail = response.json().get("detail", "Failed to load routers")
+                    yield rx.toast.error(str(error_detail), position="bottom-right")
+
+        except Exception as e:
+            yield rx.toast.error(f"Error loading routers: {str(e)}", position="bottom-right")
+        finally:
+            self.routers_loading = False
+            yield
+
+    @rx.event
     async def load_roles(self):
         """Load roles from API."""
         if not self.is_authenticated or not self.api_key:
             return
+
+        # Load routers first if not already loaded
+        if not self.available_routers:
+            async for _ in self.load_routers():
+                yield
 
         self.roles_loading = True
         yield
@@ -238,6 +290,7 @@ class RolesState(ChatState):
                 else:
                     data = response.json()
                     roles_data = data.get("data", [])
+
                     self.roles = [
                         Role(
                             id=r["id"],
@@ -400,9 +453,16 @@ class RolesState(ChatState):
 
     @rx.event
     async def add_limit(self, role_id: int):
-        """Add limits for a model to a role (all 4 types at once)."""
-        if not self.new_limit_model.strip():
-            yield rx.toast.warning("Model is required", position="bottom-right")
+        """Add limits for a router to a role (all 4 types at once)."""
+        router_name = self.new_limit_router_name.strip()
+        if not router_name:
+            yield rx.toast.warning("Router is required", position="bottom-right")
+            return
+
+        # Convert router name to router ID
+        router_id = self.router_name_to_id.get(router_name)
+        if router_id is None:
+            yield rx.toast.error(f"Router '{router_name}' not found", position="bottom-right")
             return
 
         # Parse and validate all 4 limit values
@@ -421,25 +481,21 @@ class RolesState(ChatState):
                     if value < 0:
                         yield rx.toast.warning(f"{limit_type.upper()} value must be >= 0", position="bottom-right")
                         return
-                    limits_to_add.append(
-                        {
-                            "model": self.new_limit_model.strip(),
-                            "type": limit_type,
-                            "value": value,
-                        }
-                    )
+                    limits_to_add.append({
+                        "router": router_id,
+                        "type": limit_type,
+                        "value": value,
+                    })
                 except ValueError:
                     yield rx.toast.warning(f"{limit_type.upper()} value must be a number", position="bottom-right")
                     return
             else:
                 # Empty value means unlimited (None)
-                limits_to_add.append(
-                    {
-                        "model": self.new_limit_model.strip(),
-                        "type": limit_type,
-                        "value": None,
-                    }
-                )
+                limits_to_add.append({
+                    "router": router_id,
+                    "type": limit_type,
+                    "value": None,
+                })
 
         self.add_limit_loading = True
         yield
@@ -458,10 +514,8 @@ class RolesState(ChatState):
                 yield
                 return
 
-            # Remove existing limits for this model, then add new ones
-            new_limits = [
-                {"model": lim.model, "type": lim.type, "value": lim.value} for lim in role.limits if lim.model != self.new_limit_model.strip()
-            ]
+            # Remove existing limits for this router, then add new ones
+            new_limits = [{"router": lim.router, "type": lim.type, "value": lim.value} for lim in role.limits if lim.router != router_id]
             new_limits.extend(limits_to_add)
 
             payload = {"limits": new_limits}
@@ -475,7 +529,7 @@ class RolesState(ChatState):
                 )
 
                 if response.status_code == 204:
-                    self.new_limit_model = ""
+                    self.new_limit_router_name = ""
                     self.new_limit_rpm = ""
                     self.new_limit_rpd = ""
                     self.new_limit_tpm = ""
@@ -502,8 +556,14 @@ class RolesState(ChatState):
             yield
 
     @rx.event
-    async def delete_model_limits(self, role_id: int, model: str):
-        """Delete all limits for a specific model from a role."""
+    async def delete_router_limits(self, role_id: int, router_name: str):
+        """Delete all limits for a specific router from a role."""
+        # Convert router name to router ID
+        router_id = self.router_name_to_id.get(router_name)
+        if router_id is None:
+            yield rx.toast.error(f"Router '{router_name}' not found", position="bottom-right")
+            return
+
         self.delete_limit_loading = True
         yield
 
@@ -521,8 +581,8 @@ class RolesState(ChatState):
                 yield
                 return
 
-            # Remove all limits for this model
-            new_limits = [{"model": lim.model, "type": lim.type, "value": lim.value} for lim in role.limits if lim.model != model]
+            # Remove all limits for this router
+            new_limits = [{"router": lim.router, "type": lim.type, "value": lim.value} for lim in role.limits if lim.router != router_id]
 
             payload = {"limits": new_limits}
 

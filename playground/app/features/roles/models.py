@@ -4,7 +4,7 @@ from pydantic import BaseModel
 class Limit(BaseModel):
     """Limit model."""
 
-    model: str
+    router: int
     type: str  # "tpm", "tpd", "rpm", "rpd"
     value: int | None
 

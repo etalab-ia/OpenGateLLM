@@ -32,14 +32,14 @@ def limit_value_cell(value) -> rx.Component:
     )
 
 
-def model_limits_row(role_id: int, model: str) -> rx.Component:
-    """Display a row with all limits for a model."""
-    limits = RolesState.roles_limits_by_model[role_id][model]
+def router_limits_row(role_id: int, router_name: str) -> rx.Component:
+    """Display a row with all limits for a router."""
+    limits = RolesState.roles_limits_by_router[role_id][router_name]
 
     return rx.table.row(
         rx.table.cell(
             rx.text(
-                model,
+                router_name,
                 size=TEXT_SIZE_LABEL,
                 weight="medium",
                 color=rx.color("mauve", 12),
@@ -52,7 +52,7 @@ def model_limits_row(role_id: int, model: str) -> rx.Component:
         rx.table.cell(
             rx.button(
                 rx.icon("trash-2", size=ICON_SIZE_MEDIUM),
-                on_click=lambda: RolesState.delete_model_limits(role_id, model),
+                on_click=lambda: RolesState.delete_router_limits(role_id, router_name),
                 variant="soft",
                 color_scheme="red",
                 size=TEXT_SIZE_LABEL,
@@ -65,19 +65,19 @@ def model_limits_row(role_id: int, model: str) -> rx.Component:
 
 
 def add_limit_form(role_id: int) -> rx.Component:
-    """Form to add limits for a model (all 4 types)."""
+    """Form to add limits for a router (all 4 types)."""
     return rx.card(
         rx.vstack(
-            rx.heading("Add limits for a model", size=TEXT_SIZE_MEDIUM),
+            rx.heading("Add limits for a router", size=TEXT_SIZE_MEDIUM),
             rx.divider(),
             rx.hstack(
                 rx.vstack(
-                    rx.text("Model *", size=TEXT_SIZE_LABEL, weight="bold"),
+                    rx.text("Router *", size=TEXT_SIZE_LABEL, weight="bold"),
                     rx.select(
-                        RolesState.available_models,
-                        placeholder="Select model",
-                        value=RolesState.new_limit_model,
-                        on_change=RolesState.set_new_limit_model,
+                        RolesState.routers_list_for_dropdown,
+                        placeholder="Select router",
+                        value=RolesState.new_limit_router_name,
+                        on_change=RolesState.set_new_limit_router_name,
                         disabled=RolesState.add_limit_loading,
                         width="100%",
                     ),
@@ -194,12 +194,12 @@ def add_limit_form(role_id: int) -> rx.Component:
 
 def role_limits_table_compact(role: FormattedRole) -> rx.Component:
     """Compact limits table for a specific role."""
-    models_list = RolesState.roles_models_lists[role.id]
+    routers_list = RolesState.roles_routers_lists[role.id]
 
     return rx.table.root(
         rx.table.header(
             rx.table.row(
-                rx.table.column_header_cell("Model"),
+                rx.table.column_header_cell("Router"),
                 rx.table.column_header_cell(
                     rx.tooltip(
                         rx.hstack(
@@ -249,8 +249,8 @@ def role_limits_table_compact(role: FormattedRole) -> rx.Component:
         ),
         rx.table.body(
             rx.foreach(
-                models_list,
-                lambda model: model_limits_row(role.id, model),
+                routers_list,
+                lambda router_name: router_limits_row(role.id, router_name),
             ),
         ),
         variant="surface",
@@ -359,7 +359,7 @@ def role_accordion_item(role: FormattedRole) -> rx.Component:
                 rx.text("No permissions, updated the role to add some.", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 9)),
             ),
             rx.vstack(
-                rx.heading("Model limits", size=TEXT_SIZE_MEDIUM),
+                rx.heading("Router limits", size=TEXT_SIZE_MEDIUM),
                 rx.cond(
                     role.limits.length() > 0,
                     role_limits_table_compact(role),
