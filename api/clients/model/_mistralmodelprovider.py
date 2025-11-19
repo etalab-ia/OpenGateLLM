@@ -35,7 +35,7 @@ class MistralModelProvider(BaseModelProvider):
         model_carbon_footprint_active_params: int | None,
     ) -> None:
         """
-        Initialize the OpenAI model provider and check if the model is available.
+        Initialize the Mistral model provider and check if the model is available.
         """
         super().__init__(
             model_name=model_name,
@@ -93,8 +93,8 @@ class MistralModelProvider(BaseModelProvider):
             json["parallel_tool_calls"] = False if json["parallel_tool_calls"] is None else json["parallel_tool_calls"]
             json["presence_penalty"] = 0.0 if json["presence_penalty"] is None else json["presence_penalty"]
             json["response_format"] = {"type": "text"} if json["response_format"] is None else json["response_format"]
-            if json.get("stop", "") is None:
-                del json["stop"]
+            if json.get("stop") is None:
+                json.pop("stop", None)
             json["stream"] = False if json["stream"] is None else json["stream"]
             json["top_p"] = 1.0 if json["top_p"] is None else json["top_p"]
 
