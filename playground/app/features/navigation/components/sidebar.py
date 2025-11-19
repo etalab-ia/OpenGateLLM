@@ -66,6 +66,7 @@ def sidebar() -> rx.Component:
                     AuthState.is_admin,
                     rx.box(
                         rx.divider(),
+                        nav_item("Models", "container", "/models"),
                         nav_item("Roles", "shield", "/roles"),
                         nav_item("Organizations", "building", "/organizations"),
                         nav_item("Users", "users", "/users"),

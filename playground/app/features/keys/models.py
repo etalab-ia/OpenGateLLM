@@ -26,6 +26,6 @@ class FormattedApiKey(BaseModel):
 class Limit(BaseModel):
     """User limit model."""
 
-    model: str
+    router: int
     type: str  # TPM, TPD, RPM, RPD
     value: int | None = None

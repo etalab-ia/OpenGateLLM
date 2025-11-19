@@ -8,7 +8,7 @@ import reflex as rx
 
 from app.core.configuration import configuration
 from app.features.auth.state import AuthState
-from app.features.keys.models import ApiKey, FormattedApiKey, Limit
+from app.features.keys.models import ApiKey, FormattedApiKey
 
 
 class KeysState(AuthState):
@@ -51,35 +51,6 @@ class KeysState(AuthState):
         """Get the maximum expiry date."""
         if configuration.settings.auth_key_max_expiration_days is not None:
             return (datetime.now() + timedelta(days=configuration.settings.auth_key_max_expiration_days)).strftime("%Y-%m-%d")
-
-    @rx.var
-    def formatted_limits(self) -> list[Limit]:
-        """Get formatted limits from user data."""
-        limits = []
-        for limit_dict in self.user_limits:
-            limits.append(
-                Limit(
-                    model=limit_dict.get("model", ""),
-                    type=limit_dict.get("type", ""),
-                    value=limit_dict.get("value"),
-                )
-            )
-        return limits
-
-    @rx.var
-    def limits_by_model(self) -> dict[str, dict[str, int | None]]:
-        """Group limits by model for table display."""
-        result = {}
-        for limit in self.formatted_limits:
-            if limit.model not in result:
-                result[limit.model] = {"rpm": None, "rpd": None, "tpm": None, "tpd": None}
-            result[limit.model][limit.type.lower()] = limit.value
-        return result
-
-    @rx.var
-    def models_list(self) -> list[str]:
-        """Get list of models from limits."""
-        return list(self.limits_by_model.keys())
 
     @rx.var
     def keys_with_formatted_dates(self) -> list[FormattedApiKey]:

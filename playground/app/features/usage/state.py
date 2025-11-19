@@ -55,6 +55,11 @@ class UsageState(AuthState):
     usage: list[UsageItem] = []
     loading: bool = False
 
+    # Routers list for mapping
+    available_routers: list[dict[str, str | int]] = []
+    routers_loading: bool = False
+    router_id_to_name: dict[int, str] = {}
+
     @rx.var
     def endpoint_display_values(self) -> list[str]:
         return list(_usage_endpoints.keys())
