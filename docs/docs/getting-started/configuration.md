@@ -212,7 +212,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 | qos_limit | number | The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc. |  | None |  | 0.5 |
 | qos_metric | string | The metric to use for the quality of service. If not provided, no QoS policy is applied. |  | None | • ttft<br></br>• latency<br></br>• inflight<br></br>• performance | inflight |
 | timeout | integer | Timeout for the model provider requests, after user receive an 500 error (model is too busy). |  | 300 |  | 10 |
-| type | string | Model provider type. |  |  | • albert<br></br>• openai<br></br>• tei<br></br>• vllm | openai |
+| type | string | Model provider type. |  |  | • albert<br></br>• openai<br></br>• mistral<br></br>• tei<br></br>• vllm | openai |
 | url | string | Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI). |  | None |  | https://api.openai.com |
 
 <br></br>
