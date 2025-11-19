@@ -88,13 +88,13 @@ class MistralModelProvider(BaseModelProvider):
 
         if endpoint == ENDPOINT__CHAT_COMPLETIONS:
             # see https://docs.mistral.ai/api#operation-chat_completion_v1_chat_completions_post
-            json["frequence_penalty"] = 0.0 if json["frequence_penalty"] is None else json["frequence_penalty"]
+            json["frequency_penalty"] = 0.0 if json["frequency_penalty"] is None else json["frequency_penalty"]
             json["random_seed"] = json.get("random_seed", json.get("seed"))
             json["parallel_tool_calls"] = False if json["parallel_tool_calls"] is None else json["parallel_tool_calls"]
             json["presence_penalty"] = 0.0 if json["presence_penalty"] is None else json["presence_penalty"]
             json["response_format"] = {"type": "text"} if json["response_format"] is None else json["response_format"]
             if json.get("stop", "") is None:
-                json.pop("stop")
+                del json["stop"]
             json["stream"] = False if json["stream"] is None else json["stream"]
             json["top_p"] = 1.0 if json["top_p"] is None else json["top_p"]
 
@@ -118,8 +118,8 @@ class MistralModelProvider(BaseModelProvider):
                 "tools",
                 "top_p",
             ]
-            for key in json:
+            for key in list(json.keys()):
                 if key not in authorized_keys:
-                    json.pop(key)
+                    del json[key]
 
         return url, json, files, data

@@ -164,7 +164,7 @@ def chat_params_sidebar() -> rx.Component:
                 ),
                 # Frequency Penalty
                 param_section(
-                    "Frequence penalty",
+                    "Frequency penalty",
                     [
                         rx.hstack(
                             rx.slider(

@@ -57,6 +57,7 @@ class ModelRegistry:
         ],
         ModelType.IMAGE_TEXT_TO_TEXT: [
             ProviderType.ALBERT.value,
+            ProviderType.MISTRAL.value,
             ProviderType.OPENAI.value,
             ProviderType.VLLM.value,
         ],
@@ -68,6 +69,7 @@ class ModelRegistry:
         ],
         ModelType.TEXT_GENERATION: [
             ProviderType.ALBERT.value,
+            ProviderType.MISTRAL.value,
             ProviderType.OPENAI.value,
             ProviderType.VLLM.value,
         ],
