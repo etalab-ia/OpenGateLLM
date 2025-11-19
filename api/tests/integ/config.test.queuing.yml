@@ -91,7 +91,7 @@ dependencies:
       command_timeout: 60
 
   redis:
-    url: redis://:changeme@localhost:${REDIS_PORT:-6379}
+    url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
 
   elasticsearch:
     hosts: http://localhost:${ELASTICSEARCH_PORT:-9200}
@@ -104,7 +104,7 @@ dependencies:
       Authorization: Bearer ${ALBERT_API_KEY}
   
   celery:
-    broker_url: amqp://rabbitmq:changeme@localhost:${RABBITMQ_PORT:-5672}/
+    broker_url: amqp://${RABBITMQ_USER:-rabbitmq}:${RABBITMQ_PASSWORD:-changeme}@${RABBITMQ_HOST:-localhost}:${RABBITMQ_PORT:-5672}/
 
   brave:
     headers:

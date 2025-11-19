@@ -55,13 +55,13 @@ if configuration.dependencies.celery is not None:
         result_serializer="json",
         task_create_missing_queues=True,
         task_default_routing_key=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
-        task_queues=(
-            Queue(
-                name=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
-                routing_key=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
-                queue_arguments={"x-max-priority": configuration.settings.routing_max_priority + 1},
-            ),
-        ),
+        # task_queues=(
+        #     Queue(
+        #         name=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
+        #         routing_key=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
+        #         queue_arguments={"x-max-priority": configuration.settings.routing_max_priority + 1},
+        #     ),
+        # ),
         task_default_queue=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
         task_default_exchange="",
     )
