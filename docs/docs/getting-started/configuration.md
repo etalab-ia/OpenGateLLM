@@ -66,7 +66,7 @@ dependencies:
       command_timeout: 60
 
   redis: # required
-    url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
+    url: redis://${REDIS_USER:-redis}:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
 
   # elasticsearch:
   #   number_of_shards: 1
