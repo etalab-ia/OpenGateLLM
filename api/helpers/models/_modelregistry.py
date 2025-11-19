@@ -687,7 +687,8 @@ class ModelRegistry:
             select(RouterTable.id)
             .where(or_(RouterTable.name == model_name, RouterAliasTable.value == model_name))
             .join(RouterAliasTable, RouterAliasTable.router_id == RouterTable.id)
-        )
+        ).limit(1)
+
         result = await session.execute(query)
         router_id = result.scalar_one_or_none()
 
