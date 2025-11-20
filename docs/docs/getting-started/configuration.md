@@ -148,7 +148,7 @@ settings:
 | app_title | string | Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | OpenGateLLM |  | My API |
 | auth_key_max_expiration_days | integer | Maximum number of days for a new API key to be valid. |  | None |  |  |
 | auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. |  | changeme |  |  |
-| auth_playground_session_duration | integer | Duration of the playground session in seconds. |  | 3600 |  |  |
+| auth_playground_session_duration | integer | Duration of the playground postgres_session in seconds. |  | 3600 |  |  |
 | disabled_routers | array | Disabled routers to limits services of the API. |  |  | • admin<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• documents<br></br>• embeddings<br></br>• ... | ['embeddings'] |
 | front_url | string | Front-end URL for the application. |  | http://localhost:8501 |  |  |
 | hidden_routers | array | Routers are enabled but hidden in the swagger and the documentation of the API. |  |  | • admin<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• documents<br></br>• embeddings<br></br>• ... | ['admin'] |
@@ -163,7 +163,7 @@ settings:
 | search_web_limited_domains | array | Limited domains for the web search. If provided, the web search will be limited to these domains. |  |  |  |  |
 | search_web_query_model | string | Model used to query the web in the web search. Is required if a web search dependency is provided (Brave or DuckDuckGo). This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`. |  | None |  |  |
 | search_web_user_agent | string | User agent to scrape the web. If provided, the web search will use this user agent. |  | None |  |  |
-| session_secret_key | string | Secret key for session middleware. If not provided, the master key will be used. |  | None |  | knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM |
+| session_secret_key | string | Secret key for postgres_session middleware. If not provided, the master key will be used. |  | None |  | knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM |
 | swagger_contact | object | Contact informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | None |  |  |
 | swagger_description | string | Display description of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | [See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md) |  | [See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md) |
 | swagger_docs_url | string | Docs URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | /docs |  |  |
