@@ -444,7 +444,7 @@ class DocumentManager:
         return searches
 
     @check_dependencies(dependencies=["web_search_manager"])
-    asynpostgres_sessions_sessioncreate_web_collection(
+    async def _create_web_collection(
         self,
         postgres_session: AsyncSession,
         model_registry: ModelRegistry,
@@ -454,7 +454,7 @@ class DocumentManager:
         k: int = 5,
     ) -> int | None:
         web_query = await self.web_search_manager.get_web_query(
-            postgres_sessionprompt,
+            prompt=prompt,
             model_registry=model_registry,
             postgres_session=postgres_session,
             redis_client=redis_client,
@@ -462,9 +462,9 @@ class DocumentManager:
         )
         web_results = await self.web_search_manager.get_results(query=web_query, k=k)
         collection_id = None
-        if web_rpostgres_session
+        if web_results:
             collection_id = await self.create_collection(
-                postgres_sessions_session=postgres_session,
+                postgres_session=postgres_session,
                 name=f"tmp_web_collection_{uuid4()}",
                 user_id=request_context.get().user_info.id,
                 visibility=CollectionVisibility.PRIVATE,
@@ -477,7 +477,7 @@ class DocumentManager:
                     page_range="",
                     paginate_output=False,
                     use_llm=False,
-                )postgres_session
+                )
                 await self.create_document(
                     postgres_session=postgres_session,
                     redis_client=redis_client,
@@ -538,14 +538,14 @@ class DocumentManager:
     async def _upsert(
         self,
         chunks: list[Chunk],
-        postgres_sessionion_id: int,
+        collection_id: int,
         redis_client: AsyncRedis,
         postgres_session: AsyncSession,
         model_registry: ModelRegistry,
         request_context: ContextVar[RequestContext],
     ) -> None:
         provider = await model_registry.get_model_provider(
-            postgres_sessionelf.vector_store_model,
+            model=self.vector_store_model,
             endpoint=ENDPOINT__EMBEDDINGS,
             postgres_session=postgres_session,
             request_context=request_context,

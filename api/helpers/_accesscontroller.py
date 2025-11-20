@@ -67,7 +67,7 @@ class AccessController:
             await self._check_collections(body=body, user_info=user_info, postgres_session=postgres_session)
 
         if request.url.path.endswith(ENDPOINT__EMBEDDINGS) and request.method in ["POST"]:
-            await self._check_embeddings(body=body, user_info=user_info, postgres_session=postgres_sessions_session)
+            await self._check_embeddings(body=body, user_info=user_info, postgres_session=postgres_session)
 
         if request.url.path.endswith(ENDPOINT__FILES) and request.method in ["POST"]:
             await self._check_files(user_info=user_info, postgres_session=postgres_session)
@@ -176,59 +176,57 @@ class AccessController:
         await self._check_limits(user_info=user_info, router_id=router_id)
 
     async def _check_chat_completions(self, body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
-        router_id = await global_context.model_registry.get_router_id_from_model_name(
-            model_name=body.get("model"), postgres_sessions_session=postgres_session
-        )
+        router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), postgres_session=postgres_session)
         if router_id is None:
             return
 
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__CHAT_COMPLETIONS, body=body)
 
         if body.get("search", False):  # count the search request as one request to the search model (embeddings)
-            searpostgres_sessioner_id = await global_context.model_registry.get_router_id_from_model_name(
+            search_router_id = await global_context.model_registry.get_router_id_from_model_name(
                 model_name=global_context.document_manager.vector_store_model,
                 postgres_session=postgres_session,
             )
             await self._check_limits(user_info=user_info, router_id=search_router_id, prompt_tokens=prompt_tokens)
 
-        await self._check_limits(user_info=user_info, router_id=router_ipostgres_sessionpt_tokens=prompt_tokens)
+        await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
     async def _check_collections(self, body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
         if body.get("visibility") == CollectionVisibility.PUBLIC and PermissionType.CREATE_PUBLIC_COLLECTION not in user_info.permissions:
-            raise InsufficientPermissionException("Missing permission tpostgres_sessione collection visibility to public.")
-postgres_session
+            raise InsufficientPermissionException("Missing permission to update collection visibility to public.")
+
     async def _check_embeddings(self, body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
         router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), postgres_session=postgres_session)
         if router_id is None:
             return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__EMBEDDINGS, body=body)
-        await self._check_limits(user_info=user_info, postgres_sessionid=router_id, prompt_tokens=prompt_tokens)
+        await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
     async def _check_files(self, user_info: UserInfo, postgres_session: AsyncSession) -> None:
-        routpostgres_session await global_context.model_registry.get_router_id_from_model_name(
+        router_id = await global_context.model_registry.get_router_id_from_model_name(
             model_name=global_context.document_manager.vector_store_model,
             postgres_session=postgres_session,
         )
         if router_id is None:
             return
-        await self._check_limits(user_info=user_info, router_id=postgres_sessionid)
-postgres_session
+        await self._check_limits(user_info=user_info, router_id=router_id)
+
     async def _check_ocr(self, body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
         router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), postgres_session=postgres_session)
         if router_id is None:
             return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__OCR, body=body)
-        await self._check_limits(user_info=user_info, router_id=roupostgres_session prompt_tokens=prompt_tokens)
-postgres_session
+        await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
+
     async def _check_rerank(self, body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
         router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), postgres_session=postgres_session)
         if router_id is None:
             return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__RERANK, body=body)
-        await self._check_limits(user_info=user_info, router_id=roupostgres_session prompt_tokens=prompt_tokens)
+        await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
     async def _check_search(self, body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
-        routpostgres_session await global_context.model_registry.get_router_id_from_model_name(
+        router_id = await global_context.model_registry.get_router_id_from_model_name(
             model_name=global_context.document_manager.vector_store_model,
             postgres_session=postgres_session,
         )
