@@ -47,7 +47,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__DOCUMENTS.title()])
 @router.post(path=ENDPOINT__DOCUMENTS, status_code=201, dependencies=[Security(dependency=AccessController())], response_model=DocumentResponse)
 async def create_document(
     request: Request,
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
@@ -99,7 +99,7 @@ async def create_document(
 
     document_id = await global_context.document_manager.create_document(
         request_context=request_context,
-        session=session,
+        postgres_session=postgres_session,
         redis_client=redis_client,
         model_registry=model_registry,
         collection_id=collection,
@@ -127,7 +127,7 @@ async def create_document(
 async def get_document(
     request: Request,
     document: int = Path(description="The document ID"),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
@@ -136,7 +136,9 @@ async def get_document(
     if not global_context.document_manager:  # no vector store available
         raise DocumentNotFoundException()
 
-    documents = await global_context.document_manager.get_documents(session=session, document_id=document, user_id=request_context.get().user_info.id)
+    documents = await global_context.document_manager.get_documents(
+        postgres_session=postgres_session, document_id=document, user_id=request_context.get().user_info.id
+    )
 
     return JSONResponse(content=documents[0].model_dump(), status_code=200)
 
@@ -148,7 +150,7 @@ async def get_documents(
     collection: int | None = Query(default=None, description="Filter documents by collection ID"),
     limit: int | None = Query(default=10, ge=1, le=100, description="The number of documents to return"),
     offset: int | UUID = Query(default=0, description="The offset of the first document to return"),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
@@ -162,7 +164,7 @@ async def get_documents(
         return Documents(data=[])
 
     data = await global_context.document_manager.get_documents(
-        session=session,
+        postgres_session=postgres_session,
         collection_id=collection,
         document_name=name,
         limit=limit,
@@ -177,7 +179,7 @@ async def get_documents(
 async def delete_document(
     request: Request,
     document: int = Path(description="The document ID"),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> Response:
     """
@@ -186,6 +188,8 @@ async def delete_document(
     if not global_context.document_manager:  # no vector store available
         raise DocumentNotFoundException()
 
-    await global_context.document_manager.delete_document(session=session, document_id=document, user_id=request_context.get().user_info.id)
+    await global_context.document_manager.delete_document(
+        postgres_session=postgres_session, document_id=document, user_id=request_context.get().user_info.id
+    )
 
     return Response(status_code=204)

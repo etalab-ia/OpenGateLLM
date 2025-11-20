@@ -23,14 +23,14 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 async def create_user(
     request: Request,
     body: CreateUser = Body(description="The user creation request."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Create a new user.
     """
 
     user_id = await global_context.identity_access_manager.create_user(
-        session=session,
+        postgres_session=postgres_session,
         email=body.email,
         password=body.password,
         name=body.name,
@@ -52,12 +52,12 @@ async def create_user(
 async def delete_user(
     request: Request,
     user: int = Path(description="The ID of the user to delete."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
     """
     Delete a user.
     """
-    await global_context.identity_access_manager.delete_user(session=session, user_id=user)
+    await global_context.identity_access_manager.delete_user(postgres_session=postgres_session, user_id=user)
 
     return Response(status_code=204)
 
@@ -71,13 +71,13 @@ async def update_user(
     request: Request,
     user: int = Path(description="The ID of the user to update."),
     body: UserUpdateRequest = Body(description="The user update request."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
     """
     Update a user.
     """
     await global_context.identity_access_manager.update_user(
-        session=session,
+        postgres_session=postgres_session,
         user_id=user,
         email=body.email,
         name=body.name,
@@ -99,13 +99,13 @@ async def update_user(
     status_code=200,
 )
 async def get_user(
-    request: Request, user: int = Path(description="The ID of the user to get."), session: AsyncSession = Depends(get_postgres_session)
+    request: Request, user: int = Path(description="The ID of the user to get."), postgres_session: AsyncSession = Depends(get_postgres_session)
 ) -> JSONResponse:
     """
     Get a user by id.
     """
 
-    users = await global_context.identity_access_manager.get_users(session=session, user_id=user)
+    users = await global_context.identity_access_manager.get_users(postgres_session=postgres_session, user_id=user)
 
     return JSONResponse(content=users[0].model_dump(), status_code=200)
 
@@ -123,14 +123,14 @@ async def get_users(
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the users to get."),
     order_by: Literal["id", "name", "created", "updated"] = Query(default="id", description="The field to order the users by."),
     order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the users by."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get all users.
     """
 
     data = await global_context.identity_access_manager.get_users(
-        session=session,
+        postgres_session=postgres_session,
         role_id=role,
         organization_id=organization,
         offset=offset,

@@ -28,7 +28,7 @@ async def get_account_usage(
     order_direction: Literal["asc", "desc"] = Query(default="desc", description="Order direction"),
     date_from: int = Query(default=None, description="Start date as Unix timestamp (default: 30 days ago)"),
     date_to: int = Query(default=None, description="End date as Unix timestamp (default: now)"),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     current_user: User = Depends(AccessController()),
 ) -> JSONResponse:
     """
@@ -45,11 +45,11 @@ async def get_account_usage(
 
     # Build and execute usage query
     query = UsageManager.build_usage_query(base_filter, order_by, order_direction, page, limit)
-    result = await session.execute(query)
+    result = await postgres_session.execute(query)
     usage_records = result.scalars().all()
 
     # Get aggregated statistics
-    aggregation_data = await UsageManager.get_usage_aggregation(session, base_filter)
+    aggregation_data = await UsageManager.get_usage_aggregation(postgres_session, base_filter)
 
     # Convert records to schema format
     usage_data = UsageManager.convert_records_to_schema(usage_records)

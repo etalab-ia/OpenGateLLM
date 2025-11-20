@@ -21,7 +21,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__SEARCH.title()])
 async def search(
     request: Request,
     body: SearchRequest,
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
@@ -34,7 +34,7 @@ async def search(
         raise CollectionNotFoundException()
 
     data = await global_context.document_manager.search_chunks(
-        session=session,
+        postgres_session=postgres_session,
         redis_client=redis_client,
         model_registry=model_registry,
         request_context=request_context,

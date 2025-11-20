@@ -39,7 +39,7 @@ class _Result:
 
 
 @pytest.fixture
-def session():
+def postgres_session():
     return AsyncMock(spec=AsyncSession)
 
 
@@ -49,12 +49,12 @@ def iam():
 
 
 @pytest.mark.asyncio
-async def test_create_user_success(session: AsyncSession, iam: IdentityAccessManager):
+async def test_create_user_success(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # role exists -> ok, organization None, insert -> returning id
-    session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), _Result(scalar_one=10)])
+    postgres_session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), _Result(scalar_one=10)])
 
     uid = await iam.create_user(
-        session=session,
+        postgres_session=postgres_session,
         email="alice@example.com",
         name="alice",
         role_id=1,
@@ -65,52 +65,52 @@ async def test_create_user_success(session: AsyncSession, iam: IdentityAccessMan
     )
 
     assert uid == 10
-    session.commit.assert_awaited()
+    postgres_session.commit.assert_awaited()
 
 
 @pytest.mark.asyncio
-async def test_create_user_role_not_found(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(return_value=_Result(scalar_one=NoResultFound()))
+async def test_create_user_role_not_found(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(return_value=_Result(scalar_one=NoResultFound()))
 
     with pytest.raises(RoleNotFoundException):
-        await iam.create_user(session, email="bob@example.com", name="bob", role_id=9)
+        await iam.create_user(postgres_session, email="bob@example.com", name="bob", role_id=9)
 
 
 @pytest.mark.asyncio
-async def test_create_user_organization_not_found(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), _Result(scalar_one=NoResultFound())])
+async def test_create_user_organization_not_found(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), _Result(scalar_one=NoResultFound())])
 
     with pytest.raises(OrganizationNotFoundException):
-        await iam.create_user(session, email="bob@example.com", name="bob", role_id=1, organization_id=5)
+        await iam.create_user(postgres_session, email="bob@example.com", name="bob", role_id=1, organization_id=5)
 
 
 @pytest.mark.asyncio
-async def test_create_user_unique_violation_to_400(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), IntegrityError("", "", None)])
+async def test_create_user_unique_violation_to_400(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), IntegrityError("", "", None)])
 
     with pytest.raises(UserAlreadyExistsException):
-        await iam.create_user(session, email="bob@example.com", name="bob", role_id=1)
+        await iam.create_user(postgres_session, email="bob@example.com", name="bob", role_id=1)
 
 
 @pytest.mark.asyncio
-async def test_delete_user_not_found(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(return_value=_Result(scalar_one=NoResultFound()))
+async def test_delete_user_not_found(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(return_value=_Result(scalar_one=NoResultFound()))
 
     with pytest.raises(UserNotFoundException):
-        await iam.delete_user(session, user_id=404)
+        await iam.delete_user(postgres_session, user_id=404)
 
 
 @pytest.mark.asyncio
-async def test_delete_user_success(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), None])
-    await iam.delete_user(session, user_id=1)
-    session.commit.assert_awaited()
+async def test_delete_user_success(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), None])
+    await iam.delete_user(postgres_session, user_id=1)
+    postgres_session.commit.assert_awaited()
 
 
 @pytest.mark.asyncio
-async def test_update_user_success_all_fields(session: AsyncSession, iam: IdentityAccessManager):
+async def test_update_user_success_all_fields(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # select user with join role
-    session.execute = AsyncMock(
+    postgres_session.execute = AsyncMock(
         side_effect=[
             _Result(all_rows=[MagicMock(id=1, name="alice", role_id=1, budget=None, expires=None, role="role")]),
             _Result(scalar_one=1),  # check new role exists when different
@@ -120,7 +120,7 @@ async def test_update_user_success_all_fields(session: AsyncSession, iam: Identi
     )
 
     await iam.update_user(
-        session=session,
+        postgres_session=postgres_session,
         user_id=1,
         name="alice2",
         role_id=2,
@@ -129,20 +129,20 @@ async def test_update_user_success_all_fields(session: AsyncSession, iam: Identi
         expires=int(dt.datetime.now(tz=dt.UTC).timestamp()) + 100,
     )
 
-    session.commit.assert_awaited()
+    postgres_session.commit.assert_awaited()
 
 
 @pytest.mark.asyncio
-async def test_update_user_not_found(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(return_value=_Result(all_rows=[]))
+async def test_update_user_not_found(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(return_value=_Result(all_rows=[]))
 
     with pytest.raises(UserNotFoundException):
-        await iam.update_user(session, user_id=123)
+        await iam.update_user(postgres_session, user_id=123)
 
 
 @pytest.mark.asyncio
-async def test_update_user_role_missing(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(
+async def test_update_user_role_missing(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(
         side_effect=[
             _Result(all_rows=[MagicMock(id=1, name="alice", role_id=1, budget=None, expires=None, role="role")]),
             _Result(scalar_one=NoResultFound()),
@@ -150,12 +150,12 @@ async def test_update_user_role_missing(session: AsyncSession, iam: IdentityAcce
     )
 
     with pytest.raises(RoleNotFoundException):
-        await iam.update_user(session, user_id=1, role_id=9)
+        await iam.update_user(postgres_session, user_id=1, role_id=9)
 
 
 @pytest.mark.asyncio
-async def test_update_user_org_missing(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(
+async def test_update_user_org_missing(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(
         side_effect=[
             _Result(all_rows=[MagicMock(id=1, name="alice", role_id=1, budget=None, expires=None, role="role")]),
             _Result(scalar_one=NoResultFound()),  # organization lookup -> not found
@@ -163,11 +163,11 @@ async def test_update_user_org_missing(session: AsyncSession, iam: IdentityAcces
     )
 
     with pytest.raises(OrganizationNotFoundException):
-        await iam.update_user(session, user_id=1, role_id=1, organization_id=999)
+        await iam.update_user(postgres_session, user_id=1, role_id=1, organization_id=999)
 
 
 @pytest.mark.asyncio
-async def test_get_users_filters_and_not_found(session: AsyncSession, iam: IdentityAccessManager):
+async def test_get_users_filters_and_not_found(postgres_session: AsyncSession, iam: IdentityAccessManager):
     rows = [
         MagicMock(
             _mapping={
@@ -185,20 +185,20 @@ async def test_get_users_filters_and_not_found(session: AsyncSession, iam: Ident
             }
         )
     ]
-    session.execute = AsyncMock(return_value=_Result(all_rows=rows))
+    postgres_session.execute = AsyncMock(return_value=_Result(all_rows=rows))
 
-    users = await iam.get_users(session, role_id=1)
+    users = await iam.get_users(postgres_session, role_id=1)
     assert len(users) == 1
     assert users[0].name == "alice"
 
     # not found by id
-    session.execute = AsyncMock(return_value=_Result(all_rows=[]))
+    postgres_session.execute = AsyncMock(return_value=_Result(all_rows=[]))
     with pytest.raises(UserNotFoundException):
-        await iam.get_users(session, user_id=404)
+        await iam.get_users(postgres_session, user_id=404)
 
 
 @pytest.mark.asyncio
-async def test_get_user_info_master_user(iam: IdentityAccessManager, session: AsyncSession, monkeypatch):
+async def test_get_user_info_master_user(iam: IdentityAccessManager, postgres_session: AsyncSession, monkeypatch):
     # When user_id is 0, returns master info with all permissions and all non-zero limits
     from types import SimpleNamespace
 
@@ -226,7 +226,7 @@ async def test_get_user_info_master_user(iam: IdentityAccessManager, session: As
     )
     monkeypatch.setattr(iam_mod, "UserInfo", _UserInfo, raising=False)
 
-    user = await iam.get_user_info(session=session, user_id=0)
+    user = await iam.get_user_info(postgres_session=postgres_session, user_id=0)
 
     assert user.id == 0
     assert user.name == "master"
@@ -241,7 +241,7 @@ async def test_get_user_info_master_user(iam: IdentityAccessManager, session: As
 
 
 @pytest.mark.asyncio
-async def test_get_user_info_by_id_success(session: AsyncSession, iam: IdentityAccessManager):
+async def test_get_user_info_by_id_success(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # Arrange get_users -> returns one user row with plain values
     mapping_user = {
         "id": 1,
@@ -288,7 +288,7 @@ async def test_get_user_info_by_id_success(session: AsyncSession, iam: IdentityA
         _PermissionRow(2, PermissionType.READ_METRIC),
     ]
 
-    session.execute = AsyncMock(
+    postgres_session.execute = AsyncMock(
         side_effect=[
             # get_users
             _Result(all_rows=[MagicMock(_mapping=mapping_user)]),
@@ -302,7 +302,7 @@ async def test_get_user_info_by_id_success(session: AsyncSession, iam: IdentityA
     )
 
     # Act
-    user = await iam.get_user_info(session=session, user_id=1)
+    user = await iam.get_user_info(postgres_session=postgres_session, user_id=1)
 
     # Assert
     assert user.id == 1
@@ -318,7 +318,7 @@ async def test_get_user_info_by_id_success(session: AsyncSession, iam: IdentityA
 
 
 @pytest.mark.asyncio
-async def test_get_user_info_by_email_success(session: AsyncSession, iam: IdentityAccessManager):
+async def test_get_user_info_by_email_success(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # Similar to by_id but call with email
     mapping_user = {
         "id": 5,
@@ -364,7 +364,7 @@ async def test_get_user_info_by_email_success(session: AsyncSession, iam: Identi
         _PermissionRow(3, PermissionType.ADMIN),
     ]
 
-    session.execute = AsyncMock(
+    postgres_session.execute = AsyncMock(
         side_effect=[
             # get_users by email
             _Result(all_rows=[MagicMock(_mapping=mapping_user)]),
@@ -375,7 +375,7 @@ async def test_get_user_info_by_email_success(session: AsyncSession, iam: Identi
         ]
     )
 
-    user = await iam.get_user_info(session=session, email="bob@example.com")
+    user = await iam.get_user_info(postgres_session=postgres_session, email="bob@example.com")
 
     assert user.id == 5
     assert user.email == "bob@example.com"
@@ -390,13 +390,13 @@ async def test_get_user_info_by_email_success(session: AsyncSession, iam: Identi
 
 
 @pytest.mark.asyncio
-async def test_get_user_info_missing_params_raises(iam: IdentityAccessManager, session: AsyncSession):
+async def test_get_user_info_missing_params_raises(iam: IdentityAccessManager, postgres_session: AsyncSession):
     with pytest.raises(AssertionError):
-        await iam.get_user_info(session=session)
+        await iam.get_user_info(postgres_session=postgres_session)
 
 
 @pytest.mark.asyncio
-async def test_get_users_with_id_and_role_id(session: AsyncSession, iam: IdentityAccessManager):
+async def test_get_users_with_id_and_role_id(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # Arrange
     rows = [
         MagicMock(
@@ -415,10 +415,10 @@ async def test_get_users_with_id_and_role_id(session: AsyncSession, iam: Identit
             }
         )
     ]
-    session.execute = AsyncMock(return_value=_Result(all_rows=rows))
+    postgres_session.execute = AsyncMock(return_value=_Result(all_rows=rows))
 
     # Act
-    users = await iam.get_users(session, user_id=1, role_id=1)
+    users = await iam.get_users(postgres_session, user_id=1, role_id=1)
 
     # Assert
     assert len(users) == 1
@@ -426,7 +426,7 @@ async def test_get_users_with_id_and_role_id(session: AsyncSession, iam: Identit
 
 
 @pytest.mark.asyncio
-async def test_get_users_with_role_id_only(session: AsyncSession, iam: IdentityAccessManager):
+async def test_get_users_with_role_id_only(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # Arrange
     rows = [
         MagicMock(
@@ -460,17 +460,17 @@ async def test_get_users_with_role_id_only(session: AsyncSession, iam: IdentityA
             }
         ),
     ]
-    session.execute = AsyncMock(return_value=_Result(all_rows=rows))
+    postgres_session.execute = AsyncMock(return_value=_Result(all_rows=rows))
 
     # Act
-    users = await iam.get_users(session, role_id=1)
+    users = await iam.get_users(postgres_session, role_id=1)
 
     # Assert
     assert len(users) == 2
 
 
 @pytest.mark.asyncio
-async def test_get_users_with_id_only(session: AsyncSession, iam: IdentityAccessManager):
+async def test_get_users_with_id_only(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # Arrange
     rows = [
         MagicMock(
@@ -489,10 +489,10 @@ async def test_get_users_with_id_only(session: AsyncSession, iam: IdentityAccess
             }
         )
     ]
-    session.execute = AsyncMock(return_value=_Result(all_rows=rows))
+    postgres_session.execute = AsyncMock(return_value=_Result(all_rows=rows))
 
     # Act
-    users = await iam.get_users(session, user_id=1)
+    users = await iam.get_users(postgres_session, user_id=1)
 
     # Assert
     assert len(users) == 1
@@ -500,7 +500,7 @@ async def test_get_users_with_id_only(session: AsyncSession, iam: IdentityAccess
 
 
 @pytest.mark.asyncio
-async def test_get_users_no_params(session: AsyncSession, iam: IdentityAccessManager):
+async def test_get_users_no_params(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # Arrange
     rows = [
         MagicMock(
@@ -534,10 +534,10 @@ async def test_get_users_no_params(session: AsyncSession, iam: IdentityAccessMan
             }
         ),
     ]
-    session.execute = AsyncMock(return_value=_Result(all_rows=rows))
+    postgres_session.execute = AsyncMock(return_value=_Result(all_rows=rows))
 
     # Act
-    users = await iam.get_users(session)
+    users = await iam.get_users(postgres_session)
 
     # Assert
     assert len(users) == 2
@@ -546,10 +546,10 @@ async def test_get_users_no_params(session: AsyncSession, iam: IdentityAccessMan
 
 
 @pytest.mark.asyncio
-async def test_get_users_empty_result(session: AsyncSession, iam: IdentityAccessManager):
+async def test_get_users_empty_result(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # Arrange
-    session.execute = AsyncMock(return_value=_Result(all_rows=[]))
+    postgres_session.execute = AsyncMock(return_value=_Result(all_rows=[]))
 
     # Act / Assert
     with pytest.raises(UserNotFoundException):
-        await iam.get_users(session, user_id=404)
+        await iam.get_users(postgres_session, user_id=404)

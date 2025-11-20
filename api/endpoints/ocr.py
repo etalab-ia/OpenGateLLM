@@ -31,7 +31,7 @@ async def ocr(
     prompt: str = PromptForm,
     model_registry: ModelRegistry = Depends(get_model_registry),
     redis_client: AsyncRedis = Depends(get_redis_client),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
@@ -68,7 +68,7 @@ async def ocr(
         model_provider = await model_registry.get_model_provider(
             model=model,
             endpoint=ENDPOINT__OCR,
-            session=session,
+            postgres_session=postgres_session,
             redis_client=redis_client,
             request_context=request_context,
         )

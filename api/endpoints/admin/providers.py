@@ -26,7 +26,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 async def create_provider(
     request: Request,
     body: CreateProvider,
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> CreateProviderResponse:
     """
@@ -45,7 +45,7 @@ async def create_provider(
         model_carbon_footprint_active_params=body.model_carbon_footprint_active_params,
         qos_metric=body.qos_metric,
         qos_limit=body.qos_limit,
-        session=session,
+        postgres_session=postgres_session,
     )
     return JSONResponse(status_code=201, content=CreateProviderResponse(id=provider_id).model_dump())
 
@@ -58,13 +58,13 @@ async def create_provider(
 async def delete_provider(
     request: Request,
     provider: int = Path(description="The ID of the provider to delete."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> Response:
     """
     Delete a router provider.
     """
-    await model_registry.delete_provider(provider_id=provider, user_id=request_context.get().user_info.id, session=session)
+    await model_registry.delete_provider(provider_id=provider, user_id=request_context.get().user_info.id, postgres_session=postgres_session)
 
     return Response(status_code=204)
 
@@ -78,13 +78,13 @@ async def delete_provider(
 async def get_provider(
     request: Request,
     provider: int = Path(description="The ID of the provider to get."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> JSONResponse:
     """
     Get a model provider by router and provider IDs.
     """
-    providers = await model_registry.get_providers(router_id=router, provider_id=provider, session=session)
+    providers = await model_registry.get_providers(router_id=router, provider_id=provider, postgres_session=postgres_session)
     provider = providers[0]
 
     return JSONResponse(status_code=200, content=provider.model_dump())
@@ -99,12 +99,12 @@ async def get_provider(
 async def get_providers(
     request: Request,
     router: int | None = Query(default=None, description="Filter providers by router ID."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> JSONResponse:
     """
     Get all model providers for a router.
     """
-    providers = await model_registry.get_providers(router_id=router, provider_id=None, session=session)
+    providers = await model_registry.get_providers(router_id=router, provider_id=None, postgres_session=postgres_session)
 
     return JSONResponse(status_code=200, content=Providers(data=providers).model_dump())

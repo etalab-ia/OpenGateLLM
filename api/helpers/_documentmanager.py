@@ -75,22 +75,22 @@ class DocumentManager:
         self.parser_manager = parser_manager
 
     @check_dependencies(dependencies=["vector_store"])
-    async def create_collection(self, session: AsyncSession, user_id: int, name: str, visibility: CollectionVisibility, description: str | None = None) -> int:  # fmt: off
+    async def create_collection(self, postgres_session: AsyncSession, user_id: int, name: str, visibility: CollectionVisibility, description: str | None = None) -> int:  # fmt: off
         query = (
             insert(table=CollectionTable)
             .values(name=name, user_id=user_id, visibility=visibility, description=description)
             .returning(CollectionTable.id)
         )
-        result = await session.execute(statement=query)
+        result = await postgres_session.execute(statement=query)
         collection_id = result.scalar_one()
-        await session.commit()
+        await postgres_session.commit()
 
         return collection_id
 
     @check_dependencies(dependencies=["vector_store"])
-    async def delete_collection(self, session: AsyncSession, user_id: int, collection_id: int) -> None:
+    async def delete_collection(self, postgres_session: AsyncSession, user_id: int, collection_id: int) -> None:
         # check if collection exists
-        result = await session.execute(
+        result = await postgres_session.execute(
             statement=select(CollectionTable.id).where(CollectionTable.id == collection_id).where(CollectionTable.user_id == user_id)
         )
         try:
@@ -99,16 +99,16 @@ class DocumentManager:
             raise CollectionNotFoundException()
 
         # delete the collection
-        await session.execute(statement=delete(table=CollectionTable).where(CollectionTable.id == collection_id))
-        await session.commit()
+        await postgres_session.execute(statement=delete(table=CollectionTable).where(CollectionTable.id == collection_id))
+        await postgres_session.commit()
 
         # delete the collection from vector store
         await self.vector_store.delete_collection(collection_id=collection_id)
 
     @check_dependencies(dependencies=["vector_store"])
-    async def update_collection(self, session: AsyncSession, user_id: int, collection_id: int, name: str | None = None, visibility: CollectionVisibility | None = None, description: str | None = None) -> None:  # fmt: off
+    async def update_collection(self, postgres_session: AsyncSession, user_id: int, collection_id: int, name: str | None = None, visibility: CollectionVisibility | None = None, description: str | None = None) -> None:  # fmt: off
         # check if collection exists
-        result = await session.execute(
+        result = await postgres_session.execute(
             statement=select(CollectionTable)
             .join(target=UserTable, onclause=UserTable.id == CollectionTable.user_id)
             .where(CollectionTable.id == collection_id)
@@ -123,17 +123,17 @@ class DocumentManager:
         visibility = visibility if visibility is not None else collection.visibility
         description = description if description is not None else collection.description
 
-        await session.execute(
+        await postgres_session.execute(
             statement=update(table=CollectionTable)
             .values(name=name, visibility=visibility, description=description)
             .where(CollectionTable.id == collection.id)
         )
-        await session.commit()
+        await postgres_session.commit()
 
     @check_dependencies(dependencies=["vector_store"])
     async def get_collections(
         self,
-        session: AsyncSession,
+        postgres_session: AsyncSession,
         user_id: int,
         collection_id: int | None = None,
         collection_name: str | None = None,
@@ -169,7 +169,7 @@ class DocumentManager:
         else:
             statement = statement.where(CollectionTable.user_id == user_id, CollectionTable.visibility == visibility)
 
-        result = await session.execute(statement=statement)
+        result = await postgres_session.execute(statement=statement)
         collections = [Collection(**row._asdict()) for row in result.all()]
 
         if collection_id and len(collections) == 0:
@@ -180,7 +180,7 @@ class DocumentManager:
     @check_dependencies(dependencies=["vector_store"])
     async def create_document(
         self,
-        session: AsyncSession,
+        postgres_session: AsyncSession,
         redis_client: AsyncRedis,
         model_registry: ModelRegistry,
         request_context: ContextVar[RequestContext],
@@ -197,7 +197,7 @@ class DocumentManager:
         metadata: dict | None = None,
     ) -> int:
         # check if collection exists and prepare document chunks in a single transaction
-        result = await session.execute(
+        result = await postgres_session.execute(
             statement=select(CollectionTable)
             .where(CollectionTable.id == collection_id)
             .where(CollectionTable.user_id == request_context.get().user_info.id)
@@ -214,7 +214,7 @@ class DocumentManager:
                 .where(RouterTable.name == self.vector_store_model)
                 .join(RouterTable, ProviderTable.router_id == RouterTable.id)
             ).limit(1)
-            result = await session.execute(query)
+            result = await postgres_session.execute(query)
             vector_size = result.scalar_one()
 
             await self.vector_store.create_collection(collection_id=collection_id, vector_size=vector_size)
@@ -241,7 +241,7 @@ class DocumentManager:
 
         document_name = document.data[0].metadata.document_name
         try:
-            result = await session.execute(
+            result = await postgres_session.execute(
                 statement=insert(table=DocumentTable).values(name=document_name, collection_id=collection_id).returning(DocumentTable.id)
             )
         except Exception as e:
@@ -249,7 +249,7 @@ class DocumentManager:
                 raise CollectionNotFoundException(detail=f"Collection {collection_id} no longer exists")
             raise
         document_id = result.scalar_one()
-        await session.commit()
+        await postgres_session.commit()
 
         for chunk in chunks:
             chunk.metadata["collection_id"] = collection_id
@@ -260,19 +260,19 @@ class DocumentManager:
                 chunks=chunks,
                 collection_id=collection_id,
                 redis_client=redis_client,
-                session=session,
+                postgres_session=postgres_session,
                 model_registry=model_registry,
                 request_context=request_context,
             )
         except Exception as e:
             logger.exception(msg=f"Error during document creation: {e}")
-            await self.delete_document(session=session, user_id=request_context.get().user_info.id, document_id=document_id)
+            await self.delete_document(postgres_session=postgres_session, user_id=request_context.get().user_info.id, document_id=document_id)
             raise VectorizationFailedException(detail=f"Vectorization failed: {e}")
 
         return document_id
 
     @check_dependencies(dependencies=["vector_store"])
-    async def get_documents(self, session: AsyncSession, user_id: int, collection_id: int | None = None, document_id: int | None = None, document_name: str | None = None, offset: int = 0, limit: int = 10) -> list[Document]:  # fmt: off
+    async def get_documents(self, postgres_session: AsyncSession, user_id: int, collection_id: int | None = None, document_id: int | None = None, document_name: str | None = None, offset: int = 0, limit: int = 10) -> list[Document]:  # fmt: off
         statement = (
             select(
                 DocumentTable.id,
@@ -292,7 +292,7 @@ class DocumentManager:
         if document_id:
             statement = statement.where(DocumentTable.id == document_id)
 
-        result = await session.execute(statement=statement)
+        result = await postgres_session.execute(statement=statement)
         documents = [Document(**row._asdict()) for row in result.all()]
 
         if document_id and len(documents) == 0:
@@ -305,9 +305,9 @@ class DocumentManager:
         return documents
 
     @check_dependencies(dependencies=["vector_store"])
-    async def delete_document(self, session: AsyncSession, user_id: int, document_id: int) -> None:
+    async def delete_document(self, postgres_session: AsyncSession, user_id: int, document_id: int) -> None:
         # check if document exists
-        result = await session.execute(
+        result = await postgres_session.execute(
             statement=select(DocumentTable)
             .join(CollectionTable, DocumentTable.collection_id == CollectionTable.id)
             .where(DocumentTable.id == document_id)
@@ -318,8 +318,8 @@ class DocumentManager:
         except NoResultFound:
             raise DocumentNotFoundException()
 
-        await session.execute(statement=delete(table=DocumentTable).where(DocumentTable.id == document_id))
-        await session.commit()
+        await postgres_session.execute(statement=delete(table=DocumentTable).where(DocumentTable.id == document_id))
+        await postgres_session.commit()
 
         # delete the document from vector store
         await self.vector_store.delete_document(collection_id=document.collection_id, document_id=document_id)
@@ -327,7 +327,7 @@ class DocumentManager:
     @check_dependencies(dependencies=["vector_store"])
     async def get_chunks(
         self,
-        session: AsyncSession,
+        postgres_session: AsyncSession,
         user_id: int,
         document_id: int,
         chunk_id: int | None = None,
@@ -335,7 +335,7 @@ class DocumentManager:
         limit: int = 10,
     ) -> list[Chunk]:
         # check if document exists
-        result = await session.execute(
+        result = await postgres_session.execute(
             statement=select(DocumentTable)
             .join(CollectionTable, DocumentTable.collection_id == CollectionTable.id)
             .where(DocumentTable.id == document_id)
@@ -373,7 +373,7 @@ class DocumentManager:
     @check_dependencies(dependencies=["vector_store"])
     async def search_chunks(
         self,
-        session: AsyncSession,
+        postgres_session: AsyncSession,
         redis_client: AsyncRedis,
         model_registry: ModelRegistry,
         request_context: ContextVar[RequestContext],
@@ -390,7 +390,7 @@ class DocumentManager:
         web_collection_id = None
         if web_search:
             web_collection_id = await self._create_web_collection(
-                session=session,
+                postgres_session=postgres_session,
                 model_registry=model_registry,
                 redis_client=redis_client,
                 request_context=request_context,
@@ -402,7 +402,7 @@ class DocumentManager:
 
         # check if collections exist
         for collection_id in collection_ids:
-            result = await session.execute(
+            result = await postgres_session.execute(
                 statement=select(CollectionTable)
                 .where(CollectionTable.id == collection_id)
                 .where(or_(CollectionTable.user_id == request_context.get().user_info.id, CollectionTable.visibility == CollectionVisibility.PUBLIC))
@@ -418,7 +418,7 @@ class DocumentManager:
         provider = await model_registry.get_model_provider(
             model=self.vector_store_model,
             endpoint=ENDPOINT__EMBEDDINGS,
-            session=session,
+            postgres_session=postgres_session,
             redis_client=redis_client,
             request_context=request_context,
         )
@@ -437,14 +437,16 @@ class DocumentManager:
             score_threshold=score_threshold,
         )
         if web_collection_id:
-            await self.delete_collection(session=session, user_id=request_context.get().user_info.id, collection_id=web_collection_id)
+            await self.delete_collection(
+                postgres_session=postgres_session, user_id=request_context.get().user_info.id, collection_id=web_collection_id
+            )
 
         return searches
 
     @check_dependencies(dependencies=["web_search_manager"])
-    async def _create_web_collection(
+    asynpostgres_sessions_sessioncreate_web_collection(
         self,
-        session: AsyncSession,
+        postgres_session: AsyncSession,
         model_registry: ModelRegistry,
         redis_client: AsyncRedis,
         request_context: ContextVar[RequestContext],
@@ -452,17 +454,17 @@ class DocumentManager:
         k: int = 5,
     ) -> int | None:
         web_query = await self.web_search_manager.get_web_query(
-            prompt=prompt,
+            postgres_sessionprompt,
             model_registry=model_registry,
-            session=session,
+            postgres_session=postgres_session,
             redis_client=redis_client,
             request_context=request_context,
         )
         web_results = await self.web_search_manager.get_results(query=web_query, k=k)
         collection_id = None
-        if web_results:
+        if web_rpostgres_session
             collection_id = await self.create_collection(
-                session=session,
+                postgres_sessions_session=postgres_session,
                 name=f"tmp_web_collection_{uuid4()}",
                 user_id=request_context.get().user_info.id,
                 visibility=CollectionVisibility.PRIVATE,
@@ -475,9 +477,9 @@ class DocumentManager:
                     page_range="",
                     paginate_output=False,
                     use_llm=False,
-                )
+                )postgres_session
                 await self.create_document(
-                    session=session,
+                    postgres_session=postgres_session,
                     redis_client=redis_client,
                     model_registry=model_registry,
                     request_context=request_context,
@@ -536,16 +538,16 @@ class DocumentManager:
     async def _upsert(
         self,
         chunks: list[Chunk],
-        collection_id: int,
+        postgres_sessionion_id: int,
         redis_client: AsyncRedis,
-        session: AsyncSession,
+        postgres_session: AsyncSession,
         model_registry: ModelRegistry,
         request_context: ContextVar[RequestContext],
     ) -> None:
         provider = await model_registry.get_model_provider(
-            model=self.vector_store_model,
+            postgres_sessionelf.vector_store_model,
             endpoint=ENDPOINT__EMBEDDINGS,
-            session=session,
+            postgres_session=postgres_session,
             request_context=request_context,
             redis_client=redis_client,
         )

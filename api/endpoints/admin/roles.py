@@ -22,14 +22,14 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 async def create_role(
     request: Request,
     body: CreateRole = Body(description="The role creation request."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Create a new role.
     """
 
     role_id = await global_context.identity_access_manager.create_role(
-        session=session, name=body.name, permissions=body.permissions, limits=body.limits
+        postgres_session=postgres_session, name=body.name, permissions=body.permissions, limits=body.limits
     )
 
     return JSONResponse(status_code=201, content={"id": role_id})
@@ -43,13 +43,13 @@ async def create_role(
 async def delete_role(
     request: Request,
     role: int = Path(description="The ID of the role to delete."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
     """
     Delete a role.
     """
 
-    await global_context.identity_access_manager.delete_role(session=session, role_id=role)
+    await global_context.identity_access_manager.delete_role(postgres_session=postgres_session, role_id=role)
 
     return Response(status_code=204)
 
@@ -63,14 +63,14 @@ async def update_role(
     request: Request,
     role: int = Path(description="The ID of the role to update."),
     body: RoleUpdateRequest = Body(description="The role update request."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
     """
     Update a role.
     """
 
     await global_context.identity_access_manager.update_role(
-        session=session,
+        postgres_session=postgres_session,
         role_id=role,
         name=body.name,
         permissions=body.permissions,
@@ -89,13 +89,13 @@ async def update_role(
 async def get_role(
     request: Request,
     role: int = Path(description="The ID of the role to get."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get a role by id.
     """
 
-    roles = await global_context.identity_access_manager.get_roles(session=session, role_id=role)
+    roles = await global_context.identity_access_manager.get_roles(postgres_session=postgres_session, role_id=role)
 
     return JSONResponse(content=roles[0].model_dump(), status_code=200)
 
@@ -112,13 +112,13 @@ async def get_roles(
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the roles to get."),
     order_by: Literal["id", "name", "created", "updated"] = Query(default="id", description="The field to order the roles by."),
     order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the roles by."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get all roles.
     """
     data = await global_context.identity_access_manager.get_roles(
-        session=session,
+        postgres_session=postgres_session,
         offset=offset,
         limit=limit,
         order_by=order_by,

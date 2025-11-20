@@ -29,9 +29,9 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 async def create_organization(
     request: Request,
     body: OrganizationRequest = Body(description="The organization creation request."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
-    organization_id = await global_context.identity_access_manager.create_organization(session=session, name=body.name)
+    organization_id = await global_context.identity_access_manager.create_organization(postgres_session=postgres_session, name=body.name)
     return JSONResponse(status_code=201, content={"id": organization_id})
 
 
@@ -43,9 +43,9 @@ async def create_organization(
 async def delete_organization(
     request: Request,
     organization: int = Path(description="The ID of the organization to delete."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
-    await global_context.identity_access_manager.delete_organization(session=session, organization_id=organization)
+    await global_context.identity_access_manager.delete_organization(postgres_session=postgres_session, organization_id=organization)
     return Response(status_code=204)
 
 
@@ -58,9 +58,9 @@ async def update_organization(
     request: Request,
     organization: int = Path(description="The ID of the organization to update."),
     body: OrganizationUpdateRequest = Body(description="The organization update request."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
-    await global_context.identity_access_manager.update_organization(session=session, organization_id=organization, name=body.name)
+    await global_context.identity_access_manager.update_organization(postgres_session=postgres_session, organization_id=organization, name=body.name)
     return Response(status_code=204)
 
 
@@ -73,9 +73,9 @@ async def update_organization(
 async def get_organization(
     request: Request,
     organization: int = Path(description="The ID of the organization to get."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
-    organizations = await global_context.identity_access_manager.get_organizations(session=session, organization_id=organization)
+    organizations = await global_context.identity_access_manager.get_organizations(postgres_session=postgres_session, organization_id=organization)
     return JSONResponse(content=organizations[0].model_dump(), status_code=200)
 
 
@@ -91,10 +91,10 @@ async def get_organizations(
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the organizations to get."),
     order_by: Literal["id", "name", "created", "updated"] = Query(default="id", description="The field to order the organizations by."),
     order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the organizations by."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     data = await global_context.identity_access_manager.get_organizations(
-        session=session,
+        postgres_session=postgres_session,
         offset=offset,
         limit=limit,
         order_by=order_by,

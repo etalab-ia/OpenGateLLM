@@ -23,7 +23,7 @@ class _Result:
 
 
 @pytest.fixture
-def session():
+def postgres_session():
     return AsyncMock(spec=AsyncSession)
 
 
@@ -33,65 +33,65 @@ def iam():
 
 
 @pytest.mark.asyncio
-async def test_create_organization_success(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(return_value=_Result(scalar_one=42))
+async def test_create_organization_success(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(return_value=_Result(scalar_one=42))
 
-    org_id = await iam.create_organization(session=session, name="org-a")
+    org_id = await iam.create_organization(postgres_session=postgres_session, name="org-a")
 
     assert org_id == 42
-    session.commit.assert_awaited()
+    postgres_session.commit.assert_awaited()
 
 
 @pytest.mark.asyncio
-async def test_delete_organization_not_found(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(return_value=_Result(scalar_one=NoResultFound()))
+async def test_delete_organization_not_found(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(return_value=_Result(scalar_one=NoResultFound()))
 
     with pytest.raises(OrganizationNotFoundException):
-        await iam.delete_organization(session=session, organization_id=999)
+        await iam.delete_organization(postgres_session=postgres_session, organization_id=999)
 
 
 @pytest.mark.asyncio
-async def test_delete_organization_success(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), None])
+async def test_delete_organization_success(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), None])
 
-    await iam.delete_organization(session=session, organization_id=1)
-    assert session.commit.await_count == 1
+    await iam.delete_organization(postgres_session=postgres_session, organization_id=1)
+    assert postgres_session.commit.await_count == 1
 
 
 @pytest.mark.asyncio
-async def test_update_organization_not_found(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(return_value=_Result(scalar_one=NoResultFound()))
+async def test_update_organization_not_found(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(return_value=_Result(scalar_one=NoResultFound()))
 
     with pytest.raises(OrganizationNotFoundException):
-        await iam.update_organization(session=session, organization_id=10, name="new")
+        await iam.update_organization(postgres_session=postgres_session, organization_id=10, name="new")
 
 
 @pytest.mark.asyncio
-async def test_update_organization_name(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(side_effect=[_Result(scalar_one=MagicMock(id=7)), None])
+async def test_update_organization_name(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(side_effect=[_Result(scalar_one=MagicMock(id=7)), None])
 
-    await iam.update_organization(session=session, organization_id=7, name="renamed")
+    await iam.update_organization(postgres_session=postgres_session, organization_id=7, name="renamed")
 
-    session.commit.assert_awaited()
+    postgres_session.commit.assert_awaited()
 
 
 @pytest.mark.asyncio
-async def test_get_organizations_pagination_and_filter(session: AsyncSession, iam: IdentityAccessManager):
+async def test_get_organizations_pagination_and_filter(postgres_session: AsyncSession, iam: IdentityAccessManager):
     rows = [
         MagicMock(_mapping={"id": 1, "name": "A", "created": 1, "updated": 1}),
         MagicMock(_mapping={"id": 2, "name": "B", "created": 2, "updated": 3}),
     ]
-    session.execute = AsyncMock(return_value=_Result(all_rows=rows))
+    postgres_session.execute = AsyncMock(return_value=_Result(all_rows=rows))
 
-    organizations = await iam.get_organizations(session=session, offset=0, limit=10)
+    organizations = await iam.get_organizations(postgres_session=postgres_session, offset=0, limit=10)
 
     assert len(organizations) == 2
     assert organizations[0].id == 1
 
 
 @pytest.mark.asyncio
-async def test_get_organization_by_id_not_found(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(return_value=_Result(all_rows=[]))
+async def test_get_organization_by_id_not_found(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(return_value=_Result(all_rows=[]))
 
     with pytest.raises(OrganizationNotFoundException):
-        await iam.get_organizations(session=session, organization_id=404)
+        await iam.get_organizations(postgres_session=postgres_session, organization_id=404)

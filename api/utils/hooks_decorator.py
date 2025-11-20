@@ -203,13 +203,13 @@ async def log_usage(response: Response | None, usage: Usage, start_time: datetim
     if usage.status is None:
         usage.status = response.status_code if hasattr(response, "status_code") else None
 
-    async for session in get_postgres_session():
-        session.add(usage)
+    async for postgres_session in get_postgres_session():
+        postgres_session.add(usage)
         try:
-            await session.commit()
+            await postgres_session.commit()
         except Exception as e:
             logger.error(f"Failed to log usage: {e}")
-            await session.rollback()
+            await postgres_session.rollback()
 
 
 async def update_budget(usage: Usage):
@@ -230,12 +230,12 @@ async def update_budget(usage: Usage):
         return
 
     # Decrease the user's budget by the calculated cost with proper locking
-    async for session in get_postgres_session():
+    async for postgres_session in get_postgres_session():
         try:
-            async with session.begin():
+            async with postgres_session.begin():
                 # Use SELECT FOR UPDATE to lock the user row during the transaction. This prevents concurrent modifications to the budget
                 select_stmt = select(User.budget).where(User.id == user_id).with_for_update()
-                result = await session.execute(select_stmt)
+                result = await postgres_session.execute(select_stmt)
                 current_budget = result.scalar_one_or_none()
 
                 if current_budget is None or current_budget == 0:
@@ -248,7 +248,7 @@ async def update_budget(usage: Usage):
                 # Update the budget
                 update_stmt = update(User).where(User.id == user_id).values(budget=new_budget, updated=func.now()).returning(User.budget)
 
-                result = await session.execute(update_stmt)
+                result = await postgres_session.execute(update_stmt)
 
         except Exception as e:
             logger.exception(f"Failed to update budget for user {user_id}: {e}")

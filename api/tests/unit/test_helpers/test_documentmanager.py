@@ -54,7 +54,7 @@ async def test_create_document_collection_no_longer_exists():
     # Test that the exception is raised with the correct message
     with pytest.raises(CollectionNotFoundException) as exc_info:
         await document_manager.create_document(
-            session=mock_session,
+            postgres_session=mock_session,
             redis_client=mock_redis_client,
             model_registry=mock_model_registry,
             request_context=mock_request_context,
@@ -115,7 +115,9 @@ async def test_get_collections_filter_by_visibility():
     mock_public_result.all.return_value = [mock_public_row]
 
     mock_session.execute.return_value = mock_private_result
-    collections = await document_manager.get_collections(session=mock_session, user_id=1, visibility=CollectionVisibility.PRIVATE, offset=0, limit=10)
+    collections = await document_manager.get_collections(
+        postgres_session=mock_session, user_id=1, visibility=CollectionVisibility.PRIVATE, offset=0, limit=10
+    )
 
     assert len(collections) == 1, "Should return exactly one private collection"
     assert collections[0].visibility == CollectionVisibility.PRIVATE, "Collection should be private"
@@ -128,7 +130,9 @@ async def test_get_collections_filter_by_visibility():
     assert "visibility" in statement_str.lower()
 
     mock_session.execute.return_value = mock_public_result
-    collections = await document_manager.get_collections(session=mock_session, user_id=1, visibility=CollectionVisibility.PUBLIC, offset=0, limit=10)
+    collections = await document_manager.get_collections(
+        postgres_session=mock_session, user_id=1, visibility=CollectionVisibility.PUBLIC, offset=0, limit=10
+    )
 
     assert len(collections) == 1, "Should return exactly one public collection"
     assert collections[0].visibility == CollectionVisibility.PUBLIC, "Collection should be public"
@@ -191,7 +195,9 @@ async def test_get_collections_filter_by_collection_name():
     mock_result_exact.all.return_value = [mock_exact_row]
 
     mock_session.execute.return_value = mock_result_with_matches
-    collections = await document_manager.get_collections(session=mock_session, user_id=1, collection_name="test_collection", offset=0, limit=10)
+    collections = await document_manager.get_collections(
+        postgres_session=mock_session, user_id=1, collection_name="test_collection", offset=0, limit=10
+    )
 
     assert len(collections) == 2, "Should return two matching collections"
     assert all("test_collection" in col.name for col in collections), "All collections should contain 'test_collection' in their name"
@@ -205,14 +211,14 @@ async def test_get_collections_filter_by_collection_name():
 
     mock_session.execute.return_value = mock_result_empty
     collections = await document_manager.get_collections(
-        session=mock_session, user_id=1, collection_name="nonexistent_collection_xyz", offset=0, limit=10
+        postgres_session=mock_session, user_id=1, collection_name="nonexistent_collection_xyz", offset=0, limit=10
     )
 
     assert len(collections) == 0, "Should return empty list for non-existent collection name"
 
     mock_session.execute.return_value = mock_result_exact
     collections = await document_manager.get_collections(
-        session=mock_session, user_id=1, collection_name="exact_match_collection", offset=0, limit=10
+        postgres_session=mock_session, user_id=1, collection_name="exact_match_collection", offset=0, limit=10
     )
 
     assert len(collections) == 1, "Should return exactly one collection for exact match"
@@ -235,7 +241,7 @@ async def test_create_collection_success():
     document_manager = DocumentManager(vector_store=mock_vector_store, vector_store_model="test-model", parser_manager=mock_parser)
 
     collection_id = await document_manager.create_collection(
-        session=mock_session,
+        postgres_session=mock_session,
         user_id=1,
         name="My collection",
         visibility=CollectionVisibility.PRIVATE,
@@ -262,7 +268,7 @@ async def test_delete_collection_not_found():
     document_manager = DocumentManager(vector_store=mock_vector_store, vector_store_model="test-model", parser_manager=mock_parser)
 
     with pytest.raises(CollectionNotFoundException):
-        await document_manager.delete_collection(session=mock_session, user_id=1, collection_id=99)
+        await document_manager.delete_collection(postgres_session=mock_session, user_id=1, collection_id=99)
 
     mock_vector_store.delete_collection.assert_not_called()
     mock_session.commit.assert_not_called()
@@ -284,7 +290,7 @@ async def test_delete_collection_success():
 
     document_manager = DocumentManager(vector_store=mock_vector_store, vector_store_model="test-model", parser_manager=mock_parser)
 
-    await document_manager.delete_collection(session=mock_session, user_id=1, collection_id=123)
+    await document_manager.delete_collection(postgres_session=mock_session, user_id=1, collection_id=123)
 
     assert mock_session.execute.await_count == 2
     mock_session.commit.assert_awaited_once()
@@ -334,7 +340,7 @@ async def test_create_document_success(monkeypatch):
     mock_request_context = ContextVar("test_request_context", default=mock_request_context_obj)
     mock_request_context.set(mock_request_context_obj)
     document_id = await document_manager.create_document(
-        session=mock_session,
+        postgres_session=mock_session,
         redis_client=mock_redis,
         model_registry=mock_model_registry,
         request_context=mock_request_context,
@@ -381,7 +387,7 @@ async def test_get_documents_populates_chunk_count():
     document_manager = DocumentManager(vector_store=mock_vector_store, vector_store_model="test-model", parser_manager=mock_parser)
 
     user = UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[], expires=None, created=0, updated=0)
-    documents = await document_manager.get_documents(session=mock_session, user_id=user.id, collection_id=5)
+    documents = await document_manager.get_documents(postgres_session=mock_session, user_id=user.id, collection_id=5)
 
     assert len(documents) == 2
     assert documents[0].chunks == 3
@@ -415,7 +421,7 @@ async def test_search_chunks_returns_empty_when_no_collections():
     mock_request_context.set(mock_request_context_obj)
 
     result = await document_manager.search_chunks(
-        session=mock_session,
+        postgres_session=mock_session,
         redis_client=mock_redis,
         model_registry=mock_model_registry,
         request_context=mock_request_context,

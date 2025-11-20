@@ -27,13 +27,13 @@ async def get_model(
     request: Request,
     model: str = Path(description="The name of the model to get."),
     model_registry: ModelRegistry = Depends(get_model_registry),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Get a model by name and provide basic information.
     """
-    models = await model_registry.get_models(name=model, user_info=request_context.get().user_info, session=session)
+    models = await model_registry.get_models(name=model, user_info=request_context.get().user_info, postgres_session=postgres_session)
     model = models[0]
 
     return JSONResponse(content=model.model_dump(), status_code=200)
@@ -49,12 +49,12 @@ async def get_model(
 async def get_models(
     request: Request,
     model_registry: ModelRegistry = Depends(get_model_registry),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Lists the currently available models and provides basic information.
     """
-    models = await model_registry.get_models(name=None, user_info=request_context.get().user_info, session=session)
+    models = await model_registry.get_models(name=None, user_info=request_context.get().user_info, postgres_session=postgres_session)
 
     return JSONResponse(content=Models(data=models).model_dump(), status_code=200)

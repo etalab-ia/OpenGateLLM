@@ -92,7 +92,7 @@ async def _setup_postgres_session(configuration: Configuration, global_context: 
 async def _setup_model_registry(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
     """Setup the model registry by fetching the models defined in the DB and the configuration. Basic conflict handling between the DB and config."""
     queuing_enabled = configuration.dependencies.celery is not None
-    async for session in get_postgres_session():
+    async for postgres_session in get_postgres_session():
         global_context.model_registry = ModelRegistry(
             app_title=configuration.settings.app_title,
             queuing_enabled=queuing_enabled,
@@ -100,7 +100,7 @@ async def _setup_model_registry(configuration: Configuration, global_context: Gl
             max_retries=configuration.settings.routing_max_retries,
             retry_countdown=configuration.settings.routing_retry_countdown,
         )
-        await global_context.model_registry.setup(models=configuration.models, session=session)
+        await global_context.model_registry.setup(models=configuration.models, postgres_session=postgres_session)
 
 
 async def _setup_identity_access_manager(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
@@ -128,10 +128,10 @@ async def _setup_document_manager(configuration: Configuration, global_context: 
         global_context.document_manager = None
         return
 
-    async for session in get_postgres_session():
+    async for postgres_session in get_postgres_session():
         router_id = await global_context.model_registry.get_router_id_from_model_name(
             model_name=configuration.settings.vector_store_model,
-            session=session,
+            postgres_session=postgres_session,
         )
     assert router_id is not None, "Vector store model not found."
 

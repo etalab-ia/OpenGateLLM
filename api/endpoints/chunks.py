@@ -18,7 +18,7 @@ async def get_chunk(
     request: Request,
     document: int = Path(description="The document ID"),
     chunk: int = Path(description="The chunk ID"),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> Chunk:
     """
     Get a chunk of a document.
@@ -27,7 +27,7 @@ async def get_chunk(
         raise ChunkNotFoundException()
 
     chunks = await global_context.document_manager.get_chunks(
-        session=session, document_id=document, chunk_id=chunk, user_id=request_context.get().user_info.id
+        postgres_session=postgres_session, document_id=document, chunk_id=chunk, user_id=request_context.get().user_info.id
     )
 
     return chunks[0]
@@ -39,7 +39,7 @@ async def get_chunks(
     document: int = Path(description="The document ID"),
     limit: int = Query(default=10, ge=1, le=100, description="The number of documents to return"),
     offset: int | UUID = Query(default=0, description="The offset of the first document to return"),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> Chunks:
     """
     Get chunks of a document.
@@ -48,7 +48,7 @@ async def get_chunks(
         data = []
     else:
         data = await global_context.document_manager.get_chunks(
-            session=session,
+            postgres_session=postgres_session,
             document_id=document,
             limit=limit,
             offset=offset,

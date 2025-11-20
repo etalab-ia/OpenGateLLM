@@ -361,7 +361,7 @@ class Settings(ConfigBaseModel):
     # auth
     auth_master_key: constr(strip_whitespace=True, min_length=1) = Field(default="changeme", description="Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys.")  # fmt: off
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a new API key to be valid.")  # fmt: off
-    auth_playground_session_duration: int = Field(default=3600, ge=1, description="Duration of the playground session in seconds.")  # fmt: off
+    auth_playground_session_duration: int = Field(default=3600, ge=1, description="Duration of the playground postgres_session in seconds.")  # fmt: off
 
     # rate_limiting
     rate_limiting_strategy: LimitingStrategy = Field(default=LimitingStrategy.FIXED_WINDOW, description="Rate limiting strategy for the API.")  # fmt: off
@@ -378,8 +378,8 @@ class Settings(ConfigBaseModel):
     search_web_limited_domains: list[str] = Field(default_factory=list, description="Limited domains for the web search. If provided, the web search will be limited to these domains.")  # fmt: off
     search_web_user_agent: str | None = Field(default=None, description="User agent to scrape the web. If provided, the web search will use this user agent.")  # fmt: off
 
-    # session
-    session_secret_key: str | None = Field(default=None, description='Secret key for session middleware. If not provided, the master key will be used.', examples=["knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM"])  # fmt: off
+    # postgres_session
+    session_secret_key: str | None = Field(default=None, description='Secret key for postgres_session middleware. If not provided, the master key will be used.', examples=["knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM"])  # fmt: off
 
     front_url: str = Field(default="http://localhost:8501", description="Front-end URL for the application.")
 

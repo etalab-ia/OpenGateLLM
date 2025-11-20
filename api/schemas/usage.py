@@ -18,7 +18,7 @@ class CarbonFootprintUsage(BaseModel):
     kgCO2eq: CarbonFootprintUsageKgCO2eq = Field(default_factory=CarbonFootprintUsageKgCO2eq)
 
 
-class BaseUsage(BaseModel):
+class BaseRequestUsage(BaseModel):
     prompt_tokens: int = Field(default=0, description="Number of prompt tokens (e.g. input tokens).")
     completion_tokens: int = Field(default=0, description="Number of completion tokens (e.g. output tokens).")
     total_tokens: int = Field(default=0, description="Total number of tokens (e.g. input and output tokens).")
@@ -29,8 +29,8 @@ class BaseUsage(BaseModel):
 class Detail(BaseModel):
     id: str
     model: str
-    usage: BaseUsage = Field(default_factory=BaseUsage)
+    usage: BaseRequestUsage = Field(default_factory=BaseRequestUsage)
 
 
-class Usage(BaseUsage):
+class RequestUsage(BaseRequestUsage):
     details: list[Detail] = []

@@ -32,7 +32,7 @@ class _Result:
 
 
 @pytest.fixture
-def session():
+def postgres_session():
     return AsyncMock(spec=AsyncSession)
 
 
@@ -42,61 +42,61 @@ def iam():
 
 
 @pytest.mark.asyncio
-async def test_create_role_success(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(side_effect=[_Result(scalar_one=123), None, None])
+async def test_create_role_success(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(side_effect=[_Result(scalar_one=123), None, None])
 
     role_id = await iam.create_role(
-        session=session,
+        postgres_session=postgres_session,
         name="analyst",
         limits=[Limit(router=1, type=LimitType.TPM, value=100)],
         permissions=[PermissionType.READ_METRIC],
     )
 
     assert role_id == 123
-    assert session.commit.await_count == 2
-    assert session.execute.await_count >= 3
+    assert postgres_session.commit.await_count == 2
+    assert postgres_session.execute.await_count >= 3
 
 
 @pytest.mark.asyncio
-async def test_create_role_already_exists(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(side_effect=IntegrityError("", "", None))
+async def test_create_role_already_exists(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(side_effect=IntegrityError("", "", None))
 
     with pytest.raises(RoleAlreadyExistsException):
-        await iam.create_role(session=session, name="duplicate")
+        await iam.create_role(postgres_session=postgres_session, name="duplicate")
 
 
 @pytest.mark.asyncio
-async def test_delete_role_not_found(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(return_value=_Result(scalar_one=NoResultFound()))
+async def test_delete_role_not_found(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(return_value=_Result(scalar_one=NoResultFound()))
 
     with pytest.raises(RoleNotFoundException):
-        await iam.delete_role(session=session, role_id=999)
+        await iam.delete_role(postgres_session=postgres_session, role_id=999)
 
 
 @pytest.mark.asyncio
-async def test_delete_role_with_users_forbidden(session: AsyncSession, iam: IdentityAccessManager):
-    session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), IntegrityError("", "", None)])
+async def test_delete_role_with_users_forbidden(postgres_session: AsyncSession, iam: IdentityAccessManager):
+    postgres_session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), IntegrityError("", "", None)])
 
     with pytest.raises(DeleteRoleWithUsersException):
-        await iam.delete_role(session=session, role_id=1)
+        await iam.delete_role(postgres_session=postgres_session, role_id=1)
 
 
 @pytest.mark.asyncio
-async def test_update_role_noop(session: AsyncSession, iam: IdentityAccessManager):
+async def test_update_role_noop(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # First call: role exists
-    session.execute = AsyncMock(return_value=_Result(scalar_one=MagicMock(id=1)))
+    postgres_session.execute = AsyncMock(return_value=_Result(scalar_one=MagicMock(id=1)))
 
-    await iam.update_role(session=session, role_id=1)
-    session.commit.assert_awaited()
+    await iam.update_role(postgres_session=postgres_session, role_id=1)
+    postgres_session.commit.assert_awaited()
 
 
 @pytest.mark.asyncio
-async def test_update_role_name_limits_permissions(session: AsyncSession, iam: IdentityAccessManager):
+async def test_update_role_name_limits_permissions(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # role exists
-    session.execute = AsyncMock(side_effect=[_Result(scalar_one=MagicMock(id=10)), None, None, None, None, None])
+    postgres_session.execute = AsyncMock(side_effect=[_Result(scalar_one=MagicMock(id=10)), None, None, None, None, None])
 
     await iam.update_role(
-        session=session,
+        postgres_session=postgres_session,
         role_id=10,
         name="power-user",
         limits=[
@@ -106,8 +106,8 @@ async def test_update_role_name_limits_permissions(session: AsyncSession, iam: I
         permissions=[PermissionType.READ_METRIC, PermissionType.READ_METRIC],  # duplicate intentional
     )
 
-    session.commit.assert_awaited()
-    assert session.execute.await_count >= 6
+    postgres_session.commit.assert_awaited()
+    assert postgres_session.execute.await_count >= 6
 
 
 class _RowDict:
@@ -133,7 +133,7 @@ class _PermissionRow:
 
 
 @pytest.mark.asyncio
-async def test_get_roles_with_details(session: AsyncSession, iam: IdentityAccessManager):
+async def test_get_roles_with_details(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # Step 1: ids page
     ids_result = _Result(all_rows=[(1,), (2,)])
     # Step 2: roles with counts
@@ -155,9 +155,9 @@ async def test_get_roles_with_details(session: AsyncSession, iam: IdentityAccess
     ]
     permissions_result = _Result(iterate_rows=permissions_iter)
 
-    session.execute = AsyncMock(side_effect=[ids_result, roles_result, limits_result, permissions_result])
+    postgres_session.execute = AsyncMock(side_effect=[ids_result, roles_result, limits_result, permissions_result])
 
-    roles = await iam.get_roles(session=session)
+    roles = await iam.get_roles(postgres_session=postgres_session)
 
     assert len(roles) == 2
     first = next(r for r in roles if r.id == 1)
@@ -167,10 +167,10 @@ async def test_get_roles_with_details(session: AsyncSession, iam: IdentityAccess
 
 
 @pytest.mark.asyncio
-async def test_get_roles_not_found_by_id(session: AsyncSession, iam: IdentityAccessManager):
+async def test_get_roles_not_found_by_id(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # Direct role query returns empty
     roles_result = _Result(all_rows=[])
-    session.execute = AsyncMock(side_effect=[roles_result])
+    postgres_session.execute = AsyncMock(side_effect=[roles_result])
 
     with pytest.raises(RoleNotFoundException):
-        await iam.get_roles(session=session, role_id=999)
+        await iam.get_roles(postgres_session=postgres_session, role_id=999)

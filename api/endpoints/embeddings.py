@@ -19,7 +19,7 @@ async def embeddings(
     body: EmbeddingsRequest,
     model_registry: ModelRegistry = Depends(get_model_registry),
     redis_client: AsyncRedis = Depends(get_redis_client),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Creates an embedding vector representing the input text.
@@ -28,7 +28,7 @@ async def embeddings(
     model_provider = await model_registry.get_model_provider(
         model=body.model,
         endpoint=ENDPOINT__EMBEDDINGS,
-        session=session,
+        postgres_session=postgres_session,
         redis_client=redis_client,
         request_context=request_context,
     )

@@ -51,7 +51,7 @@ Ne donne pas d'explications, ne mets pas de guillemets, réponds uniquement avec
         self,
         prompt: str,
         model_registry: ModelRegistry,
-        session: AsyncSession,
+        postgres_session: AsyncSession,
         redis_client: AsyncRedis,
         request_context: ContextVar[RequestContext],
     ) -> str:
@@ -59,7 +59,7 @@ Ne donne pas d'explications, ne mets pas de guillemets, réponds uniquement avec
             model=self.query_model,
             endpoint=ENDPOINT__CHAT_COMPLETIONS,
             request_context=request_context,
-            session=session,
+            postgres_session=postgres_session,
             redis_client=redis_client,
         )
 

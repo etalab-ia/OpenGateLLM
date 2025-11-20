@@ -13,12 +13,12 @@ class MockIdentityAccessManagerSuccess:
     LOGIN_KEY_ID = 7
     LOGIN_KEY = "sk-test-token"
 
-    async def login(self, session, email, password):
+    async def login(self, postgres_session, email, password):
         return self.LOGIN_KEY_ID, self.LOGIN_KEY
 
 
 class MockIdentityAccessManagerFail:
-    async def login(self, session, email, password):
+    async def login(self, postgres_session, email, password):
         raise InvalidPasswordException
 
 
@@ -34,7 +34,7 @@ async def test_login_success():
     body = Login(email="user@example.com", password="secret")
 
     # Call endpoint directly
-    response = await login(request=mock_request, body=body, session=mock_session)
+    response = await login(request=mock_request, body=body, postgres_session=mock_session)
 
     # Verify response
     assert response.status_code == 200
@@ -57,4 +57,4 @@ async def test_login_invalid_credentials():
 
     # Call endpoint and expect exception
     with pytest.raises(InvalidPasswordException):
-        await login(request=mock_request, body=body, session=mock_session)
+        await login(request=mock_request, body=body, postgres_session=mock_session)

@@ -100,14 +100,14 @@ class ModelRegistry:
         self.max_retries = max_retries
         self.retry_countdown = retry_countdown
 
-    async def setup(self, models: list[ModelConfiguration], session: AsyncSession) -> None:
+    async def setup(self, models: list[ModelConfiguration], postgres_session: AsyncSession) -> None:
         """
         Setup the model registry by creating the routers and providers from the configuration and
         creating the consumers for the routers. Run in lifespan context.
 
         Args:
             models(list[ModelConfiguration]): The models to setup
-            session(AsyncSession): The database session
+            postgres_session(AsyncSession): The database postgres_session
         """
         for model in models:
             try:
@@ -119,17 +119,17 @@ class ModelRegistry:
                     cost_prompt_tokens=model.cost_prompt_tokens,
                     cost_completion_tokens=model.cost_completion_tokens,
                     user_id=None,
-                    session=session,
+                    postgres_session=postgres_session,
                 )
                 logger.info(f"Router {model.name} are created (id: {router_id})")
             except RouterAlreadyExistsException:
                 logger.warning(f"Router {model.name} already exists, skipping.")
             except Exception as e:
-                await session.rollback()
+                await postgres_session.rollback()
                 logger.error(f"Error creating router {model.name}: {e}")
                 raise e
 
-            routers = await self.get_routers(router_id=None, name=model.name, session=session)
+            routers = await self.get_routers(router_id=None, name=model.name, postgres_session=postgres_session)
             router = routers[0]
 
             for provider in model.providers:
@@ -147,19 +147,19 @@ class ModelRegistry:
                         model_carbon_footprint_active_params=provider.model_carbon_footprint_active_params,
                         qos_metric=provider.qos_metric,
                         qos_limit=provider.qos_limit,
-                        session=session,
+                        postgres_session=postgres_session,
                     )
                 except ProviderAlreadyExistsException:
                     logger.warning(f"Provider {provider.model_name} already exists for router {model.name} (skipping)")
                     continue
                 except Exception as e:
-                    await session.rollback()
+                    await postgres_session.rollback()
                     logger.error(f"Provider {provider.model_name} failed to be created for router {model.name} ({e})")
                     raise e
                 logging.info(f"Provider {provider.model_name} successfully created for router {model.name} (id: {provider_id})")
 
             if self.queuing_enabled:
-                routers = await self.get_routers(router_id=None, name=None, session=session)
+                routers = await self.get_routers(router_id=None, name=None, postgres_session=postgres_session)
                 for router in routers:
                     ensure_queue_exists(queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router.id}")
 
@@ -172,7 +172,7 @@ class ModelRegistry:
         cost_prompt_tokens: float,
         cost_completion_tokens: float,
         user_id: int,
-        session: AsyncSession,
+        postgres_session: AsyncSession,
     ) -> int:
         """
         Create a new model router without any provider.
@@ -185,7 +185,7 @@ class ModelRegistry:
             cost_prompt_tokens(float): The cost of a million prompt tokens
             cost_completion_tokens(float): The cost of a million completion tokens
             user_id(int): The user ID of owner of the router
-            session(AsyncSession): The database session
+            postgres_session(AsyncSession): The database postgres_session
 
         Returns:
             The router ID
@@ -205,53 +205,53 @@ class ModelRegistry:
                 )
                 .returning(RouterTable.id)
             )
-            result = await session.execute(query)
+            result = await postgres_session.execute(query)
             router_id = result.scalar_one()
         except IntegrityError:
-            await session.rollback()
+            await postgres_session.rollback()
             raise RouterAlreadyExistsException()
 
         # Check alias integrity
         if aliases:
             query = select(RouterAliasTable.value).where(RouterAliasTable.value.in_(aliases))
-            result = await session.execute(query)
+            result = await postgres_session.execute(query)
             existing_aliases = [alias[0] for alias in result.all()]
             if existing_aliases:
-                await session.rollback()
+                await postgres_session.rollback()
                 raise RouterAliasAlreadyExistsException()
 
         # Add aliases
         if aliases:
             for alias in aliases:
                 query = insert(RouterAliasTable).values(value=alias, router_id=router_id)
-                await session.execute(query)
+                await postgres_session.execute(query)
 
-        await session.commit()
+        await postgres_session.commit()
 
         if self.queuing_enabled:
             ensure_queue_exists(queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router_id}")
 
         return router_id
 
-    async def delete_router(self, router_id: int, session: AsyncSession) -> None:
+    async def delete_router(self, router_id: int, postgres_session: AsyncSession) -> None:
         """
         Delete a model router and all its providers.
 
         Args:
             router_id(int): The router ID
-            session(AsyncSession): Database session
+            postgres_session(AsyncSession): Database postgres_session
         """
         # Check if router exists
         query = select(RouterTable).where(RouterTable.id == router_id)
-        result = await session.execute(query)
+        result = await postgres_session.execute(query)
         try:
             result.scalar_one()
         except NoResultFound:
             raise RouterNotFoundException()
 
         # Delete will cascade to providers and aliases due to foreign key constraints
-        await session.execute(delete(RouterTable).where(RouterTable.id == router_id))
-        await session.commit()
+        await postgres_session.execute(delete(RouterTable).where(RouterTable.id == router_id))
+        await postgres_session.commit()
 
         # TODO: delete queue
 
@@ -265,7 +265,7 @@ class ModelRegistry:
         cost_prompt_tokens: float | None,
         cost_completion_tokens: float | None,
         user_id: int,
-        session: AsyncSession,
+        postgres_session: AsyncSession,
     ) -> None:
         """
         Update a model router.
@@ -279,17 +279,17 @@ class ModelRegistry:
             cost_prompt_tokens(Optional[float]): Optional new cost of a million prompt tokens
             cost_completion_tokens(Optional[float]): Optional new cost of a million completion tokens
             user_id(int): The user ID of owner of the router
-            session(AsyncSession): Database session
+            postgres_session(AsyncSession): Database postgres_session
 
         """
         # Check if model exists
-        routers = await self.get_routers(router_id=router_id, name=None, session=session)
+        routers = await self.get_routers(router_id=router_id, name=None, postgres_session=postgres_session)
         router = routers[0]
 
         # Check alias integrity in aliases of other routers
         if aliases:
             query = select(RouterAliasTable.router_id).where(RouterAliasTable.value.in_(aliases)).where(RouterAliasTable.router_id != router_id)
-            result = await session.execute(query)
+            result = await postgres_session.execute(query)
             conflicting_aliases = result.scalars().all()
             if conflicting_aliases:
                 raise RouterAliasAlreadyExistsException()
@@ -308,23 +308,23 @@ class ModelRegistry:
             update_values["cost_completion_tokens"] = cost_completion_tokens
 
         if update_values:
-            await session.execute(update(RouterTable).where(RouterTable.id == router_id).values(**update_values))
+            await postgres_session.execute(update(RouterTable).where(RouterTable.id == router_id).values(**update_values))
 
         # Update aliases if provided
         if aliases is not None:
             query = delete(RouterAliasTable).where(RouterAliasTable.router_id == router_id)
-            await session.execute(query)
+            await postgres_session.execute(query)
             query = insert(RouterAliasTable).values([{"value": alias, "router_id": router_id} for alias in aliases])
-            await session.execute(query)
+            await postgres_session.execute(query)
 
-        await session.commit()
+        await postgres_session.commit()
 
-    async def get_routers(self, router_id: int | None, name: str | None, session: AsyncSession) -> list[Router]:
+    async def get_routers(self, router_id: int | None, name: str | None, postgres_session: AsyncSession) -> list[Router]:
         """
         Get model router with optional filtering.
 
         Args:
-            session(AsyncSession): Database session
+            postgres_session(AsyncSession): Database postgres_session
             router_id(Optional[int]): Optional router ID to filter by
             name(Optional[str]): Optional router name or alias to filter by
         Returns:
@@ -357,7 +357,7 @@ class ModelRegistry:
         if router_id is not None:
             query = query.where(RouterTable.id == router_id)
 
-        result = await session.execute(query)
+        result = await postgres_session.execute(query)
         router_results = [row._asdict() for row in result.all()]
         if router_id is not None and len(router_results) == 0:
             raise RouterNotFoundException()
@@ -366,7 +366,7 @@ class ModelRegistry:
         if router_id is not None:
             aliases_query = aliases_query.where(RouterAliasTable.router_id == router_id)
 
-        aliases_result = await session.execute(aliases_query)
+        aliases_result = await postgres_session.execute(aliases_query)
         aliases = {}
         for row in aliases_result.all():
             if row.router_id not in aliases:
@@ -415,7 +415,7 @@ class ModelRegistry:
         model_carbon_footprint_active_params: int | None,
         qos_metric: Metric | None,
         qos_limit: float | None,
-        session: AsyncSession,
+        postgres_session: AsyncSession,
     ) -> int:
         """
         Create a new model provider for a router.
@@ -433,7 +433,7 @@ class ModelRegistry:
             model_carbon_footprint_active_params: int | None
             qos_metric(Metric | None): QoS metric. If None, no QoS policy is applied.
             qos_limit(float | None): Optional QoS limit
-            session(AsyncSession): Database session
+            postgres_session(AsyncSession): Database postgres_session
         Returns:
             The provider ID
         """
@@ -446,7 +446,7 @@ class ModelRegistry:
                 raise MissingProviderURLException()
 
         # check if router exists
-        routers = await self.get_routers(router_id=router_id, name=None, session=session)
+        routers = await self.get_routers(router_id=router_id, name=None, postgres_session=postgres_session)
         router = routers[0]
 
         if type.value not in self.MODEL_TYPE_TO_MODEL_PROVIDER_TYPE_MAPPING[router.type]:
@@ -508,12 +508,12 @@ class ModelRegistry:
                 )
                 .returning(ProviderTable.id)
             )
-            result = await session.execute(query)
+            result = await postgres_session.execute(query)
             provider_id = result.scalar_one()
-            await session.commit()
+            await postgres_session.commit()
 
         except IntegrityError:
-            await session.rollback()
+            await postgres_session.rollback()
             raise ProviderAlreadyExistsException()
 
         return provider_id
@@ -522,7 +522,7 @@ class ModelRegistry:
         self,
         provider_id: int,
         user_id: int,
-        session: AsyncSession,
+        postgres_session: AsyncSession,
     ) -> None:
         """
         Delete a model provider by ID.
@@ -531,26 +531,26 @@ class ModelRegistry:
             router_id(int): The router ID
             provider_id(int): The provider ID
             user_id(int): The user ID of owner of the provider
-            session(AsyncSession): Database session
+            postgres_session(AsyncSession): Database postgres_session
         """
         # Check if provider exists
         try:
             query = select(ProviderTable).where(ProviderTable.id == provider_id).where(ProviderTable.user_id == user_id)
-            result = await session.execute(query)
+            result = await postgres_session.execute(query)
             result.scalar_one()
         except NoResultFound:
             raise ProviderNotFoundException()
 
         # Delete provider
         query = delete(ProviderTable).where(ProviderTable.id == provider_id).where(ProviderTable.user_id == user_id)
-        await session.execute(query)
-        await session.commit()
+        await postgres_session.execute(query)
+        await postgres_session.commit()
 
     async def get_providers(
         self,
         router_id: int,
         provider_id: int | None,
-        session: AsyncSession,
+        postgres_session: AsyncSession,
     ) -> list[Provider]:
         """
         Get a specific model provider.
@@ -558,7 +558,7 @@ class ModelRegistry:
         Args:
             router_id(int): The model router ID
             provider_id(Optional[int]): Optional provider ID to filter by
-            session: Database session
+            postgres_session: Database postgres_session
 
         Returns:
             The provider schema or None
@@ -584,7 +584,7 @@ class ModelRegistry:
         if provider_id is not None:
             query = query.where(ProviderTable.id == provider_id)
 
-        result = await session.execute(query)
+        result = await postgres_session.execute(query)
         rows = result.mappings().all()
 
         if provider_id is not None and len(rows) == 0:
@@ -616,17 +616,17 @@ class ModelRegistry:
 
         return providers
 
-    async def get_models(self, name: str | None, user_info: UserInfo, session: AsyncSession) -> list[Model]:
+    async def get_models(self, name: str | None, user_info: UserInfo, postgres_session: AsyncSession) -> list[Model]:
         """
         Get models for a user.
 
         Args:
             name(Optional[str]): Optional model name to filter by
             user_info(UserInfo): User info of the user to apply the limits to the models
-            session(AsyncSession): Database session
+            postgres_session(AsyncSession): Database postgres_session
         """
         try:
-            routers = await self.get_routers(router_id=None, name=name, session=session)
+            routers = await self.get_routers(router_id=None, name=name, postgres_session=postgres_session)
         except RouterNotFoundException:
             raise ModelNotFoundException()
 
@@ -655,7 +655,7 @@ class ModelRegistry:
                 .join(UserTable, UserTable.organization_id == OrganizationTable.id)
                 .where(UserTable.id == router.user_id)
             )
-            result = await session.execute(query)
+            result = await postgres_session.execute(query)
             owned_by = result.scalar_one_or_none()
             owned_by = owned_by if owned_by else self.app_title
 
@@ -673,7 +673,7 @@ class ModelRegistry:
 
         return models
 
-    async def get_router_id_from_model_name(self, model_name: str, session: AsyncSession) -> int | None:
+    async def get_router_id_from_model_name(self, model_name: str, postgres_session: AsyncSession) -> int | None:
         """
         Retrieve the router ID from a model name, return None if the model name is not found.
 
@@ -689,7 +689,7 @@ class ModelRegistry:
             .join(RouterAliasTable, RouterAliasTable.router_id == RouterTable.id)
         ).limit(1)
 
-        result = await session.execute(query)
+        result = await postgres_session.execute(query)
         router_id = result.scalar_one_or_none()
 
         if router_id is not None:
@@ -701,24 +701,24 @@ class ModelRegistry:
         self,
         model: str,
         endpoint: str,
-        session: AsyncSession,
+        postgres_session: AsyncSession,
         redis_client: AsyncRedis,
         request_context: ContextVar[RequestContext],
     ) -> ModelProvider:
         """
-        Get a model provider for a given model, endpoint, user priority, session and redis client.
+        Get a model provider for a given model, endpoint, user priority, postgres_session and redis client.
 
         Args:
             model(str): The model name
             endpoint(str): The type of endpoint called
-            session(AsyncSession): Database session
+            postgres_session(AsyncSession): Database postgres_session
             redis_client(AsyncRedis): Redis client
             request_context(ContextVar[RequestContext]): Request context
         Returns:
             ModelProvider: The chosen provider
         """
         try:
-            routers = await self.get_routers(router_id=None, name=model, session=session)
+            routers = await self.get_routers(router_id=None, name=model, postgres_session=postgres_session)
         except RouterNotFoundException:
             raise ModelNotFoundException()
 
@@ -732,7 +732,7 @@ class ModelRegistry:
         if (router.cost_prompt_tokens != 0 or router.cost_completion_tokens != 0) and request_context.get().user_info.budget == 0:
             raise InsufficientBudgetException()
 
-        providers = await self.get_providers(router_id=router.id, provider_id=None, session=session)
+        providers = await self.get_providers(router_id=router.id, provider_id=None, postgres_session=postgres_session)
 
         if len(providers) == 0:
             raise ModelNotFoundException()
@@ -760,7 +760,7 @@ class ModelRegistry:
                 redis_client=redis_client,
             )
 
-        providers = await self.get_providers(router_id=router.id, provider_id=provider_id, session=session)
+        providers = await self.get_providers(router_id=router.id, provider_id=provider_id, postgres_session=postgres_session)
         provider = providers[0]
 
         model_provider = ModelProvider.import_module(type=provider.type)(

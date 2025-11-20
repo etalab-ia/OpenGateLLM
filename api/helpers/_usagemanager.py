@@ -82,12 +82,12 @@ class UsageManager:
         return query
 
     @staticmethod
-    async def get_usage_aggregation(session: AsyncSession, base_filter: tuple) -> dict:
+    async def get_usage_aggregation(postgres_session: AsyncSession, base_filter: tuple) -> dict:
         """
         Get aggregated usage statistics for the given filters.
 
         Args:
-            session: Database session
+            postgres_session: Database postgres_session
             base_filter: Base filter conditions
 
         Returns:
@@ -95,7 +95,7 @@ class UsageManager:
         """
         # Total count query
         count_query = select(func.count(UsageModel.id)).where(*base_filter)
-        count_result = await session.execute(count_query)
+        count_result = await postgres_session.execute(count_query)
         total_count = count_result.scalar()
 
         # Aggregated values query
@@ -106,7 +106,7 @@ class UsageManager:
             func.coalesce(func.avg((UsageModel.kgco2eq_min + UsageModel.kgco2eq_max) / 2) * 1000, 0).label("total_co2"),
         ).where(*base_filter)
 
-        aggregation_result = await session.execute(aggregation_query)
+        aggregation_result = await postgres_session.execute(aggregation_query)
         aggregation_data = aggregation_result.first()
 
         return {

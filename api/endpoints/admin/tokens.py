@@ -23,14 +23,14 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 async def create_token(
     request: Request,
     body: CreateToken = Body(description="The token creation request."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Create a new token.
     """
 
     token_id, token = await global_context.identity_access_manager.create_token(
-        session=session,
+        postgres_session=postgres_session,
         user_id=body.user,
         name=body.name,
         expires=body.expires,
@@ -48,13 +48,13 @@ async def delete_token(
     request: Request,
     user: int = Path(description="The user ID of the user to delete the token for."),
     token: int = Path(description="The token ID of the token to delete."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
     """
     Delete a token.
     """
 
-    await global_context.identity_access_manager.delete_token(session=session, user_id=user, token_id=token)
+    await global_context.identity_access_manager.delete_token(postgres_session=postgres_session, user_id=user, token_id=token)
 
     return Response(status_code=204)
 
@@ -68,13 +68,13 @@ async def delete_token(
 async def get_token(
     request: Request,
     token: int = Path(description="The token ID of the token to get."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get your token by id.
     """
 
-    tokens = await global_context.identity_access_manager.get_tokens(session=session, token_id=token)
+    tokens = await global_context.identity_access_manager.get_tokens(postgres_session=postgres_session, token_id=token)
 
     return JSONResponse(content=tokens[0].model_dump(), status_code=200)
 
@@ -92,14 +92,14 @@ async def get_tokens(
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the tokens to get."),
     order_by: Literal["id", "name", "created"] = Query(default="id", description="The field to order the tokens by."),
     order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the tokens by."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get all your tokens.
     """
 
     data = await global_context.identity_access_manager.get_tokens(
-        session=session,
+        postgres_session=postgres_session,
         user_id=user,
         offset=offset,
         limit=limit,

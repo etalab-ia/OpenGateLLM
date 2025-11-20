@@ -48,15 +48,15 @@ async def get_redis_client() -> AsyncRedis:
 
 async def get_postgres_session() -> AsyncSession:
     """
-    Get a PostgreSQL session from the global context.
+    Get a PostgreSQL postgres_session from the global context.
 
     Returns:
-        AsyncSession: A PostgreSQL session instance.
+        AsyncSession: A PostgreSQL postgres_session instance.
     """
 
     session_factory = global_context.postgres_session_factory
-    async with session_factory() as session:
-        yield session
+    async with session_factory() as postgres_session:
+        yield postgres_session
 
-        if session.in_transaction():
-            await session.close()
+        if postgres_session.in_transaction():
+            await postgres_session.close()

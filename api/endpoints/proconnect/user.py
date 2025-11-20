@@ -73,13 +73,13 @@ async def retrieve_user_info(token, oauth2_client):
             return user_info
 
 
-async def create_user(session: AsyncSession, iam: IdentityAccessManager, given_name: str, usual_name: str, email: str, sub: str):
+async def create_user(postgres_session: AsyncSession, iam: IdentityAccessManager, given_name: str, usual_name: str, email: str, sub: str):
     """
     Create a new user with default role
     """
     # Get the default role ID
     default_role_query = select(Role.id).where(Role.name == configuration.dependencies.proconnect.default_role)
-    default_role_result = await session.execute(default_role_query)
+    default_role_result = await postgres_session.execute(default_role_query)
     default_role_id = default_role_result.scalar_one_or_none()
 
     if default_role_id is None:
@@ -89,16 +89,16 @@ async def create_user(session: AsyncSession, iam: IdentityAccessManager, given_n
         )
 
     # Generate a default username if information is missing
-    display_name = f"{given_name or ''} {usual_name or ''}".strip()
+    display_name = f"{given_name or ""} {usual_name or ""}".strip()
     if not display_name:
         display_name = email or f"User-{sub[:8]}" if sub else "Unknown User"
 
     user_id = await iam.create_user(
-        session=session,
+        postgres_session=postgres_session,
         name=display_name,
         role_id=default_role_id,
         email=email,
         sub=sub,
     )
-    user = await session.get(UserTable, user_id)
+    user = await postgres_session.get(UserTable, user_id)
     return user

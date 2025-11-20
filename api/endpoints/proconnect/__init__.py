@@ -101,7 +101,7 @@ async def oauth2_login(request: Request, oauth2_client=Depends(get_oauth2_client
 
 
 @router.get(path=ENDPOINT__AUTH_CALLBACK)
-async def oauth2_callback(request: Request, session: AsyncSession = Depends(get_postgres_session), oauth2_client=Depends(get_oauth2_client)):
+async def oauth2_callback(request: Request, postgres_session: AsyncSession = Depends(get_postgres_session), oauth2_client=Depends(get_oauth2_client)):
     """
     Handle OAuth2 callback from ProConnect
     """
@@ -140,21 +140,21 @@ async def oauth2_callback(request: Request, session: AsyncSession = Depends(get_
 
         # Search for an existing user
         iam = global_context.identity_access_manager
-        user = await iam.get_user(session=session, sub=sub)
+        user = await iam.get_user(postgres_session=postgres_session, sub=sub)
         if user and user.email != email:
             logger.info(f"User {user.id} email mismatch: {user.email} != {email}. Updating email.")
             user.email = email
-            session.add(user)
-            await session.commit()
-        elif user := await iam.get_user(session=session, email=email):
+            postgres_session.add(user)
+            await postgres_session.commit()
+        elif user := await iam.get_user(postgres_session=postgres_session, email=email):
             logger.info(f"Found user {user.id} by email: {email}, setting sub to {sub}")
             user.sub = sub
-            session.add(user)
-            await session.commit()
+            postgres_session.add(user)
+            await postgres_session.commit()
         else:
-            user = await create_user(session, iam, given_name, usual_name, email, sub)
+            user = await create_user(postgres_session, iam, given_name, usual_name, email, sub)
 
-        token_id, app_token = await iam.refresh_token(session=session, user_id=user.id, name="playground")
+        token_id, app_token = await iam.refresh_token(postgres_session=postgres_session, user_id=user.id, name="playground")
 
         # Extract ProConnect token (id_token for logout functionality)
         proconnect_token = token.get("id_token", "")
@@ -172,7 +172,7 @@ async def logout(
     request: Request,
     logout_request: OAuth2LogoutRequest,
     user: User = Security(AccessController()),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     oauth2_client=Depends(get_oauth2_client),
 ):
     """
@@ -188,7 +188,7 @@ async def logout(
         # Initialize IdentityAccessManager and invalidate the current token
         if current_token_id:
             iam = global_context.identity_access_manager
-            await iam.invalidate_token(session=session, token_id=current_token_id, user_id=user.id)
+            await iam.invalidate_token(postgres_session=postgres_session, token_id=current_token_id, user_id=user.id)
             logger.info("Expired token for user %s", user.id)
 
         # Get ProConnect token from request (optional)

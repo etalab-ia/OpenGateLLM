@@ -30,7 +30,7 @@ async def upload_file(
     request: FilesRequest = Body(...),
     redis_client: AsyncRedis = Depends(get_redis_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
@@ -98,7 +98,7 @@ async def upload_file(
 
         document_id = await global_context.document_manager.create_document(
             request_context=request_context,
-            session=session,
+            postgres_session=postgres_session,
             redis_client=redis_client,
             model_registry=model_registry,
             collection_id=request.collection,

@@ -58,11 +58,11 @@ class TestProConnect:
 
     @pytest.fixture
     def mock_session(self):
-        """Mock database session"""
-        session = MagicMock(spec=AsyncSession)
-        session.execute = AsyncMock()
-        session.get = AsyncMock()
-        return session
+        """Mock database postgres_session"""
+        postgres_session = MagicMock(spec=AsyncSession)
+        postgres_session.execute = AsyncMock()
+        postgres_session.get = AsyncMock()
+        return postgres_session
 
     @pytest.fixture
     def mock_user(self):
@@ -467,7 +467,7 @@ class TestProConnect:
 
         assert result["status"] == "success"
         assert "Token expired successfully" in result["message"]
-        mock_iam.invalidate_token.assert_called_once_with(session=mock_session, token_id="token123", user_id=mock_user.id)
+        mock_iam.invalidate_token.assert_called_once_with(postgres_session=mock_session, token_id="token123", user_id=mock_user.id)
 
     @pytest.mark.asyncio
     @patch("api.endpoints.proconnect.perform_proconnect_logout")
@@ -562,7 +562,7 @@ class TestProConnect:
     @pytest.mark.asyncio
     @patch("api.endpoints.proconnect.get_oauth2_client")
     async def test_perform_proconnect_logout_no_endpoint(self, mock_get_oauth2_client, mock_oauth2_client):
-        """Test ProConnect logout with no end session endpoint"""
+        """Test ProConnect logout with no end postgres_session endpoint"""
         mock_get_oauth2_client.return_value = mock_oauth2_client
         mock_oauth2_client.server_metadata = {}
 

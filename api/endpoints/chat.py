@@ -36,7 +36,7 @@ async def chat_completions(
     request: Request,
     body: CreateChatCompletion,
     model_registry: ModelRegistry = Depends(get_model_registry),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse | StreamingResponseWithStatusCode:
@@ -50,7 +50,7 @@ async def chat_completions(
     # retrieval augmentation generation
     async def retrieval_augmentation_generation(
         initial_body: CreateChatCompletion,
-        inner_session: AsyncSession,
+        inner_postgres_session: AsyncSession,
         inner_redis_client: AsyncRedis,
         inner_model_registry: ModelRegistry,
         inner_request_context: ContextVar[RequestContext],
@@ -62,7 +62,7 @@ async def chat_completions(
 
             results = await global_context.document_manager.search_chunks(
                 request_context=request_context,
-                session=inner_session,
+                postgres_session=inner_postgres_session,
                 redis_client=inner_redis_client,
                 model_registry=inner_model_registry,
                 collection_ids=initial_body.search_args.collections,
@@ -89,7 +89,7 @@ async def chat_completions(
 
     body, results = await retrieval_augmentation_generation(
         initial_body=body,
-        inner_session=session,
+        inner_postgres_session=postgres_session,
         inner_redis_client=redis_client,
         inner_model_registry=model_registry,
         inner_request_context=request_context,
@@ -98,7 +98,7 @@ async def chat_completions(
     model_provider = await model_registry.get_model_provider(
         model=body["model"],
         endpoint=ENDPOINT__CHAT_COMPLETIONS,
-        session=session,
+        postgres_session=postgres_session,
         redis_client=redis_client,
         request_context=request_context,
     )

@@ -17,7 +17,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
 async def create_router(
     request: Request,
     body: CreateRouter = Body(description="The router creation request."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> CreateRouterResponse:
     """
@@ -31,7 +31,7 @@ async def create_router(
         cost_prompt_tokens=body.cost_prompt_tokens,
         cost_completion_tokens=body.cost_completion_tokens,
         user_id=request_context.get().user_info.id,
-        session=session,
+        postgres_session=postgres_session,
     )
     return JSONResponse(status_code=201, content=CreateRouterResponse(id=router_id).model_dump())
 
@@ -44,13 +44,13 @@ async def create_router(
 async def delete_router(
     request: Request,
     router: int = Path(description="The ID of the router to delete (router ID, eg. 123)."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> Response:
     """
     Delete a model and all its providers.
     """
-    await model_registry.delete_router(router_id=router, session=session)
+    await model_registry.delete_router(router_id=router, postgres_session=postgres_session)
 
     return Response(status_code=204)
 
@@ -64,7 +64,7 @@ async def update_router(
     request: Request,
     router: int = Path(description="The ID of the router to update (router ID, eg. 123)."),
     body: UpdateRouter = Body(description="The router update request."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> Response:
     """
@@ -79,7 +79,7 @@ async def update_router(
         cost_prompt_tokens=body.cost_prompt_tokens,
         cost_completion_tokens=body.cost_completion_tokens,
         user_id=request_context.get().user_info.id,
-        session=session,
+        postgres_session=postgres_session,
     )
 
     return Response(status_code=204)
@@ -94,13 +94,13 @@ async def update_router(
 async def get_router(
     request: Request,
     router: int = Path(description="The ID of the router to get (router ID, eg. 123)."),
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> JSONResponse:
     """
     Get a router by ID.
     """
-    routers = await model_registry.get_routers(router_id=router, name=None, session=session)
+    routers = await model_registry.get_routers(router_id=router, name=None, postgres_session=postgres_session)
 
     return JSONResponse(status_code=200, content=routers[0].model_dump())
 
@@ -113,12 +113,12 @@ async def get_router(
 )
 async def get_routers(
     request: Request,
-    session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
     model_registry: ModelRegistry = Depends(get_model_registry),
 ) -> JSONResponse:
     """
     Get all routers.
     """
-    routers = await model_registry.get_routers(router_id=None, name=None, session=session)
+    routers = await model_registry.get_routers(router_id=None, name=None, postgres_session=postgres_session)
 
     return JSONResponse(status_code=200, content=Routers(data=routers).model_dump())
