@@ -1,0 +1,6 @@
+paths:
+ - "api"
+ - "playground"
+ - "scripts"
+paths-ignore:
+ - "api/alembic/versions/**"
