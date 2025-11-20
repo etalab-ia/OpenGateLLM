@@ -53,6 +53,11 @@ api = [
     "celery==5.5.3"
 
 ]
+worker = [
+    "redis==5.2.1",
+    "pycountry==24.6.1",
+    "celery==5.5.3"
+]
 dev = [
     "nbconvert==7.16.6",
     "uvicorn==0.37.0",

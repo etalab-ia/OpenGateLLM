@@ -1,3 +1,3 @@
-from ._celery import app, ensure_queue_exists, get_redis_client
+from ._celery import add_model_queue_to_running_worker, app, create_model_queue, get_redis_client
 
-__all__ = ["app", "get_redis_client", "ensure_queue_exists"]
+__all__ = ["app", "get_redis_client", "add_model_queue_to_running_worker", "create_model_queue"]

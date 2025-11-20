@@ -6,10 +6,13 @@ services:
       context: ..
       dockerfile: api/Dockerfile
       target: worker
+      args:
+        EXTRA: worker
     volumes:
       - "../api/tests/integ/config.test.queuing.yml:/config.yml:ro"
     environment:
       - RABBITMQ_HOST=rabbitmq
+      - REDIS_HOST=redis
       - CELERY_EXTRA_ARGS=${CELERY_EXTRA_ARGS:-}
       - CONFIG_FILE=/config.yml
     depends_on:

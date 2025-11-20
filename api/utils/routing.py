@@ -7,7 +7,7 @@ from redis.asyncio import Redis as AsyncRedis
 from api.schemas.admin.providers import Provider
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.core.metrics import Metric
-from api.tasks import app, ensure_queue_exists
+from api.tasks import app, create_model_queue
 from api.tasks.routing import apply_routing
 from api.utils.exceptions import ModelIsTooBusyException, TaskFailedException
 from api.utils.load_balancing import apply_async_load_balancing
@@ -63,7 +63,19 @@ async def apply_routing_with_queuing(
     priority: int,
 ) -> int:
     candidates = [(provider.id, provider.qos_metric, provider.qos_limit) for provider in providers]
-    ensure_queue_exists(queue_name)
+
+    queue_obj = None
+    for q in app.conf.task_queues:
+        if q.name == queue_name:
+            queue_obj = q
+            break
+
+    if queue_obj is None:
+        logger.warning(f"Queue {queue_name} NOT in task_queues, adding now")
+        queue_obj = create_model_queue(queue_name)
+        app.conf.task_queues = list(app.conf.task_queues) + [queue_obj]
+
+    logger.info(f"Using queue: {queue_obj.name} with config: {queue_obj}")
 
     task = apply_routing.apply_async(
         args=[
@@ -75,6 +87,7 @@ async def apply_routing_with_queuing(
         ],
         queue=queue_name,
         priority=priority,
+        declare=[queue_obj],
     )
 
     async_result = AsyncResult(id=task.id, app=app)

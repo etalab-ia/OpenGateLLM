@@ -2,11 +2,10 @@ import logging
 
 from celery import Celery
 from celery.signals import worker_init
-from kombu import Queue
+from kombu import Exchange, Queue
 from redis import ConnectionPool, Redis
 
 from api.utils.configuration import configuration
-from api.utils.variables import PREFIX__CELERY_QUEUE_ROUTING
 
 logger = logging.getLogger(__name__)
 
@@ -40,64 +39,63 @@ def get_redis_client() -> Redis:
 app = Celery(main=configuration.settings.app_title)
 app.autodiscover_tasks(packages=["api.tasks.routing"])
 
-# Configure Celery - use celery dependency if available, otherwise fallback to Redis
 if configuration.dependencies.celery is not None:
     app.conf.update(
         broker_url=configuration.dependencies.celery.broker_url,
         result_backend=configuration.dependencies.celery.result_backend,
         timezone=configuration.dependencies.celery.timezone,
         enable_utc=configuration.dependencies.celery.enable_utc,
-        task_max_priority=configuration.settings.routing_max_priority,
+        task_track_started=True,
         worker_prefetch_multiplier=1,
         task_acks_late=True,
         task_serializer="json",
         accept_content=["json"],
         result_serializer="json",
-        task_create_missing_queues=True,
-        task_default_routing_key=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
-        # task_queues=(
-        #     Queue(
-        #         name=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
-        #         routing_key=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
-        #         queue_arguments={"x-max-priority": configuration.settings.routing_max_priority + 1},
-        #     ),
-        # ),
-        task_default_queue=f"{PREFIX__CELERY_QUEUE_ROUTING}.default",
-        task_default_exchange="",
+        task_reject_on_worker_lost=True,
+        task_default_priority=0,
+        broker_transport_options={
+            "priority_steps": list(range(configuration.settings.routing_max_priority + 1)),
+            "queue_order_strategy": "priority",
+        },
+        task_routes={},
+    )
+
+control_queue = Queue("control", exchange=Exchange("control", type="direct", durable=True), routing_key="control", durable=True)
+
+app.conf.task_queues = [control_queue]
+
+model_exchange = Exchange("llm_models", type="direct", durable=True)
+
+
+def create_model_queue(queue_name: str) -> Queue:
+    """Create a Celery Queue object for a specific model with priority support"""
+    return Queue(
+        queue_name,
+        exchange=model_exchange,
+        routing_key=queue_name,
+        queue_arguments={"x-max-priority": configuration.settings.routing_max_priority + 1},
+        durable=True,
     )
 
 
-def ensure_queue_exists(queue_name: str) -> None:
+def add_model_queue_to_running_worker(queue_name: str):
     """
-    Ensure a queue exists with proper configuration (priority support for RabbitMQ).
-    This function declares the queue with priority arguments, even if it already exists.
-    It also dynamically subscribes all active workers to this queue, making the system
-    fully dynamic without requiring -Q option at worker startup.
-
-    Args:
-        queue_name: The name of the queue to ensure exists
+    Add a new model queue to already running workers.
+    This is called from the API when a new model is registered.
     """
-    if configuration.dependencies.celery is None:
-        return
+    logger.info(f"Adding queue for model: {queue_name}")
 
-    # Create queue definition with priority arguments
-    queue = Queue(queue_name, routing_key=queue_name, queue_arguments={"x-max-priority": configuration.settings.routing_max_priority + 1})
+    queue = create_model_queue(queue_name)
 
-    # Add to task_queues configuration
-    existing_queues = app.conf.task_queues or ()
-    queue_names = {q.name for q in existing_queues}
-    if queue_name not in queue_names:
-        app.conf.task_queues = existing_queues + (queue,)
+    if queue not in app.conf.task_queues:
+        app.conf.task_queues = list(app.conf.task_queues) + [queue]
 
-    # Declare the queue explicitly on the broker with its arguments
-    with app.connection() as conn:
-        channel = conn.channel()
-        queue.declare(channel=channel)
+    app.control.add_consumer(
+        queue=queue_name,
+        exchange="llm_models",
+        exchange_type="direct",
+        routing_key=queue_name,
+        options={"queue_arguments": {"x-max-priority": configuration.settings.routing_max_priority + 1}},
+    )
 
-    # Dynamically subscribe all active workers to this queue
-    inspect = app.control.inspect()
-    active_workers = inspect.active()
-    if active_workers:
-        worker_names = list(active_workers.keys())
-        logger.info(f"Subscribing {len(worker_names)} active worker(s) to queue '{queue_name}'")
-        app.control.add_consumer(queue_name, destination=worker_names)
+    logger.info(f"Queue added for model {queue_name}")

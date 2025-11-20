@@ -19,7 +19,7 @@ from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 from api.sql.models import User as UserTable
-from api.tasks import ensure_queue_exists
+from api.tasks import add_model_queue_to_running_worker
 from api.utils.exceptions import (
     InconsistentModelMaxContextLengthException,
     InconsistentModelVectorSizeException,
@@ -164,7 +164,7 @@ class ModelRegistry:
             if self.queuing_enabled:
                 routers = await self.get_routers(router_id=None, name=None, postgres_session=postgres_session)
                 for router in routers:
-                    ensure_queue_exists(queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router.id}")
+                    add_model_queue_to_running_worker(queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router.id}")
 
     async def create_router(
         self,
@@ -233,7 +233,7 @@ class ModelRegistry:
         await postgres_session.commit()
 
         if self.queuing_enabled:
-            ensure_queue_exists(queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router_id}")
+            add_model_queue_to_running_worker(queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router_id}")
 
         return router_id
 
