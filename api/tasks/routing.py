@@ -6,7 +6,7 @@ from celery.exceptions import MaxRetriesExceededError, Retry
 
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.core.metrics import Metric
-from api.tasks import app, get_redis_client
+from api.tasks import app, create_model_queue, get_redis_client
 from api.utils.load_balancing import apply_sync_load_balancing
 from api.utils.qos import apply_sync_qos_policy
 
@@ -50,7 +50,9 @@ def apply_routing(
         if can_be_forwarded:
             return {"status_code": 200, "provider_id": provider_id}
         else:
-            raise self.retry(countdown=task_retry_countdown, max_retries=task_max_retries)
+            raise self.retry(
+                countdown=task_retry_countdown, max_retries=task_max_retries, declare=[create_model_queue(self.request.delivery_info["routing_key"])]
+            )
 
     except Retry:
         raise
