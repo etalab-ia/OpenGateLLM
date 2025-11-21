@@ -108,7 +108,7 @@ Explore practical use cases:
 |----------|------|
 | Chat Completions | [![Chat Completions](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/chat_completions.ipynb) |
 | Multi-Model Access | [![Multi-Model Access](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/models.ipynb) |
-| Retrieval-Augmented Generation (RAG) | [![Retrieval-Augmented Generation (RAG)](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/search_and_rag.ipynb) |
+| Retrieval-Augmented Generation (RAG) | [![Retrieval-Augmented Generation (RAG)](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/rag.ipynb) |
 | Audio Transcriptions | [![Audio Transcriptions](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/audio_transcriptions.ipynb) |
 | Optical Character Recognition (OCR) | [![Optical Character Recognition (OCR)](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/ocr.ipynb) |
 
