@@ -15,9 +15,9 @@ from app.core.variables import (
     TEXT_SIZE_LARGE,
 )
 from app.features.users.components.user_update_form import user_update_form
-from app.features.users.components.users_pagination import users_pagination
 from app.features.users.models import FormattedUser
 from app.features.users.state import UsersState
+from app.shared.components import pagination
 
 
 def user_item(user: FormattedUser) -> rx.Component:
@@ -182,13 +182,13 @@ def users_sorting() -> rx.Component:
         rx.text("Sort by", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
         rx.select(
             ["id", "name", "created", "updated"],
-            value=UsersState.users_order_by,
-            on_change=UsersState.set_users_order_by,
+            value=UsersState.order_by,
+            on_change=UsersState.set_order_by,
         ),
         rx.select(
             ["asc", "desc"],
-            value=UsersState.users_order_direction,
-            on_change=UsersState.set_users_order_direction,
+            value=UsersState.order_direction,
+            on_change=UsersState.set_order_direction,
         ),
         spacing=SPACING_SMALL,
         align="center",
@@ -214,7 +214,7 @@ def users_filters() -> rx.Component:
         rx.select.root(
             rx.select.trigger(size="2", width=SELECT_MEDIUM_WIDTH),
             rx.select.content(
-                rx.select.item("All organizations", value="none"),
+                rx.select.item("All organizations", value="all"),
                 rx.foreach(
                     UsersState.available_organizations,
                     lambda org: rx.select.item(org["name"], value=org["id"].to(str)),
@@ -282,13 +282,10 @@ def users_list() -> rx.Component:
                         ),
                     ),
                 ),
-                rx.cond(
-                    UsersState.users.length() > 0,
-                    rx.hstack(
-                        users_pagination(),
-                        width="100%",
-                        justify="end",
-                    ),
+                rx.hstack(
+                    pagination(UsersState),
+                    width="100%",
+                    justify="end",
                 ),
                 spacing=SPACING_MEDIUM,
                 width="100%",

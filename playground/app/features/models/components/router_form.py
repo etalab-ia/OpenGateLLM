@@ -3,12 +3,12 @@
 import reflex as rx
 
 from app.core.variables import (
+    HEADING_SIZE_FORM,
     SIZE_MEDIUM,
     SPACING_MEDIUM,
     SPACING_SMALL,
     SPACING_TINY,
     TEXT_SIZE_LABEL,
-    TEXT_SIZE_MEDIUM,
 )
 from app.features.models.state import ModelsState
 
@@ -17,7 +17,7 @@ def add_router_form() -> rx.Component:
     """Form to add a router."""
     return rx.card(
         rx.vstack(
-            rx.heading("Add router", size=TEXT_SIZE_MEDIUM),
+            rx.heading("Add router", size=HEADING_SIZE_FORM),
             rx.divider(),
             rx.vstack(
                 rx.hstack(
@@ -132,4 +132,3 @@ def add_router_form() -> rx.Component:
         variant="surface",
         width="100%",
     )
-

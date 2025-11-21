@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/github/license/etalab-ia/OpenGateLLM?color=green&label=license)](https://github.com/etalab-ia/OpenGateLLM/blob/main/LICENSE)
 [![Stars](https://img.shields.io/github/stars/etalab-ia/OpenGateLLM?color=yellow&label=stars)](https://github.com/etalab-ia/OpenGateLLM/stargazers)
 
-<img src="./docs/static/img/ogl_logo.svg" alt="Logo" width="128" height="128">
+<img src="./docs/static/img/logo.svg" alt="Logo" width="128" height="128">
 
 # OpenGateLLM
 ### **[Documentation](https://docs.opengatellm.etalab.gouv.fr) | [API Reference](https://albert.api.etalab.gouv.fr/documentation)**

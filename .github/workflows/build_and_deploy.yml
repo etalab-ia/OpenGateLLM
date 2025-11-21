@@ -156,6 +156,7 @@ jobs:
             REFLEX_FRONTEND_URL=${{ matrix.url }}
             CONFIG_FILE=.github/workflows/assets/playground.config.yml
             FAVICON=.github/workflows/assets/favicon.ico
+            LOGO=.github/workflows/assets/logo.svg
           file: ./playground/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true

@@ -16,9 +16,9 @@ from app.core.variables import (
     TEXT_SIZE_MEDIUM,
 )
 from app.features.roles.components.role_update_form import role_update_form
-from app.features.roles.components.roles_pagination import roles_pagination
 from app.features.roles.models import FormattedRole
 from app.features.roles.state import RolesState
+from app.shared.components import pagination
 
 
 def limit_value_cell(value) -> rx.Component:
@@ -363,15 +363,7 @@ def role_accordion_item(role: FormattedRole) -> rx.Component:
                 rx.cond(
                     role.limits.length() > 0,
                     role_limits_table_compact(role),
-                    rx.center(
-                        rx.text(
-                            "No limits configured",
-                            size=TEXT_SIZE_LABEL,
-                            color=rx.color("mauve", 9),
-                        ),
-                        width="100%",
-                        padding="1em",
-                    ),
+                    rx.text("No limits configured.", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 9)),
                 ),
                 add_limit_form(role.id),
                 spacing=SPACING_SMALL,
@@ -427,13 +419,13 @@ def roles_sorting() -> rx.Component:
         rx.text("Sort by", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
         rx.select(
             ["id", "name", "created", "updated"],
-            value=RolesState.roles_order_by,
-            on_change=RolesState.set_roles_order_by,
+            value=RolesState.order_by,
+            on_change=RolesState.set_order_by,
         ),
         rx.select(
             ["asc", "desc"],
-            value=RolesState.roles_order_direction,
-            on_change=RolesState.set_roles_order_direction,
+            value=RolesState.order_direction,
+            on_change=RolesState.set_order_direction,
         ),
         spacing=SPACING_SMALL,
         align="center",
@@ -499,13 +491,10 @@ def roles_list() -> rx.Component:
                         ),
                     ),
                 ),
-                rx.cond(
-                    RolesState.roles.length() > 0,
-                    rx.hstack(
-                        roles_pagination(),
-                        width="100%",
-                        justify="end",
-                    ),
+                rx.hstack(
+                    pagination(RolesState),
+                    width="100%",
+                    justify="end",
                 ),
                 spacing=SPACING_MEDIUM,
                 width="100%",

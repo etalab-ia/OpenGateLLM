@@ -12,7 +12,7 @@ const { themes } = require('prism-react-renderer');
 const config: Config = {
   title: 'OpenGateLLM',
   tagline: 'Opensource API Gateway for LLM',
-  favicon: 'img/ogl_logo.svg',
+  favicon: 'img/logo.svg',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -77,7 +77,7 @@ const config: Config = {
       hideOnScroll: true,
       logo: {
         alt: 'OpenGateLLM Logo',
-        src: 'img/ogl_logo.svg',
+        src: 'img/logo.svg',
         href: baseUrl,
       },
       items: [

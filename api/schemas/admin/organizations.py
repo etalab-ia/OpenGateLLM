@@ -22,6 +22,7 @@ class Organization(BaseModel):
     object: Literal["organization"] = "organization"
     id: int
     name: str
+    users: int
     created: int = Field(default_factory=lambda: int(datetime.now().timestamp()))
     updated: int = Field(default_factory=lambda: int(datetime.now().timestamp()))
 

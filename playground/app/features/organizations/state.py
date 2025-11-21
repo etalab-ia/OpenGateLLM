@@ -15,11 +15,13 @@ class OrganizationsState(ChatState):
     # Organizations list
     organizations: list[Organization] = []
     organizations_loading: bool = False
-    organizations_page: int = 1
-    organizations_per_page: int = 10
-    organizations_total_pages: int = 1
-    organizations_order_by: str = "id"
-    organizations_order_direction: str = "asc"
+
+    # Pagination
+    page: int = 1
+    per_page: int = 20
+    has_more_page: bool = False
+    order_by: str = "id"
+    order_direction: str = "asc"
 
     # Create organization form
     new_organization_name: str = ""
@@ -43,26 +45,12 @@ class OrganizationsState(ChatState):
                 FormattedOrganization(
                     id=org.id,
                     name=org.name,
+                    users=org.users,
                     created=datetime.datetime.fromtimestamp(org.created).strftime("%Y-%m-%d %H:%M"),
                     updated=datetime.datetime.fromtimestamp(org.updated).strftime("%Y-%m-%d %H:%M"),
                 )
             )
         return formatted
-
-    @rx.var
-    def organizations_offset(self) -> int:
-        """Calculate offset for pagination."""
-        return (self.organizations_page - 1) * self.organizations_per_page
-
-    @rx.var
-    def has_previous_organizations_page(self) -> bool:
-        """Check if there's a previous page."""
-        return self.organizations_page > 1
-
-    @rx.var
-    def has_next_organizations_page(self) -> bool:
-        """Check if there's a next page."""
-        return self.organizations_page < self.organizations_total_pages
 
     @rx.var
     def is_delete_organization_dialog_open(self) -> bool:
@@ -87,16 +75,24 @@ class OrganizationsState(ChatState):
             self.organizations_page += 1
 
     @rx.event
-    def set_organizations_order_by(self, value: str):
+    async def set_order_by(self, value: str):
         """Set order by field."""
-        self.organizations_order_by = value
-        self.organizations_page = 1
+        self.order_by = value
+        self.page = 1
+        self.has_more_page = False
+        yield
+        async for _ in self.load_organizations():
+            pass
 
     @rx.event
-    def set_organizations_order_direction(self, value: str):
+    async def set_order_direction(self, value: str):
         """Set order direction."""
-        self.organizations_order_direction = value
-        self.organizations_page = 1
+        self.order_direction = value
+        self.page = 1
+        self.has_more_page = False
+        yield
+        async for _ in self.load_organizations():
+            pass
 
     @rx.event
     def set_new_organization_name(self, value: str):
@@ -138,10 +134,10 @@ class OrganizationsState(ChatState):
 
         try:
             params = {
-                "offset": self.organizations_offset,
-                "limit": self.organizations_per_page,
-                "order_by": self.organizations_order_by,
-                "order_direction": self.organizations_order_direction,
+                "offset": (self.page - 1) * self.per_page,
+                "limit": self.per_page,
+                "order_by": self.order_by,
+                "order_direction": self.order_direction,
             }
 
             async with httpx.AsyncClient() as client:
@@ -151,21 +147,12 @@ class OrganizationsState(ChatState):
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=60.0,
                 )
+                response.raise_for_status()
+                data = response.json()
+                items = data.get("data", [])
+                self.organizations = [Organization(**item) for item in items]
 
-                if response.status_code == 200:
-                    data = response.json()
-                    self.organizations = [Organization(**org) for org in data.get("data", [])]
-                    # Calculate total pages
-                    total_count = len(self.organizations)
-                    if total_count == self.organizations_per_page:
-                        # There might be more pages
-                        self.organizations_total_pages = self.organizations_page + 1
-                    else:
-                        # This is the last page
-                        self.organizations_total_pages = self.organizations_page
-                else:
-                    yield rx.toast.error("Failed to load organizations", position="bottom-right")
-                    self.organizations = []
+                self.has_more_page = len(items) == self.per_page
 
         except Exception as e:
             yield rx.toast.error(f"Error: {str(e)}", position="bottom-right")
@@ -194,6 +181,7 @@ class OrganizationsState(ChatState):
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     timeout=60.0,
                 )
+                response.raise_for_status()
 
                 if response.status_code == 201:
                     self.new_organization_name = ""
@@ -296,3 +284,19 @@ class OrganizationsState(ChatState):
         finally:
             self.edit_organization_loading = False
             yield
+
+    @rx.event
+    async def prev_page(self):
+        if self.page > 1:
+            self.page -= 1
+            yield
+            async for _ in self.load_organizations():
+                yield
+
+    @rx.event
+    async def next_page(self):
+        if self.has_more_page:
+            self.page += 1
+            yield
+            async for _ in self.load_organizations():
+                yield

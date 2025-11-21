@@ -1,5 +1,3 @@
-"""API keys list component."""
-
 import reflex as rx
 
 from app.core.variables import (
@@ -13,9 +11,63 @@ from app.core.variables import (
     TEXT_SIZE_LABEL,
     TEXT_SIZE_LARGE,
 )
-from app.features.keys.components.keys_item import keys_item
-from app.features.keys.components.keys_pagination import keys_pagination
+from app.features.keys.models import FormattedApiKey
 from app.features.keys.state import KeysState
+from app.shared.components import pagination
+
+
+def keys_item(key: FormattedApiKey) -> rx.Component:
+    """Display a single API key item with divider."""
+    return rx.box(
+        rx.hstack(
+            rx.vstack(
+                rx.text(
+                    key.name,
+                    size="3",
+                    weight="bold",
+                    color=rx.color("mauve", 12),
+                ),
+                rx.hstack(
+                    rx.text(
+                        "Token:",
+                        size="2",
+                        weight="bold",
+                        color=rx.color("mauve", 11),
+                    ),
+                    rx.code(
+                        rx.cond(
+                            key.token.length() > 40,
+                            key.token[:40] + "...",
+                            key.token,
+                        ),
+                        size="2",
+                    ),
+                    spacing="2",
+                ),
+                rx.text(
+                    f"Created: {key.created} • Expires: {key.expires}",
+                    size="1",
+                    color=rx.color("mauve", 9),
+                ),
+                spacing="2",
+                align_items="start",
+                flex="1",
+            ),
+            rx.button(
+                rx.icon("trash-2", size=18),
+                on_click=lambda: KeysState.set_key_to_delete(key.id),
+                variant="soft",
+                color_scheme="red",
+                size="2",
+            ),
+            width="100%",
+            align="center",
+            justify="between",
+            padding_y="0.75em",
+        ),
+        rx.divider(),
+        width="100%",
+    )
 
 
 def keys_sorting() -> rx.Component:
@@ -24,13 +76,13 @@ def keys_sorting() -> rx.Component:
         rx.text("Sort by", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
         rx.select(
             ["id", "name", "created"],
-            value=KeysState.keys_order_by,
-            on_change=KeysState.set_keys_order_by,
+            value=KeysState.order_by,
+            on_change=KeysState.set_order_by,
         ),
         rx.select(
             ["asc", "desc"],
-            value=KeysState.keys_order_direction,
-            on_change=KeysState.set_keys_order_direction,
+            value=KeysState.order_direction,
+            on_change=KeysState.set_order_direction,
         ),
         spacing=SPACING_SMALL,
         align="center",
@@ -89,13 +141,10 @@ def keys_list() -> rx.Component:
                     ),
                 ),
             ),
-            rx.cond(
-                KeysState.keys.length() > 0,
-                rx.hstack(
-                    keys_pagination(),
-                    width="100%",
-                    justify="end",
-                ),
+            rx.hstack(
+                pagination(KeysState),
+                width="100%",
+                justify="end",
             ),
             spacing=SPACING_MEDIUM,
             width="100%",

@@ -1,5 +1,3 @@
-"""Organizations list component with sorting and pagination."""
-
 import reflex as rx
 
 from app.core.variables import (
@@ -18,9 +16,9 @@ from app.core.variables import (
     TEXT_SIZE_LABEL,
     TEXT_SIZE_LARGE,
 )
-from app.features.organizations.components.organizations_pagination import organizations_pagination
 from app.features.organizations.models import FormattedOrganization
 from app.features.organizations.state import OrganizationsState
+from app.shared.components import pagination
 
 
 def organization_item(org: FormattedOrganization) -> rx.Component:
@@ -39,6 +37,11 @@ def organization_item(org: FormattedOrganization) -> rx.Component:
                         org.id.to(str),
                         variant="soft",
                         color_scheme="blue",
+                    ),
+                    rx.badge(
+                        org.users.to(str) + " user" + rx.cond(org.users != 1, "s", ""),
+                        variant="soft",
+                        color_scheme="green",
                     ),
                     spacing=SPACING_SMALL,
                 ),
@@ -83,40 +86,6 @@ def organization_item(org: FormattedOrganization) -> rx.Component:
             padding_y="0.75em",
         ),
         rx.divider(),
-        width="100%",
-    )
-
-
-def create_organization_form() -> rx.Component:
-    """Form to create a new organization."""
-    return rx.card(
-        rx.vstack(
-            rx.heading("Create new organization", size=TEXT_SIZE_LARGE),
-            rx.input(
-                placeholder="Organization name",
-                value=OrganizationsState.new_organization_name,
-                on_change=OrganizationsState.set_new_organization_name,
-                disabled=OrganizationsState.create_organization_loading,
-                width="100%",
-            ),
-            rx.hstack(
-                rx.spacer(),
-                rx.button(
-                    rx.cond(
-                        OrganizationsState.create_organization_loading,
-                        rx.spinner(size=SIZE_MEDIUM),
-                        "Create",
-                    ),
-                    on_click=OrganizationsState.create_organization,
-                    disabled=OrganizationsState.create_organization_loading,
-                ),
-                spacing=SPACING_MEDIUM,
-                justify="end",
-                width="100%",
-            ),
-            spacing=SPACING_MEDIUM,
-            width="100%",
-        ),
         width="100%",
     )
 
@@ -213,13 +182,13 @@ def organizations_sorting() -> rx.Component:
         rx.text("Sort by", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
         rx.select(
             ["id", "name", "created", "updated"],
-            value=OrganizationsState.organizations_order_by,
-            on_change=OrganizationsState.set_organizations_order_by,
+            value=OrganizationsState.order_by,
+            on_change=OrganizationsState.set_order_by,
         ),
         rx.select(
             ["asc", "desc"],
-            value=OrganizationsState.organizations_order_direction,
-            on_change=OrganizationsState.set_organizations_order_direction,
+            value=OrganizationsState.order_direction,
+            on_change=OrganizationsState.set_order_direction,
         ),
         spacing=SPACING_SMALL,
         align="center",
@@ -229,7 +198,6 @@ def organizations_sorting() -> rx.Component:
 def organizations_list() -> rx.Component:
     """Display list of organizations with sorting and pagination."""
     return rx.vstack(
-        create_organization_form(),
         rx.card(
             rx.vstack(
                 rx.hstack(
@@ -280,13 +248,10 @@ def organizations_list() -> rx.Component:
                         ),
                     ),
                 ),
-                rx.cond(
-                    OrganizationsState.organizations.length() > 0,
-                    rx.hstack(
-                        organizations_pagination(),
-                        width="100%",
-                        justify="end",
-                    ),
+                rx.hstack(
+                    pagination(OrganizationsState),
+                    width="100%",
+                    justify="end",
                 ),
                 spacing=SPACING_MEDIUM,
                 width="100%",

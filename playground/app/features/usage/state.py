@@ -4,10 +4,10 @@ import datetime as dt
 from typing import Any
 
 import httpx
-from pydantic import BaseModel
 import reflex as rx
 
 from app.features.auth.state import AuthState
+from app.features.usage.models import UsageItem
 
 _usage_endpoints = {
     "All": None,
@@ -17,25 +17,6 @@ _usage_endpoints = {
     "Rerank": "/v1/rerank",
     "Search": "/v1/search",
 }
-
-
-class UsageItem(BaseModel):
-    created: int
-    endpoint: str | None
-    model: str | None
-    key: str | None
-    method: str | None
-    status: int | None
-    prompt_tokens: int | None
-    completion_tokens: int | None
-    total_tokens: int | None
-    cost: float | None
-    latency: int | None
-    ttft: int | None
-    kwh_min: float | None
-    kwh_max: float | None
-    kgco2eq_min: float | None
-    kgco2eq_max: float | None
 
 
 class UsageState(AuthState):
@@ -49,7 +30,7 @@ class UsageState(AuthState):
     # Pagination
     page: int = 1
     per_page: int = 20
-    has_more: bool = False
+    has_more_page: bool = False
 
     # Data
     usage: list[UsageItem] = []
@@ -102,7 +83,7 @@ class UsageState(AuthState):
                 "endpoint": row.endpoint,
                 "model": row.model,
                 "tokens": "" if row.total_tokens == 0 else f"{row.prompt_tokens} → {row.completion_tokens}",
-                "cost": "" if row.cost == 0.0 else f"{row.cost:.4f}",
+                "cost": "" if row.cost == 0.0 or row.cost is None else f"{row.cost:.4f}",
                 "kgCO2eq": "" if row.kgco2eq_min is None or row.kgco2eq_max is None else f"{round(row.kgco2eq_min, 5)} — {round(row.kgco2eq_max, 5)}",
             })
         return rows
@@ -160,7 +141,7 @@ class UsageState(AuthState):
                         )
                         for item in items
                     ]
-                    self.has_more = len(items) == self.per_page
+                    self.has_more_page = len(items) == self.per_page
         except Exception as e:
             yield rx.toast.error(str(e), position="bottom-right")
         finally:

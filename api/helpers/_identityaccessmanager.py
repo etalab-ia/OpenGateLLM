@@ -492,20 +492,28 @@ class IdentityAccessManager:
         order_by: Literal["id", "name", "created", "updated"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[Organization]:
+        if organization_id is None:
+            # get the unique role IDs with pagination
+            statement = select(OrganizationTable.id).offset(offset=offset).limit(limit=limit).order_by(text(f"{order_by} {order_direction}"))
+            result = await postgres_session.execute(statement=statement)
+            selected_organizations = [row[0] for row in result.all()]
+
+        if organization_id is not None:
+            selected_organizations = [organization_id]
+
         statement = (
             select(
                 OrganizationTable.id,
                 OrganizationTable.name,
                 cast(func.extract("epoch", OrganizationTable.created), Integer).label("created"),
                 cast(func.extract("epoch", OrganizationTable.updated), Integer).label("updated"),
+                func.count(distinct(UserTable.id)).label("users"),
             )
-            .offset(offset=offset)
-            .limit(limit=limit)
+            .outerjoin(UserTable, OrganizationTable.id == UserTable.organization_id)
+            .where(OrganizationTable.id.in_(selected_organizations))
+            .group_by(OrganizationTable.id)
             .order_by(text(f"{order_by} {order_direction}"))
         )
-
-        if organization_id is not None:
-            statement = statement.where(OrganizationTable.id == organization_id)
 
         result = await postgres_session.execute(statement=statement)
         organizations = [Organization(**row._mapping) for row in result.all()]

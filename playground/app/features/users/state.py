@@ -15,11 +15,12 @@ class UsersState(ChatState):
     users_loading: bool = False
 
     # Pagination for users
-    users_page: int = 1
-    users_limit: int = 10
-    users_total: int = 0
-    users_order_by: str = "id"
-    users_order_direction: str = "asc"
+    page: int = 1
+    limit: int = 10
+    per_page: int = 20
+    has_more_page: bool = False
+    order_by: str = "id"
+    order_direction: str = "asc"
 
     # Filters
     filter_role: int | None = None
@@ -105,18 +106,6 @@ class UsersState(ChatState):
         return formatted
 
     @rx.var
-    def users_total_pages(self) -> int:
-        """Calculate total pages for users."""
-        if self.users_total == 0:
-            return 0
-        return (self.users_total + self.users_limit - 1) // self.users_limit
-
-    @rx.var
-    def has_more_users(self) -> bool:
-        """Check if there are more users to load."""
-        return self.users_page < self.users_total_pages
-
-    @rx.var
     def is_delete_user_dialog_open(self) -> bool:
         """Check if delete user dialog should be open."""
         return self.user_to_delete is not None
@@ -126,31 +115,23 @@ class UsersState(ChatState):
         """Check if edit user dialog should be open."""
         return self.user_to_edit is not None
 
-    @rx.var
-    def roles_list_for_dropdown(self) -> list[str]:
-        """Get list of role IDs formatted for dropdown."""
-        return [str(role["id"]) for role in self.available_roles]
-
-    @rx.var
-    def organizations_list_for_dropdown(self) -> list[dict[str, str]]:
-        """Get list of organization IDs formatted for dropdown."""
-        return [{"id": "None", "name": "Without organization"}] + self.available_organizations
-
     # Event handlers
     @rx.event
-    async def set_users_order_by(self, value: str):
+    async def set_order_by(self, value: str):
         """Set order by field and reload."""
-        self.users_order_by = value
-        self.users_page = 1
+        self.order_by = value
+        self.page = 1
+        self.has_more_page = False
         yield
         async for _ in self.load_users():
             yield
 
     @rx.event
-    async def set_users_order_direction(self, value: str):
+    async def set_order_direction(self, value: str):
         """Set order direction and reload."""
-        self.users_order_direction = value
-        self.users_page = 1
+        self.order_direction = value
+        self.page = 1
+        self.has_more_page = False
         yield
         async for _ in self.load_users():
             yield
@@ -160,7 +141,8 @@ class UsersState(ChatState):
         """Set role filter and reload."""
         self.filter_role_value = value
         self.filter_role = int(value) if value and value != "all" else None
-        self.users_page = 1
+        self.page = 1
+        self.has_more_page = False
         yield
         async for _ in self.load_users():
             yield
@@ -169,13 +151,12 @@ class UsersState(ChatState):
     async def set_filter_organization(self, value: str):
         """Set organization filter and reload."""
         self.filter_organization_value = value
-        if value == "none":
+        if value == "all":
             self.filter_organization = None  # Special value for "without organization"
-        elif value and value != "all":
-            self.filter_organization = int(value)
         else:
-            self.filter_organization = None
-        self.users_page = 1
+            self.filter_organization = int(value)
+        self.page = 1
+        self.has_more_page = False
         yield
         async for _ in self.load_users():
             yield
@@ -308,10 +289,10 @@ class UsersState(ChatState):
 
         try:
             params = {
-                "offset": (self.users_page - 1) * self.users_limit,
-                "limit": self.users_limit,
-                "order_by": self.users_order_by,
-                "order_direction": self.users_order_direction,
+                "offset": (self.page - 1) * self.per_page,
+                "limit": self.per_page,
+                "order_by": self.order_by,
+                "order_direction": self.order_direction,
             }
 
             if self.filter_role is not None:
@@ -333,13 +314,10 @@ class UsersState(ChatState):
                     yield rx.toast.error(str(error_detail), position="bottom-right")
                 else:
                     data = response.json()
-                    users_data = data.get("data", [])
-                    self.users = [User(**u) for u in users_data]
-                    # Estimate total (API doesn't return total, so we estimate)
-                    if len(self.users) < self.users_limit:
-                        self.users_total = (self.users_page - 1) * self.users_limit + len(self.users)
-                    else:
-                        self.users_total = self.users_page * self.users_limit + 1
+                    items = data.get("data", [])
+                    self.users = [User(**item) for item in items]
+
+                self.has_more_page = len(self.users) == self.per_page
 
         except Exception as e:
             yield rx.toast.error(f"Error loading users: {str(e)}", position="bottom-right")
@@ -621,19 +599,19 @@ class UsersState(ChatState):
             yield
 
     @rx.event
-    async def prev_users_page(self):
+    async def prev_page(self):
         """Go to previous page of users."""
-        if self.users_page > 1:
-            self.users_page -= 1
+        if self.page > 1:
+            self.page -= 1
             yield
             async for _ in self.load_users():
                 yield
 
     @rx.event
-    async def next_users_page(self):
+    async def next_page(self):
         """Go to next page of users."""
-        if self.has_more_users:
-            self.users_page += 1
+        if self.has_more_page:
+            self.page += 1
             yield
             async for _ in self.load_users():
                 yield

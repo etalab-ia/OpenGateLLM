@@ -1,5 +1,3 @@
-"""Organizations page header."""
-
 import reflex as rx
 
 from app.core.variables import (

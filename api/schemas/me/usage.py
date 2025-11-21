@@ -36,10 +36,10 @@ class CarbonFootprintUsage(BaseModel):
 
 
 class UsageDetail(BaseModel):
-    prompt_tokens: int = Field(default=0, description="Number of prompt tokens (e.g. input tokens).")
-    completion_tokens: int = Field(default=0, description="Number of completion tokens (e.g. output tokens).")
-    total_tokens: int = Field(default=0, description="Total number of tokens (e.g. input and output tokens).")
-    cost: float = Field(default=0.0, description="Total cost of the request.")
+    prompt_tokens: int | None = Field(default=None, description="Number of prompt tokens (e.g. input tokens).")
+    completion_tokens: int | None = Field(default=None, description="Number of completion tokens (e.g. output tokens).")
+    total_tokens: int | None = Field(default=None, description="Total number of tokens (e.g. input and output tokens).")
+    cost: float | None = Field(default=None, description="Total cost of the request.")
     carbon: CarbonFootprintUsage = Field(default_factory=CarbonFootprintUsage)
     metrics: MetricsUsage = Field(default_factory=MetricsUsage)
 

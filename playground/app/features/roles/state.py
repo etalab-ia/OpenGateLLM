@@ -17,11 +17,11 @@ class RolesState(ChatState):
     roles_loading: bool = False
 
     # Pagination for roles
-    roles_page: int = 1
-    roles_limit: int = 10
-    roles_total: int = 0
-    roles_order_by: str = "id"
-    roles_order_direction: str = "asc"
+    page: int = 1
+    per_page: int = 5
+    has_more_page: bool = False
+    order_by: str = "id"
+    order_direction: str = "asc"
 
     # Selected role for permissions
     permissions_selected_role_id: int | None = None
@@ -119,18 +119,6 @@ class RolesState(ChatState):
         return [router["name"] for router in self.available_routers]
 
     @rx.var
-    def roles_total_pages(self) -> int:
-        """Calculate total pages for roles."""
-        if self.roles_total == 0:
-            return 0
-        return (self.roles_total + self.roles_limit - 1) // self.roles_limit
-
-    @rx.var
-    def has_more_roles(self) -> bool:
-        """Check if there are more roles to load."""
-        return self.roles_page < self.roles_total_pages
-
-    @rx.var
     def is_delete_role_dialog_open(self) -> bool:
         """Check if delete role dialog should be open."""
         return self.role_to_delete is not None
@@ -140,26 +128,23 @@ class RolesState(ChatState):
         """Check if edit role dialog should be open."""
         return self.role_to_edit is not None
 
-    @rx.var
-    def roles_list_for_dropdown(self) -> list[dict[str, str | int]]:
-        """Get list of roles formatted for dropdown."""
-        return [{"label": role.name, "value": str(role.id)} for role in self.roles]
-
     # Event handlers
     @rx.event
-    async def set_roles_order_by(self, value: str):
+    async def set_order_by(self, value: str):
         """Set order by field and reload."""
-        self.roles_order_by = value
-        self.roles_page = 1
+        self.order_by = value
+        self.page = 1
+        self.has_more_page = False
         yield
         async for _ in self.load_roles():
             yield
 
     @rx.event
-    async def set_roles_order_direction(self, value: str):
+    async def set_order_direction(self, value: str):
         """Set order direction and reload."""
-        self.roles_order_direction = value
-        self.roles_page = 1
+        self.order_direction = value
+        self.page = 1
+        self.has_more_page = False
         yield
         async for _ in self.load_roles():
             yield
@@ -270,10 +255,10 @@ class RolesState(ChatState):
 
         try:
             params = {
-                "offset": (self.roles_page - 1) * self.roles_limit,
-                "limit": self.roles_limit,
-                "order_by": self.roles_order_by,
-                "order_direction": self.roles_order_direction,
+                "offset": (self.page - 1) * self.per_page,
+                "limit": self.per_page,
+                "order_by": self.order_by,
+                "order_direction": self.order_direction,
             }
 
             async with httpx.AsyncClient() as client:
@@ -289,25 +274,21 @@ class RolesState(ChatState):
                     yield rx.toast.error(str(error_detail), position="bottom-right")
                 else:
                     data = response.json()
-                    roles_data = data.get("data", [])
+                    items = data.get("data", [])
 
                     self.roles = [
                         Role(
-                            id=r["id"],
-                            name=r["name"],
-                            permissions=r["permissions"],
-                            limits=[Limit(**lim) for lim in r["limits"]],
-                            users=r.get("users", 0),
-                            created=r["created"],
-                            updated=r["updated"],
+                            id=item["id"],
+                            name=item["name"],
+                            permissions=item["permissions"],
+                            limits=[Limit(**lim) for lim in item["limits"]],
+                            users=item.get("users", 0),
+                            created=item["created"],
+                            updated=item["updated"],
                         )
-                        for r in roles_data
+                        for item in items
                     ]
-                    # Estimate total (API doesn't return total, so we estimate)
-                    if len(self.roles) < self.roles_limit:
-                        self.roles_total = (self.roles_page - 1) * self.roles_limit + len(self.roles)
-                    else:
-                        self.roles_total = self.roles_page * self.roles_limit + 1
+                    self.has_more_page = len(items) == self.per_page
 
         except Exception as e:
             yield rx.toast.error(f"Error loading roles: {str(e)}", position="bottom-right")
@@ -610,19 +591,19 @@ class RolesState(ChatState):
             yield
 
     @rx.event
-    async def prev_roles_page(self):
+    async def prev_page(self):
         """Go to previous page of roles."""
-        if self.roles_page > 1:
-            self.roles_page -= 1
+        if self.page > 1:
+            self.page -= 1
             yield
             async for _ in self.load_roles():
                 yield
 
     @rx.event
-    async def next_roles_page(self):
+    async def next_page(self):
         """Go to next page of roles."""
-        if self.has_more_roles:
-            self.roles_page += 1
+        if self.has_more_page:
+            self.page += 1
             yield
             async for _ in self.load_roles():
                 yield

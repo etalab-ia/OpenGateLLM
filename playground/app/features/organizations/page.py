@@ -3,7 +3,7 @@
 import reflex as rx
 
 from app.core.variables import PADDING_PAGE, SPACING_XL
-from app.features.organizations.components import organizations_header, organizations_list
+from app.features.organizations.components import organizations_create_form, organizations_header, organizations_list
 
 
 def organizations_page() -> rx.Component:
@@ -11,6 +11,7 @@ def organizations_page() -> rx.Component:
     return rx.box(
         rx.vstack(
             organizations_header(),
+            organizations_create_form(),
             organizations_list(),
             spacing=SPACING_XL,
             width="100%",

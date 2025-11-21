@@ -2,7 +2,16 @@
 
 import reflex as rx
 
-from app.core.variables import HEADING_SIZE_SECTION, ICON_SIZE_TINY, SELECT_MEDIUM_WIDTH, SPACING_LARGE, SPACING_SMALL, SPACING_TINY, TEXT_SIZE_LABEL
+from app.core.variables import (
+    HEADING_SIZE_SECTION,
+    ICON_SIZE_TINY,
+    SELECT_MEDIUM_WIDTH,
+    SPACING_LARGE,
+    SPACING_MEDIUM,
+    SPACING_SMALL,
+    SPACING_TINY,
+    TEXT_SIZE_LABEL,
+)
 from app.features.usage.state import UsageState
 
 
@@ -18,9 +27,9 @@ def usage_pagination() -> rx.Component:
         rx.button(
             "Next",
             on_click=UsageState.next_page,
-            disabled=~UsageState.has_more,
+            disabled=~UsageState.has_more_page,
         ),
-        spacing="3",
+        spacing=SPACING_MEDIUM,
         align="center",
     )
 
@@ -82,7 +91,6 @@ def usage_dashboard() -> rx.Component:
                     rx.select(
                         UsageState.endpoint_display_values,
                         on_change=UsageState.set_endpoint,
-                        placeholder="Select endpoint",
                         value=UsageState.endpoint,
                         width=SELECT_MEDIUM_WIDTH,
                     ),

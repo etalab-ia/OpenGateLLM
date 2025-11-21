@@ -173,16 +173,14 @@ app = rx.App(
         radius=configuration.settings.playground_theme_radius,
         scaling=configuration.settings.playground_theme_scaling,
     ),
-    head_components=[
-        rx.el.link(rel="icon", type="image/x-icon", href="/favicon.ico"),
-    ],
+    head_components=[rx.el.link(rel="icon", type="image/x-icon", href="/favicon.ico")],
 )
 
 # Add pages
 app.add_page(index, route="/")
 app.add_page(account, route="/account")
 app.add_page(keys, route="/keys", on_load=KeysState.load_keys)
-app.add_page(usage, route="/usage", on_load=[UsageState.load_routers, UsageState.load_usage])
+app.add_page(usage, route="/usage", on_load=[UsageState.load_usage])
 app.add_page(roles, route="/roles", on_load=[RolesState.load_routers, RolesState.load_roles])
 app.add_page(users, route="/users", on_load=[UsersState.load_users, UsersState.load_roles, UsersState.load_organizations])
 app.add_page(organizations, route="/organizations", on_load=OrganizationsState.load_organizations)

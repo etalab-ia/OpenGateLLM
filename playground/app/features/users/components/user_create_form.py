@@ -10,6 +10,7 @@ def user_create_form() -> rx.Component:
     return rx.card(
         rx.vstack(
             rx.heading("Create new user", size=HEADING_SIZE_FORM),
+            rx.divider(),
             user_form_fields(
                 email_value=UsersState.new_user_email,
                 email_on_change=UsersState.set_new_user_email,

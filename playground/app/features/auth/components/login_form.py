@@ -11,11 +11,27 @@ def login_page() -> rx.Component:
     return rx.center(
         rx.card(
             rx.vstack(
-                rx.heading(
-                    configuration.settings.app_title,
-                    size="8",
-                    margin_bottom="0.5em",
+                rx.hstack(
+                    rx.image(
+                        src="/logo.svg",
+                        width="32px",
+                        height="32px",
+                    ),
+                    rx.heading(
+                        configuration.settings.app_title,
+                        size="8",
+                    ),
+                    spacing="2",
+                    width="100%",
+                    align_items="center",
+                    justify_content="center",
+                    margin_top="1em",
+                    margin_bottom="2em",
                 ),
+                spacing="0",
+                width="100%",
+            ),
+            rx.vstack(
                 rx.vstack(
                     rx.vstack(
                         rx.text("Email", size="2", weight="bold"),

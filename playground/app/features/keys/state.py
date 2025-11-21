@@ -1,6 +1,4 @@
-"""API Keys management state."""
-
-from datetime import datetime, timedelta
+import datetime as dt
 from typing import Any
 
 import httpx
@@ -19,11 +17,11 @@ class KeysState(AuthState):
     keys_loading: bool = False
 
     # Pagination for keys
-    keys_page: int = 1
-    keys_limit: int = 10
-    keys_total: int = 0
-    keys_order_by: str = "id"
-    keys_order_direction: str = "asc"
+    page: int = 1
+    per_page: int = 20
+    has_more_page: bool = False
+    order_by: str = "id"
+    order_direction: str = "asc"
 
     # Create key form
     new_key_name: str = ""
@@ -44,13 +42,13 @@ class KeysState(AuthState):
     @rx.var
     def min_expiry_date(self) -> str:
         """Get today's date as minimum for expiry date picker."""
-        return datetime.now().strftime("%Y-%m-%d")
+        return dt.datetime.now().strftime("%Y-%m-%d")
 
     @rx.var
     def max_expiry_date(self) -> str | None:
         """Get the maximum expiry date."""
         if configuration.settings.auth_key_max_expiration_days is not None:
-            return (datetime.now() + timedelta(days=configuration.settings.auth_key_max_expiration_days)).strftime("%Y-%m-%d")
+            return (dt.datetime.now() + dt.timedelta(days=configuration.settings.auth_key_max_expiration_days - 1)).strftime("%Y-%m-%d")
 
     @rx.var
     def keys_with_formatted_dates(self) -> list[FormattedApiKey]:
@@ -62,23 +60,11 @@ class KeysState(AuthState):
                     id=key.id,
                     name=key.name,
                     token=key.token,
-                    created=datetime.fromtimestamp(key.created).strftime("%Y-%m-%d %H:%M"),
-                    expires="Never" if key.expires is None else datetime.fromtimestamp(key.expires).strftime("%Y-%m-%d %H:%M"),
+                    created=dt.datetime.fromtimestamp(key.created).strftime("%Y-%m-%d %H:%M"),
+                    expires="Never" if key.expires is None else dt.datetime.fromtimestamp(key.expires).strftime("%Y-%m-%d %H:%M"),
                 )
             )
         return formatted_keys
-
-    @rx.var
-    def keys_total_pages(self) -> int:
-        """Calculate total pages for keys."""
-        if self.keys_total == 0:
-            return 0
-        return (self.keys_total + self.keys_limit - 1) // self.keys_limit
-
-    @rx.var
-    def has_more_keys(self) -> bool:
-        """Check if there are more keys to load."""
-        return self.keys_page < self.keys_total_pages
 
     @rx.event
     async def load_keys(self):
@@ -91,10 +77,10 @@ class KeysState(AuthState):
 
         try:
             params = {
-                "offset": (self.keys_page - 1) * self.keys_limit,
-                "limit": self.keys_limit,
-                "order_by": self.keys_order_by,
-                "order_direction": self.keys_order_direction,
+                "offset": (self.page - 1) * self.per_page,
+                "limit": self.per_page,
+                "order_by": self.order_by,
+                "order_direction": self.order_direction,
             }
 
             async with httpx.AsyncClient() as client:
@@ -107,19 +93,10 @@ class KeysState(AuthState):
 
                 response.raise_for_status()
                 data = response.json()
-                keys_data = data.get("data", [])
+                items = data.get("data", [])
+                self.keys = [ApiKey(**item) for item in items if item["name"] != "playground"]
 
-                # Count before filtering for accurate pagination
-                keys_count_before_filter = len(keys_data)
-                self.keys = [ApiKey(**key) for key in keys_data if key["name"] != "playground"]
-
-                # Estimate total (API doesn't return total, so we estimate)
-                # Use the count before filtering to determine if there are more pages
-                if keys_count_before_filter < self.keys_limit:
-                    self.keys_total = (self.keys_page - 1) * self.keys_limit + len(self.keys)
-                else:
-                    self.keys_total = self.keys_page * self.keys_limit + 1
-
+                self.has_more_page = len(self.keys) == self.per_page
         except Exception as e:
             yield rx.toast.error(f"Error loading keys: {str(e)}", position="bottom-right")
             self.keys = []
@@ -145,7 +122,7 @@ class KeysState(AuthState):
             if self.new_key_expires_date.strip():
                 try:
                     # Convert date string (YYYY-MM-DD) to timestamp
-                    date_obj = datetime.datetime.strptime(self.new_key_expires_date.strip(), "%Y-%m-%d")
+                    date_obj = dt.datetime.strptime(self.new_key_expires_date.strip(), "%Y-%m-%d")
                     # Set time to end of day (23:59:59)
                     date_obj = date_obj.replace(hour=23, minute=59, second=59)
                     expires_timestamp = int(date_obj.timestamp())
@@ -264,37 +241,37 @@ class KeysState(AuthState):
         self.new_key_expires_date = value
 
     @rx.event
-    async def set_keys_order_by(self, value: str):
+    async def set_order_by(self, value: str):
         """Set order by field and reload."""
-        self.keys_order_by = value
-        self.keys_page = 1
+        self.order_by = value
+        self.page = 1
+        self.has_more_page = False
         yield
         async for _ in self.load_keys():
             yield
 
     @rx.event
-    async def set_keys_order_direction(self, value: str):
+    async def set_order_direction(self, value: str):
         """Set order direction and reload."""
-        self.keys_order_direction = value
-        self.keys_page = 1
+        self.order_direction = value
+        self.page = 1
+        self.has_more_page = False
         yield
         async for _ in self.load_keys():
             yield
 
     @rx.event
-    async def prev_keys_page(self):
-        """Go to previous page of keys."""
-        if self.keys_page > 1:
-            self.keys_page -= 1
+    async def prev_page(self):
+        if self.page > 1:
+            self.page -= 1
             yield
             async for _ in self.load_keys():
                 yield
 
     @rx.event
-    async def next_keys_page(self):
-        """Go to next page of keys."""
-        if self.has_more_keys:
-            self.keys_page += 1
+    async def next_page(self):
+        if self.has_more_page:
+            self.page += 1
             yield
             async for _ in self.load_keys():
                 yield
