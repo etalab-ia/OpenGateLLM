@@ -10,12 +10,15 @@ from app.features.models.page import models_page
 from app.features.models.state import ModelsState
 from app.features.organizations.page import organizations_page
 from app.features.organizations.state import OrganizationsState
+from app.features.providers.page import providers_page
+from app.features.providers.state import ProvidersState
 from app.features.roles.page import roles_page
 from app.features.roles.state import RolesState
 from app.features.usage.page import usage_page
 from app.features.usage.state import UsageState
 from app.features.users.page import users_page
 from app.features.users.state import UsersState
+from app.shared.components.page import access_denied_page
 from app.shared.layouts.authenticated import authenticated_page
 
 
@@ -162,6 +165,17 @@ def models() -> rx.Component:
     )
 
 
+def providers() -> rx.Component:
+    """Providers management page (admin only)."""
+    return authenticated_page(
+        rx.cond(
+            AuthState.is_admin,
+            providers_page(),
+            access_denied_page(message="You need admin permissions to access this page."),
+        )
+    )
+
+
 # Create the app with theme configuration
 app = rx.App(
     theme=rx.theme(
@@ -185,3 +199,4 @@ app.add_page(roles, route="/roles", on_load=[RolesState.load_routers, RolesState
 app.add_page(users, route="/users", on_load=[UsersState.load_users, UsersState.load_roles, UsersState.load_organizations])
 app.add_page(organizations, route="/organizations", on_load=OrganizationsState.load_organizations)
 app.add_page(models, route="/models", on_load=ModelsState.load_routers)
+app.add_page(providers, route="/providers", on_load=ProvidersState.load_entities)

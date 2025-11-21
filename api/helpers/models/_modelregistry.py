@@ -579,7 +579,10 @@ class ModelRegistry:
             ProviderTable.qos_limit,
             cast(func.extract("epoch", ProviderTable.created), Integer).label("created"),
             cast(func.extract("epoch", ProviderTable.updated), Integer).label("updated"),
-        ).where(ProviderTable.router_id == router_id)
+        )
+
+        if router_id is not None:
+            query = query.where(ProviderTable.router_id == router_id)
 
         if provider_id is not None:
             query = query.where(ProviderTable.id == provider_id)
