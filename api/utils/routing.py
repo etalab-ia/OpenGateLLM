@@ -64,19 +64,7 @@ async def apply_routing_with_queuing(
 ) -> int:
     candidates = [(provider.id, provider.qos_metric, provider.qos_limit) for provider in providers]
 
-    queue_obj = None
-    for q in app.conf.task_queues:
-        if q.name == queue_name:
-            queue_obj = q
-            break
-
-    if queue_obj is None:
-        logger.warning(f"Queue {queue_name} NOT in task_queues, adding now")
-        queue_obj = create_model_queue(queue_name)
-        app.conf.task_queues = list(app.conf.task_queues) + [queue_obj]
-
-    logger.info(f"Using queue: {queue_obj.name} with config: {queue_obj}")
-
+    queue_obj = create_model_queue(queue_name)
     task = apply_routing.apply_async(
         args=[
             candidates,  # candidates

@@ -45,30 +45,18 @@ if configuration.dependencies.celery is not None:
         result_backend=configuration.dependencies.celery.result_backend,
         timezone=configuration.dependencies.celery.timezone,
         enable_utc=configuration.dependencies.celery.enable_utc,
-        task_track_started=True,
         worker_prefetch_multiplier=1,
         task_acks_late=True,
         task_serializer="json",
         accept_content=["json"],
         result_serializer="json",
-        task_reject_on_worker_lost=True,
-        task_default_priority=0,
-        broker_transport_options={
-            "priority_steps": list(range(configuration.settings.routing_max_priority + 1)),
-            "queue_order_strategy": "priority",
-        },
-        task_routes={},
+        task_queues=[],
     )
-
-control_queue = Queue("control", exchange=Exchange("control", type="direct", durable=True), routing_key="control", durable=True)
-
-app.conf.task_queues = [control_queue]
-
-model_exchange = Exchange("llm_models", type="direct", durable=True)
 
 
 def create_model_queue(queue_name: str) -> Queue:
     """Create a Celery Queue object for a specific model with priority support"""
+    model_exchange = Exchange("llm_models", type="direct", durable=True)
     return Queue(
         queue_name,
         exchange=model_exchange,
@@ -83,13 +71,6 @@ def add_model_queue_to_running_worker(queue_name: str):
     Add a new model queue to already running workers.
     This is called from the API when a new model is registered.
     """
-    logger.info(f"Adding queue for model: {queue_name}")
-
-    queue = create_model_queue(queue_name)
-
-    if queue not in app.conf.task_queues:
-        app.conf.task_queues = list(app.conf.task_queues) + [queue]
-
     app.control.add_consumer(
         queue=queue_name,
         exchange="llm_models",
@@ -97,5 +78,3 @@ def add_model_queue_to_running_worker(queue_name: str):
         routing_key=queue_name,
         options={"queue_arguments": {"x-max-priority": configuration.settings.routing_max_priority + 1}},
     )
-
-    logger.info(f"Queue added for model {queue_name}")
