@@ -29,6 +29,7 @@ class EntityState(AuthState):
     @rx.event
     @abstractmethod
     async def create_entity(self):
+        """Create an entity."""
         pass
 
     ############################################################
@@ -40,7 +41,7 @@ class EntityState(AuthState):
     @rx.event
     @abstractmethod
     async def delete_entity(self, entity_id: int):
-        """Delete an API key."""
+        """Delete an entity."""
         pass
 
     @rx.var

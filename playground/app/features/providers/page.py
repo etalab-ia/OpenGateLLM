@@ -3,8 +3,9 @@
 import reflex as rx
 
 from app.core.variables import PADDING_PAGE, SPACING_XL
+from app.features.providers.components.forms import provider_create_form
 from app.features.providers.components.headers import providers_header
-from app.features.providers.components.list import providers_list
+from app.features.providers.components.lists import providers_list
 
 
 def providers_page() -> rx.Component:
@@ -13,6 +14,7 @@ def providers_page() -> rx.Component:
         rx.scroll_area(
             rx.vstack(
                 providers_header(),
+                provider_create_form(),
                 providers_list(),
                 spacing=SPACING_XL,
                 width="100%",

@@ -3,7 +3,7 @@ import reflex as rx
 from app.core.variables import SPACING_SMALL, SPACING_TINY, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
 from app.features.providers.models import Provider
 from app.features.providers.state import ProvidersState
-from app.shared.components.list import entity_item_row, entity_list
+from app.shared.components.lists import entity_item_row, entity_list
 
 
 def provider_row_content(provider: Provider) -> rx.Component:
