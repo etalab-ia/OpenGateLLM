@@ -17,13 +17,13 @@ WORKDIR /
 
 COPY ./api/ /api
 
-ARG EXTRA=api
+ARG BUILD_TARGET=api
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv pip install ".[${EXTRA}]"
+    uv pip install ".[${BUILD_TARGET}]"
 
 # Runtime stage
 FROM python:3.12-slim as runtime
@@ -51,13 +51,12 @@ ENV PYTHONPATH="/api:${PYTHONPATH}"
 
 # Final stages: worker and api (depend --target)
 FROM runtime as worker
-ARG EXTRA=worker
+ARG BUILD_TARGET=worker
 
 RUN chmod u+x /scripts/startup_worker.sh
 CMD ["/scripts/startup_worker.sh"]
 
 FROM runtime as api
-ARG EXTRA=api
 
 RUN chmod u+x /scripts/startup_api.sh
 CMD ["/scripts/startup_api.sh"]

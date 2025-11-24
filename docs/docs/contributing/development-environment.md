@@ -12,7 +12,7 @@
 1. Install the dependencies with the following command:
 
   ```bash
-  pip install ".[api,playground,dev,test]"
+  pip install ".[api,worker,playground,dev,test]"
   ```
 
 ## Configuration

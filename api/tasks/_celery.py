@@ -71,6 +71,8 @@ def add_model_queue_to_running_worker(queue_name: str):
     Add a new model queue to already running workers.
     This is called from the API when a new model is registered.
     """
+    if configuration.dependencies.celery is None:
+        return
     app.control.add_consumer(
         queue=queue_name,
         exchange="llm_models",
