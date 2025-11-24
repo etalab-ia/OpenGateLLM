@@ -20,11 +20,26 @@ class ProvidersState(EntityState):
 
     def _format_provider(self, provider: dict) -> Provider:
         """Format provider."""
+
+        _type_converter = {
+            "vllm": "vLLM",
+            "albert": "Albert",
+            "openai": "OpenAI",
+            "tei": "TEI",
+        }
+
+        _qos_metric_converter = {
+            "ttft": "TTFT",
+            "latency": "Latency",
+            "inflight": "Inflight",
+            "performance": "Performance",
+        }
+
         return Provider(
             id=provider["id"],
             router=self.provider_routers[provider["router_id"]],
             user=self.provider_owners[provider["user_id"]],
-            type=provider["type"],
+            type=_type_converter.get(provider["type"]),
             url=provider["url"],
             key=provider["key"],
             timeout=provider["timeout"],
@@ -32,7 +47,7 @@ class ProvidersState(EntityState):
             model_carbon_footprint_zone=provider["model_carbon_footprint_zone"],
             model_carbon_footprint_total_params=provider["model_carbon_footprint_total_params"],
             model_carbon_footprint_active_params=provider["model_carbon_footprint_active_params"],
-            qos_metric=provider["qos_metric"],
+            qos_metric=_qos_metric_converter.get(provider["qos_metric"]),
             qos_limit=provider["qos_limit"],
             created=dt.datetime.fromtimestamp(provider["created"]).strftime("%Y-%m-%d %H:%M"),
         )
@@ -63,7 +78,7 @@ class ProvidersState(EntityState):
                     if provider["user_id"] not in self.provider_owners:
                         async with httpx.AsyncClient() as client:
                             response = await client.get(
-                                f"{self.opengatellm_url}/v1/admin/users/{provider["user_id"]}",
+                                url=f"{self.opengatellm_url}/v1/admin/users/{provider["user_id"]}",
                                 headers={"Authorization": f"Bearer {self.api_key}"},
                                 timeout=60.0,
                             )
@@ -142,8 +157,6 @@ class ProvidersState(EntityState):
     new_provider_qos_metric: str = "TTFT"
     new_provider_qos_limit: float | None = None
 
-    create_entity_loading: bool = False
-
     @rx.var
     def provider_types_list(self) -> list[str]:
         """Get list of provider types."""
@@ -198,6 +211,7 @@ class ProvidersState(EntityState):
                 response = await client.post(
                     url=f"{self.opengatellm_url}/v1/admin/providers",
                     headers={"Authorization": f"Bearer {self.api_key}"},
+                    json=payload,
                     timeout=60.0,
                 )
                 response.raise_for_status()

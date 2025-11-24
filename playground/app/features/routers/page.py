@@ -1,19 +1,20 @@
 import reflex as rx
 
 from app.core.variables import PADDING_PAGE, SPACING_XL
-from app.features.providers.components.forms import provider_create_form
-from app.features.providers.components.headers import providers_header
-from app.features.providers.components.lists import providers_list
+
+# from app.features.routers.components.forms import router_create_form
+from app.features.routers.components.headers import routers_header
+from app.features.routers.components.lists import routers_list
 
 
-def providers_page() -> rx.Component:
-    """Providers management page."""
+def routers_page() -> rx.Component:
+    """Routers management page."""
     return rx.box(
         rx.scroll_area(
             rx.vstack(
-                providers_header(),
-                provider_create_form(),
-                providers_list(),
+                routers_header(),
+                # router_create_form(),
+                routers_list(),
                 spacing=SPACING_XL,
                 width="100%",
                 padding=PADDING_PAGE,

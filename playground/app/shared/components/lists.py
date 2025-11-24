@@ -7,8 +7,6 @@ from app.core.variables import (
     HEADING_SIZE_SECTION,
     ICON_SIZE_EMPTY_STATE,
     ICON_SIZE_MEDIUM,
-    MARGIN_MEDIUM,
-    MAX_DIALOG_WIDTH,
     PADDING_PAGE,
     SIZE_MEDIUM,
     SPACING_LARGE,
@@ -18,7 +16,6 @@ from app.core.variables import (
     TEXT_SIZE_LABEL,
     TEXT_SIZE_LARGE,
 )
-from app.shared.components.pagination import pagination
 
 
 def entity_item_row(
@@ -27,6 +24,7 @@ def entity_item_row(
     row_content: rx.Component,
     row_description: rx.Component,
     with_edit: bool = False,
+    with_delete: bool = True,
 ) -> rx.Component:
     """Display a single entity item with update and delete buttons."""
     return rx.box(
@@ -43,18 +41,21 @@ def entity_item_row(
                     with_edit,
                     rx.button(
                         rx.icon("pencil", size=ICON_SIZE_MEDIUM),
-                        on_click=lambda: state.set_entity_to_edit(entity.id),
+                        on_click=lambda: state.set_entity_to_edit(entity=entity),
                         variant="soft",
                         color_scheme="blue",
                         size=TEXT_SIZE_LABEL,
                     ),
                 ),
-                rx.button(
-                    rx.icon("trash-2", size=ICON_SIZE_MEDIUM),
-                    on_click=lambda: state.set_entity_to_delete(entity.id),
-                    variant="soft",
-                    color_scheme="red",
-                    size=TEXT_SIZE_LABEL,
+                rx.cond(
+                    with_delete,
+                    rx.button(
+                        rx.icon("trash-2", size=ICON_SIZE_MEDIUM),
+                        on_click=lambda: state.set_entity_to_delete(entity.id),
+                        variant="soft",
+                        color_scheme="red",
+                        size=TEXT_SIZE_LABEL,
+                    ),
                 ),
                 spacing=SPACING_SMALL,
             ),
@@ -68,70 +69,24 @@ def entity_item_row(
     )
 
 
-def entity_delete_dialog(state: rx.State, title: str, description: str) -> rx.Component:
-    """Dialog for deleting an entity."""
-    return rx.alert_dialog.root(
-        rx.alert_dialog.content(
-            rx.alert_dialog.title(title),
-            rx.alert_dialog.description(description),
-            rx.hstack(
-                rx.alert_dialog.cancel(
-                    rx.button(
-                        "Cancel",
-                        variant="soft",
-                        color_scheme="gray",
-                    ),
-                ),
-                rx.alert_dialog.action(
-                    rx.button(
-                        "Delete",
-                        on_click=lambda: state.delete_entity(state.entity_to_delete),
-                        color_scheme="red",
-                        loading=state.delete_entity_loading,
-                    ),
-                ),
-                spacing=SPACING_MEDIUM,
-                justify="end",
-                width="100%",
-            ),
-            spacing=SPACING_LARGE,
+def entity_pagination(state: rx.State) -> rx.Component:
+    """Pagination controls for entity list."""
+    return rx.hstack(
+        rx.button(
+            "Prev",
+            on_click=state.prev_page,
+            disabled=state.page <= 1,
         ),
-        open=state.is_delete_entity_dialog_open,
-        on_open_change=state.handle_delete_entity_dialog_change,
-    )
-
-
-def entity_edit_dialog(state: rx.State, title: str | None, fields: rx.Component | None) -> rx.Component:
-    """Dialog for editing an entity."""
-    return rx.dialog.root(
-        rx.dialog.content(
-            rx.dialog.title(title),
-            fields,
-            rx.hstack(
-                rx.dialog.close(
-                    rx.button(
-                        "Cancel",
-                        variant="soft",
-                        color_scheme="gray",
-                        on_click=lambda: state.set_entity_to_edit(None),
-                    ),
-                ),
-                rx.button(
-                    rx.cond(
-                        state.edit_entity_loading,
-                        rx.spinner(size=SIZE_MEDIUM),
-                        "Update",
-                    ),
-                    on_click=state.update_entity,
-                    disabled=state.edit_entity_loading,
-                ),
-                spacing=SPACING_MEDIUM,
-                justify="end",
-                margin_top=MARGIN_MEDIUM,
-            ),
-            max_width=MAX_DIALOG_WIDTH,
+        rx.text(
+            state.page.to(str),
         ),
-        open=state.is_edit_entity_dialog_open,
+        rx.button(
+            "Next",
+            on_click=state.next_page,
+            disabled=~state.has_more_page,
+        ),
+        spacing=SPACING_MEDIUM,
+        align="center",
     )
 
 
@@ -140,14 +95,12 @@ def entity_list(
     title: str,
     entities: rx.var,
     renderer_entity_row: Callable,
-    delete_title: str,
-    delete_description: str,
     no_entities_message: str,
     no_entities_description: str,
-    edit_title: str | None = None,
-    edit_fields: rx.Component | None = None,
-    with_edit: bool = False,
-    with_pagination: bool = False,
+    pagination: bool = False,
+    info_dialog: rx.Component | None = None,
+    edit_dialog: rx.Component | None = None,
+    delete_dialog: rx.Component | None = None,
 ) -> rx.Component:
     """Display list of entities with sorting and pagination."""
     return rx.vstack(
@@ -201,9 +154,9 @@ def entity_list(
                     ),
                 ),
                 rx.cond(
-                    with_pagination,
+                    pagination,
                     rx.hstack(
-                        pagination(state),
+                        entity_pagination(state),
                         width="100%",
                         justify="end",
                     ),
@@ -213,11 +166,9 @@ def entity_list(
             ),
             width="100%",
         ),
-        rx.cond(
-            with_edit,
-            entity_edit_dialog(state, title=edit_title, fields=edit_fields),
-        ),
-        entity_delete_dialog(state, title=delete_title, description=delete_description),
+        rx.cond(bool(info_dialog), info_dialog, None),
+        rx.cond(bool(edit_dialog), edit_dialog, None),
+        rx.cond(bool(delete_dialog), delete_dialog, None),
         spacing=SPACING_LARGE,
         width="100%",
     )

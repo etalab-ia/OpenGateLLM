@@ -6,14 +6,14 @@ from app.features.auth.state import AuthState
 from app.features.chat.page import chat_page_content
 from app.features.keys.page import keys_page
 from app.features.keys.state import KeysState
-from app.features.models.page import models_page
-from app.features.models.state import ModelsState
 from app.features.organizations.page import organizations_page
 from app.features.organizations.state import OrganizationsState
 from app.features.providers.page import providers_page
 from app.features.providers.state import ProvidersState
 from app.features.roles.page import roles_page
 from app.features.roles.state import RolesState
+from app.features.routers.page import routers_page
+from app.features.routers.state import RoutersState
 from app.features.usage.page import usage_page
 from app.features.usage.state import UsageState
 from app.features.users.page import users_page
@@ -146,12 +146,12 @@ def organizations() -> rx.Component:
     )
 
 
-def models() -> rx.Component:
-    """Models management page (admin only)."""
+def routers() -> rx.Component:
+    """Routers management page (admin only)."""
     return authenticated_page(
         rx.cond(
             AuthState.is_admin,
-            models_page(),
+            routers_page(),
             rx.center(
                 rx.vstack(
                     rx.icon("shield-alert", size=64, color=rx.color("red", 9)),
@@ -198,5 +198,5 @@ app.add_page(usage, route="/usage", on_load=[UsageState.load_usage])
 app.add_page(roles, route="/roles", on_load=[RolesState.load_routers, RolesState.load_roles])
 app.add_page(users, route="/users", on_load=[UsersState.load_users, UsersState.load_roles, UsersState.load_organizations])
 app.add_page(organizations, route="/organizations", on_load=OrganizationsState.load_organizations)
-app.add_page(models, route="/models", on_load=ModelsState.load_routers)
+app.add_page(routers, route="/routers", on_load=RoutersState.load_entities)
 app.add_page(providers, route="/providers", on_load=ProvidersState.load_entities)

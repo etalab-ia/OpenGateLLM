@@ -6,7 +6,7 @@ import reflex as rx
 from app.core.variables import HEADING_SIZE_FORM, ICON_SIZE_TINY, SIZE_MEDIUM, SPACING_MEDIUM, SPACING_TINY, TEXT_SIZE_LABEL
 
 
-def entity_create_form_select_field(
+def entity_form_select_field(
     label: str,
     items: rx.var,
     value: str,
@@ -42,7 +42,7 @@ def entity_create_form_select_field(
     )
 
 
-def entity_create_form_input_field(
+def entity_form_input_field(
     label: str,
     value: str,
     on_change: Callable,
@@ -72,6 +72,33 @@ def entity_create_form_input_field(
             **kwargs,
         ),
         spacing=SPACING_TINY,
+        width="100%",
+    )
+
+
+def entity_edit_form(state: rx.State, title: str, fields: rx.grid) -> rx.Component:
+    """Form to edit an entity."""
+    return rx.card(
+        rx.vstack(
+            rx.heading(title, size=HEADING_SIZE_FORM),
+            rx.divider(),
+            fields,
+            rx.hstack(
+                rx.spacer(),
+                rx.button(
+                    rx.cond(
+                        state.edit_entity_loading,
+                        rx.spinner(size=SIZE_MEDIUM),
+                        "Update",
+                    ),
+                    on_click=state.update_entity,
+                    disabled=state.edit_entity_loading,
+                ),
+                width="100%",
+            ),
+            spacing=SPACING_MEDIUM,
+            width="100%",
+        ),
         width="100%",
     )
 

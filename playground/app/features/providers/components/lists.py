@@ -88,12 +88,7 @@ def providers_list() -> rx.Component:
         title="Providers",
         entities=ProvidersState.providers,
         renderer_entity_row=provider_row,
-        edit_title=None,
-        edit_fields=None,
-        with_edit=False,
-        delete_title="Delete Provider",
-        delete_description="Are you sure you want to delete this provider? This action cannot be undone.",
         no_entities_message="No providers yet",
         no_entities_description="Create your first provider to get started",
-        with_pagination=False,
+        pagination=False,
     )

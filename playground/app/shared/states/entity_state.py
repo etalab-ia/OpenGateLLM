@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Any
 
+from pydantic import BaseModel
 import reflex as rx
 
 from app.features.auth.state import AuthState
@@ -69,7 +70,7 @@ class EntityState(AuthState):
 
     @rx.event
     @abstractmethod
-    def set_entity_to_edit(self, entity_id: int | None):
+    def set_entity_to_edit(self, entity: BaseModel | None):
         """Set entity to edit and load its data."""
         pass
 
