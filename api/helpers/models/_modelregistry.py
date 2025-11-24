@@ -118,7 +118,7 @@ class ModelRegistry:
                     load_balancing_strategy=model.load_balancing_strategy,
                     cost_prompt_tokens=model.cost_prompt_tokens,
                     cost_completion_tokens=model.cost_completion_tokens,
-                    user_id=None,
+                    user_id=0,  # setup as master user
                     postgres_session=postgres_session,
                 )
                 logger.info(f"Router {model.name} are created (id: {router_id})")
@@ -136,7 +136,7 @@ class ModelRegistry:
                 try:
                     provider_id = await self.create_provider(
                         router_id=router.id,
-                        user_id=None,
+                        user_id=0,  # setup as master user
                         type=provider.type,
                         url=provider.url,
                         key=provider.key,
@@ -192,6 +192,7 @@ class ModelRegistry:
         """
 
         # Create the router in database
+        user_id = None if user_id == 0 else user_id  # 0 corresponds to master user ID
         try:
             query = (
                 insert(RouterTable)
@@ -487,6 +488,7 @@ class ModelRegistry:
 
         # Create provider
         try:
+            user_id = None if user_id == 0 else user_id  # 0 corresponds to master user ID
             qos_metric = qos_metric.value if qos_metric is not None else None
             query = (
                 insert(ProviderTable)

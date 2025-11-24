@@ -11,8 +11,21 @@ from app.shared.states.entity_state import EntityState
 class ProvidersState(EntityState):
     """Providers management state."""
 
+    @rx.var
+    def provider_types_list(self) -> list[str]:
+        """Get list of provider types."""
+        return ["Albert", "OpenAI", "TEI", "vLLM"]
+
+    @rx.var
+    def provider_carbon_footprint_zones_list(self) -> list[str]:
+        return [country.alpha_3 for country in pycountry.countries] + ["WOR"]
+
+    @rx.var
+    def provider_qos_metric_list(self) -> list[str]:
+        return ["TTFT", "Latency", "Inflight", "Performance"]
+
     ############################################################
-    # load entities
+    # Load entities
     ############################################################
     entities: list[Provider] = []
     provider_owners: dict[int, str] = {}
@@ -37,8 +50,8 @@ class ProvidersState(EntityState):
 
         return Provider(
             id=provider["id"],
-            router=self.provider_routers[provider["router_id"]],
-            user=self.provider_owners[provider["user_id"]],
+            router=self.provider_routers.get(provider["router_id"], "Unknown"),
+            user=self.provider_owners.get(provider["user_id"], "Unknown"),
             type=_type_converter.get(provider["type"]),
             url=provider["url"],
             key=provider["key"],
@@ -60,6 +73,9 @@ class ProvidersState(EntityState):
     @rx.event
     async def load_entities(self):
         """Load entities."""
+        if not self.is_authenticated or not self.api_key:
+            return
+
         self.entities_loading = True
         yield
 
@@ -113,10 +129,22 @@ class ProvidersState(EntityState):
             yield
 
     ############################################################
-    # delete entity
+    # Display info
+    ############################################################
+
+    @rx.event
+    def set_entity_to_display_info(self, entity: Provider | None):
+        """Set edit entity data."""
+        if entity is None:
+            self.info_entity.id = None
+        else:
+            self.info_entity = entity
+
+    ############################################################
+    # Delete entity
     ############################################################
     @rx.event
-    async def delete_entity(self, entity_id: int):
+    async def delete_entity(self):
         """Delete a provider."""
         self.delete_entity_loading = True
         yield
@@ -124,7 +152,7 @@ class ProvidersState(EntityState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
-                    url=f"{self.opengatellm_url}/v1/admin/providers/{entity_id}",
+                    url=f"{self.opengatellm_url}/v1/admin/providers/{self.delete_entity_id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=60.0,
                 )
@@ -142,9 +170,8 @@ class ProvidersState(EntityState):
             yield
 
     ############################################################
-    # create entity
+    # Create entity
     ############################################################
-
     new_provider_router: str | None = None
     new_provider_model_name: str = ""
     new_provider_type: str = ""
@@ -156,19 +183,6 @@ class ProvidersState(EntityState):
     new_provider_carbon_footprint_active_params: int | None = None
     new_provider_qos_metric: str = "TTFT"
     new_provider_qos_limit: float | None = None
-
-    @rx.var
-    def provider_types_list(self) -> list[str]:
-        """Get list of provider types."""
-        return ["Albert", "OpenAI", "TEI", "vLLM"]
-
-    @rx.var
-    def provider_carbon_footprint_zones_list(self) -> list[str]:
-        return [country.alpha_3 for country in pycountry.countries] + ["WOR"]
-
-    @rx.var
-    def provider_qos_metric_list(self) -> list[str]:
-        return ["TTFT", "Latency", "Inflight", "Performance"]
 
     @rx.event
     async def create_entity(self):
@@ -216,7 +230,6 @@ class ProvidersState(EntityState):
                 )
                 response.raise_for_status()
 
-                self.set_entity_to_create(None)
                 yield rx.toast.success("Provider created successfully", position="bottom-right")
                 async for _ in self.load_entities():
                     yield

@@ -10,8 +10,18 @@ from app.shared.states.entity_state import EntityState
 class RoutersState(EntityState):
     """Routers management state."""
 
+    @rx.var
+    def router_types_list(self) -> list[str]:
+        """Get list of router types."""
+        return ["image-text-to-text", "automatic-speech-recognition", "text-embeddings-inference", "text-generation", "text-classification"]
+
+    @rx.var
+    def router_load_balancing_strategies_list(self) -> list[str]:
+        """Get list of router load balancing strategies."""
+        return ["Shuffle", "Least busy"]
+
     ############################################################
-    # load entities
+    # Load entities
     ############################################################
     entities: list[Router] = []
     router_owners: dict[int, str] = {}
@@ -28,7 +38,7 @@ class RoutersState(EntityState):
             name=router["name"],
             user=self.router_owners[router["user_id"]],
             type=router["type"],
-            aliases=router["aliases"],
+            aliases=",".join(router["aliases"]) if router["aliases"] else "",
             load_balancing_strategy=_load_balancing_strategy_converter.get(router["load_balancing_strategy"]),
             vector_size=router["vector_size"],
             max_context_length=router["max_context_length"],
@@ -47,6 +57,9 @@ class RoutersState(EntityState):
     @rx.event
     async def load_entities(self):
         """Load entities."""
+        if not self.is_authenticated or not self.api_key:
+            return
+
         self.entities_loading = True
         yield
 
@@ -86,10 +99,10 @@ class RoutersState(EntityState):
             yield
 
     ############################################################
-    # delete entity
+    # Delete entity
     ############################################################
     @rx.event
-    async def delete_entity(self, entity_id: int):
+    async def delete_entity(self):
         """Delete a router."""
         self.delete_entity_loading = True
         yield
@@ -97,7 +110,7 @@ class RoutersState(EntityState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
-                    url=f"{self.opengatellm_url}/v1/admin/routers/{entity_id}",
+                    url=f"{self.opengatellm_url}/v1/admin/routers/{self.delete_entity_id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=60.0,
                 )
@@ -115,48 +128,38 @@ class RoutersState(EntityState):
             yield
 
     ############################################################
-    # create entity
+    # Create entity
     ############################################################
-
-    router_name: str = ""
-    router_type: str = ""
-    router_aliases: str = ""
-    router_load_balancing_strategy: str = "Shuffle"
-    router_cost_prompt_tokens: float = 0.0
-    router_cost_completion_tokens: float = 0.0
-
-    @rx.var
-    def router_types_list(self) -> list[str]:
-        """Get list of router types."""
-        return ["image-text-to-text", "automatic-speech-recognition", "text-embeddings-inference", "text-generation", "text-classification"]
-
-    @rx.var
-    def router_load_balancing_strategies_list(self) -> list[str]:
-        """Get list of router load balancing strategies."""
-        return ["Shuffle", "Least busy"]
+    new_router_name: str = ""
+    new_router_type: str = "text-generation"
+    new_router_aliases: str = ""
+    new_router_load_balancing_strategy: str = "Shuffle"
+    new_router_cost_prompt_tokens: float = 0.0
+    new_router_cost_completion_tokens: float = 0.0
 
     @rx.event
     async def create_entity(self):
         """Create a router."""
-        if not self.router_name:
+        if not self.new_router_name:
             yield rx.toast.warning("Router is required", position="bottom-right")
-            return
-
-        if not self.router_type:
-            yield rx.toast.warning("Router type is required", position="bottom-right")
             return
 
         self.create_entity_loading = True
         yield
 
+        new_router_load_balancing_strategy = self.new_router_load_balancing_strategy.lower().replace(" ", "_")
+
         payload = {
-            "name": self.router_name,
-            "type": self.router_type,
-            "aliases": self.router_aliases,
-            "load_balancing_strategy": self.router_load_balancing_strategy.lower(),
-            "cost_prompt_tokens": self.router_cost_prompt_tokens,
-            "cost_completion_tokens": self.router_cost_completion_tokens,
+            "name": self.new_router_name,
+            "type": self.new_router_type,
+            "load_balancing_strategy": new_router_load_balancing_strategy,
+            "cost_prompt_tokens": self.new_router_cost_prompt_tokens,
+            "cost_completion_tokens": self.new_router_cost_completion_tokens,
         }
+
+        new_router_aliases = [alias.strip() for alias in self.new_router_aliases.split(",") if alias.strip()]
+        if new_router_aliases:
+            payload["aliases"] = new_router_aliases
 
         try:
             async with httpx.AsyncClient() as client:
@@ -168,7 +171,6 @@ class RoutersState(EntityState):
                 )
                 response.raise_for_status()
 
-                self.set_entity_to_create(None)
                 yield rx.toast.success("Router created successfully", position="bottom-right")
                 async for _ in self.load_entities():
                     yield
@@ -180,87 +182,128 @@ class RoutersState(EntityState):
             yield
 
     @rx.event
-    def set_router_name(self, value: str):
+    def set_new_router_name(self, value: str):
         """Set new router name."""
-        self.router_name = value.strip()
+        self.new_router_name = value.strip()
 
     @rx.event
-    def set_router_type(self, value: str):
+    def set_new_router_type(self, value: str):
         """Set new router type."""
-        self.router_type = value
+        self.new_router_type = value
 
     @rx.event
-    def set_router_aliases(self, value: str):
+    def set_new_router_aliases(self, value: str):
         """Set new router aliases."""
-        self.router_aliases = [alias.strip() for alias in value if alias.strip()]
+        self.new_router_aliases = value.strip()
 
     @rx.event
-    def set_router_load_balancing_strategy(self, value: str):
+    def set_new_router_load_balancing_strategy(self, value: str):
         """Set new router load balancing strategy."""
-        self.router_load_balancing_strategy = value
+        self.new_router_load_balancing_strategy = value
 
     @rx.event
-    def set_router_cost_prompt_tokens(self, value: str):
+    def set_new_router_cost_prompt_tokens(self, value: str):
         """Set new router cost prompt tokens."""
-        self.router_cost_prompt_tokens = value
+        self.new_router_cost_prompt_tokens = value
 
     @rx.event
-    def set_router_cost_completion_tokens(self, value: str):
+    def set_new_router_cost_completion_tokens(self, value: str):
         """Set new router cost completion tokens."""
-        self.router_cost_completion_tokens = value
+        self.new_router_cost_completion_tokens = value
 
     ############################################################
-    # edit entity
+    # Edit entity
     ############################################################
+
+    edit_entity = Router()
+
+    edit_entity_id = None
+    edit_router_name: str = ""
+    edit_router_type: str = "text-generation"
+    edit_router_aliases: str = ""
+    edit_router_load_balancing_strategy: str = "Shuffle"
+    edit_router_cost_prompt_tokens: float = 0.0
+    edit_router_cost_completion_tokens: float = 0.0
 
     @rx.event
     def set_entity_to_edit(self, entity: Router | None):
         """Set edit entity data."""
         if entity is None:
-            self.entity_to_edit = None
-            self.router_name = ""
-            self.router_type = ""
-            self.router_aliases = ""
-            self.router_load_balancing_strategy = "Shuffle"
-            self.router_cost_prompt_tokens = 0.0
-            self.router_cost_completion_tokens = 0.0
+            self.edit_entity_id = None
 
         else:
-            self.entity_to_edit = entity.id
-            self.router_name = entity.name
-            self.router_type = entity.type
-            self.router_aliases = ", ".join(entity.aliases) if entity.aliases else ""
-            self.router_load_balancing_strategy = entity.load_balancing_strategy
-            self.router_cost_prompt_tokens = entity.cost_prompt_tokens
-            self.router_cost_completion_tokens = entity.cost_completion_tokens
+            self.edit_entity = entity
+            self.edit_entity_id = entity.id
+            self.edit_router_name = entity.name
+            self.edit_router_type = entity.type
+            self.edit_router_aliases = entity.aliases
+            self.edit_router_load_balancing_strategy = entity.load_balancing_strategy
+            self.edit_router_cost_prompt_tokens = entity.cost_prompt_tokens
+            self.edit_router_cost_completion_tokens = entity.cost_completion_tokens
 
     @rx.event
     async def update_entity(self):
         """Update a router."""
-        self.update_entity_loading = True
+        self.edit_entity_loading = True
         yield
 
+        edit_router_aliases = [alias.strip() for alias in self.edit_router_aliases.split(",") if alias.strip()]
+        edit_router_load_balancing_strategy = self.edit_router_load_balancing_strategy.lower().replace(" ", "_")
+
         payload = {
-            "name": self.router_name,
-            "type": self.router_type,
-            "aliases": self.router_aliases,
-            "load_balancing_strategy": self.router_load_balancing_strategy.lower().replace(" ", "_"),
-            "cost_prompt_tokens": self.router_cost_prompt_tokens,
-            "cost_completion_tokens": self.router_cost_completion_tokens,
+            "name": self.edit_router_name,
+            "type": self.edit_router_type,
+            "aliases": edit_router_aliases,
+            "load_balancing_strategy": edit_router_load_balancing_strategy,
+            "cost_prompt_tokens": self.edit_router_cost_prompt_tokens,
+            "cost_completion_tokens": self.edit_router_cost_completion_tokens,
         }
 
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
-                    url=f"{self.opengatellm_url}/v1/admin/routers/{self.entity_to_edit}",
+                    url=f"{self.opengatellm_url}/v1/admin/routers/{self.edit_entity_id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=60.0,
                 )
             response.raise_for_status()
-
+            self.set_entity_to_edit(entity=None)
+            yield rx.toast.success("Router updated successfully", position="bottom-right")
+            async for _ in self.load_entities():
+                yield
         except Exception as e:
             yield rx.toast.error(f"Error updating router: {str(e)}", position="bottom-right")
         finally:
-            self.update_entity_loading = False
+            self.edit_entity_loading = False
             yield
+
+    @rx.event
+    def set_edit_router_name(self, value: str):
+        """Set new router name."""
+        self.edit_router_name = value.strip()
+
+    @rx.event
+    def set_edit_router_type(self, value: str):
+        """Set new router type."""
+        self.edit_router_type = value
+
+    @rx.event
+    def set_edit_router_aliases(self, value: str):
+        """Set new router aliases."""
+        self.edit_router_aliases = value.strip()
+
+    @rx.event
+    def set_edit_router_load_balancing_strategy(self, value: str):
+        """Set new router load balancing strategy."""
+        self.edit_router_load_balancing_strategy = value
+
+    @rx.event
+    def set_edit_router_cost_prompt_tokens(self, value: str):
+        """Set new router cost prompt tokens."""
+        self.edit_router_cost_prompt_tokens = value
+
+    @rx.event
+    def set_edit_router_cost_completion_tokens(self, value: str):
+        """Set new router cost completion tokens."""
+        self.edit_router_cost_completion_tokens = value

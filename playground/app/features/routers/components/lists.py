@@ -1,6 +1,6 @@
 import reflex as rx
 
-from app.core.variables import SPACING_SMALL, SPACING_TINY, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
+from app.core.variables import SPACING_SMALL, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
 from app.features.routers.components.dialogs import router_delete_dialog, router_edit_dialog
 from app.features.routers.models import Router
 from app.features.routers.state import RoutersState
@@ -48,27 +48,6 @@ def router_row_content(router: Router) -> rx.Component:
 def router_row_description(router: Router) -> rx.Component:
     return rx.vstack(
         rx.hstack(
-            rx.text("Aliases", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 10)),
-            rx.foreach(
-                router.aliases,
-                lambda alias: rx.badge(
-                    alias,
-                    variant="outline",
-                    color_scheme="gray",
-                ),
-            ),
-            spacing=SPACING_TINY,
-        ),
-        rx.hstack(
-            rx.text("Load Balancing Strategy", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 10)),
-            rx.badge(
-                router.load_balancing_strategy,
-                variant="outline",
-                color_scheme="gray",
-            ),
-            spacing=SPACING_TINY,
-        ),
-        rx.hstack(
             rx.text(
                 f"Created: {router.created} • Updated: {router.updated} • Owned by: {router.user}",
                 size=TEXT_SIZE_LABEL,
@@ -89,6 +68,7 @@ def router_row(router: Router) -> rx.Component:
         row_content=router_row_content(router),
         row_description=router_row_description(router),
         with_edit=True,
+        with_delete=True,
     )
 
 
@@ -99,7 +79,6 @@ def routers_list() -> rx.Component:
         title="Routers",
         entities=RoutersState.routers,
         renderer_entity_row=router_row,
-        # info_dialog=router_info_dialog(),
         edit_dialog=router_edit_dialog(),
         delete_dialog=router_delete_dialog(),
         no_entities_message="No routers yet",

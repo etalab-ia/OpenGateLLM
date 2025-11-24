@@ -16,13 +16,6 @@ def provider_create_form_fields() -> rx.Component:
             placeholder="Select type",
         ),
         entity_form_input_field(
-            label="Model name*",
-            value=ProvidersState.new_provider_model_name,
-            on_change=ProvidersState.set_new_provider_model_name,
-            tooltip="Model name from the model API (e.g., gpt-4)",
-            placeholder="Enter model name",
-        ),
-        entity_form_input_field(
             label="API url*",
             value=ProvidersState.new_provider_url,
             on_change=ProvidersState.set_new_provider_url,
@@ -36,6 +29,13 @@ def provider_create_form_fields() -> rx.Component:
             on_change=ProvidersState.set_new_provider_key,
             type="password",
             placeholder="Enter API key (optional)",
+        ),
+        entity_form_input_field(
+            label="Model name*",
+            value=ProvidersState.new_provider_model_name,
+            on_change=ProvidersState.set_new_provider_model_name,
+            tooltip="Model name from the model API (e.g., gpt-4)",
+            placeholder="Enter model name",
         ),
         entity_form_input_field(
             label="Timeout (seconds)",
@@ -99,4 +99,13 @@ def provider_create_form() -> rx.Component:
         state=ProvidersState,
         title="Create new provider",
         fields=provider_create_form_fields(),
+    )
+
+
+def provider_info_form_fields() -> rx.Component:
+    return rx.grid(
+        rx.hstack(
+            rx.text("Toto"),
+        ),
+        columns="1",
     )

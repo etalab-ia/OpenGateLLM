@@ -199,4 +199,4 @@ app.add_page(roles, route="/roles", on_load=[RolesState.load_routers, RolesState
 app.add_page(users, route="/users", on_load=[UsersState.load_users, UsersState.load_roles, UsersState.load_organizations])
 app.add_page(organizations, route="/organizations", on_load=OrganizationsState.load_organizations)
 app.add_page(routers, route="/routers", on_load=RoutersState.load_entities)
-app.add_page(providers, route="/providers", on_load=ProvidersState.load_entities)
+app.add_page(providers, route="/providers", on_load=[ProvidersState.load_entities])

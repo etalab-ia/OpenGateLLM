@@ -58,6 +58,7 @@ def entity_edit_dialog(state: rx.State, title: str, fields: rx.grid) -> rx.Compo
             max_width=MAX_DIALOG_WIDTH,
         ),
         open=state.is_edit_entity_dialog_open,
+        on_open_change=state.handle_edit_entity_dialog_change,
     )
 
 
@@ -78,7 +79,7 @@ def entity_delete_dialog(state: rx.State, title: str, description: str) -> rx.Co
                 rx.alert_dialog.action(
                     rx.button(
                         "Delete",
-                        on_click=lambda: state.delete_entity(state.entity_to_delete),
+                        on_click=lambda: state.delete_entity(),
                         color_scheme="red",
                         loading=state.delete_entity_loading,
                     ),

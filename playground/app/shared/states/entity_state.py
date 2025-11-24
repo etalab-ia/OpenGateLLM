@@ -1,10 +1,10 @@
 from abc import abstractmethod
 from typing import Any
 
-from pydantic import BaseModel
 import reflex as rx
 
 from app.features.auth.state import AuthState
+from app.shared.models.entities import Entity
 
 
 class EntityState(AuthState):
@@ -13,13 +13,35 @@ class EntityState(AuthState):
     ############################################################
     # Load entities
     ############################################################
-    entities: list[Any] = []
+    entities: list[Entity] = []
     entities_loading: bool = False
 
     @rx.event
     @abstractmethod
     async def load_entities(self):
+        """Load entities"""
         pass
+
+    ############################################################
+    # Display info
+    ############################################################
+
+    @rx.event
+    @abstractmethod
+    async def set_entity_to_display_info(self, entity: Entity):
+        """Select current entity."""
+        pass
+
+    @rx.var
+    def is_info_entity_dialog_open(self) -> bool:
+        """Check if delete dialog should be open."""
+        return self.info_entity_id is not None
+
+    @rx.event
+    def handle_info_entity_dialog_change(self, is_open: bool):
+        """Handle delete entity dialog open/close state change."""
+        if not is_open:
+            self.info_entity_id = None
 
     ############################################################
     # Create entity
@@ -36,30 +58,36 @@ class EntityState(AuthState):
     ############################################################
     # Delete entity
     ############################################################
-    entity_to_delete: int | None = None
+    delete_entity_id: int | None = None
     delete_entity_loading: bool = False
 
     @rx.event
     @abstractmethod
-    async def delete_entity(self, entity_id: int):
+    async def delete_entity(self):
         """Delete an entity."""
         pass
+
+    @rx.event
+    @abstractmethod
+    def set_entity_to_delete(self, entity: Entity | None):
+        """Set the entity to delete."""
+        self.delete_entity_id = None if entity is None else entity.id
 
     @rx.var
     def is_delete_entity_dialog_open(self) -> bool:
         """Check if delete dialog should be open."""
-        return self.entity_to_delete is not None
+        return self.delete_entity_id is not None
 
     @rx.event
     def handle_delete_entity_dialog_change(self, is_open: bool):
         """Handle delete entity dialog open/close state change."""
         if not is_open:
-            self.entity_to_delete = None
+            self.delete_entity_id = None
 
     ############################################################
     # Edit entity
     ############################################################
-    entity_to_edit: int | None = None
+    edit_entity_id: int | None = None
     edit_entity_loading: bool = False
 
     @rx.event
@@ -70,19 +98,20 @@ class EntityState(AuthState):
 
     @rx.event
     @abstractmethod
-    def set_entity_to_edit(self, entity: BaseModel | None):
+    def set_entity_to_edit(self, entity: Entity | None):
         """Set entity to edit and load its data."""
         pass
-
-    @rx.event
-    def set_entity_to_delete(self, entity_id: int | None):
-        """Set the entity to delete."""
-        self.entity_to_delete = entity_id
 
     @rx.var
     def is_edit_entity_dialog_open(self) -> bool:
         """Check if edit entity dialog should be open."""
-        return self.entity_to_edit is not None
+        return self.edit_entity_id is not None
+
+    @rx.event
+    def handle_edit_entity_dialog_change(self, is_open: bool):
+        """Handle delete entity dialog open/close state change."""
+        if not is_open:
+            self.edit_entity_id = None
 
     ############################################################
     # Pagination

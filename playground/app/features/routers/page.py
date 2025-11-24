@@ -1,8 +1,7 @@
 import reflex as rx
 
 from app.core.variables import PADDING_PAGE, SPACING_XL
-
-# from app.features.routers.components.forms import router_create_form
+from app.features.routers.components.forms import router_create_form
 from app.features.routers.components.headers import routers_header
 from app.features.routers.components.lists import routers_list
 
@@ -13,7 +12,7 @@ def routers_page() -> rx.Component:
         rx.scroll_area(
             rx.vstack(
                 routers_header(),
-                # router_create_form(),
+                router_create_form(),
                 routers_list(),
                 spacing=SPACING_XL,
                 width="100%",

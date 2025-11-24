@@ -302,7 +302,6 @@ class ModelsState(ChatState):
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=60.0,
                 )
-                print(response.json())
 
                 if response.status_code == 200:
                     data = response.json()

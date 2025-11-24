@@ -23,8 +23,9 @@ def entity_item_row(
     state: rx.State,
     row_content: rx.Component,
     row_description: rx.Component,
+    with_info: bool = False,
     with_edit: bool = False,
-    with_delete: bool = True,
+    with_delete: bool = False,
 ) -> rx.Component:
     """Display a single entity item with update and delete buttons."""
     return rx.box(
@@ -37,6 +38,16 @@ def entity_item_row(
                 flex="1",
             ),
             rx.hstack(
+                rx.cond(
+                    with_info,
+                    rx.button(
+                        rx.icon("info", size=ICON_SIZE_MEDIUM),
+                        on_click=lambda: state.set_entity_to_display_info(entity=entity),
+                        variant="soft",
+                        color_scheme="yellow",
+                        size=TEXT_SIZE_LABEL,
+                    ),
+                ),
                 rx.cond(
                     with_edit,
                     rx.button(
@@ -51,7 +62,7 @@ def entity_item_row(
                     with_delete,
                     rx.button(
                         rx.icon("trash-2", size=ICON_SIZE_MEDIUM),
-                        on_click=lambda: state.set_entity_to_delete(entity.id),
+                        on_click=lambda: state.set_entity_to_delete(entity=entity),
                         variant="soft",
                         color_scheme="red",
                         size=TEXT_SIZE_LABEL,
@@ -111,7 +122,7 @@ def entity_list(
                     rx.badge(
                         entities.length(),
                         variant="soft",
-                        color_scheme="blue",
+                        color_scheme="purple",
                     ),
                     rx.spacer(),
                     align="center",

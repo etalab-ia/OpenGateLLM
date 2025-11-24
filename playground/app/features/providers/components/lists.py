@@ -1,6 +1,7 @@
 import reflex as rx
 
-from app.core.variables import SPACING_SMALL, SPACING_TINY, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
+from app.core.variables import SPACING_SMALL, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
+from app.features.providers.components.dialogs import provider_delete_dialog, provider_info_dialog
 from app.features.providers.models import Provider
 from app.features.providers.state import ProvidersState
 from app.shared.components.lists import entity_item_row, entity_list
@@ -41,25 +42,6 @@ def provider_row_content(provider: Provider) -> rx.Component:
 
 def provider_row_description(provider: Provider) -> rx.Component:
     return rx.vstack(
-        rx.hstack(
-            rx.tooltip(
-                rx.badge(
-                    provider.router,
-                    variant="outline",
-                    color_scheme="gray",
-                ),
-                content="Router",
-            ),
-            rx.tooltip(
-                rx.badge(
-                    provider.url,
-                    variant="outline",
-                    color_scheme="gray",
-                ),
-                content="URL",
-            ),
-            spacing=SPACING_TINY,
-        ),
         rx.text(
             f"Created: {provider.created} • Owned by: {provider.user}",
             size=TEXT_SIZE_LABEL,
@@ -78,6 +60,8 @@ def provider_row(provider: Provider) -> rx.Component:
         entity=provider,
         row_content=provider_row_content(provider),
         row_description=provider_row_description(provider),
+        with_info=True,
+        with_delete=True,
     )
 
 
@@ -90,5 +74,7 @@ def providers_list() -> rx.Component:
         renderer_entity_row=provider_row,
         no_entities_message="No providers yet",
         no_entities_description="Create your first provider to get started",
+        info_dialog=provider_info_dialog(),
+        delete_dialog=provider_delete_dialog(),
         pagination=False,
     )
