@@ -129,39 +129,40 @@ class ProvidersState(EntityState):
             yield
 
     ############################################################
-    # Display info
+    # Entity settings
     ############################################################
-    info_provider_router = None
-    info_provider_user = None
-    info_provider_type = None
-    info_provider_url = None
-    info_provider_key = None
-    info_provider_timeout = None
-    info_provider_model_carbon_footprint_zone = None
-    info_provider_model_carbon_footprint_total_params = None
-    info_provider_model_carbon_footprint_active_params = None
-    info_provider_qos_metric = None
-    info_provider_qos_limit = None
-    info_provider_created = None
-    info_provider_updated = None
+    entity_id = None
+    provider_router: str | None = None
+    provider_user: str | None = None
+    provider_type: str | None = None
+    provider_url: str | None = None
+    provider_key: str | None = None
+    provider_timeout: int | None = None
+    provider_model_carbon_footprint_zone: str | None = None
+    provider_model_carbon_footprint_total_params: int | None = None
+    provider_model_carbon_footprint_active_params: int | None = None
+    provider_qos_metric: str | None = None
+    provider_qos_limit: float | None = None
+    provider_created: str | None = None
+    provider_updated: str | None = None
 
     @rx.event
-    def set_entity_to_display_info(self, entity: Provider):
+    def set_entity_settings(self, entity: Provider):
         """Set edit entity data."""
-        self.info_entity_id = entity.id
-        self.info_provider_router = entity.router
-        self.info_provider_user = entity.user
-        self.info_provider_type = entity.type
-        self.info_provider_url = entity.url
-        self.info_provider_key = entity.key
-        self.info_provider_timeout = entity.timeout
-        self.info_provider_model_carbon_footprint_zone = entity.model_carbon_footprint_zone
-        self.info_provider_model_carbon_footprint_total_params = entity.model_carbon_footprint_total_params
-        self.info_provider_model_carbon_footprint_active_params = entity.model_carbon_footprint_active_params
-        self.info_provider_qos_metric = entity.qos_metric
-        self.info_provider_qos_limit = entity.qos_limit
-        self.info_provider_created = entity.created
-        self.info_provider_updated = entity.updated
+        self.entity_id = entity.id
+        self.provider_router = entity.router
+        self.provider_user = entity.user
+        self.provider_type = entity.type
+        self.provider_url = entity.url
+        self.provider_key = entity.key
+        self.provider_timeout = entity.timeout
+        self.provider_model_carbon_footprint_zone = entity.model_carbon_footprint_zone
+        self.provider_model_carbon_footprint_total_params = entity.model_carbon_footprint_total_params
+        self.provider_model_carbon_footprint_active_params = entity.model_carbon_footprint_active_params
+        self.provider_qos_metric = entity.qos_metric
+        self.provider_qos_limit = entity.qos_limit
+        self.provider_created = entity.created
+        self.provider_updated = entity.updated
 
     ############################################################
     # Delete entity

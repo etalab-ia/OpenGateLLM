@@ -24,7 +24,6 @@ def entity_item_row(
     row_content: rx.Component,
     row_description: rx.Component,
     with_settings: bool = False,
-    with_delete: bool = False,
 ) -> rx.Component:
     """Display a single entity item with update and delete buttons."""
     return rx.box(
@@ -47,15 +46,12 @@ def entity_item_row(
                         size=TEXT_SIZE_LABEL,
                     ),
                 ),
-                rx.cond(
-                    with_delete,
-                    rx.button(
-                        rx.icon("trash-2", size=ICON_SIZE_MEDIUM),
-                        on_click=lambda: state.set_entity_to_delete(entity=entity),
-                        variant="soft",
-                        color_scheme="red",
-                        size=TEXT_SIZE_LABEL,
-                    ),
+                rx.button(
+                    rx.icon("trash-2", size=ICON_SIZE_MEDIUM),
+                    on_click=lambda: state.set_entity_to_delete(entity=entity),
+                    variant="soft",
+                    color_scheme="red",
+                    size=TEXT_SIZE_LABEL,
                 ),
                 spacing=SPACING_SMALL,
             ),
@@ -97,9 +93,9 @@ def entity_list(
     renderer_entity_row: Callable,
     no_entities_message: str,
     no_entities_description: str,
-    pagination: bool = False,
+    delete_dialog: rx.Component,
     settings_dialog: rx.Component | None = None,
-    delete_dialog: rx.Component | None = None,
+    pagination: bool = False,
 ) -> rx.Component:
     """Display list of entities with sorting and pagination."""
     return rx.vstack(
@@ -128,7 +124,7 @@ def entity_list(
                     rx.cond(
                         entities.length() > 0,
                         rx.vstack(
-                            rx.foreach(iterable=entities, render_fn=renderer_entity_row),
+                            rx.foreach(iterable=entities, render_fn=lambda entity: renderer_entity_row(entity, bool(settings_dialog))),
                             spacing=SPACING_NONE,
                             width="100%",
                         ),
@@ -166,7 +162,7 @@ def entity_list(
             width="100%",
         ),
         rx.cond(bool(settings_dialog), settings_dialog, None),
-        rx.cond(bool(delete_dialog), delete_dialog, None),
+        delete_dialog,
         spacing=SPACING_LARGE,
         width="100%",
     )

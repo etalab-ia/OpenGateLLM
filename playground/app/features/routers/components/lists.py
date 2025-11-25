@@ -60,15 +60,14 @@ def router_row_description(router: Router) -> rx.Component:
     )
 
 
-def router_row(router: Router) -> rx.Component:
+def router_row(router: Router, with_settings: bool = False) -> rx.Component:
     """Display a row with router information."""
     return entity_item_row(
         state=RoutersState,
         entity=router,
         row_content=router_row_content(router),
         row_description=router_row_description(router),
-        with_settings=True,
-        with_delete=True,
+        with_settings=with_settings,
     )
 
 

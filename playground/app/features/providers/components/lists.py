@@ -53,15 +53,14 @@ def provider_row_description(provider: Provider) -> rx.Component:
     )
 
 
-def provider_row(provider: Provider) -> rx.Component:
+def provider_row(provider: Provider, with_settings: bool = False) -> rx.Component:
     """Display a row with provider information."""
     return entity_item_row(
         state=ProvidersState,
         entity=provider,
         row_content=provider_row_content(provider),
         row_description=provider_row_description(provider),
-        with_settings=True,
-        with_delete=True,
+        with_settings=with_settings,
     )
 
 

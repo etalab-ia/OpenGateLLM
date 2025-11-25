@@ -215,6 +215,8 @@ class RoutersState(EntityState):
     # Entity settings
     ############################################################
 
+    enable_edit: bool = True
+
     entity_id = None
     router_name: str = ""
     router_type: str = "text-generation"

@@ -22,7 +22,7 @@ from app.features.models.models import FormattedRouter, Provider
 from app.features.models.state import ModelsState
 
 
-def provider_row(provider: Provider) -> rx.Component:
+def provider_row(provider: Provider, with_settings: bool = False) -> rx.Component:
     """Display a row with provider information."""
     return rx.table.row(
         rx.table.cell(
