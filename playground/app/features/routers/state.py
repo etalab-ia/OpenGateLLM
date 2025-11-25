@@ -116,7 +116,7 @@ class RoutersState(EntityState):
                 )
                 response.raise_for_status()
 
-                self.set_entity_to_delete(None)
+                self.handle_delete_entity_dialog_change(is_open=False)
                 yield rx.toast.success("Router deleted successfully", position="bottom-right")
                 async for _ in self.load_entities():
                     yield
@@ -215,8 +215,6 @@ class RoutersState(EntityState):
     # Edit entity
     ############################################################
 
-    edit_entity = Router()
-
     edit_entity_id = None
     edit_router_name: str = ""
     edit_router_type: str = "text-generation"
@@ -226,20 +224,15 @@ class RoutersState(EntityState):
     edit_router_cost_completion_tokens: float = 0.0
 
     @rx.event
-    def set_entity_to_edit(self, entity: Router | None):
-        """Set edit entity data."""
-        if entity is None:
-            self.edit_entity_id = None
-
-        else:
-            self.edit_entity = entity
-            self.edit_entity_id = entity.id
-            self.edit_router_name = entity.name
-            self.edit_router_type = entity.type
-            self.edit_router_aliases = entity.aliases
-            self.edit_router_load_balancing_strategy = entity.load_balancing_strategy
-            self.edit_router_cost_prompt_tokens = entity.cost_prompt_tokens
-            self.edit_router_cost_completion_tokens = entity.cost_completion_tokens
+    def set_entity_to_edit(self, entity: Router):
+        """Set entity to edit and load its data."""
+        self.edit_entity_id = entity.id
+        self.edit_router_name = entity.name
+        self.edit_router_type = entity.type
+        self.edit_router_aliases = entity.aliases
+        self.edit_router_load_balancing_strategy = entity.load_balancing_strategy
+        self.edit_router_cost_prompt_tokens = entity.cost_prompt_tokens
+        self.edit_router_cost_completion_tokens = entity.cost_completion_tokens
 
     @rx.event
     async def update_entity(self):
@@ -268,10 +261,13 @@ class RoutersState(EntityState):
                     timeout=60.0,
                 )
             response.raise_for_status()
-            self.set_entity_to_edit(entity=None)
+
+            self.handle_edit_entity_dialog_change(is_open=False)
             yield rx.toast.success("Router updated successfully", position="bottom-right")
+
             async for _ in self.load_entities():
                 yield
+
         except Exception as e:
             yield rx.toast.error(f"Error updating router: {str(e)}", position="bottom-right")
         finally:
@@ -281,29 +277,29 @@ class RoutersState(EntityState):
     @rx.event
     def set_edit_router_name(self, value: str):
         """Set new router name."""
-        self.edit_router_name = value.strip()
+        self.edit_entity.name = value.strip()
 
     @rx.event
     def set_edit_router_type(self, value: str):
         """Set new router type."""
-        self.edit_router_type = value
+        self.edit_entity.type = value
 
     @rx.event
     def set_edit_router_aliases(self, value: str):
         """Set new router aliases."""
-        self.edit_router_aliases = value.strip()
+        self.edit_entity.aliases = value.strip()
 
     @rx.event
     def set_edit_router_load_balancing_strategy(self, value: str):
         """Set new router load balancing strategy."""
-        self.edit_router_load_balancing_strategy = value
+        self.edit_entity.load_balancing_strategy = value
 
     @rx.event
     def set_edit_router_cost_prompt_tokens(self, value: str):
         """Set new router cost prompt tokens."""
-        self.edit_router_cost_prompt_tokens = value
+        self.edit_entity.cost_prompt_tokens = value
 
     @rx.event
     def set_edit_router_cost_completion_tokens(self, value: str):
         """Set new router cost completion tokens."""
-        self.edit_router_cost_completion_tokens = value
+        self.edit_entity.cost_completion_tokens = value

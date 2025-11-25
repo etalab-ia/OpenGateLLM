@@ -39,7 +39,7 @@ def entity_edit_dialog(state: rx.State, title: str, fields: rx.grid) -> rx.Compo
                         "Cancel",
                         variant="soft",
                         color_scheme="gray",
-                        on_click=lambda: state.set_entity_to_edit(entity=None),
+                        on_click=lambda: state.handle_edit_entity_dialog_change(is_open=False),
                     ),
                 ),
                 rx.button(

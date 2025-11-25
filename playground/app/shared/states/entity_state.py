@@ -25,6 +25,7 @@ class EntityState(AuthState):
     ############################################################
     # Display info
     ############################################################
+    info_entity_id: int | None = None
 
     @rx.event
     @abstractmethod
@@ -69,9 +70,9 @@ class EntityState(AuthState):
 
     @rx.event
     @abstractmethod
-    def set_entity_to_delete(self, entity: Entity | None):
+    def set_entity_to_delete(self, entity: Entity):
         """Set the entity to delete."""
-        self.delete_entity_id = None if entity is None else entity.id
+        self.delete_entity_id = entity.id
 
     @rx.var
     def is_delete_entity_dialog_open(self) -> bool:
@@ -109,7 +110,7 @@ class EntityState(AuthState):
 
     @rx.event
     def handle_edit_entity_dialog_change(self, is_open: bool):
-        """Handle delete entity dialog open/close state change."""
+        """Handle edit entity dialog open/close state change."""
         if not is_open:
             self.edit_entity_id = None
 

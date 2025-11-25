@@ -1,7 +1,7 @@
-from pydantic import BaseModel
+from app.shared.models.entities import Entity
 
 
-class Router(BaseModel):
+class Router(Entity):
     """Router model."""
 
     id: int | None = None

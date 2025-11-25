@@ -1,7 +1,7 @@
-from pydantic import BaseModel
+from app.shared.models.entities import Entity
 
 
-class Provider(BaseModel):
+class Provider(Entity):
     """Provider model."""
 
     id: int

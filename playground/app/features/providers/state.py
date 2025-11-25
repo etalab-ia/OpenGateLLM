@@ -17,7 +17,7 @@ class ProvidersState(EntityState):
         return ["Albert", "OpenAI", "TEI", "vLLM"]
 
     @rx.var
-    def provider_carbon_footprint_zones_list(self) -> list[str]:
+    def provider_model_carbon_footprint_zones_list(self) -> list[str]:
         return [country.alpha_3 for country in pycountry.countries] + ["WOR"]
 
     @rx.var
@@ -131,14 +131,37 @@ class ProvidersState(EntityState):
     ############################################################
     # Display info
     ############################################################
+    info_provider_router = None
+    info_provider_user = None
+    info_provider_type = None
+    info_provider_url = None
+    info_provider_key = None
+    info_provider_timeout = None
+    info_provider_model_carbon_footprint_zone = None
+    info_provider_model_carbon_footprint_total_params = None
+    info_provider_model_carbon_footprint_active_params = None
+    info_provider_qos_metric = None
+    info_provider_qos_limit = None
+    info_provider_created = None
+    info_provider_updated = None
 
     @rx.event
-    def set_entity_to_display_info(self, entity: Provider | None):
+    def set_entity_to_display_info(self, entity: Provider):
         """Set edit entity data."""
-        if entity is None:
-            self.info_entity.id = None
-        else:
-            self.info_entity = entity
+        self.info_entity_id = entity.id
+        self.info_provider_router = entity.router
+        self.info_provider_user = entity.user
+        self.info_provider_type = entity.type
+        self.info_provider_url = entity.url
+        self.info_provider_key = entity.key
+        self.info_provider_timeout = entity.timeout
+        self.info_provider_model_carbon_footprint_zone = entity.model_carbon_footprint_zone
+        self.info_provider_model_carbon_footprint_total_params = entity.model_carbon_footprint_total_params
+        self.info_provider_model_carbon_footprint_active_params = entity.model_carbon_footprint_active_params
+        self.info_provider_qos_metric = entity.qos_metric
+        self.info_provider_qos_limit = entity.qos_limit
+        self.info_provider_created = entity.created
+        self.info_provider_updated = entity.updated
 
     ############################################################
     # Delete entity
@@ -158,7 +181,7 @@ class ProvidersState(EntityState):
                 )
                 response.raise_for_status()
 
-                self.set_entity_to_delete(None)
+                self.handle_delete_entity_dialog_change(is_open=False)
                 yield rx.toast.success("Provider deleted successfully", position="bottom-right")
                 async for _ in self.load_entities():
                     yield
@@ -178,9 +201,9 @@ class ProvidersState(EntityState):
     new_provider_url: str = ""
     new_provider_key: str = ""
     new_provider_timeout: int = 300
-    new_provider_carbon_footprint_zone: str = "WOR"
-    new_provider_carbon_footprint_total_params: int | None = None
-    new_provider_carbon_footprint_active_params: int | None = None
+    new_provider_model_carbon_footprint_zone: str = "WOR"
+    new_provider_model_carbon_footprint_total_params: int | None = None
+    new_provider_model_carbon_footprint_active_params: int | None = None
     new_provider_qos_metric: str = "TTFT"
     new_provider_qos_limit: float | None = None
 
@@ -213,9 +236,9 @@ class ProvidersState(EntityState):
             "url": self.new_provider_url.lower(),
             "key": self.new_provider_key,
             "timeout": self.new_provider_timeout,
-            "carbon_footprint_zone": self.new_provider_carbon_footprint_zone,
-            "carbon_footprint_total_params": self.new_provider_carbon_footprint_total_params,
-            "carbon_footprint_active_params": self.new_provider_carbon_footprint_active_params,
+            "model_carbon_footprint_zone": self.new_provider_model_carbon_footprint_zone,
+            "model_carbon_footprint_total_params": self.new_provider_model_carbon_footprint_total_params,
+            "model_carbon_footprint_active_params": self.new_provider_model_carbon_footprint_active_params,
             "qos_metric": self.new_provider_qos_metric,
             "qos_limit": self.new_provider_qos_limit,
         }
@@ -271,19 +294,19 @@ class ProvidersState(EntityState):
         self.new_provider_timeout = value
 
     @rx.event
-    def set_new_provider_carbon_footprint_zone(self, value: str):
+    def set_new_provider_model_carbon_footprint_zone(self, value: str):
         """Set new provider carbon footprint zone."""
-        self.new_provider_carbon_footprint_zone = value
+        self.new_provider_model_carbon_footprint_zone = value
 
     @rx.event
-    def set_new_provider_carbon_footprint_total_params(self, value: str):
+    def set_new_provider_model_carbon_footprint_total_params(self, value: str):
         """Set new provider carbon footprint total params."""
-        self.new_provider_carbon_footprint_total_params = value
+        self.new_provider_model_carbon_footprint_total_params = value
 
     @rx.event
-    def set_new_provider_carbon_footprint_active_params(self, value: str):
+    def set_new_provider_model_carbon_footprint_active_params(self, value: str):
         """Set new provider carbon footprint active params."""
-        self.new_provider_carbon_footprint_active_params = value
+        self.new_provider_model_carbon_footprint_active_params = value
 
     @rx.event
     def set_new_provider_qos_metric(self, value: str):
