@@ -1,16 +1,16 @@
 import reflex as rx
 
-from app.features.providers.components.forms import provider_info_form_fields
+from app.features.providers.components.forms import provider_settings_form_fields
 from app.features.providers.state import ProvidersState
-from app.shared.components.dialogs import entity_delete_dialog, entity_info_dialog
+from app.shared.components.dialogs import entity_delete_dialog, entity_settings_dialog
 
 
-def provider_info_dialog() -> rx.Component:
-    return entity_info_dialog(
+def provider_settings_dialog() -> rx.Component:
+    return entity_settings_dialog(
         state=ProvidersState,
         title="Provider information",
         description="Provider information",
-        fields=provider_info_form_fields(),
+        fields=provider_settings_form_fields(),
     )
 
 

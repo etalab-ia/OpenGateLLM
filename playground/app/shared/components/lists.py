@@ -23,8 +23,7 @@ def entity_item_row(
     state: rx.State,
     row_content: rx.Component,
     row_description: rx.Component,
-    with_info: bool = False,
-    with_edit: bool = False,
+    with_settings: bool = False,
     with_delete: bool = False,
 ) -> rx.Component:
     """Display a single entity item with update and delete buttons."""
@@ -39,20 +38,10 @@ def entity_item_row(
             ),
             rx.hstack(
                 rx.cond(
-                    with_info,
+                    with_settings,
                     rx.button(
-                        rx.icon("info", size=ICON_SIZE_MEDIUM),
-                        on_click=lambda: state.set_entity_to_display_info(entity=entity),
-                        variant="soft",
-                        color_scheme="yellow",
-                        size=TEXT_SIZE_LABEL,
-                    ),
-                ),
-                rx.cond(
-                    with_edit,
-                    rx.button(
-                        rx.icon("pencil", size=ICON_SIZE_MEDIUM),
-                        on_click=lambda: state.set_entity_to_edit(entity=entity),
+                        rx.icon("settings", size=ICON_SIZE_MEDIUM),
+                        on_click=lambda: state.set_entity_settings(entity=entity),
                         variant="soft",
                         color_scheme="blue",
                         size=TEXT_SIZE_LABEL,
@@ -109,8 +98,7 @@ def entity_list(
     no_entities_message: str,
     no_entities_description: str,
     pagination: bool = False,
-    info_dialog: rx.Component | None = None,
-    edit_dialog: rx.Component | None = None,
+    settings_dialog: rx.Component | None = None,
     delete_dialog: rx.Component | None = None,
 ) -> rx.Component:
     """Display list of entities with sorting and pagination."""
@@ -177,8 +165,7 @@ def entity_list(
             ),
             width="100%",
         ),
-        rx.cond(bool(info_dialog), info_dialog, None),
-        rx.cond(bool(edit_dialog), edit_dialog, None),
+        rx.cond(bool(settings_dialog), settings_dialog, None),
         rx.cond(bool(delete_dialog), delete_dialog, None),
         spacing=SPACING_LARGE,
         width="100%",

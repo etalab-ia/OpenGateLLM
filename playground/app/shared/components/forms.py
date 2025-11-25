@@ -76,8 +76,8 @@ def entity_form_input_field(
     )
 
 
-def entity_edit_form(state: rx.State, title: str, fields: rx.grid) -> rx.Component:
-    """Form to edit an entity."""
+def entity_settings_form(state: rx.State, title: str, fields: rx.grid) -> rx.Component:
+    """Form to display information about an entity and edit it."""
     return rx.card(
         rx.vstack(
             rx.heading(title, size=HEADING_SIZE_FORM),
@@ -87,12 +87,12 @@ def entity_edit_form(state: rx.State, title: str, fields: rx.grid) -> rx.Compone
                 rx.spacer(),
                 rx.button(
                     rx.cond(
-                        state.edit_entity_loading,
+                        state.entity_settings_loading,
                         rx.spinner(size=SIZE_MEDIUM),
                         "Update",
                     ),
-                    on_click=state.update_entity,
-                    disabled=state.edit_entity_loading,
+                    on_click=state.edit_entity,
+                    disabled=state.entity_settings_loading,
                 ),
                 width="100%",
             ),

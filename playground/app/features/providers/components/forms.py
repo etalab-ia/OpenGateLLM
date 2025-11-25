@@ -102,7 +102,7 @@ def provider_create_form() -> rx.Component:
     )
 
 
-def provider_info_form_fields() -> rx.Component:
+def provider_settings_form_fields() -> rx.Component:
     return rx.grid(
         rx.hstack(
             rx.text("Toto"),

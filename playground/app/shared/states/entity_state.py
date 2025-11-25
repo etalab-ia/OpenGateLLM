@@ -23,28 +23,6 @@ class EntityState(AuthState):
         pass
 
     ############################################################
-    # Display info
-    ############################################################
-    info_entity_id: int | None = None
-
-    @rx.event
-    @abstractmethod
-    async def set_entity_to_display_info(self, entity: Entity):
-        """Select current entity."""
-        pass
-
-    @rx.var
-    def is_info_entity_dialog_open(self) -> bool:
-        """Check if delete dialog should be open."""
-        return self.info_entity_id is not None
-
-    @rx.event
-    def handle_info_entity_dialog_change(self, is_open: bool):
-        """Handle delete entity dialog open/close state change."""
-        if not is_open:
-            self.info_entity_id = None
-
-    ############################################################
     # Create entity
     ############################################################
     new_entity_data: dict[str, Any] = {}
@@ -86,33 +64,33 @@ class EntityState(AuthState):
             self.delete_entity_id = None
 
     ############################################################
-    # Edit entity
+    # Entity settings
     ############################################################
-    edit_entity_id: int | None = None
-    edit_entity_loading: bool = False
+    entity_id: int | None = None
+    entity_settings_loading: bool = False
 
     @rx.event
     @abstractmethod
-    async def update_entity(self):
+    async def edit_entity(self):
         """Update an entity."""
         pass
 
     @rx.event
     @abstractmethod
-    def set_entity_to_edit(self, entity: Entity | None):
+    def set_entity_settings(self, entity: Entity | None):
         """Set entity to edit and load its data."""
         pass
 
     @rx.var
-    def is_edit_entity_dialog_open(self) -> bool:
+    def is_settings_entity_dialog_open(self) -> bool:
         """Check if edit entity dialog should be open."""
-        return self.edit_entity_id is not None
+        return self.entity_id is not None
 
     @rx.event
-    def handle_edit_entity_dialog_change(self, is_open: bool):
+    def handle_settings_entity_dialog_change(self, is_open: bool):
         """Handle edit entity dialog open/close state change."""
         if not is_open:
-            self.edit_entity_id = None
+            self.entity_id = None
 
     ############################################################
     # Pagination

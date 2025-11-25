@@ -1,7 +1,7 @@
 import reflex as rx
 
 from app.core.variables import SPACING_SMALL, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
-from app.features.routers.components.dialogs import router_delete_dialog, router_edit_dialog
+from app.features.routers.components.dialogs import router_delete_dialog, router_settings_dialog
 from app.features.routers.models import Router
 from app.features.routers.state import RoutersState
 from app.shared.components.lists import entity_item_row, entity_list
@@ -67,7 +67,7 @@ def router_row(router: Router) -> rx.Component:
         entity=router,
         row_content=router_row_content(router),
         row_description=router_row_description(router),
-        with_edit=True,
+        with_settings=True,
         with_delete=True,
     )
 
@@ -79,7 +79,7 @@ def routers_list() -> rx.Component:
         title="Routers",
         entities=RoutersState.routers,
         renderer_entity_row=router_row,
-        edit_dialog=router_edit_dialog(),
+        settings_dialog=router_settings_dialog(),
         delete_dialog=router_delete_dialog(),
         no_entities_message="No routers yet",
         no_entities_description="Create your first router to get started",
