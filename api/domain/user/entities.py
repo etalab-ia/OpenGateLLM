@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+
 class User(BaseModel):
     id: int = Field(description="The user ID.")
     email: str = Field(description="The user email.")

@@ -3,13 +3,13 @@ from typing import Literal
 from sqlalchemy import Integer, cast, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.domain.user import User
-from api.domain.user import UserRepository as UsersRepositoryBase
+from api.domain.user import UserRepository
+from api.domain.user.entities import User
 from api.sql.models import User as UserTable
 from api.utils.exceptions import UserNotFoundException
 
 
-class PostgresUserRepository(UsersRepositoryBase):
+class PostgresUserRepository(UserRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
 

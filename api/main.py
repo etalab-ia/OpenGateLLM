@@ -59,7 +59,7 @@ async def set_request_context(request: Request, call_next):
 
 
 # add routers to the app
-base_pkg = import_module(name="api.endpoints")
+base_pkg = import_module(name="api.infrastructure.fastapi.endpoints")
 for finder, name, ispkg in pkgutil.walk_packages(base_pkg.__path__, base_pkg.__name__ + "."):
     router_name = name.split(".")[2]
 

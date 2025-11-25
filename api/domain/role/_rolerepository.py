@@ -5,5 +5,17 @@ from api.domain.role import Role
 
 class RoleRepository(ABC):
     @abstractmethod
-    def get_roles(self, role_id: str) -> list[Role]:
+    async def get_roles(self, role_id: str) -> list[Role]:
+        pass
+
+    @abstractmethod
+    async def create_role(self, role: Role) -> Role:
+        pass
+
+    @abstractmethod
+    async def update_role(self, role: Role) -> Role:
+        pass
+
+    @abstractmethod
+    async def delete_role(self, role_id: str) -> None:
         pass

@@ -2,7 +2,7 @@ from abc import abstractmethod
 
 from pydantic import BaseModel, EmailStr
 
-from api.domain.user import User
+from api.domain.user.entities import User
 
 
 class UserRepository(BaseModel):

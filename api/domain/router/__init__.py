@@ -1,3 +1,3 @@
-from router import Router, RouterLoadBalancingStrategy
+from ._routerrepository import RouterRepository
 
-__all__ = ["Router", "RouterLoadBalancingStrategy"]
+__all__ = ["RouterRepository"]

@@ -3,8 +3,7 @@ from typing import Literal
 from sqlalchemy import Integer, cast, distinct, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.domain.role import Limit, PermissionType, Role
-from api.domain.role import RoleRepository as RoleRepositoryBase
+from api.domain.role import Limit, PermissionType, Role, RoleRepository
 from api.sql.models import Limit as LimitTable
 from api.sql.models import Permission as PermissionTable
 from api.sql.models import Role as RoleTable
@@ -12,10 +11,12 @@ from api.sql.models import User as UserTable
 from api.utils.exceptions import RoleNotFoundException
 
 
-class PostgresRolesRepository(RoleRepositoryBase):
+class PostgresRolesRepository(RoleRepository):
+    def __init__(self, postgres_session: AsyncSession):
+        self.postgres_session = postgres_session
+
     async def get_roles(
         self,
-        session: AsyncSession,
         role_id: int | None = None,
         offset: int = 0,
         limit: int = 10,
@@ -25,7 +26,7 @@ class PostgresRolesRepository(RoleRepositoryBase):
         if role_id is None:
             # get the unique role IDs with pagination
             statement = select(RoleTable.id).offset(offset=offset).limit(limit=limit).order_by(text(f"{order_by} {order_direction}"))
-            result = await session.execute(statement=statement)
+            result = await self.postgres_session.execute(statement=statement)
             selected_roles = [row[0] for row in result.all()]
         else:
             selected_roles = [role_id]
@@ -45,7 +46,7 @@ class PostgresRolesRepository(RoleRepositoryBase):
             .order_by(text(f"{order_by} {order_direction}"))
         )
 
-        result = await session.execute(role_query)
+        result = await self.postgres_session.execute(role_query)
         role_results = [row._asdict() for row in result.all()]
 
         if role_id is not None and len(role_results) == 0:
@@ -73,7 +74,7 @@ class PostgresRolesRepository(RoleRepositoryBase):
                 LimitTable.value,
             ).where(LimitTable.role_id.in_(list(roles.keys())))
 
-            result = await session.execute(limits_query)
+            result = await self.postgres_session.execute(limits_query)
             for row in result:
                 role_id = row.role_id
                 if role_id in roles:
@@ -82,7 +83,7 @@ class PostgresRolesRepository(RoleRepositoryBase):
             # Query permissions for these roles
             permissions_query = select(PermissionTable.role_id, PermissionTable.permission).where(PermissionTable.role_id.in_(list(roles.keys())))
 
-            result = await session.execute(permissions_query)
+            result = await self.postgres_session.execute(permissions_query)
             for row in result:
                 role_id = row.role_id
                 if role_id in roles:

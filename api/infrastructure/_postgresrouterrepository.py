@@ -1,9 +1,9 @@
 from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.domain.model import Model, ModelCosts, ModelRepository, ModelType
-from api.domain.router import Router, RouterLoadBalancingStrategy
-from api.domain.userinfo import UserInfo
+from api.domain.router import RouterRepository
+from api.domain.router.entities import Model, ModelCosts, ModelType, Router, RouterLoadBalancingStrategy
+from api.domain.userinfo.entities import UserInfo
 from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
@@ -12,7 +12,7 @@ from api.sql.models import User as UserTable
 from api.utils.exceptions import ModelNotFoundException, RouterNotFoundException
 
 
-class PostgresModelRepository(ModelRepository):
+class PostgresRouterRepository(RouterRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
 
@@ -98,7 +98,7 @@ class PostgresModelRepository(ModelRepository):
 
         return routers
 
-    async def get_all_models(self, name: str | None, user_info: UserInfo) -> list[Model]:
+    async def get_all_models(self, routers: list[Router], name: str | None, user_info: UserInfo) -> list[Model]:
         try:
             routers = await self.get_routers(router_id=None, name=name)
         except RouterNotFoundException:

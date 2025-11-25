@@ -1,6 +1,6 @@
-from pydantic import Field, BaseModel
+from pydantic import BaseModel, Field
 
-from api.domain.role import PermissionType, Limit
+from api.domain.role import Limit, PermissionType
 
 
 class UserInfo(BaseModel):
@@ -15,4 +15,3 @@ class UserInfo(BaseModel):
     priority: int = Field(default=0,description="The user priority (higher = higher priority). This value influences scheduling/queue priority for non-streaming model invocations.")  # fmt: off
     created: int = Field(description="The user creation timestamp.")
     updated: int = Field(description="The user update timestamp.")
-
