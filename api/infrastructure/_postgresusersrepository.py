@@ -1,26 +1,28 @@
 from typing import Literal
 
-from sqlalchemy import select, cast, func, text
+from sqlalchemy import Integer, cast, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.domain.user import UserRepository as UsersRepositoryBase
 from api.domain.user import User
+from api.domain.user import UserRepository as UsersRepositoryBase
+from api.sql.models import User as UserTable
+from api.utils.exceptions import UserNotFoundException
+
 
 class PostgresUserRepository(UsersRepositoryBase):
-
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
 
     async def get_users(
-            self,
-            email: str | None = None,
-            user_id: int | None = None,
-            role_id: int | None = None,
-            organization_id: int | None = None,
-            offset: int = 0,
-            limit: int = 10,
-            order_by: Literal["id", "email", "created", "updated"] = "id",
-            order_direction: Literal["asc", "desc"] = "asc",
+        self,
+        email: str | None = None,
+        user_id: int | None = None,
+        role_id: int | None = None,
+        organization_id: int | None = None,
+        offset: int = 0,
+        limit: int = 10,
+        order_by: Literal["id", "email", "created", "updated"] = "id",
+        order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[User]:
         statement = (
             select(
@@ -50,7 +52,7 @@ class PostgresUserRepository(UsersRepositoryBase):
         if organization_id is not None:
             statement = statement.where(UserTable.organization_id == organization_id)
 
-        result = await session.execute(statement=statement)
+        result = await self.postgres_session.execute(statement=statement)
         users = [User(**row._mapping) for row in result.all()]
 
         if (user_id is not None or email is not None) and len(users) == 0:

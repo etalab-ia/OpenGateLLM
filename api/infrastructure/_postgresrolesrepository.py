@@ -1,21 +1,26 @@
 from typing import Literal
 
-from sqlalchemy import select, text, cast, func, distinct
+from sqlalchemy import Integer, cast, distinct, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain.role import Limit, PermissionType, Role
 from api.domain.role import RoleRepository as RoleRepositoryBase
-from api.domain.role import Role
+from api.sql.models import Limit as LimitTable
+from api.sql.models import Permission as PermissionTable
+from api.sql.models import Role as RoleTable
+from api.sql.models import User as UserTable
+from api.utils.exceptions import RoleNotFoundException
+
 
 class PostgresRolesRepository(RoleRepositoryBase):
-
     async def get_roles(
-            self,
-            session: AsyncSession,
-            role_id: int | None = None,
-            offset: int = 0,
-            limit: int = 10,
-            order_by: Literal["id", "name", "created", "updated"] = "id",
-            order_direction: Literal["asc", "desc"] = "asc",
+        self,
+        session: AsyncSession,
+        role_id: int | None = None,
+        offset: int = 0,
+        limit: int = 10,
+        order_by: Literal["id", "name", "created", "updated"] = "id",
+        order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[Role]:
         if role_id is None:
             # get the unique role IDs with pagination
