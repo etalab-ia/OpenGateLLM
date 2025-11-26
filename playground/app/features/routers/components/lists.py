@@ -24,14 +24,6 @@ def router_row_content(router: Router) -> rx.Component:
                 ),
                 content="ID",
             ),
-            rx.tooltip(
-                rx.badge(
-                    router.type.to(str),
-                    variant="soft",
-                    color_scheme="orange",
-                ),
-                content="Type",
-            ),
             rx.badge(
                 router.providers.to(str) + " provider" + rx.cond(router.providers != 1, "s", ""),
                 variant="soft",

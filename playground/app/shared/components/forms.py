@@ -9,8 +9,8 @@ from app.core.variables import HEADING_SIZE_FORM, ICON_SIZE_TINY, SIZE_MEDIUM, S
 def entity_form_select_field(
     label: str,
     items: rx.var,
-    value: str,
-    on_change: Callable,
+    value: str | None = None,
+    on_change: Callable | None = None,
     disabled: bool = False,
     tooltip: str | None = None,
     **kwargs,
@@ -45,8 +45,7 @@ def entity_form_select_field(
 def entity_form_input_field(
     label: str,
     value: str,
-    on_change: Callable,
-    disabled: bool = False,
+    on_change: Callable | None = None,
     tooltip: str | None = None,
     **kwargs: Any,
 ) -> rx.Component:
@@ -67,7 +66,6 @@ def entity_form_input_field(
         rx.input(
             value=value,
             on_change=on_change,
-            disabled=disabled,
             width="100%",
             **kwargs,
         ),
@@ -87,12 +85,12 @@ def entity_settings_form(state: rx.State, title: str, fields: rx.grid) -> rx.Com
                 rx.spacer(),
                 rx.button(
                     rx.cond(
-                        state.entity_settings_loading,
+                        state.edit_entity_loading,
                         rx.spinner(size=SIZE_MEDIUM),
                         "Update",
                     ),
                     on_click=state.edit_entity,
-                    disabled=state.entity_settings_loading,
+                    disabled=state.edit_entity_loading,
                 ),
                 width="100%",
             ),

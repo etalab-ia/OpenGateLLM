@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from typing import Any
 
 import reflex as rx
 
@@ -13,10 +12,9 @@ class EntityState(AuthState):
     ############################################################
     # Load entities
     ############################################################
-    entities: list[Entity] = []
+    # entities: list[Entity] = []
     entities_loading: bool = False
 
-    @rx.event
     @abstractmethod
     async def load_entities(self):
         """Load entities"""
@@ -25,72 +23,75 @@ class EntityState(AuthState):
     ############################################################
     # Create entity
     ############################################################
-    new_entity_data: dict[str, Any] = {}
+    # entity_to_create: Entity = Entity()
     create_entity_loading: bool = False
 
-    @rx.event
     @abstractmethod
-    async def create_entity(self):
-        """Create an entity."""
+    def set_entity_to_create(self, entity: Entity):
+        """Set entity to create."""
+        pass
+
+    @abstractmethod
+    def set_new_entity_attribut(self, attribute: str, value: str | None):
+        """Set new entity attributes."""
         pass
 
     ############################################################
     # Delete entity
     ############################################################
-    delete_entity_id: int | None = None
+    # entity_to_delete: Entity = Entity()
     delete_entity_loading: bool = False
 
-    @rx.event
     @abstractmethod
     async def delete_entity(self):
         """Delete an entity."""
         pass
 
-    @rx.event
     @abstractmethod
     def set_entity_to_delete(self, entity: Entity):
         """Set the entity to delete."""
-        self.delete_entity_id = entity.id
+        pass
 
-    @rx.var
+    @abstractmethod
     def is_delete_entity_dialog_open(self) -> bool:
         """Check if delete dialog should be open."""
-        return self.delete_entity_id is not None
+        pass
 
-    @rx.event
+    @abstractmethod
     def handle_delete_entity_dialog_change(self, is_open: bool):
         """Handle delete entity dialog open/close state change."""
-        if not is_open:
-            self.delete_entity_id = None
+        pass
 
     ############################################################
     # Entity settings
     ############################################################
-    entity_id: int | None = None
-    entity_settings_loading: bool = False
+    # entity: Entity = Entity() reflex does not support this
+    edit_entity_loading: bool = False
 
-    @rx.event
+    @abstractmethod
+    def is_settings_entity_dialog_open(self) -> bool:
+        """Check if edit entity dialog should be open."""
+        pass
+
+    @abstractmethod
+    def handle_settings_entity_dialog_change(self, is_open: bool):
+        """Handle edit entity dialog open/close state change."""
+        pass
+
     @abstractmethod
     async def edit_entity(self):
         """Update an entity."""
         pass
 
-    @rx.event
     @abstractmethod
-    def set_entity_settings(self, entity: Entity | None):
+    def set_entity_settings(self, entity: Entity):
         """Set entity to edit and load its data."""
         pass
 
-    @rx.var
-    def is_settings_entity_dialog_open(self) -> bool:
-        """Check if edit entity dialog should be open."""
-        return self.entity_id is not None
-
-    @rx.event
-    def handle_settings_entity_dialog_change(self, is_open: bool):
-        """Handle edit entity dialog open/close state change."""
-        if not is_open:
-            self.entity_id = None
+    @abstractmethod
+    def set_edit_entity_attribut(self, attribute: str, value: str | None):
+        """Set edit entity attributes."""
+        pass
 
     ############################################################
     # Pagination
@@ -98,13 +99,16 @@ class EntityState(AuthState):
     page: int = 1
     per_page: int = 20
     has_more_page: bool = False
-    order_by: str = "id"
+    order_by_options: list[str] = ["id"]
+    order_by_value: str = "id"
     order_direction: str = "asc"
+    order_direction_options: list[str] = ["asc", "desc"]
+    order_direction_value: str = "asc"
 
     @rx.event
     async def set_order_by(self, value: str):
         """Set order by field and reload."""
-        self.order_by = value
+        self.order_by_value = value
         self.page = 1
         self.has_more_page = False
         yield
@@ -114,7 +118,7 @@ class EntityState(AuthState):
     @rx.event
     async def set_order_direction(self, value: str):
         """Set order direction and reload."""
-        self.order_direction = value
+        self.order_direction_value = value
         self.page = 1
         self.has_more_page = False
         yield

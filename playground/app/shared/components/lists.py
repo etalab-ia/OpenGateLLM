@@ -86,6 +86,25 @@ def entity_pagination(state: rx.State) -> rx.Component:
     )
 
 
+def entity_sorting(state: rx.State) -> rx.Component:
+    """Sorting controls for entities."""
+    return rx.hstack(
+        rx.text("Sort by", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+        rx.select(
+            items=state.order_by_options,
+            value=state.order_by_value,
+            on_change=state.set_order_by,
+        ),
+        rx.select(
+            items=state.order_direction_options,
+            value=state.order_direction_value,
+            on_change=state.set_order_direction,
+        ),
+        spacing=SPACING_SMALL,
+        align="center",
+    )
+
+
 def entity_list(
     state: rx.State,
     title: str,
@@ -95,6 +114,8 @@ def entity_list(
     no_entities_description: str,
     delete_dialog: rx.Component,
     settings_dialog: rx.Component | None = None,
+    filters: rx.Component | None = None,
+    sorting: bool = False,
     pagination: bool = False,
 ) -> rx.Component:
     """Display list of entities with sorting and pagination."""
@@ -109,6 +130,8 @@ def entity_list(
                         color_scheme="purple",
                     ),
                     rx.spacer(),
+                    filters if filters else rx.fragment(),
+                    entity_sorting(state) if sorting else rx.fragment(),
                     align="center",
                     spacing=SPACING_SMALL,
                     width="100%",
@@ -148,20 +171,19 @@ def entity_list(
                         ),
                     ),
                 ),
-                rx.cond(
-                    pagination,
-                    rx.hstack(
-                        entity_pagination(state),
-                        width="100%",
-                        justify="end",
-                    ),
-                ),
+                rx.hstack(
+                    entity_pagination(state),
+                    width="100%",
+                    justify="end",
+                )
+                if pagination
+                else rx.spacer(),
                 spacing=SPACING_MEDIUM,
                 width="100%",
             ),
             width="100%",
         ),
-        rx.cond(bool(settings_dialog), settings_dialog, None),
+        settings_dialog if settings_dialog else rx.fragment(),
         delete_dialog,
         spacing=SPACING_LARGE,
         width="100%",

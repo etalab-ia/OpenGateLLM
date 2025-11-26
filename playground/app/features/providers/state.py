@@ -24,12 +24,29 @@ class ProvidersState(EntityState):
     def provider_qos_metric_list(self) -> list[str]:
         return ["TTFT", "Latency", "Inflight", "Performance"]
 
+    @rx.var
+    def provider_routers_name_list(self) -> list[str]:
+        return [router["name"] for router in self.provider_routers_list]
+
+    ############################################################
+    # Filters
+    ############################################################
+    filter_router_value: str = "0"
+
+    @rx.event
+    async def set_filter_router(self, value: str):
+        self.filter_router_value = value
+        yield
+        async for _ in self.load_entities():
+            yield
+
     ############################################################
     # Load entities
     ############################################################
     entities: list[Provider] = []
     provider_owners: dict[int, str] = {}
-    provider_routers: dict[int, str] = {}
+    provider_routers_dict: dict[int, str] = {}
+    provider_routers_list: list[dict[str, str | int]] = []
 
     def _format_provider(self, provider: dict) -> Provider:
         """Format provider."""
@@ -50,7 +67,7 @@ class ProvidersState(EntityState):
 
         return Provider(
             id=provider["id"],
-            router=self.provider_routers.get(provider["router_id"], "Unknown"),
+            router=self.provider_routers_dict.get(provider["router_id"], "Unknown"),
             user=self.provider_owners.get(provider["user_id"], "Unknown"),
             type=_type_converter.get(provider["type"]),
             url=provider["url"],
@@ -78,11 +95,14 @@ class ProvidersState(EntityState):
 
         self.entities_loading = True
         yield
-
+        params = {}
+        if self.filter_router_value != "0":
+            params["router"] = int(self.filter_router_value)
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self.opengatellm_url}/v1/admin/providers",
+                    params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=60.0,
                 )
@@ -106,7 +126,7 @@ class ProvidersState(EntityState):
                             else:
                                 self.provider_owners[provider["user_id"]] = "Unknown"
 
-                    if provider["router_id"] not in self.provider_routers:
+                    if provider["router_id"] not in self.provider_routers_dict:
                         async with httpx.AsyncClient() as client:
                             response = await client.get(
                                 url=f"{self.opengatellm_url}/v1/admin/routers/{provider["router_id"]}",
@@ -116,9 +136,11 @@ class ProvidersState(EntityState):
 
                             if response.status_code == 200:
                                 data = response.json()
-                                self.provider_routers[provider["router_id"]] = data.get("name", "Unknown")
+                                self.provider_routers_dict[provider["router_id"]] = data.get("name", "Unknown")
                             else:
-                                self.provider_routers[provider["router_id"]] = "Unknown"
+                                self.provider_routers_dict[provider["router_id"]] = "Unknown"
+
+                    self.provider_routers_list = [{"id": router_id, "name": router_name} for router_id, router_name in self.provider_routers_dict.items()]  # fmt: off
 
                     self.entities.append(self._format_provider(provider))
 
@@ -131,42 +153,45 @@ class ProvidersState(EntityState):
     ############################################################
     # Entity settings
     ############################################################
-    entity_id = None
-    provider_router: str | None = None
-    provider_user: str | None = None
-    provider_type: str | None = None
-    provider_url: str | None = None
-    provider_key: str | None = None
-    provider_timeout: int | None = None
-    provider_model_carbon_footprint_zone: str | None = None
-    provider_model_carbon_footprint_total_params: int | None = None
-    provider_model_carbon_footprint_active_params: int | None = None
-    provider_qos_metric: str | None = None
-    provider_qos_limit: float | None = None
-    provider_created: str | None = None
-    provider_updated: str | None = None
+    entity: Provider = Provider()
+
+    @rx.var
+    def is_settings_entity_dialog_open(self) -> bool:
+        """Check if settings dialog should be open."""
+        return self.entity.id is not None
+
+    @rx.event
+    def handle_settings_entity_dialog_change(self, is_open: bool):
+        """Handle settings dialog open/close state change."""
+        if not is_open:
+            self.entity = Provider()
 
     @rx.event
     def set_entity_settings(self, entity: Provider):
         """Set edit entity data."""
-        self.entity_id = entity.id
-        self.provider_router = entity.router
-        self.provider_user = entity.user
-        self.provider_type = entity.type
-        self.provider_url = entity.url
-        self.provider_key = entity.key
-        self.provider_timeout = entity.timeout
-        self.provider_model_carbon_footprint_zone = entity.model_carbon_footprint_zone
-        self.provider_model_carbon_footprint_total_params = entity.model_carbon_footprint_total_params
-        self.provider_model_carbon_footprint_active_params = entity.model_carbon_footprint_active_params
-        self.provider_qos_metric = entity.qos_metric
-        self.provider_qos_limit = entity.qos_limit
-        self.provider_created = entity.created
-        self.provider_updated = entity.updated
+        self.entity = entity
 
     ############################################################
     # Delete entity
     ############################################################
+    entity_to_delete = Provider()
+
+    @rx.event
+    def set_entity_to_delete(self, entity: Provider):
+        """Set entity to delete."""
+        self.entity_to_delete = entity
+
+    @rx.var
+    def is_delete_entity_dialog_open(self) -> bool:
+        """Check if delete dialog should be open."""
+        return self.entity_to_delete.id is not None
+
+    @rx.event
+    def handle_delete_entity_dialog_change(self, is_open: bool):
+        """Handle delete entity dialog open/close state change."""
+        if not is_open:
+            self.entity_to_delete = Provider()
+
     @rx.event
     async def delete_entity(self):
         """Delete a provider."""
@@ -176,7 +201,7 @@ class ProvidersState(EntityState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
-                    url=f"{self.opengatellm_url}/v1/admin/providers/{self.delete_entity_id}",
+                    url=f"{self.opengatellm_url}/v1/admin/providers/{self.entity_to_delete.id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=60.0,
                 )
@@ -196,52 +221,55 @@ class ProvidersState(EntityState):
     ############################################################
     # Create entity
     ############################################################
-    new_provider_router: str | None = None
-    new_provider_model_name: str = ""
-    new_provider_type: str = ""
-    new_provider_url: str = ""
-    new_provider_key: str = ""
-    new_provider_timeout: int = 300
-    new_provider_model_carbon_footprint_zone: str = "WOR"
-    new_provider_model_carbon_footprint_total_params: int | None = None
-    new_provider_model_carbon_footprint_active_params: int | None = None
-    new_provider_qos_metric: str = "TTFT"
-    new_provider_qos_limit: float | None = None
+    entity_to_create: Provider = Provider()
+
+    @rx.event
+    def set_new_entity_attribut(self, attribute: str, value: str | None):
+        """Set new entity attributes."""
+        if value is None:
+            setattr(self.entity_to_create, attribute, None)
+        else:
+            setattr(self.entity_to_create, attribute, value.strip())
 
     @rx.event
     async def create_entity(self):
         """Create a provider."""
-        if not self.new_provider_router:
+        if not self.entity_to_create.router:
             yield rx.toast.warning("Router is required", position="bottom-right")
             return
 
-        if not self.new_provider_model_name:
+        if not self.entity_to_create.model_name:
             yield rx.toast.warning("Model name is required", position="bottom-right")
             return
 
-        if not self.new_provider_type:
+        if not self.entity_to_create.type:
             yield rx.toast.warning("Type is required", position="bottom-right")
             return
 
-        if not self.new_provider_url:
+        if not self.entity_to_create.url:
             yield rx.toast.warning("URL is required", position="bottom-right")
             return
 
         self.create_entity_loading = True
         yield
 
+        for router in self.provider_routers_list:
+            if router["name"] == self.entity_to_create.router:
+                router_id = router["id"]
+                break
+
         payload = {
-            "router": self.new_provider_router,
-            "model_name": self.new_provider_model_name,
-            "type": self.new_provider_type.lower(),
-            "url": self.new_provider_url.lower(),
-            "key": self.new_provider_key,
-            "timeout": self.new_provider_timeout,
-            "model_carbon_footprint_zone": self.new_provider_model_carbon_footprint_zone,
-            "model_carbon_footprint_total_params": self.new_provider_model_carbon_footprint_total_params,
-            "model_carbon_footprint_active_params": self.new_provider_model_carbon_footprint_active_params,
-            "qos_metric": self.new_provider_qos_metric,
-            "qos_limit": self.new_provider_qos_limit,
+            "router": int(router_id),
+            "model_name": self.entity_to_create.model_name,
+            "type": self.entity_to_create.type.lower(),
+            "url": self.entity_to_create.url.lower(),
+            "key": self.entity_to_create.key,
+            "timeout": self.entity_to_create.timeout,
+            "model_carbon_footprint_zone": self.entity_to_create.model_carbon_footprint_zone,
+            "model_carbon_footprint_total_params": self.entity_to_create.model_carbon_footprint_total_params,
+            "model_carbon_footprint_active_params": self.entity_to_create.model_carbon_footprint_active_params,
+            "qos_metric": self.entity_to_create.qos_metric.lower(),
+            "qos_limit": self.entity_to_create.qos_limit,
         }
 
         try:
@@ -259,62 +287,8 @@ class ProvidersState(EntityState):
                     yield
 
         except Exception as e:
+            print(response.text)
             yield rx.toast.error(f"Error creating provider: {str(e)}", position="bottom-right")
         finally:
             self.create_entity_loading = False
             yield
-
-    @rx.event
-    def set_new_provider_router(self, value: str):
-        """Set new provider router."""
-        self.new_provider_router = value
-
-    @rx.event
-    def set_new_provider_model_name(self, value: str):
-        """Set new provider model name."""
-        self.new_provider_model_name = value.strip()
-
-    @rx.event
-    def set_new_provider_type(self, value: str):
-        """Set new provider type."""
-        self.new_provider_type = value
-
-    @rx.event
-    def set_new_provider_url(self, value: str):
-        """Set new provider URL."""
-        self.new_provider_url = value.strip().lower()
-
-    @rx.event
-    def set_new_provider_key(self, value: str):
-        """Set new provider key."""
-        self.new_provider_key = value.strip()
-
-    @rx.event
-    def set_new_provider_timeout(self, value: str):
-        """Set new provider timeout."""
-        self.new_provider_timeout = value
-
-    @rx.event
-    def set_new_provider_model_carbon_footprint_zone(self, value: str):
-        """Set new provider carbon footprint zone."""
-        self.new_provider_model_carbon_footprint_zone = value
-
-    @rx.event
-    def set_new_provider_model_carbon_footprint_total_params(self, value: str):
-        """Set new provider carbon footprint total params."""
-        self.new_provider_model_carbon_footprint_total_params = value
-
-    @rx.event
-    def set_new_provider_model_carbon_footprint_active_params(self, value: str):
-        """Set new provider carbon footprint active params."""
-        self.new_provider_model_carbon_footprint_active_params = value
-
-    @rx.event
-    def set_new_provider_qos_metric(self, value: str):
-        """Set new provider QoS metric."""
-        self.new_provider_qos_metric = value
-
-    @rx.event
-    def set_new_provider_qos_limit(self, value: str):
-        """Set new provider QoS limit."""
-        self.new_provider_qos_limit = value

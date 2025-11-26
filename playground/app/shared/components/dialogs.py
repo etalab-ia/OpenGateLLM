@@ -3,7 +3,7 @@ import reflex as rx
 from app.core.variables import MARGIN_MEDIUM, MAX_DIALOG_WIDTH, SIZE_MEDIUM, SPACING_LARGE, SPACING_MEDIUM
 
 
-def entity_settings_dialog(state: rx.State, title: str, fields: rx.grid, description: str | None = None) -> rx.Component:
+def entity_settings_dialog(state: rx.State, title: str, fields: rx.grid, description: str | None = None, editable: bool = True) -> rx.Component:
     """Dialog for displaying information about an entity and edit it."""
     return rx.dialog.root(
         rx.dialog.content(
@@ -19,14 +19,17 @@ def entity_settings_dialog(state: rx.State, title: str, fields: rx.grid, descrip
                         on_click=lambda: state.handle_settings_entity_dialog_change(is_open=False),
                     ),
                 ),
-                rx.button(
-                    rx.cond(
-                        state.entity_settings_loading,
-                        rx.spinner(size=SIZE_MEDIUM),
-                        "Update",
+                rx.cond(
+                    editable,
+                    rx.button(
+                        rx.cond(
+                            state.edit_entity_loading,
+                            rx.spinner(size=SIZE_MEDIUM),
+                            "Update",
+                        ),
+                        on_click=state.edit_entity,
+                        disabled=state.edit_entity_loading,
                     ),
-                    on_click=state.edit_entity,
-                    disabled=state.entity_settings_loading,
                 ),
                 spacing=SPACING_MEDIUM,
                 justify="end",

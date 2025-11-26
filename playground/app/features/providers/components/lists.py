@@ -1,6 +1,6 @@
 import reflex as rx
 
-from app.core.variables import SPACING_SMALL, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
+from app.core.variables import SELECT_MEDIUM_WIDTH, SPACING_SMALL, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
 from app.features.providers.components.dialogs import provider_delete_dialog, provider_settings_dialog
 from app.features.providers.models import Provider
 from app.features.providers.state import ProvidersState
@@ -64,6 +64,26 @@ def provider_row(provider: Provider, with_settings: bool = False) -> rx.Componen
     )
 
 
+def provider_filters() -> rx.Component:
+    return rx.hstack(
+        rx.text("Filters", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+        rx.select.root(
+            rx.select.trigger(size="2", width=SELECT_MEDIUM_WIDTH),
+            rx.select.content(
+                rx.select.item("All routers", value="0"),
+                rx.foreach(
+                    ProvidersState.provider_routers_list,
+                    lambda item: rx.select.item(item["name"], value=item["id"].to(str)),
+                ),
+            ),
+            value=ProvidersState.filter_router_value.to(str),
+            on_change=lambda value: ProvidersState.set_filter_router(value),
+        ),
+        spacing=SPACING_SMALL,
+        align="center",
+    )
+
+
 def providers_list() -> rx.Component:
     """Providers list."""
     return entity_list(
@@ -75,5 +95,6 @@ def providers_list() -> rx.Component:
         no_entities_description="Create your first provider to get started",
         settings_dialog=provider_settings_dialog(),
         delete_dialog=provider_delete_dialog(),
+        filters=provider_filters(),
         pagination=False,
     )

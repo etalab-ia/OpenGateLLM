@@ -1,3 +1,4 @@
+import logging
 from urllib.parse import urljoin
 
 import httpx
@@ -12,6 +13,8 @@ from api.utils.variables import (
 )
 
 from ._basemodelprovider import BaseModelProvider
+
+logger = logging.getLogger(__name__)
 
 
 class AlbertModelProvider(BaseModelProvider):
@@ -50,9 +53,13 @@ class AlbertModelProvider(BaseModelProvider):
     async def get_max_context_length(self) -> int | None:
         url = urljoin(base=str(self.url), url=self.ENDPOINT_TABLE[ENDPOINT__MODELS].lstrip("/"))
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url=url, headers=self.headers, timeout=self.timeout)
-            assert response.status_code == 200, f"Model is not reachable ({response.status_code} - {response.text})."
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url=url, headers=self.headers, timeout=self.timeout)
+                response.raise_for_status()
+        except Exception as e:
+            logger.error(f"Error getting max context length for {self.name}: {e}", exc_info=True)
+            raise AssertionError(f"Model is not reachable ({e}).")
 
         data = response.json()["data"]
         models = [model for model in data if model["id"] == self.name or self.name in model["aliases"]]

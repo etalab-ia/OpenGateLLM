@@ -8,9 +8,9 @@ from app.shared.components.dialogs import entity_delete_dialog, entity_settings_
 def provider_settings_dialog() -> rx.Component:
     return entity_settings_dialog(
         state=ProvidersState,
-        title="Provider information",
-        description="Provider information",
+        title="Settings",
         fields=provider_settings_form_fields(),
+        editable=False,
     )
 
 
