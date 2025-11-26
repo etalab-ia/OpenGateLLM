@@ -46,6 +46,7 @@ const sidebars: SidebarsConfig = {
         type: 'category',
         label: 'Dependencies',
         items: [
+                'dependencies/celery',
                 'dependencies/postgres',
                 'dependencies/prometheus',
                 'dependencies/redis',
