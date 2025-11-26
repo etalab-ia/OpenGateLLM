@@ -5,5 +5,5 @@ from app.shared.components.headers import entity_header
 
 
 def routers_header() -> rx.Component:
-    """Providers header."""
+    """Routers header."""
     return entity_header(title="Routers management", state=RoutersState, admin_badge=True)

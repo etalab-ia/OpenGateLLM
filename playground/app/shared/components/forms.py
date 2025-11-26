@@ -74,6 +74,46 @@ def entity_form_input_field(
     )
 
 
+def entity_form_checkbox_field(
+    label: str,
+    value: bool,
+    description: str | None = None,
+    on_change: Callable | None = None,
+    tooltip: str | None = None,
+    **kwargs: Any,
+) -> rx.Component:
+    return rx.hstack(
+        rx.checkbox(
+            checked=value,
+            on_change=on_change,
+            **kwargs,
+        ),
+        rx.vstack(
+            rx.cond(
+                bool(tooltip),
+                rx.hstack(
+                    rx.text(label, size=TEXT_SIZE_LABEL, weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=ICON_SIZE_TINY, color=rx.color("mauve", 10)),
+                        content=tooltip,
+                    ),
+                    spacing=SPACING_TINY,
+                    align="center",
+                ),
+                rx.text(label, size=TEXT_SIZE_LABEL, weight="bold"),
+            ),
+            rx.cond(
+                bool(description),
+                rx.text(description, size=TEXT_SIZE_LABEL),
+            ),
+            align="start",
+            spacing="0",
+        ),
+        spacing=SPACING_MEDIUM,
+        width="100%",
+    )
+
+
 def entity_settings_form(state: rx.State, title: str, fields: rx.grid) -> rx.Component:
     """Form to display information about an entity and edit it."""
     return rx.card(

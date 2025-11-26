@@ -1,15 +1,13 @@
 import reflex as rx
 
 from app.core.variables import PADDING_PAGE, SPACING_XL
-from app.features.roles.components import (
-    role_create_form,
-    roles_header,
-    roles_list,
-)
+from app.features.roles.components.forms import role_create_form
+from app.features.roles.components.headers import roles_header
+from app.features.roles.components.lists import roles_list
 
 
 def roles_page() -> rx.Component:
-    """Roles management page with admin permission check."""
+    """Roles management page."""
     return rx.box(
         rx.scroll_area(
             rx.vstack(

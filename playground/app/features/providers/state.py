@@ -253,13 +253,8 @@ class ProvidersState(EntityState):
         self.create_entity_loading = True
         yield
 
-        for router in self.provider_routers_list:
-            if router["name"] == self.entity_to_create.router:
-                router_id = router["id"]
-                break
-
         payload = {
-            "router": int(router_id),
+            "router": int(self.entity_to_create.router),
             "model_name": self.entity_to_create.model_name,
             "type": self.entity_to_create.type.lower(),
             "url": self.entity_to_create.url.lower(),
