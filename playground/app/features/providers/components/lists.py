@@ -4,7 +4,7 @@ from app.core.variables import SELECT_MEDIUM_WIDTH, SPACING_SMALL, TEXT_SIZE_LAB
 from app.features.providers.components.dialogs import provider_delete_dialog, provider_settings_dialog
 from app.features.providers.models import Provider
 from app.features.providers.state import ProvidersState
-from app.shared.components.lists import entity_item_row, entity_list
+from app.shared.components.lists import entity_list, entity_row
 
 
 def provider_row_content(provider: Provider) -> rx.Component:
@@ -53,9 +53,9 @@ def provider_row_description(provider: Provider) -> rx.Component:
     )
 
 
-def provider_row(provider: Provider, with_settings: bool = False) -> rx.Component:
+def provider_renderer_row(provider: Provider, with_settings: bool = False) -> rx.Component:
     """Display a row with provider information."""
-    return entity_item_row(
+    return entity_row(
         state=ProvidersState,
         entity=provider,
         row_content=provider_row_content(provider),
@@ -90,7 +90,7 @@ def providers_list() -> rx.Component:
         state=ProvidersState,
         title="Providers",
         entities=ProvidersState.providers,
-        renderer_entity_row=provider_row,
+        renderer_entity_row=provider_renderer_row,
         no_entities_message="No providers yet",
         no_entities_description="Create your first provider to get started",
         settings_dialog=provider_settings_dialog(),

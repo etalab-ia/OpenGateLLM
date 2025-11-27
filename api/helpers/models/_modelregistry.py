@@ -124,6 +124,9 @@ class ModelRegistry:
                 logger.info(f"Router {model.name} are created (id: {router_id})")
             except RouterAlreadyExistsException:
                 logger.warning(f"Router {model.name} already exists, skipping.")
+            except RouterAliasAlreadyExistsException:
+                logger.warning(f"Router {model.name} aliases already exists, skipping.")
+                continue
             except Exception as e:
                 await postgres_session.rollback()
                 logger.error(f"Error creating router {model.name}: {e}")

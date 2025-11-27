@@ -18,7 +18,7 @@ from app.core.variables import (
 )
 
 
-def entity_item_row(
+def entity_row(
     entity: BaseModel,
     state: rx.State,
     row_content: rx.Component,
@@ -153,7 +153,7 @@ def entity_list(
                         ),
                         rx.center(
                             rx.vstack(
-                                rx.icon("building", size=ICON_SIZE_EMPTY_STATE, color=rx.color("mauve", 8)),
+                                rx.icon("build", size=ICON_SIZE_EMPTY_STATE, color=rx.color("mauve", 8)),
                                 rx.text(
                                     no_entities_message,
                                     size=TEXT_SIZE_LARGE,

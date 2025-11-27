@@ -4,7 +4,7 @@ from app.core.variables import SPACING_SMALL, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
 from app.features.routers.components.dialogs import router_delete_dialog, router_settings_dialog
 from app.features.routers.models import Router
 from app.features.routers.state import RoutersState
-from app.shared.components.lists import entity_item_row, entity_list
+from app.shared.components.lists import entity_list, entity_row
 
 
 def router_row_content(router: Router) -> rx.Component:
@@ -52,9 +52,9 @@ def router_row_description(router: Router) -> rx.Component:
     )
 
 
-def router_row(router: Router, with_settings: bool = False) -> rx.Component:
+def router_renderer_row(router: Router, with_settings: bool = False) -> rx.Component:
     """Display a row with router information."""
-    return entity_item_row(
+    return entity_row(
         state=RoutersState,
         entity=router,
         row_content=router_row_content(router),
@@ -69,7 +69,7 @@ def routers_list() -> rx.Component:
         state=RoutersState,
         title="Routers",
         entities=RoutersState.routers,
-        renderer_entity_row=router_row,
+        renderer_entity_row=router_renderer_row,
         settings_dialog=router_settings_dialog(),
         delete_dialog=router_delete_dialog(),
         no_entities_message="No routers yet",
