@@ -1,7 +1,5 @@
 from abc import abstractmethod
 
-import reflex as rx
-
 from app.features.auth.state import AuthState
 from app.shared.models.entities import Entity
 
@@ -65,7 +63,7 @@ class EntityState(AuthState):
     ############################################################
     # Entity settings
     ############################################################
-    # entity: Entity = Entity() reflex does not support this
+    # entity: Entity = Entity()
     edit_entity_loading: bool = False
 
     @abstractmethod
@@ -97,7 +95,7 @@ class EntityState(AuthState):
     # Pagination
     ############################################################
     page: int = 1
-    per_page: int = 20
+    # per_page: int = 20
     has_more_page: bool = False
     order_by_options: list[str] = ["id"]
     order_by_value: str = "id"
@@ -105,38 +103,22 @@ class EntityState(AuthState):
     order_direction_options: list[str] = ["asc", "desc"]
     order_direction_value: str = "asc"
 
-    @rx.event
+    @abstractmethod
     async def set_order_by(self, value: str):
         """Set order by field and reload."""
-        self.order_by_value = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        pass
 
-    @rx.event
+    @abstractmethod
     async def set_order_direction(self, value: str):
         """Set order direction and reload."""
-        self.order_direction_value = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        pass
 
-    @rx.event
+    @abstractmethod
     async def prev_page(self):
-        if self.page > 1:
-            self.page -= 1
-            yield
-            async for _ in self.load_entities():
-                yield
+        """Go to previous page."""
+        pass
 
-    @rx.event
+    @abstractmethod
     async def next_page(self):
-        if self.has_more_page:
-            self.page += 1
-            yield
-            async for _ in self.load_entities():
-                yield
+        """Go to next page."""
+        pass

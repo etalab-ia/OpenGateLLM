@@ -1,8 +1,9 @@
 import reflex as rx
 
-from app.core.variables import SPACING_MEDIUM, TEXT_SIZE_MEDIUM
+from app.core.variables import SIZE_MEDIUM, SPACING_MEDIUM, SPACING_SMALL, TEXT_SIZE_MEDIUM
+from app.features.roles.models import Role
 from app.features.roles.state import RolesState
-from app.shared.components.forms import entity_create_form, entity_form_checkbox_field, entity_form_input_field
+from app.shared.components.forms import entity_create_form, entity_form_checkbox_field, entity_form_input_field, entity_form_select_field
 
 
 def role_settings_form_fields() -> rx.Component:
@@ -94,4 +95,73 @@ def role_create_form() -> rx.Component:
         state=RolesState,
         title="Create new role",
         fields=role_create_form_fields(),
+    )
+
+
+def role_create_limit_form(role: Role) -> rx.Component:
+    """Form to add limits for a model (all 4 types)."""
+    return rx.vstack(
+        rx.hstack(
+            entity_form_select_field(
+                label="Router*",
+                items=RolesState.routers_name_list,
+                on_change=lambda value: RolesState.set_new_limit_value("router", value),
+                disabled=RolesState.create_limit_loading,
+                placeholder="Select router",
+                tooltip="Router",
+            ),
+            entity_form_input_field(
+                label="RPM",
+                value=RolesState.new_limit["rpm"],
+                on_change=lambda value: RolesState.set_new_limit_value("rpm", value),
+                disabled=RolesState.create_limit_loading,
+                tooltip="Requests Per Minute",
+                placeholder="Unlimited",
+                type="number",
+            ),
+            entity_form_input_field(
+                label="RPD",
+                value=RolesState.new_limit["rpd"],
+                on_change=lambda value: RolesState.set_new_limit_value("rpd", value),
+                disabled=RolesState.create_limit_loading,
+                tooltip="Requests Per Day",
+                placeholder="Unlimited",
+                type="number",
+            ),
+            entity_form_input_field(
+                label="TPM",
+                value=RolesState.new_limit["tpm"],
+                on_change=lambda value: RolesState.set_new_limit_value("tpm", value),
+                disabled=RolesState.create_limit_loading,
+                tooltip="Tokens Per Minute",
+                placeholder="Unlimited",
+                type="number",
+            ),
+            entity_form_input_field(
+                label="TPD",
+                value=RolesState.new_limit["tpd"],
+                tooltip="Tokens Per Day",
+                placeholder="Unlimited",
+                on_change=lambda value: RolesState.set_new_limit_value("tpd", value),
+                disabled=RolesState.create_limit_loading,
+                type="number",
+            ),
+            spacing=SPACING_SMALL,
+            width="100%",
+        ),
+        rx.hstack(
+            rx.spacer(),
+            rx.button(
+                rx.cond(
+                    RolesState.create_limit_loading,
+                    rx.spinner(size=SIZE_MEDIUM),
+                    "Add",
+                ),
+                on_click=lambda: RolesState.create_limit(role=role),
+                disabled=RolesState.create_limit_loading,
+            ),
+            width="100%",
+        ),
+        spacing=SPACING_MEDIUM,
+        width="100%",
     )

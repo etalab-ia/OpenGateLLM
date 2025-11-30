@@ -24,14 +24,6 @@ def provider_row_content(provider: Provider) -> rx.Component:
                 ),
                 content="ID",
             ),
-            rx.tooltip(
-                rx.badge(
-                    provider.type.to(str),
-                    variant="soft",
-                    color_scheme="green",
-                ),
-                content="Type",
-            ),
             spacing=SPACING_SMALL,
         ),
         spacing=SPACING_SMALL,
@@ -72,7 +64,7 @@ def provider_filters() -> rx.Component:
             rx.select.content(
                 rx.select.item("All routers", value="0"),
                 rx.foreach(
-                    ProvidersState.provider_routers_list,
+                    ProvidersState.routers_list,
                     lambda item: rx.select.item(item["name"], value=item["id"].to(str)),
                 ),
             ),

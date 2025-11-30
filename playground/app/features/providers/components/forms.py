@@ -10,7 +10,7 @@ def provider_create_form_fields() -> rx.Component:
     return rx.grid(
         entity_form_select_field(
             label="Router*",
-            items=ProvidersState.provider_routers_name_list,
+            items=ProvidersState.routers_name_list,
             on_change=lambda value: ProvidersState.set_new_entity_attribut("router", value),
             placeholder="Select router",
         ),
@@ -47,6 +47,7 @@ def provider_create_form_fields() -> rx.Component:
             value=ProvidersState.entity_to_create.timeout,
             on_change=lambda value: ProvidersState.set_new_entity_attribut("timeout", value),
             tooltip="Timeout for the API request in seconds (e.g., 300)",
+            placeholder="Enter timeout (optional)",
             type="number",
             min=0,
             max=600,
@@ -54,10 +55,9 @@ def provider_create_form_fields() -> rx.Component:
         entity_form_select_field(
             label="Hosting country of model",
             items=ProvidersState.provider_model_carbon_footprint_zones_list,
-            value=ProvidersState.entity_to_create.model_carbon_footprint_zone,
             on_change=lambda value: ProvidersState.set_new_entity_attribut("model_carbon_footprint_zone", value),
             tooltip="Alpha-3 code of the country where the model is hosted for carbon footprint computation (e.g., FRA for France, USA for United States)",
-            placeholder="Select country",
+            placeholder="Select country (optional)",
         ),
         entity_form_input_field(
             label="Total params of the model",
@@ -80,9 +80,9 @@ def provider_create_form_fields() -> rx.Component:
         entity_form_select_field(
             label="Quality of service metric",
             items=ProvidersState.provider_qos_metric_list,
-            value=ProvidersState.entity_to_create.qos_metric,
             on_change=lambda value: ProvidersState.set_new_entity_attribut("qos_metric", value),
             tooltip="Metric to use for the quality of service policy. If not provided, no QoS policy is applied.",
+            placeholder="Select metric (optional)",
         ),
         entity_form_input_field(
             label="Quality of service limit",

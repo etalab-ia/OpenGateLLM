@@ -25,28 +25,16 @@ class ProvidersState(EntityState):
         return ["TTFT", "Latency", "Inflight", "Performance"]
 
     @rx.var
-    def provider_routers_name_list(self) -> list[str]:
-        return [router["name"] for router in self.provider_routers_list]
-
-    ############################################################
-    # Filters
-    ############################################################
-    filter_router_value: str = "0"
-
-    @rx.event
-    async def set_filter_router(self, value: str):
-        self.filter_router_value = value
-        yield
-        async for _ in self.load_entities():
-            yield
+    def routers_name_list(self) -> list[str]:
+        return [router["name"] for router in self.routers_list]
 
     ############################################################
     # Load entities
     ############################################################
     entities: list[Provider] = []
     provider_owners: dict[int, str] = {}
-    provider_routers_dict: dict[int, str] = {}
-    provider_routers_list: list[dict[str, str | int]] = []
+    routers_dict: dict[str, int] = {}
+    routers_list: list[dict[str, str | int]] = []
 
     def _format_provider(self, provider: dict) -> Provider:
         """Format provider."""
@@ -65,9 +53,16 @@ class ProvidersState(EntityState):
             "performance": "Performance",
         }
 
+        for router in self.routers_list:
+            if router["id"] == provider["router_id"]:
+                router_name = router["name"]
+                break
+        else:
+            router_name = "Unknown"
+
         return Provider(
             id=provider["id"],
-            router=self.provider_routers_dict.get(provider["router_id"], "Unknown"),
+            router=router_name,
             user=self.provider_owners.get(provider["user_id"], "Unknown"),
             type=_type_converter.get(provider["type"]),
             url=provider["url"],
@@ -122,11 +117,11 @@ class ProvidersState(EntityState):
                                 self.provider_owners[provider["user_id"]] = "Master"
                             elif response.status_code == 200:
                                 data = response.json()
-                                self.provider_owners[provider["user_id"]] = data.get("name", "Unknown")
+                                self.provider_owners[provider["user_id"]] = data.get("email", "Unknown")
                             else:
                                 self.provider_owners[provider["user_id"]] = "Unknown"
 
-                    if provider["router_id"] not in self.provider_routers_dict:
+                    if provider["router_id"] not in self.routers_dict.values():
                         async with httpx.AsyncClient() as client:
                             response = await client.get(
                                 url=f"{self.opengatellm_url}/v1/admin/routers/{provider["router_id"]}",
@@ -136,11 +131,11 @@ class ProvidersState(EntityState):
 
                             if response.status_code == 200:
                                 data = response.json()
-                                self.provider_routers_dict[provider["router_id"]] = data.get("name", "Unknown")
+                                self.routers_dict[data["name"]] = provider["router_id"]
                             else:
-                                self.provider_routers_dict[provider["router_id"]] = "Unknown"
+                                self.routers_dict["Unknown"] = provider["router_id"]
 
-                    self.provider_routers_list = [{"id": router_id, "name": router_name} for router_id, router_name in self.provider_routers_dict.items()]  # fmt: off
+                    self.routers_list = [{"id": router_id, "name": router_name} for router_name, router_id in self.routers_dict.items()]  # fmt: off
 
                     self.entities.append(self._format_provider(provider))
 
@@ -148,6 +143,18 @@ class ProvidersState(EntityState):
             yield rx.toast.error(f"Error loading providers: {str(e)}", position="bottom-right")
         finally:
             self.entities_loading = False
+            yield
+
+    ############################################################
+    # Pagination & filters
+    ############################################################
+    filter_router_value: str = "0"
+
+    @rx.event
+    async def set_filter_router(self, value: str):
+        self.filter_router_value = value
+        yield
+        async for _ in self.load_entities():
             yield
 
     ############################################################
@@ -238,6 +245,11 @@ class ProvidersState(EntityState):
             yield rx.toast.warning("Router is required", position="bottom-right")
             return
 
+        router_id = self.routers_dict.get(self.entity_to_create.router, None)
+        if not router_id:
+            yield rx.toast.warning("Router not found", position="bottom-right")
+            return
+
         if not self.entity_to_create.model_name:
             yield rx.toast.warning("Model name is required", position="bottom-right")
             return
@@ -254,7 +266,7 @@ class ProvidersState(EntityState):
         yield
 
         payload = {
-            "router": int(self.entity_to_create.router),
+            "router": router_id,
             "model_name": self.entity_to_create.model_name,
             "type": self.entity_to_create.type.lower(),
             "url": self.entity_to_create.url.lower(),
@@ -282,7 +294,6 @@ class ProvidersState(EntityState):
                     yield
 
         except Exception as e:
-            print(response.text)
             yield rx.toast.error(f"Error creating provider: {str(e)}", position="bottom-right")
         finally:
             self.create_entity_loading = False

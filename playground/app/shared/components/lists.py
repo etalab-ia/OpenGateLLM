@@ -52,6 +52,8 @@ def entity_row(
                     variant="soft",
                     color_scheme="red",
                     size=TEXT_SIZE_LABEL,
+                    disabled=state.delete_entity_loading,
+                    loading=state.delete_entity_loading,
                 ),
                 spacing=SPACING_SMALL,
             ),

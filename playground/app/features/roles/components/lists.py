@@ -3,12 +3,12 @@ import reflex as rx
 from app.core.variables import (
     HEADING_SIZE_SECTION,
     ICON_SIZE_EMPTY_STATE,
+    ICON_SIZE_MEDIUM,
     ICON_SIZE_TINY,
     PADDING_MEDIUM,
     PADDING_PAGE,
     SIZE_MEDIUM,
     SPACING_LARGE,
-    SPACING_MEDIUM,
     SPACING_NONE,
     SPACING_SMALL,
     SPACING_TINY,
@@ -17,6 +17,7 @@ from app.core.variables import (
     TEXT_SIZE_MEDIUM,
 )
 from app.features.roles.components.dialogs import role_delete_dialog, role_settings_dialog
+from app.features.roles.components.forms import role_create_limit_form
 from app.features.roles.models import Role
 from app.features.roles.state import RolesState
 from app.shared.components.lists import entity_pagination, entity_row, entity_sorting
@@ -56,8 +57,8 @@ def role_row_description(role: Role) -> rx.Component:
     return rx.vstack(
         rx.hstack(
             rx.text(
-                f"Created: {role.created} • Updated: {role.updated} • {RolesState.nb_permissions.to(str)} permission"
-                + rx.cond(RolesState.nb_permissions != 1, "s", "")
+                f"Created: {role.created} • Updated: {role.updated} • {RolesState.permission_counters[role.id].to(str)} permission"
+                + rx.cond(RolesState.permission_counters[role.id] != 1, "s", "")
                 + " • "
                 + role.limits.length().to(str)
                 + " limit"
@@ -73,29 +74,7 @@ def role_row_description(role: Role) -> rx.Component:
     )
 
 
-# def role_row(role: Role, with_settings: bool = False) -> rx.Component:
-#     """Display a row with role information."""
-#     return entity_row(
-#         state=RolesState,
-#         entity=role,
-#         row_content=role_row_content(role),
-#         row_description=role_row_description(role),
-#         with_settings=with_settings,
-#     )
-
-
-def limit_value_cell(value) -> rx.Component:
-    """Display a limit value cell."""
-    return rx.table.cell(
-        rx.cond(
-            value,
-            rx.text(value.to(str), weight="medium", size=TEXT_SIZE_LABEL),
-            rx.text("Unlimited", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
-        ),
-    )
-
-
-def model_limits_row(role_id: int, limit: dict) -> rx.Component:
+def role_limits_row(role: Role, limit: dict) -> rx.Component:
     """Display a row with all limits for a model."""
     return rx.table.row(
         rx.table.cell(
@@ -106,159 +85,54 @@ def model_limits_row(role_id: int, limit: dict) -> rx.Component:
                 color=rx.color("mauve", 12),
             ),
         ),
-        limit_value_cell(limit["RPM"]),
-        limit_value_cell(limit["RPD"]),
-        limit_value_cell(limit["TPM"]),
-        limit_value_cell(limit["TPD"]),
-        # rx.table.cell(
-        #     rx.button(
-        #         rx.icon("trash-2", size=ICON_SIZE_MEDIUM),
-        #         on_click=lambda: RolesState.delete_model_limits(role_id, limit["router"]),
-        #         variant="soft",
-        #         color_scheme="red",
-        #         size=TEXT_SIZE_LABEL,
-        #         disabled=RolesState.delete_limit_loading,
-        #     ),
-        #     justify="end",
-        # ),
+        rx.table.cell(
+            rx.cond(
+                limit["rpm"],
+                rx.text(limit["rpm"].to(str), weight="medium", size=TEXT_SIZE_LABEL),
+                rx.text("Unlimited", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+            ),
+        ),
+        rx.table.cell(
+            rx.cond(
+                limit["rpd"],
+                rx.text(limit["rpd"].to(str), weight="medium", size=TEXT_SIZE_LABEL),
+                rx.text("Unlimited", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+            ),
+        ),
+        rx.table.cell(
+            rx.cond(
+                limit["tpm"],
+                rx.text(limit["tpm"].to(str), weight="medium", size=TEXT_SIZE_LABEL),
+                rx.text("Unlimited", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+            ),
+        ),
+        rx.table.cell(
+            rx.cond(
+                limit["tpd"],
+                rx.text(limit["tpd"].to(str), weight="medium", size=TEXT_SIZE_LABEL),
+                rx.text("Unlimited", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+            ),
+        ),
+        rx.table.cell(
+            rx.button(
+                rx.icon("trash-2", size=ICON_SIZE_MEDIUM),
+                on_click=lambda: RolesState.delete_limit(role=role, router=limit["router"]),
+                variant="soft",
+                color_scheme="red",
+                size=TEXT_SIZE_LABEL,
+            ),
+            justify="end",
+        ),
         align="center",
     )
 
 
-def add_limit_form(role_id: int) -> rx.Component:
-    """Form to add limits for a model (all 4 types)."""
-    return rx.card(
-        rx.vstack(
-            rx.heading("Add limits for a model", size=TEXT_SIZE_MEDIUM),
-            rx.divider(),
-            rx.hstack(
-                rx.vstack(
-                    rx.text("Model *", size=TEXT_SIZE_LABEL, weight="bold"),
-                    rx.select(
-                        RolesState.available_models,
-                        placeholder="Select model",
-                        value=RolesState.new_limit_model,
-                        on_change=RolesState.set_new_limit_model,
-                        disabled=RolesState.add_limit_loading,
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.tooltip(
-                        rx.hstack(
-                            rx.text("RPM", size=TEXT_SIZE_LABEL, weight="bold"),
-                            rx.icon("info", size=ICON_SIZE_TINY),
-                            spacing=SPACING_TINY,
-                            align="center",
-                        ),
-                        content="Requests Per Minute",
-                    ),
-                    rx.input(
-                        placeholder="Unlimited",
-                        value=RolesState.new_limit_rpm,
-                        on_change=RolesState.set_new_limit_rpm,
-                        disabled=RolesState.add_limit_loading,
-                        type="number",
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.tooltip(
-                        rx.hstack(
-                            rx.text("RPD", size=TEXT_SIZE_LABEL, weight="bold"),
-                            rx.icon("info", size=ICON_SIZE_TINY),
-                            spacing=SPACING_TINY,
-                            align="center",
-                        ),
-                        content="Requests Per Day",
-                    ),
-                    rx.input(
-                        placeholder="Unlimited",
-                        value=RolesState.new_limit_rpd,
-                        on_change=RolesState.set_new_limit_rpd,
-                        disabled=RolesState.add_limit_loading,
-                        type="number",
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.tooltip(
-                        rx.hstack(
-                            rx.text("TPM", size=TEXT_SIZE_LABEL, weight="bold"),
-                            rx.icon("info", size=ICON_SIZE_TINY),
-                            spacing=SPACING_TINY,
-                            align="center",
-                        ),
-                        content="Tokens Per Minute",
-                    ),
-                    rx.input(
-                        placeholder="Unlimited",
-                        value=RolesState.new_limit_tpm,
-                        on_change=RolesState.set_new_limit_tpm,
-                        disabled=RolesState.add_limit_loading,
-                        type="number",
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                rx.vstack(
-                    rx.tooltip(
-                        rx.hstack(
-                            rx.text("TPD", size=TEXT_SIZE_LABEL, weight="bold"),
-                            rx.icon("info", size=ICON_SIZE_TINY),
-                            spacing=SPACING_TINY,
-                            align="center",
-                        ),
-                        content="Tokens Per Day",
-                    ),
-                    rx.input(
-                        placeholder="Unlimited",
-                        value=RolesState.new_limit_tpd,
-                        on_change=RolesState.set_new_limit_tpd,
-                        disabled=RolesState.add_limit_loading,
-                        type="number",
-                        width="100%",
-                    ),
-                    spacing=SPACING_TINY,
-                    width="100%",
-                ),
-                spacing=SPACING_SMALL,
-                width="100%",
-            ),
-            rx.hstack(
-                rx.spacer(),
-                rx.button(
-                    rx.cond(
-                        RolesState.add_limit_loading,
-                        rx.spinner(size=SIZE_MEDIUM),
-                        "Add limits",
-                    ),
-                    on_click=lambda: RolesState.add_limit(role_id),
-                    disabled=RolesState.add_limit_loading,
-                ),
-                width="100%",
-            ),
-            spacing=SPACING_MEDIUM,
-            width="100%",
-        ),
-        variant="surface",
-        width="100%",
-    )
-
-
-def role_limits_table_compact(role: Role) -> rx.Component:
+def role_limits_list(role: Role) -> rx.Component:
     """Compact limits table for a specific role."""
     return rx.table.root(
         rx.table.header(
             rx.table.row(
-                rx.table.column_header_cell("Model"),
+                rx.table.column_header_cell("Router"),
                 rx.table.column_header_cell(
                     rx.tooltip(
                         rx.hstack(
@@ -308,8 +182,8 @@ def role_limits_table_compact(role: Role) -> rx.Component:
         ),
         rx.table.body(
             rx.foreach(
-                role.limits,
-                lambda limit: model_limits_row(role.id, limit),
+                iterable=role.limits,
+                render_fn=lambda limit: role_limits_row(role=role, limit=limit),
             ),
         ),
         variant="surface",
@@ -319,28 +193,25 @@ def role_limits_table_compact(role: Role) -> rx.Component:
 
 def role_row(role: Role) -> rx.Component:
     """Display a single role as an accordion item."""
-    with_settings = True
-    state = RolesState
-    entity = role
     return rx.accordion.item(
         header=rx.box(
             entity_row(
-                entity=entity,
-                state=state,
-                row_content=role_row_content(entity),
-                row_description=role_row_description(entity),
-                with_settings=with_settings,
+                entity=role,
+                state=RolesState,
+                row_content=role_row_content(role=role),
+                row_description=role_row_description(role=role),
+                with_settings=True,
             ),
             width="100%",
         ),
         content=rx.vstack(
-            rx.heading("Model limits", size=TEXT_SIZE_MEDIUM),
+            rx.heading("Limits", size=TEXT_SIZE_MEDIUM),
             rx.cond(
                 role.limits.length() > 0,
-                role_limits_table_compact(role),
+                role_limits_list(role=role),
                 rx.center(
                     rx.text(
-                        "No limits configured",
+                        "No limits configured.",
                         size=TEXT_SIZE_LABEL,
                         color=rx.color("mauve", 9),
                     ),
@@ -348,7 +219,7 @@ def role_row(role: Role) -> rx.Component:
                     padding="1em",
                 ),
             ),
-            # add_limit_form(role.id),
+            role_create_limit_form(role=role),
             spacing=SPACING_SMALL,
             align_items="start",
             width="100%",
@@ -402,7 +273,7 @@ def roles_list() -> rx.Component:
                         entities.length() > 0,
                         # Custom change from entity_list to accordion
                         rx.accordion.root(
-                            rx.foreach(entities, role_row),
+                            rx.foreach(iterable=entities, render_fn=role_row),
                             collapsible=True,
                             width="100%",
                             variant="ghost",

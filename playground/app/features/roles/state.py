@@ -11,11 +11,16 @@ from app.shared.states.entity_state import EntityState
 class RolesState(EntityState):
     """Roles management state."""
 
+    @rx.var
+    def routers_name_list(self) -> list[str]:
+        return [router["name"] for router in self.routers_list]
+
     ############################################################
     # Load entities
     ############################################################
     entities: list[Role] = []
-    router_owners: dict[int, str] = {}
+    routers_list: list[dict[str, str | int]] = []
+    routers_dict: dict[str, int] = {}
 
     def _format_role(self, role: dict) -> Role:
         """Format role."""
@@ -25,12 +30,16 @@ class RolesState(EntityState):
         permissions_read_metric = True if "read_metric" in role["permissions"] else False
         permissions_provide_models = True if "provide_models" in role["permissions"] else False
 
-        limits_dict = defaultdict(lambda: {"RPM": None, "RPD": None, "TPM": None, "TPD": None})
-
+        limits_dict = defaultdict(lambda: {"rpm": None, "rpd": None, "tpm": None, "tpd": None})
         for limit in role["limits"]:
-            limits_dict[limit["router"]][limit["type"].upper()] = limit["value"]
-
-        limits = [{"router": router, **limits} for router, limits in limits_dict.items()]
+            for router in self.routers_list:
+                if router["id"] == limit["router"]:
+                    router_name = router["name"]
+                    break
+            else:
+                router_name = "Unknown"
+            limits_dict[router_name][limit["type"]] = limit["value"]
+        limits = [{"router": router_name, **limits} for router_name, limits in limits_dict.items()]
 
         return Role(
             id=role["id"],
@@ -63,6 +72,12 @@ class RolesState(EntityState):
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self.opengatellm_url}/v1/admin/roles",
+                    params={
+                        "offset": (self.page - 1) * self.per_page,
+                        "limit": self.per_page,
+                        "order_by": self.order_by_value,
+                        "order_direction": self.order_direction_value,
+                    },
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=60.0,
                 )
@@ -72,6 +87,21 @@ class RolesState(EntityState):
                 self.entities = []
                 for role in data.get("data", []):
                     self.entities.append(self._format_role(role))
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.opengatellm_url}/v1/admin/routers",
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    timeout=60.0,
+                )
+
+                response.raise_for_status()
+                data = response.json()
+                routers_data = data.get("data", [])
+                self.routers_list = [{"id": router["id"], "name": router["name"]} for router in routers_data]
+                self.routers_dict = {router["name"]: router["id"] for router in routers_data}
+
+            self.has_more_page = len(self.entities) == self.per_page
 
         except Exception as e:
             yield rx.toast.error(f"Error loading roles: {str(e)}", position="bottom-right")
@@ -126,10 +156,72 @@ class RolesState(EntityState):
             self.delete_entity_loading = False
             yield
 
+    async def delete_limit(self, role: Role, router: str):
+        """Delete a limit for a role."""
+        self.delete_limit_loading = True
+
+        if not router:
+            yield rx.toast.warning("Router is required", position="bottom-right")
+            return
+
+        current_limits = role.limits or []
+        limits = []
+        for limit in current_limits:
+            if limit["router"] == router:
+                continue
+
+            limits.extend([
+                {"router": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
+                {"router": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
+                {"router": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
+                {"router": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
+            ])
+
+        yield
+
+        payload = {"limits": limits}
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.patch(
+                    url=f"{self.opengatellm_url}/v1/admin/roles/{role.id}",
+                    json=payload,
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    timeout=60.0,
+                )
+                response.raise_for_status()
+
+                yield rx.toast.success("Limit deleted successfully", position="bottom-right")
+                async for _ in self.load_entities():
+                    yield
+
+        except Exception as e:
+            yield rx.toast.error(f"Error deleting limit: {str(e)}", position="bottom-right")
+        finally:
+            self.delete_limit_loading = False
+            yield
+
     ############################################################
     # Create entity
     ############################################################
     entity_to_create: Role = Role()
+
+    new_limit: dict[str, int | str | None] = {"router": None, "rpm": None, "rpd": None, "tpm": None, "tpd": None}
+    create_limit_loading = False
+
+    @rx.event
+    def set_create_limit_loading(self, loading: bool):
+        """Set create limit loading."""
+        self.create_limit_loading = loading
+
+    @rx.event
+    def set_new_limit_value(self, type: str, value: str | None):
+        """Set new limit value."""
+        if value is None:
+            self.new_limit[type] = None
+        elif type == "router":
+            self.new_limit[type] = value
+        else:
+            self.new_limit[type] = int(value)
 
     @rx.event
     def set_new_entity_attribut(self, attribute: str, value: str | bool | None):
@@ -185,10 +277,71 @@ class RolesState(EntityState):
             self.create_entity_loading = False
             yield
 
+    @rx.event
+    async def create_limit(self, role: Role):
+        """Create limits for a role."""
+
+        if not self.new_limit["router"]:
+            yield rx.toast.warning("Router is required", position="bottom-right")
+            return
+
+        current_limits = role.limits or []
+        limits = []
+        for limit in current_limits:
+            if limit["router"] == self.new_limit["router"]:
+                continue
+
+            limits.extend([
+                {"router": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
+                {"router": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
+                {"router": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
+                {"router": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
+            ])
+
+        limits.extend([
+            {"router": self.routers_dict[self.new_limit["router"]], "type": "rpm", "value": self.new_limit["rpm"]},
+            {"router": self.routers_dict[self.new_limit["router"]], "type": "rpd", "value": self.new_limit["rpd"]},
+            {"router": self.routers_dict[self.new_limit["router"]], "type": "tpm", "value": self.new_limit["tpm"]},
+            {"router": self.routers_dict[self.new_limit["router"]], "type": "tpd", "value": self.new_limit["tpd"]},
+        ])
+
+        payload = {"limits": limits}
+        self.create_limit_loading = True
+        yield
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.patch(
+                    f"{self.opengatellm_url}/v1/admin/roles/{role.id}",
+                    json=payload,
+                    headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+                    timeout=60.0,
+                )
+                response.raise_for_status()
+
+                self.new_limit = {"router": None, "rpm": None, "rpd": None, "tpm": None, "tpd": None}
+                yield rx.toast.success("Limits added successfully", position="bottom-right")
+                async for _ in self.load_entities():
+                    yield
+
+        except Exception as e:
+            yield rx.toast.error(f"Error creating limits: {str(e)}", position="bottom-right")
+        finally:
+            self.create_limit_loading = False
+            yield
+
     ############################################################
     # Entity settings
     ############################################################
     entity: Role = Role()
+
+    @rx.event
+    def set_entity_settings_by_id(self, entity_id: str):
+        """Set entity settings."""
+        if entity_id:
+            self.entity = next((role for role in self.entities if role.id == int(entity_id)), Role())
+        else:
+            self.entity = Role()
 
     @rx.event
     def set_entity_settings(self, entity: Role):
@@ -209,19 +362,21 @@ class RolesState(EntityState):
         return self.entity.id is not None
 
     @rx.var
-    def nb_permissions(self) -> int:
-        """Get number of permissions."""
-        count = 0
-        if self.entity.permissions_admin:
-            count += 1
-        if self.entity.permissions_create_public_collection:
-            count += 1
-        if self.entity.permissions_read_metric:
-            count += 1
-        if self.entity.permissions_provide_models:
-            count += 1
-
-        return count
+    def permission_counters(self) -> dict[int, int]:
+        """Get permission counters for all roles."""
+        counters = {}
+        for role in self.entities:
+            count = 0
+            if role.permissions_admin:
+                count += 1
+            if role.permissions_create_public_collection:
+                count += 1
+            if role.permissions_read_metric:
+                count += 1
+            if role.permissions_provide_models:
+                count += 1
+            counters[role.id] = count
+        return counters
 
     @rx.event
     def handle_settings_entity_dialog_change(self, is_open: bool):
@@ -272,3 +427,44 @@ class RolesState(EntityState):
         finally:
             self.edit_entity_loading = False
             yield
+
+    ############################################################
+    # Pagination & filters
+    ############################################################
+    per_page: int = 5
+
+    @rx.event
+    async def set_order_by(self, value: str):
+        """Set order by field and reload."""
+        self.order_by_value = value
+        self.page = 1
+        self.has_more_page = False
+        yield
+        async for _ in self.load_entities():
+            yield
+
+    @rx.event
+    async def set_order_direction(self, value: str):
+        """Set order direction and reload."""
+        self.order_direction_value = value
+        self.page = 1
+        self.has_more_page = False
+        yield
+        async for _ in self.load_entities():
+            yield
+
+    @rx.event
+    async def prev_page(self):
+        if self.page > 1:
+            self.page -= 1
+            yield
+            async for _ in self.load_entities():
+                yield
+
+    @rx.event
+    async def next_page(self):
+        if self.has_more_page:
+            self.page += 1
+            yield
+            async for _ in self.load_entities():
+                yield
