@@ -78,8 +78,8 @@ async def test_update_organization_name(postgres_session: AsyncSession, iam: Ide
 @pytest.mark.asyncio
 async def test_get_organizations_pagination_and_filter(postgres_session: AsyncSession, iam: IdentityAccessManager):
     rows = [
-        MagicMock(_mapping={"id": 1, "name": "A", "created": 1, "updated": 1}),
-        MagicMock(_mapping={"id": 2, "name": "B", "created": 2, "updated": 3}),
+        MagicMock(_mapping={"id": 1, "name": "A", "created": 1, "updated": 1, "users": 0}),
+        MagicMock(_mapping={"id": 2, "name": "B", "created": 2, "updated": 3, "users": 1}),
     ]
     postgres_session.execute = AsyncMock(return_value=_Result(all_rows=rows))
 
