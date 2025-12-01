@@ -6,107 +6,57 @@ from typing import Any
 import httpx
 import reflex as rx
 
-from app.features.auth.state import AuthState
-from app.features.usage.models import UsageItem
-
-_usage_endpoints = {
-    "All": None,
-    "Chat completions": "/v1/chat/completions",
-    "Embeddings": "/v1/embeddings",
-    "OCR": "/v1/ocr",
-    "Rerank": "/v1/rerank",
-    "Search": "/v1/search",
-}
+from app.features.usage.models import Usage
+from app.shared.states.entity_state import EntityState
 
 
-class UsageState(AuthState):
+class UsageState(EntityState):
     """State for account usage listing and filters."""
 
-    # Filters
-    date_from: str = (dt.datetime.now() - dt.timedelta(days=30)).strftime("%Y-%m-%d")
-    date_to: str = (dt.datetime.now() + dt.timedelta(days=1)).strftime("%Y-%m-%d")
-    endpoint: str = "All"
-
-    # Pagination
-    page: int = 1
-    per_page: int = 20
-    has_more_page: bool = False
-
-    # Data
-    usage: list[UsageItem] = []
-    loading: bool = False
-
-    # Routers list for mapping
-    available_routers: list[dict[str, str | int]] = []
-    routers_loading: bool = False
-    router_id_to_name: dict[int, str] = {}
-
     @rx.var
-    def endpoint_display_values(self) -> list[str]:
-        return list(_usage_endpoints.keys())
+    def endpoints_name_list(self) -> list[str]:
+        return ["All endpoints", "/v1/chat/completions", "/v1/embeddings", "/v1/ocr", "/v1/rerank", "/v1/search"]
 
-    @rx.var
-    def max_date(self) -> str:
-        return (dt.datetime.now()).strftime("%Y-%m-%d")
+    ############################################################
+    # Load entities
+    ############################################################
+    entities: list[Usage] = []
 
-    @rx.var
-    def date_from_value(self) -> str:
-        return self.date_from
-
-    @rx.var
-    def date_to_value(self) -> str:
-        return self.date_to or ""
+    def _format_usage(self, usage: dict) -> Usage:
+        return Usage(
+            created=dt.datetime.fromtimestamp(usage["created"]).strftime("%Y-%m-%d %H:%M"),
+            endpoint=usage["endpoint"],
+            model=usage["model"],
+            key=usage["key"],
+            prompt_tokens=usage["usage"]["prompt_tokens"],
+            completion_tokens=usage["usage"]["completion_tokens"],
+            total_tokens=usage["usage"]["total_tokens"],
+            cost=usage["usage"]["cost"],
+            kgco2eq_min=usage["usage"]["carbon"]["kgCO2eq"]["min"],
+            kgco2eq_max=usage["usage"]["carbon"]["kgCO2eq"]["max"],
+        )
 
     @rx.event
-    def set_date_from(self, value: str):
-        self.date_from = value
-
-    @rx.event
-    def set_date_to(self, value: str):
-        self.date_to = value
-
-    @rx.event
-    def set_page(self, page: int):
-        self.page = page
-
-    @rx.event
-    def set_endpoint(self, value: str):
-        """Set the endpoint filter using the display key."""
-        self.endpoint = value
-
-    @rx.var
-    def usage_rows(self) -> list[dict[str, Any]]:
-        rows: list[dict[str, Any]] = []
-        for row in self.usage:
-            rows.append({
-                "date": dt.datetime.fromtimestamp(row.created).strftime("%Y-%m-%d %H:%M"),
-                "endpoint": row.endpoint,
-                "model": row.model,
-                "tokens": "" if row.total_tokens == 0 else f"{row.prompt_tokens} → {row.completion_tokens}",
-                "cost": "" if row.cost == 0.0 or row.cost is None else f"{row.cost:.4f}",
-                "kgCO2eq": "" if row.kgco2eq_min is None or row.kgco2eq_max is None else f"{round(row.kgco2eq_min, 5)} — {round(row.kgco2eq_max, 5)}",
-            })
-        return rows
-
-    @rx.event
-    async def load_usage(self):
+    async def load_entities(self):
         if not self.is_authenticated or not self.api_key:
             return
 
-        self.loading = True
+        self.entities_loading = True
         yield
 
+        start_time = int(dt.datetime.strptime(self.get_filter_date_from_value, "%Y-%m-%d").timestamp())
+        end_time = int(dt.datetime.strptime(self.get_filter_date_to_value, "%Y-%m-%d").timestamp())
+
+        params = {
+            "offset": (self.page - 1) * self.per_page,
+            "limit": self.per_page,
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+        if self.filter_endpoint_value != "All endpoints":
+            params["endpoint"] = self.filter_endpoint_value
+
         try:
-            params = {
-                "offset": (self.page - 1) * self.per_page,
-                "limit": self.per_page,
-                "start_time": int(dt.datetime.strptime(self.date_from, "%Y-%m-%d").timestamp()),
-                "end_time": int(dt.datetime.strptime(self.date_to, "%Y-%m-%d").timestamp()),
-            }
-            if self.endpoint is not None:
-                endpoint_api_value = _usage_endpoints.get(self.endpoint, None)
-                if endpoint_api_value is not None:
-                    params["endpoint"] = endpoint_api_value
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     url=f"{self.opengatellm_url}/v1/me/usage",
@@ -114,52 +64,90 @@ class UsageState(AuthState):
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=60.0,
                 )
+                response.raise_for_status()
+                data = response.json()
+                self.entities = [self._format_usage(usage) for usage in data.get("data", [])]
 
-                if response.status_code != 200:
-                    yield rx.toast.error(response.json().get("detail", "Failed to load usage"), position="bottom-right")
-                else:
-                    data = response.json()
-                    items = data.get("data", [])
-                    self.usage = [
-                        UsageItem(
-                            created=item.get("created", 0),
-                            endpoint=item.get("endpoint", ""),
-                            model=item.get("model", ""),
-                            key=item.get("key", ""),
-                            method=item.get("method", ""),
-                            status=item.get("status", 0),
-                            prompt_tokens=item.get("prompt_tokens", 0),
-                            completion_tokens=item.get("completion_tokens", 0),
-                            total_tokens=item.get("total_tokens", 0),
-                            cost=item.get("usage", {}).get("cost", 0.0),
-                            latency=item.get("usage", {}).get("metrics", {}).get("latency"),
-                            ttft=item.get("usage", {}).get("metrics", {}).get("ttft"),
-                            kwh_min=item.get("usage", {}).get("carbon", {}).get("kWh", {}).get("min", 0.0),
-                            kwh_max=item.get("usage", {}).get("carbon", {}).get("kWh", {}).get("max", 0.0),
-                            kgco2eq_min=item.get("usage", {}).get("carbon", {}).get("kgCO2eq", {}).get("min", 0.0),
-                            kgco2eq_max=item.get("usage", {}).get("carbon", {}).get("kgCO2eq", {}).get("max", 0.0),
-                        )
-                        for item in items
-                    ]
-                    self.has_more_page = len(items) == self.per_page
+            self.has_more_page = len(self.entities) == self.per_page
+
         except Exception as e:
-            yield rx.toast.error(str(e), position="bottom-right")
+            yield rx.toast.error(f"Error loading usage: {str(e)}", position="bottom-right")
         finally:
-            self.loading = False
+            self.entities_loading = False
             yield
+
+    @rx.var
+    def usage_rows(self) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for row in self.entities:
+            rows.append({
+                "date": row.created,
+                "endpoint": row.endpoint,
+                "key": row.key,
+                "model": row.model,
+                "tokens": "" if row.total_tokens == 0 else f"{row.prompt_tokens} → {row.completion_tokens}",
+                "cost": "" if row.cost == 0.0 or row.cost is None else f"{row.cost:.4f}",
+                "kgCO2eq": "" if row.kgco2eq_min is None or row.kgco2eq_max is None else f"{round(row.kgco2eq_min, 5)} — {round(row.kgco2eq_max, 5)}",
+            })
+        return rows
+
+    ############################################################
+    # Pagination & filters
+    ############################################################
+    per_page: int = 10
 
     @rx.event
     async def prev_page(self):
         if self.page > 1:
             self.page -= 1
             yield
-            async for _ in self.load_usage():
+            async for _ in self.load_entities():
                 yield
 
     @rx.event
     async def next_page(self):
-        if self.has_more:
+        if self.has_more_page:
             self.page += 1
             yield
-            async for _ in self.load_usage():
+            async for _ in self.load_entities():
                 yield
+
+    filter_date_from_value: str | None = None
+    filter_date_to_value: str | None = None
+    filter_endpoint_value: str = "All endpoints"
+
+    @rx.var
+    def get_filter_date_from_value(self) -> str:
+        if self.filter_date_from_value is None:
+            return (dt.datetime.now() - dt.timedelta(days=30)).strftime("%Y-%m-%d")
+        return self.filter_date_from_value
+
+    @rx.var
+    def get_filter_date_to_value(self) -> str:
+        if self.filter_date_to_value is None:
+            return (dt.datetime.now() + dt.timedelta(days=1)).strftime("%Y-%m-%d")
+        return self.filter_date_to_value
+
+    @rx.var
+    def filter_date_to_value_max(self) -> str:
+        return (dt.datetime.now() + dt.timedelta(days=1)).strftime("%Y-%m-%d")
+
+    @rx.event
+    def set_filter_date_from(self, value: str):
+        self.filter_date_from_value = value
+
+    @rx.event
+    def set_filter_date_to(self, value: str):
+        self.filter_date_to_value = value
+
+    @rx.event
+    def set_filter_endpoint(self, value: str):
+        self.filter_endpoint_value = value
+
+    @rx.event
+    async def apply_filters(self):
+        self.page = 1
+        self.has_more_page = False
+        yield
+        async for _ in self.load_entities():
+            yield

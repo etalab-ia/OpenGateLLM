@@ -1,5 +1,3 @@
-"""Authentication state management."""
-
 import httpx
 import reflex as rx
 

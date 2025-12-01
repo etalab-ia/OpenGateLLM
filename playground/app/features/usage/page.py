@@ -2,18 +2,13 @@
 
 import reflex as rx
 
-from app.core.variables import (
-    PADDING_PAGE,
-    SPACING_XL,
-)
-from app.features.usage.components import (
-    usage_dashboard,
-    usage_header,
-)
+from app.core.variables import PADDING_PAGE, SPACING_XL
+from app.features.usage.components.dashboards import usage_dashboard
+from app.features.usage.components.headers import usage_header
 
 
 def usage_page() -> rx.Component:
-    """Usage tracking page with filters, table, and chart."""
+    """Usage page."""
     return rx.box(
         rx.scroll_area(
             rx.vstack(

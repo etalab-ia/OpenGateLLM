@@ -1,12 +1,10 @@
-"""Login page component."""
-
 import reflex as rx
 
 from app.core.configuration import configuration
 from app.features.auth.state import AuthState
 
 
-def login_page() -> rx.Component:
+def login_form() -> rx.Component:
     """Login page."""
     return rx.center(
         rx.card(

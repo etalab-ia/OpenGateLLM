@@ -1,20 +1,14 @@
-from pydantic import BaseModel
+from app.shared.models.entities import Entity
 
 
-class UsageItem(BaseModel):
-    created: int
-    endpoint: str | None
-    model: str | None
-    key: str | None
-    method: str | None
-    status: int | None
-    prompt_tokens: int | None
-    completion_tokens: int | None
-    total_tokens: int | None
-    cost: float | None
-    latency: int | None
-    ttft: int | None
-    kwh_min: float | None
-    kwh_max: float | None
-    kgco2eq_min: float | None
-    kgco2eq_max: float | None
+class Usage(Entity):
+    endpoint: str | None = None
+    model: str | None = None
+    key: str | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+    cost: float | None = None
+    kgco2eq_min: float | None = None
+    kgco2eq_max: float | None = None
+    created: str | None = None

@@ -129,8 +129,6 @@ def wrap_streaming_response(response: StreamingResponse, usage: Usage) -> Stream
 
             usage = set_usage_from_context(usage=usage)
 
-            print("write streaming response to database")
-
             asyncio.create_task(log_usage(usage=usage))
             asyncio.create_task(update_budget(usage=usage))
 

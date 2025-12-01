@@ -30,19 +30,11 @@ class UsersState(EntityState):
     def _format_user(self, user: dict) -> User:
         """Format user."""
 
-        for role in self.roles_list:
-            if role["id"] == user["role"]:
-                role_name = role["name"]
-                break
-        else:
-            role_name = "Unknown"
+        organization_dict_reverse = {v: k for k, v in self.organizations_dict.items()}
+        role_dict_reverse = {v: k for k, v in self.roles_dict.items()}
 
-        for organization in self.organizations_list:
-            if organization["id"] == user["organization"]:
-                organization_name = organization["name"]
-                break
-        else:
-            organization_name = "Unknown"
+        role_name = role_dict_reverse[user["role"]]
+        organization_name = organization_dict_reverse.get(user["organization"], "Unknown")
 
         return User(
             id=user["id"],
@@ -85,20 +77,6 @@ class UsersState(EntityState):
 
         try:
             async with httpx.AsyncClient() as client:
-                # Load users
-                response = await client.get(
-                    url=f"{self.opengatellm_url}/v1/admin/users",
-                    params=params,
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
-                )
-
-                response.raise_for_status()
-                data = response.json()
-                self.entities = []
-                for user in data.get("data", []):
-                    self.entities.append(self._format_user(user))
-
                 # Load roles
                 if not self.roles_list:
                     offset = 0
@@ -143,6 +121,20 @@ class UsersState(EntityState):
                         offset += 100
                         if len(organizations_data) < 100:
                             break
+
+                # Load users
+                response = await client.get(
+                    url=f"{self.opengatellm_url}/v1/admin/users",
+                    params=params,
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    timeout=60.0,
+                )
+
+                response.raise_for_status()
+                data = response.json()
+                self.entities = []
+                for user in data.get("data", []):
+                    self.entities.append(self._format_user(user))
 
             self.has_more_page = len(self.entities) == self.per_page
 
@@ -309,19 +301,8 @@ class UsersState(EntityState):
         self.edit_entity_loading = True
         yield
 
-        for role in self.roles_list:
-            if role["name"] == self.entity.role:
-                role_id = role["id"]
-                break
-        else:
-            yield rx.toast.warning("Role not found", position="bottom-right")
-            return
-
-        organization_id = None
-        for organization in self.organizations_list:
-            if organization["name"] == self.entity.organization:
-                organization_id = organization["id"]
-                break
+        role_id = self.roles_dict[self.entity.role]
+        organization_id = self.organizations_dict[self.entity.organization]
 
         payload = {
             "email": self.entity.email,

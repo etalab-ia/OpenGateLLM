@@ -2,7 +2,7 @@
 
 import reflex as rx
 
-from app.features.auth.components.login_form import login_page
+from app.features.auth.components.forms import login_form
 from app.features.chat.state import ChatState
 from app.features.navigation.components.sidebar import navigation_sidebar
 
@@ -29,5 +29,5 @@ def authenticated_page(content: rx.Component, margin_left: str | None = "250px",
                 margin_right=margin_right,
             ),
         ),
-        login_page(),
+        login_form(),
     )

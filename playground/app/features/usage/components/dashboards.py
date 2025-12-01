@@ -7,30 +7,45 @@ from app.core.variables import (
     ICON_SIZE_TINY,
     SELECT_MEDIUM_WIDTH,
     SPACING_LARGE,
-    SPACING_MEDIUM,
     SPACING_SMALL,
     SPACING_TINY,
     TEXT_SIZE_LABEL,
 )
 from app.features.usage.state import UsageState
+from app.shared.components.pagination import pagination
 
 
-def usage_pagination() -> rx.Component:
-    """Pagination controls for usage table."""
-    return rx.hstack(
-        rx.button(
-            "Prev",
-            on_click=UsageState.prev_page,
-            disabled=UsageState.page <= 1,
+def usage_filters() -> rx.Component:
+    return (
+        rx.hstack(
+            rx.text("Filters", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+            rx.select(
+                UsageState.endpoints_name_list,
+                on_change=UsageState.set_filter_endpoint,
+                value=UsageState.filter_endpoint_value,
+                width=SELECT_MEDIUM_WIDTH,
+            ),
+            rx.text("From", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+            rx.input(
+                type="date",
+                value=UsageState.get_filter_date_from_value,
+                on_change=UsageState.set_filter_date_from,
+                max=UsageState.filter_date_to_value_max,
+            ),
+            rx.text("To", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+            rx.input(
+                type="date",
+                value=UsageState.get_filter_date_to_value,
+                on_change=UsageState.set_filter_date_to,
+            ),
+            rx.button(
+                "Apply",
+                on_click=UsageState.apply_filters,
+                align_self="end",
+            ),
+            spacing=SPACING_SMALL,
+            align="center",
         ),
-        rx.text(UsageState.page.to(str)),
-        rx.button(
-            "Next",
-            on_click=UsageState.next_page,
-            disabled=~UsageState.has_more_page,
-        ),
-        spacing=SPACING_MEDIUM,
-        align="center",
     )
 
 
@@ -86,35 +101,7 @@ def usage_dashboard() -> rx.Component:
             rx.hstack(
                 rx.heading("Requests details", size=HEADING_SIZE_SECTION),
                 rx.spacer(),
-                rx.hstack(
-                    rx.text("Endpoint", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
-                    rx.select(
-                        UsageState.endpoint_display_values,
-                        on_change=UsageState.set_endpoint,
-                        value=UsageState.endpoint,
-                        width=SELECT_MEDIUM_WIDTH,
-                    ),
-                    spacing=SPACING_SMALL,
-                    align="center",
-                ),
-                rx.text("From", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
-                rx.input(
-                    type="date",
-                    value=UsageState.date_from_value,
-                    on_change=UsageState.set_date_from,
-                    max=UsageState.max_date,
-                ),
-                rx.text("To", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
-                rx.input(
-                    type="date",
-                    value=UsageState.date_to_value,
-                    on_change=UsageState.set_date_to,
-                ),
-                rx.button(
-                    "Apply",
-                    on_click=UsageState.load_usage,
-                    align_self="end",
-                ),
+                usage_filters(),
                 align="center",
                 spacing=SPACING_SMALL,
                 width="100%",
@@ -123,7 +110,7 @@ def usage_dashboard() -> rx.Component:
             rx.spacer(size="10"),
             rx.vstack(
                 usage_table(),
-                rx.hstack(usage_pagination(), width="100%", justify="end"),
+                rx.hstack(pagination(state=UsageState), width="100%", justify="end"),
                 spacing=SPACING_LARGE,
                 width="100%",
             ),
