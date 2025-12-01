@@ -155,12 +155,12 @@ class RoutersState(EntityState):
     )
 
     @rx.event
-    def set_new_entity_attribut(self, attribute: str, value: str | None):
+    def set_new_entity_attribut(self, attribute: str, value: str | bool | None):
         """Set new entity attributes."""
-        if value is None:
-            setattr(self.entity_to_create, attribute, None)
-        else:
+        if isinstance(value, str):
             setattr(self.entity_to_create, attribute, value.strip())
+        else:
+            setattr(self.entity_to_create, attribute, value)
 
     @rx.event
     async def create_entity(self):
@@ -217,12 +217,12 @@ class RoutersState(EntityState):
         self.entity = entity
 
     @rx.event
-    def set_edit_entity_attribut(self, attribute: str, value: str | None):
+    def set_edit_entity_attribut(self, attribute: str, value: str | bool | None):
         """Set edit entity attributes."""
-        if value is None:
-            setattr(self.entity, attribute, None)
-        else:
+        if isinstance(value, str):
             setattr(self.entity, attribute, value.strip())
+        else:
+            setattr(self.entity, attribute, value)
 
     @rx.var
     def is_settings_entity_dialog_open(self) -> bool:

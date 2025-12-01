@@ -1,617 +1,433 @@
-import datetime
+import datetime as dt
 
 import httpx
 import reflex as rx
 
-from app.features.chat.state import ChatState
-from app.features.users.models import FormattedUser, User
+from app.features.users.models import User
+from app.shared.states.entity_state import EntityState
 
 
-class UsersState(ChatState):
-    """State for users management."""
-
-    # Users list
-    users: list[User] = []
-    users_loading: bool = False
-
-    # Pagination for users
-    page: int = 1
-    limit: int = 10
-    per_page: int = 20
-    has_more_page: bool = False
-    order_by: str = "id"
-    order_direction: str = "asc"
-
-    # Filters
-    filter_role: int | None = None
-    filter_organization: int | None = None
-    filter_role_value: str = "all"  # Display value for select
-    filter_organization_value: str = "all"  # Display value for select
-
-    # Create user form
-    new_user_email: str = ""
-    new_user_name: str = ""
-    new_user_password: str = ""
-    new_user_role: str = ""
-    new_user_organization: str = ""
-    new_user_budget: str = ""
-    new_user_expires: str = ""
-    new_user_priority: str = "0"
-    create_user_loading: bool = False
-
-    # Delete user
-    user_to_delete: int | None = None
-    delete_user_loading: bool = False
-
-    # Edit user
-    user_to_edit: int | None = None
-    edit_user_email: str = ""
-    edit_user_name: str = ""
-    edit_user_password: str = ""
-    edit_user_role: str = ""
-    edit_user_organization: str = ""
-    edit_user_budget: str = ""
-    edit_user_expires: str = ""
-    edit_user_priority: str = ""
-    edit_user_loading: bool = False
-
-    # Available roles and organizations (to be loaded from API)
-    available_roles: list[dict] = []
-    available_organizations: list[dict] = []
+class UsersState(EntityState):
+    """Users management state."""
 
     @rx.var
-    def roles_map(self) -> dict[int, str]:
-        """Map role IDs to names."""
-        return {role["id"]: role["name"] for role in self.available_roles}
+    def roles_name_list(self) -> list[str]:
+        return [role["name"] for role in self.roles_list]
 
     @rx.var
-    def organizations_map(self) -> dict[int, str]:
-        """Map organization IDs to names."""
-        return {org["id"]: org["name"] for org in self.available_organizations}
+    def organizations_name_list(self) -> list[str]:
+        return [organization["name"] for organization in self.organizations_list]
 
-    @rx.var
-    def users_with_formatted_dates(self) -> list[FormattedUser]:
-        """Get users with formatted dates."""
-        formatted = []
-        for user in self.users:
-            expires_formatted = None
-            if user.expires:
-                expires_formatted = datetime.datetime.fromtimestamp(user.expires).strftime("%Y-%m-%d %H:%M")
+    ############################################################
+    # Load entities
+    ############################################################
+    entities: list[User] = []
+    roles_list: list[dict[str, str | int]] = []
+    roles_dict: dict[str, int] = {}
+    organizations_list: list[dict[str, str | int]] = []
+    organizations_dict: dict[str, int] = {}
 
-            # Get role and organization names
-            role_name = self.roles_map.get(user.role, f"Role {user.role}")
-            organization_name = None
-            if user.organization is not None:
-                organization_name = self.organizations_map.get(user.organization, f"Org {user.organization}")
+    def _format_user(self, user: dict) -> User:
+        """Format user."""
 
-            formatted.append(
-                FormattedUser(
-                    id=user.id,
-                    email=user.email,
-                    name=user.name,
-                    sub=user.sub,
-                    iss=user.iss,
-                    role=user.role,
-                    role_name=role_name,
-                    organization=user.organization,
-                    organization_name=organization_name,
-                    budget=user.budget,
-                    expires=user.expires,
-                    created=datetime.datetime.fromtimestamp(user.created).strftime("%Y-%m-%d %H:%M"),
-                    updated=datetime.datetime.fromtimestamp(user.updated).strftime("%Y-%m-%d %H:%M"),
-                    priority=user.priority,
-                    expires_formatted=expires_formatted,
-                )
-            )
-        return formatted
-
-    @rx.var
-    def is_delete_user_dialog_open(self) -> bool:
-        """Check if delete user dialog should be open."""
-        return self.user_to_delete is not None
-
-    @rx.var
-    def is_edit_user_dialog_open(self) -> bool:
-        """Check if edit user dialog should be open."""
-        return self.user_to_edit is not None
-
-    # Event handlers
-    @rx.event
-    async def set_order_by(self, value: str):
-        """Set order by field and reload."""
-        self.order_by = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_users():
-            yield
-
-    @rx.event
-    async def set_order_direction(self, value: str):
-        """Set order direction and reload."""
-        self.order_direction = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_users():
-            yield
-
-    @rx.event
-    async def set_filter_role(self, value: str):
-        """Set role filter and reload."""
-        self.filter_role_value = value
-        self.filter_role = int(value) if value and value != "all" else None
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_users():
-            yield
-
-    @rx.event
-    async def set_filter_organization(self, value: str):
-        """Set organization filter and reload."""
-        self.filter_organization_value = value
-        if value == "all":
-            self.filter_organization = None  # Special value for "without organization"
+        for role in self.roles_list:
+            if role["id"] == user["role"]:
+                role_name = role["name"]
+                break
         else:
-            self.filter_organization = int(value)
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_users():
-            yield
+            role_name = "Unknown"
 
-    @rx.event
-    def set_new_user_email(self, value: str):
-        """Set new user email."""
-        self.new_user_email = value
-
-    @rx.event
-    def set_new_user_name(self, value: str):
-        """Set new user name."""
-        self.new_user_name = value
-
-    @rx.event
-    def set_new_user_password(self, value: str):
-        """Set new user password."""
-        self.new_user_password = value
-
-    @rx.event
-    def set_new_user_role(self, value: str):
-        """Set new user role."""
-        self.new_user_role = value
-
-    @rx.event
-    def set_new_user_organization(self, value: str):
-        """Set new user organization."""
-        self.new_user_organization = value
-
-    @rx.event
-    def set_new_user_budget(self, value: str):
-        """Set new user budget."""
-        self.new_user_budget = value
-
-    @rx.event
-    def set_new_user_expires(self, value: str):
-        """Set new user expires."""
-        self.new_user_expires = value
-
-    @rx.event
-    def set_new_user_priority(self, value: str):
-        """Set new user priority."""
-        self.new_user_priority = value
-
-    @rx.event
-    def set_user_to_delete(self, user_id: int | None):
-        """Set user to delete."""
-        self.user_to_delete = user_id
-
-    @rx.event
-    def set_user_to_edit(self, user_id: int | None):
-        """Set user to edit and load their data."""
-        if user_id is None:
-            self.user_to_edit = None
-            self.edit_user_email = ""
-            self.edit_user_name = ""
-            self.edit_user_password = ""
-            self.edit_user_role = ""
-            self.edit_user_organization = ""
-            self.edit_user_budget = ""
-            self.edit_user_expires = ""
-            self.edit_user_priority = ""
+        for organization in self.organizations_list:
+            if organization["id"] == user["organization"]:
+                organization_name = organization["name"]
+                break
         else:
-            self.user_to_edit = user_id
-            # Find user and populate edit form
-            for user in self.users:
-                if user.id == user_id:
-                    self.edit_user_email = user.email
-                    self.edit_user_name = user.name or ""
-                    self.edit_user_password = ""
-                    self.edit_user_role = str(user.role)
-                    self.edit_user_organization = str(user.organization) if user.organization else ""
-                    self.edit_user_budget = str(user.budget) if user.budget is not None else ""
-                    # Convert timestamp to date format (YYYY-MM-DD)
-                    if user.expires:
-                        self.edit_user_expires = datetime.datetime.fromtimestamp(user.expires).strftime("%Y-%m-%d")
-                    else:
-                        self.edit_user_expires = ""
-                    self.edit_user_priority = str(user.priority)
-                    break
+            organization_name = "Unknown"
+
+        return User(
+            id=user["id"],
+            email=user["email"],
+            name=user["name"],
+            role=role_name,
+            organization=organization_name,
+            budget=user["budget"],
+            priority=user["priority"],
+            expires=dt.datetime.fromtimestamp(user["expires"]).strftime("%Y-%m-%d %H:%M") if user["expires"] else None,
+            created=dt.datetime.fromtimestamp(user["created"]).strftime("%Y-%m-%d %H:%M"),
+            updated=dt.datetime.fromtimestamp(user["updated"]).strftime("%Y-%m-%d %H:%M"),
+        )
+
+    @rx.var
+    def users(self) -> list[User]:
+        """Get users list with correct typing for Reflex."""
+        return self.entities
 
     @rx.event
-    def set_edit_user_email(self, value: str):
-        """Set edit user email."""
-        self.edit_user_email = value
-
-    @rx.event
-    def set_edit_user_name(self, value: str):
-        """Set edit user name."""
-        self.edit_user_name = value
-
-    @rx.event
-    def set_edit_user_password(self, value: str):
-        """Set edit user password."""
-        self.edit_user_password = value
-
-    @rx.event
-    def set_edit_user_role(self, value: str):
-        """Set edit user role."""
-        self.edit_user_role = value
-
-    @rx.event
-    def set_edit_user_organization(self, value: str):
-        """Set edit user organization."""
-        self.edit_user_organization = value
-
-    @rx.event
-    def set_edit_user_budget(self, value: str):
-        """Set edit user budget."""
-        self.edit_user_budget = value
-
-    @rx.event
-    def set_edit_user_expires(self, value: str):
-        """Set edit user expires."""
-        self.edit_user_expires = value
-
-    @rx.event
-    def set_edit_user_priority(self, value: str):
-        """Set edit user priority."""
-        self.edit_user_priority = value
-
-    @rx.event
-    async def load_users(self):
-        """Load users from API."""
+    async def load_entities(self):
+        """Load entities."""
         if not self.is_authenticated or not self.api_key:
             return
 
-        self.users_loading = True
+        self.entities_loading = True
         yield
 
+        params = {
+            "offset": (self.page - 1) * self.per_page,
+            "limit": self.per_page,
+            "order_by": self.order_by_value,
+            "order_direction": self.order_direction_value,
+        }
+
+        if self.filter_role_value != "0":
+            params["role"] = int(self.filter_role_value)
+        if self.filter_organization_value != "0":
+            params["organization"] = int(self.filter_organization_value)
+
         try:
-            params = {
-                "offset": (self.page - 1) * self.per_page,
-                "limit": self.per_page,
-                "order_by": self.order_by,
-                "order_direction": self.order_direction,
-            }
-
-            if self.filter_role is not None:
-                params["role"] = self.filter_role
-
-            if self.filter_organization is not None:
-                params["organization"] = self.filter_organization
-
             async with httpx.AsyncClient() as client:
+                # Load users
                 response = await client.get(
-                    f"{self.opengatellm_url}/v1/admin/users",
+                    url=f"{self.opengatellm_url}/v1/admin/users",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=60.0,
                 )
 
-                if response.status_code != 200:
-                    error_detail = response.json().get("detail", "Failed to load users")
-                    yield rx.toast.error(str(error_detail), position="bottom-right")
-                else:
-                    data = response.json()
-                    items = data.get("data", [])
-                    self.users = [User(**item) for item in items]
+                response.raise_for_status()
+                data = response.json()
+                self.entities = []
+                for user in data.get("data", []):
+                    self.entities.append(self._format_user(user))
 
-                self.has_more_page = len(self.users) == self.per_page
+                # Load roles
+                if not self.roles_list:
+                    offset = 0
+                    self.roles_list = []
+                    self.roles_dict = {}
+                    while True:
+                        response = await client.get(
+                            url=f"{self.opengatellm_url}/v1/admin/roles",
+                            headers={"Authorization": f"Bearer {self.api_key}"},
+                            timeout=60.0,
+                        )
+
+                        response.raise_for_status()
+                        data = response.json()
+                        roles_data = data.get("data", [])
+                        self.roles_list.extend([{"id": role["id"], "name": role["name"]} for role in roles_data])
+                        self.roles_dict.update({role["name"]: role["id"] for role in roles_data})
+                        offset += 100
+                        if len(roles_data) < 100:
+                            break
+
+                # Load organizations
+                if not self.organizations_list:
+                    offset = 0
+                    self.organizations_list = []
+                    self.organizations_dict = {}
+                    while True:
+                        response = await client.get(
+                            url=f"{self.opengatellm_url}/v1/admin/organizations",
+                            params={"offset": offset, "limit": 100},
+                            headers={"Authorization": f"Bearer {self.api_key}"},
+                            timeout=60.0,
+                        )
+
+                        response.raise_for_status()
+                        data = response.json()
+                        organizations_data = data.get("data", [])
+                        if not organizations_data:
+                            break
+                        self.organizations_list.extend([{"id": org["id"], "name": org["name"]} for org in organizations_data])
+                        self.organizations_dict.update({org["name"]: org["id"] for org in organizations_data})
+                        offset += 100
+                        if len(organizations_data) < 100:
+                            break
+
+            self.has_more_page = len(self.entities) == self.per_page
 
         except Exception as e:
+            import traceback
+
+            print(traceback.format_exc())
             yield rx.toast.error(f"Error loading users: {str(e)}", position="bottom-right")
         finally:
-            self.users_loading = False
+            self.entities_loading = False
             yield
 
-    @rx.event
-    async def load_roles(self):
-        """Load available roles from API."""
-        if not self.is_authenticated or not self.api_key:
-            return
-
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.opengatellm_url}/v1/admin/roles",
-                    params={"offset": 0, "limit": 100},
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
-                )
-
-                if response.status_code == 200:
-                    data = response.json()
-                    roles_data = data.get("data", [])
-                    self.available_roles = [{"id": r["id"], "name": r["name"]} for r in roles_data]
-
-        except Exception as e:
-            yield rx.toast.error(f"Error loading roles: {str(e)}", position="bottom-right")
+    ############################################################
+    # Delete entity
+    ############################################################
+    entity_to_delete: User = User()
 
     @rx.event
-    async def load_organizations(self):
-        """Load available organizations from API."""
-        if not self.is_authenticated or not self.api_key:
-            return
+    def set_entity_to_delete(self, entity: User):
+        """Set entity to delete."""
+        self.entity_to_delete = entity
 
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.opengatellm_url}/v1/admin/organizations",
-                    params={"offset": 0, "limit": 100},
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
-                )
-
-                if response.status_code == 200:
-                    data = response.json()
-                    orgs_data = data.get("data", [])
-                    self.available_organizations = [{"id": o["id"], "name": o["name"]} for o in orgs_data]
-
-        except Exception as e:
-            yield rx.toast.error(f"Error loading organizations: {str(e)}", position="bottom-right")
+    @rx.var
+    def is_delete_entity_dialog_open(self) -> bool:
+        """Check if delete dialog should be open."""
+        return self.entity_to_delete.id is not None
 
     @rx.event
-    async def create_user(self):
-        """Create a new user."""
-        if not self.new_user_email.strip():
-            yield rx.toast.warning("Email is required", position="bottom-right")
-            return
+    def handle_delete_entity_dialog_change(self, is_open: bool):
+        """Handle delete entity dialog open/close state change."""
+        if not is_open:
+            self.entity_to_delete = User()
 
-        if not self.new_user_password.strip():
-            yield rx.toast.warning("Password is required", position="bottom-right")
-            return
-
-        if not self.new_user_role:
-            yield rx.toast.warning("Role is required", position="bottom-right")
-            return
-
-        self.create_user_loading = True
-        yield
-
-        try:
-            payload = {
-                "email": self.new_user_email.strip(),
-                "password": self.new_user_password,
-                "role": int(self.new_user_role),
-            }
-
-            if self.new_user_name.strip():
-                payload["name"] = self.new_user_name.strip()
-
-            if self.new_user_organization:
-                payload["organization"] = int(self.new_user_organization)
-
-            if self.new_user_budget.strip():
-                try:
-                    payload["budget"] = float(self.new_user_budget)
-                except ValueError:
-                    yield rx.toast.warning("Budget must be a number", position="bottom-right")
-                    self.create_user_loading = False
-                    yield
-                    return
-
-            if self.new_user_expires.strip():
-                try:
-                    # Convert date string (YYYY-MM-DD) to timestamp
-                    date_obj = datetime.datetime.strptime(self.new_user_expires.strip(), "%Y-%m-%d")
-                    # Set time to end of day (23:59:59)
-                    date_obj = date_obj.replace(hour=23, minute=59, second=59)
-                    expires_timestamp = int(date_obj.timestamp())
-                    payload["expires"] = expires_timestamp
-                except ValueError:
-                    yield rx.toast.warning("Invalid date format", position="bottom-right")
-                    self.create_user_loading = False
-                    yield
-                    return
-
-            if self.new_user_priority.strip():
-                try:
-                    payload["priority"] = int(self.new_user_priority)
-                except ValueError:
-                    yield rx.toast.warning("Priority must be a number", position="bottom-right")
-                    self.create_user_loading = False
-                    yield
-                    return
-
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.opengatellm_url}/v1/admin/users",
-                    json=payload,
-                    headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
-                    timeout=60.0,
-                )
-
-                if response.status_code == 201:
-                    self.new_user_email = ""
-                    self.new_user_name = ""
-                    self.new_user_password = ""
-                    self.new_user_role = ""
-                    self.new_user_organization = ""
-                    self.new_user_budget = ""
-                    self.new_user_expires = ""
-                    self.new_user_priority = "0"
-                    yield rx.toast.success("User created successfully", position="bottom-right")
-                    # Reload users
-                    async for _ in self.load_users():
-                        yield
-                else:
-                    error_detail = response.json().get("detail", "Failed to create user")
-                    if isinstance(error_detail, list) and len(error_detail) > 0:
-                        first_error = error_detail[0]
-                        if isinstance(first_error, dict):
-                            yield rx.toast.error(first_error.get("msg", str(error_detail)), position="bottom-right")
-                        else:
-                            yield rx.toast.error(str(first_error), position="bottom-right")
-                    else:
-                        yield rx.toast.error(str(error_detail), position="bottom-right")
-
-        except Exception as e:
-            yield rx.toast.error(f"Error: {str(e)}", position="bottom-right")
-        finally:
-            self.create_user_loading = False
-            yield
-
-    @rx.event
-    async def delete_user(self, user_id: int):
+    async def delete_entity(self):
         """Delete a user."""
-        self.delete_user_loading = True
+        self.delete_entity_loading = True
         yield
 
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
-                    f"{self.opengatellm_url}/v1/admin/users/{user_id}",
+                    url=f"{self.opengatellm_url}/v1/admin/users/{self.entity_to_delete.id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=60.0,
                 )
+                response.raise_for_status()
 
-                if response.status_code == 204:
-                    self.user_to_delete = None
-                    yield rx.toast.success("User deleted successfully", position="bottom-right")
-                    # Reload users
-                    async for _ in self.load_users():
-                        yield
-                else:
-                    error_detail = response.json().get("detail", "Failed to delete user")
-                    yield rx.toast.error(str(error_detail), position="bottom-right")
+                self.handle_delete_entity_dialog_change(is_open=False)
+                yield rx.toast.success("User deleted successfully", position="bottom-right")
+                async for _ in self.load_entities():
+                    yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error: {str(e)}", position="bottom-right")
+            yield rx.toast.error(f"Error deleting role: {str(e)}", position="bottom-right")
         finally:
-            self.delete_user_loading = False
+            self.delete_entity_loading = False
+            yield
+
+    ############################################################
+    # Create entity
+    ############################################################
+    entity_to_create: User = User()
+
+    @rx.event
+    def set_new_entity_attribut(self, attribute: str, value: str | bool | None):
+        """Set new entity attributes."""
+        if isinstance(value, str):
+            setattr(self.entity_to_create, attribute, value.strip())
+        else:
+            setattr(self.entity_to_create, attribute, value)
+
+    @rx.event
+    async def create_entity(self):
+        """Create a user."""
+        if not self.entity_to_create.email:
+            yield rx.toast.warning("User email is required", position="bottom-right")
+            return
+
+        if not self.entity_to_create.password:
+            yield rx.toast.warning("User password is required", position="bottom-right")
+            return
+
+        if not self.entity_to_create.role:
+            yield rx.toast.warning("Role is required", position="bottom-right")
+            return
+
+        self.create_entity_loading = True
+        yield
+
+        for role in self.roles_list:
+            if role["name"] == self.entity_to_create.role:
+                role_id = role["id"]
+                break
+        else:
+            yield rx.toast.warning("Role not found", position="bottom-right")
+            return
+
+        organization_id = None
+        for organization in self.organizations_list:
+            if organization["name"] == self.entity_to_create.organization:
+                organization_id = organization["id"]
+                break
+
+        payload = {
+            "email": self.entity_to_create.email,
+            "password": self.entity_to_create.password,
+            "role": role_id,
+            "budget": self.entity_to_create.budget,
+            "expires": self.entity_to_create.expires,
+            "priority": self.entity_to_create.priority,
+        }
+        if organization_id:
+            payload["organization"] = organization_id
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    url=f"{self.opengatellm_url}/v1/admin/users",
+                    json=payload,
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    timeout=60.0,
+                )
+                response.raise_for_status()
+
+                yield rx.toast.success("User created successfully", position="bottom-right")
+                async for _ in self.load_entities():
+                    yield
+
+        except Exception as e:
+            yield rx.toast.error(f"Error creating user: {str(e)}", position="bottom-right")
+        finally:
+            self.create_entity_loading = False
+            yield
+
+    ############################################################
+    # Entity settings
+    ############################################################
+    entity: User = User()
+
+    @rx.event
+    def set_entity_settings_by_id(self, entity_id: str):
+        """Set entity settings."""
+        if entity_id:
+            self.entity = next((user for user in self.entities if user.id == int(entity_id)), User())
+        else:
+            self.entity = User()
+
+    @rx.event
+    def set_entity_settings(self, entity: User):
+        """Set entity settings."""
+        self.entity = entity
+
+    @rx.event
+    def set_edit_entity_attribut(self, attribute: str, value: str | bool | None):
+        """Set edit entity attributes."""
+        if isinstance(value, str):
+            setattr(self.entity, attribute, value.strip())
+        else:
+            setattr(self.entity, attribute, value)
+
+    @rx.var
+    def is_settings_entity_dialog_open(self) -> bool:
+        """Check if settings dialog should be open."""
+        return self.entity.id is not None
+
+    @rx.event
+    def handle_settings_entity_dialog_change(self, is_open: bool):
+        """Handle settings dialog open/close state change."""
+        if not is_open:
+            self.entity = User()
+
+    @rx.event
+    async def edit_entity(self):
+        """Update a role."""
+        self.edit_entity_loading = True
+        yield
+
+        for role in self.roles_list:
+            if role["name"] == self.entity.role:
+                role_id = role["id"]
+                break
+        else:
+            yield rx.toast.warning("Role not found", position="bottom-right")
+            return
+
+        organization_id = None
+        for organization in self.organizations_list:
+            if organization["name"] == self.entity.organization:
+                organization_id = organization["id"]
+                break
+
+        payload = {
+            "email": self.entity.email,
+            "name": self.entity.name,
+            "role": role_id,
+            "budget": self.entity.budget,
+            "expires": self.entity.expires,
+            "priority": self.entity.priority,
+        }
+        if self.entity.password:
+            payload["password"] = self.entity.password
+        if organization_id:
+            payload["organization"] = organization_id
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.patch(
+                    url=f"{self.opengatellm_url}/v1/admin/users/{self.entity.id}",
+                    json=payload,
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    timeout=60.0,
+                )
+            response.raise_for_status()
+
+            self.handle_settings_entity_dialog_change(is_open=False)
+            yield rx.toast.success("User updated successfully", position="bottom-right")
+
+            async for _ in self.load_entities():
+                yield
+
+        except Exception as e:
+            yield rx.toast.error(f"Error updating user: {str(e)}", position="bottom-right")
+        finally:
+            self.edit_entity_loading = False
+            yield
+
+    ############################################################
+    # Pagination & filters
+    ############################################################
+    per_page: int = 20
+    order_by_options: list[str] = ["id", "name", "created", "updated"]
+
+    @rx.event
+    async def set_order_by(self, value: str):
+        """Set order by field and reload."""
+        self.order_by_value = value
+        self.page = 1
+        self.has_more_page = False
+        yield
+        async for _ in self.load_entities():
             yield
 
     @rx.event
-    async def update_user(self):
-        """Update a user."""
-        if self.user_to_edit is None:
-            return
-
-        self.edit_user_loading = True
+    async def set_order_direction(self, value: str):
+        """Set order direction and reload."""
+        self.order_direction_value = value
+        self.page = 1
+        self.has_more_page = False
         yield
-
-        try:
-            payload = {}
-
-            if self.edit_user_email.strip():
-                payload["email"] = self.edit_user_email.strip()
-
-            if self.edit_user_name.strip():
-                payload["name"] = self.edit_user_name.strip()
-
-            if self.edit_user_password.strip():
-                payload["password"] = self.edit_user_password
-
-            if self.edit_user_role:
-                payload["role"] = int(self.edit_user_role)
-
-            if self.edit_user_organization:
-                payload["organization"] = int(self.edit_user_organization)
-            else:
-                payload["organization"] = None
-
-            if self.edit_user_budget.strip():
-                try:
-                    payload["budget"] = float(self.edit_user_budget)
-                except ValueError:
-                    yield rx.toast.warning("Budget must be a number", position="bottom-right")
-                    self.edit_user_loading = False
-                    yield
-                    return
-            else:
-                payload["budget"] = None
-
-            if self.edit_user_expires.strip():
-                try:
-                    # Convert date string (YYYY-MM-DD) to timestamp
-                    date_obj = datetime.datetime.strptime(self.edit_user_expires.strip(), "%Y-%m-%d")
-                    # Set time to end of day (23:59:59)
-                    date_obj = date_obj.replace(hour=23, minute=59, second=59)
-                    expires_timestamp = int(date_obj.timestamp())
-                    payload["expires"] = expires_timestamp
-                except ValueError:
-                    yield rx.toast.warning("Invalid date format", position="bottom-right")
-                    self.edit_user_loading = False
-                    yield
-                    return
-            else:
-                payload["expires"] = None
-
-            if self.edit_user_priority.strip():
-                try:
-                    payload["priority"] = int(self.edit_user_priority)
-                except ValueError:
-                    yield rx.toast.warning("Priority must be a number", position="bottom-right")
-                    self.edit_user_loading = False
-                    yield
-                    return
-
-            async with httpx.AsyncClient() as client:
-                response = await client.patch(
-                    f"{self.opengatellm_url}/v1/admin/users/{self.user_to_edit}",
-                    json=payload,
-                    headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
-                    timeout=60.0,
-                )
-
-                if response.status_code == 204:
-                    self.user_to_edit = None
-                    yield rx.toast.success("User updated successfully", position="bottom-right")
-                    # Reload users
-                    async for _ in self.load_users():
-                        yield
-                else:
-                    error_detail = response.json().get("detail", "Failed to update user")
-                    if isinstance(error_detail, list) and len(error_detail) > 0:
-                        first_error = error_detail[0]
-                        if isinstance(first_error, dict):
-                            yield rx.toast.error(first_error.get("msg", str(error_detail)), position="bottom-right")
-                        else:
-                            yield rx.toast.error(str(first_error), position="bottom-right")
-                    else:
-                        yield rx.toast.error(str(error_detail), position="bottom-right")
-
-        except Exception as e:
-            yield rx.toast.error(f"Error: {str(e)}", position="bottom-right")
-        finally:
-            self.edit_user_loading = False
+        async for _ in self.load_entities():
             yield
 
     @rx.event
     async def prev_page(self):
-        """Go to previous page of users."""
         if self.page > 1:
             self.page -= 1
             yield
-            async for _ in self.load_users():
+            async for _ in self.load_entities():
                 yield
 
     @rx.event
     async def next_page(self):
-        """Go to next page of users."""
         if self.has_more_page:
             self.page += 1
             yield
-            async for _ in self.load_users():
+            async for _ in self.load_entities():
                 yield
+
+    filter_role_value: str = "0"
+    filter_organization_value: str = "0"
+
+    @rx.event
+    async def set_filter_role(self, value: str):
+        self.filter_role_value = value
+        self.page = 1
+        self.has_more_page = False
+        yield
+        async for _ in self.load_entities():
+            yield
+
+    @rx.event
+    async def set_filter_organization(self, value: str):
+        self.filter_organization_value = value
+        self.page = 1
+        self.has_more_page = False
+        yield
+        async for _ in self.load_entities():
+            yield

@@ -107,33 +107,31 @@ class ProvidersState(EntityState):
                 self.entities = []
                 for provider in data.get("data", []):
                     if provider["user_id"] not in self.provider_owners:
-                        async with httpx.AsyncClient() as client:
-                            response = await client.get(
-                                url=f"{self.opengatellm_url}/v1/admin/users/{provider["user_id"]}",
-                                headers={"Authorization": f"Bearer {self.api_key}"},
-                                timeout=60.0,
-                            )
-                            if response.status_code == 404:
-                                self.provider_owners[provider["user_id"]] = "Master"
-                            elif response.status_code == 200:
-                                data = response.json()
-                                self.provider_owners[provider["user_id"]] = data.get("email", "Unknown")
-                            else:
-                                self.provider_owners[provider["user_id"]] = "Unknown"
+                        response = await client.get(
+                            url=f"{self.opengatellm_url}/v1/admin/users/{provider["user_id"]}",
+                            headers={"Authorization": f"Bearer {self.api_key}"},
+                            timeout=60.0,
+                        )
+                        if response.status_code == 404:
+                            self.provider_owners[provider["user_id"]] = "Master"
+                        elif response.status_code == 200:
+                            data = response.json()
+                            self.provider_owners[provider["user_id"]] = data.get("email", "Unknown")
+                        else:
+                            self.provider_owners[provider["user_id"]] = "Unknown"
 
                     if provider["router_id"] not in self.routers_dict.values():
-                        async with httpx.AsyncClient() as client:
-                            response = await client.get(
-                                url=f"{self.opengatellm_url}/v1/admin/routers/{provider["router_id"]}",
-                                headers={"Authorization": f"Bearer {self.api_key}"},
-                                timeout=60.0,
-                            )
+                        response = await client.get(
+                            url=f"{self.opengatellm_url}/v1/admin/routers/{provider["router_id"]}",
+                            headers={"Authorization": f"Bearer {self.api_key}"},
+                            timeout=60.0,
+                        )
 
-                            if response.status_code == 200:
-                                data = response.json()
-                                self.routers_dict[data["name"]] = provider["router_id"]
-                            else:
-                                self.routers_dict["Unknown"] = provider["router_id"]
+                        if response.status_code == 200:
+                            data = response.json()
+                            self.routers_dict[data["name"]] = provider["router_id"]
+                        else:
+                            self.routers_dict["Unknown"] = provider["router_id"]
 
                     self.routers_list = [{"id": router_id, "name": router_name} for router_name, router_id in self.routers_dict.items()]  # fmt: off
 
@@ -231,12 +229,12 @@ class ProvidersState(EntityState):
     entity_to_create: Provider = Provider()
 
     @rx.event
-    def set_new_entity_attribut(self, attribute: str, value: str | None):
+    def set_new_entity_attribut(self, attribute: str, value: str | bool | None):
         """Set new entity attributes."""
-        if value is None:
-            setattr(self.entity_to_create, attribute, None)
-        else:
+        if isinstance(value, str):
             setattr(self.entity_to_create, attribute, value.strip())
+        else:
+            setattr(self.entity_to_create, attribute, value)
 
     @rx.event
     async def create_entity(self):

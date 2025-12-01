@@ -432,6 +432,7 @@ class RolesState(EntityState):
     # Pagination & filters
     ############################################################
     per_page: int = 5
+    order_by_options: list[str] = ["id", "name", "created", "updated"]
 
     @rx.event
     async def set_order_by(self, value: str):

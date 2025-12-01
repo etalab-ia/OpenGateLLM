@@ -1,11 +1,13 @@
 import reflex as rx
 
 from app.core.variables import PADDING_PAGE, SPACING_XL
-from app.features.users.components import user_create_form, users_header, users_list
+from app.features.users.components.forms import user_create_form
+from app.features.users.components.headers import users_header
+from app.features.users.components.lists import users_list
 
 
 def users_page() -> rx.Component:
-    """Users management page with admin permission check."""
+    """Users management page."""
     return rx.box(
         rx.scroll_area(
             rx.vstack(

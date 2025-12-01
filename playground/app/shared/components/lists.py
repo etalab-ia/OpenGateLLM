@@ -155,7 +155,7 @@ def entity_list(
                         ),
                         rx.center(
                             rx.vstack(
-                                rx.icon("build", size=ICON_SIZE_EMPTY_STATE, color=rx.color("mauve", 8)),
+                                rx.icon("traffic-cone", size=ICON_SIZE_EMPTY_STATE, color=rx.color("mauve", 8)),
                                 rx.text(
                                     no_entities_message,
                                     size=TEXT_SIZE_LARGE,
