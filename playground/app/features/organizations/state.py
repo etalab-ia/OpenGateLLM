@@ -65,9 +65,6 @@ class OrganizationsState(EntityState):
             self.has_more_page = len(self.entities) == self.per_page
 
         except Exception as e:
-            import traceback
-
-            print(traceback.format_exc())
             yield rx.toast.error(f"Error loading organizations: {str(e)}", position="bottom-right")
         finally:
             self.entities_loading = False

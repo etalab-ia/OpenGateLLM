@@ -2,16 +2,9 @@
 
 import reflex as rx
 
-from app.core.variables import (
-    ICON_SIZE_MEDIUM,
-    ICON_SIZE_XL,
-    MAX_DIALOG_WIDTH,
-    SIZE_MEDIUM,
-    SPACING_LARGE,
-    SPACING_SMALL,
-    TEXT_SIZE_LABEL,
-)
+from app.core.variables import ICON_SIZE_MEDIUM, ICON_SIZE_XL, MAX_DIALOG_WIDTH, SIZE_MEDIUM, SPACING_LARGE, SPACING_SMALL, TEXT_SIZE_LABEL
 from app.features.keys.state import KeysState
+from app.shared.components.dialogs import entity_delete_dialog
 
 
 def keys_created_dialog() -> rx.Component:
@@ -65,4 +58,12 @@ def keys_created_dialog() -> rx.Component:
         ),
         open=KeysState.is_created_dialog_open,
         on_open_change=KeysState.handle_created_dialog_change,
+    )
+
+
+def keys_delete_dialog() -> rx.Component:
+    return entity_delete_dialog(
+        state=KeysState,
+        title="Delete key",
+        description="Are you sure you want to delete this key? This action cannot be undone.",
     )

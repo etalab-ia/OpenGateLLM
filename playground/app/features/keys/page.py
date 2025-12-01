@@ -1,19 +1,14 @@
-"""Keys page composition."""
-
 import reflex as rx
 
 from app.core.variables import PADDING_PAGE, SPACING_XL
-from app.features.keys.components import (
-    keys_create_form,
-    keys_created_dialog,
-    keys_delete_dialog,
-    keys_header,
-    keys_list,
-)
+from app.features.keys.components.dialogs import keys_created_dialog
+from app.features.keys.components.forms import keys_create_form
+from app.features.keys.components.headers import keys_header
+from app.features.keys.components.lists import keys_list
 
 
 def keys_page() -> rx.Component:
-    """API Keys management page."""
+    """Roles management page."""
     return rx.box(
         rx.scroll_area(
             rx.vstack(
@@ -27,7 +22,6 @@ def keys_page() -> rx.Component:
             height="100%",
         ),
         keys_created_dialog(),
-        keys_delete_dialog(),
         flex="1",
         width="100%",
         height="100vh",

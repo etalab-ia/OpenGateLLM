@@ -137,7 +137,7 @@ app = rx.App(
 # Add pages
 app.add_page(component=index, route="/")
 app.add_page(component=account, route="/account")
-app.add_page(component=keys, route="/keys", on_load=[KeysState.load_keys])
+app.add_page(component=keys, route="/keys", on_load=[KeysState.load_entities])
 app.add_page(component=usage, route="/usage", on_load=[UsageState.load_usage])
 app.add_page(component=roles, route="/roles", on_load=[RolesState.load_entities])
 app.add_page(component=users, route="/users", on_load=[UsersState.load_entities])

@@ -3,9 +3,9 @@
 import reflex as rx
 
 from app.features.chat.components.headers import chat_header
-from app.features.chat.components.input_bar import chat_input_bar
-from app.features.chat.components.sidebar import chat_params_sidebar
-from app.features.chat.components.window import chat_window
+from app.features.chat.components.input_bars import chat_input_bar
+from app.features.chat.components.sidebars import chat_params_sidebar
+from app.features.chat.components.windows import chat_window
 
 
 def chat_page_content() -> rx.Component:
