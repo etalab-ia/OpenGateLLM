@@ -131,7 +131,7 @@ app = rx.App(
         radius=configuration.settings.playground_theme_radius,
         scaling=configuration.settings.playground_theme_scaling,
     ),
-    head_components=[rx.el.link(rel="icon", type="image/x-icon", href="/favicon.ico")],
+    head_components=[rx.el.link(rel="icon", type="image/svg+xml", href="/favicon.svg")],
 )
 
 # Add pages

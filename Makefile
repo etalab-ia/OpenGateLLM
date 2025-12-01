@@ -47,7 +47,7 @@ help:
 	@bash -c 'set -a; . $(env); \
 	trap "trap - SIGTERM && kill -- -$$$$" SIGINT SIGTERM EXIT; \
 	python -m alembic -c api/alembic.ini upgrade head \
-	&& uvicorn api.main:app --host 0.0.0.0 --port 8000 --log-level debug & \
+	&& uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug & \
 	sleep 10; \
 	open http://localhost:8000/docs 2>/dev/null || xdg-open http://localhost:8000/docs 2>/dev/null || true; \
 	wait'

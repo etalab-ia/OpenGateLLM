@@ -106,9 +106,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          build-args: |
-            CONFIG_FILE=.github/workflows/assets/playground.config.yml
-            FAVICON=.github/workflows/assets/favicon.ico
           file: ./playground/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
@@ -154,9 +151,9 @@ jobs:
           build-args: |
             REFLEX_BACKEND_URL=${{ matrix.url }}
             REFLEX_FRONTEND_URL=${{ matrix.url }}
-            CONFIG_FILE=.github/workflows/assets/playground.config.yml
-            FAVICON=.github/workflows/assets/favicon.ico
-            LOGO=.github/workflows/assets/logo.svg
+            CONFIG_FILE=.github/assets/playground.config.yml
+            FAVICON=.github/assets/logo.svg
+            LOGO=.github/assets/logo.svg
           file: ./playground/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true

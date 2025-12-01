@@ -15,14 +15,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 ARG CONFIG_FILE=config.example.yml \
     LOGO=./playground/assets/logo.svg \
-    FAVICON=./playground/assets/favicon.ico \
+    FAVICON=./playground/assets/logo.svg \
     REFLEX_BACKEND_URL=http://localhost:8501 \
     REFLEX_FRONTEND_URL=http://localhost:8501 \
     REFLEX_FRONTEND_PATH=''
 
 COPY $CONFIG_FILE ./config.yml
 COPY ./playground/ .
-COPY $FAVICON ./assets/favicon.ico
+COPY $FAVICON ./assets/favicon.svg
 COPY $LOGO ./assets/logo.svg
 
 ENV CONFIG_FILE=config.yml 

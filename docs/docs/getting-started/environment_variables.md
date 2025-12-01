@@ -20,12 +20,12 @@ For adapt the playground docker image for your deployment, you can build it with
 | REFLEX_BACKEND_URL | str | `"http://localhost:8500"` | URL of the backend API. |
 | REFLEX_FRONTEND_URL | str | `"http://localhost:8501"` | URL of the frontend application. |
 | REFLEX_FRONTEND_PATH | str | `""` | Path of the frontend application. |
-| FAVICON | str | `"./playground/assets/favicon.ico"` | Path to your favicon file. |
+| FAVICON | str | `"./playground/assets/logo.svg"` | Path to your favicon file. |
 
 Example: 
 ```bash
  docker build --build-arg \
  CONFIG_FILE=config.yml \
- FAVICON=./playground/assets/favicon.ico \
+ FAVICON=./playground/assets/logo.svg \
  --file playground/Dockerfile --tag playground:latest .
 ```
