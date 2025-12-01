@@ -196,7 +196,7 @@ class UsersState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error deleting role: {str(e)}", position="bottom-right")
+            yield rx.toast.error(f"Error deleting user: {str(e)}", position="bottom-right")
         finally:
             self.delete_entity_loading = False
             yield
@@ -281,14 +281,6 @@ class UsersState(EntityState):
     # Entity settings
     ############################################################
     entity: User = User()
-
-    @rx.event
-    def set_entity_settings_by_id(self, entity_id: str):
-        """Set entity settings."""
-        if entity_id:
-            self.entity = next((user for user in self.entities if user.id == int(entity_id)), User())
-        else:
-            self.entity = User()
 
     @rx.event
     def set_entity_settings(self, entity: User):

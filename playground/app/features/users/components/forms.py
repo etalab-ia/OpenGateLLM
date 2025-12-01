@@ -42,6 +42,7 @@ def user_settings_form_fields() -> rx.Component:
         entity_form_select_field(
             label="Organization",
             items=UsersState.organizations_name_list,
+            value=UsersState.entity.organization,
             on_change=lambda value: UsersState.set_edit_entity_attribut("organization", value),
             placeholder="No organization",
         ),

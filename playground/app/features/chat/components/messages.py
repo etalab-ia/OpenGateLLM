@@ -6,7 +6,7 @@ from reflex.constants.colors import ColorType
 from app.features.chat.models import QA
 
 
-def message_content(text: str, color: ColorType) -> rx.Component:
+def chat_message_content(text: str, color: ColorType) -> rx.Component:
     """Create a message content component.
 
     Args:
@@ -28,7 +28,7 @@ def message_content(text: str, color: ColorType) -> rx.Component:
     )
 
 
-def message(qa: QA) -> rx.Component:
+def chat_message(qa: QA) -> rx.Component:
     """A single question/answer message.
 
     Args:
@@ -39,12 +39,12 @@ def message(qa: QA) -> rx.Component:
     """
     return rx.box(
         rx.box(
-            message_content(qa["question"], "mauve"),
+            chat_message_content(qa["question"], "mauve"),
             text_align="right",
             margin_bottom="8px",
         ),
         rx.box(
-            message_content(qa["answer"], "accent"),
+            chat_message_content(qa["answer"], "accent"),
             text_align="left",
             margin_bottom="8px",
         ),

@@ -16,6 +16,6 @@ def role_settings_dialog() -> rx.Component:
 def role_delete_dialog() -> rx.Component:
     return entity_delete_dialog(
         state=RolesState,
-        title="Delete Role",
+        title="Delete role",
         description="Are you sure you want to delete this role? This action cannot be undone.",
     )

@@ -38,15 +38,7 @@ def account() -> rx.Component:
         rx.cond(
             ~AuthState.is_master,
             account_page(),
-            rx.center(
-                rx.vstack(
-                    rx.icon("shield-alert", size=64, color=rx.color("red", 9)),
-                    rx.heading("Access Denied", size="8"),
-                    rx.text("Master user cannot access this page.", size="4"),
-                    spacing="4",
-                ),
-                height="100vh",
-            ),
+            access_denied_page(message="Master user cannot access this page."),
         )
     )
 
@@ -57,15 +49,7 @@ def keys() -> rx.Component:
         rx.cond(
             ~AuthState.is_master,
             keys_page(),
-            rx.center(
-                rx.vstack(
-                    rx.icon("shield-alert", size=64, color=rx.color("red", 9)),
-                    rx.heading("Access Denied", size="8"),
-                    rx.text("Master user cannot access this page.", size="4"),
-                    spacing="4",
-                ),
-                height="100vh",
-            ),
+            access_denied_page(message="Master user cannot access this page."),
         )
     )
 
@@ -76,15 +60,7 @@ def usage() -> rx.Component:
         rx.cond(
             ~AuthState.is_master,
             usage_page(),
-            rx.center(
-                rx.vstack(
-                    rx.icon("shield-alert", size=64, color=rx.color("red", 9)),
-                    rx.heading("Access Denied", size="8"),
-                    rx.text("Master user cannot access this page.", size="4"),
-                    spacing="4",
-                ),
-                height="100vh",
-            ),
+            access_denied_page(message="Master user cannot access this page."),
         )
     )
 
@@ -95,15 +71,7 @@ def roles() -> rx.Component:
         rx.cond(
             AuthState.is_admin,
             roles_page(),
-            rx.center(
-                rx.vstack(
-                    rx.icon("shield-alert", size=64, color=rx.color("red", 9)),
-                    rx.heading("Access Denied", size="8"),
-                    rx.text("You need admin permissions to access this page.", size="4"),
-                    spacing="4",
-                ),
-                height="100vh",
-            ),
+            access_denied_page(message="You need admin permissions to access this page."),
         )
     )
 
@@ -114,15 +82,7 @@ def users() -> rx.Component:
         rx.cond(
             AuthState.is_admin,
             users_page(),
-            rx.center(
-                rx.vstack(
-                    rx.icon("shield-alert", size=64, color=rx.color("red", 9)),
-                    rx.heading("Access Denied", size="8"),
-                    rx.text("You need admin permissions to access this page.", size="4"),
-                    spacing="4",
-                ),
-                height="100vh",
-            ),
+            access_denied_page(message="You need admin permissions to access this page."),
         )
     )
 
@@ -133,15 +93,7 @@ def organizations() -> rx.Component:
         rx.cond(
             AuthState.is_admin,
             organizations_page(),
-            rx.center(
-                rx.vstack(
-                    rx.icon("shield-alert", size=64, color=rx.color("red", 9)),
-                    rx.heading("Access Denied", size="8"),
-                    rx.text("You need admin permissions to access this page.", size="4"),
-                    spacing="4",
-                ),
-                height="100vh",
-            ),
+            access_denied_page(message="You need admin permissions to access this page."),
         )
     )
 
@@ -152,15 +104,7 @@ def routers() -> rx.Component:
         rx.cond(
             AuthState.is_admin,
             routers_page(),
-            rx.center(
-                rx.vstack(
-                    rx.icon("shield-alert", size=64, color=rx.color("red", 9)),
-                    rx.heading("Access Denied", size="8"),
-                    rx.text("You need admin permissions to access this page.", size="4"),
-                    spacing="4",
-                ),
-                height="100vh",
-            ),
+            access_denied_page(message="You need admin permissions to access this page."),
         )
     )
 
@@ -191,12 +135,12 @@ app = rx.App(
 )
 
 # Add pages
-app.add_page(index, route="/")
-app.add_page(account, route="/account")
-app.add_page(keys, route="/keys", on_load=KeysState.load_keys)
-app.add_page(usage, route="/usage", on_load=[UsageState.load_usage])
-app.add_page(roles, route="/roles", on_load=[RolesState.load_entities])
-app.add_page(users, route="/users", on_load=[UsersState.load_entities])
-app.add_page(organizations, route="/organizations", on_load=OrganizationsState.load_organizations)
-app.add_page(routers, route="/routers", on_load=RoutersState.load_entities)
-app.add_page(providers, route="/providers", on_load=[ProvidersState.load_entities])
+app.add_page(component=index, route="/")
+app.add_page(component=account, route="/account")
+app.add_page(component=keys, route="/keys", on_load=[KeysState.load_keys])
+app.add_page(component=usage, route="/usage", on_load=[UsageState.load_usage])
+app.add_page(component=roles, route="/roles", on_load=[RolesState.load_entities])
+app.add_page(component=users, route="/users", on_load=[UsersState.load_entities])
+app.add_page(component=organizations, route="/organizations", on_load=[OrganizationsState.load_entities])
+app.add_page(component=routers, route="/routers", on_load=[RoutersState.load_entities])
+app.add_page(component=providers, route="/providers", on_load=[ProvidersState.load_entities])

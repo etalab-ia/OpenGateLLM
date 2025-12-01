@@ -35,7 +35,7 @@ def nav_item(label: str, icon: str, page: str) -> rx.Component:
     )
 
 
-def sidebar() -> rx.Component:
+def navigation_sidebar() -> rx.Component:
     """Left navigation sidebar."""
     return rx.box(
         rx.vstack(

@@ -1,7 +1,7 @@
-from pydantic import BaseModel
+from app.shared.models.entities import Entity
 
 
-class User(BaseModel):
+class User(Entity):
     """User model."""
 
     id: int | None = None

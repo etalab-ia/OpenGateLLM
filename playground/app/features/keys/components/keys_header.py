@@ -9,7 +9,7 @@ from app.features.keys.state import KeysState
 def keys_header() -> rx.Component:
     """Header with title and refresh button."""
     return rx.hstack(
-        rx.heading("API Keys", size="8"),
+        rx.heading("API keys", size="8"),
         rx.button(
             rx.icon("refresh-cw", size=ICON_SIZE_MEDIUM),
             "Refresh",

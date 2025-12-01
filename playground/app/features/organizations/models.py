@@ -1,23 +1,11 @@
-"""Organization models."""
-
-from pydantic import BaseModel
+from app.shared.models.entities import Entity
 
 
-class Organization(BaseModel):
-    """Organization model matching API schema."""
+class Organization(Entity):
+    """Organization model."""
 
-    id: int
-    name: str
-    users: int
-    created: int
-    updated: int
-
-
-class FormattedOrganization(BaseModel):
-    """Organization with formatted dates for display."""
-
-    id: int
-    name: str
-    users: int
-    created: str
-    updated: str
+    id: int | None = None
+    name: str | None = None
+    users: int | None = None
+    created: str | None = None
+    updated: str | None = None

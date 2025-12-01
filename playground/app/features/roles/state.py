@@ -336,14 +336,6 @@ class RolesState(EntityState):
     entity: Role = Role()
 
     @rx.event
-    def set_entity_settings_by_id(self, entity_id: str):
-        """Set entity settings."""
-        if entity_id:
-            self.entity = next((role for role in self.entities if role.id == int(entity_id)), Role())
-        else:
-            self.entity = Role()
-
-    @rx.event
     def set_entity_settings(self, entity: Role):
         """Set entity settings."""
         self.entity = entity

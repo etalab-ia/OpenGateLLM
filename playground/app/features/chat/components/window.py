@@ -2,16 +2,16 @@
 
 import reflex as rx
 
-from app.features.chat.components.message import message
+from app.features.chat.components.messages import chat_message
 from app.features.chat.state import ChatState
 
 
-def chat() -> rx.Component:
+def chat_window() -> rx.Component:
     """List all the messages in a single conversation."""
     return rx.auto_scroll(
         rx.cond(
             ChatState.messages.length() > 0,
-            rx.foreach(ChatState.messages, message),
+            rx.foreach(ChatState.messages, chat_message),
             rx.center(
                 rx.vstack(
                     rx.icon("message-square", size=48, color=rx.color("mauve", 8)),
