@@ -34,7 +34,7 @@ jobs:
 #
 #      - name: Create CNAME file
 #        working-directory: ./docs/build
-#        run: echo "docs.opengatellm.etalab.gouv.fr" > CNAME
+#        run: echo "docs.opengatellm.org" > CNAME
 #
 #      - name: Deploy to GitHub Pages
 #        uses: peaceiris/actions-gh-pages@v3
