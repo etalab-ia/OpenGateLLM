@@ -131,6 +131,11 @@ class OrganizationNotFoundException(HTTPException):
         super().__init__(status_code=404, detail=detail)
 
 
+class PasswordNotFoundException(HTTPException):
+    def __init__(self, detail: str = "Password not set, please contact an administrator."):
+        super().__init__(status_code=404, detail=detail)
+
+
 # 409
 class RoleAlreadyExistsException(HTTPException):
     def __init__(self, detail: str = "Role already exists."):

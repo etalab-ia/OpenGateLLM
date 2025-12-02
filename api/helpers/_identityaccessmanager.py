@@ -28,6 +28,7 @@ from api.utils.exceptions import (
     InvalidCurrentPasswordException,
     InvalidTokenExpirationException,
     OrganizationNotFoundException,
+    PasswordNotFoundException,
     ReservedEmailException,
     RoleAlreadyExistsException,
     RoleNotFoundException,
@@ -767,6 +768,9 @@ class IdentityAccessManager:
         user = await self.get_user_info(postgres_session=postgres_session, email=email)  # raise UserNotFoundException (404) if user not found
         result = await postgres_session.execute(statement=select(UserTable.password).where(UserTable.id == user.id))
         user_password = result.scalar_one()
+
+        if not user_password:
+            raise PasswordNotFoundException()
 
         if not self._check_password(password=password, hashed_password=user_password):
             raise InvalidCurrentPasswordException()
