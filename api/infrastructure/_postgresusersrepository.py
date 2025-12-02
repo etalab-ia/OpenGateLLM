@@ -1,6 +1,6 @@
 from typing import Literal
 
-from sqlalchemy import Integer, cast, func, select, text
+from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.user import UserRepository
@@ -24,6 +24,23 @@ class PostgresUserRepository(UserRepository):
         order_by: Literal["id", "email", "created", "updated"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[User]:
+        # Mapping sécurisé des colonnes pour éviter l'injection SQL
+        order_by_columns = {
+            "id": UserTable.id,
+            "email": UserTable.email,
+            "created": UserTable.created,
+            "updated": UserTable.updated,
+        }
+
+        # Validation et récupération de la colonne (avec valeur par défaut sécurisée)
+        column = order_by_columns.get(order_by, UserTable.id)
+
+        # Validation de la direction (avec valeur par défaut sécurisée)
+        direction = order_direction if order_direction in {"asc", "desc"} else "asc"
+
+        # Application de l'ordre de tri de manière sécurisée
+        order_clause = column.asc() if direction == "asc" else column.desc()
+
         statement = (
             select(
                 UserTable.id,
@@ -35,13 +52,13 @@ class PostgresUserRepository(UserRepository):
                 cast(func.extract("epoch", UserTable.expires), Integer).label("expires"),
                 cast(func.extract("epoch", UserTable.created), Integer).label("created"),
                 cast(func.extract("epoch", UserTable.updated), Integer).label("updated"),
-                UserTable.email,
                 UserTable.sub,
+                UserTable.iss,
                 UserTable.priority,
             )
             .offset(offset=offset)
             .limit(limit=limit)
-            .order_by(text(f"{order_by} {order_direction}"))
+            .order_by(order_clause)
         )
         if email is not None:
             statement = statement.where(UserTable.email == email)
