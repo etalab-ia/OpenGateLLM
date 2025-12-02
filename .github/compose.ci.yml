@@ -5,7 +5,6 @@ services:
     build:
       context: ..
       dockerfile: api/Dockerfile
-      target: worker
       args:
         BUILD_TARGET: worker
     volumes:

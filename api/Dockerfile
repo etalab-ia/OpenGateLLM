@@ -26,7 +26,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install ".[${BUILD_TARGET}]"
 
 # Runtime stage
-FROM python:3.12-slim as runtime
+FROM python:3.12-slim AS runtime
 
 RUN groupadd --gid 1100 opengatellm && \
     useradd --home /api --gid 1100 --uid 1100 opengatellm
@@ -47,16 +47,12 @@ COPY --from=builder --chown=opengatellm:opengatellm /.venv /.venv
 COPY --chown=opengatellm:opengatellm ./scripts/ /scripts
 
 ENV PATH="/.venv/bin:${PATH}"
-ENV PYTHONPATH="/api:${PYTHONPATH}"
+ENV PYTHONPATH="/api"
 
-# Final stages: worker and api (depend --target)
-FROM runtime as worker
-ARG BUILD_TARGET=worker
+# Final stage: uses BUILD_TARGET to select script and command
+FROM runtime AS final
+ARG BUILD_TARGET=api
+ENV BUILD_TARGET=${BUILD_TARGET}
 
-RUN chmod u+x /scripts/startup_worker.sh
-CMD ["/scripts/startup_worker.sh"]
-
-FROM runtime as api
-
-RUN chmod u+x /scripts/startup_api.sh
-CMD ["/scripts/startup_api.sh"]
+RUN chmod u+x /scripts/startup_worker.sh /scripts/startup_api.sh
+CMD ["/bin/bash", "-c", "/scripts/startup_${BUILD_TARGET}.sh"]

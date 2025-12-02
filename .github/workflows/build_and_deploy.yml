@@ -41,7 +41,7 @@ jobs:
         with:
           context: .
           file: ./api/Dockerfile
-          target: api
+          build-args: BUILD_TARGET=api
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ env.API_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
@@ -73,7 +73,7 @@ jobs:
         with:
           context: .
           file: ./api/Dockerfile
-          target: worker
+          build-args: BUILD_TARGET=worker
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ env.WORKER_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
