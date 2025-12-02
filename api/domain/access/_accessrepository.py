@@ -37,7 +37,6 @@ class AccessRepository:
     ) -> User:
         user_info, key_id, key_name = await self._check_api_key(request=request, api_key=api_key, postgres_session=postgres_session)
         await self._check_permissions(permissions=user_info.permissions)
-        body = await self._safely_parse_body(request)
 
         # add authenticated user to request state for logging usages
         context = request_context.get()
