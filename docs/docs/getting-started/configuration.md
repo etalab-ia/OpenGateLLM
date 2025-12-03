@@ -344,6 +344,7 @@ For Plagroud deployment, some environment variables are required to be set, like
 | app_title | string | The title of the application. |  | OpenGateLLM |  |  |
 | auth_key_max_expiration_days | integer | Maximum number of days for a token to be valid. |  | None |  |  |
 | playground_default_model | string | The first model selected in chat page. |  | None |  |  |
+| playground_opengatellm_timeout | integer | The timeout in seconds for the OpenGateLLM API. |  | 60 |  |  |
 | playground_opengatellm_url | string | The URL of the OpenGateLLM API. |  | http://localhost:8000 |  |  |
 | playground_theme_accent_color | string | The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors. |  | purple |  |  |
 | playground_theme_appearance | string | The appearance of the theme. |  | light |  |  |
