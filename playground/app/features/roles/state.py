@@ -28,6 +28,7 @@ class RolesState(EntityState):
         permissions_provide_models = True if "provide_models" in role["permissions"] else False
 
         limits_dict = defaultdict(lambda: {"rpm": None, "rpd": None, "tpm": None, "tpd": None})
+
         for limit in role["limits"]:
             router_name = router_dict_reverse[limit["router"]]
             limits_dict[router_name][limit["type"]] = limit["value"]
@@ -80,6 +81,19 @@ class RolesState(EntityState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
+                    f"{self.opengatellm_url}/v1/admin/routers",
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    timeout=configuration.settings.playground_opengatellm_timeout,
+                )
+
+                response.raise_for_status()
+                data = response.json()
+                routers_data = data.get("data", [])
+                self.routers_list = [{"id": router["id"], "name": router["name"]} for router in routers_data]
+                self.routers_dict = {router["name"]: router["id"] for router in routers_data}
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
                     f"{self.opengatellm_url}/v1/admin/roles",
                     params={
                         "offset": (self.page - 1) * self.per_page,
@@ -96,19 +110,6 @@ class RolesState(EntityState):
                 self.entities = []
                 for role in data.get("data", []):
                     self.entities.append(self._format_role(role))
-
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.opengatellm_url}/v1/admin/routers",
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
-                )
-
-                response.raise_for_status()
-                data = response.json()
-                routers_data = data.get("data", [])
-                self.routers_list = [{"id": router["id"], "name": router["name"]} for router in routers_data]
-                self.routers_dict = {router["name"]: router["id"] for router in routers_data}
 
             self.has_more_page = len(self.entities) == self.per_page
 

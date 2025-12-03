@@ -13,5 +13,5 @@ def httpx_error_toast(exception: Exception, response: Response | None = None) ->
         except Exception:
             message = response.text
     else:
-        message = str(exception)
+        message = type(exception).__name__ + ": " + str(exception)
     return rx.toast.error(message=message, position="bottom-right")
