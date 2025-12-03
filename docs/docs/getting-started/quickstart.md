@@ -51,9 +51,20 @@ You can create a non-admin user with the following command:
 ```bash
 make create-user
 ```
-
-The default created user will be `me` and its password `changeme`. The script create a role with `admin` permissions and no limits on all models. You
+The default created user will be `my-first-user` and its password `changeme`. The script create a role with `admin` permissions and no limits on all models. You
 can edit the role and limits after creation by using the API or the Playground UI (see [Roles and permissions](../../functionalities/iam/roles-permissions-rate-limitings.md)).
+
+```bash
+>>> Role:              my-first-role
+>>> Role permissions:  admin
+>>> Role limits:       
+>>>                    albert-testbed → unlimited
+>>> 
+>>> Email:             my-first-user
+>>> Password:          changeme
+
+>>> API key:           sk-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo0LCJ0b2tlbl9pZCI6MzQsImV4cGlyZXMiOjE3NjU2MDk5NDZ9.f8kLnrWnyUvGvWvWHMH4UoOowtLkAbCgs09keQb2DfU
+```
 
 :::warning
 If you add a new model, you will need to create a new role with the appropriate permissions and limits or update the existing role with the appropriate limits.

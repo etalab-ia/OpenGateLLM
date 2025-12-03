@@ -32,11 +32,11 @@ jobs:
 
       - name: Generate documentation
         run: |
-          PYTHONPATH=. python ./scripts/docs/generate_configuration_documentation.py --output ./docs/docs/getting-started/configuration.md
+          PYTHONPATH=. python ./scripts/docs/generate_configuration_documentation.py --output ./docs/docs/getting-started/configuration_file.md
           PYTHONPATH=. python ./scripts/docs/convert_notebooks_to_docs.py --input ./docs/tutorials --output ./docs/docs/guides
 
       - name: Commit documentation
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: Update docs
-          file_pattern: ./docs/docs/getting-started/configuration.md ./docs/docs/guides/*.md
+          file_pattern: ./docs/docs/getting-started/configuration_file.md ./docs/docs/guides/*.md

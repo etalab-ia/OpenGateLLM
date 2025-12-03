@@ -26,7 +26,7 @@ const sidebars: SidebarsConfig = {
       label: 'Getting started',
       items: [
         'getting-started/quickstart',
-        'getting-started/configuration',
+        'getting-started/configuration_file',
         'getting-started/environment_variables',
       ],
     },
