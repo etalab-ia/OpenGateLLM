@@ -1,4 +1,4 @@
-# Configuration file
+# Configuration
 
 OpenGateLLM requires configuring a configuration file. This defines models, dependencies, and settings parameters. Playground and API need a configuration file (could be the same file), see [API configuration](#api-configuration) and [Playground configuration](#playground-configuration).
 
@@ -66,7 +66,7 @@ dependencies:
       command_timeout: 60
 
   redis: # required
-    url: redis://${REDIS_USER:-redis}:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
+    url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
 
   # elasticsearch:
   #   number_of_shards: 1
