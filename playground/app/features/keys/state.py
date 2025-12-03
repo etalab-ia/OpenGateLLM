@@ -5,6 +5,7 @@ import reflex as rx
 
 from app.core.configuration import configuration
 from app.features.keys.models import Key
+from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
 
 
@@ -48,13 +49,14 @@ class KeysState(EntityState):
             "order_direction": self.order_direction_value,
         }
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     url=f"{self.opengatellm_url}/v1/me/keys",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
 
                 response.raise_for_status()
@@ -66,7 +68,7 @@ class KeysState(EntityState):
 
             self.has_more_page = len(self.entities) == self.per_page
         except Exception as e:
-            yield rx.toast.error(f"Error loading keys: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.entities_loading = False
             yield
@@ -97,12 +99,13 @@ class KeysState(EntityState):
         self.delete_entity_loading = True
         yield
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
                     url=f"{self.opengatellm_url}/v1/me/keys/{self.entity_to_delete.id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -112,7 +115,7 @@ class KeysState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error deleting key: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.delete_entity_loading = False
             yield
@@ -172,13 +175,14 @@ class KeysState(EntityState):
             expires = dt.datetime.strptime(self.entity_to_create.expires, "%Y-%m-%d").timestamp()
             payload["expires"] = expires
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     url=f"{self.opengatellm_url}/v1/me/keys",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -192,7 +196,7 @@ class KeysState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error creating key: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.create_entity_loading = False
             yield
