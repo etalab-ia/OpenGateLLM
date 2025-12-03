@@ -76,7 +76,7 @@ Legend: *✅ supported* — *❌ not supported* — *🚧 work in progress* — 
 
 ### 🚀 Quickstart
 ***
-Deploy and start using OpenGateLLM in minutes with our quickstart guide [here](https://docs.opengatellm.etalab.gouv.fr/docs/getting-started/quickstart).
+Deploy and start using OpenGateLLM in minutes with our quickstart guide [here](https://docs.opengatellm.org/docs/getting-started/quickstart).
 
 ### 🤝 Contribute
 ***
