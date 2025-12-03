@@ -66,15 +66,17 @@ class ConfigBaseModel(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#redisdependency")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#redisdependency-1")
 class RedisDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
 
 
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#dependencies-1")
 class Dependencies(ConfigBaseModel):
     redis: RedisDependency | None = Field(default=None, description="Set the Redis connection url to use as stage manager. See https://reflex.dev/docs/api-reference/config/ for more information.")  # fmt: off
 
 
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#settings-1")
 class Settings(ConfigBaseModel):
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
     routing_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in routing tasks.")  # fmt: off

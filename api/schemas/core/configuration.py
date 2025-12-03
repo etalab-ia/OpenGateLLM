@@ -77,7 +77,7 @@ class ConfigBaseModel(BaseModel):
 # models ---------------------------------------------------------------------------------------------------------------------------------------------
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#modelprovider")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#modelprovider")
 class ModelProvider(ConfigBaseModel):
     type: ProviderType = Field(..., description="Model provider type.", examples=["openai"])  # fmt: off
     url: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI).", examples=["https://api.openai.com"])  # fmt: off
@@ -91,7 +91,7 @@ class ModelProvider(ConfigBaseModel):
     qos_limit: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.", examples=[0.5])  # fmt: off
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#model")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#model")
 class Model(ConfigBaseModel):
     """
     In the models section, you define a list of models. Each model is a set of API providers for that model. Users will access the models specified in
@@ -143,14 +143,14 @@ class DependencyType(str, Enum):
     SENTRY = "sentry"
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#albert")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#albert")
 class AlbertDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(default="https://albert.api.etalab.gouv.fr", description="Albert API url.")  # fmt: off
     headers: dict[str, str] = Field(default_factory=dict, description="Albert API request headers.", examples=[{"Authorization": "Bearer my-api-key"}])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Albert API requests.", examples=[10])  # fmt: off
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#celery")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#celery")
 class CeleryDependency(ConfigBaseModel):
     broker_url: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Celery broker url like Redis (redis://) or RabbitMQ (amqp://). If not provided, use redis dependency as broker.")  # fmt: off
     result_backend: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Celery result backend url. If not provided, use redis dependency as result backend.")  # fmt: off
@@ -158,28 +158,28 @@ class CeleryDependency(ConfigBaseModel):
     enable_utc: bool = Field(default=True, description="Enable UTC.", examples=[True])  # fmt: off
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#brave")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#brave")
 class BraveDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(default="https://api.search.brave.com/res/v1/web/search", description="Brave API url.")  # fmt: off
     headers: dict[str, str] = Field(default_factory=dict, required = True, description="Brave API request headers.", examples=[{"X-Subscription-Token": "my-api-key"}])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Brave API requests.", examples=[10])  # fmt: off
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#duckduckgodependency")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#duckduckgodependency")
 class DuckDuckGoDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(default="https://api.duckduckgo.com/", description="DuckDuckGo API url.")  # fmt: off
     headers: dict[str, str] = Field(default_factory=dict, required = False, description="DuckDuckGo API request headers.", examples=[{}])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the DuckDuckGo API requests.", examples=[10])  # fmt: off
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#elasticsearchdependency")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#elasticsearchdependency")
 class ElasticsearchDependency(ConfigBaseModel):
     # All args of pydantic elastic client is allowed
     number_of_shards: int = Field(default=1, ge=1, description="Number of shards for the Elasticsearch index.", examples=[1])  # fmt: off
     number_of_replicas: int = Field(default=1, ge=0, description="Number of replicas for the Elasticsearch index.", examples=[1])  # fmt: off
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#qdrantdependency")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#qdrantdependency")
 class QdrantDependency(ConfigBaseModel):
     @model_validator(mode="after")
     def force_rest(cls, values):
@@ -190,14 +190,14 @@ class QdrantDependency(ConfigBaseModel):
         return values
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#markerdependency")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#markerdependency")
 class MarkerDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(..., description="Marker API url.")  # fmt: off
     headers: dict[str, str] = Field(default_factory=dict, description="Marker API request headers.", examples=[{"Authorization": "Bearer my-api-key"}])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Marker API requests.", examples=[10])  # fmt: off
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#postgresdependency")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#postgresdependency")
 class PostgresDependency(ConfigBaseModel):
     # All args of pydantic postgres client is allowed
     url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^postgresql", description="PostgreSQL connection url.", examples=["postgresql://postgres:changeme@localhost:5432/postgres"])  # fmt: off
@@ -211,13 +211,13 @@ class PostgresDependency(ConfigBaseModel):
         return url
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#sentrydependency")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#sentrydependency")
 class SentryDependency(ConfigBaseModel):
     pass
     # All args of pydantic sentry client is allowed
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#redisdependency")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#redisdependency")
 class RedisDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
 
@@ -327,7 +327,7 @@ class Tokenizer(str, Enum):
     TIKTOKEN_O200K_BASE = "tiktoken_o200k_base"
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#settings")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#settings")
 class Settings(ConfigBaseModel):
     # general
     disabled_routers: list[Routers] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["embeddings"]])  # fmt: off
@@ -402,7 +402,7 @@ class Settings(ConfigBaseModel):
 
 
 # load config ----------------------------------------------------------------------------------------------------------------------------------------
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#all-configuration")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration#all-configuration")
 class ConfigFile(ConfigBaseModel):
     models: list[Model] = Field(min_length=1, description="Models used by the API. At least one model must be defined.")  # fmt: off
     dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the API.")  # fmt: off
