@@ -4,7 +4,9 @@ import httpx
 import pycountry
 import reflex as rx
 
+from app.core.configuration import configuration
 from app.features.providers.models import Provider
+from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
 
 
@@ -14,19 +16,19 @@ class ProvidersState(EntityState):
     @rx.var
     def provider_types_list(self) -> list[str]:
         """Get list of provider types."""
-        return ["Albert", "OpenAI", "TEI", "vLLM"]
+        return sorted(["Albert", "Mistral", "OpenAI", "TEI", "vLLM"])
 
     @rx.var
     def provider_model_carbon_footprint_zones_list(self) -> list[str]:
-        return [country.alpha_3 for country in pycountry.countries] + ["WOR"]
+        return sorted([country.alpha_3 for country in pycountry.countries] + ["WOR"])
 
     @rx.var
     def provider_qos_metric_list(self) -> list[str]:
-        return ["TTFT", "Latency", "Inflight", "Performance"]
+        return sorted(["TTFT", "Latency", "Inflight", "Performance"])
 
     @rx.var
     def routers_name_list(self) -> list[str]:
-        return [router["name"] for router in self.routers_list]
+        return sorted([router["name"] for router in self.routers_list])
 
     ############################################################
     # Load entities
@@ -39,11 +41,14 @@ class ProvidersState(EntityState):
     def _format_provider(self, provider: dict) -> Provider:
         """Format provider."""
 
+        router_dict_reverse = {v: k for k, v in self.routers_dict.items()}
+
         _type_converter = {
-            "vllm": "vLLM",
             "albert": "Albert",
+            "mistral": "Mistral",
             "openai": "OpenAI",
             "tei": "TEI",
+            "vllm": "vLLM",
         }
 
         _qos_metric_converter = {
@@ -53,12 +58,7 @@ class ProvidersState(EntityState):
             "performance": "Performance",
         }
 
-        for router in self.routers_list:
-            if router["id"] == provider["router_id"]:
-                router_name = router["name"]
-                break
-        else:
-            router_name = "Unknown"
+        router_name = router_dict_reverse.get(provider["router_id"], "Unknown")
 
         return Provider(
             id=provider["id"],
@@ -90,16 +90,19 @@ class ProvidersState(EntityState):
 
         self.entities_loading = True
         yield
+
         params = {}
         if self.filter_router_value != "0":
             params["router"] = int(self.filter_router_value)
+
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self.opengatellm_url}/v1/admin/providers",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
 
                 response.raise_for_status()
@@ -110,7 +113,7 @@ class ProvidersState(EntityState):
                         response = await client.get(
                             url=f"{self.opengatellm_url}/v1/admin/users/{provider["user_id"]}",
                             headers={"Authorization": f"Bearer {self.api_key}"},
-                            timeout=60.0,
+                            timeout=configuration.settings.playground_opengatellm_timeout,
                         )
                         if response.status_code == 404:
                             self.provider_owners[provider["user_id"]] = "Master"
@@ -124,7 +127,7 @@ class ProvidersState(EntityState):
                         response = await client.get(
                             url=f"{self.opengatellm_url}/v1/admin/routers/{provider["router_id"]}",
                             headers={"Authorization": f"Bearer {self.api_key}"},
-                            timeout=60.0,
+                            timeout=configuration.settings.playground_opengatellm_timeout,
                         )
 
                         if response.status_code == 200:
@@ -138,7 +141,7 @@ class ProvidersState(EntityState):
                     self.entities.append(self._format_provider(provider))
 
         except Exception as e:
-            yield rx.toast.error(f"Error loading providers: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.entities_loading = False
             yield
@@ -203,12 +206,13 @@ class ProvidersState(EntityState):
         self.delete_entity_loading = True
         yield
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
                     url=f"{self.opengatellm_url}/v1/admin/providers/{self.entity_to_delete.id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -218,7 +222,7 @@ class ProvidersState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error deleting provider: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.delete_entity_loading = False
             yield
@@ -258,7 +262,6 @@ class ProvidersState(EntityState):
 
         if not self.entity_to_create.url:
             yield rx.toast.warning("URL is required", position="bottom-right")
-            return
 
         self.create_entity_loading = True
         yield
@@ -273,17 +276,18 @@ class ProvidersState(EntityState):
             "model_carbon_footprint_zone": self.entity_to_create.model_carbon_footprint_zone,
             "model_carbon_footprint_total_params": self.entity_to_create.model_carbon_footprint_total_params,
             "model_carbon_footprint_active_params": self.entity_to_create.model_carbon_footprint_active_params,
-            "qos_metric": self.entity_to_create.qos_metric.lower(),
+            "qos_metric": self.entity_to_create.qos_metric.lower() if self.entity_to_create.qos_metric else None,
             "qos_limit": self.entity_to_create.qos_limit,
         }
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     url=f"{self.opengatellm_url}/v1/admin/providers",
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     json=payload,
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -292,7 +296,7 @@ class ProvidersState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error creating provider: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.create_entity_loading = False
             yield

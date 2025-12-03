@@ -6,7 +6,9 @@ from typing import Any
 import httpx
 import reflex as rx
 
+from app.core.configuration import configuration
 from app.features.usage.models import Usage
+from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
 
 
@@ -41,6 +43,12 @@ class UsageState(EntityState):
         if not self.is_authenticated or not self.api_key:
             return
 
+        print("--------------------------------")
+        print(configuration.settings.swagger_url)
+        print(configuration.settings.reference_url)
+        print(configuration.settings.documentation_url)
+        print("--------------------------------")
+
         self.entities_loading = True
         yield
 
@@ -56,13 +64,14 @@ class UsageState(EntityState):
         if self.filter_endpoint_value != "All endpoints":
             params["endpoint"] = self.filter_endpoint_value
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     url=f"{self.opengatellm_url}/v1/me/usage",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -71,7 +80,7 @@ class UsageState(EntityState):
             self.has_more_page = len(self.entities) == self.per_page
 
         except Exception as e:
-            yield rx.toast.error(f"Error loading usage: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.entities_loading = False
             yield
@@ -80,21 +89,25 @@ class UsageState(EntityState):
     def usage_rows(self) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
         for row in self.entities:
-            rows.append({
-                "date": row.created,
-                "endpoint": row.endpoint,
-                "key": row.key,
-                "model": row.model,
-                "tokens": "" if row.total_tokens == 0 else f"{row.prompt_tokens} → {row.completion_tokens}",
-                "cost": "" if row.cost == 0.0 or row.cost is None else f"{row.cost:.4f}",
-                "kgCO2eq": "" if row.kgco2eq_min is None or row.kgco2eq_max is None else f"{round(row.kgco2eq_min, 5)} — {round(row.kgco2eq_max, 5)}",
-            })
+            rows.append(
+                {
+                    "date": row.created,
+                    "endpoint": row.endpoint,
+                    "key": row.key,
+                    "model": row.model,
+                    "tokens": "" if row.total_tokens == 0 else f"{row.prompt_tokens} → {row.completion_tokens}",
+                    "cost": "" if row.cost == 0.0 or row.cost is None else f"{row.cost:.4f}",
+                    "kgCO2eq": ""
+                    if row.kgco2eq_min is None or row.kgco2eq_max is None
+                    else f"{round(row.kgco2eq_min, 5)} — {round(row.kgco2eq_max, 5)}",
+                }
+            )
         return rows
 
     ############################################################
     # Pagination & filters
     ############################################################
-    per_page: int = 10
+    per_page: int = 20
 
     @rx.event
     async def prev_page(self):

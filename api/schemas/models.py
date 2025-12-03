@@ -17,6 +17,7 @@ class ModelType(str, Enum):
     TEXT_EMBEDDINGS_INFERENCE = "text-embeddings-inference"
     TEXT_GENERATION = "text-generation"
     TEXT_CLASSIFICATION = "text-classification"
+    IMAGE_TO_TEXT = "image-to-text"
 
 
 class Model(BaseModel):

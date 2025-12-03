@@ -94,7 +94,7 @@ def usage_table() -> rx.Component:
     )
 
 
-def usage_dashboard() -> rx.Component:
+def usage_list() -> rx.Component:
     """Usage tracking page with filters, table, and chart."""
     return rx.card(
         rx.vstack(

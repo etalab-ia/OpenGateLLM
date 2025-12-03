@@ -19,4 +19,5 @@ def chat_page_content() -> rx.Component:
         height="100vh",
         align_items="stretch",
         spacing="0",
+        margin_right="320px",
     )

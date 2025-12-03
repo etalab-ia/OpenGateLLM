@@ -3,7 +3,9 @@
 import httpx
 import reflex as rx
 
+from app.core.configuration import configuration
 from app.features.auth.state import AuthState
+from app.shared.components.toasts import httpx_error_toast
 
 
 class AccountState(AuthState):
@@ -58,37 +60,24 @@ class AccountState(AuthState):
         self.password_change_loading = True
         yield
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
-                    f"{self.opengatellm_url}/v1/me/info",
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "current_password": self.current_password,
-                        "password": self.new_password,
-                    },
-                    timeout=60.0,
+                    url=f"{self.opengatellm_url}/v1/me/info",
+                    headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+                    json={"current_password": self.current_password, "password": self.new_password},
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
+                response.raise_for_status()
 
-                if response.status_code == 204:
-                    yield rx.toast.success("Password changed successfully!", position="bottom-right")
-                    # Clear form
-                    self.current_password = ""
-                    self.new_password = ""
-                    self.confirm_password = ""
-                else:
-                    error_data = response.json()
-                    yield rx.toast.error(error_data.get("detail", "Failed to change password"), position="bottom-right")
+                yield rx.toast.success("Password changed successfully!", position="bottom-right")
+                self.current_password = ""
+                self.new_password = ""
+                self.confirm_password = ""
 
-        except httpx.TimeoutException:
-            yield rx.toast.error("Request timeout", position="bottom-right")
-        except httpx.ConnectError:
-            yield rx.toast.error(f"Cannot connect to API at {self.opengatellm_url}", position="bottom-right")
         except Exception as e:
-            yield rx.toast.error(f"An error occurred: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.password_change_loading = False
             yield
@@ -101,7 +90,6 @@ class AccountState(AuthState):
     @rx.event
     async def update_name(self):
         """Update user name."""
-        # Validate input
         if not self.edit_name or not self.edit_name.strip():
             yield rx.toast.warning("Name cannot be empty", position="bottom-right")
             return
@@ -109,47 +97,26 @@ class AccountState(AuthState):
         self.update_name_loading = True
         yield
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
-                    f"{self.opengatellm_url}/v1/me/info",
+                    url=f"{self.opengatellm_url}/v1/me/info",
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     json={"name": self.edit_name.strip()},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
+                response.raise_for_status()
 
-                if response.status_code == 204:
-                    # Update the user_name in state
-                    self.user_name = self.edit_name.strip()
-                    yield rx.toast.success("Name updated successfully!", position="bottom-right")
-                else:
-                    error_data = response.json()
-                    detail = error_data.get("detail", "Failed to update name")
+                self.user_name = self.edit_name.strip()
+                yield rx.toast.success("Name updated successfully!", position="bottom-right")
 
-                    # Handle Pydantic validation errors
-                    if isinstance(detail, list) and len(detail) > 0:
-                        first_error = detail[0]
-                        if isinstance(first_error, dict):
-                            msg = first_error.get("msg", "Validation error")
-                            if ", " in msg:
-                                msg = msg.split(", ", 1)[1]
-                            yield rx.toast.error(msg, position="bottom-right")
-                        else:
-                            yield rx.toast.error(str(detail[0]), position="bottom-right")
-                    else:
-                        yield rx.toast.error(str(detail), position="bottom-right")
-
-        except httpx.TimeoutException:
-            yield rx.toast.error("Request timeout", position="bottom-right")
-        except httpx.ConnectError:
-            yield rx.toast.error(f"Cannot connect to API at {self.opengatellm_url}", position="bottom-right")
         except Exception as e:
-            yield rx.toast.error(str(e), position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.update_name_loading = False
             yield
 
-    # Explicit setters to avoid deprecation of auto-setters in Reflex >=0.8.9
     @rx.event
     def set_edit_name(self, value: str):
         self.edit_name = value

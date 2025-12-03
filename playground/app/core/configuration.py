@@ -66,21 +66,24 @@ class ConfigBaseModel(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/opengatellm/blob/main/docs/configuration.md#redisdependency")
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#redisdependency-1")
 class RedisDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
 
 
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#dependencies-1")
 class Dependencies(ConfigBaseModel):
     redis: RedisDependency | None = Field(default=None, description="Set the Redis connection url to use as stage manager. See https://reflex.dev/docs/api-reference/config/ for more information.")  # fmt: off
 
 
+@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#settings-1")
 class Settings(ConfigBaseModel):
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
     routing_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in routing tasks.")  # fmt: off
     app_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application.")
 
     playground_opengatellm_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
+    playground_opengatellm_timeout: int = Field(default=60, description="The timeout in seconds for the OpenGateLLM API.")
     playground_default_model: str | None = Field(default=None, description="The first model selected in chat page.")
     playground_theme_has_background: bool = Field(default=True, description="Whether the theme has a background.")
     playground_theme_accent_color: str = Field(default="purple", description="The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.")  # fmt: off
@@ -89,6 +92,10 @@ class Settings(ConfigBaseModel):
     playground_theme_panel_background: str = Field(default="solid", description="Whether panel backgrounds are translucent: 'solid' | 'translucent'.")
     playground_theme_radius: str = Field(default="medium", description="The radius of the theme. Can be 'small', 'medium', or 'large'.")
     playground_theme_scaling: str = Field(default="100%", description="The scaling of the theme.")
+
+    swagger_url: str | None = Field(default="http://localhost:8000/docs", pattern=r"^http[s]?://", description="Swagger URL. If not provided, deactivated swagger link in the navigation bar.")  # fmt: off
+    reference_url: str | None = Field(default="http://localhost:8000/redoc", pattern=r"^http[s]?://", description="Reference URL. If not provided, deactivated reference link in the navigation bar.")  # fmt: off
+    documentation_url: str | None = Field(default="https://docs.opengatellm.org/docs", pattern=r"^http[s]?://", description="Documentation URL. If not provided, deactivated documentation link in the navigation bar.")  # fmt: off
 
 
 class ConfigFile(ConfigBaseModel):
@@ -107,7 +114,7 @@ class ConfigFile(ConfigBaseModel):
 class Configuration(BaseSettings):
     model_config = ConfigDict(extra="allow")
 
-    config_file: str = "../config.yml"
+    config_file: str = Field(default="../config.yml", description="Config file path.")
 
     @field_validator("config_file", mode="before")
     def config_file_exists(cls, config_file):

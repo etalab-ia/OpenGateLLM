@@ -4,7 +4,9 @@ import datetime as dt
 import httpx
 import reflex as rx
 
+from app.core.configuration import configuration
 from app.features.roles.models import Role
+from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
 
 
@@ -13,17 +15,12 @@ class RolesState(EntityState):
 
     @rx.var
     def routers_name_list(self) -> list[str]:
-        return [router["name"] for router in self.routers_list]
-
-    ############################################################
-    # Load entities
-    ############################################################
-    entities: list[Role] = []
-    routers_list: list[dict[str, str | int]] = []
-    routers_dict: dict[str, int] = {}
+        return sorted([router["name"] for router in self.routers_list])
 
     def _format_role(self, role: dict) -> Role:
-        """Format role."""
+        """Format role from OpenGateLLM format to Playground format."""
+
+        router_dict_reverse = {v: k for k, v in self.routers_dict.items()}
 
         permissions_admin = True if "admin" in role["permissions"] else False
         permissions_create_public_collection = True if "create_public_collection" in role["permissions"] else False
@@ -31,13 +28,9 @@ class RolesState(EntityState):
         permissions_provide_models = True if "provide_models" in role["permissions"] else False
 
         limits_dict = defaultdict(lambda: {"rpm": None, "rpd": None, "tpm": None, "tpd": None})
+
         for limit in role["limits"]:
-            for router in self.routers_list:
-                if router["id"] == limit["router"]:
-                    router_name = router["name"]
-                    break
-            else:
-                router_name = "Unknown"
+            router_name = router_dict_reverse[limit["router"]]
             limits_dict[router_name][limit["type"]] = limit["value"]
         limits = [{"router": router_name, **limits} for router_name, limits in limits_dict.items()]
 
@@ -54,6 +47,22 @@ class RolesState(EntityState):
             updated=dt.datetime.fromtimestamp(role["updated"]).strftime("%Y-%m-%d %H:%M"),
         )
 
+    def _format_limit(self, limit: dict[str, str | int]) -> list[dict[str, str | int]]:
+        """Format limit from Playground format to OpenGateLLM format."""
+        return [
+            {"router": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
+            {"router": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
+            {"router": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
+            {"router": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
+        ]
+
+    ############################################################
+    # Load entities
+    ############################################################
+    entities: list[Role] = []
+    routers_list: list[dict[str, str | int]] = []
+    routers_dict: dict[str, int] = {}
+
     @rx.var
     def roles(self) -> list[Role]:
         """Get roles list with correct typing for Reflex."""
@@ -68,7 +77,21 @@ class RolesState(EntityState):
         self.entities_loading = True
         yield
 
+        response = None
         try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"{self.opengatellm_url}/v1/admin/routers",
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    timeout=configuration.settings.playground_opengatellm_timeout,
+                )
+
+                response.raise_for_status()
+                data = response.json()
+                routers_data = data.get("data", [])
+                self.routers_list = [{"id": router["id"], "name": router["name"]} for router in routers_data]
+                self.routers_dict = {router["name"]: router["id"] for router in routers_data}
+
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self.opengatellm_url}/v1/admin/roles",
@@ -79,7 +102,7 @@ class RolesState(EntityState):
                         "order_direction": self.order_direction_value,
                     },
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
 
                 response.raise_for_status()
@@ -88,23 +111,10 @@ class RolesState(EntityState):
                 for role in data.get("data", []):
                     self.entities.append(self._format_role(role))
 
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.opengatellm_url}/v1/admin/routers",
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
-                )
-
-                response.raise_for_status()
-                data = response.json()
-                routers_data = data.get("data", [])
-                self.routers_list = [{"id": router["id"], "name": router["name"]} for router in routers_data]
-                self.routers_dict = {router["name"]: router["id"] for router in routers_data}
-
             self.has_more_page = len(self.entities) == self.per_page
 
         except Exception as e:
-            yield rx.toast.error(f"Error loading roles: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.entities_loading = False
             yield
@@ -136,12 +146,13 @@ class RolesState(EntityState):
         self.delete_entity_loading = True
         yield
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
                     url=f"{self.opengatellm_url}/v1/admin/roles/{self.entity_to_delete.id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -151,7 +162,7 @@ class RolesState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error deleting role: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.delete_entity_loading = False
             yield
@@ -170,23 +181,26 @@ class RolesState(EntityState):
             if limit["router"] == router:
                 continue
 
-            limits.extend([
-                {"router": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
-                {"router": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
-                {"router": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
-                {"router": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
-            ])
+            limits.extend(
+                [
+                    {"router": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
+                    {"router": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
+                    {"router": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
+                    {"router": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
+                ]
+            )
 
         yield
 
         payload = {"limits": limits}
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
                     url=f"{self.opengatellm_url}/v1/admin/roles/{role.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -195,7 +209,7 @@ class RolesState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error deleting limit: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.delete_limit_loading = False
             yield
@@ -257,13 +271,14 @@ class RolesState(EntityState):
             "limits": self.entity_to_create.limits or [],
         }
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     url=f"{self.opengatellm_url}/v1/admin/roles",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -272,7 +287,7 @@ class RolesState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error creating role: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.create_entity_loading = False
             yield
@@ -285,37 +300,25 @@ class RolesState(EntityState):
             yield rx.toast.warning("Router is required", position="bottom-right")
             return
 
+        self.create_limit_loading = True
+        yield
+
         current_limits = role.limits or []
         limits = []
         for limit in current_limits:
             if limit["router"] == self.new_limit["router"]:
                 continue
-
-            limits.extend([
-                {"router": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
-                {"router": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
-                {"router": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
-                {"router": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
-            ])
-
-        limits.extend([
-            {"router": self.routers_dict[self.new_limit["router"]], "type": "rpm", "value": self.new_limit["rpm"]},
-            {"router": self.routers_dict[self.new_limit["router"]], "type": "rpd", "value": self.new_limit["rpd"]},
-            {"router": self.routers_dict[self.new_limit["router"]], "type": "tpm", "value": self.new_limit["tpm"]},
-            {"router": self.routers_dict[self.new_limit["router"]], "type": "tpd", "value": self.new_limit["tpd"]},
-        ])
-
+            limits.extend(self._format_limit(limit))
+        limits.extend(self._format_limit(self.new_limit))
         payload = {"limits": limits}
-        self.create_limit_loading = True
-        yield
-
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
                     f"{self.opengatellm_url}/v1/admin/roles/{role.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -325,7 +328,7 @@ class RolesState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error creating limits: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.create_limit_loading = False
             yield
@@ -392,19 +395,20 @@ class RolesState(EntityState):
         if self.entity.permissions_provide_models:
             permissions.append("provide_models")
 
-        payload = {
-            "name": self.entity.name,
-            "permissions": permissions,
-            "limits": self.entity.limits or [],
-        }
+        limits = []
+        for limit in self.entity.limits or []:
+            limits.extend(self._format_limit(limit))
 
+        payload = {"name": self.entity.name, "permissions": permissions, "limits": limits}
+
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
                     url=f"{self.opengatellm_url}/v1/admin/roles/{self.entity.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
             response.raise_for_status()
 
@@ -415,7 +419,7 @@ class RolesState(EntityState):
                 yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error updating role: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.edit_entity_loading = False
             yield
@@ -423,7 +427,7 @@ class RolesState(EntityState):
     ############################################################
     # Pagination & filters
     ############################################################
-    per_page: int = 5
+    per_page: int = 20
     order_by_options: list[str] = ["id", "name", "created", "updated"]
 
     @rx.event

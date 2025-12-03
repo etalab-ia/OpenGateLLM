@@ -26,7 +26,7 @@ const config: Config = {
   themes: ['@docusaurus/theme-mermaid'],
 
   // Set the production url of your site here
-  url: 'https://docs.opengatellm.etalab.gouv.fr',
+  url: 'https://docs.opengatellm.org',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/',
@@ -56,7 +56,7 @@ const config: Config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
+            'https://github.com/etalab-ia/OpenGateLLM/tree/main/docs/',
         },
         blog: false,
         theme: {
@@ -114,7 +114,7 @@ const config: Config = {
           title: 'Docs',
           items: [
             {
-              label: 'Getting Started',
+              label: 'Getting started',
               to: 'docs/getting-started/quickstart',
             }
           ],

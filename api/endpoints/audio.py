@@ -16,7 +16,6 @@ from api.schemas.audio import (
     AudioTranscriptionPromptForm,
     AudioTranscriptionResponseFormatForm,
     AudioTranscriptionTemperatureForm,
-    AudioTranscriptionTimestampGranularitiesForm,
 )
 from api.schemas.core.context import RequestContext
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
@@ -36,7 +35,6 @@ async def audio_transcriptions(
     prompt: str = AudioTranscriptionPromptForm,
     response_format: Literal["json", "text"] = AudioTranscriptionResponseFormatForm,
     temperature: float = AudioTranscriptionTemperatureForm,
-    timestamp_granularities: list[str] = AudioTranscriptionTimestampGranularitiesForm,
     model_registry: ModelRegistry = Depends(get_model_registry),
     redis_client: AsyncRedis = Depends(get_redis_client),
     postgres_session: AsyncSession = Depends(get_postgres_session),
@@ -47,15 +45,15 @@ async def audio_transcriptions(
     """
 
     file_content = await file.read()
-
     payload = {
         "model": model,
         "response_format": response_format,
         "temperature": temperature,
-        "timestamp_granularities": timestamp_granularities,
     }
     if language != "":
         payload["language"] = language.value
+    if prompt:
+        payload["prompt"] = prompt
 
     model_provider = await model_registry.get_model_provider(
         model=model,
@@ -76,6 +74,10 @@ async def audio_transcriptions(
     if response_format == "text":
         response = PlainTextResponse(content=response.text, status_code=response.status_code)
     else:
-        response = JSONResponse(content=AudioTranscription(**response.json()).model_dump(), status_code=response.status_code)
+        # response = JSONResponse(content=AudioTranscription(**response.json()).model_dump(), status_code=response.status_code)
+        response = JSONResponse(content=response.json(), status_code=response.status_code)
+        # TODO :
+        #  modify AudioTranscription to fit vLLM
+        #  modify the response so that it return a AudioTranscription like vLLM
 
     return response

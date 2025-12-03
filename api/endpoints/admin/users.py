@@ -99,7 +99,9 @@ async def update_user(
     status_code=200,
 )
 async def get_user(
-    request: Request, user: int = Path(description="The ID of the user to get."), postgres_session: AsyncSession = Depends(get_postgres_session)
+    request: Request,
+    user: int = Path(description="The ID of the user to get."),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get a user by id.
@@ -119,6 +121,7 @@ async def get_users(
     request: Request,
     role: int | None = Query(default=None, description="The ID of the role to filter the users by."),
     organization: int | None = Query(default=None, description="The ID of the organization to filter the users by."),
+    email: str | None = Query(default=None, description="The email of the user to filter the users by."),
     offset: int = Query(default=0, ge=0, description="The offset of the users to get."),
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the users to get."),
     order_by: Literal["id", "name", "created", "updated"] = Query(default="id", description="The field to order the users by."),
@@ -133,6 +136,7 @@ async def get_users(
         postgres_session=postgres_session,
         role_id=role,
         organization_id=organization,
+        email=email,
         offset=offset,
         limit=limit,
         order_by=order_by,

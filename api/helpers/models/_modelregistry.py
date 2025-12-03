@@ -41,6 +41,7 @@ from api.utils.variables import (
     ENDPOINT__CHAT_COMPLETIONS,
     ENDPOINT__EMBEDDINGS,
     ENDPOINT__OCR,
+    ENDPOINT__OCR_BETA,
     ENDPOINT__RERANK,
     PREFIX__CELERY_QUEUE_ROUTING,
 )
@@ -54,6 +55,7 @@ class ModelRegistry:
             ProviderType.ALBERT.value,
             ProviderType.OPENAI.value,
             ProviderType.VLLM.value,
+            ProviderType.MISTRAL.value,
         ],
         ModelType.IMAGE_TEXT_TO_TEXT: [
             ProviderType.ALBERT.value,
@@ -77,12 +79,16 @@ class ModelRegistry:
             ProviderType.ALBERT.value,
             ProviderType.TEI.value,
         ],
+        ModelType.IMAGE_TO_TEXT: [
+            ProviderType.MISTRAL.value,
+        ],
     }
     ENDPOINT_MODEL_TYPE_TABLE = {
         ENDPOINT__AUDIO_TRANSCRIPTIONS: [ModelType.AUTOMATIC_SPEECH_RECOGNITION],
         ENDPOINT__CHAT_COMPLETIONS: [ModelType.TEXT_GENERATION, ModelType.IMAGE_TEXT_TO_TEXT],
         ENDPOINT__EMBEDDINGS: [ModelType.TEXT_EMBEDDINGS_INFERENCE],
-        ENDPOINT__OCR: [ModelType.IMAGE_TEXT_TO_TEXT],
+        ENDPOINT__OCR: [ModelType.IMAGE_TO_TEXT],
+        ENDPOINT__OCR_BETA: [ModelType.IMAGE_TEXT_TO_TEXT],
         ENDPOINT__RERANK: [ModelType.TEXT_CLASSIFICATION],
     }
 
@@ -154,6 +160,9 @@ class ModelRegistry:
                     )
                 except ProviderAlreadyExistsException:
                     logger.warning(f"Provider {provider.model_name} already exists for router {model.name} (skipping)")
+                    continue
+                except ProviderNotReachableException:
+                    logger.warning(f"Provider {provider.model_name} is not reachable for router {model.name} (skipping)")
                     continue
                 except Exception as e:
                     await postgres_session.rollback()
@@ -318,8 +327,9 @@ class ModelRegistry:
         if aliases is not None:
             query = delete(RouterAliasTable).where(RouterAliasTable.router_id == router_id)
             await postgres_session.execute(query)
-            query = insert(RouterAliasTable).values([{"value": alias, "router_id": router_id} for alias in aliases])
-            await postgres_session.execute(query)
+            if aliases:
+                query = insert(RouterAliasTable).values([{"value": alias, "router_id": router_id} for alias in aliases])
+                await postgres_session.execute(query)
 
         await postgres_session.commit()
 
@@ -428,8 +438,8 @@ class ModelRegistry:
             router_id(int): The model router ID
             user_id(int): The user ID of owner of the provider
             type(ProviderType): Provider type
-            url(Optional[str]): Provider URL
-            key(Optional[str]): Provider API key
+            url(str | None): Provider URL
+            key(str | None): Provider API key
             timeout(int): Request timeout
             model_name(str): Model name
             model_carbon_footprint_zone(ProviderCarbonFootprintZone | None): ProviderCarbonFootprintZone
@@ -441,6 +451,7 @@ class ModelRegistry:
         Returns:
             The provider ID
         """
+        # format url
         if url is None:
             if type == ProviderType.OPENAI:
                 url = "https://api.openai.com"
@@ -448,6 +459,7 @@ class ModelRegistry:
                 url = "https://albert.api.etalab.gouv.fr"
             else:
                 raise MissingProviderURLException()
+        url = f"{url}/" if not url.endswith("/") else url
 
         # check if router exists
         routers = await self.get_routers(router_id=router_id, name=None, postgres_session=postgres_session)
@@ -539,15 +551,19 @@ class ModelRegistry:
             postgres_session(AsyncSession): Database postgres_session
         """
         # Check if provider exists
+        query = select(ProviderTable).where(ProviderTable.id == provider_id)
+        if user_id != 0:
+            query = query.where(ProviderTable.user_id == user_id)
         try:
-            query = select(ProviderTable).where(ProviderTable.id == provider_id).where(ProviderTable.user_id == user_id)
             result = await postgres_session.execute(query)
             result.scalar_one()
         except NoResultFound:
             raise ProviderNotFoundException()
 
         # Delete provider
-        query = delete(ProviderTable).where(ProviderTable.id == provider_id).where(ProviderTable.user_id == user_id)
+        query = delete(ProviderTable).where(ProviderTable.id == provider_id)
+        if user_id != 0:
+            query = query.where(ProviderTable.user_id == user_id)
         await postgres_session.execute(query)
         await postgres_session.commit()
 
@@ -633,6 +649,7 @@ class ModelRegistry:
             user_info(UserInfo): User info of the user to apply the limits to the models
             postgres_session(AsyncSession): Database postgres_session
         """
+
         try:
             routers = await self.get_routers(router_id=None, name=name, postgres_session=postgres_session)
         except RouterNotFoundException:
@@ -640,19 +657,16 @@ class ModelRegistry:
 
         models = []
         for router in routers:
-            # skip model if user has no access to it
-            has_access = True
-            for limit in user_info.limits:
-                if limit.router == router.id and limit.value == 0:
-                    has_access = False
-                    break
-
-            if not has_access:
+            # skip model if router has no providers
+            if router.providers == 0:
                 if name is not None:
                     raise ModelNotFoundException()
                 continue
 
-            if router.providers == 0:
+            # skip model if user has no access to it
+            router_limit = next((limit for limit in user_info.limits if limit.router == router.id), None)
+            has_access = router_limit is not None and (router_limit.value is None or router_limit.value > 0)
+            if not has_access:
                 if name is not None:
                     raise ModelNotFoundException()
                 continue
@@ -693,17 +707,14 @@ class ModelRegistry:
         """
         query = (
             select(RouterTable.id)
+            .outerjoin(RouterAliasTable, RouterAliasTable.router_id == RouterTable.id)
             .where(or_(RouterTable.name == model_name, RouterAliasTable.value == model_name))
-            .join(RouterAliasTable, RouterAliasTable.router_id == RouterTable.id)
-        ).limit(1)
-
+            .limit(1)
+        )
         result = await postgres_session.execute(query)
         router_id = result.scalar_one_or_none()
 
-        if router_id is not None:
-            return router_id
-
-        return None
+        return router_id
 
     async def get_model_provider(
         self,

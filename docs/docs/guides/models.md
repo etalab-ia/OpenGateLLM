@@ -4,6 +4,8 @@
 </p>
 
 
+
+
 :::warning
 For the following tutorial, we use [DINUM](https://www.numerique.gouv.fr/) instance of OpenGateLLM, called [Albert API](https://albert.api.etalab.gouv.fr/swagger). If your are not a user of this instance, please refer to the [OpenGateLLM readme](../../README.md) to install and configure your own instance.
 :::
@@ -38,7 +40,8 @@ for model in models[:3]:
     print(f"ID: {model.id}\nType: {model.type}\nOwner: {model.owned_by}\nMax tokens: {model.max_context_length}\n")
 ```
 
-> ```
+
+> ```python
 > ID: albert-small
 > Type: text-generation
 > Owner: OpenGateLLM
@@ -53,9 +56,11 @@ for model in models[:3]:
 > Type: automatic-speech-recognition
 > Owner: OpenGateLLM
 > Max tokens: None
+> 
 > ```
 
-You can get only one model information with `/v1/models/\{model\}` endpoint by OpenAI client.
+
+You can get only one model information with `/v1/models/{model}` endpoint by OpenAI client.
 
 
 ```python
@@ -65,14 +70,18 @@ model = client.models.retrieve(model=models[0].id)
 print(f"ID: {model.id}\nType: {model.type}\nOwner: {model.owned_by}\nMax tokens: {model.max_context_length}\n")
 ```
 
-> ```
+
+> ```python
 > ID: albert-small
 > Type: text-generation
 > Owner: OpenGateLLM
 > Max tokens: 64000
+> 
 > ```
+
 
 
 ```python
 
 ```
+

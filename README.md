@@ -6,118 +6,90 @@
 <img src="./docs/static/img/logo.svg" alt="Logo" width="128" height="128">
 
 # OpenGateLLM
-### **[Documentation](https://docs.opengatellm.etalab.gouv.fr) | [API Reference](https://albert.api.etalab.gouv.fr/documentation)**
+### **[Documentation](https://docs.opengatellm.org) | [API Reference](https://albert.api.etalab.gouv.fr/documentation)**
 
 > [!WARNING]
 > **The API is still under beta version, major breaking changes may occur.**
 
-Production-ready API gateway for self-hosted LLMs developed by the French Government, fully open-source forever.
 
-| Feature | Description |
-|---|---|
-| Gateway | • OpenAI compatible API<br>• Self-hosted models backend support: vLLM, HuggingFace TEI, Ollama <br>• Commercial backend support: OpenAI<br>• Full stack genAI API: chat, embeddings, transcription, RAG and OCR |
-| Account services | • SSO support<br>• Organization, project, key management<br>• Budget, usage and carbon footprint monitoring |
-| Monitoring | • Usage and carbon footprint monitoring |
-| Privacy | • No chat history storage |
+OpenGateLLM is an open-source, production-ready API gateway, optimized for self-hosted models. It's designed to centralize, secure, and manage Generative AI access in a sovereign and cost-effective way.
 
-### 📊 Comparison
-***
+OpenGateLLM addresses three critical challenges for organizations:
+1. **Cost control** - Reduce expenses of commercial APIs and GPU infrastructure by using self-hosted models and build a mutualized infrastructure with your peers.
+2. **Data sovereignty** - Keep sensitive data under your control
+3. **Privacy & security** - No chat history storage, robust access control
 
-| Feature              | OpenGateLLM | LiteLLM   | OpenRouter |
-| ---| ---| --- | --- |
-| OpenAI Compatibility | ✅ | ✅ | ✅ |
-| Open Source    | ✅ | ✅ | ❌ |
-| Free (all features)    | ✅ | ❌ | ❌ |
-| Support commercial models | ✅ | ✅ | ✅ |
-| Support self-hosted models | ✅ | ✅ | ❌ |
-| Built-in RAG         | ✅ | ❌ | ❌ |
-| Built-in OCR         | ✅ | ❌ | ❌ |
+**Core principles**
+
+- Open source and free forever - All features available without commercial licensing
+- High code quality - Built with maintainability and reliability in mind
+- Lightweight architecture - Focused feature set for optimal performance
+- High compatibility - Seamlessly integrates with GenAI ecosystem frameworks by OpenAI-compatible API
+- Production-ready - Engineered to handle high loads with advanced QoS features
+
+![OpenGateLLM architecture](docs/static/img/ogl_architecture.png)
+
+**OpenGateLLM is an alternative to...**
+
+<table>
+    <thead>
+        <tr>
+            <th style={{width: '58%', textAlign: 'center', fontWeight: 'bold'}}>Key features</th>
+            <th style={{width: '14%', textAlign: 'center', fontWeight: 'bold'}}>OpenGateLLM</th>
+            <th style={{width: '14%', textAlign: 'center', fontWeight: 'bold'}}>LiteLLM</th>
+            <th style={{width: '14%', textAlign: 'center', fontWeight: 'bold'}}>TensorZero</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td>:electric_plug: OpenAI Compatibility</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>:open_book: [Open-source](https://github.com/etalab-ia/OpenGateLLM)</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>:computer: [Self-hostable](./getting-started/quickstart.md)</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>:money_with_wings: <b>Free (all features)</b></td><td>✅</td><td>❌</td><td>✅</td></tr>
+        <tr><td>:factory: Support commercial and self-hosted models</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <!-- User management -->
+        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>Account management</b></td></tr>
+        <tr><td>:game_die: Playground UI</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>:bust_in_silhouette: User management (API keys, budget...)</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>:office: Organization management</td><td>🚧</td><td>✅</td><td>❌</td></tr>
+        <tr><td>:pencil2: Project management</td><td>🔜</td><td>✅</td><td>❌</td></tr>
+        <tr><td>:key: SSO support</td><td>🚧</td><td>✅</td><td>❌</td></tr>
+        <!-- High load optimization -->
+        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>High load features</b></td></tr>
+        <tr><td>:hourglass: Rate limiting</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        <tr><td>:zap: Requests prioritization</td><td>✅</td><td>✅</td><td>❌</td></tr>
+        <tr><td>:chart_with_upwards_trend: Quality of service thresholds</td><td>✅</td><td>✅</td><td>❌</td></tr>
+        <tr><td>:twisted_rightwards_arrows: Model load balancing</td><td>✅</td><td>✅</td><td>❌</td></tr>
+        <tr><td>:arrows_counterclockwise: Model fallback</td><td>🔜</td><td>✅</td><td>❌</td></tr>
+        <!-- Monitoring & analytics -->
+        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>Monitoring & analytics</b></td></tr>
+        <tr><td>:bar_chart: Usage tracking</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        <tr><td>:chart_with_upwards_trend: Carbon footprint</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        <tr><td>:link: Prometheus integration</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        <!-- Privacy & security -->
+        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>Privacy & security</b></td></tr>
+        <tr><td>:no_entry_sign: No chat history storage</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        <tr><td>:lock: Role-based access control</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    </tbody>
+</table>
+
+Legend: *✅ supported* — *❌ not supported* — *🚧 work in progress* — *🔜 in roadmap*
 
 ### 🚀 Quickstart
 ***
-
-Deploy OpenGateLLM quickly with Docker connected to our own free model and start using it:
-
-```bash
-make quickstart
-```
-
-> [!NOTE]
-> It will copy the `config.example.yml` and `.env.example` files into `config.yml` and `.env` files if they don't already exist.
-
-> [!TIP]
-> Use `make help` to see all available commands.
-
-Test the API:
-
-```bash 
-curl -X POST "http://localhost:8000/v1/chat/completions" \
--H "Content-Type: application/json" \
--H "Authorization: Bearer changeme" \
--d '{"model": "albert-testbed", "messages": [{"role": "user", "content": "Hello, how are you?"}]}'
-```
-The default master API key is `changeme`.
-
-#### User interface
-
-A user interface is available at: http://localhost:8501/playground
-
-User: master
-Password: changeme
-
-#### Create a first user
-
-```bash
-make create-user
-```
-
-#### Configure your models and add features
-
-With configuration file, you can connect to your own models and add addtionnal services to OpenGateLLM. 
-Start by creating a configuration file and a .env dedicated:
-
-```bash
-cp config.example.yml config.yml
-cp .env.example .env
-```
-
-Check the [configuration documentation](docs-legacy/configuration.md) to configure your configuration file.
-
-Vou can then set your environment variables in .env according to your needs.
-
-You can run the services you need by running:
-```bash
-docker compose --env-file .env up <services_you_need> --detach 
-```
-
-For instance:
-```bash
-docker compose --env-file .env up api playground postgres redis elasticsearch --detach 
-```
-
-#### Alternative: use kubernetes
-
-You can check our helmchart and instructions here: [https://github.com/etalab-ia/albert-api-helm](https://github.com/etalab-ia/opengatellm-helm)
-
-### 📘 Tutorials
-***
-
-Explore practical use cases:
-
-| Tutorial | Link |
-|----------|------|
-| Chat Completions | [![Chat Completions](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/chat_completions.ipynb) |
-| Multi-Model Access | [![Multi-Model Access](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/models.ipynb) |
-| Retrieval-Augmented Generation (RAG) | [![Retrieval-Augmented Generation (RAG)](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/rag.ipynb) |
-| Audio Transcriptions | [![Audio Transcriptions](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/audio_transcriptions.ipynb) |
-| Optical Character Recognition (OCR) | [![Optical Character Recognition (OCR)](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/ocr.ipynb) |
+Deploy and start using OpenGateLLM in minutes with our quickstart guide [here](https://docs.opengatellm.org/docs/getting-started/quickstart).
 
 ### 🤝 Contribute
 ***
 
 This project exists thanks to all the people who contribute. OpenGateLLM thrives on open-source contributions. Join our community! 
 
-Check out our [Contribution Guide](https://docs.opengatellm.etalab.gouv.fr/docs/contributing) to get started.
+Check out our [Contribution Guide](https://docs.opengatellm.org/docs/contributing) to get started.
+
+### 🗺️ Roadmap
+***
+
+OpenGateLLM is still under *beta version*, major breaking changes may occur. Check our current roadmap [here](https://github.com/etalab-ia/OpenGateLLM/discussions/425) to see what we are working on.
+
 
 ### 🎖️ Sponsors
 ***

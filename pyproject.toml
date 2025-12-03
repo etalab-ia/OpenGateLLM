@@ -1,6 +1,6 @@
 [project]
 name = "opengatellm"
-version = "0.3.0"
+version = "0.3.4"
 description = "OpenGateLLM project"
 requires-python = ">=3.12"
 license = { text = "MIT" }
@@ -74,6 +74,7 @@ test = [
     "pytest-mock==3.14.1",
     "respx",
     "responses",
+    "lorem-text==3.0",
     "openmockllm @ git+https://github.com/etalab-ia/openmockllm.git@main",
 ]
 

@@ -26,7 +26,6 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
     status_code=200,
     dependencies=[Security(dependency=AccessController())],
     response_model=ChatCompletion | ChatCompletionChunk,
-    # fmt: off
     responses={
         404: {"model": HTTPExceptionModel, "description": f"{ModelNotFoundException().detail} {CollectionNotFoundException().detail}"},
         WrongModelTypeException().status_code: {"model": HTTPExceptionModel, "description": WrongModelTypeException().detail},

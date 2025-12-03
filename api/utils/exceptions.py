@@ -1,6 +1,10 @@
 from fastapi import HTTPException
 
+
 # 400
+class MasterNotAllowedException(HTTPException):
+    def __init__(self, detail: str = "Master is not allowed to process this action."):
+        super().__init__(status_code=400, detail=detail)
 
 
 class WrongSearchMethodException(HTTPException):
@@ -144,6 +148,16 @@ class RoleAlreadyExistsException(HTTPException):
 
 class UserAlreadyExistsException(HTTPException):
     def __init__(self, detail: str = "User already exists."):
+        super().__init__(status_code=409, detail=detail)
+
+
+class OrganizationAlreadyExistsException(HTTPException):
+    def __init__(self, detail: str = "Organization already exists."):
+        super().__init__(status_code=409, detail=detail)
+
+
+class OrganizationNameAlreadyTakenException(HTTPException):
+    def __init__(self, detail: str = "Organization name already taken. Please, choose another one."):
         super().__init__(status_code=409, detail=detail)
 
 

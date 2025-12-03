@@ -8,6 +8,7 @@ DEFAULT_APP_NAME = "OpenGateLLM"
 MAX_DIALOG_WIDTH = "600px"  # Dialogs and modals width
 SELECT_SMALL_WIDTH = "150px"  # Small select components
 SELECT_MEDIUM_WIDTH = "200px"  # Medium select components
+SELECT_LARGE_WIDTH = "300px"  # Large select components
 
 # ============================================================================
 # TYPOGRAPHY SIZES
@@ -23,6 +24,7 @@ TEXT_SIZE_SMALL = "1"  # Helper text, hints
 TEXT_SIZE_LABEL = "2"  # Form labels, small text
 TEXT_SIZE_MEDIUM = "3"  # Medium text
 TEXT_SIZE_LARGE = "4"  # Important text, emphasized content
+TEXT_SIZE_LINK = "5"  # Link text
 
 # Icon sizes
 ICON_SIZE_TINY = 14  # Info icons, small indicators

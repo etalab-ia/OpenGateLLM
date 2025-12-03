@@ -3,7 +3,9 @@ import datetime as dt
 import httpx
 import reflex as rx
 
+from app.core.configuration import configuration
 from app.features.users.models import User
+from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
 
 
@@ -12,11 +14,11 @@ class UsersState(EntityState):
 
     @rx.var
     def roles_name_list(self) -> list[str]:
-        return [role["name"] for role in self.roles_list]
+        return sorted([role["name"] for role in self.roles_list])
 
     @rx.var
     def organizations_name_list(self) -> list[str]:
-        return [organization["name"] for organization in self.organizations_list]
+        return sorted([organization["name"] for organization in self.organizations_list])
 
     ############################################################
     # Load entities
@@ -34,7 +36,7 @@ class UsersState(EntityState):
         role_dict_reverse = {v: k for k, v in self.roles_dict.items()}
 
         role_name = role_dict_reverse[user["role"]]
-        organization_name = organization_dict_reverse.get(user["organization"], "Unknown")
+        organization_name = organization_dict_reverse.get(user["organization"], None)
 
         return User(
             id=user["id"],
@@ -74,7 +76,10 @@ class UsersState(EntityState):
             params["role"] = int(self.filter_role_value)
         if self.filter_organization_value != "0":
             params["organization"] = int(self.filter_organization_value)
+        if self.search_email_value:
+            params["email"] = self.search_email_value
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 # Load roles
@@ -86,7 +91,7 @@ class UsersState(EntityState):
                         response = await client.get(
                             url=f"{self.opengatellm_url}/v1/admin/roles",
                             headers={"Authorization": f"Bearer {self.api_key}"},
-                            timeout=60.0,
+                            timeout=configuration.settings.playground_opengatellm_timeout,
                         )
 
                         response.raise_for_status()
@@ -108,7 +113,7 @@ class UsersState(EntityState):
                             url=f"{self.opengatellm_url}/v1/admin/organizations",
                             params={"offset": offset, "limit": 100},
                             headers={"Authorization": f"Bearer {self.api_key}"},
-                            timeout=60.0,
+                            timeout=configuration.settings.playground_opengatellm_timeout,
                         )
 
                         response.raise_for_status()
@@ -127,7 +132,7 @@ class UsersState(EntityState):
                     url=f"{self.opengatellm_url}/v1/admin/users",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
 
                 response.raise_for_status()
@@ -139,7 +144,7 @@ class UsersState(EntityState):
             self.has_more_page = len(self.entities) == self.per_page
 
         except Exception as e:
-            yield rx.toast.error(f"Error loading users: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.entities_loading = False
             yield
@@ -170,12 +175,13 @@ class UsersState(EntityState):
         self.delete_entity_loading = True
         yield
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
                     url=f"{self.opengatellm_url}/v1/admin/users/{self.entity_to_delete.id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -185,7 +191,7 @@ class UsersState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error deleting user: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.delete_entity_loading = False
             yield
@@ -246,13 +252,14 @@ class UsersState(EntityState):
         if organization_id:
             payload["organization"] = organization_id
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     url=f"{self.opengatellm_url}/v1/admin/users",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -261,7 +268,7 @@ class UsersState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error creating user: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.create_entity_loading = False
             yield
@@ -302,7 +309,7 @@ class UsersState(EntityState):
         yield
 
         role_id = self.roles_dict[self.entity.role]
-        organization_id = self.organizations_dict[self.entity.organization]
+        organization_id = self.organizations_dict.get(self.entity.organization)
 
         payload = {
             "email": self.entity.email,
@@ -317,13 +324,14 @@ class UsersState(EntityState):
         if organization_id:
             payload["organization"] = organization_id
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
                     url=f"{self.opengatellm_url}/v1/admin/users/{self.entity.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
             response.raise_for_status()
 
@@ -334,7 +342,7 @@ class UsersState(EntityState):
                 yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error updating user: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.edit_entity_loading = False
             yield
@@ -344,6 +352,16 @@ class UsersState(EntityState):
     ############################################################
     per_page: int = 20
     order_by_options: list[str] = ["id", "name", "created", "updated"]
+    search_email_value: str | None = None
+
+    @rx.event
+    async def set_search_email(self, value: str):
+        self.search_email_value = value
+        self.page = 1
+        self.has_more_page = False
+        yield
+        async for _ in self.load_entities():
+            yield
 
     @rx.event
     async def set_order_by(self, value: str):

@@ -12,7 +12,7 @@ class Provider(Entity):
     key: str | None = None
     timeout: int | None = None
     model_name: str | None = None
-    model_carbon_footprint_zone: str | None = None
+    model_carbon_footprint_zone: str = "WOR"
     model_carbon_footprint_total_params: int | None = None
     model_carbon_footprint_active_params: int | None = None
     qos_metric: str | None = None
