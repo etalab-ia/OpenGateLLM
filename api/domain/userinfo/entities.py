@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from api.domain.role import Limit, PermissionType
+from api.domain.role.entities import Limit, PermissionType
 
 
 class UserInfo(BaseModel):

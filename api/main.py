@@ -46,6 +46,7 @@ async def set_request_context(request: Request, call_next):
         RequestContext(
             id=generate_request_id(),
             user_info=None,
+            user_id=None,
             token_id=None,
             router_id=None,
             provider_id=None,
@@ -57,6 +58,23 @@ async def set_request_context(request: Request, call_next):
 
     return await call_next(request)
 
+
+# add routers to the app (legacy code)
+base_pkg = import_module(name="api.endpoints")
+for finder, name, ispkg in pkgutil.walk_packages(base_pkg.__path__, base_pkg.__name__ + "."):
+    router_name = name.split(".")[2]
+
+    # disabled routers
+    if router_name in configuration.settings.disabled_routers:
+        continue
+
+    module = import_module(name)
+    if hasattr(module, "router"):
+        # hidden routers
+        if router_name in configuration.settings.hidden_routers:
+            module.router.include_in_schema = False
+
+        app.include_router(router=module.router, include_in_schema=module.router.include_in_schema)
 
 # add routers to the app
 base_pkg = import_module(name="api.infrastructure.fastapi.endpoints")

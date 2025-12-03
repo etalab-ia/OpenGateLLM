@@ -1,3 +1,3 @@
-from ._keyaccessrepository import KeyAccessRepository
+from ._keyrepository import KeyRepository
 
-__all__ = ["KeyAccessRepository"]
+__all__ = ["KeyRepository"]

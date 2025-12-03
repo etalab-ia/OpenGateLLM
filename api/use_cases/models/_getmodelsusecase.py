@@ -11,7 +11,6 @@ class GetModelsUseCase:
 
     async def execute(self, name: str | None = None) -> list[Router]:
         user_info = await self.user_info_repository.get_user_info(user_id=self.user_id)
-
         models = await self.router_repository.get_all_models(name=name, user_info=user_info)
 
         return models

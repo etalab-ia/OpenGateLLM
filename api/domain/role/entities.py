@@ -1,7 +1,8 @@
 import datetime as dt
 from enum import Enum
 
-from pydantic import Field, BaseModel
+from pydantic import BaseModel, Field
+
 
 class PermissionType(str, Enum):
     ADMIN = "admin"

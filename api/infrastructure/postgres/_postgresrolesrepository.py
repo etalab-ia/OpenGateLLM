@@ -3,7 +3,8 @@ from typing import Literal
 from sqlalchemy import Integer, cast, distinct, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.domain.role import Limit, PermissionType, Role, RoleRepository
+from api.domain.role import RoleRepository
+from api.domain.role.entities import Limit, PermissionType, Role
 from api.sql.models import Limit as LimitTable
 from api.sql.models import Permission as PermissionTable
 from api.sql.models import Role as RoleTable

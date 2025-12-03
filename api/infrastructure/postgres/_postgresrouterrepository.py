@@ -13,8 +13,9 @@ from api.utils.exceptions import ModelNotFoundException, RouterNotFoundException
 
 
 class PostgresRouterRepository(RouterRepository):
-    def __init__(self, postgres_session: AsyncSession):
+    def __init__(self, postgres_session: AsyncSession, app_title: str):
         self.postgres_session = postgres_session
+        self.app_title = app_title
 
     async def get_routers(self, router_id: int | None, name: str | None) -> list[Router]:
         """
@@ -98,7 +99,7 @@ class PostgresRouterRepository(RouterRepository):
 
         return routers
 
-    async def get_all_models(self, routers: list[Router], name: str | None, user_info: UserInfo) -> list[Model]:
+    async def get_all_models(self, name: str | None, user_info: UserInfo) -> list[Model]:
         try:
             routers = await self.get_routers(router_id=None, name=name)
         except RouterNotFoundException:

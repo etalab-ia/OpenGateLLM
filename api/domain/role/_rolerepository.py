@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from api.domain.role import Role
+from api.domain.role.entities import Role
 
 
 class RoleRepository(ABC):
