@@ -3,7 +3,9 @@ import datetime as dt
 import httpx
 import reflex as rx
 
+from app.core.configuration import configuration
 from app.features.users.models import User
+from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
 
 
@@ -75,6 +77,7 @@ class UsersState(EntityState):
         if self.filter_organization_value != "0":
             params["organization"] = int(self.filter_organization_value)
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 # Load roles
@@ -86,7 +89,7 @@ class UsersState(EntityState):
                         response = await client.get(
                             url=f"{self.opengatellm_url}/v1/admin/roles",
                             headers={"Authorization": f"Bearer {self.api_key}"},
-                            timeout=60.0,
+                            timeout=configuration.settings.playground_opengatellm_timeout,
                         )
 
                         response.raise_for_status()
@@ -108,7 +111,7 @@ class UsersState(EntityState):
                             url=f"{self.opengatellm_url}/v1/admin/organizations",
                             params={"offset": offset, "limit": 100},
                             headers={"Authorization": f"Bearer {self.api_key}"},
-                            timeout=60.0,
+                            timeout=configuration.settings.playground_opengatellm_timeout,
                         )
 
                         response.raise_for_status()
@@ -127,7 +130,7 @@ class UsersState(EntityState):
                     url=f"{self.opengatellm_url}/v1/admin/users",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
 
                 response.raise_for_status()
@@ -139,7 +142,7 @@ class UsersState(EntityState):
             self.has_more_page = len(self.entities) == self.per_page
 
         except Exception as e:
-            yield rx.toast.error(f"Error loading users: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.entities_loading = False
             yield
@@ -170,12 +173,13 @@ class UsersState(EntityState):
         self.delete_entity_loading = True
         yield
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
                     url=f"{self.opengatellm_url}/v1/admin/users/{self.entity_to_delete.id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -185,7 +189,7 @@ class UsersState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error deleting user: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.delete_entity_loading = False
             yield
@@ -246,13 +250,14 @@ class UsersState(EntityState):
         if organization_id:
             payload["organization"] = organization_id
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     url=f"{self.opengatellm_url}/v1/admin/users",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -261,7 +266,7 @@ class UsersState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error creating user: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.create_entity_loading = False
             yield
@@ -317,13 +322,14 @@ class UsersState(EntityState):
         if organization_id:
             payload["organization"] = organization_id
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
                     url=f"{self.opengatellm_url}/v1/admin/users/{self.entity.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
             response.raise_for_status()
 
@@ -334,7 +340,7 @@ class UsersState(EntityState):
                 yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error updating user: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.edit_entity_loading = False
             yield

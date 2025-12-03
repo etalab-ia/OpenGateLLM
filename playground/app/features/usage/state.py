@@ -6,7 +6,9 @@ from typing import Any
 import httpx
 import reflex as rx
 
+from app.core.configuration import configuration
 from app.features.usage.models import Usage
+from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
 
 
@@ -56,13 +58,14 @@ class UsageState(EntityState):
         if self.filter_endpoint_value != "All endpoints":
             params["endpoint"] = self.filter_endpoint_value
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     url=f"{self.opengatellm_url}/v1/me/usage",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -71,7 +74,7 @@ class UsageState(EntityState):
             self.has_more_page = len(self.entities) == self.per_page
 
         except Exception as e:
-            yield rx.toast.error(f"Error loading usage: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.entities_loading = False
             yield

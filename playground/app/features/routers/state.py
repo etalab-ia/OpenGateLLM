@@ -3,7 +3,9 @@ import datetime as dt
 import httpx
 import reflex as rx
 
+from app.core.configuration import configuration
 from app.features.routers.models import Router
+from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
 
 
@@ -63,12 +65,13 @@ class RoutersState(EntityState):
         self.entities_loading = True
         yield
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self.opengatellm_url}/v1/admin/routers",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
 
                 response.raise_for_status()
@@ -80,7 +83,7 @@ class RoutersState(EntityState):
                             response = await client.get(
                                 url=f"{self.opengatellm_url}/v1/admin/users/{router["user_id"]}",
                                 headers={"Authorization": f"Bearer {self.api_key}"},
-                                timeout=60.0,
+                                timeout=configuration.settings.playground_opengatellm_timeout,
                             )
                             if response.status_code == 404:
                                 self.router_owners[router["user_id"]] = "Master"
@@ -93,7 +96,7 @@ class RoutersState(EntityState):
                     self.entities.append(self._format_router(router))
 
         except Exception as e:
-            yield rx.toast.error(f"Error loading providers: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.entities_loading = False
             yield
@@ -124,12 +127,13 @@ class RoutersState(EntityState):
         self.delete_entity_loading = True
         yield
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
                     url=f"{self.opengatellm_url}/v1/admin/routers/{self.entity_to_delete.id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -139,7 +143,7 @@ class RoutersState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error deleting router: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.delete_entity_loading = False
             yield
@@ -186,13 +190,14 @@ class RoutersState(EntityState):
         if new_router_aliases:
             payload["aliases"] = new_router_aliases
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     url=f"{self.opengatellm_url}/v1/admin/routers",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -201,7 +206,7 @@ class RoutersState(EntityState):
                     yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error creating router: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.create_entity_loading = False
             yield
@@ -253,13 +258,14 @@ class RoutersState(EntityState):
             "cost_completion_tokens": self.entity.cost_completion_tokens,
         }
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
                     url=f"{self.opengatellm_url}/v1/admin/routers/{self.entity.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=60.0,
+                    timeout=configuration.settings.playground_opengatellm_timeout,
                 )
             response.raise_for_status()
 
@@ -270,7 +276,7 @@ class RoutersState(EntityState):
                 yield
 
         except Exception as e:
-            yield rx.toast.error(f"Error updating router: {str(e)}", position="bottom-right")
+            yield httpx_error_toast(exception=e, response=response)
         finally:
             self.edit_entity_loading = False
             yield

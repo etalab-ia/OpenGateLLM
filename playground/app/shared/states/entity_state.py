@@ -1,5 +1,7 @@
 from abc import abstractmethod
 
+import httpx
+
 from app.features.auth.state import AuthState
 from app.shared.models.entities import Entity
 
