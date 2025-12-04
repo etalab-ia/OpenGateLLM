@@ -13,7 +13,13 @@ from api.schemas.collections import CollectionVisibility
 from api.schemas.me.info import UserInfo
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.exceptions import InsufficientPermissionException, InvalidAPIKeyException, InvalidAuthenticationSchemeException, RateLimitExceeded
+from api.utils.exceptions import (
+    InsufficientPermissionException,
+    InvalidAPIKeyException,
+    InvalidAuthenticationSchemeException,
+    ModelNotFoundException,
+    RateLimitExceeded,
+)
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -130,17 +136,22 @@ class AccessController:
     async def _check_limits(self, user_info: UserInfo, router_id: int, prompt_tokens: int | None = None) -> None:
         if user_info.id == 0:
             return
-
+        has_access = False
         tpm, tpd, rpm, rpd = 0, 0, 0, 0
         for limit in user_info.limits:
-            if limit.router == router_id and limit.type == LimitType.TPM:
-                tpm = limit.value
-            elif limit.router == router_id and limit.type == LimitType.TPD:
-                tpd = limit.value
-            elif limit.router == router_id and limit.type == LimitType.RPM:
-                rpm = limit.value
-            elif limit.router == router_id and limit.type == LimitType.RPD:
-                rpd = limit.value
+            if limit.router == router_id:
+                has_access = True
+                if limit.type == LimitType.TPM:
+                    tpm = limit.value
+                elif limit.type == LimitType.TPD:
+                    tpd = limit.value
+                elif limit.type == LimitType.RPM:
+                    rpm = limit.value
+                elif limit.type == LimitType.RPD:
+                    rpd = limit.value
+
+        if not has_access:
+            raise ModelNotFoundException()
 
         if 0 in [tpm, tpd, rpm, rpd]:
             raise InsufficientPermissionException(detail="Insufficient permissions to access the model.")
@@ -180,6 +191,7 @@ class AccessController:
 
     async def _check_chat_completions(self, body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
         router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), postgres_session=postgres_session)
+
         if router_id is None:
             return
 

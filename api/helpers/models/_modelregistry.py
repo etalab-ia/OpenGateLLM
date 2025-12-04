@@ -155,8 +155,8 @@ class ModelRegistry:
                 except ProviderAlreadyExistsException:
                     logger.warning(f"Provider {provider.model_name} already exists for router {model.name} (skipping)")
                     continue
-                except ProviderNotReachableException as e:
-                    logger.warning(f"Provider {provider.model_name} is not reachable for router {model.name} ({e})")
+                except ProviderNotReachableException:
+                    logger.warning(f"Provider {provider.model_name} is not reachable for router {model.name} (skipping)")
                     continue
                 except Exception as e:
                     await postgres_session.rollback()
@@ -321,8 +321,9 @@ class ModelRegistry:
         if aliases is not None:
             query = delete(RouterAliasTable).where(RouterAliasTable.router_id == router_id)
             await postgres_session.execute(query)
-            query = insert(RouterAliasTable).values([{"value": alias, "router_id": router_id} for alias in aliases])
-            await postgres_session.execute(query)
+            if aliases:
+                query = insert(RouterAliasTable).values([{"value": alias, "router_id": router_id} for alias in aliases])
+                await postgres_session.execute(query)
 
         await postgres_session.commit()
 
@@ -636,6 +637,7 @@ class ModelRegistry:
             user_info(UserInfo): User info of the user to apply the limits to the models
             postgres_session(AsyncSession): Database postgres_session
         """
+
         try:
             routers = await self.get_routers(router_id=None, name=name, postgres_session=postgres_session)
         except RouterNotFoundException:
@@ -643,19 +645,16 @@ class ModelRegistry:
 
         models = []
         for router in routers:
-            # skip model if user has no access to it
-            has_access = True
-            for limit in user_info.limits:
-                if limit.router == router.id and limit.value == 0:
-                    has_access = False
-                    break
-
-            if not has_access:
+            # skip model if router has no providers
+            if router.providers == 0:
                 if name is not None:
                     raise ModelNotFoundException()
                 continue
 
-            if router.providers == 0:
+            # skip model if user has no access to it
+            router_limit = next((limit for limit in user_info.limits if limit.router == router.id), None)
+            has_access = router_limit is not None and (router_limit.value is None or router_limit.value > 0)
+            if not has_access:
                 if name is not None:
                     raise ModelNotFoundException()
                 continue
@@ -696,17 +695,14 @@ class ModelRegistry:
         """
         query = (
             select(RouterTable.id)
+            .outerjoin(RouterAliasTable, RouterAliasTable.router_id == RouterTable.id)
             .where(or_(RouterTable.name == model_name, RouterAliasTable.value == model_name))
-            .join(RouterAliasTable, RouterAliasTable.router_id == RouterTable.id)
-        ).limit(1)
-
+            .limit(1)
+        )
         result = await postgres_session.execute(query)
         router_id = result.scalar_one_or_none()
 
-        if router_id is not None:
-            return router_id
-
-        return None
+        return router_id
 
     async def get_model_provider(
         self,

@@ -47,6 +47,7 @@ class AuthState(rx.State):
         self.is_loading = True
         yield
 
+        response = None
         try:
             async with httpx.AsyncClient() as client:
                 # Login to get API key
