@@ -70,7 +70,11 @@ class TeiModelProvider(BaseModelProvider):
         return max_context_length
 
     def _format_request(
-        self, json: dict | None = None, files: dict | None = None, data: dict | None = None
+        self,
+        json: dict | None = None,
+        files: dict | None = None,
+        data: dict | None = None,
+        endpoint: str | None = None,
     ) -> tuple[str, dict[str, str], dict | None, dict | None, dict | None]:
         """
         Format a request to a client model. Overridden base class method to support TEI Reranking.
@@ -79,16 +83,16 @@ class TeiModelProvider(BaseModelProvider):
             json(dict): The JSON body to use for the request.
             files(dict): The files to use for the request.
             data(dict): The data to use for the request.
+            endpoint(str): The endpoint to use for the request.
 
         Returns:
             tuple: The formatted request composed of the url, json, files and data.
         """
-        # self.endpoint is set by the ModelRouter
-        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[self.endpoint].lstrip("/"))
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[endpoint].lstrip("/"))
         if json and "model" in json:
             json["model"] = self.name
 
-        if self.endpoint.endswith(ENDPOINT__RERANK):
+        if endpoint.endswith(ENDPOINT__RERANK):
             json = {"query": json["prompt"], "texts": json["input"]}
 
         return url, json, files, data
@@ -97,7 +101,8 @@ class TeiModelProvider(BaseModelProvider):
         self,
         json: dict,
         response: httpx.Response,
-        additional_data: dict[str, Any] = None,
+        endpoint: str,
+        additional_data: dict[str, Any] | None = None,
         request_latency: float = 0.0,
     ) -> httpx.Response:
         """
@@ -120,7 +125,7 @@ class TeiModelProvider(BaseModelProvider):
             data = response.json()
             if isinstance(data, list):  # for TEI reranking
                 data = {"data": data}
-            data.update(self._get_additional_data(json=json, data=data, stream=False, request_latency=request_latency))
+            data.update(self._get_additional_data(json=json, data=data, stream=False, endpoint=endpoint, request_latency=request_latency))
             data.update(additional_data)
             response = httpx.Response(status_code=response.status_code, content=dumps(data))
 

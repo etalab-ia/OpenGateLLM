@@ -155,6 +155,9 @@ class ModelRegistry:
                 except ProviderAlreadyExistsException:
                     logger.warning(f"Provider {provider.model_name} already exists for router {model.name} (skipping)")
                     continue
+                except ProviderNotReachableException as e:
+                    logger.warning(f"Provider {provider.model_name} is not reachable for router {model.name} ({e})")
+                    continue
                 except Exception as e:
                     await postgres_session.rollback()
                     logger.error(f"Provider {provider.model_name} failed to be created for router {model.name} ({e})")
