@@ -92,6 +92,9 @@ class TeiModelProvider(BaseModelProvider):
         if json and "model" in json:
             json["model"] = self.name
 
+        if data and "model" in data:
+            data["model"] = self.name
+
         if endpoint.endswith(ENDPOINT__RERANK):
             json = {"query": json["prompt"], "texts": json["input"]}
 

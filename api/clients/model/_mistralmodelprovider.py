@@ -93,6 +93,9 @@ class MistralModelProvider(BaseModelProvider):
         if json and "model" in json:
             json["model"] = self.name
 
+        if data and "model" in data:
+            data["model"] = self.name
+
         if endpoint == ENDPOINT__CHAT_COMPLETIONS:
             # see https://docs.mistral.ai/api#operation-chat_completion_v1_chat_completions_post
             json["frequency_penalty"] = 0.0 if json["frequency_penalty"] is None else json["frequency_penalty"]

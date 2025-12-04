@@ -222,6 +222,9 @@ class BaseModelProvider(ABC):
         if json and "model" in json:
             json["model"] = self.name
 
+        if data and "model" in data:
+            data["model"] = self.name
+
         return url, json, files, data
 
     def _format_response(
@@ -332,6 +335,12 @@ class BaseModelProvider(ABC):
         """
 
         url, json, files, data = self._format_request(json=json, files=files, data=data, endpoint=endpoint)
+        print("#############################")
+        print("url", url)
+        print("json", json)
+        print("files", files)
+        print("data", data)
+        print("#############################")
         if not additional_data:
             additional_data = {}
 
