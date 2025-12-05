@@ -3,8 +3,8 @@
 import reflex as rx
 
 from app.core.variables import PADDING_PAGE, SPACING_XL
-from app.features.usage.components.dashboards import usage_dashboard
 from app.features.usage.components.headers import usage_header
+from app.features.usage.components.lists import usage_list
 
 
 def usage_page() -> rx.Component:
@@ -13,7 +13,7 @@ def usage_page() -> rx.Component:
         rx.scroll_area(
             rx.vstack(
                 usage_header(),
-                usage_dashboard(),
+                usage_list(),
                 spacing=SPACING_XL,
                 width="100%",
                 padding=PADDING_PAGE,

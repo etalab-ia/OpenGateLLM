@@ -76,6 +76,8 @@ class UsersState(EntityState):
             params["role"] = int(self.filter_role_value)
         if self.filter_organization_value != "0":
             params["organization"] = int(self.filter_organization_value)
+        if self.search_email_value:
+            params["email"] = self.search_email_value
 
         response = None
         try:
@@ -350,6 +352,16 @@ class UsersState(EntityState):
     ############################################################
     per_page: int = 20
     order_by_options: list[str] = ["id", "name", "created", "updated"]
+    search_email_value: str | None = None
+
+    @rx.event
+    async def set_search_email(self, value: str):
+        self.search_email_value = value
+        self.page = 1
+        self.has_more_page = False
+        yield
+        async for _ in self.load_entities():
+            yield
 
     @rx.event
     async def set_order_by(self, value: str):

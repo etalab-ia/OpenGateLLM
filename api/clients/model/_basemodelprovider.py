@@ -335,12 +335,6 @@ class BaseModelProvider(ABC):
         """
 
         url, json, files, data = self._format_request(json=json, files=files, data=data, endpoint=endpoint)
-        print("#############################")
-        print("url", url)
-        print("json", json)
-        print("files", files)
-        print("data", data)
-        print("#############################")
         if not additional_data:
             additional_data = {}
 
