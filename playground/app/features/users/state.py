@@ -36,7 +36,7 @@ class UsersState(EntityState):
         role_dict_reverse = {v: k for k, v in self.roles_dict.items()}
 
         role_name = role_dict_reverse[user["role"]]
-        organization_name = organization_dict_reverse.get(user["organization"], "Unknown")
+        organization_name = organization_dict_reverse.get(user["organization"], None)
 
         return User(
             id=user["id"],
@@ -307,7 +307,7 @@ class UsersState(EntityState):
         yield
 
         role_id = self.roles_dict[self.entity.role]
-        organization_id = self.organizations_dict[self.entity.organization]
+        organization_id = self.organizations_dict.get(self.entity.organization)
 
         payload = {
             "email": self.entity.email,
