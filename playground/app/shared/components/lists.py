@@ -96,11 +96,13 @@ def entity_sorting(state: rx.State) -> rx.Component:
             items=state.order_by_options,
             value=state.order_by_value,
             on_change=state.set_order_by,
+            width="80px",
         ),
         rx.select(
             items=state.order_direction_options,
             value=state.order_direction_value,
             on_change=state.set_order_direction,
+            width="80px",
         ),
         spacing=SPACING_SMALL,
         align="center",
@@ -126,11 +128,6 @@ def entity_list(
             rx.vstack(
                 rx.hstack(
                     rx.heading(title, size=HEADING_SIZE_SECTION),
-                    rx.badge(
-                        entities.length(),
-                        variant="soft",
-                        color_scheme="purple",
-                    ),
                     rx.spacer(),
                     filters if filters else rx.fragment(),
                     entity_sorting(state) if sorting else rx.fragment(),

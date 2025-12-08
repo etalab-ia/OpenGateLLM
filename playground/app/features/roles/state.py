@@ -15,7 +15,7 @@ class RolesState(EntityState):
 
     @rx.var
     def routers_name_list(self) -> list[str]:
-        return [router["name"] for router in self.routers_list]
+        return sorted([router["name"] for router in self.routers_list])
 
     def _format_role(self, role: dict) -> Role:
         """Format role from OpenGateLLM format to Playground format."""

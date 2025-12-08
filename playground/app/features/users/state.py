@@ -14,11 +14,11 @@ class UsersState(EntityState):
 
     @rx.var
     def roles_name_list(self) -> list[str]:
-        return [role["name"] for role in self.roles_list]
+        return sorted([role["name"] for role in self.roles_list])
 
     @rx.var
     def organizations_name_list(self) -> list[str]:
-        return [organization["name"] for organization in self.organizations_list]
+        return sorted([organization["name"] for organization in self.organizations_list])
 
     ############################################################
     # Load entities
