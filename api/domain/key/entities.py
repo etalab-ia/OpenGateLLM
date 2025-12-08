@@ -3,6 +3,9 @@ from pydantic import BaseModel, Field
 
 from api.utils.exceptions import InvalidAPIKeyException
 
+MASTER_USER_ID = 0
+MASTER_KEY_ID = 0
+
 
 class KeyClaims(BaseModel):
     user_id: int
@@ -17,7 +20,7 @@ class Key(BaseModel):
 
     def decode(self, master_key: str) -> KeyClaims:
         if self.value == master_key:
-            return KeyClaims(user_id=0, key_id=0)
+            return KeyClaims(user_id=MASTER_USER_ID, key_id=MASTER_KEY_ID)
 
         if not self.value.startswith(self.TOKEN_PREFIX):
             raise InvalidAPIKeyException()

@@ -75,6 +75,7 @@ test = [
     "respx",
     "responses",
     "openmockllm @ git+https://github.com/etalab-ia/openmockllm.git@main",
+    "factory-boy"
 ]
 
 [tool.setuptools]
@@ -120,3 +121,5 @@ log_cli = true
 log_cli_level = "INFO"
 log_cli_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

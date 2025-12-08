@@ -25,8 +25,8 @@ async def get_current_key(
     if not api_key.credentials:
         raise InvalidAPIKeyException()
 
-    claims = Key(value=api_key.credentials).decode(master_key=master_key)
-    await key_repository.check_key_exists(user_id=claims.user_id, key_id=claims.key_id)
+    decoded_key = Key(value=api_key.credentials).decode(master_key=master_key)
+    await key_repository.check_key_exists(user_id=decoded_key.user_id, key_id=decoded_key.key_id)
 
-    request_context.get().user_id = claims.user_id
-    request_context.get().key_id = claims.key_id
+    request_context.get().user_id = decoded_key.user_id
+    request_context.get().key_id = decoded_key.key_id
