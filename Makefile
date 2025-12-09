@@ -145,9 +145,9 @@ quickstart:
 	@if ! $(MAKE) --silent .docker-compose env=$(env) compose=$(compose); then \
 		exit 1; \
 	fi
-	@sleep 4
-	@open http://localhost:8000/docs 2>/dev/null || xdg-open http://localhost:8000/docs 2>/dev/null || true; \
-	@open http://localhost:8501 2>/dev/null || xdg-open http://localhost:8501 2>/dev/null || true; \
+	@sleep 4;
+	@open http://localhost:8000/docs 2>/dev/null || xdg-open http://localhost:8000/docs 2>/dev/null || true;
+	@open http://localhost:8501 2>/dev/null || xdg-open http://localhost:8501 2>/dev/null || true;
 
 # test -----------------------------------------------------------------------------------------------------------------------------------------------
 test-unit:
