@@ -11,21 +11,62 @@ from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
 from api.schemas.core.documents import FileType
-from api.schemas.ocr import DPIForm, ModelForm, PromptForm
+from api.schemas.exception import HTTPExceptionModel
+from api.schemas.ocr import OCR, CreateOCR, DPIForm, ModelForm, PromptForm
 from api.schemas.parse import FileForm, ParsedDocument, ParsedDocumentMetadata, ParsedDocumentPage
 from api.schemas.usage import Usage
 from api.utils.context import global_context
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
-from api.utils.exceptions import FileSizeLimitExceededException
+from api.utils.exceptions import (
+    FileSizeLimitExceededException,
+    ModelIsTooBusyException,
+    ModelNotFoundException,
+    WrongModelTypeException,
+)
 from api.utils.hooks_decorator import hooks
-from api.utils.variables import ENDPOINT__OCR, ROUTER__OCR
+from api.utils.variables import ENDPOINT__OCR, ENDPOINT__OCR_BETA, ROUTER__OCR
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__OCR.upper()])
 
 
-@router.post(path=ENDPOINT__OCR, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=ParsedDocument)
 @hooks
+@router.post(
+    path=ENDPOINT__OCR,
+    dependencies=[Security(dependency=AccessController())],
+    status_code=200,
+    responses={
+        ModelNotFoundException().status_code: {"model": HTTPExceptionModel, "description": ModelNotFoundException().detail},
+        WrongModelTypeException().status_code: {"model": HTTPExceptionModel, "description": WrongModelTypeException().detail},
+        ModelIsTooBusyException().status_code: {"model": HTTPExceptionModel, "description": ModelIsTooBusyException().detail},
+    },
+    response_model=OCR,
+)
 async def ocr(
+    request: Request,
+    body: CreateOCR,
+    model_registry: ModelRegistry = Depends(get_model_registry),
+    redis_client: AsyncRedis = Depends(get_redis_client),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+) -> JSONResponse:
+    """
+    Extracts text from files using OCR.
+    """
+    model_provider = await model_registry.get_model_provider(
+        model=body.model,
+        endpoint=ENDPOINT__OCR,
+        postgres_session=postgres_session,
+        redis_client=redis_client,
+        request_context=request_context,
+    )
+    response = await model_provider.forward_request(method="POST", json=body.model_dump(), endpoint=ENDPOINT__OCR, redis_client=redis_client)
+
+    return JSONResponse(content=OCR(**response.json()).model_dump(), status_code=response.status_code)
+
+
+@router.post(path=ENDPOINT__OCR_BETA, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=ParsedDocument)
+@hooks
+async def ocr_beta(
     request: Request,
     file: UploadFile = FileForm,
     model: str = ModelForm,
@@ -69,13 +110,13 @@ async def ocr(
 
         model_provider = await model_registry.get_model_provider(
             model=model,
-            endpoint=ENDPOINT__OCR,
+            endpoint=ENDPOINT__OCR_BETA,
             postgres_session=postgres_session,
             redis_client=redis_client,
             request_context=request_context,
         )
 
-        response = await model_provider.forward_request(method="POST", json=payload, endpoint=ENDPOINT__OCR, redis_client=redis_client)
+        response = await model_provider.forward_request(method="POST", json=payload, endpoint=ENDPOINT__OCR_BETA, redis_client=redis_client)
         status = response.status_code
         body_json = response.json()
         if status // 100 != 2:

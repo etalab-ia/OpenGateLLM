@@ -23,7 +23,7 @@ class MistralModelProvider(BaseModelProvider):
         ENDPOINT__CHAT_COMPLETIONS: "/v1/chat/completions",
         ENDPOINT__EMBEDDINGS: None,
         ENDPOINT__MODELS: "/v1/models",
-        ENDPOINT__OCR: None,
+        ENDPOINT__OCR: "/v1/ocr",
         ENDPOINT__RERANK: None,
     }
 
