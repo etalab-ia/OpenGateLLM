@@ -13,7 +13,7 @@ from api.tests.integration import factories
 TEST_DATABASE_URL = "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db"
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="session")
 async def test_engine():
     """Create a test database engine."""
     engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
@@ -30,31 +30,25 @@ async def test_engine():
     await engine.dispose()
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="session")
 async def test_session_factory(test_engine):
     """Create a session factory for tests."""
     return async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
-
-
-# @pytest_asyncio.fixture(scope="function")
-# async def db_session(test_session_factory) -> AsyncGenerator[AsyncSession, None]:
-#     """Provide a transactional scope for each test."""
-#     async with test_session_factory() as session:
-#         yield session
-#         await session.rollback()
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_session(test_session_factory) -> AsyncGenerator[AsyncSession, None]:
     """Provide a transactional scope for each test."""
     async with test_session_factory() as session:
-        factories.UserFactory._meta.sqlalchemy_session = session
-        factories.RoleFactory._meta.sqlalchemy_session = session
-        factories.TokenFactory._meta.sqlalchemy_session = session
-
-        yield session
-
-        await session.rollback()
+        try:
+            async with session.begin_nested():
+                factories.UserFactory._meta.sqlalchemy_session = session
+                factories.RoleFactory._meta.sqlalchemy_session = session
+                factories.TokenFactory._meta.sqlalchemy_session = session
+                yield session
+        finally:
+            await session.rollback()
+            await session.close()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -67,7 +61,8 @@ async def client(db_session) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_postgres_session] = override_get_postgres_session
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        yield ac
-
-    app.dependency_overrides.clear()
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            yield ac
+    finally:
+        app.dependency_overrides.clear()

@@ -16,7 +16,7 @@ async def create_token(db_session, **kwargs):
         algorithm="HS256",
     )
 
-    await db_session.commit()
-    await db_session.refresh(token)
+    await db_session.flush()
+    # await db_session.refresh(token)
 
     return token
