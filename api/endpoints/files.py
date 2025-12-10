@@ -69,7 +69,7 @@ async def upload_file(
         try:
             file = JsonFile(documents=json.loads(file.file.read())).documents
         except ValidationError as e:
-            detail = "; ".join([f"{error["loc"][-1]}: {error["msg"]}" for error in e.errors()])
+            detail = "; ".join([f"{error['loc'][-1]}: {error['msg']}" for error in e.errors()])
             raise InvalidJSONFormatException(detail=detail)
 
         files = list()
@@ -78,7 +78,7 @@ async def upload_file(
             document_text = document.model_dump()
             text = document_text.get("text", "")
             metadata = document_text.get("metadata", {})
-            name = f"{document_text["title"]}.json" if document_text.get("title") else f"{filename}.json"
+            name = f"{document_text['title']}.json" if document_text.get("title") else f"{filename}.json"
 
             # Convert json into txt file
             file = UploadFile(filename=name, file=BytesIO(text.encode("utf-8")), headers=Headers({"content-type": "text/txt"}))

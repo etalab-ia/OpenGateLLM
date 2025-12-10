@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 def generate_test_id(prefix: str) -> str:
-    return f"{prefix}_{dt.datetime.now().strftime("%Y%m%d%H%M%S")}_{uuid4()}"
+    return f"{prefix}_{dt.datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid4()}"
 
 
 def run_openmockllm(test_id: str, **kwargs) -> subprocess.Popen:
@@ -77,7 +77,7 @@ def run_openmockllm(test_id: str, **kwargs) -> subprocess.Popen:
             except (subprocess.TimeoutExpired, AttributeError):
                 # stderr might not be readable or process already finished
                 pass
-            raise RuntimeError(f"openmockllm process failed to start. " f"Process exited with code {returncode}. Error: {error_msg}")
+            raise RuntimeError(f"openmockllm process failed to start. Process exited with code {returncode}. Error: {error_msg}")
 
         try:
             # Check if the server is responding by calling /v1/models endpoint
@@ -103,13 +103,11 @@ def run_openmockllm(test_id: str, **kwargs) -> subprocess.Popen:
                     except (subprocess.TimeoutExpired, AttributeError):
                         pass
                     raise RuntimeError(
-                        f"openmockllm process failed to start after {max_retries} attempts. "
-                        f"Process exited with code {returncode}. Error: {error_msg}"
+                        f"openmockllm process failed to start after {max_retries} attempts. Process exited with code {returncode}. Error: {error_msg}"
                     )
                 else:
                     raise RuntimeError(
-                        f"openmockllm server at {url} did not become ready after {max_retries} attempts. "
-                        f"Process is still running but not responding."
+                        f"openmockllm server at {url} did not become ready after {max_retries} attempts. Process is still running but not responding."
                     )
 
     return process
@@ -157,7 +155,7 @@ def create_provider(router_id: int, provider_url: str, provider_key: str, provid
 
 def create_role(router_id: int, client: TestClient) -> int:
     payload = CreateRole(
-        name=f"test-role-{dt.datetime.now().strftime("%Y%m%d%H%M%S")}",
+        name=f"test-role-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}",
         limits=[
             Limit(router=router_id, type=LimitType.RPM, value=None),
             Limit(router=router_id, type=LimitType.RPD, value=None),
@@ -175,8 +173,8 @@ def create_role(router_id: int, client: TestClient) -> int:
 
 def create_user(role_id: int, client: TestClient) -> int:
     payload = CreateUser(
-        name=f"test-user-{dt.datetime.now().strftime("%Y%m%d%H%M%S")}",
-        email=f"test-user-{dt.datetime.now().strftime("%Y%m%d%H%M%S")}@example.com",
+        name=f"test-user-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}",
+        email=f"test-user-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}@example.com",
         role=role_id,
         password="test-password",
     )

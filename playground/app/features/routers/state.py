@@ -81,7 +81,7 @@ class RoutersState(EntityState):
                     if router["user_id"] not in self.router_owners:
                         async with httpx.AsyncClient() as client:
                             response = await client.get(
-                                url=f"{self.opengatellm_url}/v1/admin/users/{router["user_id"]}",
+                                url=f"{self.opengatellm_url}/v1/admin/users/{router['user_id']}",
                                 headers={"Authorization": f"Bearer {self.api_key}"},
                                 timeout=configuration.settings.playground_opengatellm_timeout,
                             )

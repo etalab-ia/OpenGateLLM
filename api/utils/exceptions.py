@@ -1,8 +1,7 @@
 from fastapi import HTTPException
 
+
 # 400
-
-
 class WrongSearchMethodException(HTTPException):
     def __init__(self, detail: str = "Wrong search method."):
         super().__init__(status_code=400, detail=detail)
@@ -144,6 +143,11 @@ class RoleAlreadyExistsException(HTTPException):
 
 class UserAlreadyExistsException(HTTPException):
     def __init__(self, detail: str = "User already exists."):
+        super().__init__(status_code=409, detail=detail)
+
+
+class OrganizationAlreadyExistsException(HTTPException):
+    def __init__(self, detail: str = "Organization already exists."):
         super().__init__(status_code=409, detail=detail)
 
 

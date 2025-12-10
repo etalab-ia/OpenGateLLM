@@ -89,7 +89,7 @@ async def create_user(postgres_session: AsyncSession, iam: IdentityAccessManager
         )
 
     # Generate a default username if information is missing
-    display_name = f"{given_name or ""} {usual_name or ""}".strip()
+    display_name = f"{given_name or ''} {usual_name or ''}".strip()
     if not display_name:
         display_name = email or f"User-{sub[:8]}" if sub else "Unknown User"
 

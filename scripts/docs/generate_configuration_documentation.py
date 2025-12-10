@@ -44,7 +44,7 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
                     header=ref.get("description"),
                     level=level + 1,
                 )
-                description += f" For details of configuration, see the [{ref_key} section](#{ref_key.lower().replace(" ", "-")})."
+                description += f" For details of configuration, see the [{ref_key} section](#{ref_key.lower().replace(' ', '-')})."
 
         else:
             type = properties[property].get("type", "")
@@ -64,7 +64,7 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
                     header=ref.get("description"),
                     level=level + 1,
                 )
-                description += f" For details of configuration, see the [{ref_key} section](#{ref_key.lower().replace(" ", "-")})."
+                description += f" For details of configuration, see the [{ref_key} section](#{ref_key.lower().replace(' ', '-')})."
             else:
                 values = ref.get("enum", [])
 
@@ -99,9 +99,9 @@ def convert_field_to_string_if_dict(field):
 def convert_to_markdown(data: list):
     markdown = ""
     for item in reversed(data):
-        markdown += f"{"#" * (item["level"] + 1)} {item["title"]}\n"
+        markdown += f"{'#' * (item['level'] + 1)} {item['title']}\n"
         if item["header"]:
-            markdown += f"{item["header"]}\n<br></br>\n\n"
+            markdown += f"{item['header']}\n<br></br>\n\n"
 
         if len(item["table"]) > 0:
             markdown += "| Attribute | Type | Description | Required | Default | Values | Examples |\n"

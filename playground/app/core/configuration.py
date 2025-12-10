@@ -30,10 +30,10 @@ def custom_validation_error(url: str | None = None):
             for error in error_content:
                 url = url or error["url"]
                 if error["type"] == "assertion_error":
-                    message += f"{error["msg"]}\n"
+                    message += f"{error['msg']}\n"
                 else:
                     if len(error["loc"]) > 0:
-                        message += f"{error["loc"][0]}\n"
+                        message += f"{error['loc'][0]}\n"
                     message += f"  {error["msg"]} [type={error["type"]}, input_value={error.get("input", "")}, input_type={type(error.get("input")).__name__}]\n"  # fmt: off
                     if len(error["loc"]) > 0:
                         description = cls.__pydantic_fields__[error["loc"][0]].description

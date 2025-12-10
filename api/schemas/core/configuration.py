@@ -38,10 +38,10 @@ def custom_validation_error(url: str | None = None):
             for error in error_content:
                 url = url or error["url"]
                 if error["type"] == "assertion_error":
-                    message += f"{error["msg"]}\n"
+                    message += f"{error['msg']}\n"
                 else:
                     if len(error["loc"]) > 0:
-                        message += f"{error["loc"][0]}\n"
+                        message += f"{error['loc'][0]}\n"
                     message += f"  {error["msg"]} [type={error["type"]}, input_value={error.get("input", "")}, input_type={type(error.get("input")).__name__}]\n"  # fmt: off
                     if len(error["loc"]) > 0:
                         description = cls.__pydantic_fields__[error["loc"][0]].description
@@ -277,7 +277,7 @@ class Dependencies(ConfigBaseModel):
 
             # Ensure only one dependency of this family is defined
             if len(candidates) > 1:
-                raise ValueError(f"Only one {type.__name__} is allowed (provided: {", ".join(c.value for c in candidates)}).")
+                raise ValueError(f"Only one {type.__name__} is allowed (provided: {', '.join(c.value for c in candidates)}).")
 
             # If no dependency is provided, set the attribute to None
             if len(candidates) == 0:
@@ -432,7 +432,7 @@ class ConfigFile(ConfigBaseModel):
         # check for duplicated name in models and aliases
         duplicated_models = [model for model in models["all"] if models["all"].count(model) > 1]
         if duplicated_models:
-            raise ValueError(f"Duplicated model or alias names found: {", ".join(set(duplicated_models))}")
+            raise ValueError(f"Duplicated model or alias names found: {', '.join(set(duplicated_models))}")
 
         # check for interdependencies
         if self.dependencies.vector_store:

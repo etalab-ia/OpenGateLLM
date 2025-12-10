@@ -53,7 +53,7 @@ def navigation_sidebar() -> rx.Component:
                 ),
                 width="100%",
                 padding="1em",
-                border_bottom=f"1px solid {rx.color("mauve", 3)}",
+                border_bottom=f"1px solid {rx.color('mauve', 3)}",
                 align_items="center",
             ),
             # Navigation items
@@ -140,7 +140,7 @@ def navigation_sidebar() -> rx.Component:
         width="250px",
         height="100vh",
         background_color=rx.color("mauve", 2),
-        border_right=f"1px solid {rx.color("mauve", 3)}",
+        border_right=f"1px solid {rx.color('mauve', 3)}",
         position="fixed",
         left="0",
         top="0",

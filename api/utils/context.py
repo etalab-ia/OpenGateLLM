@@ -11,4 +11,4 @@ def generate_request_id() -> str:
     """
     Get the ID of the request.
     """
-    return f"request-{str(uuid4()).replace("-", "")}"
+    return f"request-{str(uuid4()).replace('-', '')}"

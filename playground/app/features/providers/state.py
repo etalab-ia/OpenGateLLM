@@ -110,7 +110,7 @@ class ProvidersState(EntityState):
                 for provider in data.get("data", []):
                     if provider["user_id"] not in self.provider_owners:
                         response = await client.get(
-                            url=f"{self.opengatellm_url}/v1/admin/users/{provider["user_id"]}",
+                            url=f"{self.opengatellm_url}/v1/admin/users/{provider['user_id']}",
                             headers={"Authorization": f"Bearer {self.api_key}"},
                             timeout=configuration.settings.playground_opengatellm_timeout,
                         )
@@ -124,7 +124,7 @@ class ProvidersState(EntityState):
 
                     if provider["router_id"] not in self.routers_dict.values():
                         response = await client.get(
-                            url=f"{self.opengatellm_url}/v1/admin/routers/{provider["router_id"]}",
+                            url=f"{self.opengatellm_url}/v1/admin/routers/{provider['router_id']}",
                             headers={"Authorization": f"Bearer {self.api_key}"},
                             timeout=configuration.settings.playground_opengatellm_timeout,
                         )
