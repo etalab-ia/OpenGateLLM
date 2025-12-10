@@ -550,15 +550,19 @@ class ModelRegistry:
             postgres_session(AsyncSession): Database postgres_session
         """
         # Check if provider exists
+        query = select(ProviderTable).where(ProviderTable.id == provider_id)
+        if user_id != 0:
+            query = query.where(ProviderTable.user_id == user_id)
         try:
-            query = select(ProviderTable).where(ProviderTable.id == provider_id).where(ProviderTable.user_id == user_id)
             result = await postgres_session.execute(query)
             result.scalar_one()
         except NoResultFound:
             raise ProviderNotFoundException()
 
         # Delete provider
-        query = delete(ProviderTable).where(ProviderTable.id == provider_id).where(ProviderTable.user_id == user_id)
+        query = delete(ProviderTable).where(ProviderTable.id == provider_id)
+        if user_id != 0:
+            query = query.where(ProviderTable.user_id == user_id)
         await postgres_session.execute(query)
         await postgres_session.commit()
 

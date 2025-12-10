@@ -262,7 +262,6 @@ class ProvidersState(EntityState):
 
         if not self.entity_to_create.url:
             yield rx.toast.warning("URL is required", position="bottom-right")
-            return
 
         self.create_entity_loading = True
         yield
