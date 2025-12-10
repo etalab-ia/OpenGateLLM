@@ -35,6 +35,7 @@ from api.utils.exceptions import (
     TokenNotFoundException,
     UserAlreadyExistsException,
     UserNotFoundException,
+    OrganizationAlreadyExistsException,
 )
 
 settings = configuration.settings
@@ -453,8 +454,12 @@ class IdentityAccessManager:
         return users
 
     async def create_organization(self, postgres_session: AsyncSession, name: str) -> int:
-        result = await postgres_session.execute(statement=insert(table=OrganizationTable).values(name=name).returning(OrganizationTable.id))
-        organization_id = result.scalar_one()
+        try:
+            result = await postgres_session.execute(statement=insert(table=OrganizationTable).values(name=name).returning(OrganizationTable.id))
+            organization_id = result.scalar_one()
+        except IntegrityError:
+            raise OrganizationAlreadyExistsException()
+
         await postgres_session.commit()
 
         return organization_id
