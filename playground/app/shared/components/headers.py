@@ -72,7 +72,7 @@ def header(title: str, admin_badge: bool = False) -> rx.Component:
     )
 
 
-def nav_header(documentation_url: str | None, swagger_docs_url: str | None, swagger_redoc_url: str | None):
+def nav_header(documentation_url: str | None, swagger_url: str | None, reference_url: str | None):
     return rx.box(
         rx.hstack(
             rx.link(
@@ -85,19 +85,19 @@ def nav_header(documentation_url: str | None, swagger_docs_url: str | None, swag
             else rx.fragment(),
             rx.link(
                 "API reference",
-                href=swagger_docs_url,
+                href=reference_url,
                 color=rx.color("accent", 9),
                 size=TEXT_SIZE_LINK,
             )
-            if swagger_docs_url
+            if reference_url
             else rx.fragment(),
             rx.link(
                 "Swagger",
-                href=swagger_redoc_url,
+                href=swagger_url,
                 color=rx.color("accent", 9),
                 size=TEXT_SIZE_LINK,
             )
-            if swagger_redoc_url
+            if swagger_url
             else rx.fragment(),
             width="100%",
             padding="1.12em",

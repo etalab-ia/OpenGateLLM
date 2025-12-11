@@ -13,8 +13,8 @@ def providers_page() -> rx.Component:
     return rx.vstack(
         nav_header(
             documentation_url=configuration.settings.documentation_url,
-            swagger_docs_url=configuration.settings.swagger_url,
-            swagger_redoc_url=configuration.settings.reference_url,
+            swagger_url=configuration.settings.swagger_url,
+            reference_url=configuration.settings.reference_url,
         ),
         rx.box(
             rx.scroll_area(

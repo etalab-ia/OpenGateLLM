@@ -24,12 +24,12 @@ from app.shared.layouts.authenticated import authenticated_page
 
 def index() -> rx.Component:
     """Chat page."""
-    return authenticated_page(chat_page_content(), margin_right="320px")
+    return authenticated_page(chat_page_content())
 
 
 def chat() -> rx.Component:
     """Chat page."""
-    return authenticated_page(chat_page_content(), margin_right="320px")
+    return authenticated_page(chat_page_content())
 
 
 def account() -> rx.Component:
