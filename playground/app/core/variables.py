@@ -24,6 +24,7 @@ TEXT_SIZE_SMALL = "1"  # Helper text, hints
 TEXT_SIZE_LABEL = "2"  # Form labels, small text
 TEXT_SIZE_MEDIUM = "3"  # Medium text
 TEXT_SIZE_LARGE = "4"  # Important text, emphasized content
+TEXT_SIZE_LINK = "5"  # Link text
 
 # Icon sizes
 ICON_SIZE_TINY = 14  # Info icons, small indicators

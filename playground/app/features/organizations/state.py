@@ -229,7 +229,7 @@ class OrganizationsState(EntityState):
     ############################################################
     # Pagination & filters
     ############################################################
-    per_page: int = 10
+    per_page: int = 20
     order_by_options: list[str] = ["id", "name", "created", "updated"]
 
     @rx.event

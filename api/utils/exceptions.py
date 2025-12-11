@@ -1,6 +1,10 @@
 from fastapi import HTTPException
 
+
 # 400
+class MasterNotAllowedException(HTTPException):
+    def __init__(self, detail: str = "Master is not allowed to process this action."):
+        super().__init__(status_code=400, detail=detail)
 
 
 class WrongSearchMethodException(HTTPException):

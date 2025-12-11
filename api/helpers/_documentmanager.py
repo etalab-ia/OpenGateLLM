@@ -28,7 +28,13 @@ from api.sql.models import Document as DocumentTable
 from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import User as UserTable
-from api.utils.exceptions import ChunkingFailedException, CollectionNotFoundException, DocumentNotFoundException, VectorizationFailedException
+from api.utils.exceptions import (
+    ChunkingFailedException,
+    CollectionNotFoundException,
+    DocumentNotFoundException,
+    MasterNotAllowedException,
+    VectorizationFailedException,
+)
 from api.utils.variables import ENDPOINT__EMBEDDINGS
 
 from ._parsermanager import ParserManager
@@ -76,6 +82,9 @@ class DocumentManager:
 
     @check_dependencies(dependencies=["vector_store"])
     async def create_collection(self, postgres_session: AsyncSession, user_id: int, name: str, visibility: CollectionVisibility, description: str | None = None) -> int:  # fmt: off
+        if user_id == 0:
+            raise MasterNotAllowedException(detail="Master user is not allowed to create collection.")
+
         query = (
             insert(table=CollectionTable)
             .values(name=name, user_id=user_id, visibility=visibility, description=description)

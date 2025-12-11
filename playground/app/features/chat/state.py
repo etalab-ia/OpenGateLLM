@@ -1,5 +1,3 @@
-"""Chat state management."""
-
 from typing import Any
 
 import httpx
@@ -79,7 +77,7 @@ class ChatState(AuthState):
                     self.model = self.available_models[0]
 
         except Exception as e:
-            rx.error("Error loading models.")
+            rx.toast.error("Error loading models.", position="bottom-right")
             self.available_models = []
             self.model = ""
         finally:
