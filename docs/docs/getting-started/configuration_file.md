@@ -343,7 +343,7 @@ For Plagroud deployment, some environment variables are required to be set, like
 | --- | --- | --- | --- | --- | --- | --- |
 | app_title | string | The title of the application. |  | OpenGateLLM |  |  |
 | auth_key_max_expiration_days | integer | Maximum number of days for a token to be valid. |  | None |  |  |
-| documentation_url | string | Documentation URL. |  | https://docs.opengatellm.org/docs |  |  |
+| documentation_url | string | Documentation URL. If not provided, deactivated documentation link in the navigation bar. |  | https://docs.opengatellm.org/docs |  |  |
 | playground_default_model | string | The first model selected in chat page. |  | None |  |  |
 | playground_opengatellm_timeout | integer | The timeout in seconds for the OpenGateLLM API. |  | 60 |  |  |
 | playground_opengatellm_url | string | The URL of the OpenGateLLM API. |  | http://localhost:8000 |  |  |
@@ -354,9 +354,9 @@ For Plagroud deployment, some environment variables are required to be set, like
 | playground_theme_panel_background | string | Whether panel backgrounds are translucent: 'solid' | 'translucent'. |  | solid |  |  |
 | playground_theme_radius | string | The radius of the theme. Can be 'small', 'medium', or 'large'. |  | medium |  |  |
 | playground_theme_scaling | string | The scaling of the theme. |  | 100% |  |  |
+| reference_url | string | Reference URL. If not provided, deactivated reference link in the navigation bar. |  | http://localhost:8000/redoc |  |  |
 | routing_max_priority | integer | Maximum allowed priority in routing tasks. |  | 10 |  |  |
-| swagger_docs_url | string | Docs URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | /docs |  |  |
-| swagger_redoc_url | string | Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | /redoc |  |  |
+| swagger_url | string | Swagger URL. If not provided, deactivated swagger link in the navigation bar. |  | http://localhost:8000/docs |  |  |
 
 <br></br>
 
