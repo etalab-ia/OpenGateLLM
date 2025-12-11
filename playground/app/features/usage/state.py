@@ -43,6 +43,12 @@ class UsageState(EntityState):
         if not self.is_authenticated or not self.api_key:
             return
 
+        print("--------------------------------")
+        print(configuration.settings.swagger_url)
+        print(configuration.settings.reference_url)
+        print(configuration.settings.documentation_url)
+        print("--------------------------------")
+
         self.entities_loading = True
         yield
 
@@ -97,7 +103,7 @@ class UsageState(EntityState):
     ############################################################
     # Pagination & filters
     ############################################################
-    per_page: int = 10
+    per_page: int = 20
 
     @rx.event
     async def prev_page(self):

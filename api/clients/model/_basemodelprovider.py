@@ -350,8 +350,15 @@ class BaseModelProvider(ABC):
                     start_time = time.perf_counter()
                     response = await async_client.request(method=method, url=url, headers=self.headers, json=json, files=files, data=data)
                     end_time = time.perf_counter()
-                except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout, httpx.WriteTimeout, httpx.PoolTimeout):
-                    raise ModelIsTooBusyException()
+                except (
+                    httpx.ConnectTimeout,
+                    httpx.PoolTimeout,
+                    httpx.ReadTimeout,
+                    httpx.RemoteProtocolError,
+                    httpx.TimeoutException,
+                    httpx.WriteTimeout,
+                ) as e:
+                    raise ModelIsTooBusyException(detail=f"Model is too busy ({e}), please try again later")
                 except Exception as e:
                     logger.exception(msg=f"Failed to forward request to {self.name}: {e}.")
                     raise HTTPException(status_code=500, detail=type(e).__name__)

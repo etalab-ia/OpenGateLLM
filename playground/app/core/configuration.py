@@ -3,6 +3,7 @@ import logging
 import os
 import re
 from typing import Any
+from urllib.parse import urljoin
 
 from pydantic import BaseModel, ConfigDict, Field, constr, field_validator, model_validator
 from pydantic import ValidationError as PydanticValidationError
@@ -93,6 +94,10 @@ class Settings(ConfigBaseModel):
     playground_theme_radius: str = Field(default="medium", description="The radius of the theme. Can be 'small', 'medium', or 'large'.")
     playground_theme_scaling: str = Field(default="100%", description="The scaling of the theme.")
 
+    documentation_url: str | None = Field(default="https://docs.opengatellm.org/docs", description="Documentation URL.")
+    swagger_docs_url: str | None = Field(default="/docs", pattern=r"^/", description="Docs URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
+    swagger_redoc_url: str | None = Field(default="/redoc", pattern=r"^/", description="Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
+
 
 class ConfigFile(ConfigBaseModel):
     """
@@ -128,6 +133,11 @@ class Configuration(BaseSettings):
 
         values.dependencies = config.dependencies
         values.settings = config.settings
+
+        base = config.settings.playground_opengatellm_url
+        base = f"{base}/" if not base.endswith("/") else base
+        values.settings.swagger_url = urljoin(base=base, url=config.settings.swagger_docs_url.lstrip("/"))
+        values.settings.reference_url = urljoin(base=base, url=config.settings.swagger_redoc_url.lstrip("/"))
 
         return values
 

@@ -1,6 +1,15 @@
 import reflex as rx
 
-from app.core.variables import HEADING_SIZE_PAGE, ICON_SIZE_MEDIUM, ICON_SIZE_SMALL, MARGIN_MEDIUM, SPACING_MEDIUM, SPACING_TINY, TEXT_SIZE_LABEL
+from app.core.variables import (
+    HEADING_SIZE_PAGE,
+    ICON_SIZE_MEDIUM,
+    ICON_SIZE_SMALL,
+    MARGIN_MEDIUM,
+    SPACING_MEDIUM,
+    SPACING_TINY,
+    TEXT_SIZE_LABEL,
+    TEXT_SIZE_LINK,
+)
 
 
 def header_heading(title: str) -> rx.Component:
@@ -60,4 +69,43 @@ def header(title: str, admin_badge: bool = False) -> rx.Component:
             align="center",
             spacing=SPACING_MEDIUM,
         )
+    )
+
+
+def nav_header(documentation_url: str | None, swagger_docs_url: str | None, swagger_redoc_url: str | None):
+    return rx.box(
+        rx.hstack(
+            rx.link(
+                "Documentation",
+                href=documentation_url,
+                color=rx.color("accent", 9),
+                size=TEXT_SIZE_LINK,
+            )
+            if documentation_url
+            else rx.fragment(),
+            rx.link(
+                "API reference",
+                href=swagger_docs_url,
+                color=rx.color("accent", 9),
+                size=TEXT_SIZE_LINK,
+            )
+            if swagger_docs_url
+            else rx.fragment(),
+            rx.link(
+                "Swagger",
+                href=swagger_redoc_url,
+                color=rx.color("accent", 9),
+                size=TEXT_SIZE_LINK,
+            )
+            if swagger_redoc_url
+            else rx.fragment(),
+            width="100%",
+            padding="1.12em",
+            border_bottom=f"1px solid {rx.color("mauve", 3)}",
+            justify_content="end",
+            align_items="center",
+            spacing="6",
+        ),
+        width="100%",
+        background_color=rx.color("mauve", 1),
     )

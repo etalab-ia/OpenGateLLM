@@ -16,15 +16,15 @@ class ProvidersState(EntityState):
     @rx.var
     def provider_types_list(self) -> list[str]:
         """Get list of provider types."""
-        return ["Albert", "OpenAI", "TEI", "vLLM"]
+        return sorted(["Albert", "Mistral", "OpenAI", "TEI", "vLLM"])
 
     @rx.var
     def provider_model_carbon_footprint_zones_list(self) -> list[str]:
-        return [country.alpha_3 for country in pycountry.countries] + ["WOR"]
+        return sorted([country.alpha_3 for country in pycountry.countries] + ["WOR"])
 
     @rx.var
     def provider_qos_metric_list(self) -> list[str]:
-        return ["TTFT", "Latency", "Inflight", "Performance"]
+        return sorted(["TTFT", "Latency", "Inflight", "Performance"])
 
     @rx.var
     def routers_name_list(self) -> list[str]:
@@ -44,10 +44,11 @@ class ProvidersState(EntityState):
         router_dict_reverse = {v: k for k, v in self.routers_dict.items()}
 
         _type_converter = {
-            "vllm": "vLLM",
             "albert": "Albert",
+            "mistral": "Mistral",
             "openai": "OpenAI",
             "tei": "TEI",
+            "vllm": "vLLM",
         }
 
         _qos_metric_converter = {
@@ -276,7 +277,7 @@ class ProvidersState(EntityState):
             "model_carbon_footprint_zone": self.entity_to_create.model_carbon_footprint_zone,
             "model_carbon_footprint_total_params": self.entity_to_create.model_carbon_footprint_total_params,
             "model_carbon_footprint_active_params": self.entity_to_create.model_carbon_footprint_active_params,
-            "qos_metric": self.entity_to_create.qos_metric.lower(),
+            "qos_metric": self.entity_to_create.qos_metric.lower() if self.entity_to_create.qos_metric else None,
             "qos_limit": self.entity_to_create.qos_limit,
         }
 

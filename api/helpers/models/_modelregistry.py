@@ -432,8 +432,8 @@ class ModelRegistry:
             router_id(int): The model router ID
             user_id(int): The user ID of owner of the provider
             type(ProviderType): Provider type
-            url(Optional[str]): Provider URL
-            key(Optional[str]): Provider API key
+            url(str | None): Provider URL
+            key(str | None): Provider API key
             timeout(int): Request timeout
             model_name(str): Model name
             model_carbon_footprint_zone(ProviderCarbonFootprintZone | None): ProviderCarbonFootprintZone
@@ -445,6 +445,7 @@ class ModelRegistry:
         Returns:
             The provider ID
         """
+        # format url
         if url is None:
             if type == ProviderType.OPENAI:
                 url = "https://api.openai.com"
@@ -452,6 +453,7 @@ class ModelRegistry:
                 url = "https://albert.api.etalab.gouv.fr"
             else:
                 raise MissingProviderURLException()
+        url = f"{url}/" if not url.endswith("/") else url
 
         # check if router exists
         routers = await self.get_routers(router_id=router_id, name=None, postgres_session=postgres_session)

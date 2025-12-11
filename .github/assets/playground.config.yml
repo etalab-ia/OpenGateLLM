@@ -4,3 +4,6 @@ settings:
   playground_opengatellm_url: ${OPENGATELLM_URL}
   playground_default_model: ${PLAYGROUND_DEFAULT_MODEL}
   playground_theme_accent_color: indigo
+  swagger_docs_url: /swagger
+  swagger_redoc_url: /reference
+  documentation_url: https://docs.opengatellm.org/docs

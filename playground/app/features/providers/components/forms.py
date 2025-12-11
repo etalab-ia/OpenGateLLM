@@ -40,7 +40,6 @@ def provider_create_form_fields() -> rx.Component:
             value=ProvidersState.entity_to_create.model_name,
             on_change=lambda value: ProvidersState.set_new_entity_attribut("model_name", value),
             tooltip="Model name from the model API (e.g., gpt-4)",
-            placeholder="Enter model name",
         ),
         entity_form_input_field(
             label="Timeout (seconds)",
@@ -55,6 +54,7 @@ def provider_create_form_fields() -> rx.Component:
         entity_form_select_field(
             label="Hosting country of model",
             items=ProvidersState.provider_model_carbon_footprint_zones_list,
+            value=ProvidersState.entity_to_create.model_carbon_footprint_zone,
             on_change=lambda value: ProvidersState.set_new_entity_attribut("model_carbon_footprint_zone", value),
             tooltip="Alpha-3 code of the country where the model is hosted for carbon footprint computation (e.g., FRA for France, USA for United States)",
             placeholder="Select country (optional)",
