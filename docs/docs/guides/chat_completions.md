@@ -3,10 +3,9 @@
 [![](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/chat_completions.ipynb)
 </p>
 
-
-:::warning
-For the following tutorial, we use [DINUM](https://www.numerique.gouv.fr/) instance of OpenGateLLM, called [Albert API](https://albert.api.etalab.gouv.fr/swagger). If your are not a user of this instance, please refer to the [OpenGateLLM readme](https://github.com/etalab-ia/OpenGateLLM?tab=readme-ov-file#-tutorials--guides) to install and configure your own instance. You need to have a text-generation or image-text-to-text model to run this tutorial.
-:::
+> **Warning**
+>
+> For the following tutorial, we use [DINUM](https://www.numerique.gouv.fr/) instance of OpenGateLLM, called [Albert API](https://albert.api.etalab.gouv.fr/swagger). If your are not a user of this instance, please refer to the [OpenGateLLM readme](https://github.com/etalab-ia/OpenGateLLM?tab=readme-ov-file#-tutorials--guides) to install and configure your own instance. You need to have a text-generation or image-text-to-text model to run this tutorial.
 
 
 ```python
@@ -36,9 +35,11 @@ model = [model for model in models if model.type in ["text-generation", "image-t
 print(f"Chat model found: {model}")
 ```
 
-> ```
+
+> ```python
 > Chat model found: albert-small
 > ```
+
 
 ### Unstreamed chat
 
@@ -57,9 +58,11 @@ response = client.chat.completions.create(**data)
 print(f"Chat result: {response.choices[0].message.content}")
 ```
 
-> ```
+
+> ```python
 > Chat result: Hello there! Unfortunately, I'm not Albert Einstein, but I'll do my best to help you with any questions or topics you'd like to discuss. How can I assist you today?
 > ```
+
 
 ### Streamed chat
 
@@ -83,7 +86,8 @@ for chunk in response:
     print(chunk.choices[0].delta.content, end="\ntoken: ", flush=True)
 ```
 
-> ```
+
+> ```python
 > Chat result:
 > 
 > token: Not
@@ -107,5 +111,6 @@ for chunk in response:
 > token:  your
 > token:  mind
 > token: ?
-> token:
-> ```
+> token: > ```
+
+
