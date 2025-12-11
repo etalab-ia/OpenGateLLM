@@ -149,7 +149,7 @@ class Organization(Base):
     __tablename__ = "organization"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    name: Mapped[str]
+    name: Mapped[str] = mapped_column(unique=True)
     created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
     updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
 
