@@ -486,7 +486,7 @@ class IdentityAccessManager:
 
         try:
             organization = result.scalar_one()
-        except IndexError:
+        except NoResultFound:
             raise OrganizationNotFoundException()
 
         if name is not None:
