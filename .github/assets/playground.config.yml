@@ -4,6 +4,6 @@ settings:
   playground_opengatellm_url: ${OPENGATELLM_URL}
   playground_default_model: ${PLAYGROUND_DEFAULT_MODEL}
   playground_theme_accent_color: indigo
-  swagger_docs_url: https://albert.api.etalab.gouv.fr/swagger
-  swagger_redoc_url: https://albert.api.etalab.gouv.fr/reference
+  swagger_url: https://albert.api.etalab.gouv.fr/swagger
+  reference_url: https://albert.api.etalab.gouv.fr/reference
   documentation_url: https://docs.opengatellm.org/docs
