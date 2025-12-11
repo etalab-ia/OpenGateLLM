@@ -147,6 +147,16 @@ class UserAlreadyExistsException(HTTPException):
         super().__init__(status_code=409, detail=detail)
 
 
+class OrganizationAlreadyExistsException(HTTPException):
+    def __init__(self, detail: str = "Organization already exists."):
+        super().__init__(status_code=409, detail=detail)
+
+
+class OrganizationNameAlreadyTakenException(HTTPException):
+    def __init__(self, detail: str = "Organization name already taken. Please, choose another one."):
+        super().__init__(status_code=409, detail=detail)
+
+
 class ProviderAlreadyExistsException(HTTPException):
     def __init__(self, detail: str = "Model provider already exists."):
         super().__init__(status_code=409, detail=detail)

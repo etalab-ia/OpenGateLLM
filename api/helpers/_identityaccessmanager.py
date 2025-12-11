@@ -27,6 +27,8 @@ from api.utils.exceptions import (
     DeleteRoleWithUsersException,
     InvalidCurrentPasswordException,
     InvalidTokenExpirationException,
+    OrganizationAlreadyExistsException,
+    OrganizationNameAlreadyTakenException,
     OrganizationNotFoundException,
     PasswordNotFoundException,
     ReservedEmailException,
@@ -453,10 +455,12 @@ class IdentityAccessManager:
         return users
 
     async def create_organization(self, postgres_session: AsyncSession, name: str) -> int:
-        result = await postgres_session.execute(statement=insert(table=OrganizationTable).values(name=name).returning(OrganizationTable.id))
-        organization_id = result.scalar_one()
+        try:
+            result = await postgres_session.execute(statement=insert(table=OrganizationTable).values(name=name).returning(OrganizationTable.id))
+            organization_id = result.scalar_one()
+        except IntegrityError:
+            raise OrganizationAlreadyExistsException()
         await postgres_session.commit()
-
         return organization_id
 
     async def delete_organization(self, postgres_session: AsyncSession, organization_id: int) -> None:
@@ -474,14 +478,24 @@ class IdentityAccessManager:
         await postgres_session.commit()
 
     async def update_organization(self, postgres_session: AsyncSession, organization_id: int, name: str | None = None) -> None:
-        result = await postgres_session.execute(statement=select(OrganizationTable).where(OrganizationTable.id == organization_id))
+        result = await postgres_session.execute(
+            statement=select(
+                OrganizationTable,
+            ).where(OrganizationTable.id == organization_id)
+        )
+
         try:
             organization = result.scalar_one()
-        except NoResultFound:
+        except IndexError:
             raise OrganizationNotFoundException()
 
         if name is not None:
-            await postgres_session.execute(statement=update(table=OrganizationTable).values(name=name).where(OrganizationTable.id == organization.id))
+            try:
+                await postgres_session.execute(
+                    statement=update(table=OrganizationTable).values(name=name).where(OrganizationTable.id == organization.id)
+                )
+            except IntegrityError:
+                raise OrganizationNameAlreadyTakenException()
         await postgres_session.commit()
 
     async def get_organizations(
