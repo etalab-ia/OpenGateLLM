@@ -6,6 +6,7 @@ import TabItem from '@theme/TabItem';
 [![](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/ocr.ipynb)
 </p>
 
+
 OpenGateLLM provides an OCR endpoint based on the Mistral API convention, `/v1/ocr`. For more information on the Mistral API convention, please refer to their [documentation](https://docs.mistral.ai/api/endpoint/ocr).
 
 
@@ -89,7 +90,7 @@ display(Image(data=base64.b64decode(response.pages[0].images[0].image_base64.spl
 > 
 > Page 0 - image 0 (box: 429, 1790, 777, 1949)
 > ```
-> ![](../../static/img/guides/ocr_10.jpg)
+> ![](../../static/img/guides/ocr_11.jpg)
 
 
 
@@ -124,7 +125,7 @@ display(Image(data=base64.b64decode(response["pages"][0]["images"][0]["image_bas
 > 
 > Page 0 - image 0 (box: 433, 1790, 777, 1949)
 > ```
-> ![](../../static/img/guides/ocr_12.jpg)
+> ![](../../static/img/guides/ocr_13.jpg)
 
 
 
@@ -173,7 +174,7 @@ if response.pages[0].images:
 > 
 > Page 0 - image 0 (box: 143, 1075, 965, 1705)
 > ```
-> ![](../../static/img/guides/ocr_15.jpg)
+> ![](../../static/img/guides/ocr_16.jpg)
 
 
 
@@ -215,7 +216,7 @@ if response["pages"][0].get("images"):
 > 
 > Page 0 - image 0 (box: 143, 1075, 965, 1705)
 > ```
-> ![](../../static/img/guides/ocr_17.jpg)
+> ![](../../static/img/guides/ocr_18.jpg)
 
 
 

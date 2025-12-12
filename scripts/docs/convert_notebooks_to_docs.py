@@ -61,7 +61,8 @@ def convert_notebook(file_path: Path) -> str:
 
     markdown = ""
     for i, cell in enumerate(file["cells"]):
-        badge = f"""<p align="right">
+        badge = f"""
+<p align="right">
 [![](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/etalab-ia/opengatellm/blob/main/docs/tutorials/{filename}.ipynb)
 </p>
 """
