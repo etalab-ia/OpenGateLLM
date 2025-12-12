@@ -89,15 +89,19 @@ class UsageState(EntityState):
     def usage_rows(self) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
         for row in self.entities:
-            rows.append({
-                "date": row.created,
-                "endpoint": row.endpoint,
-                "key": row.key,
-                "model": row.model,
-                "tokens": "" if row.total_tokens == 0 else f"{row.prompt_tokens} → {row.completion_tokens}",
-                "cost": "" if row.cost == 0.0 or row.cost is None else f"{row.cost:.4f}",
-                "kgCO2eq": "" if row.kgco2eq_min is None or row.kgco2eq_max is None else f"{round(row.kgco2eq_min, 5)} — {round(row.kgco2eq_max, 5)}",
-            })
+            rows.append(
+                {
+                    "date": row.created,
+                    "endpoint": row.endpoint,
+                    "key": row.key,
+                    "model": row.model,
+                    "tokens": "" if row.total_tokens == 0 else f"{row.prompt_tokens} → {row.completion_tokens}",
+                    "cost": "" if row.cost == 0.0 or row.cost is None else f"{row.cost:.4f}",
+                    "kgCO2eq": ""
+                    if row.kgco2eq_min is None or row.kgco2eq_max is None
+                    else f"{round(row.kgco2eq_min, 5)} — {round(row.kgco2eq_max, 5)}",
+                }
+            )
         return rows
 
     ############################################################

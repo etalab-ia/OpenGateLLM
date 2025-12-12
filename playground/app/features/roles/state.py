@@ -181,12 +181,14 @@ class RolesState(EntityState):
             if limit["router"] == router:
                 continue
 
-            limits.extend([
-                {"router": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
-                {"router": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
-                {"router": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
-                {"router": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
-            ])
+            limits.extend(
+                [
+                    {"router": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
+                    {"router": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
+                    {"router": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
+                    {"router": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
+                ]
+            )
 
         yield
 
