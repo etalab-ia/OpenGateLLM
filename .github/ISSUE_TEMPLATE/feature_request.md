@@ -1,7 +1,7 @@
 ---
 name: Feature request
 about: Suggest an idea for this project
-title: "[topic] - title "
+title: "[topic] Title"
 labels: ''
 assignees: ''
 
