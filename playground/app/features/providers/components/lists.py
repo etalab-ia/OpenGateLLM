@@ -88,5 +88,6 @@ def providers_list() -> rx.Component:
         settings_dialog=provider_settings_dialog(),
         delete_dialog=provider_delete_dialog(),
         filters=provider_filters(),
-        pagination=False,
+        pagination=True,
+        sorting=True,
     )

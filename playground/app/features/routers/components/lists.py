@@ -71,8 +71,9 @@ def routers_list() -> rx.Component:
         entities=RoutersState.routers,
         renderer_entity_row=router_renderer_row,
         settings_dialog=router_settings_dialog(),
-        delete_dialog=router_delete_dialog(),
         no_entities_message="No routers yet",
         no_entities_description="Create your first router to get started",
-        pagination=False,
+        delete_dialog=router_delete_dialog(),
+        pagination=True,
+        sorting=True,
     )

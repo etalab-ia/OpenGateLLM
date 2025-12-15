@@ -62,6 +62,7 @@ class KeysState(EntityState):
                 response.raise_for_status()
                 data = response.json()
                 self.entities = []
+
                 for key in data.get("data", []):
                     if key["name"] != "playground":
                         self.entities.append(self._format_key(key))

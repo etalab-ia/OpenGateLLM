@@ -1,8 +1,9 @@
 from contextvars import ContextVar
 import logging
+from typing import Literal
 
 from redis.asyncio import Redis as AsyncRedis
-from sqlalchemy import Integer, cast, delete, func, insert, or_, select, update
+from sqlalchemy import Integer, cast, delete, func, insert, or_, select, text, update
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -333,17 +334,35 @@ class ModelRegistry:
 
         await postgres_session.commit()
 
-    async def get_routers(self, router_id: int | None, name: str | None, postgres_session: AsyncSession) -> list[Router]:
+    async def get_routers(
+        self,
+        router_id: int | None,
+        name: str | None,
+        postgres_session: AsyncSession,
+        offset: int = 0,
+        limit: int = 10,
+        order_by: Literal["id", "name", "created"] = "id",
+        order_direction: Literal["asc", "desc"] = "asc",
+    ) -> list[Router]:
         """
-        Get model router with optional filtering.
+        Get model routers with optional filtering, pagination and ordering.
 
         Args:
-            postgres_session(AsyncSession): Database postgres_session
-            router_id(Optional[int]): Optional router ID to filter by
-            name(Optional[str]): Optional router name or alias to filter by
+            postgres_session (AsyncSession): Database postgres_session.
+            router_id (Optional[int]): Optional router ID to filter by.
+            name (Optional[str]): Optional router name or alias to filter by.
+            offset (int): Pagination offset (default: 0).
+            limit (int): Maximum number of routers to return (default: 10).
+            order_by (Literal["id", "name", "created"]): Field to order results by (default: "id").
+            order_direction (Literal["asc", "desc"]): Order direction (default: "asc").
+
         Returns:
-            List of model router schemas
+            List[Router]: List of model router schemas.
+
+        Raises:
+            RouterNotFoundException: If a specific router_id or name is provided and no matching router is found.
         """
+
         provider_count_subquery = (
             select(func.count(ProviderTable.id)).where(ProviderTable.router_id == RouterTable.id).correlate(RouterTable).scalar_subquery()
         )
@@ -365,7 +384,9 @@ class ModelRegistry:
             )
             .distinct(RouterTable.id)
             .join(ProviderTable, ProviderTable.router_id == RouterTable.id, isouter=True)
-            .order_by(RouterTable.id, ProviderTable.id)
+            .offset(offset=offset)
+            .limit(limit=limit)
+            .order_by(text(f"{order_by} {order_direction}"))
         )
 
         if router_id is not None:
@@ -373,6 +394,7 @@ class ModelRegistry:
 
         result = await postgres_session.execute(query)
         router_results = [row._asdict() for row in result.all()]
+
         if router_id is not None and len(router_results) == 0:
             raise RouterNotFoundException()
 
@@ -572,6 +594,10 @@ class ModelRegistry:
         router_id: int,
         provider_id: int | None,
         postgres_session: AsyncSession,
+        offset: int = 0,
+        limit: int = 10,
+        order_by: Literal["id", "name", "created"] = "id",
+        order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[Provider]:
         """
         Get a specific model provider.
@@ -584,22 +610,27 @@ class ModelRegistry:
         Returns:
             The provider schema or None
         """
-        query = select(
-            ProviderTable.id,
-            ProviderTable.router_id,
-            ProviderTable.user_id,
-            ProviderTable.type,
-            ProviderTable.url,
-            ProviderTable.key,
-            ProviderTable.timeout,
-            ProviderTable.model_name,
-            ProviderTable.model_carbon_footprint_zone,
-            ProviderTable.model_carbon_footprint_total_params,
-            ProviderTable.model_carbon_footprint_active_params,
-            ProviderTable.qos_metric,
-            ProviderTable.qos_limit,
-            cast(func.extract("epoch", ProviderTable.created), Integer).label("created"),
-            cast(func.extract("epoch", ProviderTable.updated), Integer).label("updated"),
+        query = (
+            select(
+                ProviderTable.id,
+                ProviderTable.router_id,
+                ProviderTable.user_id,
+                ProviderTable.type,
+                ProviderTable.url,
+                ProviderTable.key,
+                ProviderTable.timeout,
+                ProviderTable.model_name,
+                ProviderTable.model_carbon_footprint_zone,
+                ProviderTable.model_carbon_footprint_total_params,
+                ProviderTable.model_carbon_footprint_active_params,
+                ProviderTable.qos_metric,
+                ProviderTable.qos_limit,
+                cast(func.extract("epoch", ProviderTable.created), Integer).label("created"),
+                cast(func.extract("epoch", ProviderTable.updated), Integer).label("updated"),
+            )
+            .offset(offset=offset)
+            .limit(limit=limit)
+            .order_by(text(f"{order_by} {order_direction}"))
         )
 
         if router_id is not None:
