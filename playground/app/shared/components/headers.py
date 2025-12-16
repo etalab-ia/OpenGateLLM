@@ -77,22 +77,28 @@ def nav_header(documentation_url: str | None, swagger_url: str | None, reference
     return (
         # Header
         rx.hstack(
-            rx.hstack(
-                rx.image(
-                    src="/logo.svg",
-                    width="32px",
-                    height="32px",
+            # Logo and title
+            rx.link(
+                rx.hstack(
+                    rx.image(
+                        src="/logo.svg",
+                        width="32px",
+                        height="32px",
+                    ),
+                    rx.heading(
+                        configuration.settings.app_title,
+                        size="5",
+                        color=rx.color("accent", 11),
+                    ),
+                    width="100%",
+                    padding="1em",
+                    border_bottom=f"1px solid {rx.color('mauve', 3)}",
+                    align_items="center",
                 ),
-                rx.heading(
-                    configuration.settings.app_title,
-                    size="5",
-                    color=rx.color("accent", 11),
-                ),
-                width="100%",
-                padding="1em",
-                border_bottom=f"1px solid {rx.color("mauve", 3)}",
-                align_items="center",
+                href="/",
+                style={"textDecoration": "none"},
             ),
+            # Links
             rx.hstack(
                 rx.link(
                     "Documentation",
