@@ -14,20 +14,11 @@ class UsersState(EntityState):
 
     @rx.var
     def roles_name_list(self) -> list[str]:
-        return sorted([role["name"] for role in self.roles_list])
+        return ["All roles", *sorted([role["name"] for role in self.roles_list])]
 
     @rx.var
     def organizations_name_list(self) -> list[str]:
-        return sorted([organization["name"] for organization in self.organizations_list])
-
-    ############################################################
-    # Load entities
-    ############################################################
-    entities: list[User] = []
-    roles_list: list[dict[str, str | int]] = []
-    roles_dict: dict[str, int] = {}
-    organizations_list: list[dict[str, str | int]] = []
-    organizations_dict: dict[str, int] = {}
+        return ["All organizations", *sorted([organization["name"] for organization in self.organizations_list])]
 
     def _format_user(self, user: dict) -> User:
         """Format user."""
@@ -51,6 +42,15 @@ class UsersState(EntityState):
             updated=dt.datetime.fromtimestamp(user["updated"]).strftime("%Y-%m-%d %H:%M"),
         )
 
+    ############################################################
+    # Load entities
+    ############################################################
+    entities: list[User] = []
+    roles_list: list[dict[str, str | int]] = []
+    roles_dict: dict[str, int] = {}
+    organizations_list: list[dict[str, str | int]] = []
+    organizations_dict: dict[str, int] = {}
+
     @rx.var
     def users(self) -> list[User]:
         """Get users list with correct typing for Reflex."""
@@ -72,10 +72,10 @@ class UsersState(EntityState):
             "order_direction": self.order_direction_value,
         }
 
-        if self.filter_role_value != "0":
-            params["role"] = int(self.filter_role_value)
-        if self.filter_organization_value != "0":
-            params["organization"] = int(self.filter_organization_value)
+        if self.filter_role_value != "All roles":
+            params["role"] = self.roles_dict[self.filter_role_value]
+        if self.filter_organization_value != "All organizations":
+            params["organization"] = self.organizations_dict[self.filter_organization_value]
         if self.search_email_value:
             params["email"] = self.search_email_value
 
@@ -397,8 +397,8 @@ class UsersState(EntityState):
             async for _ in self.load_entities():
                 yield
 
-    filter_role_value: str = "0"
-    filter_organization_value: str = "0"
+    filter_role_value: str = "All roles"
+    filter_organization_value: str = "All organizations"
 
     @rx.event
     async def set_filter_role(self, value: str):

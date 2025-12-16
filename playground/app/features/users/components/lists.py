@@ -1,6 +1,6 @@
 import reflex as rx
 
-from app.core.variables import SELECT_LARGE_WIDTH, SELECT_SMALL_WIDTH, SPACING_SMALL, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
+from app.core.variables import SELECT_LARGE_WIDTH, SELECT_MEDIUM_WIDTH, SPACING_SMALL, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
 from app.features.users.components.dialogs import user_delete_dialog, user_settings_dialog
 from app.features.users.models import User
 from app.features.users.state import UsersState
@@ -68,29 +68,17 @@ def user_filters() -> rx.Component:
             width=SELECT_LARGE_WIDTH,
         ),
         rx.text("Filters", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
-        rx.select.root(
-            rx.select.trigger(size="2", width=SELECT_SMALL_WIDTH),
-            rx.select.content(
-                rx.select.item("All roles", value="0"),
-                rx.foreach(
-                    UsersState.roles_list,
-                    lambda role: rx.select.item(role["name"], value=role["id"].to(str)),
-                ),
-            ),
-            value=UsersState.filter_role_value.to(str),
-            on_change=lambda value: UsersState.set_filter_role(value),
+        rx.select(
+            UsersState.roles_name_list,
+            on_change=UsersState.set_filter_role,
+            value=UsersState.filter_role_value,
+            width=SELECT_MEDIUM_WIDTH,
         ),
-        rx.select.root(
-            rx.select.trigger(size="2", width=SELECT_SMALL_WIDTH),
-            rx.select.content(
-                rx.select.item("All organizations", value="0"),
-                rx.foreach(
-                    UsersState.organizations_list,
-                    lambda org: rx.select.item(org["name"], value=org["id"].to(str)),
-                ),
-            ),
-            value=UsersState.filter_organization_value.to(str),
-            on_change=lambda value: UsersState.set_filter_organization(value),
+        rx.select(
+            UsersState.organizations_name_list,
+            on_change=UsersState.set_filter_organization,
+            value=UsersState.filter_organization_value,
+            width=SELECT_MEDIUM_WIDTH,
         ),
         spacing=SPACING_SMALL,
         align="center",

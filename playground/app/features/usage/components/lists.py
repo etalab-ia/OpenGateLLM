@@ -16,6 +16,7 @@ from app.shared.components.pagination import pagination
 
 
 def usage_filters() -> rx.Component:
+    """Filters for usage list."""
     return (
         rx.hstack(
             rx.text("Filters", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),

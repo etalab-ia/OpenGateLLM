@@ -68,19 +68,19 @@ def role_create_form_fields() -> rx.Component:
         entity_form_checkbox_field(
             label="Create public collection",
             value=RolesState.entity_to_create.permissions_create_public_collection,
-            on_change=lambda value: RolesState.set_new_entity_attribut("create_public_collection", value),
+            on_change=lambda value: RolesState.set_new_entity_attribut("permissions_create_public_collection", value),
             description="Allow creating public collections. Public collections are visible to all users.",
         ),
         entity_form_checkbox_field(
             label="Read metrics",
             value=RolesState.entity_to_create.permissions_read_metric,
-            on_change=lambda value: RolesState.set_new_entity_attribut("read_metrics", value),
+            on_change=lambda value: RolesState.set_new_entity_attribut("permissions_read_metric", value),
             description="Allow reading Prometheus metrics (by /metrics endpoint).",
         ),
         entity_form_checkbox_field(
             label="Provide models",
             value=RolesState.entity_to_create.permissions_provide_models,
-            on_change=lambda value: RolesState.set_new_entity_attribut("provide_models", value),
+            on_change=lambda value: RolesState.set_new_entity_attribut("permissions_provide_models", value),
             description="Allow add and remove model providers for the model routers.",
         ),
         columns="1",

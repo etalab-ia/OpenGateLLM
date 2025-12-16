@@ -91,7 +91,7 @@ def entity_pagination(state: rx.State) -> rx.Component:
 def entity_sorting(state: rx.State) -> rx.Component:
     """Sorting controls for entities."""
     return rx.hstack(
-        rx.text("Sort by", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+        rx.text("Sort", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
         rx.select(
             items=state.order_by_options,
             value=state.order_by_value,
