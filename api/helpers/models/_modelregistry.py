@@ -53,6 +53,7 @@ class ModelRegistry:
     MODEL_TYPE_TO_MODEL_PROVIDER_TYPE_MAPPING = {
         ModelType.AUTOMATIC_SPEECH_RECOGNITION: [
             ProviderType.ALBERT.value,
+            ProviderType.MISTRAL.value,
             ProviderType.OPENAI.value,
             ProviderType.VLLM.value,
         ],
