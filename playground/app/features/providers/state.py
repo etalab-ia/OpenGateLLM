@@ -104,6 +104,32 @@ class ProvidersState(EntityState):
         response = None
         try:
             async with httpx.AsyncClient() as client:
+                # Load routers
+                if not self.routers_list:
+                    offset = 0
+                    self.routers_list = []
+                    self.routers_dict = {}
+                    while True:
+                        response = await client.get(
+                            url=f"{self.opengatellm_url}/v1/admin/routers",
+                            params={"offset": offset, "limit": 100},
+                            headers={"Authorization": f"Bearer {self.api_key}"},
+                            timeout=configuration.settings.playground_opengatellm_timeout,
+                        )
+
+                        response.raise_for_status()
+                        data = response.json()
+                        routers_data = data.get("data", [])
+
+                        if not routers_data:
+                            break
+
+                        self.routers_list.extend([{"id": role["id"], "name": role["name"]} for role in routers_data])
+                        self.routers_dict.update({role["name"]: role["id"] for role in routers_data})
+                        offset += 100
+                        if len(routers_data) < 100:
+                            break
+
                 response = await client.get(
                     f"{self.opengatellm_url}/v1/admin/providers",
                     params=params,
