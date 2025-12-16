@@ -186,9 +186,10 @@ class RoutersState(EntityState):
             "cost_completion_tokens": self.entity_to_create.cost_completion_tokens,
         }
 
-        new_router_aliases = [alias.strip() for alias in self.entity_to_create.aliases.split(",") if alias.strip()]
-        if new_router_aliases:
-            payload["aliases"] = new_router_aliases
+        if self.entity_to_create.aliases:
+            new_router_aliases = [alias.strip() for alias in self.entity_to_create.aliases.split(",") if alias.strip()]
+            if new_router_aliases:
+                payload["aliases"] = new_router_aliases
 
         response = None
         try:

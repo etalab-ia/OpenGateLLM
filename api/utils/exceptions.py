@@ -167,7 +167,7 @@ class ProviderAlreadyExistsException(HTTPException):
 
 
 class RouterAliasAlreadyExistsException(HTTPException):
-    def __init__(self, detail: str = "Model router alias already exists."):
+    def __init__(self, detail: str = "Name conflict with existing router or alias."):
         super().__init__(status_code=409, detail=detail)
 
 

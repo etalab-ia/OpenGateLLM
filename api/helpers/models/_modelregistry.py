@@ -224,14 +224,14 @@ class ModelRegistry:
             await postgres_session.rollback()
             raise RouterAlreadyExistsException()
 
-        # Check alias integrity
-        if aliases:
-            query = select(RouterAliasTable.value).where(RouterAliasTable.value.in_(aliases))
-            result = await postgres_session.execute(query)
-            existing_aliases = [alias[0] for alias in result.all()]
-            if existing_aliases:
-                await postgres_session.rollback()
-                raise RouterAliasAlreadyExistsException()
+        # Check names integrity
+        check_names = [name, *aliases]
+        query = select(RouterAliasTable.value).where(RouterAliasTable.value.in_(check_names))
+        result = await postgres_session.execute(query)
+        existing_aliases = [alias[0] for alias in result.all()]
+        if existing_aliases:
+            await postgres_session.rollback()
+            raise RouterAliasAlreadyExistsException()
 
         # Add aliases
         if aliases:
