@@ -51,10 +51,10 @@ def navigation_sidebar() -> rx.Component:
                         width="100%",
                     ),
                 ),
+                rx.divider(),
                 rx.cond(
                     AuthState.is_admin,
                     rx.box(
-                        rx.divider(),
                         nav_item("Routers", "network", "/routers"),
                         nav_item("Providers", "container", "/providers"),
                         nav_item("Roles", "shield", "/roles"),
