@@ -119,10 +119,6 @@ class UsersState(EntityState):
                         response.raise_for_status()
                         data = response.json()
                         organizations_data = data.get("data", [])
-
-                        if not organizations_data:
-                            break
-
                         self.organizations_list.extend([{"id": org["id"], "name": org["name"]} for org in organizations_data])
                         self.organizations_dict.update({org["name"]: org["id"] for org in organizations_data})
                         offset += 100

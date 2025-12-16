@@ -120,12 +120,8 @@ class ProvidersState(EntityState):
                         response.raise_for_status()
                         data = response.json()
                         routers_data = data.get("data", [])
-
-                        if not routers_data:
-                            break
-
-                        self.routers_list.extend([{"id": role["id"], "name": role["name"]} for role in routers_data])
-                        self.routers_dict.update({role["name"]: role["id"] for role in routers_data})
+                        self.routers_list.extend([{"id": router["id"], "name": router["name"]} for router in routers_data])
+                        self.routers_dict.update({router["name"]: router["id"] for router in routers_data})
                         offset += 100
                         if len(routers_data) < 100:
                             break

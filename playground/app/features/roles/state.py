@@ -80,19 +80,25 @@ class RolesState(EntityState):
         response = None
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.opengatellm_url}/v1/admin/routers",
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
-                )
+                offset = 0
+                limit = 100
+                while True:
+                    response = await client.get(
+                        f"{self.opengatellm_url}/v1/admin/routers",
+                        params={"offset": offset, "limit": limit},
+                        headers={"Authorization": f"Bearer {self.api_key}"},
+                        timeout=configuration.settings.playground_opengatellm_timeout,
+                    )
 
-                response.raise_for_status()
-                data = response.json()
-                routers_data = data.get("data", [])
-                self.routers_list = [{"id": router["id"], "name": router["name"]} for router in routers_data]
-                self.routers_dict = {router["name"]: router["id"] for router in routers_data}
+                    response.raise_for_status()
+                    data = response.json()
+                    routers_data = data.get("data", [])
+                    self.routers_list = [{"id": router["id"], "name": router["name"]} for router in routers_data]
+                    self.routers_dict = {router["name"]: router["id"] for router in routers_data}
+                    offset += 100
+                    if len(routers_data) < 100:
+                        break
 
-            async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{self.opengatellm_url}/v1/admin/roles",
                     params={
@@ -181,14 +187,12 @@ class RolesState(EntityState):
             if limit["router"] == router:
                 continue
 
-            limits.extend(
-                [
-                    {"router": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
-                    {"router": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
-                    {"router": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
-                    {"router": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
-                ]
-            )
+            limits.extend([
+                {"router": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
+                {"router": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
+                {"router": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
+                {"router": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
+            ])
 
         yield
 
