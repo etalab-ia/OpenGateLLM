@@ -11,6 +11,7 @@ from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.collections import CollectionVisibility
 from api.schemas.core.metrics import Metric
 from api.schemas.models import ModelType
+from api.utils.variables import DEFAULT_TIMEOUT
 
 Base = declarative_base()
 
@@ -221,11 +222,11 @@ class Provider(Base):
     type: Mapped[ProviderType]
     url: Mapped[str]
     key: Mapped[str | None]
-    timeout: Mapped[int | None]
+    timeout: Mapped[int] = mapped_column(default=DEFAULT_TIMEOUT)
     model_name: Mapped[str]
     model_carbon_footprint_zone: Mapped[ProviderCarbonFootprintZone | None]
-    model_carbon_footprint_total_params: Mapped[int | None]
-    model_carbon_footprint_active_params: Mapped[int | None]
+    model_carbon_footprint_total_params: Mapped[int] = mapped_column(default=0)
+    model_carbon_footprint_active_params: Mapped[int] = mapped_column(default=0)
     qos_metric: Mapped[Metric | None]
     qos_limit: Mapped[float | None]
     max_context_length: Mapped[int | None]

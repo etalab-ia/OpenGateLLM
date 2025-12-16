@@ -24,6 +24,14 @@ def provider_row_content(provider: Provider) -> rx.Component:
                 ),
                 content="ID",
             ),
+            rx.tooltip(
+                rx.badge(
+                    provider.router,
+                    variant="soft",
+                    color_scheme="green",
+                ),
+                content="Router name",
+            ),
             spacing=SPACING_SMALL,
         ),
         spacing=SPACING_SMALL,

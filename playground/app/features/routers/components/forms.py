@@ -29,6 +29,7 @@ def router_settings_form_fields() -> rx.Component:
             on_change=lambda value: RoutersState.set_edit_entity_attribut("aliases", value),
             type="list",
             disable=RoutersState.edit_entity_loading,
+            placeholder="No aliases",
         ),
         entity_form_select_field(
             label="Load balancing strategy",
@@ -55,6 +56,20 @@ def router_settings_form_fields() -> rx.Component:
             type="number",
             min=0,
             disable=RoutersState.edit_entity_loading,
+        ),
+        entity_form_input_field(
+            label="Max context length",
+            value=RoutersState.entity.max_context_length,
+            tooltip="Max context length of model (information from providers)",
+            placeholder="No max context length",
+            read_only=True,
+        ),
+        entity_form_input_field(
+            label="Vector size",
+            value=RoutersState.entity.vector_size,
+            tooltip="Vector size of the model, only available for text embeddings inference models (information from providers)",
+            placeholder="No vector size",
+            read_only=True,
         ),
         columns="2",
         spacing=SPACING_MEDIUM,

@@ -27,7 +27,7 @@ class CreateProvider(BaseModel):
     type: ProviderType = Field(..., description="Model provider type.")  # fmt: off
     url: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI).")  # fmt: off
     key: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Model provider API key.")  # fmt: off
-    timeout: int = Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 500 error (model is too busy).")  # fmt: off
+    timeout: int = Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 503 error (model is too busy).")  # fmt: off
     model_name: str = Field(..., description="Model name from the model provider.")  # fmt: off
     model_carbon_footprint_zone: ProviderCarbonFootprintZone = Field(default=ProviderCarbonFootprintZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")  # fmt: off
     model_carbon_footprint_total_params: int = Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai")  # fmt: off
@@ -36,11 +36,22 @@ class CreateProvider(BaseModel):
     qos_limit: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")  # fmt: off
 
     @model_validator(mode="after")
-    def validate_model(self):
+    def format_provider(self):
         if self.qos_metric is not None and self.qos_limit is None:
             raise ValueError("QoS value is required if QoS metric is provided.")
 
-        self.url = self.url.rstrip("/") if self.url else None
+        if self.url is None:
+            if self.type == ProviderType.ALBERT:
+                self.url = "https://albert.api.etalab.gouv.fr/"
+            elif self.type == ProviderType.MISTRAL:
+                self.url = "https://albert.api.etalab.gouv.fr/"
+            elif self.type == ProviderType.OPENAI:
+                self.url = "https://api.openai.com/"
+            else:
+                raise ValueError("URL is required for this model provider type.")
+
+        elif not self.url.endswith("/"):
+            self.url = f"{self.url}/"
 
         return self
 
@@ -72,13 +83,13 @@ class Provider(BaseModel):
     router_id: int = Field(..., description="ID of the router that owns the provider.")  # fmt: off
     user_id: int = Field(..., description="ID of the user that owns the provider.")  # fmt: off
     type: ProviderType = Field(..., description="Provider type.")  # fmt: off
-    url: str = Field(..., description="Provider API url. The url must only contain the domain name (without `/v1` suffix for example).")  # fmt: off
+    url: constr(strip_whitespace=True, min_length=1, to_lower=True) | None = Field(default=None, description="Provider API url. The url must only contain the domain name (without `/v1` suffix for example).")  # fmt: off
     key: str | None = Field(description="Provider API key.")  # fmt: off
     timeout: int = Field(..., description="Timeout for the provider requests, after user receive an 500 error (model is too busy).")  # fmt: off
     model_name: str = Field(..., description="Model name from the model provider.")  # fmt: off
     model_carbon_footprint_zone: ProviderCarbonFootprintZone = Field(default=ProviderCarbonFootprintZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])  # fmt: off
-    model_carbon_footprint_total_params: int | None = Field(ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
-    model_carbon_footprint_active_params: int | None = Field(ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
+    model_carbon_footprint_total_params: int = Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
+    model_carbon_footprint_active_params: int = Field(default=0, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
     qos_metric: Metric | None = Field(description="The metric to use for the QoS policy. If not provided, no QoS policy is applied.")  # fmt: off
     qos_limit: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")  # fmt: off
     created: int | None = Field(default=None, description="Time of creation, as Unix timestamp.")  # fmt: off

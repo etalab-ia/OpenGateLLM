@@ -38,6 +38,9 @@ async def create_provider(
     provider_id = await model_registry.create_provider(
         router_id=body.router,
         user_id=request_context.get().user_info.id,
+        type=body.type,
+        url=body.url,
+        key=body.key,
         timeout=body.timeout,
         model_name=body.model_name,
         model_carbon_footprint_zone=body.model_carbon_footprint_zone,
@@ -64,7 +67,7 @@ async def delete_provider(
     """
     Delete a router provider.
     """
-    await model_registry.delete_provider(provider_id=provider, user_id=request_context.get().user_info.id, postgres_session=postgres_session)
+    await model_registry.delete_provider(provider_id=provider, postgres_session=postgres_session)
 
     return Response(status_code=204)
 
@@ -86,7 +89,6 @@ async def update_provider(
     """
     await model_registry.update_provider(
         provider_id=provider,
-        user_id=request_context.get().user_info.id,
         router_id=body.router,
         timeout=body.timeout,
         model_carbon_footprint_zone=body.model_carbon_footprint_zone,

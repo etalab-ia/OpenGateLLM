@@ -10,7 +10,7 @@ def provider_settings_dialog() -> rx.Component:
         state=ProvidersState,
         title="Settings",
         fields=provider_settings_form_fields(),
-        editable=False,
+        editable=True,
     )
 
 

@@ -26,7 +26,6 @@ from api.utils.exceptions import (
     InconsistentModelVectorSizeException,
     InsufficientBudgetException,
     InvalidProviderTypeException,
-    MissingProviderURLException,
     ModelNotFoundException,
     ProviderAlreadyExistsException,
     ProviderNotFoundException,
@@ -439,13 +438,13 @@ class ModelRegistry:
         router_id: int,
         user_id: int,
         type: ProviderType,
-        url: str | None,
+        url: str,
         key: str | None,
         timeout: int,
         model_name: str,
         model_carbon_footprint_zone: ProviderCarbonFootprintZone,
-        model_carbon_footprint_total_params: int | None,
-        model_carbon_footprint_active_params: int | None,
+        model_carbon_footprint_total_params: int,
+        model_carbon_footprint_active_params: int,
         qos_metric: Metric | None,
         qos_limit: float | None,
         postgres_session: AsyncSession,
@@ -457,29 +456,19 @@ class ModelRegistry:
             router_id(int): The model router ID
             user_id(int): The user ID of owner of the provider
             type(ProviderType): Provider type
-            url(str | None): Provider URL
+            url(str): Provider URL
             key(str | None): Provider API key
             timeout(int): Request timeout
             model_name(str): Model name
-            model_carbon_footprint_zone(ProviderCarbonFootprintZone | None): ProviderCarbonFootprintZone
-            model_carbon_footprint_total_params: int | None
-            model_carbon_footprint_active_params: int | None
+            model_carbon_footprint_zone(ProviderCarbonFootprintZone): ProviderCarbonFootprintZone
+            model_carbon_footprint_total_params: int
+            model_carbon_footprint_active_params: int
             qos_metric(Metric | None): QoS metric. If None, no QoS policy is applied.
             qos_limit(float | None): Optional QoS limit
             postgres_session(AsyncSession): Database postgres_session
         Returns:
             The provider ID
         """
-        # format url
-        if url is None:
-            if type == ProviderType.OPENAI:
-                url = "https://api.openai.com"
-            elif type == ProviderType.ALBERT:
-                url = "https://albert.api.etalab.gouv.fr"
-            else:
-                raise MissingProviderURLException()
-        url = f"{url}/" if not url.endswith("/") else url
-
         # check if router exists
         routers = await self.get_routers(router_id=router_id, name=None, postgres_session=postgres_session)
         router = routers[0]
@@ -514,11 +503,6 @@ class ModelRegistry:
                 raise InconsistentModelVectorSizeException()
             if router.max_context_length != max_context_length:
                 raise InconsistentModelMaxContextLengthException()
-
-        # carbon footprint is only supported for text generation and image text to text models
-        if router.type not in [ModelType.TEXT_GENERATION, ModelType.IMAGE_TEXT_TO_TEXT]:
-            model_carbon_footprint_active_params = None
-            model_carbon_footprint_total_params = None
 
         # Create provider
         try:
@@ -692,20 +676,24 @@ class ModelRegistry:
         providers = await self.get_providers(provider_id=provider_id, router_id=None, postgres_session=postgres_session)
         provider = providers[0]
 
+        routers = await self.get_routers(router_id=provider.router_id, name=None, postgres_session=postgres_session)
+        current_router = routers[0]
+
         # Update provider
         update_value = {}
         if router_id is not None:
             # check if new router exists
             routers = await self.get_routers(router_id=router_id, name=None, postgres_session=postgres_session)
             new_router = routers[0]
-            if provider.type not in self.MODEL_TYPE_TO_MODEL_PROVIDER_TYPE_MAPPING[provider.type]:
+
+            if provider.type not in self.MODEL_TYPE_TO_MODEL_PROVIDER_TYPE_MAPPING[new_router.type]:
                 raise InvalidProviderTypeException("New router type is not compatible with the provider type.")
 
             # consistency check
             if new_router.providers > 0:
-                if new_router.vector_size != provider.vector_size:
+                if new_router.vector_size != current_router.vector_size:
                     raise InconsistentModelVectorSizeException()
-                if new_router.max_context_length != provider.max_context_length:
+                if new_router.max_context_length != current_router.max_context_length:
                     raise InconsistentModelMaxContextLengthException()
 
             update_value["router_id"] = router_id

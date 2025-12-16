@@ -177,27 +177,6 @@ class ProvidersState(EntityState):
             yield
 
     ############################################################
-    # Entity settings
-    ############################################################
-    entity: Provider = Provider()
-
-    @rx.var
-    def is_settings_entity_dialog_open(self) -> bool:
-        """Check if settings dialog should be open."""
-        return self.entity.id is not None
-
-    @rx.event
-    def handle_settings_entity_dialog_change(self, is_open: bool):
-        """Handle settings dialog open/close state change."""
-        if not is_open:
-            self.entity = Provider()
-
-    @rx.event
-    def set_entity_settings(self, entity: Provider):
-        """Set edit entity data."""
-        self.entity = entity
-
-    ############################################################
     # Delete entity
     ############################################################
     entity_to_delete = Provider()
@@ -278,9 +257,6 @@ class ProvidersState(EntityState):
             yield rx.toast.warning("Type is required", position="bottom-right")
             return
 
-        if not self.entity_to_create.url:
-            yield rx.toast.warning("URL is required", position="bottom-right")
-
         self.create_entity_loading = True
         yield
 
@@ -288,7 +264,7 @@ class ProvidersState(EntityState):
             "router": router_id,
             "model_name": self.entity_to_create.model_name,
             "type": self.entity_to_create.type.lower(),
-            "url": self.entity_to_create.url.lower(),
+            "url": self.entity_to_create.url if self.entity_to_create.url else None,
             "key": self.entity_to_create.key,
             "timeout": self.entity_to_create.timeout,
             "model_carbon_footprint_zone": self.entity_to_create.model_carbon_footprint_zone,
@@ -317,6 +293,74 @@ class ProvidersState(EntityState):
             yield httpx_error_toast(exception=e, response=response)
         finally:
             self.create_entity_loading = False
+            yield
+
+    ############################################################
+    # Edit entity
+    ############################################################
+    entity: Provider = Provider()
+
+    @rx.event
+    def set_entity_settings(self, entity: Provider):
+        """Set entity settings."""
+        self.entity = entity
+
+    @rx.event
+    def set_edit_entity_attribut(self, attribute: str, value: str | bool | None):
+        """Set edit entity attributes."""
+        if isinstance(value, str):
+            setattr(self.entity, attribute, value.strip())
+        else:
+            setattr(self.entity, attribute, value)
+
+    @rx.var
+    def is_settings_entity_dialog_open(self) -> bool:
+        """Check if settings dialog should be open."""
+        return self.entity.id is not None
+
+    @rx.event
+    def handle_settings_entity_dialog_change(self, is_open: bool):
+        """Handle settings dialog open/close state change."""
+        if not is_open:
+            self.entity = Provider()
+
+    @rx.event
+    async def edit_entity(self):
+        """Update a provider."""
+        self.edit_entity_loading = True
+        yield
+
+        payload = {
+            "router": self.routers_dict.get(self.entity.router, None),
+            "timeout": self.entity.timeout,
+            "model_carbon_footprint_zone": self.entity.model_carbon_footprint_zone,
+            "model_carbon_footprint_total_params": self.entity.model_carbon_footprint_total_params,
+            "model_carbon_footprint_active_params": self.entity.model_carbon_footprint_active_params,
+            "qos_metric": self.entity.qos_metric.lower() if self.entity.qos_metric else None,
+            "qos_limit": self.entity.qos_limit,
+        }
+
+        response = None
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.patch(
+                    url=f"{self.opengatellm_url}/v1/admin/providers/{self.entity.id}",
+                    json=payload,
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    timeout=configuration.settings.playground_opengatellm_timeout,
+                )
+            response.raise_for_status()
+
+            self.handle_settings_entity_dialog_change(is_open=False)
+            yield rx.toast.success("Provider updated successfully", position="bottom-right")
+
+            async for _ in self.load_entities():
+                yield
+
+        except Exception as e:
+            yield httpx_error_toast(exception=e, response=response)
+        finally:
+            self.edit_entity_loading = False
             yield
 
     ############################################################

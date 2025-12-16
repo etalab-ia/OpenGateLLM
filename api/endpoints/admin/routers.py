@@ -80,7 +80,6 @@ async def update_router(
         load_balancing_strategy=body.load_balancing_strategy,
         cost_prompt_tokens=body.cost_prompt_tokens,
         cost_completion_tokens=body.cost_completion_tokens,
-        user_id=request_context.get().user_info.id,
         postgres_session=postgres_session,
     )
 

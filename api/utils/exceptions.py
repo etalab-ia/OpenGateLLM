@@ -59,11 +59,6 @@ class ReservedEmailException(HTTPException):
         super().__init__(status_code=403, detail=detail)
 
 
-class MissingProviderURLException(HTTPException):
-    def __init__(self, detail: str = "URL is required for this model provider type."):
-        super().__init__(status_code=403, detail=detail)
-
-
 class InconsistentModelVectorSizeException(HTTPException):
     def __init__(self, detail: str = "Inconsistent model vector size."):
         super().__init__(status_code=403, detail=detail)

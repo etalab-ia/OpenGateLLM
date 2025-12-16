@@ -80,15 +80,35 @@ class ConfigBaseModel(BaseModel):
 @custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#modelprovider")
 class ModelProvider(ConfigBaseModel):
     type: ProviderType = Field(..., description="Model provider type.", examples=["openai"])  # fmt: off
-    url: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI).", examples=["https://api.openai.com"])  # fmt: off
+    url: constr(strip_whitespace=True, min_length=1, to_lower=True) | None = Field(default=None, description="Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI).", examples=["https://api.openai.com"])  # fmt: off
     key: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Model provider API key.", examples=["sk-1234567890"])  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 500 error (model is too busy).", examples=[10])  # fmt: off
     model_name: constr(strip_whitespace=True, min_length=1) = Field(..., description="Model name from the model provider.", examples=["gpt-4o"])  # fmt: off
     model_carbon_footprint_zone: ProviderCarbonFootprintZone = Field(default=ProviderCarbonFootprintZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])  # fmt: off
-    model_carbon_footprint_total_params: int | None = Field(default=None, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
-    model_carbon_footprint_active_params: int | None = Field(default=None, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
+    model_carbon_footprint_total_params: int = Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
+    model_carbon_footprint_active_params: int = Field(default=0, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
     qos_metric: Metric | None = Field(default=None, description="The metric to use for the quality of service. If not provided, no QoS policy is applied.", examples=[Metric.INFLIGHT.value])  # fmt: off
     qos_limit: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.", examples=[0.5])  # fmt: off
+
+    @model_validator(mode="after")
+    def format_provider(self):
+        if self.qos_metric is not None and self.qos_limit is None:
+            raise ValueError("QoS value is required if QoS metric is provided.")
+
+        if self.url is None:
+            if self.type == ProviderType.ALBERT:
+                self.url = "https://albert.api.etalab.gouv.fr/"
+            elif self.type == ProviderType.MISTRAL:
+                self.url = "https://albert.api.etalab.gouv.fr/"
+            elif self.type == ProviderType.OPENAI:
+                self.url = "https://api.openai.com/"
+            else:
+                raise ValueError("URL is required for this model provider type.")
+
+        elif not self.url.endswith("/"):
+            self.url = f"{self.url}/"
+
+        return self
 
 
 @custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#model")
@@ -404,7 +424,7 @@ class Settings(ConfigBaseModel):
 # load config ----------------------------------------------------------------------------------------------------------------------------------------
 @custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#all-configuration")
 class ConfigFile(ConfigBaseModel):
-    models: list[Model] = Field(min_length=1, description="Models used by the API. At least one model must be defined.")  # fmt: off
+    models: list[Model] = Field(default_factory=list, description="Models used by the API.")  # fmt: off
     dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the API.")  # fmt: off
     settings: Settings = Field(default_factory=Settings, description="General settings configuration fields.")  # fmt: off
 
