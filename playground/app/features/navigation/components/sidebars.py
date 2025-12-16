@@ -1,6 +1,5 @@
 import reflex as rx
 
-from app.core.configuration import configuration
 from app.features.auth.state import AuthState
 from app.shared.components.dark_mode_toggle import dark_mode_toggle
 
@@ -39,23 +38,6 @@ def navigation_sidebar() -> rx.Component:
     """Left navigation sidebar."""
     return rx.box(
         rx.vstack(
-            # Header
-            rx.hstack(
-                rx.image(
-                    src="/logo.svg",
-                    width="32px",
-                    height="32px",
-                ),
-                rx.heading(
-                    configuration.settings.app_title,
-                    size="5",
-                    color=rx.color("accent", 11),
-                ),
-                width="100%",
-                padding="1em",
-                border_bottom=f"1px solid {rx.color("mauve", 3)}",
-                align_items="center",
-            ),
             # Navigation items
             rx.vstack(
                 nav_item("Chat", "message-square", "/"),
@@ -144,4 +126,5 @@ def navigation_sidebar() -> rx.Component:
         position="fixed",
         left="0",
         top="0",
+        margin_top="65px",
     )

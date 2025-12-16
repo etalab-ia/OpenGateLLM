@@ -1,5 +1,6 @@
 import reflex as rx
 
+from app.core.configuration import configuration
 from app.core.variables import (
     HEADING_SIZE_PAGE,
     ICON_SIZE_MEDIUM,
@@ -73,39 +74,59 @@ def header(title: str, admin_badge: bool = False) -> rx.Component:
 
 
 def nav_header(documentation_url: str | None, swagger_url: str | None, reference_url: str | None):
-    return rx.box(
+    return (
+        # Header
         rx.hstack(
-            rx.link(
-                "Documentation",
-                href=documentation_url,
-                color=rx.color("accent", 9),
-                size=TEXT_SIZE_LINK,
-            )
-            if documentation_url
-            else rx.fragment(),
-            rx.link(
-                "API reference",
-                href=reference_url,
-                color=rx.color("accent", 9),
-                size=TEXT_SIZE_LINK,
-            )
-            if reference_url
-            else rx.fragment(),
-            rx.link(
-                "Swagger",
-                href=swagger_url,
-                color=rx.color("accent", 9),
-                size=TEXT_SIZE_LINK,
-            )
-            if swagger_url
-            else rx.fragment(),
+            rx.hstack(
+                rx.image(
+                    src="/logo.svg",
+                    width="32px",
+                    height="32px",
+                ),
+                rx.heading(
+                    configuration.settings.app_title,
+                    size="5",
+                    color=rx.color("accent", 11),
+                ),
+                width="100%",
+                padding="1em",
+                border_bottom=f"1px solid {rx.color("mauve", 3)}",
+                align_items="center",
+            ),
+            rx.hstack(
+                rx.link(
+                    "Documentation",
+                    href=documentation_url,
+                    color=rx.color("accent", 9),
+                    size=TEXT_SIZE_LINK,
+                )
+                if documentation_url
+                else rx.fragment(),
+                rx.link(
+                    "API reference",
+                    href=reference_url,
+                    color=rx.color("accent", 9),
+                    size=TEXT_SIZE_LINK,
+                )
+                if reference_url
+                else rx.fragment(),
+                rx.link(
+                    "Swagger",
+                    href=swagger_url,
+                    color=rx.color("accent", 9),
+                    size=TEXT_SIZE_LINK,
+                )
+                if swagger_url
+                else rx.fragment(),
+                width="100%",
+                padding="1.12em",
+                border_bottom=f"1px solid {rx.color("mauve", 3)}",
+                justify_content="end",
+                align_items="center",
+                spacing="6",
+            ),
             width="100%",
-            padding="1.12em",
-            border_bottom=f"1px solid {rx.color("mauve", 3)}",
-            justify_content="end",
-            align_items="center",
-            spacing="6",
-        ),
-        width="100%",
-        background_color=rx.color("mauve", 1),
+            background_color=rx.color("mauve", 1),
+            position="fixed",
+        )
     )
