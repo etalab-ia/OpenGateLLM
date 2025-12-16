@@ -237,4 +237,4 @@ class Provider(Base):
     user: Mapped["User"] = relationship(back_populates="provider")
     usage: Mapped[list["Usage"]] = relationship(back_populates="provider", passive_deletes=True)
 
-    __table_args__ = (UniqueConstraint("url", "model_name", name="unique_provider_url_model_name"),)
+    __table_args__ = (UniqueConstraint("router_id", "url", "model_name", name="unique_provider_router_id_url_model_name"),)

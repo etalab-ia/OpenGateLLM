@@ -27,11 +27,13 @@ def get_carbon_footprint(
     Returns:
         CarbonFootprintUsage: Computed carbon footprint
     """
+    if total_params is None and active_params is not None:
+        total_params = active_params
+    if active_params is None and total_params is not None:
+        active_params = total_params
+
     if total_params is None or token_count == 0:
         return CarbonFootprintUsage(kWh=CarbonFootprintUsageKWh(min=0, max=0), kgCO2eq=CarbonFootprintUsageKgCO2eq(min=0, max=0))
-
-    assert token_count > 0 if total_params is not None else True, "token_count must be a positive number"
-    assert request_latency > 0, "request_latency must be a positive number"
 
     electricity_mix = electricity_mixes.find_electricity_mix(zone=model_zone.value)
     if not electricity_mix:

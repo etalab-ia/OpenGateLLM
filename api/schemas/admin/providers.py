@@ -30,6 +30,29 @@ class CreateProvider(BaseModel):
     timeout: int = Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 500 error (model is too busy).")  # fmt: off
     model_name: str = Field(..., description="Model name from the model provider.")  # fmt: off
     model_carbon_footprint_zone: ProviderCarbonFootprintZone = Field(default=ProviderCarbonFootprintZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")  # fmt: off
+    model_carbon_footprint_total_params: int = Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai")  # fmt: off
+    model_carbon_footprint_active_params: int = Field(default=0, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai")  # fmt: off
+    qos_metric: Metric | None = Field(default=None, description="The metric to use for the quality of service policy. If not provided, no QoS policy is applied.")  # fmt: off
+    qos_limit: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")  # fmt: off
+
+    @model_validator(mode="after")
+    def validate_model(self):
+        if self.qos_metric is not None and self.qos_limit is None:
+            raise ValueError("QoS value is required if QoS metric is provided.")
+
+        self.url = self.url.rstrip("/") if self.url else None
+
+        return self
+
+
+class CreateProviderResponse(BaseModel):
+    id: int = Field(..., description="ID of the created provider.")  # fmt: off
+
+
+class UpdateProvider(BaseModel):
+    router: int | None = Field(default=None, description="The ID of the new router to assign to the provider.")  # fmt: off
+    timeout: int | None = Field(default=None, description="Timeout for the model provider requests, after user receive an 500 error (model is too busy).")  # fmt: off
+    model_carbon_footprint_zone: ProviderCarbonFootprintZone | None = Field(default=None, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")  # fmt: off
     model_carbon_footprint_total_params: int | None = Field(default=None, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
     model_carbon_footprint_active_params: int | None = Field(default=None, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")  # fmt: off
     qos_metric: Metric | None = Field(default=None, description="The metric to use for the quality of service policy. If not provided, no QoS policy is applied.")  # fmt: off
@@ -37,23 +60,10 @@ class CreateProvider(BaseModel):
 
     @model_validator(mode="after")
     def validate_model(self):
-        """
-        If total params are provided and not active params are provided, active params will be set to total params (and vice versa).
-        If QoS metric is provided and not QoS value is provided, raise an error.
-        """
-        if self.model_carbon_footprint_total_params is not None and self.model_carbon_footprint_active_params is None:
-            self.model_carbon_footprint_active_params = self.model_carbon_footprint_total_params
-        if self.model_carbon_footprint_active_params is not None and self.model_carbon_footprint_total_params is None:
-            self.model_carbon_footprint_total_params = self.model_carbon_footprint_active_params
-
         if self.qos_metric is not None and self.qos_limit is None:
             raise ValueError("QoS value is required if QoS metric is provided.")
 
         return self
-
-
-class CreateProviderResponse(BaseModel):
-    id: int = Field(..., description="ID of the created provider.")  # fmt: off
 
 
 class Provider(BaseModel):

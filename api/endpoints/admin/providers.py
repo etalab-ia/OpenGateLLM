@@ -1,6 +1,6 @@
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Path, Query, Request, Security
+from fastapi import APIRouter, Body, Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,7 @@ from api.schemas.admin.providers import (
     CreateProviderResponse,
     Provider,
     Providers,
+    UpdateProvider,
 )
 from api.schemas.admin.roles import PermissionType
 from api.utils.context import request_context
@@ -37,9 +38,6 @@ async def create_provider(
     provider_id = await model_registry.create_provider(
         router_id=body.router,
         user_id=request_context.get().user_info.id,
-        type=body.type,
-        url=body.url,
-        key=body.key,
         timeout=body.timeout,
         model_name=body.model_name,
         model_carbon_footprint_zone=body.model_carbon_footprint_zone,
@@ -67,6 +65,37 @@ async def delete_provider(
     Delete a router provider.
     """
     await model_registry.delete_provider(provider_id=provider, user_id=request_context.get().user_info.id, postgres_session=postgres_session)
+
+    return Response(status_code=204)
+
+
+@router.patch(
+    path=ENDPOINT__ADMIN_PROVIDERS + "/{provider}",
+    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
+    status_code=204,
+)
+async def update_provider(
+    request: Request,
+    provider: int = Path(description="The ID of the provider to update."),
+    body: UpdateProvider = Body(description="The provider update request."),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    model_registry: ModelRegistry = Depends(get_model_registry),
+) -> Response:
+    """
+    Update a model provider.
+    """
+    await model_registry.update_provider(
+        provider_id=provider,
+        user_id=request_context.get().user_info.id,
+        router_id=body.router,
+        timeout=body.timeout,
+        model_carbon_footprint_zone=body.model_carbon_footprint_zone,
+        model_carbon_footprint_total_params=body.model_carbon_footprint_total_params,
+        model_carbon_footprint_active_params=body.model_carbon_footprint_active_params,
+        qos_metric=body.qos_metric,
+        qos_limit=body.qos_limit,
+        postgres_session=postgres_session,
+    )
 
     return Response(status_code=204)
 
