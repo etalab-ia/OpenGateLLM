@@ -7,7 +7,7 @@ from app.features.chat.components.input_bars import chat_input_bar
 from app.features.chat.components.sidebars import chat_params_sidebar
 from app.features.chat.components.windows import chat_window
 
-NAV_HEADER_HEIGHT = "56px"  # Assumed nav header height for layout calc; adjust if needed
+NAV_HEADER_HEIGHT = "65px"  # Assumed nav header height for layout calc; adjust if needed
 
 
 def chat_page_content() -> rx.Component:

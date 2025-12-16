@@ -120,11 +120,10 @@ def navigation_sidebar() -> rx.Component:
             width="100%",
         ),
         width="250px",
-        height="100vh",
+        height="94%",
         background_color=rx.color("mauve", 2),
         border_right=f"1px solid {rx.color("mauve", 3)}",
         position="fixed",
         left="0",
-        top="0",
-        margin_top="65px",
+        top="65px",
     )

@@ -4,7 +4,7 @@ import reflex as rx
 
 from app.core.configuration import configuration
 from app.features.auth.components.forms import login_form
-from app.features.chat.state import ChatState
+from app.features.auth.state import AuthState
 from app.features.navigation.components.sidebars import navigation_sidebar
 from app.shared.components.headers import nav_header
 
@@ -22,7 +22,7 @@ def authenticated_page(content: rx.Component, margin_left: str | None = "250px",
     """
 
     return rx.cond(
-        ChatState.is_authenticated,
+        AuthState.is_authenticated,
         rx.vstack(
             nav_header(
                 documentation_url=configuration.settings.documentation_url,
@@ -38,6 +38,8 @@ def authenticated_page(content: rx.Component, margin_left: str | None = "250px",
                     left=margin_left,
                     right=margin_right,
                     width=f"calc(100% - {margin_left} - {margin_right})",
+                    max_height="calc(100vh - 65px)",
+                    overflow="auto",
                 ),
                 display="flex",
             ),

@@ -20,6 +20,6 @@ def account_page() -> rx.Component:
         ),
         flex="1",
         width="100%",
-        height="100vh",
+        height="auto",
         background_color=rx.color("mauve", 1),
     )

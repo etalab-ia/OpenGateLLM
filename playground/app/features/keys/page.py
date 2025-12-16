@@ -24,6 +24,6 @@ def keys_page() -> rx.Component:
         keys_created_dialog(),
         flex="1",
         width="100%",
-        height="100vh",
+        height="auto",
         background_color=rx.color("mauve", 1),
     )
