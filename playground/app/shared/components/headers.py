@@ -126,6 +126,7 @@ def nav_header(documentation_url: str | None, swagger_url: str | None, reference
                 spacing="6",
             ),
             width="100%",
+            gap="0",
             background_color=rx.color("mauve", 1),
             position="fixed",
         )

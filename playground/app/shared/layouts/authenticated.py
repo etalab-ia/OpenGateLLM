@@ -31,11 +31,7 @@ def authenticated_page(content: rx.Component, margin_left: str | None = "250px",
             ),
             rx.box(
                 navigation_sidebar(),
-                rx.box(
-                    content,
-                    margin_left=margin_left,
-                    margin_right=margin_right,
-                ),
+                rx.box(content, margin_left=margin_left, margin_right=margin_right, position="fixed", margin_top="65px"),
             ),
         ),
         login_form(),
