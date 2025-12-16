@@ -9,7 +9,7 @@ from app.features.navigation.components.sidebars import navigation_sidebar
 from app.shared.components.headers import nav_header
 
 
-def authenticated_page(content: rx.Component, margin_left: str | None = "250px", margin_right: str | None = None):
+def authenticated_page(content: rx.Component, margin_left: str | None = "250px", margin_right: str | None = "0px"):
     """Wrap content with authentication check and navigation.
 
     Args:
@@ -31,7 +31,15 @@ def authenticated_page(content: rx.Component, margin_left: str | None = "250px",
             ),
             rx.box(
                 navigation_sidebar(),
-                rx.box(content, margin_left=margin_left, margin_right=margin_right, position="fixed", margin_top="65px"),
+                rx.box(
+                    content,
+                    position="fixed",
+                    top="65px",
+                    left=margin_left,
+                    right=margin_right,
+                    width=f"calc(100% - {margin_left} - {margin_right})",
+                ),
+                display="flex",
             ),
         ),
         login_form(),
