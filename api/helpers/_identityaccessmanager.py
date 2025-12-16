@@ -423,15 +423,14 @@ class IdentityAccessManager:
                 UserTable.id,
                 UserTable.email,
                 UserTable.name,
+                UserTable.sub,
+                UserTable.priority,
                 UserTable.role_id.label("role"),
                 UserTable.organization_id.label("organization"),
                 UserTable.budget,
                 cast(func.extract("epoch", UserTable.expires), Integer).label("expires"),
                 cast(func.extract("epoch", UserTable.created), Integer).label("created"),
                 cast(func.extract("epoch", UserTable.updated), Integer).label("updated"),
-                UserTable.email,
-                UserTable.sub,
-                UserTable.priority,
             )
             .offset(offset=offset)
             .limit(limit=limit)

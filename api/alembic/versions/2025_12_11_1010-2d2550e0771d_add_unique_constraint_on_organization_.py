@@ -1,7 +1,7 @@
 """add unique constraint on organization name column
 
 Revision ID: 2d2550e0771d
-Revises: 843230e94aec
+Revises: 9b3cdc1e64dd
 Create Date: 2025-12-11 10:10:32.502840
 
 """
@@ -14,7 +14,7 @@ import logging
 
 # revision identifiers, used by Alembic.
 revision: str = '2d2550e0771d'
-down_revision: Union[str, None] = '843230e94aec'
+down_revision: Union[str, None] = '9b3cdc1e64dd'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 logger = logging.getLogger(__name__)

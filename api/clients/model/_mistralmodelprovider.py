@@ -1,4 +1,7 @@
+import base64
+from json import dumps
 import logging
+from typing import Any
 from urllib.parse import urljoin
 
 import httpx
@@ -19,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class MistralModelProvider(BaseModelProvider):
     ENDPOINT_TABLE = {
-        ENDPOINT__AUDIO_TRANSCRIPTIONS: None,
+        ENDPOINT__AUDIO_TRANSCRIPTIONS: "/v1/chat/completions",
         ENDPOINT__CHAT_COMPLETIONS: "/v1/chat/completions",
         ENDPOINT__EMBEDDINGS: None,
         ENDPOINT__MODELS: "/v1/models",
@@ -49,6 +52,7 @@ class MistralModelProvider(BaseModelProvider):
             key=key,
             timeout=timeout,
         )
+        self._audio_response_format = "json"
 
     async def get_max_context_length(self) -> int | None:
         url = urljoin(base=str(self.url), url=self.ENDPOINT_TABLE[ENDPOINT__MODELS].lstrip("/"))
@@ -78,16 +82,8 @@ class MistralModelProvider(BaseModelProvider):
         endpoint: str | None = None,
     ) -> tuple[str, dict[str, str] | None, dict | None, dict | None, dict | None]:
         """
-        Format a request to a provider model. This method can be overridden by a subclass to add additional headers or parameters. This method format the requested endpoint thanks the ENDPOINT_TABLE attribute.
-
-        Args:
-            json(dict): The JSON body to use for the request.
-            files(dict): The files to use for the request.
-            data(dict): The data to use for the request.
-            endpoint(str): The endpoint to use for the request.
-
-        Returns:
-            tuple: The formatted request composed of the url, headers, json, files and data.
+        Converts an openAI compatible /chat/completions request to Mistral compatible /chat/completions
+        Converts an openAI compatible /audio/transcription request to a Mistral compatible /chat/completions request
         """
         url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[endpoint].lstrip("/"))
         if json and "model" in json:
@@ -132,4 +128,57 @@ class MistralModelProvider(BaseModelProvider):
                 if key not in authorized_keys:
                     del json[key]
 
+        elif endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
+            self._audio_response_format = data.get("response_format", "json")
+
+            json = {
+                "model": self.name,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_audio",
+                                "input_audio": base64.b64encode(files["file"][1]).decode("utf-8"),
+                            },
+                            {"type": "text", "text": data.get("prompt") or f"Transcribe this audio in this language : {data.get("language", "en")}"},
+                        ],
+                    }
+                ],
+            }
+            if data.get("temperature"):
+                json["temperature"] = data["temperature"]
+            files = None
+            data = None
+
         return url, json, files, data
+
+    def _format_response(
+        self,
+        json: dict,
+        response: httpx.Response,
+        endpoint: str,
+        additional_data: dict[str, Any] | None = None,
+        request_latency: float = 0.0,
+    ) -> httpx.Response:
+        if additional_data is None:
+            additional_data = {}
+
+        content_type = response.headers.get("Content-Type", "")
+        if content_type == "application/json":
+            data = response.json()
+            data.update(self._get_additional_data(json=json, data=data, stream=False, endpoint=endpoint, request_latency=request_latency))
+            data.update(additional_data)
+
+            if endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
+                transcription_text = data["choices"][0]["message"]["content"]
+
+                if self._audio_response_format == "text":
+                    response = httpx.Response(status_code=response.status_code, content=transcription_text)
+                    return response
+                else:
+                    data = {"id": data.get("id"), "text": transcription_text, "usage": data.get("usage")}
+
+            response = httpx.Response(status_code=response.status_code, content=dumps(data))
+
+        return response

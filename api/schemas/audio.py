@@ -6,6 +6,7 @@ from openai.types.audio import Transcription
 from pydantic import Field
 
 from api.schemas import BaseModel
+from api.schemas.usage import Usage
 from api.utils.variables import SUPPORTED_LANGUAGES
 
 SUPPORTED_LANGUAGES = list(SUPPORTED_LANGUAGES.keys()) + list(SUPPORTED_LANGUAGES.values())
@@ -15,14 +16,15 @@ AudioTranscriptionLanguage = Enum("AudioTranscriptionLanguage", SUPPORTED_LANGUA
 
 AudioTranscriptionModelForm: str = Form(default=..., description="ID of the model to use. Call `/v1/models` endpoint to get the list of available models, only `automatic-speech-recognition` model type is supported.")  # fmt: off
 AudioTranscriptionLanguageForm: AudioTranscriptionLanguage | Literal[""] = Form(default="", description="The language of the input audio. Supplying the input language in ISO-639-1 (e.g. en) format will improve accuracy and latency.")  # fmt: off
-AudioTranscriptionPromptForm = Form(default=None, description="Not implemented.")  # fmt: off
+AudioTranscriptionPromptForm: str | None = Form(default=None, description="An optional text to tell the model what to do with the input audio. Default is `Transcribe this audio in this language : {language}`")  # fmt: off
 AudioTranscriptionResponseFormatForm: Literal["json", "text"] = Form(default="json", description="The format of the transcript output, in one of these formats: `json` or `text`.")  # fmt: off
 AudioTranscriptionTemperatureForm: float = Form(default=0, ge=0, le=1, description="The sampling temperature, between 0 and 1. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. If set to 0, the model will use log probability to automatically increase the temperature until certain thresholds are hit.")  # fmt: off
-AudioTranscriptionTimestampGranularitiesForm: list[str] = Form(default=["segment"], description="Not implemented.")  # fmt: off
 
 
 class AudioTranscription(Transcription):
     id: str = Field(default=None, description="A unique identifier for the audio transcription.")
+    text: str = Field()
+    usage: Usage | None = Field(default=None, description="Usage statistics for the transcription request.")
 
 
 class Word(BaseModel):
