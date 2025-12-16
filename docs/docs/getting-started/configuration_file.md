@@ -137,7 +137,7 @@ settings:
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | dependencies | object | Dependencies used by the API. For details of configuration, see the [Dependencies section](#dependencies). |  |  |  |  |
-| models | array | Models used by the API. At least one model must be defined. For details of configuration, see the [Model section](#model). |  |  |  |  |
+| models | array | Models used by the API. For details of configuration, see the [Model section](#model). |  |  |  |  |
 | settings | object | General settings configuration fields. For details of configuration, see the [Settings section](#settings). |  |  |  |  |
 
 <br></br>
@@ -205,8 +205,8 @@ For more information to configure model providers, see the [ModelProvider sectio
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | key | string | Model provider API key. |  | None |  | sk-1234567890 |
-| model_carbon_footprint_active_params | integer | Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai |  | None |  | 8 |
-| model_carbon_footprint_total_params | integer | Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai |  | None |  | 8 |
+| model_carbon_footprint_active_params | integer | Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai |  | 0 |  | 8 |
+| model_carbon_footprint_total_params | integer | Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai |  | 0 |  | 8 |
 | model_carbon_footprint_zone | string | Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai |  | WOR | • ABW<br></br>• AFG<br></br>• AGO<br></br>• AIA<br></br>• ALA<br></br>• ALB<br></br>• AND<br></br>• ARE<br></br>• ... | WOR |
 | model_name | string | Model name from the model provider. |  |  |  | gpt-4o |
 | qos_limit | number | The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc. |  | None |  | 0.5 |
