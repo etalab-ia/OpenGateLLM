@@ -335,8 +335,8 @@ class ModelRegistry:
         router_id: int | None,
         name: str | None,
         postgres_session: AsyncSession,
-        offset: int = 0,
-        limit: int = 10,
+        offset: int | None = None,
+        limit: int | None = None,
         order_by: Literal["id", "name", "created"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[Router]:
@@ -347,8 +347,8 @@ class ModelRegistry:
             postgres_session (AsyncSession): Database postgres_session.
             router_id (Optional[int]): Optional router ID to filter by.
             name (Optional[str]): Optional router name or alias to filter by.
-            offset (int): Pagination offset (default: 0).
-            limit (int): Maximum number of routers to return (default: 10).
+            offset (int | None): Pagination offset (default: None).
+            limit (int | None): Maximum number of routers to return (default: None).
             order_by (Literal["id", "name", "created"]): Field to order results by (default: "id").
             order_direction (Literal["asc", "desc"]): Order direction (default: "asc").
 
@@ -380,10 +380,12 @@ class ModelRegistry:
             )
             .distinct(RouterTable.id)
             .join(ProviderTable, ProviderTable.router_id == RouterTable.id, isouter=True)
-            .offset(offset=offset)
-            .limit(limit=limit)
             .order_by(text(f"{order_by} {order_direction}"))
         )
+        if offset is not None:
+            query = query.offset(offset=offset)
+        if limit is not None:
+            query = query.limit(limit=limit)
 
         if router_id is not None:
             query = query.where(RouterTable.id == router_id)
@@ -569,8 +571,8 @@ class ModelRegistry:
         router_id: int,
         provider_id: int | None,
         postgres_session: AsyncSession,
-        offset: int = 0,
-        limit: int = 10,
+        offset: int | None = None,
+        limit: int | None = None,
         order_by: Literal["id", "name", "created"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[Provider]:
@@ -581,32 +583,35 @@ class ModelRegistry:
             router_id(int): The model router ID
             provider_id(Optional[int]): Optional provider ID to filter by
             postgres_session: Database postgres_session
+            offset (int | None): Pagination offset (default: None).
+            limit (int | None): Maximum number of providers to return (default: None).
+            order_by (Literal["id", "name", "created"]): Field to order results by (default: "id").
+            order_direction (Literal["asc", "desc"]): Order direction (default: "asc").
 
         Returns:
             The provider schema or None
         """
-        query = (
-            select(
-                ProviderTable.id,
-                ProviderTable.router_id,
-                ProviderTable.user_id,
-                ProviderTable.type,
-                ProviderTable.url,
-                ProviderTable.key,
-                ProviderTable.timeout,
-                ProviderTable.model_name,
-                ProviderTable.model_carbon_footprint_zone,
-                ProviderTable.model_carbon_footprint_total_params,
-                ProviderTable.model_carbon_footprint_active_params,
-                ProviderTable.qos_metric,
-                ProviderTable.qos_limit,
-                cast(func.extract("epoch", ProviderTable.created), Integer).label("created"),
-                cast(func.extract("epoch", ProviderTable.updated), Integer).label("updated"),
-            )
-            .offset(offset=offset)
-            .limit(limit=limit)
-            .order_by(text(f"{order_by} {order_direction}"))
-        )
+        query = select(
+            ProviderTable.id,
+            ProviderTable.router_id,
+            ProviderTable.user_id,
+            ProviderTable.type,
+            ProviderTable.url,
+            ProviderTable.key,
+            ProviderTable.timeout,
+            ProviderTable.model_name,
+            ProviderTable.model_carbon_footprint_zone,
+            ProviderTable.model_carbon_footprint_total_params,
+            ProviderTable.model_carbon_footprint_active_params,
+            ProviderTable.qos_metric,
+            ProviderTable.qos_limit,
+            cast(func.extract("epoch", ProviderTable.created), Integer).label("created"),
+            cast(func.extract("epoch", ProviderTable.updated), Integer).label("updated"),
+        ).order_by(text(f"{order_by} {order_direction}"))
+        if offset is not None:
+            query = query.offset(offset=offset)
+        if limit is not None:
+            query = query.limit(limit=limit)
 
         if router_id is not None:
             query = query.where(ProviderTable.router_id == router_id)
