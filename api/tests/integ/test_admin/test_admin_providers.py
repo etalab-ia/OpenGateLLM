@@ -53,8 +53,8 @@ class TestAdminProviders:
             timeout=10,
             model_name=model_name,
             model_carbon_footprint_zone=ProviderCarbonFootprintZone.WOR,
-            model_carbon_footprint_total_params=None,
-            model_carbon_footprint_active_params=None,
+            model_carbon_footprint_total_params=0,
+            model_carbon_footprint_active_params=0,
             qos_metric=None,
             qos_limit=None,
         )
@@ -73,8 +73,8 @@ class TestAdminProviders:
             timeout=10,
             model_name=model_name,
             model_carbon_footprint_zone=ProviderCarbonFootprintZone.WOR,
-            model_carbon_footprint_total_params=None,
-            model_carbon_footprint_active_params=None,
+            model_carbon_footprint_total_params=0,
+            model_carbon_footprint_active_params=0,
             qos_metric=None,
             qos_limit=None,
         )
