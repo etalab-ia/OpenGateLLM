@@ -32,7 +32,9 @@ class RolesState(EntityState):
         for limit in role["limits"]:
             router_name = router_dict_reverse[limit["router"]]
             limits_dict[router_name][limit["type"]] = limit["value"]
-        limits = [{"router": router_name, **limits} for router_name, limits in limits_dict.items()]
+
+        # Ensure limits are returned sorted by router name for consistent UI ordering
+        limits = [{"router": router_name, **limits} for router_name, limits in sorted(limits_dict.items(), key=lambda x: x[0])]
 
         return Role(
             id=role["id"],
