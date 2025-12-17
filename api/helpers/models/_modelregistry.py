@@ -686,7 +686,8 @@ class ModelRegistry:
             routers = await self.get_routers(router_id=router_id, name=None, postgres_session=postgres_session)
             new_router = routers[0]
 
-            if provider.type not in self.MODEL_TYPE_TO_MODEL_PROVIDER_TYPE_MAPPING[new_router.type]:
+            # provider.type is a ProviderType enum, mapping contains provider type strings
+            if provider.type.value not in self.MODEL_TYPE_TO_MODEL_PROVIDER_TYPE_MAPPING[new_router.type]:
                 raise InvalidProviderTypeException("New router type is not compatible with the provider type.")
 
             # consistency check

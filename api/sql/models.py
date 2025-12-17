@@ -123,8 +123,8 @@ class User(Base):
     collection: Mapped[list["Collection"]] = relationship(back_populates="user", passive_deletes=True)
     role: Mapped["Role"] = relationship(back_populates="user", passive_deletes=True)
     organization: Mapped["Organization"] = relationship(back_populates="user", passive_deletes=True)
-    router: Mapped["Router"] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
-    provider: Mapped["Provider"] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
+    router: Mapped[list["Router"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
+    provider: Mapped[list["Provider"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
 
     __table_args__ = (
         UniqueConstraint("sub", "iss", name="unique_user_email_sub_iss"),
