@@ -7,3 +7,4 @@ settings:
   swagger_url: https://albert.api.etalab.gouv.fr/swagger
   reference_url: https://albert.api.etalab.gouv.fr/reference
   documentation_url: https://docs.opengatellm.org/docs
+  playground_opengatellm_timeout: 300
