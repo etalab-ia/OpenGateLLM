@@ -243,10 +243,13 @@ class UsersState(EntityState):
             "email": self.entity_to_create.email,
             "password": self.entity_to_create.password,
             "role": role_id,
-            "budget": self.entity_to_create.budget,
             "expires": self.entity_to_create.expires,
             "priority": self.entity_to_create.priority,
         }
+        if self.entity_to_create.budget == "":
+            payload["budget"] = None
+        else:
+            payload["budget"] = self.entity_to_create.budget
         if organization_id:
             payload["organization"] = organization_id
 
@@ -313,10 +316,13 @@ class UsersState(EntityState):
             "email": self.entity.email,
             "name": self.entity.name,
             "role": role_id,
-            "budget": self.entity.budget,
             "expires": self.entity.expires,
             "priority": self.entity.priority,
         }
+        if self.entity.budget == "":
+            payload["budget"] = None
+        else:
+            payload["budget"] = self.entity.budget
         if self.entity.password:
             payload["password"] = self.entity.password
         if organization_id:

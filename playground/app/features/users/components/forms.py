@@ -133,6 +133,7 @@ def user_create_form_fields() -> rx.Component:
             on_change=lambda value: UsersState.set_new_entity_attribut("priority", value),
             tooltip="Priority of the user. The higher the priority, the more requests the user can make.",
             type="number",
+            placeholder="Enter priority (optional)",
             min=0,
             max=configuration.settings.routing_max_priority,
         ),
