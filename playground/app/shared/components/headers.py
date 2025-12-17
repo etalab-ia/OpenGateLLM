@@ -89,6 +89,7 @@ def nav_header(documentation_url: str | None, swagger_url: str | None, reference
                         configuration.settings.app_title,
                         size="5",
                         color=rx.color("accent", 11),
+                        width="300px",
                     ),
                     width="100%",
                     padding="1em",
