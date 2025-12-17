@@ -41,7 +41,7 @@ def navigation_sidebar() -> rx.Component:
             # Navigation items
             rx.vstack(
                 nav_item("Chat", "message-square", "/"),
-                rx.divider(),
+                rx.cond(~AuthState.is_master, rx.divider()),
                 rx.cond(
                     ~AuthState.is_master,
                     rx.box(
@@ -51,7 +51,7 @@ def navigation_sidebar() -> rx.Component:
                         width="100%",
                     ),
                 ),
-                rx.divider(),
+                rx.cond(AuthState.is_admin, rx.divider()),
                 rx.cond(
                     AuthState.is_admin,
                     rx.box(
