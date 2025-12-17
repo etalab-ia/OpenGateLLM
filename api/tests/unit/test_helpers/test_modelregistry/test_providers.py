@@ -762,25 +762,27 @@ async def test_update_provider_change_router_invalid_type(postgres_session: Asyn
     # Mock get_providers to return provider (will be called with router_id=None, provider_id=1)
     # Note: get_providers creates Provider with type from DB (string), which Pydantic converts to enum
     provider_result = _Result()
-    provider_result.mappings = lambda: _MappingsResult([
-        {
-            "id": 1,
-            "router_id": 1,
-            "user_id": 1,
-            "type": ProviderType.MISTRAL.value,  # MISTRAL is not compatible with TEXT_CLASSIFICATION
-            "url": "https://mistral.example.com/",
-            "key": "sk-test",
-            "timeout": 30,
-            "model_name": "mistral-model",
-            "model_carbon_footprint_zone": ProviderCarbonFootprintZone.WOR.value,
-            "model_carbon_footprint_total_params": 0,
-            "model_carbon_footprint_active_params": 0,
-            "qos_metric": None,
-            "qos_limit": None,
-            "created": 100,
-            "updated": 200,
-        }
-    ])
+    provider_result.mappings = lambda: _MappingsResult(
+        [
+            {
+                "id": 1,
+                "router_id": 1,
+                "user_id": 1,
+                "type": ProviderType.MISTRAL.value,  # MISTRAL is not compatible with TEXT_CLASSIFICATION
+                "url": "https://mistral.example.com/",
+                "key": "sk-test",
+                "timeout": 30,
+                "model_name": "mistral-model",
+                "model_carbon_footprint_zone": ProviderCarbonFootprintZone.WOR.value,
+                "model_carbon_footprint_total_params": 0,
+                "model_carbon_footprint_active_params": 0,
+                "qos_metric": None,
+                "qos_limit": None,
+                "created": 100,
+                "updated": 200,
+            }
+        ]
+    )
     postgres_session.execute = AsyncMock(return_value=provider_result)
     model_registry.get_routers = AsyncMock(side_effect=[[current_router], [new_router]])
 
@@ -1153,25 +1155,27 @@ async def test_update_provider_noop(postgres_session: AsyncSession, model_regist
     )
 
     result = _Result()
-    result.mappings = lambda: _MappingsResult([
-        {
-            "id": 1,
-            "router_id": 1,
-            "user_id": 1,
-            "type": ProviderType.OPENAI.value,
-            "url": "https://api.openai.com/",
-            "key": "sk-test",
-            "timeout": 30,
-            "model_name": "gpt-4",
-            "model_carbon_footprint_zone": ProviderCarbonFootprintZone.WOR.value,
-            "model_carbon_footprint_total_params": 0,
-            "model_carbon_footprint_active_params": 0,
-            "qos_metric": None,
-            "qos_limit": None,
-            "created": 100,
-            "updated": 200,
-        }
-    ])
+    result.mappings = lambda: _MappingsResult(
+        [
+            {
+                "id": 1,
+                "router_id": 1,
+                "user_id": 1,
+                "type": ProviderType.OPENAI.value,
+                "url": "https://api.openai.com/",
+                "key": "sk-test",
+                "timeout": 30,
+                "model_name": "gpt-4",
+                "model_carbon_footprint_zone": ProviderCarbonFootprintZone.WOR.value,
+                "model_carbon_footprint_total_params": 0,
+                "model_carbon_footprint_active_params": 0,
+                "qos_metric": None,
+                "qos_limit": None,
+                "created": 100,
+                "updated": 200,
+            }
+        ]
+    )
     postgres_session.execute = AsyncMock(return_value=result)
     model_registry.get_routers = AsyncMock(return_value=[router])
 

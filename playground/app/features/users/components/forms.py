@@ -135,6 +135,7 @@ def user_create_form_fields() -> rx.Component:
             type="number",
             min=0,
             max=configuration.settings.routing_max_priority,
+            placeholder="Enter priority (optional)",
         ),
         columns="2",
         spacing=SPACING_MEDIUM,
