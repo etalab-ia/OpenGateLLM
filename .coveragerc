@@ -1,4 +1,15 @@
 [run]
+source = api
+branch = True
 omit =
-    api/tests/*
+    */tests/*
+    */migrations/*
+    */__init__.py
 
+[report]
+show_missing = True
+precision = 2
+skip_covered = False
+
+[html]
+directory = htmlcov

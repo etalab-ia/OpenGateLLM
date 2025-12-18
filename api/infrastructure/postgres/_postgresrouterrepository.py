@@ -22,7 +22,6 @@ class PostgresRouterRepository(RouterRepository):
         Get model router with optional filtering.
 
         Args:
-            postgres_session(AsyncSession): Database postgres_session
             router_id(Optional[int]): Optional router ID to filter by
             name(Optional[str]): Optional router name or alias to filter by
         Returns:
@@ -31,7 +30,7 @@ class PostgresRouterRepository(RouterRepository):
         provider_count_subquery = (
             select(func.count(ProviderTable.id)).where(ProviderTable.router_id == RouterTable.id).correlate(RouterTable).scalar_subquery()
         )
-
+        # TODO: un router a plusieurs providers. Comment sont choisis max_content_length and vector_size ?
         query = (
             select(
                 RouterTable.id,
@@ -107,19 +106,16 @@ class PostgresRouterRepository(RouterRepository):
 
         models = []
         for router in routers:
-            # skip model if user has no access to it
-            has_access = True
-            for limit in user_info.limits:
-                if limit.router == router.id and limit.value == 0:
-                    has_access = False
-                    break
-
-            if not has_access:
+            # skip model if router has no providers
+            if router.providers == 0:
                 if name is not None:
                     raise ModelNotFoundException()
                 continue
 
-            if router.providers == 0:
+            # skip model if user has no access to it
+            router_limit = next((limit for limit in user_info.limits if limit.router == router.id), None)
+            has_access = router_limit is not None and (router_limit.value is None or router_limit.value > 0)
+            if not has_access:
                 if name is not None:
                     raise ModelNotFoundException()
                 continue

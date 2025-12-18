@@ -1,5 +1,6 @@
 from collections.abc import AsyncGenerator
 
+import asyncpg
 from httpx import ASGITransport, AsyncClient
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -10,12 +11,21 @@ from api.main import app
 from api.sql.models import Base
 from api.tests.integration import factories
 
+# TEST_DATABASE_URL = getattr(configuration.dependencies.postgres, 'url', "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db")
 TEST_DATABASE_URL = "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db"
 
 
 @pytest_asyncio.fixture(scope="session")
 async def test_engine():
     """Create a test database engine."""
+    conn = await asyncpg.connect("postgresql://postgres:changeme@localhost:5432/postgres")
+    try:
+        await conn.execute("CREATE DATABASE test_db")
+    except asyncpg.exceptions.DuplicateDatabaseError:
+        pass
+    finally:
+        await conn.close()
+
     engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
 
     async with engine.begin() as conn:
@@ -40,11 +50,18 @@ async def test_session_factory(test_engine):
 async def db_session(test_session_factory) -> AsyncGenerator[AsyncSession, None]:
     """Provide a transactional scope for each test."""
     async with test_session_factory() as session:
+        session.expire_on_commit = False
         try:
             async with session.begin_nested():
                 factories.UserFactory._meta.sqlalchemy_session = session
                 factories.RoleFactory._meta.sqlalchemy_session = session
                 factories.TokenFactory._meta.sqlalchemy_session = session
+                factories.RouterFactory._meta.sqlalchemy_session = session
+                factories.RouterAliasFactory._meta.sqlalchemy_session = session
+                factories.ProviderFactory._meta.sqlalchemy_session = session
+                factories.ProviderForRouterFactory._meta.sqlalchemy_session = session
+                factories.OrganizationFactory._meta.sqlalchemy_session = session
+                factories.LimitFactory._meta.sqlalchemy_session = session
                 yield session
         finally:
             await session.rollback()
