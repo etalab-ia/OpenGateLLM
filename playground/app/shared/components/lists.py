@@ -73,10 +73,10 @@ def entity_pagination(state: rx.State) -> rx.Component:
         rx.button(
             "Prev",
             on_click=state.prev_page,
-            disabled=state.current_page <= 1,
+            disabled=state.page <= 1,
         ),
         rx.text(
-            state.current_page.to(str),
+            state.page.to(str),
         ),
         rx.button(
             "Next",
