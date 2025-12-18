@@ -103,6 +103,10 @@ class UsageState(EntityState):
     ############################################################
     page: int = 1
     per_page: int = 20
+    order_by_value: str = "id"
+    order_direction: str = "asc"
+    order_direction_options: list[str] = ["asc", "desc"]
+    order_direction_value: str = "asc"
 
     @rx.event
     async def prev_page(self):

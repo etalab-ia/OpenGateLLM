@@ -435,6 +435,10 @@ class RolesState(EntityState):
     ############################################################
     page: int = 1
     per_page: int = 20
+    order_by_value: str = "id"
+    order_direction: str = "asc"
+    order_direction_options: list[str] = ["asc", "desc"]
+    order_direction_value: str = "asc"
     order_by_options: list[str] = ["id", "name", "created", "updated"]
 
     @rx.event

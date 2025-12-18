@@ -63,7 +63,6 @@ class EntityState(AuthState):
     ############################################################
     # Entity settings
     ############################################################
-    # entity: Entity = Entity()
     edit_entity_loading: bool = False
 
     @abstractmethod
@@ -94,13 +93,7 @@ class EntityState(AuthState):
     ############################################################
     # Pagination
     ############################################################
-    # per_page: int = 20
     has_more_page: bool = False
-    # order_by_options: list[str] = ["id"]
-    order_by_value: str = "id"
-    order_direction: str = "asc"
-    order_direction_options: list[str] = ["asc", "desc"]
-    order_direction_value: str = "asc"
 
     @abstractmethod
     async def set_order_by(self, value: str):
