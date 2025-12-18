@@ -11,10 +11,10 @@ def pagination(state: Any) -> rx.Component:
         rx.button(
             "Prev",
             on_click=state.prev_page,
-            disabled=state.page <= 1,
+            disabled=state.current_page <= 1,
         ),
         rx.text(
-            state.page.to(str),
+            state.current_page.to(str),
         ),
         rx.button(
             "Next",

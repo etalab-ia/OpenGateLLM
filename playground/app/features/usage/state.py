@@ -101,7 +101,14 @@ class UsageState(EntityState):
     ############################################################
     # Pagination & filters
     ############################################################
+    page: int = 1
     per_page: int = 20
+
+    @rx.var
+    def current_page(self) -> int:
+        """A computed var that returns the current page."""
+        # Computed vars update automatically when the state changes.
+        return self.page
 
     @rx.event
     async def prev_page(self):

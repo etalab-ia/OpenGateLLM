@@ -94,8 +94,6 @@ class EntityState(AuthState):
     ############################################################
     # Pagination
     ############################################################
-    # TODO - Put all the class properties in the __init__ method constructor
-    page: int = 1
     # per_page: int = 20
     has_more_page: bool = False
     # order_by_options: list[str] = ["id"]

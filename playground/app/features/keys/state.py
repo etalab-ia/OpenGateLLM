@@ -205,8 +205,15 @@ class KeysState(EntityState):
     ############################################################
     # Pagination & filters
     ############################################################
+    page: int = 1
     per_page: int = 20
     order_by_options: list[str] = ["id", "name", "created"]
+
+    @rx.var
+    def current_page(self) -> int:
+        """A computed var that returns the current page."""
+        # Computed vars update automatically when the state changes.
+        return self.page
 
     @rx.event
     async def set_order_by(self, value: str):
