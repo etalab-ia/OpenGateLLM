@@ -88,9 +88,8 @@ class QdrantVectorStoreClient(BaseVectorStoreClient, AsyncQdrantClient):
             self,
             collection_name=str(collection_id),
             scroll_filter=doc_filter,
-            order_by=OrderBy(key="id", start_from=offset),
+            order_by=OrderBy(key="id", start_from=offset + 1),  # Add 1 to offset because IDs start from 1 in Qdrant
             limit=limit,
-            offset=offset,
         )
         data = data[0]
         chunks = [Chunk(id=chunk.payload["id"], content=chunk.payload["content"], metadata=chunk.payload["metadata"]) for chunk in data]
