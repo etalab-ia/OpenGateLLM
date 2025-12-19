@@ -15,7 +15,16 @@ class RoutersState(EntityState):
     @rx.var
     def router_types_list(self) -> list[str]:
         """Get list of router types."""
-        return ["image-text-to-text", "automatic-speech-recognition", "text-embeddings-inference", "text-generation", "text-classification"]
+        return sorted(
+            [
+                "image-to-text",
+                "image-text-to-text",
+                "automatic-speech-recognition",
+                "text-embeddings-inference",
+                "text-generation",
+                "text-classification",
+            ]
+        )
 
     @rx.var
     def router_load_balancing_strategies_list(self) -> list[str]:
