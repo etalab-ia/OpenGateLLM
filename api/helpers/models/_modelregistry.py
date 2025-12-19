@@ -827,7 +827,6 @@ class ModelRegistry:
             raise ModelNotFoundException()
 
         router = routers[0]
-        request_context.get().router_id = router.id
         request_context.get().router_name = router.name
 
         if router.type not in self.ENDPOINT_MODEL_TYPE_TABLE[endpoint]:
@@ -880,7 +879,6 @@ class ModelRegistry:
         model_provider.cost_prompt_tokens = router.cost_prompt_tokens
         model_provider.cost_completion_tokens = router.cost_completion_tokens
 
-        request_context.get().provider_id = provider.id
         request_context.get().provider_model_name = provider.model_name
 
         return model_provider

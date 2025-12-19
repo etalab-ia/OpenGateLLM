@@ -24,7 +24,7 @@ class KeysState(EntityState):
             id=key["id"],
             name=key["name"],
             token=key["token"],
-            expires=dt.datetime.fromtimestamp(key["expires"]).strftime("%Y-%m-%d %H:%M") if key["expires"] else None,
+            expires=dt.datetime.fromtimestamp(key["expires"]).strftime("%Y-%m-%d %H:%M") if key["expires"] else "never",
             created=dt.datetime.fromtimestamp(key["created"]).strftime("%Y-%m-%d %H:%M"),
         )
 

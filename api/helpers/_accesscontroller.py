@@ -61,7 +61,6 @@ class AccessController:
         # add authenticated user to request state for logging usages
         context = request_context.get()
         context.user_info = user_info
-        context.key_id = key_id
         context.key_name = key_name
 
         if request.url.path.endswith(ENDPOINT__AUDIO_TRANSCRIPTIONS) and request.method in ["POST"]:

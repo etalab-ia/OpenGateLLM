@@ -31,10 +31,7 @@ class RequestContext(BaseModel):
 
     # request context
     user_info: UserInfo | None = None
-    key_id: int | None = None
     key_name: str | None = None
-    router_id: int | None = None
-    provider_id: int | None = None
 
     # request body
     router_name: str | None = None

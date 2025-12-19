@@ -1,6 +1,5 @@
 import datetime as dt
 from http import HTTPMethod
-from typing import Optional
 
 from sqlalchemy import ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
@@ -24,9 +23,6 @@ class Usage(Base):
 
     # foreign keys
     user_id: Mapped[int | None] = mapped_column(ForeignKey(column="user.id", ondelete="SET NULL"), index=True)
-    token_id: Mapped[int | None] = mapped_column(ForeignKey(column="token.id", ondelete="SET NULL"), index=True)
-    router_id: Mapped[int | None] = mapped_column(ForeignKey(column="router.id", ondelete="SET NULL"), index=True)
-    provider_id: Mapped[int | None] = mapped_column(ForeignKey(column="provider.id", ondelete="SET NULL"), index=True)
 
     # identifiers (useful for historical analysis when foreign keys are deleted)
     user_email: Mapped[str | None]
@@ -54,9 +50,6 @@ class Usage(Base):
     kgco2eq_max: Mapped[float | None]
 
     user: Mapped["User"] = relationship(back_populates="usage")
-    token: Mapped[Optional["Token"]] = relationship(back_populates="usage")
-    router: Mapped[Optional["Router"]] = relationship(back_populates="usage")
-    provider: Mapped[Optional["Provider"]] = relationship(back_populates="usage")
 
 
 class Role(Base):
@@ -143,7 +136,6 @@ class Token(Base):
     created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
 
     user: Mapped["User"] = relationship(back_populates="token")
-    usage: Mapped[list["Usage"]] = relationship(back_populates="token", passive_deletes=True)
 
 
 class Organization(Base):
@@ -200,7 +192,6 @@ class Router(Base):
     alias: Mapped[list["RouterAlias"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
     provider: Mapped[list["Provider"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
     limit: Mapped[list["Limit"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
-    usage: Mapped[list["Usage"]] = relationship(back_populates="router", passive_deletes=True)
 
 
 class RouterAlias(Base):
@@ -236,6 +227,5 @@ class Provider(Base):
 
     router: Mapped["Router"] = relationship(back_populates="provider")
     user: Mapped["User"] = relationship(back_populates="provider")
-    usage: Mapped[list["Usage"]] = relationship(back_populates="provider", passive_deletes=True)
 
     __table_args__ = (UniqueConstraint("router_id", "url", "model_name", name="unique_provider_router_id_url_model_name"),)

@@ -69,12 +69,9 @@ def set_usage_from_context(usage: Usage):
     context = request_context.get()
     usage.user_id = context.user_info.id
     usage.user_email = context.user_info.email
-    usage.token_id = context.key_id
     usage.token_name = context.key_name
     usage.endpoint = context.endpoint
     usage.method = context.method
-    usage.router_id = context.router_id
-    usage.provider_id = context.provider_id
     usage.router_name = context.router_name
     usage.provider_model_name = context.provider_model_name
     usage.prompt_tokens = context.usage.prompt_tokens
