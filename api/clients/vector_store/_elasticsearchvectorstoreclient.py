@@ -125,11 +125,9 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
             body["query"]["bool"]["must"].append({"term": {"id": chunk_id}})
 
         results = await AsyncElasticsearch.search(self, index=str(collection_id), body=body, from_=offset, size=limit)
-
         chunks = []
         for hit in results["hits"]["hits"]:
             chunks.append(Chunk(id=hit["_source"]["id"], content=hit["_source"]["content"], metadata=hit["_source"]["metadata"]))
-
         return chunks
 
     async def upsert(self, collection_id: int, chunks: list[Chunk], embeddings: list[list[float]]) -> None:

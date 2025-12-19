@@ -25,7 +25,7 @@ To enable the vector store, you need:
 
 #### Docker compose
 
-Add an `elasticsearch` container in the `services` section of your `compose.yml` file:
+Add an `elasticsearch` container in the `services` section of your `compose.yml` file, and a volume for data persistence:
 
 ```yaml
 services:
@@ -48,6 +48,10 @@ services:
       interval: 4s
       timeout: 10s
       retries: 5
+
+volumes:
+  [...]
+  elasticsearch:
 ```
 
 #### Configuration file
@@ -95,7 +99,7 @@ For more information about the configuration file, see [Configuration](../gettin
 
 #### Docker Compose
 
-Add a `qdrant` container in the `services` section of your `compose.yml` file:
+Add an `qdrant` container in the `services` section of your `compose.yml` file, and a volume for data persistence:
 
 ```yaml
 services:
@@ -115,6 +119,10 @@ services:
       interval: 4s
       timeout: 10s
       retries: 5
+
+volumes:
+  [...]
+  qdrant:
 ```
 
 #### Configuration file
@@ -123,7 +131,7 @@ services:
 For more information about the configuration file, see [Configuration](../getting-started/configuration.md) documentation.
 :::
 
-1. Add an embedding model in the `models` section of your `config.yml`. Example:
+1. Add an embedding model in the `models` section of your `config.yml`. This model should be of type `text-embeddings-inference`. Example:
 
     ```yaml
     models:
