@@ -50,9 +50,9 @@ models:
         # key: sk-xxx
         model_name: "gemma3:1b"
         # timeout: 60
-        # model_carbon_footprint_zone: FRA
-        # model_carbon_footprint_total_params: 8
-        # model_carbon_footprint_active_params: 8
+        # model_hosting_zone: FRA
+        # model_total_params: 8
+        # model_active_params: 8
   
 # -------------------------------- dependencies ---------------------------------
 dependencies:
@@ -191,9 +191,9 @@ For more information to configure model providers, see the [ModelProvider sectio
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | key | string | Model provider API key. |  | None |  | sk-1234567890 |
-| model_carbon_footprint_active_params | integer | Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai |  | 0 |  | 8 |
-| model_carbon_footprint_total_params | integer | Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai |  | 0 |  | 8 |
-| model_carbon_footprint_zone | string | Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai |  | WOR | • ABW<br></br>• AFG<br></br>• AGO<br></br>• AIA<br></br>• ALA<br></br>• ALB<br></br>• AND<br></br>• ARE<br></br>• ... | WOR |
+| model_active_params | integer | Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai |  | 0 |  | 8 |
+| model_total_params | integer | Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai |  | 0 |  | 8 |
+| model_hosting_zone | string | Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai |  | WOR | • ABW<br></br>• AFG<br></br>• AGO<br></br>• AIA<br></br>• ALA<br></br>• ALB<br></br>• AND<br></br>• ARE<br></br>• ... | WOR |
 | model_name | string | Model name from the model provider. |  |  |  | gpt-4o |
 | qos_limit | number | The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc. |  | None |  | 0.5 |
 | qos_metric | string | The metric to use for the quality of service. If not provided, no QoS policy is applied. |  | None | • ttft<br></br>• latency<br></br>• inflight<br></br>• performance | inflight |

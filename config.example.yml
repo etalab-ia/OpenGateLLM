@@ -13,9 +13,9 @@ models:
         # key: sk-xxx
         model_name: "gemma3:1b"
         # timeout: 60
-        # model_carbon_footprint_zone: FRA
-        # model_carbon_footprint_total_params: 8
-        # model_carbon_footprint_active_params: 8
+        # model_hosting_zone: FRA
+        # model_total_params: 8
+        # model_active_params: 8
   
 # -------------------------------- dependencies ---------------------------------
 dependencies:

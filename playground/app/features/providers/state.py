@@ -19,7 +19,7 @@ class ProvidersState(EntityState):
         return sorted(["Albert", "Mistral", "OpenAI", "TEI", "vLLM"])
 
     @rx.var
-    def provider_model_carbon_footprint_zones_list(self) -> list[str]:
+    def model_hosting_zones_list(self) -> list[str]:
         return sorted([country.alpha_3 for country in pycountry.countries] + ["WOR"])
 
     @rx.var
@@ -69,9 +69,9 @@ class ProvidersState(EntityState):
             key=provider["key"],
             timeout=provider["timeout"],
             model_name=provider["model_name"],
-            model_carbon_footprint_zone=provider["model_carbon_footprint_zone"],
-            model_carbon_footprint_total_params=provider["model_carbon_footprint_total_params"],
-            model_carbon_footprint_active_params=provider["model_carbon_footprint_active_params"],
+            model_hosting_zone=provider["model_hosting_zone"],
+            model_total_params=provider["model_total_params"],
+            model_active_params=provider["model_active_params"],
             qos_metric=_qos_metric_converter.get(provider["qos_metric"]),
             qos_limit=provider["qos_limit"],
             created=dt.datetime.fromtimestamp(provider["created"]).strftime("%Y-%m-%d %H:%M"),
@@ -267,9 +267,9 @@ class ProvidersState(EntityState):
             "url": self.entity_to_create.url if self.entity_to_create.url else None,
             "key": self.entity_to_create.key,
             "timeout": self.entity_to_create.timeout,
-            "model_carbon_footprint_zone": self.entity_to_create.model_carbon_footprint_zone,
-            "model_carbon_footprint_total_params": self.entity_to_create.model_carbon_footprint_total_params,
-            "model_carbon_footprint_active_params": self.entity_to_create.model_carbon_footprint_active_params,
+            "model_hosting_zone": self.entity_to_create.model_hosting_zone,
+            "model_total_params": self.entity_to_create.model_total_params,
+            "model_active_params": self.entity_to_create.model_active_params,
             "qos_metric": self.entity_to_create.qos_metric.lower() if self.entity_to_create.qos_metric else None,
             "qos_limit": self.entity_to_create.qos_limit,
         }
@@ -333,9 +333,9 @@ class ProvidersState(EntityState):
         payload = {
             "router": self.routers_dict.get(self.entity.router, None),
             "timeout": self.entity.timeout,
-            "model_carbon_footprint_zone": self.entity.model_carbon_footprint_zone,
-            "model_carbon_footprint_total_params": self.entity.model_carbon_footprint_total_params,
-            "model_carbon_footprint_active_params": self.entity.model_carbon_footprint_active_params,
+            "model_hosting_zone": self.entity.model_hosting_zone,
+            "model_total_params": self.entity.model_total_params,
+            "model_active_params": self.entity.model_active_params,
             "qos_metric": self.entity.qos_metric.lower() if self.entity.qos_metric else None,
             "qos_limit": self.entity.qos_limit,
         }

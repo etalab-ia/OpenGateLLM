@@ -151,9 +151,9 @@ class ModelRegistry:
                         key=provider.key,
                         timeout=provider.timeout,
                         model_name=provider.model_name,
-                        model_carbon_footprint_zone=provider.model_carbon_footprint_zone,
-                        model_carbon_footprint_total_params=provider.model_carbon_footprint_total_params,
-                        model_carbon_footprint_active_params=provider.model_carbon_footprint_active_params,
+                        model_hosting_zone=provider.model_hosting_zone,
+                        model_total_params=provider.model_total_params,
+                        model_active_params=provider.model_active_params,
                         qos_metric=provider.qos_metric,
                         qos_limit=provider.qos_limit,
                         postgres_session=postgres_session,
@@ -444,9 +444,9 @@ class ModelRegistry:
         key: str | None,
         timeout: int,
         model_name: str,
-        model_carbon_footprint_zone: ProviderCarbonFootprintZone,
-        model_carbon_footprint_total_params: int,
-        model_carbon_footprint_active_params: int,
+        model_hosting_zone: ProviderCarbonFootprintZone,
+        model_total_params: int,
+        model_active_params: int,
         qos_metric: Metric | None,
         qos_limit: float | None,
         postgres_session: AsyncSession,
@@ -462,9 +462,9 @@ class ModelRegistry:
             key(str | None): Provider API key
             timeout(int): Request timeout
             model_name(str): Model name
-            model_carbon_footprint_zone(ProviderCarbonFootprintZone): ProviderCarbonFootprintZone
-            model_carbon_footprint_total_params: int
-            model_carbon_footprint_active_params: int
+            model_hosting_zone(ProviderCarbonFootprintZone): ProviderCarbonFootprintZone
+            model_total_params: int
+            model_active_params: int
             qos_metric(Metric | None): QoS metric. If None, no QoS policy is applied.
             qos_limit(float | None): Optional QoS limit
             postgres_session(AsyncSession): Database postgres_session
@@ -485,9 +485,9 @@ class ModelRegistry:
                 key=key,
                 timeout=timeout,
                 model_name=model_name,
-                model_carbon_footprint_zone=model_carbon_footprint_zone,
-                model_carbon_footprint_total_params=model_carbon_footprint_total_params,
-                model_carbon_footprint_active_params=model_carbon_footprint_active_params,
+                model_hosting_zone=model_hosting_zone,
+                model_total_params=model_total_params,
+                model_active_params=model_active_params,
             )
             max_context_length = await provider.get_max_context_length()
             if router.type == ModelType.TEXT_EMBEDDINGS_INFERENCE:
@@ -520,9 +520,9 @@ class ModelRegistry:
                     key=key,
                     timeout=timeout,
                     model_name=model_name,
-                    model_carbon_footprint_zone=model_carbon_footprint_zone,
-                    model_carbon_footprint_total_params=model_carbon_footprint_total_params,
-                    model_carbon_footprint_active_params=model_carbon_footprint_active_params,
+                    model_hosting_zone=model_hosting_zone,
+                    model_total_params=model_total_params,
+                    model_active_params=model_active_params,
                     qos_metric=qos_metric,
                     qos_limit=qos_limit,
                     max_context_length=max_context_length,
@@ -600,9 +600,9 @@ class ModelRegistry:
             ProviderTable.key,
             ProviderTable.timeout,
             ProviderTable.model_name,
-            ProviderTable.model_carbon_footprint_zone,
-            ProviderTable.model_carbon_footprint_total_params,
-            ProviderTable.model_carbon_footprint_active_params,
+            ProviderTable.model_hosting_zone,
+            ProviderTable.model_total_params,
+            ProviderTable.model_active_params,
             ProviderTable.qos_metric,
             ProviderTable.qos_limit,
             cast(func.extract("epoch", ProviderTable.created), Integer).label("created"),
@@ -639,9 +639,9 @@ class ModelRegistry:
                     key=row["key"],
                     timeout=row["timeout"],
                     model_name=row["model_name"],
-                    model_carbon_footprint_zone=row["model_carbon_footprint_zone"],
-                    model_carbon_footprint_total_params=row["model_carbon_footprint_total_params"],
-                    model_carbon_footprint_active_params=row["model_carbon_footprint_active_params"],
+                    model_hosting_zone=row["model_hosting_zone"],
+                    model_total_params=row["model_total_params"],
+                    model_active_params=row["model_active_params"],
                     qos_metric=qos_metric,
                     qos_limit=row["qos_limit"],
                     created=row["created"],
@@ -656,9 +656,9 @@ class ModelRegistry:
         provider_id: int,
         router_id: int | None,
         timeout: int | None,
-        model_carbon_footprint_zone: ProviderCarbonFootprintZone | None,
-        model_carbon_footprint_total_params: int | None,
-        model_carbon_footprint_active_params: int | None,
+        model_hosting_zone: ProviderCarbonFootprintZone | None,
+        model_total_params: int | None,
+        model_active_params: int | None,
         qos_metric: Metric | None,
         qos_limit: float | None,
         postgres_session: AsyncSession,
@@ -670,9 +670,9 @@ class ModelRegistry:
             provider_id(int): The provider ID
             router_id(int | None): The new router ID to assign to the provider
             timeout(int | None): The new timeout for the provider requests
-            model_carbon_footprint_zone(ProviderCarbonFootprintZone | None): The new model carbon footprint zone
-            model_carbon_footprint_total_params(int | None): The new model carbon footprint total params
-            model_carbon_footprint_active_params(int | None): The new model carbon footprint active params
+            model_hosting_zone(ProviderCarbonFootprintZone | None): The new model carbon footprint zone
+            model_total_params(int | None): The new model carbon footprint total params
+            model_active_params(int | None): The new model carbon footprint active params
             qos_metric(Metric | None): The new QoS metric
             qos_limit(float | None): The new QoS limit
             postgres_session(AsyncSession): Database postgres_session
@@ -706,12 +706,12 @@ class ModelRegistry:
 
         if timeout is not None:
             update_value["timeout"] = timeout
-        if model_carbon_footprint_zone is not None:
-            update_value["model_carbon_footprint_zone"] = model_carbon_footprint_zone
-        if model_carbon_footprint_total_params is not None:
-            update_value["model_carbon_footprint_total_params"] = model_carbon_footprint_total_params
-        if model_carbon_footprint_active_params is not None:
-            update_value["model_carbon_footprint_active_params"] = model_carbon_footprint_active_params
+        if model_hosting_zone is not None:
+            update_value["model_hosting_zone"] = model_hosting_zone
+        if model_total_params is not None:
+            update_value["model_total_params"] = model_total_params
+        if model_active_params is not None:
+            update_value["model_active_params"] = model_active_params
         if qos_metric is not None:
             update_value["qos_metric"] = qos_metric
         if qos_limit is not None:
@@ -872,9 +872,9 @@ class ModelRegistry:
             key=provider.key,
             timeout=provider.timeout,
             model_name=provider.model_name,
-            model_carbon_footprint_zone=provider.model_carbon_footprint_zone,
-            model_carbon_footprint_total_params=provider.model_carbon_footprint_total_params,
-            model_carbon_footprint_active_params=provider.model_carbon_footprint_active_params,
+            model_hosting_zone=provider.model_hosting_zone,
+            model_total_params=provider.model_total_params,
+            model_active_params=provider.model_active_params,
         )
         model_provider.id = provider.id
         model_provider.cost_prompt_tokens = router.cost_prompt_tokens

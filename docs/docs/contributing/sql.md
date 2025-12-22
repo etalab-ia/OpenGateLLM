@@ -14,3 +14,9 @@ Then apply the migration with the following command:
 ```bash
 alembic -c api/alembic.ini upgrade head
 ```
+
+If you want to revert the last migration (or just test it), you can use the following command:
+
+```bash
+alembic -c api/alembic.ini downgrade -1
+```

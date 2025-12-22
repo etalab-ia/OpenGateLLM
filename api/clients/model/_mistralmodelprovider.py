@@ -36,18 +36,18 @@ class MistralModelProvider(BaseModelProvider):
         key: str,
         timeout: int,
         model_name: str,
-        model_carbon_footprint_zone: str | None,
-        model_carbon_footprint_total_params: int | None,
-        model_carbon_footprint_active_params: int | None,
+        model_hosting_zone: str | None,
+        model_total_params: int | None,
+        model_active_params: int | None,
     ) -> None:
         """
         Initialize the Mistral model provider and check if the model is available.
         """
         super().__init__(
             model_name=model_name,
-            model_carbon_footprint_zone=model_carbon_footprint_zone,
-            model_carbon_footprint_total_params=model_carbon_footprint_total_params,
-            model_carbon_footprint_active_params=model_carbon_footprint_active_params,
+            model_hosting_zone=model_hosting_zone,
+            model_total_params=model_total_params,
+            model_active_params=model_active_params,
             url=url,
             key=key,
             timeout=timeout,

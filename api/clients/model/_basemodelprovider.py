@@ -50,15 +50,15 @@ class BaseModelProvider(ABC):
         key: str,
         timeout: int,
         model_name: str,
-        model_carbon_footprint_zone: str | None,
-        model_carbon_footprint_total_params: int | None,
-        model_carbon_footprint_active_params: int | None,
+        model_hosting_zone: str | None,
+        model_total_params: int | None,
+        model_active_params: int | None,
     ) -> None:
         self.name = model_name
 
-        self.carbon_footprint_zone = model_carbon_footprint_zone
-        self.carbon_footprint_total_params = model_carbon_footprint_total_params
-        self.carbon_footprint_active_params = model_carbon_footprint_active_params
+        self.carbon_footprint_zone = model_hosting_zone
+        self.carbon_footprint_total_params = model_total_params
+        self.carbon_footprint_active_params = model_active_params
         self.url = url
         self.key = key
         self.timeout = timeout

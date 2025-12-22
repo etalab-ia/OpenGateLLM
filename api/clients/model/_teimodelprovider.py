@@ -35,9 +35,9 @@ class TeiModelProvider(BaseModelProvider):
         key: str,
         timeout: int,
         model_name: str,
-        model_carbon_footprint_zone: str | None,
-        model_carbon_footprint_total_params: int | None,
-        model_carbon_footprint_active_params: int | None,
+        model_hosting_zone: str | None,
+        model_total_params: int | None,
+        model_active_params: int | None,
     ) -> None:
         """
         Initialize the TEI model client and check if the model is available.
@@ -47,9 +47,9 @@ class TeiModelProvider(BaseModelProvider):
             key=key,
             timeout=timeout,
             model_name=model_name,
-            model_carbon_footprint_zone=model_carbon_footprint_zone,
-            model_carbon_footprint_total_params=model_carbon_footprint_total_params,
-            model_carbon_footprint_active_params=model_carbon_footprint_active_params,
+            model_hosting_zone=model_hosting_zone,
+            model_total_params=model_total_params,
+            model_active_params=model_active_params,
         )
 
     async def get_max_context_length(self) -> int | None:

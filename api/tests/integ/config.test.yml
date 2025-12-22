@@ -11,9 +11,9 @@ models:
         key: ${ALBERT_API_KEY}
         timeout: 120
         model_name: albert-large
-        model_carbon_footprint_total_params: 24
-        model_carbon_footprint_active_params: 24
-        model_carbon_footprint_zone: FRA
+        model_total_params: 24
+        model_active_params: 24
+        model_hosting_zone: FRA
         max_parallel_requests: 5
   
   - name: albert-small
@@ -27,9 +27,9 @@ models:
         key: ${ALBERT_API_KEY}
         timeout: 120
         model_name: albert-small
-        model_carbon_footprint_total_params: 8
-        model_carbon_footprint_active_params: 8
-        model_carbon_footprint_zone: FRA
+        model_total_params: 8
+        model_active_params: 8
+        model_hosting_zone: FRA
         qos_metric: inflight
         qos_limit: 5
 
@@ -43,9 +43,9 @@ models:
         key: ${ALBERT_API_KEY}
         timeout: 120
         model_name: embeddings-small
-        model_carbon_footprint_total_params: 8
-        model_carbon_footprint_active_params: 8
-        model_carbon_footprint_zone: FRA
+        model_total_params: 8
+        model_active_params: 8
+        model_hosting_zone: FRA
         max_parallel_requests: 5
 
   - name: audio-large
@@ -56,10 +56,9 @@ models:
         key: ${ALBERT_API_KEY}
         timeout: 120
         model_name: audio-large
-
-        model_carbon_footprint_total_params: 8
-        model_carbon_footprint_active_params: 8
-        model_carbon_footprint_zone: FRA
+        model_total_params: 8
+        model_active_params: 8
+        model_hosting_zone: FRA
         max_parallel_requests: 5
 
   - name: rerank-small
@@ -70,9 +69,9 @@ models:
         key: ${ALBERT_API_KEY}
         timeout: 120
         model_name: rerank-small
-        model_carbon_footprint_total_params: 8
-        model_carbon_footprint_active_params: 8
-        model_carbon_footprint_zone: FRA
+        model_total_params: 8
+        model_active_params: 8
+        model_hosting_zone: FRA
         max_parallel_requests: 5
 
 # -------------------------------- dependencies ---------------------------------
