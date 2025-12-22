@@ -124,7 +124,7 @@ print("Documents in collection:", response["documents"])
 Now that we have our collection and our file, we can perform a vector search using the `/v1/search` endpoint. These vector search results will be used to generate a response using the language model.
 
 
-The semantic method is based on vector similarity (cosine similarity) between the question and the vector representation of the documents. More method are available, see the [API reference](https://albert.api.etalab.gouv.fr/documentation) for more information.
+The semantic method is based on vector similarity (cosine similarity) between the question and the vector representation of the documents. More method are available, see the [API reference](https://albert.api.etalab.gouv.fr/reference) for more information.
 
 
 ```python
