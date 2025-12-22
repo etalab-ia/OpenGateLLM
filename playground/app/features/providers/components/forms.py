@@ -52,7 +52,7 @@ def provider_create_form_fields() -> rx.Component:
             max=600,
         ),
         entity_form_select_field(
-            label="Hosting country of model",
+            label="Hosting country of the model",
             items=ProvidersState.model_hosting_zones_list,
             value=ProvidersState.entity_to_create.model_hosting_zone,
             on_change=lambda value: ProvidersState.set_new_entity_attribut("model_hosting_zone", value),
