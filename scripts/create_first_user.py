@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
     key = response.json()["token"]
 
-    display_limits = "\n                   ".join([f"{router["name"]} → unlimited" for router in routers])
+    display_limits = "\n                   ".join([f"{router['name']} → unlimited" for router in routers])
 
     print(f"""
 \033[32;1m✔ {message} \033[0m

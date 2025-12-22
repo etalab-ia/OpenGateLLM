@@ -24,8 +24,8 @@ OpenGateLLM is running at its most basic version, with the following features:
 :::info
 | | |
 |----------|-------------|
-| API URL | http://localhost:8080   |
-| Playground URL | http://localhost:8081/playground |
+| API URL | http://localhost:8000   |
+| Playground URL | http://localhost:8501 |
 | Master user | master |
 | Master user password | changeme |
 | Master API key | changeme |
@@ -34,7 +34,7 @@ OpenGateLLM is running at its most basic version, with the following features:
 You can test that the API is running with:
 
 ```bash 
-curl -X POST "http://localhost:8080/v1/chat/completions" \
+curl -X POST "http://localhost:8000/v1/chat/completions" \
 -H "Content-Type: application/json" \
 -H "Authorization: Bearer changeme" \
 -d '{"model": "albert-testbed", "messages": [{"role": "user", "content": "Hello, how are you?"}]}'
