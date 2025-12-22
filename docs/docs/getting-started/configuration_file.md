@@ -192,9 +192,9 @@ For more information to configure model providers, see the [ModelProvider sectio
 | --- | --- | --- | --- | --- | --- | --- |
 | key | string | Model provider API key. |  | None |  | sk-1234567890 |
 | model_active_params | integer | Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai |  | 0 |  | 8 |
-| model_total_params | integer | Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai |  | 0 |  | 8 |
 | model_hosting_zone | string | Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai |  | WOR | • ABW<br></br>• AFG<br></br>• AGO<br></br>• AIA<br></br>• ALA<br></br>• ALB<br></br>• AND<br></br>• ARE<br></br>• ... | WOR |
 | model_name | string | Model name from the model provider. |  |  |  | gpt-4o |
+| model_total_params | integer | Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai |  | 0 |  | 8 |
 | qos_limit | number | The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc. |  | None |  | 0.5 |
 | qos_metric | string | The metric to use for the quality of service. If not provided, no QoS policy is applied. |  | None | • ttft<br></br>• latency<br></br>• inflight<br></br>• performance | inflight |
 | timeout | integer | Timeout for the model provider requests, after user receive an 500 error (model is too busy). |  | 300 |  | 10 |
