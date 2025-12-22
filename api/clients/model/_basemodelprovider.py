@@ -56,9 +56,9 @@ class BaseModelProvider(ABC):
     ) -> None:
         self.name = model_name
 
-        self.carbon_footprint_zone = model_hosting_zone
-        self.carbon_footprint_total_params = model_total_params
-        self.carbon_footprint_active_params = model_active_params
+        self.hosting_zone = model_hosting_zone
+        self.total_params = model_total_params
+        self.active_params = model_active_params
         self.url = url
         self.key = key
         self.timeout = timeout
@@ -145,9 +145,9 @@ class BaseModelProvider(ABC):
 
                 detail.usage.total_tokens = detail.usage.prompt_tokens + detail.usage.completion_tokens
                 detail.usage.carbon = get_carbon_footprint(
-                    active_params=self.carbon_footprint_active_params,
-                    total_params=self.carbon_footprint_total_params,
-                    model_zone=self.carbon_footprint_zone,
+                    active_params=self.active_params,
+                    total_params=self.total_params,
+                    model_zone=self.hosting_zone,
                     token_count=detail.usage.total_tokens,
                     request_latency=request_latency,
                 )
