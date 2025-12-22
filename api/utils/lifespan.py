@@ -85,7 +85,7 @@ async def _setup_usage_manager(configuration: Configuration, global_context: Glo
 
 
 async def _setup_postgres_session(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
-    """Setup the PostgreSQL session by creating the session pool."""
+    """Set up the PostgreSQL session by creating the session pool."""
 
     engine = create_async_engine(**configuration.dependencies.postgres.model_dump())
     postgres_session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
