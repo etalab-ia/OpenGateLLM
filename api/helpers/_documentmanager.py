@@ -4,7 +4,6 @@ from functools import wraps
 from itertools import batched
 import logging
 import time
-from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile
 from langchain_text_splitters import Language
@@ -38,7 +37,6 @@ from api.utils.exceptions import (
 from api.utils.variables import ENDPOINT__EMBEDDINGS
 
 from ._parsermanager import ParserManager
-from ._websearchmanager import WebSearchManager
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +51,6 @@ def check_dependencies(*, dependencies: list[str]) -> Callable:
         def wrapper(self, *args, **kwargs):
             if "vector_store" in dependencies and not self.vector_store:
                 raise HTTPException(status_code=400, detail="Feature not available: vector store is not initialized.")
-            if "web_search_manager" in dependencies and not self.web_search_manager:
-                raise HTTPException(status_code=400, detail="Feature not available: web search is not initialized.")
             if "parser_manager" in dependencies and not self.parser_manager:
                 raise HTTPException(status_code=400, detail="Feature not available: parser is not initialized.")
 
@@ -73,11 +69,9 @@ class DocumentManager:
         vector_store: BaseVectorStoreClient,
         vector_store_model: str,
         parser_manager: ParserManager,
-        web_search_manager: WebSearchManager | None = None,
     ) -> None:
         self.vector_store = vector_store
         self.vector_store_model = vector_store_model
-        self.web_search_manager = web_search_manager
         self.parser_manager = parser_manager
 
     @check_dependencies(dependencies=["vector_store"])
@@ -393,22 +387,7 @@ class DocumentManager:
         offset: int,
         rff_k: int,
         score_threshold: float = 0.0,
-        web_search: bool = False,
-        web_search_k: int = 5,
     ) -> list[Search]:
-        web_collection_id = None
-        if web_search:
-            web_collection_id = await self._create_web_collection(
-                postgres_session=postgres_session,
-                model_registry=model_registry,
-                redis_client=redis_client,
-                request_context=request_context,
-                prompt=prompt,
-                k=web_search_k,
-            )
-        if web_collection_id:
-            collection_ids.append(web_collection_id)
-
         # check if collections exist
         for collection_id in collection_ids:
             result = await postgres_session.execute(
@@ -445,64 +424,8 @@ class DocumentManager:
             rff_k=rff_k,
             score_threshold=score_threshold,
         )
-        if web_collection_id:
-            await self.delete_collection(
-                postgres_session=postgres_session, user_id=request_context.get().user_info.id, collection_id=web_collection_id
-            )
 
         return searches
-
-    @check_dependencies(dependencies=["web_search_manager"])
-    async def _create_web_collection(
-        self,
-        postgres_session: AsyncSession,
-        model_registry: ModelRegistry,
-        redis_client: AsyncRedis,
-        request_context: ContextVar[RequestContext],
-        prompt: str,
-        k: int = 5,
-    ) -> int | None:
-        web_query = await self.web_search_manager.get_web_query(
-            prompt=prompt,
-            model_registry=model_registry,
-            postgres_session=postgres_session,
-            redis_client=redis_client,
-            request_context=request_context,
-        )
-        web_results = await self.web_search_manager.get_results(query=web_query, k=k)
-        collection_id = None
-        if web_results:
-            collection_id = await self.create_collection(
-                postgres_session=postgres_session,
-                name=f"tmp_web_collection_{uuid4()}",
-                user_id=request_context.get().user_info.id,
-                visibility=CollectionVisibility.PRIVATE,
-            )
-            for file in web_results:
-                document = await self.parse_file(
-                    file=file,
-                    output_format=ParsedDocumentOutputFormat.MARKDOWN.value,
-                    force_ocr=False,
-                    page_range="",
-                    paginate_output=False,
-                    use_llm=False,
-                )
-                await self.create_document(
-                    postgres_session=postgres_session,
-                    redis_client=redis_client,
-                    model_registry=model_registry,
-                    request_context=request_context,
-                    collection_id=collection_id,
-                    document=document,
-                    chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
-                    chunk_overlap=0,
-                    chunk_min_size=20,
-                    chunk_size=4000,
-                    length_function=len,
-                    preset_separators=Language.MARKDOWN.value,
-                )
-
-        return collection_id
 
     def _split(
         self,

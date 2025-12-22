@@ -221,22 +221,6 @@ class TestChat:
         response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
         assert response.status_code == 200, response.text
 
-    def test_chat_completions_web_search(self, client: TestClient, setup):
-        """Test the GET /chat/completions web search."""
-        MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
-        params = {
-            "model": MODEL_ID,
-            "messages": [{"role": "user", "content": "Qui est Ulrich Tan ?"}],
-            "stream": False,
-            "n": 1,
-            "max_tokens": 10,
-            "search": True,
-            "search_args": {"k": 3, "method": "semantic", "web_search": True},
-        }
-        logging.info(params)
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
-        assert response.status_code == 200, response.text
-
     def test_chat_completions_search_template_missing_placeholders(self, client: TestClient, setup):
         """Test the GET /chat/completions search template missing placeholders."""
         MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup

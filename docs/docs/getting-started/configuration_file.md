@@ -76,13 +76,6 @@ dependencies:
   #     - "elastic"
   #     - ${ELASTIC_PASSWORD}
 
-  # brave:
-  #   headers:
-  #     Accept: application/json
-  #     X-Subscription-Token: ${BRAVE_API_KEY}
-  #   country: "fr"
-  #   safesearch: "strict"
-
   # sentry:
   #   dsn: ${SENTRY_DSN}
 
@@ -113,10 +106,6 @@ settings:
   # monitoring_prometheus_enabled: True
 
   # vector_store_model: my-model
-
-  # search_web_query_model: my-model
-  # search_web_limited_domains: ["google.com", "wikipedia.org"]
-  # search_web_user_agent: None
 
   # search_multi_agents_synthesis_model: my-model
   # search_multi_agents_reranker_model: my-model
@@ -160,9 +149,6 @@ settings:
 | routing_max_priority | integer | Maximum allowed priority in routing tasks. |  | 4 |  |  |
 | routing_max_retries | integer | Maximum number of retries for routing tasks. |  | 3 |  |  |
 | routing_retry_countdown | integer | Number of seconds before retrying a failed routing task. |  | 3 |  |  |
-| search_web_limited_domains | array | Limited domains for the web search. If provided, the web search will be limited to these domains. |  |  |  |  |
-| search_web_query_model | string | Model used to query the web in the web search. Is required if a web search dependency is provided (Brave or DuckDuckGo). This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`. |  | None |  |  |
-| search_web_user_agent | string | User agent to scrape the web. If provided, the web search will use this user agent. |  | None |  |  |
 | session_secret_key | string | Secret key for postgres_session middleware. If not provided, the master key will be used. |  | None |  | knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM |
 | swagger_contact | object | Contact informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | None |  |  |
 | swagger_description | string | Display description of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | [See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md) |  | [See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md) |
@@ -221,9 +207,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | albert | object | If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section. For details of configuration, see the [AlbertDependency section](#albertdependency). |  | None |  |  |
-| brave | object | If provided, Brave API is used to web search. Cannot be used with DuckDuckGo dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://api-dashboard.search.brave.com/app/documentation/web-search/query for more information. For details of configuration, see the [BraveDependency section](#bravedependency). |  | None |  |  |
 | celery | object | If provided, Celery is used to run tasks asynchronously with queues. Pass arguments to call Celery in this section. For details of configuration, see the [CeleryDependency section](#celerydependency). |  | None |  |  |
-| duckduckgo | object | If provided, DuckDuckGo API is used to web search. Cannot be used with Brave dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://www.searchapi.io/docs/duckduckgo-api for more information. For details of configuration, see the [DuckDuckGoDependency section](#duckduckgodependency). |  | None |  |  |
 | elasticsearch | object | Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information. Some others arguments are available to configure the Elasticsearch index. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). |  | None |  |  |
 | marker | object | If provided, Marker API is used to parse pdf documents. Cannot be used with Albert dependency concurrently. Pass arguments to call Marker API in this section. For details of configuration, see the [MarkerDependency section](#markerdependency). |  | None |  |  |
 | postgres | object | Pass all postgres python SDK arguments, see https://github.com/etalab-ia/opengatellm/blob/main/docs/dependencies/postgres.md for more information. For details of configuration, see the [PostgresDependency section](#postgresdependency). |  |  |  |  |
@@ -286,15 +270,6 @@ For more information to configure model providers, see the [ModelProvider sectio
 
 <br></br>
 
-#### DuckDuckGoDependency
-| Attribute | Type | Description | Required | Default | Values | Examples |
-| --- | --- | --- | --- | --- | --- | --- |
-| headers | object | DuckDuckGo API request headers. | False |  |  | `{}` |
-| timeout | integer | Timeout for the DuckDuckGo API requests. |  | 300 |  | 10 |
-| url | string | DuckDuckGo API url. |  | https://api.duckduckgo.com/ |  |  |
-
-<br></br>
-
 #### CeleryDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -302,15 +277,6 @@ For more information to configure model providers, see the [ModelProvider sectio
 | enable_utc | boolean | Enable UTC. |  | True |  | True |
 | result_backend | string | Celery result backend url. If not provided, use redis dependency as result backend. |  | None |  |  |
 | timezone | string | Timezone. |  | UTC |  | UTC |
-
-<br></br>
-
-#### BraveDependency
-| Attribute | Type | Description | Required | Default | Values | Examples |
-| --- | --- | --- | --- | --- | --- | --- |
-| headers | object | Brave API request headers. | True |  |  | `{'X-Subscription-Token': 'my-api-key'}` |
-| timeout | integer | Timeout for the Brave API requests. |  | 300 |  | 10 |
-| url | string | Brave API url. |  | https://api.search.brave.com/res/v1/web/search |  |  |
 
 <br></br>
 

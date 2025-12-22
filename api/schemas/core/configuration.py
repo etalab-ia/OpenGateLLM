@@ -145,16 +145,9 @@ class VectorStoreType(str, Enum):
     QDRANT = "qdrant"
 
 
-class WebSearchEngineType(str, Enum):
-    BRAVE = "brave"
-    DUCKDUCKGO = "duckduckgo"
-
-
 class DependencyType(str, Enum):
     ALBERT = "albert"
     CELERY = "celery"
-    BRAVE = "brave"
-    DUCKDUCKGO = "duckduckgo"
     ELASTICSEARCH = "elasticsearch"
     QDRANT = "qdrant"
     MARKER = "marker"
@@ -176,20 +169,6 @@ class CeleryDependency(ConfigBaseModel):
     result_backend: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Celery result backend url. If not provided, use redis dependency as result backend.")  # fmt: off
     timezone: str = Field(default="UTC", description="Timezone.", examples=["UTC"])  # fmt: off
     enable_utc: bool = Field(default=True, description="Enable UTC.", examples=[True])  # fmt: off
-
-
-@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#brave")
-class BraveDependency(ConfigBaseModel):
-    url: constr(strip_whitespace=True, min_length=1) = Field(default="https://api.search.brave.com/res/v1/web/search", description="Brave API url.")  # fmt: off
-    headers: dict[str, str] = Field(default_factory=dict, required = True, description="Brave API request headers.", examples=[{"X-Subscription-Token": "my-api-key"}])  # fmt: off
-    timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Brave API requests.", examples=[10])  # fmt: off
-
-
-@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#duckduckgodependency")
-class DuckDuckGoDependency(ConfigBaseModel):
-    url: constr(strip_whitespace=True, min_length=1) = Field(default="https://api.duckduckgo.com/", description="DuckDuckGo API url.")  # fmt: off
-    headers: dict[str, str] = Field(default_factory=dict, required = False, description="DuckDuckGo API request headers.", examples=[{}])  # fmt: off
-    timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the DuckDuckGo API requests.", examples=[10])  # fmt: off
 
 
 @custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#elasticsearchdependency")
@@ -260,8 +239,6 @@ class EmptyDepencency(ConfigBaseModel):
 class Dependencies(ConfigBaseModel):
     albert: AlbertDependency | None = Field(default=None, description="If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section.")  # fmt: off
     celery: CeleryDependency | None = Field(default=None, description="If provided, Celery is used to run tasks asynchronously with queues. Pass arguments to call Celery in this section.")  # fmt: off
-    brave: BraveDependency | None = Field(default=None, description="If provided, Brave API is used to web search. Cannot be used with DuckDuckGo dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://api-dashboard.search.brave.com/app/documentation/web-search/query for more information.")  # fmt: off
-    duckduckgo: DuckDuckGoDependency | None = Field(default=None, description="If provided, DuckDuckGo API is used to web search. Cannot be used with Brave dependency concurrently. Pass arguments to call API in this section. All query parameters are supported, see https://www.searchapi.io/docs/duckduckgo-api for more information.")  # fmt: off
     elasticsearch: ElasticsearchDependency | None = Field(default=None, description="Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information. Some others arguments are available to configure the Elasticsearch index. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency).")  # fmt: off
     qdrant: QdrantDependency | None = Field(default=None, description="Pass all qdrant python SDK arguments, see https://python-client.qdrant.tech/qdrant_client.qdrant_client for more information.")  # fmt: off
     marker: MarkerDependency | None = Field(default=None, description="If provided, Marker API is used to parse pdf documents. Cannot be used with Albert dependency concurrently. Pass arguments to call Marker API in this section.")  # fmt: off
@@ -289,7 +266,6 @@ class Dependencies(ConfigBaseModel):
 
         The vector store dependency can be Qdrant or Elasticsearch, it is converted into a single attribute called "vector_store".
         The parser dependency can be Albert or Marker, it is converted into a single attribute called "parser".
-        The web search engine dependency can be Brave or DuckDuckGo, it is converted into a single attribute called "web_search_engine".
         """
 
         def create_attribute(name: str, type: Enum, values: Any):
@@ -319,7 +295,6 @@ class Dependencies(ConfigBaseModel):
 
             return values
 
-        self = create_attribute(name="web_search_engine", type=WebSearchEngineType, values=self)
         self = create_attribute(name="parser", type=ParserType, values=self)
         self = create_attribute(name="vector_store", type=VectorStoreType, values=self)
 
@@ -393,11 +368,6 @@ class Settings(ConfigBaseModel):
     # vector store
     vector_store_model: str | None = Field(default=None, description="Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch or Qdrant). This model must be defined in the `models` section and have type `text-embeddings-inference`.")  # fmt: off
 
-    # search - web
-    search_web_query_model: str | None = Field(default=None, description="Model used to query the web in the web search. Is required if a web search dependency is provided (Brave or DuckDuckGo). This model must be defined in the `models` section and have type `text-generation` or `image-text-to-text`.")  # fmt: off
-    search_web_limited_domains: list[str] = Field(default_factory=list, description="Limited domains for the web search. If provided, the web search will be limited to these domains.")  # fmt: off
-    search_web_user_agent: str | None = Field(default=None, description="User agent to scrape the web. If provided, the web search will use this user agent.")  # fmt: off
-
     # postgres_session
     session_secret_key: str | None = Field(default=None, description='Secret key for postgres_session middleware. If not provided, the master key will be used.', examples=["knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM"])  # fmt: off
 
@@ -459,11 +429,6 @@ class ConfigFile(ConfigBaseModel):
             assert self.settings.vector_store_model, "Vector store model must be defined in settings section."
             assert self.settings.vector_store_model in models["all"], "Vector store model must be defined in models section."
             assert self.settings.vector_store_model in models[ModelType.TEXT_EMBEDDINGS_INFERENCE.value], f"The vector store model must have type {ModelType.TEXT_EMBEDDINGS_INFERENCE}."  # fmt: off
-
-        if self.dependencies.web_search_engine:
-            assert self.settings.search_web_query_model, "Web search query model must be defined in settings section."
-            assert self.settings.search_web_query_model in models["all"], "Web search query model must be defined in models section."
-            assert self.settings.search_web_query_model in models[ModelType.IMAGE_TEXT_TO_TEXT.value] + models[ModelType.TEXT_GENERATION.value], f"Web search query model must be defined in models section with type {ModelType.TEXT_GENERATION} or {ModelType.IMAGE_TEXT_TO_TEXT}."  # fmt: off
 
         return self
 

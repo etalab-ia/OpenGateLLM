@@ -42,7 +42,6 @@ make test-integ [action=up|down|run|all] [execute=local|docker]
 > - `POSTGRES_HOST` must be set to `localhost`
 > - `REDIS_HOST` must be set to `localhost`
 > - `ELASTICSEARCH_HOST` must be set to `localhost`
-> - `BRAVE_API_KEY` must be set to your Brave API key
 > - `ALBERT_API_KEY` must be set to your Albert API key
 
 ### Example

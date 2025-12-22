@@ -46,7 +46,6 @@ async def search(
         limit=body.limit,
         offset=body.offset,
         rff_k=body.rff_k,
-        web_search=body.web_search,
     )
     usage = request_context.get().usage
     content = Searches(data=data, usage=usage)

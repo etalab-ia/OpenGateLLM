@@ -168,11 +168,11 @@ create-user:
 		cp .github/.env.ci.example .github/.env.ci; \
 	fi
 	@bash -c ' \
-		if [ -z "$$ALBERT_API_KEY" ] || [ -z "$$BRAVE_API_KEY" ]; then \
+		if [ -z "$$ALBERT_API_KEY" ]; then \
 			set -a; [ -f .github/.env.ci ] && . .github/.env.ci; set +a; \
 		fi; \
-		if [ -z "$$ALBERT_API_KEY" ] || [ -z "$$BRAVE_API_KEY" ]; then \
-			echo "❌ ALBERT_API_KEY and BRAVE_API_KEY must be set (exported in environment or in .github/.env.ci) to run the integration tests"; \
+		if [ -z "$$ALBERT_API_KEY" ]; then \
+			echo "❌ ALBERT_API_KEY must be set (exported in environment or in .github/.env.ci) to run the integration tests"; \
 			exit 1; \
 		fi'
 	if ! $(MAKE) --silent .docker-compose env=.github/.env.ci compose=.github/compose.ci.yml; then \
