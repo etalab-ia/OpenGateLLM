@@ -8,7 +8,6 @@ Please provide a summarized description of what was done in this PR.
 Precise the issue that you are resolving.
 
 ## Overview
-
 This section provides a checklist to help categorize and describe the changes made in this PR.
 
 ### Area
