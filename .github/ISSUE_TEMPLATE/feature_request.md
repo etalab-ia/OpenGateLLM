@@ -7,11 +7,7 @@ assignees: ''
 
 ---
 
-## Context and needs
-
-**User story**
-
-*A clear and concise description of what the problem is, with user story format. Ex. As a <role> I can <capability>, so that <receive benefit>*
+## Needs
 
 **Context**
 
@@ -22,9 +18,9 @@ This leads to the following issues:
 * **[Issue 2]**
 * **[Issue 3]**
 
-**Goal**
+**User story**
 
-The goal of this issue is to **[primary, measurable objective]**, while respecting **[constraints: legal, technical, UX, security, performance, etc.]**.
+*A clear and concise description of what the problem is, with user story format. Ex. As a <role> I can <capability>, so that <receive benefit>*
 
 ## Functional spec
 
@@ -62,15 +58,8 @@ Out of scope:
 * [ ] Backend validation rules implemented
 * [ ] Data migration handled if needed
 
-### Security & compliance
-
-* [ ] Authentication and authorization enforced
-* [ ] Input validation and protection against invalid requests
-* [ ] GDPR compliance (personal data, logging, retention)
-
 ### Quality & testing
 
 * [ ] Unit tests
 * [ ] Integration tests
-* [ ] Functional / E2E tests
 * [ ] Technical documentation updated
