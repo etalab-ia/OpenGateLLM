@@ -36,6 +36,25 @@ async def rerank(
         redis_client=redis_client,
         request_context=request_context,
     )
-    response = await model_provider.forward_request(method="POST", json=body.model_dump(), endpoint=ENDPOINT__RERANK, redis_client=redis_client)
+    payload = body.model_dump()  # dict of the incoming payload
+
+    # If documents provided, override input and remove documents
+    if payload.get("documents") is not None:
+        payload["input"] = payload["documents"]
+        payload.pop("documents", None)
+
+    # If query provided and not empty, override prompt and remove query
+    query_val = payload.get("query")
+    if query_val is not None and (isinstance(query_val, str) and query_val.strip() != ""):
+        payload["prompt"] = query_val.strip()
+        payload.pop("query", None)
+
+    # Forward the normalized payload
+    response = await model_provider.forward_request(
+        method="POST",
+        json=payload,
+        endpoint=ENDPOINT__RERANK,
+        redis_client=redis_client,
+    )
 
     return JSONResponse(content=Reranks(**response.json()).model_dump(), status_code=response.status_code)
