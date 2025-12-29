@@ -96,7 +96,9 @@ class TeiModelProvider(BaseModelProvider):
             data["model"] = self.name
 
         if endpoint.endswith(ENDPOINT__RERANK):
-            json = {"query": json["prompt"], "texts": json["input"]}
+            query = json.get("query") or json.get("prompt")
+            texts = json.get("documents") or json.get("input")
+            json = {"query": query, "texts": texts}
 
         return url, json, files, data
 
@@ -126,10 +128,19 @@ class TeiModelProvider(BaseModelProvider):
         content_type = response.headers.get("Content-Type", "")
         if content_type == "application/json":
             data = response.json()
+
             if isinstance(data, list):  # for TEI reranking
                 data = {"data": data}
             data.update(self._get_additional_data(json=json, data=data, stream=False, endpoint=endpoint, request_latency=request_latency))
             data.update(additional_data)
+
+            if "data" in data and "results" not in data:
+                items = data.get("data")
+                for item in items:
+                    if isinstance(item, dict) and "score" in item:
+                        item["relevance_score"] = item.pop("score")
+                data["results"] = items
+
             response = httpx.Response(status_code=response.status_code, content=dumps(data))
 
         return response
