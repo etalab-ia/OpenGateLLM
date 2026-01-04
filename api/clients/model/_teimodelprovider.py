@@ -66,7 +66,6 @@ class TeiModelProvider(BaseModelProvider):
         data = response.json()
         assert self.name == data["model_id"], f"Model not found ({self.name})."
         max_context_length = data.get("max_input_length")
-
         return max_context_length
 
     def _format_request(
@@ -98,7 +97,7 @@ class TeiModelProvider(BaseModelProvider):
         if endpoint.endswith(ENDPOINT__RERANK):
             query = json.get("query") or json.get("prompt")
             texts = json.get("documents") or json.get("input")
-            json = {"query": query, "texts": texts}
+            json = {"query": query, "texts": texts, "top_n": json.get("top_n")}
 
         return url, json, files, data
 
@@ -130,16 +129,25 @@ class TeiModelProvider(BaseModelProvider):
             data = response.json()
 
             if isinstance(data, list):  # for TEI reranking
+                top_n = json.get("top_n") if isinstance(json, dict) else None
+                if top_n and isinstance(data, list) and len(data) > top_n:
+                    data = data[:top_n]
                 data = {"data": data}
             data.update(self._get_additional_data(json=json, data=data, stream=False, endpoint=endpoint, request_latency=request_latency))
             data.update(additional_data)
 
             if "data" in data and "results" not in data:
-                items = data.get("data")
+                items = data.get("data", [])
+                transformed = []
                 for item in items:
-                    if isinstance(item, dict) and "score" in item:
-                        item["relevance_score"] = item.pop("score")
-                data["results"] = items
+                    if isinstance(item, dict):
+                        new_item = item.copy()
+                        if "score" in new_item:
+                            new_item["relevance_score"] = new_item.pop("score")
+                        transformed.append(new_item)
+                    else:
+                        transformed.append(item)
+                data["results"] = transformed
 
             response = httpx.Response(status_code=response.status_code, content=dumps(data))
 

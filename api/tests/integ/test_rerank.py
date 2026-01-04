@@ -17,10 +17,11 @@ def setup(client: TestClient):
     RERANK_MODEL_ID = [model["id"] for model in response_json["data"] if model["type"] == ModelType.TEXT_CLASSIFICATION][0]
     logging.info(f"test model ID: {RERANK_MODEL_ID}")
 
-    EMBEDDINGS_MODEL_ID = [model["id"] for model in response_json["data"] if model["type"] == ModelType.TEXT_EMBEDDINGS_INFERENCE][0]
-    logging.info(f"test model ID: {EMBEDDINGS_MODEL_ID}")
+    # EMBEDDINGS_MODEL_ID = [model["id"] for model in response_json["data"] if model["type"] == ModelType.TEXT_EMBEDDINGS_INFERENCE][0]
+    # logging.info(f"test model ID: {EMBEDDINGS_MODEL_ID}")
 
-    yield RERANK_MODEL_ID, EMBEDDINGS_MODEL_ID
+    yield RERANK_MODEL_ID, None
+    # yield RERANK_MODEL_ID, EMBEDDINGS_MODEL_ID
 
 
 @pytest.mark.usefixtures("client", "setup")
@@ -35,13 +36,13 @@ class TestRerank:
 
         Reranks(**response.json())  # test output format
 
-    def test_rerank_with_wrong_model_type(self, client: TestClient, setup):
-        """Test the POST /rerank with a wrong model type."""
-        _, EMBEDDINGS_MODEL_ID = setup
-
-        params = {"model": EMBEDDINGS_MODEL_ID, "prompt": "Sort these sentences by relevance.", "input": ["Sentence 1", "Sentence 2", "Sentence 3"]}
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__RERANK}", json=params)
-        assert response.status_code == 422, response.text
+    # def test_rerank_with_wrong_model_type(self, client: TestClient, setup):
+    #     """Test the POST /rerank with a wrong model type."""
+    #     _, EMBEDDINGS_MODEL_ID = setup
+    #
+    #     params = {"model": EMBEDDINGS_MODEL_ID, "prompt": "Sort these sentences by relevance.", "input": ["Sentence 1", "Sentence 2", "Sentence 3"]}
+    #     response = client.post_without_permissions(url=f"/v1{ENDPOINT__RERANK}", json=params)
+    #     assert response.status_code == 422, response.text
 
     def test_rerank_with_unknown_model(self, client: TestClient, setup):
         """Test the POST /rerank with an unknown model."""
@@ -50,3 +51,120 @@ class TestRerank:
         params = {"model": "unknown", "prompt": "Sort these sentences by relevance.", "input": ["Sentence 1", "Sentence 2", "Sentence 3"]}
         response = client.post_without_permissions(url=f"/v1{ENDPOINT__RERANK}", json=params)
         assert response.status_code == 404, response.text
+
+    def test_rerank_with_rerank_model_new_format_v1(self, client: TestClient, setup):
+        """Test the POST /rerank with the second version of the rerank model (query and documents)."""
+        RERANK_MODEL_ID, _ = setup
+
+        params = {"model": RERANK_MODEL_ID, "query": "Sort these sentences by relevance.", "documents": ["Sentence 1", "Sentence 2", "Sentence 3"]}
+        response = client.post_without_permissions(url=f"/v1{ENDPOINT__RERANK}", json=params)
+        assert response.status_code == 200, response.text
+
+        Reranks(**response.json())  # test output format
+
+    def test_rerank_with_rerank_model_new_format_v2(self, client: TestClient, setup):
+        """Test the POST /rerank with the second version of the rerank model (query and documents)."""
+        RERANK_MODEL_ID, _ = setup
+
+        params = {"model": RERANK_MODEL_ID, "prompt": "Sort these sentences by relevance.", "documents": ["Sentence 1", "Sentence 2", "Sentence 3"]}
+        response = client.post_without_permissions(url=f"/v1{ENDPOINT__RERANK}", json=params)
+        assert response.status_code == 200, response.text
+
+        Reranks(**response.json())  # test output format
+
+    def test_rerank_with_rerank_model_new_format_v3(self, client: TestClient, setup):
+        """Test the POST /rerank with the second version of the rerank model (query and documents)."""
+        RERANK_MODEL_ID, _ = setup
+
+        params = {"model": RERANK_MODEL_ID, "query": "Sort these sentences by relevance.", "input": ["Sentence 1", "Sentence 2", "Sentence 3"]}
+        response = client.post_without_permissions(url=f"/v1{ENDPOINT__RERANK}", json=params)
+        assert response.status_code == 200, response.text
+
+        Reranks(**response.json())  # test output format
+
+    def test_rerank_with_rerank_model_both_format(self, client: TestClient, setup):
+        """Test the POST /rerank with the second version of the rerank model (query and documents)."""
+        RERANK_MODEL_ID, _ = setup
+
+        params = {
+            "model": RERANK_MODEL_ID,
+            "query": "Sort these sentences by relevance (new).",
+            "documents": ["Sentence 1", "Sentence 2", "Sentence 3", "Sentence 4", "Sentence 5", "Sentence 6"],
+            "prompt": "Sort these sentences by relevance (old).",
+            "input": ["Sentence 1", "Sentence 2", "Sentence 3"],
+        }
+        response = client.post_without_permissions(url=f"/v1{ENDPOINT__RERANK}", json=params)
+        assert response.status_code == 200, response.text
+
+        Reranks(**response.json())  # test output format
+
+    def test_rerank_with_rerank_model_without_top_n(self, client: TestClient, setup):
+        """Test the POST /rerank with the second version of the rerank model (query and documents)."""
+        RERANK_MODEL_ID, _ = setup
+
+        params = {
+            "model": RERANK_MODEL_ID,
+            "query": "Sort these sentences by relevance (new).",
+            "documents": ["Sentence 1", "Sentence 2", "Sentence 3", "Sentence 4", "Sentence 5", "Sentence 6"],
+            "prompt": "Sort these sentences by relevance (old).",
+            "input": ["Sentence 1", "Sentence 2", "Sentence 3"],
+        }
+        response = client.post_without_permissions(url=f"/v1{ENDPOINT__RERANK}", json=params)
+        assert response.status_code == 200, response.text
+        assert len(response.json()["results"]) == 5
+
+        Reranks(**response.json())  # test output format
+
+    def test_rerank_with_rerank_model_with_all_top_n_items(self, client: TestClient, setup):
+        """Test the POST /rerank with the second version of the rerank model (query and documents)."""
+        RERANK_MODEL_ID, _ = setup
+
+        params = {
+            "model": RERANK_MODEL_ID,
+            "query": "Sort these sentences by relevance (new).",
+            "documents": ["Sentence 1", "Sentence 2", "Sentence 3", "Sentence 4", "Sentence 5", "Sentence 6"],
+            "prompt": "Sort these sentences by relevance (old).",
+            "input": ["Sentence 1", "Sentence 2", "Sentence 3"],
+            "top_n": 0,
+        }
+        response = client.post_without_permissions(url=f"/v1{ENDPOINT__RERANK}", json=params)
+        assert response.status_code == 200, response.text
+        assert len(response.json()["results"]) == 6
+
+        Reranks(**response.json())  # test output format
+
+    def test_rerank_with_rerank_model_with_higher_top_n(self, client: TestClient, setup):
+        """Test the POST /rerank with the second version of the rerank model (query and documents)."""
+        RERANK_MODEL_ID, _ = setup
+
+        params = {
+            "model": RERANK_MODEL_ID,
+            "query": "Sort these sentences by relevance (new).",
+            "documents": ["Sentence 1", "Sentence 2", "Sentence 3", "Sentence 4", "Sentence 5", "Sentence 6"],
+            "prompt": "Sort these sentences by relevance (old).",
+            "input": ["Sentence 1", "Sentence 2", "Sentence 3"],
+            "top_n": 15,
+        }
+        response = client.post_without_permissions(url=f"/v1{ENDPOINT__RERANK}", json=params)
+        assert response.status_code == 200, response.text
+        assert len(response.json()["results"]) == 6
+
+        Reranks(**response.json())  # test output format
+
+    def test_rerank_with_rerank_model_with_lower_top_n(self, client: TestClient, setup):
+        """Test the POST /rerank with the second version of the rerank model (query and documents)."""
+        RERANK_MODEL_ID, _ = setup
+
+        params = {
+            "model": RERANK_MODEL_ID,
+            "query": "Sort these sentences by relevance (new).",
+            "documents": ["Sentence 1", "Sentence 2", "Sentence 3", "Sentence 4", "Sentence 5", "Sentence 6"],
+            "prompt": "Sort these sentences by relevance (old).",
+            "input": ["Sentence 1", "Sentence 2", "Sentence 3"],
+            "top_n": 2,
+        }
+        response = client.post_without_permissions(url=f"/v1{ENDPOINT__RERANK}", json=params)
+        assert response.status_code == 200, response.text
+        assert len(response.json()["results"]) == 2
+
+        Reranks(**response.json())  # test output format

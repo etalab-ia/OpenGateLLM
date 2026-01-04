@@ -12,7 +12,7 @@ class RerankRequest(BaseModel):
     input: list[str] | None = Field(default=None, description="List of input texts to rerank by relevance to the prompt.", deprecated=True)  # fmt: off
     documents: list[str] | None = Field(default=None, description="A list of texts that will be compared to the query and ranked by relevance.")  # fmt: off
     model: str = Field(default=..., description="The model to use for the reranking, call `/v1/models` endpoint to get the list of available models, only `text-classification` model type is supported.")  # fmt: off
-    top_n: int = Field(default=5, description="The number of top results to return.")
+    top_n: int = Field(default=5, ge=0, description="The number of top results to return. If set to 0, all results will be returned.")  # fmt: off
 
 
 class Rerank(BaseModel):
@@ -21,8 +21,14 @@ class Rerank(BaseModel):
     index: int
 
 
+class RerankResult(BaseModel):
+    relevance_score: float
+    index: int
+
+
 class Reranks(BaseModel):
     id: str = Field(default=None, description="A unique identifier for the reranking.")
     object: Literal["list"] = "list"
     data: list[Rerank]
     usage: Usage = Field(default_factory=Usage, description="Usage information for the request.")
+    results: list[RerankResult] | None = None
