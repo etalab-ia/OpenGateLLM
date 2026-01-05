@@ -24,7 +24,7 @@ from api.utils.exceptions import (
     WrongModelTypeException,
 )
 from api.utils.hooks_decorator import hooks
-from api.utils.variables import ENDPOINT__OCR, ENDPOINT__OCR_BETA, ROUTER__OCR
+from api.utils.variables import ENDPOINT__OCR, ENDPOINT__OCR_BETA, ROUTER__OCR, ENDPOINT__CHAT_COMPLETIONS
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__OCR.upper()])
 
@@ -116,7 +116,7 @@ async def ocr_beta(
             request_context=request_context,
         )
 
-        response = await model_provider.forward_request(method="POST", json=payload, endpoint=ENDPOINT__OCR_BETA, redis_client=redis_client)
+        response = await model_provider.forward_request(method="POST", json=payload, endpoint=ENDPOINT__CHAT_COMPLETIONS, redis_client=redis_client)
         status = response.status_code
         body_json = response.json()
         if status // 100 != 2:
