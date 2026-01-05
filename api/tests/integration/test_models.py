@@ -45,7 +45,7 @@ class TestModels:
 
         token = await create_token(db_session, name="my_token", user=user_1)
         response = await client.get(url=f"/v1{ENDPOINT__MODELS}", headers={"Authorization": f"Bearer {token.token}"})
-        await db_session.commit()
+        await db_session.flush()
         assert response.status_code == 200, f"error: retrieve models ({response.status_code})"
         models = Models(data=[Model(**model) for model in response.json()["data"]])
         assert isinstance(models, Models)
