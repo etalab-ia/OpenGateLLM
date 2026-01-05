@@ -20,7 +20,3 @@ class RouterRepository(ABC):
     @abstractmethod
     async def get_all_routers(self):
         pass
-
-    @abstractmethod
-    async def get_all_aliases(self):
-        pass

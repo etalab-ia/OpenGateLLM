@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from api.domain.router import RouterRepository
-from api.domain.router.entities import Model, ModelCosts, ModelType, Router, RouterLoadBalancingStrategy
+from api.domain.router.entities import Model, ModelCosts
 from api.domain.userinfo import UserInfoRepository
 
 
@@ -27,29 +27,9 @@ class GetModelsUseCase:
     async def execute(self, name: str | None = None) -> Result:
         user_info = await self.user_info_repository.get_user_info(user_id=self.user_id)
         models = []
-        router_results = await self.router_repository.get_all_routers()
-        aliases = await self.router_repository.get_all_aliases()
 
-        routers = []
-        for row in router_results:
-            user_id = 0 if row["user_id"] is None else row["user_id"]  # 0 corresponds to master user ID
-            routers.append(
-                Router(
-                    id=row["id"],
-                    name=row["name"],
-                    user_id=user_id,
-                    type=ModelType(row["type"]),
-                    aliases=aliases.get(row["id"], []),
-                    load_balancing_strategy=RouterLoadBalancingStrategy(row["load_balancing_strategy"]),
-                    vector_size=row["vector_size"],
-                    max_context_length=row["max_context_length"],
-                    cost_prompt_tokens=row["cost_prompt_tokens"] or 0.0,
-                    cost_completion_tokens=row["cost_completion_tokens"] or 0.0,
-                    providers=row["providers"],
-                    created=row["created"],
-                    updated=row["updated"],
-                )
-            )
+        routers = await self.router_repository.get_all_routers()
+
         if name is not None:
             routers = [router for router in routers if router.name == name or any(alias == name for alias in router.aliases)]
             if not routers:

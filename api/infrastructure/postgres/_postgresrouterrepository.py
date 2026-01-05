@@ -155,6 +155,7 @@ class PostgresRouterRepository(RouterRepository):
         return owned_by if owned_by else self.app_title
 
     async def get_all_routers(self):
+        routers = []
         provider_count_subquery = (
             select(func.count(ProviderTable.id)).where(ProviderTable.router_id == RouterTable.id).correlate(RouterTable).scalar_subquery()
         )
@@ -181,7 +182,29 @@ class PostgresRouterRepository(RouterRepository):
 
         result = await self.postgres_session.execute(query)
         router_results = [row._asdict() for row in result.all()]
-        return router_results
+
+        aliases = await self.get_all_aliases()
+
+        for row in router_results:
+            user_id = 0 if row["user_id"] is None else row["user_id"]  # 0 corresponds to master user ID
+            routers.append(
+                Router(
+                    id=row["id"],
+                    name=row["name"],
+                    user_id=user_id,
+                    type=ModelType(row["type"]),
+                    aliases=aliases.get(row["id"], []),
+                    load_balancing_strategy=RouterLoadBalancingStrategy(row["load_balancing_strategy"]),
+                    vector_size=row["vector_size"],
+                    max_context_length=row["max_context_length"],
+                    cost_prompt_tokens=row["cost_prompt_tokens"] or 0.0,
+                    cost_completion_tokens=row["cost_completion_tokens"] or 0.0,
+                    providers=row["providers"],
+                    created=row["created"],
+                    updated=row["updated"],
+                )
+            )
+        return routers
 
     async def get_all_aliases(self):
         aliases_query = select(RouterAliasTable.router_id.label("router_id"), RouterAliasTable.value)
