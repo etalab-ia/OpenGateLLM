@@ -1,7 +1,8 @@
+import re
 from typing import Any, Literal
 
 from fastapi import Form
-from pydantic import Field
+from pydantic import Field, constr, model_validator
 
 from api.schemas import BaseModel
 from api.schemas.usage import Usage
@@ -36,14 +37,14 @@ class FileChunk(BaseModel):
 
 
 class DocumentURLChunk(BaseModel):
-    document_name: str | None = Field(default=None, description="The filename of the document.")  # fmt: off
-    document_url: str = Field(default=..., description="The URL of the document.")  # fmt: off
+    document_name: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="The filename of the document.")  # fmt: off
+    document_url: constr(pattern=r"^http[s]?://|data:application/pdf;base64,", strip_whitespace=True, min_length=1) = Field(default=..., description="The URL of the document.")  # fmt: off
     type: Literal["document_url"] = Field(default="document_url", description="The type of the document.")  # fmt: off
 
 
 class ImageURL(BaseModel):
     detail: str | None = Field(default=None, description="The detail of the image.")  # fmt: off
-    url: str = Field(default=..., description="The URL of the image.")  # fmt: off
+    url: constr(pattern=r"^http[s]?://|data:image/[^;]+;base64,", strip_whitespace=True, min_length=1) = Field(default=..., description="The URL of the image.")  # fmt: off
 
 
 class ImageURLChunk(BaseModel):
@@ -55,7 +56,7 @@ class CreateOCR(BaseModel):
     bbox_annotation_format: ResponseFormat | None = Field(default=None, description='Specify the format that the model must output for the bounding boxes. By default it will use `{ "type": "text" }`. Setting to `{ "type": "json_object" }` enables JSON mode, which guarantees the message the model generates is in JSON. When using JSON mode you MUST also instruct the model to produce JSON yourself with a system or a user message. Setting to `{ "type": "json_schema" }` enables JSON schema mode, which guarantees the message the model generates is in JSON and follows the schema you provide.')  # fmt: off
     document: DocumentURLChunk | ImageURLChunk = Field(default=..., description="Document to run OCR on.")  # fmt: off
     document_annotation_format: ResponseFormat | None = Field(default=None, description='Specify the format that the model must output for the document. By default it will use `{ "type": "text" }`. Setting to `{ "type": "json_object" }` enables JSON mode, which guarantees the message the model generates is in JSON. When using JSON mode you MUST also instruct the model to produce JSON yourself with a system or a user message. Setting to `{ "type": "json_schema" }` enables JSON schema mode, which guarantees the message the model generates is in JSON and follows the schema you provide.')  # fmt: off
-    # id: str = Field(default=..., description="The ID of the OCR.")  # fmt: off
+    # id: str = Field(default=..., description="The ID of the OCR.")  # fmt: off # TODO: add this
     image_limit: int | None = Field(default=None, description="Max images to extract")  # fmt: off
     image_min_size: int | None = Field(default=None, description="Minimum height and width of image to extract")  # fmt: off
     include_image_base64: bool | None = Field(default=None, description="Include image URLs in response")  # fmt: off
@@ -98,3 +99,106 @@ class OCR(BaseModel):
     pages: list[OCRPageObject] = Field(default=..., description="List of OCR info for pages.")  # fmt: off
     usage: Usage | None = Field(default=None, description="Usage information for the request.")  # fmt: off
     usage_info: OCRUsage | None = Field(default=None, description="Usage information for the request.")  # fmt: off
+
+
+class MarkerCreateOCR(CreateOCR):
+    page_range: str = Field(default="", description="Page range to convert, specify comma separated page numbers or ranges. Example: '0,5-10,20'")  # fmt: off
+    force_ocr: bool = Field(default=False, description="Force OCR on all pages of the PDF.  Defaults to False.  This can lead to worse results if you have good text in your PDFs (which is true in most cases).")  # fmt: off
+    paginate_output: bool = Field(default=False, description="Whether to paginate the output.  Defaults to False.  If set to True, each page of the output will be separated by a horizontal rule that contains the page number (2 newlines, {PAGE_NUMBER}, 48 - characters, 2 newlines).")  # fmt: off
+    output_format: Literal["markdown", "json", "html"] = Field(default="markdown", description="The format to output the text in.  Can be 'markdown', 'json', or 'html'.  Defaults to 'markdown'.")  # fmt: off
+
+    class ConfigDict:
+        extra = "allow"
+
+    @staticmethod
+    def pages_to_page_range(pages: list[int] | None) -> str:
+        if not pages:
+            return ""
+
+        pages = sorted(pages)
+        ranges = []
+        start = prev = pages[0]
+        for p in pages[1:]:
+            if p == prev + 1:
+                prev = p
+            else:
+                ranges.append(f"{start}-{prev}" if start != prev else str(start))
+                start = prev = p
+        ranges.append(f"{start}-{prev}" if start != prev else str(start))
+
+        return ",".join(ranges)
+
+    @model_validator(mode="after")
+    def validate_model(self):
+        self.page_range = self.pages_to_page_range(self.pages)
+        if self.document_annotation_format is not None:
+            match self.document_annotation_format.type:
+                case "text":
+                    self.output_format = "markdown"
+                case "json_object":
+                    self.output_format = "json"
+                case "json_schema":
+                    raise ValueError("json_schema format is not supported for Marker models")
+        else:
+            self.output_format = "markdown"
+
+        if self.bbox_annotation_format is not None:
+            raise ValueError("bbox_annotation_format parameter is not supported for Marker models")
+
+        if self.document_annotation_format is not None:
+            raise ValueError("document_annotation_format parameter is not supported for Marker models")
+
+        if self.image_limit is not None:
+            raise ValueError("image_limit parameter is not supported for Marker models")
+        if self.image_min_size is not None:
+            raise ValueError("image_min_size parameter is not supported for Marker models")
+
+        del self.pages
+        del self.bbox_annotation_format
+        del self.document
+        del self.document_annotation_format
+        del self.image_limit
+        del self.image_min_size
+        del self.include_image_base64
+        del self.model
+
+        return self
+
+
+class MarkerOCR(OCR):
+    include_image_base64: bool | None = Field(default=None, description="Include image URLs in response")  # fmt: off
+    format: Literal["markdown", "json", "html"]
+    output: str
+    images: dict[str, str]
+    metadata: dict[str, Any]
+    success: bool
+
+    @model_validator(mode="before")
+    def validate_model_before(cls, values):
+        values["pages"] = []
+        content = values.get("output", "")
+        images = values.get("images", {})
+        matches = list(re.finditer(r"\{[0-9]+\}-{48}\n\n", content))
+        for i in range(len(matches)):
+            offset = len(content) if i == len(matches) - 1 else matches[i + 1].span()[0]
+            markdown = content[matches[i].span()[1] : offset]
+            images_page = [
+                OCRImageObject(id=key, image_base64=f"data:image/jpeg;base64,{value}" if values.get("include_image_base64") else None)
+                for key, value in images.items()
+                if key.startswith(f"_page_{i}_")
+            ]
+            values["pages"].append(OCRPageObject(index=i, markdown=markdown, images=images_page))
+
+        values["usage_info"] = OCRUsage(doc_size_bytes=values.get("usage_info", {}).get("doc_size_bytes"), pages_processed=len(matches))
+        return values
+
+    @model_validator(mode="after")
+    def validate_model_after(self):
+        del self.format
+        del self.output
+        del self.images
+        del self.metadata
+        del self.success
+        del self.include_image_base64
+
+        return self

@@ -41,6 +41,6 @@ class RequestContext(BaseModel):
     provider_model_name: str | None = None
 
     # response
-    usage: Usage | None = None
+    usage: Usage = Usage()
     ttft: int | None = None
     latency: int | None = None
