@@ -23,16 +23,12 @@ def app_title():
 
 @pytest.fixture
 def repository(db_session, app_title):
-    """Instance du repository à tester."""
     return PostgresRouterRepository(db_session, app_title)
 
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestGetRouters:
-    """Tests de la méthode get_routers avec vraies données."""
-
     async def test_get_all_routers_should_return_all_routers(self, repository, db_session):
-        """Test de récupération de tous les routeurs."""
         # Arrange
         user_1 = UserFactory()
         user_2 = UserFactory()
@@ -63,12 +59,10 @@ class TestGetRouters:
         assert r1.providers == 2
         assert r1.cost_prompt_tokens == 0.001
         assert r1.cost_completion_tokens == 0.002
-        # TODO: comment sont choisies ces valeurs ?
         assert r1.max_context_length == 2048
         assert r1.vector_size == 1536
 
     async def test_get_router_should_return_the_requested_router_when_given_an_id(self, repository, db_session):
-        """Test de récupération d'un routeur spécifique par ID."""
         # Arrange
         router = RouterFactory(name="specific_router")
         RouterAliasFactory(router=router, value="alias_1")
@@ -88,14 +82,12 @@ class TestGetRouters:
         assert set(routers[0].aliases) == {"alias_1", "alias_2", "alias_3"}
 
     async def test_get_router_by_id_should_raise_an_exception_router_is_not_found(self, repository, db_session):
-        """Test d'erreur quand un routeur n'existe pas."""
         non_existing_router_id = 1
         # Act & Assert
         with pytest.raises(RouterNotFoundException):
             await repository.get_routers(router_id=non_existing_router_id, name=None)
 
     async def test_get_router_should_return_a_specific_router_when_given_a_router_name_and_id_is_none(self, repository, db_session):
-        """Test de récupération d'un routeur par nom."""
         # Arrange
         user = UserFactory()
         router1 = RouterFactory(user=user, name="specific_router")
@@ -111,7 +103,6 @@ class TestGetRouters:
         assert routers[0].name == "specific_router"
 
     async def test_get_router_should_raise_an_exception_when_name_not_found(self, repository, db_session):
-        """Test d'erreur quand un routeur n'est pas trouvé par nom."""
         # Arrange
         user = UserFactory()
         router = RouterFactory(user=user, name="existing_router")
@@ -122,7 +113,6 @@ class TestGetRouters:
             await repository.get_routers(router_id=None, name="nonexistent")
 
     async def test_get_router_should_return_a_router_when_given_an_alias(self, repository, db_session):
-        """Test de récupération d'un routeur par alias."""
         # Arrange
         user = UserFactory()
         router = RouterFactory(user=user, name="router_1")
@@ -142,10 +132,7 @@ class TestGetRouters:
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestGetAllModels:
-    """Tests de la méthode get_all_models avec vraies données."""
-
     async def test_get_all_models_should_return_all_accessible_models(self, repository, db_session):
-        """Test de récupération de tous les modèles accessibles par l'utilisateur."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         updated = datetime(2024, 1, 15, 10, 30, 0)
@@ -230,7 +217,6 @@ class TestGetAllModels:
         ]
 
     async def test_get_all_models_should_filter_models_without_providers(self, repository, db_session):
-        """Test que les modèles sans providers sont filtrés."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         updated = datetime(2024, 1, 15, 10, 30, 0)
@@ -273,7 +259,6 @@ class TestGetAllModels:
         assert router_without_provider not in model_ids
 
     async def test_get_all_models_should_filter_models_without_access(self, repository, db_session):
-        """Test que les modèles sans accès sont filtrés."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         updated = datetime(2024, 1, 15, 10, 30, 0)
@@ -314,7 +299,6 @@ class TestGetAllModels:
         assert router_without_access not in model_ids
 
     async def test_get_model_by_name_should_return_specific_model(self, repository, db_session):
-        """Test de récupération d'un modèle spécifique par nom."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         updated = datetime(2024, 1, 15, 10, 30, 0)
@@ -359,7 +343,6 @@ class TestGetAllModels:
         assert models[0].id == "router_name_1"
 
     async def test_get_model_by_alias_should_return_model(self, repository, db_session):
-        """Test de récupération d'un modèle par alias."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         updated = datetime(2024, 1, 15, 10, 30, 0)
@@ -397,7 +380,6 @@ class TestGetAllModels:
         assert models[0].id == "router_name_1"
 
     async def test_get_model_should_raise_exception_when_not_found(self, repository, db_session):
-        """Test d'erreur quand un modèle n'existe pas."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         updated = datetime(2024, 1, 15, 10, 30, 0)
@@ -427,7 +409,6 @@ class TestGetAllModels:
             await repository.get_all_models(name="nonexistent-model", user_info=user_info)
 
     async def test_get_model_should_raise_exception_when_no_provider(self, repository, db_session):
-        """Test d'erreur quand un modèle spécifique n'a pas de provider."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         updated = datetime(2024, 1, 15, 10, 30, 0)
@@ -455,7 +436,6 @@ class TestGetAllModels:
             await repository.get_all_models(name="model-without-provider", user_info=user_info)
 
     async def test_get_model_should_raise_exception_when_no_access(self, repository, db_session):
-        """Test d'erreur quand l'utilisateur n'a pas accès au modèle spécifique."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         updated = datetime(2024, 1, 15, 10, 30, 0)
@@ -482,7 +462,6 @@ class TestGetAllModels:
             await repository.get_all_models(name=forbidden_router.name, user_info=user_info)
 
     async def test_get_all_models_should_use_app_title_when_no_organization(self, repository, db_session, app_title):
-        """Test que app_title est utilisé quand l'utilisateur n'a pas d'organisation."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         updated = datetime(2024, 1, 15, 10, 30, 0)

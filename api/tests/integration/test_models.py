@@ -21,7 +21,6 @@ from api.utils.variables import ENDPOINT__MODELS
 @pytest.mark.asyncio(loop_scope="session")
 class TestModels:
     async def test_get_models_happy_path(self, client: AsyncClient, db_session):
-        """Test the GET /models response status code."""
         organization = OrganizationFactory(name="DINUM")
         user_1 = UserFactory(name="Alice", email="alice@example.com", organization=organization)
         user_2 = UserFactory(name="Bob", email="bob@example.com")
@@ -77,7 +76,6 @@ class TestModels:
         assert actual_without_created == expected_data
 
     async def test_get_all_models_should_filter_models_without_providers(self, client: AsyncClient, db_session):
-        """Test que les modèles sans providers sont filtrés."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
 
@@ -111,7 +109,6 @@ class TestModels:
         assert actual_data[0]["id"] == "router_name_1"
 
     async def test_get_all_models_should_filter_models_without_access(self, client: AsyncClient, db_session):
-        """Test que les modèles sans accès sont filtrés."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         user_1 = UserFactory()
@@ -144,7 +141,6 @@ class TestModels:
         assert actual_data[0]["id"] == "router_name_1"
 
     async def test_get_model_by_name_should_return_specific_model(self, client: AsyncClient, db_session):
-        """Test de récupération d'un modèle spécifique par nom."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
 
@@ -176,7 +172,6 @@ class TestModels:
         assert actual_data["id"] == "router_name_1"
 
     async def test_get_model_by_alias_should_return_model(self, client: AsyncClient, db_session):
-        """Test de récupération d'un modèle par alias."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
 
@@ -203,7 +198,6 @@ class TestModels:
         assert actual_data["id"] == "router_name_1"
 
     async def test_get_model_should_return_404_when_model_not_found(self, client: AsyncClient, db_session):
-        """Test d'erreur quand un modèle n'existe pas."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         non_existent_model = "model_not_exist"
@@ -224,7 +218,6 @@ class TestModels:
         assert actual_data["detail"] == "Model not found."
 
     async def test_get_model_should_return_404_when_no_provider(self, client: AsyncClient, db_session):
-        """Test d'erreur quand un modèle spécifique n'a pas de provider."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         user_1 = UserFactory()
@@ -243,7 +236,6 @@ class TestModels:
         assert actual_data["detail"] == "Model not found."
 
     async def test_get_model_should_return_404_when_no_access(self, client: AsyncClient, db_session):
-        """Test d'erreur quand l'utilisateur n'a pas accès au modèle spécifique."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         user_1 = UserFactory()
@@ -262,7 +254,6 @@ class TestModels:
         assert actual_data["detail"] == "Model not found."
 
     async def test_get_all_models_should_use_app_title_when_no_organization(self, client: AsyncClient, db_session):
-        """Test que app_title est utilisé quand l'utilisateur n'a pas d'organisation."""
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         user_1 = UserFactory(organization=None)
