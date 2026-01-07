@@ -6,7 +6,6 @@ import logging
 import re
 import time
 import traceback
-from typing import Any
 from urllib.parse import urljoin
 
 from fastapi import HTTPException
@@ -14,8 +13,8 @@ import httpx
 from redis.asyncio import Redis as AsyncRedis
 
 from api.schemas.admin.providers import ProviderType
-from api.schemas.core.metrics import Metric
-from api.schemas.usage import Detail, Usage
+from api.schemas.core.models import Metric, RequestContent
+from api.schemas.usage import Usage
 from api.utils.carbon import get_carbon_footprint
 from api.utils.context import generate_request_id, global_context, request_context
 from api.utils.exceptions import ModelIsTooBusyException
@@ -109,17 +108,24 @@ class BaseModelProvider(ABC):
 
         return vector_size
 
-    def _get_usage(self, json: dict, data: dict | list[dict], stream: bool, endpoint: str, request_latency: float = 0.0) -> Usage | None:
+    def _get_usage(
+        self,
+        request_content: RequestContent,
+        response_data: dict | list[dict],
+        stream: bool,
+        request_latency: float = 0.0,
+    ) -> Usage | None:
         """
         Get usage data from request and response.
 
         Args:
-            json(dict): The JSON body of the request.
-            data(dict): The data of the response.
+            request_content(RequestContent): The request content.
+            response_data(dict): The data of the response.
             stream(bool): Whether the response is a stream.
+            request_latency(float): The request latency in seconds.
 
         Returns:
-            Dict[str, Any]: The additional data with usage data.
+            Usage | None: The usage data.
         """
 
         usage = None
@@ -128,137 +134,85 @@ class BaseModelProvider(ABC):
         # might not have fully run. Accessing global_context.tokenizer directly could raise AttributeError.
         # We skip usage computation if tokenizer is absent so we still return the provider response.
         tokenizer = getattr(global_context, "tokenizer", None)
-        if tokenizer and endpoint in tokenizer.USAGE_COMPLETION_ENDPOINTS:
+        if tokenizer and request_content.endpoint in tokenizer.USAGE_ENDPOINTS:
             try:
+                completion_tokens = 0
                 usage = request_context.get().usage
+                prompt_tokens = tokenizer.get_prompt_tokens(endpoint=request_content.endpoint, body=request_content.json)
+                completion_tokens = tokenizer.get_completion_tokens(endpoint=request_content.endpoint, response_data=response_data, stream=stream)
+                total_tokens = prompt_tokens + completion_tokens
 
-                # compute usage for the current (add a detail object)
-                detail_id = data[0].get("id", generate_request_id()) if stream else data.get("id", generate_request_id())
-                detail = Detail(id=detail_id, model=self.name, usage=Usage())
-                detail.usage.prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=endpoint, body=json)
-
-                if tokenizer.USAGE_COMPLETION_ENDPOINTS[endpoint]:
-                    detail.usage.completion_tokens = tokenizer.get_completion_tokens(
-                        endpoint=endpoint,
-                        response=data,
-                        stream=stream,
-                    )
-
-                detail.usage.total_tokens = detail.usage.prompt_tokens + detail.usage.completion_tokens
-                detail.usage.carbon = get_carbon_footprint(
+                carbon_footprint = get_carbon_footprint(
                     active_params=self.active_params,
                     total_params=self.total_params,
                     model_zone=self.hosting_zone,
-                    token_count=detail.usage.total_tokens,
+                    token_count=total_tokens,
                     request_latency=request_latency,
                 )
-                detail.usage.cost = round(detail.usage.prompt_tokens / 1000000 * self.cost_prompt_tokens + detail.usage.completion_tokens / 1000000 * self.cost_completion_tokens, ndigits=6)  # fmt: off
-                usage.details.append(detail)
+                cost = round(prompt_tokens / 1000000 * self.cost_prompt_tokens + completion_tokens / 1000000 * self.cost_completion_tokens, ndigits=6)  # fmt: off
 
-                # add token usage to the total usage
-                usage.prompt_tokens += detail.usage.prompt_tokens
-                usage.completion_tokens += detail.usage.completion_tokens
-                usage.total_tokens += detail.usage.total_tokens
+                usage.prompt_tokens += prompt_tokens
+                usage.completion_tokens += completion_tokens
+                usage.total_tokens += total_tokens
+                usage.cost += cost
+                usage.carbon.kgCO2eq.min += carbon_footprint.kgCO2eq.min
+                usage.carbon.kgCO2eq.max += carbon_footprint.kgCO2eq.max
+                usage.carbon.kWh.min += carbon_footprint.kWh.min
+                usage.carbon.kWh.max += carbon_footprint.kWh.max
+                usage.requests += 1
 
-                # add cost to the total usage
-                usage.cost += detail.usage.cost
-
-                # add carbon usage to the total usage
-                if detail.usage.carbon.kgCO2eq.min is not None:
-                    if usage.carbon.kgCO2eq.min is None:
-                        usage.carbon.kgCO2eq.min = 0.0
-                    usage.carbon.kgCO2eq.min += detail.usage.carbon.kgCO2eq.min
-                if detail.usage.carbon.kgCO2eq.max is not None:
-                    if usage.carbon.kgCO2eq.max is None:
-                        usage.carbon.kgCO2eq.max = 0.0
-                    usage.carbon.kgCO2eq.max += detail.usage.carbon.kgCO2eq.max
-                if detail.usage.carbon.kWh.min is not None:
-                    if usage.carbon.kWh.min is None:
-                        usage.carbon.kWh.min = 0.0
-                    usage.carbon.kWh.min += detail.usage.carbon.kWh.min
-                if detail.usage.carbon.kWh.max is not None:
-                    if usage.carbon.kWh.max is None:
-                        usage.carbon.kWh.max = 0.0
-                    usage.carbon.kWh.max += detail.usage.carbon.kWh.max
+                request_context.get().usage = usage
 
             except Exception as e:
-                logger.exception(msg=f"Failed to compute usage values for endpoint {endpoint}: {e}.")
+                logger.exception(msg=f"Failed to compute usage values for endpoint {request_content.endpoint}: {e}.")
 
         return usage
 
-    def _get_additional_data(self, json: dict, data: dict | list[dict], stream: bool, endpoint: str, request_latency: float = 0.0) -> dict:
-        """
-        Get additional data from request and response.
-        """
-        usage = self._get_usage(json=json, data=data, stream=stream, endpoint=endpoint, request_latency=request_latency)
-        request_id = usage.details[-1].id if usage and usage.details else generate_request_id()
-        additional_data = {"model": self.name, "id": request_id}
-
-        if usage:
-            additional_data["usage"] = usage.model_dump()
-            request_context.get().usage = usage
-
-        return additional_data
-
-    def _format_request(
-        self,
-        json: dict | None = None,
-        files: dict | None = None,
-        data: dict | None = None,
-        endpoint: str | None = None,
-    ) -> tuple[str, dict[str, str] | None, dict | None, dict | None, dict | None]:
+    def _format_request(self, request_content: RequestContent) -> RequestContent:
         """
         Format a request to a provider model. This method can be overridden by a subclass to add additional headers or parameters. This method format the requested endpoint thanks the ENDPOINT_TABLE attribute.
 
         Args:
-            json(dict): The JSON body to use for the request.
-            files(dict): The files to use for the request.
-            data(dict): The data to use for the request.
-            endpoint(str): The endpoint to use for the request.
+            content(RequestContent): The request content to format.
 
         Returns:
-            tuple: The formatted request composed of the url, headers, json, files and data.
+            content(RequestContent): The formatted request content.
         """
-        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[endpoint].lstrip("/"))
-        if json and "model" in json:
-            json["model"] = self.name
+        if "model" in request_content.json:
+            request_content.json["model"] = self.name
 
-        if data and "model" in data:
-            data["model"] = self.name
+        if "model" in request_content.form:
+            request_content.form["model"] = self.name
 
-        return url, json, files, data
+        return request_content
 
-    def _format_response(
-        self,
-        json: dict,
-        response: httpx.Response,
-        endpoint: str,
-        additional_data: dict[str, Any] | None = None,
-        request_latency: float = 0.0,
-    ) -> httpx.Response:
+    def _format_response(self, request_content: RequestContent, response: httpx.Response, request_latency: float = 0.0) -> httpx.Response:
         """
         Format a response from a provider model and add usage data and model ID to the response. This method can be overridden by a subclass to add additional headers or parameters.
 
         Args:
-            json(dict): The JSON body of the request to the API.
+            request_content(RequestContent): The request content to format.
             response(httpx.Response): The response from the API.
-            endpoint(str): The endpoint to use for the request.
-            additional_data(Dict[str, Any]): The additional data to add to the response (default: {}).
             request_latency(float): The request latency in seconds.
 
         Returns:
             httpx.Response: The formatted response.
         """
-
-        if additional_data is None:
-            additional_data = {}
-
         content_type = response.headers.get("Content-Type", "")
         if content_type == "application/json":
-            data = response.json()
-            data.update(self._get_additional_data(json=json, data=data, stream=False, endpoint=endpoint, request_latency=request_latency))
-            data.update(additional_data)
-            response = httpx.Response(status_code=response.status_code, content=dumps(data))
+            response_data = response.json()
+            usage = self._get_usage(request_content=request_content, response_data=response_data, stream=False, request_latency=request_latency)
+
+            if request_context.get().id is None:
+                request_id = response_data.get("id", generate_request_id())
+                request_context.get().id = request_id
+            else:
+                request_id = request_context.get().id
+
+            additional_data = request_content.additional_data
+            additional_data.update({"id": request_id, "model": request_content.model, "usage": usage.model_dump()})
+            response_data.update(additional_data)
+            response = httpx.Response(status_code=response.status_code, content=dumps(response_data))
 
         return response
 
@@ -309,35 +263,20 @@ class BaseModelProvider(ABC):
             logger.error(f"Failed to log request metrics (latency) in redis (id: {self.id})", exc_info=True)
             await safe_redis_reset(redis_client)
 
-    async def forward_request(
-        self,
-        method: str,
-        endpoint: str,
-        redis_client: AsyncRedis,
-        json: dict | None = None,
-        files: dict | None = None,
-        data: dict | None = None,
-        additional_data: dict[str, Any] | None = None,
-    ) -> httpx.Response:
+    async def forward_request(self, request_content: RequestContent, redis_client: AsyncRedis) -> httpx.Response:
         """
         Forward a request to a provider model and add model name to the response. Optionally, add additional data to the response.
 
         Args:
-            method(str): The method to use for the request.
-            endpoint(str): The endpoint to use for the request.
             redis_client(AsyncRedis): The redis client to use for the request.
-            json(Optional[dict]): The JSON body to use for the request.
-            files(Optional[dict]): The files to use for the request.
-            data(Optional[dict]): The data to use for the request.
-            additional_data(Dict[str, Any]): The additional data to add to the response (default: {}).
+            request_content(RequestContent): The request content to use for the request.
 
         Returns:
             httpx.Response: The response from the API.
         """
 
-        url, json, files, data = self._format_request(json=json, files=files, data=data, endpoint=endpoint)
-        if not additional_data:
-            additional_data = {}
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[request_content.endpoint].lstrip("/"))
+        request_content = self._format_request(request_content=request_content)
 
         inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
         try:
@@ -346,7 +285,14 @@ class BaseModelProvider(ABC):
             async with httpx.AsyncClient(timeout=self.timeout) as async_client:
                 try:
                     start_time = time.perf_counter()
-                    response = await async_client.request(method=method, url=url, headers=self.headers, json=json, files=files, data=data)
+                    response = await async_client.request(
+                        method=request_content.method,
+                        url=url,
+                        headers=self.headers,
+                        json=request_content.json,
+                        files=request_content.files,
+                        data=request_content.form,
+                    )
                     end_time = time.perf_counter()
                 except (
                     httpx.ConnectTimeout,
@@ -379,25 +325,12 @@ class BaseModelProvider(ABC):
 
         # add additional data to the response
         request_latency = end_time - start_time
-        response = self._format_response(
-            json=json,
-            response=response,
-            additional_data=additional_data,
-            endpoint=endpoint,
-            request_latency=request_latency,
-        )
+        response = self._format_response(request_content=request_content, response=response, request_latency=request_latency)
         await self._log_performance_metric(redis_client=redis_client, ttft=None, latency=int(request_latency * 1_000))
 
         return response
 
-    def _format_stream_response(
-        self,
-        json: dict,
-        response: list,
-        endpoint: str,
-        additional_data: dict[str, Any] | None = None,
-        request_latency: float = 0.0,
-    ) -> tuple | None:
+    def _format_stream_response(self, request_content: RequestContent, response: list[bytes], request_latency: float = 0.0) -> tuple | None:
         """
         Format streaming response data for chat completions.
 
@@ -410,9 +343,6 @@ class BaseModelProvider(ABC):
         Returns:
             tuple: (data, extra) where data is the processed raw data and extra is the formatted response.
         """
-
-        if additional_data is None:
-            additional_data = {}
 
         content, chunks = None, list()
         for lines in response:
@@ -436,39 +366,33 @@ class BaseModelProvider(ABC):
 
         # normal case
         extra_chunk = content  # based on last chunk to conserve the chunk structure
-        extra_chunk.update({"choices": []})
-        extra_chunk.update(self._get_additional_data(json=json, data=chunks, stream=True, endpoint=endpoint, request_latency=request_latency))
+        if request_content.endpoint == ENDPOINT__CHAT_COMPLETIONS:
+            extra_chunk.update({"choices": []})  # clean the choices field
+
+        usage = self._get_usage(request_content=request_content, response_data=chunks, stream=True, request_latency=request_latency)
+        if request_context.get().id is None:
+            request_id = chunks[0].get("id", generate_request_id())
+            request_context.get().id = request_id
+        else:
+            request_id = request_context.get().id
+
+        additional_data = request_content.additional_data
+        additional_data.update({"model": self.name, "id": request_id, "usage": usage.model_dump()})
         extra_chunk.update(additional_data)
 
         return extra_chunk
 
-    async def forward_stream(
-        self,
-        method: str,
-        endpoint: str,
-        redis_client: AsyncRedis,
-        json: dict | None = None,
-        files: dict | None = None,
-        data: dict | None = None,
-        additional_data: dict[str, Any] | None = None,
-    ):
+    async def forward_stream(self, request_content: RequestContent, redis_client: AsyncRedis):
         """
         Forward a stream request to a provider model and add model name to the response. Optionally, add additional data to the response.
 
         Args:
-            method(str): The method to use for the request.
-            endpoint(str): The endpoint to use for the request.
             redis_client(AsyncRedis): The redis client to use for the request.
-            json(Optional[dict]): The JSON body to use for the request.
-            files(Optional[dict]): The files to use for the request.
-            data(Optional[dict]): The data to use for the request.
-            additional_data(Dict[str, Any]): The additional data to add to the response (default: {}).
+            request_content(RequestContent): The request content to use for the request.
         """
 
-        if additional_data is None:
-            additional_data = {}
-
-        url, json, files, data = self._format_request(json=json, files=files, data=data, endpoint=endpoint)
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[request_content.endpoint].lstrip("/"))
+        request_content = self._format_request(request_content=request_content)
 
         async with httpx.AsyncClient(timeout=self.timeout) as async_client:
             inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
@@ -478,7 +402,14 @@ class BaseModelProvider(ABC):
                 logger.error("Unable to increment redis requests inflight key")
 
             try:
-                async with async_client.stream(method=method, url=url, headers=self.headers, json=json, files=files, data=data) as response:
+                async with async_client.stream(
+                    method=request_content.method,
+                    url=url,
+                    headers=self.headers,
+                    json=request_content.json,
+                    files=request_content.files,
+                    data=request_content.form,
+                ) as response:
                     buffer = list()
                     start_time = time.perf_counter()
                     first_token_time = None
@@ -528,10 +459,8 @@ class BaseModelProvider(ABC):
                                     ttft = None
 
                                 extra_chunk = self._format_stream_response(
-                                    json=json,
+                                    request_content=request_content,
                                     response=buffer,
-                                    endpoint=endpoint,
-                                    additional_data=additional_data,
                                     request_latency=request_latency,
                                 )
                                 await self._log_performance_metric(redis_client=redis_client, ttft=ttft, latency=int(request_latency))

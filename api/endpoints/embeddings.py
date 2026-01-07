@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
+from api.schemas.core.models import RequestContent
 from api.schemas.embeddings import Embeddings, EmbeddingsRequest
 from api.utils.context import request_context
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client
@@ -34,6 +35,9 @@ async def embeddings(
         redis_client=redis_client,
         request_context=request_context,
     )
-    response = await model_provider.forward_request(method="POST", json=body.model_dump(), endpoint=ENDPOINT__EMBEDDINGS, redis_client=redis_client)
+    response = await model_provider.forward_request(
+        request_content=RequestContent(method="POST", endpoint=ENDPOINT__EMBEDDINGS, json=body.model_dump(), model=body.model),
+        redis_client=redis_client,
+    )
 
     return JSONResponse(content=Embeddings(**response.json()).model_dump(), status_code=response.status_code)

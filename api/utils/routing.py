@@ -6,7 +6,7 @@ from redis.asyncio import Redis as AsyncRedis
 
 from api.schemas.admin.providers import Provider
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
-from api.schemas.core.metrics import Metric
+from api.schemas.core.models import Metric
 from api.tasks import app, create_model_queue
 from api.tasks.routing import apply_routing
 from api.utils.exceptions import ModelIsTooBusyException, TaskFailedException

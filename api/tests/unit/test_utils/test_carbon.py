@@ -1,7 +1,5 @@
 from types import SimpleNamespace
 
-import pytest
-
 from api.schemas.admin.providers import ProviderCarbonFootprintZone
 from api.schemas.usage import CarbonFootprintUsage, CarbonFootprintUsageKgCO2eq, CarbonFootprintUsageKWh
 from api.utils.carbon import get_carbon_footprint
@@ -21,7 +19,7 @@ class TestGetCarbonFootprint:
     def test_get_carbon_footprint_return_null_footprint_when_model_params_not_define(self):
         # Given
         active_params = 0
-        total_params = None
+        total_params = 0
         model_zone = ProviderCarbonFootprintZone.WOR
         token_count = 1
         request_latency = 0.01
@@ -48,28 +46,15 @@ class TestGetCarbonFootprint:
         # Then
         assert expected_carbon_footprint == result
 
-    def test_get_carbon_footprint_return_error_when_request_latency_is_negative(self):
-        # Given
-        active_params = 0
-        total_params = 0
-        model_zone = ProviderCarbonFootprintZone.WOR
-        token_count = 10
-        request_latency = -0.01
-        # When-Then
-        with pytest.raises(AssertionError, match="request_latency must be a positive number"):
-            get_carbon_footprint(active_params, total_params, model_zone, token_count, request_latency)
-
     def test_get_carbon_footprint_return_footprint(self, mocker):
         # Given
         mocked_electricity_mix = mocker.patch("api.utils.carbon.electricity_mixes.find_electricity_mix")
         mocked_electricity_mix.return_value = SimpleNamespace(adpe=1, pe=2, gwp=3)
         mocked_compute_llm_impacts = mocker.patch("api.utils.carbon.compute_llm_impacts")
-        mocked_compute_llm_impacts.return_value = dict_to_namespace(
-            {
-                "energy": {"value": {"min": 1, "max": 2}},
-                "gwp": {"value": {"min": 0, "max": 3}},
-            }
-        )
+        mocked_compute_llm_impacts.return_value = dict_to_namespace({
+            "energy": {"value": {"min": 1, "max": 2}},
+            "gwp": {"value": {"min": 0, "max": 3}},
+        })
         active_params = 1
         total_params = 1
         model_zone = ProviderCarbonFootprintZone.WOR

@@ -63,11 +63,11 @@ class Reranks(BaseModel):
     usage: Usage = Field(default_factory=Usage, description="Usage information for the request.")
 
     @classmethod
-    def build_from(cls, provider: ProviderType, response: dict, top_n: int | None):
+    def build_from(cls, provider: ProviderType, response_data: dict, top_n: int | None):
         match provider:
             case ProviderType.TEI:
                 try:
-                    response = TEIReranks(root=response)
+                    response = TEIReranks(root=response_data)
                 except Exception as e:
                     raise ValueError(f"Invalid response format: {e}")
                 data = []
@@ -81,7 +81,7 @@ class Reranks(BaseModel):
 
             case ProviderType.ALBERT:
                 try:
-                    return cls(**response)
+                    return cls(**response_data)
                 except Exception as e:
                     raise ValueError(f"Invalid response format: {e}")
 

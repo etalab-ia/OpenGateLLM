@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from api.schemas.core.metrics import Metric
+from api.schemas.core.models import Metric
 from api.utils.qos import apply_async_qos_policy, apply_sync_qos_policy
 from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE
 

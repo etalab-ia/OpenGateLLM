@@ -18,6 +18,7 @@ from api.schemas.audio import (
     AudioTranscriptionTemperatureForm,
 )
 from api.schemas.core.context import RequestContext
+from api.schemas.core.models import RequestContent
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
 from api.utils.hooks_decorator import hooks
 from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS, ROUTER__AUDIO
@@ -64,10 +65,13 @@ async def audio_transcriptions(
     )
 
     response = await model_provider.forward_request(
-        method="POST",
-        files={"file": (file.filename, file_content, file.content_type)},
-        data=payload,
-        endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS,
+        request_content=RequestContent(
+            method="POST",
+            model=model,
+            endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS,
+            files={"file": (file.filename, file_content, file.content_type)},
+            form=payload,
+        ),
         redis_client=redis_client,
     )
 

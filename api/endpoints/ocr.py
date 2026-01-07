@@ -11,6 +11,7 @@ from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
 from api.schemas.core.documents import FileType
+from api.schemas.core.models import RequestContent
 from api.schemas.exception import HTTPExceptionModel
 from api.schemas.ocr import OCR, CreateOCR, DPIForm, ModelForm, PromptForm
 from api.schemas.parse import FileForm, ParsedDocument, ParsedDocumentMetadata, ParsedDocumentPage
@@ -24,7 +25,7 @@ from api.utils.exceptions import (
     WrongModelTypeException,
 )
 from api.utils.hooks_decorator import hooks
-from api.utils.variables import ENDPOINT__OCR, ENDPOINT__OCR_BETA, ROUTER__OCR, ENDPOINT__CHAT_COMPLETIONS
+from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__OCR, ENDPOINT__OCR_BETA, ROUTER__OCR
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__OCR.upper()])
 
@@ -59,7 +60,10 @@ async def ocr(
         redis_client=redis_client,
         request_context=request_context,
     )
-    response = await model_provider.forward_request(method="POST", json=body.model_dump(), endpoint=ENDPOINT__OCR, redis_client=redis_client)
+    response = await model_provider.forward_request(
+        request_content=RequestContent(method="POST", endpoint=ENDPOINT__OCR, json=body.model_dump(), model=body.model),
+        redis_client=redis_client,
+    )
 
     return JSONResponse(content=OCR(**response.json()).model_dump(), status_code=response.status_code)
 
@@ -116,7 +120,10 @@ async def ocr_beta(
             request_context=request_context,
         )
 
-        response = await model_provider.forward_request(method="POST", json=payload, endpoint=ENDPOINT__CHAT_COMPLETIONS, redis_client=redis_client)
+        response = await model_provider.forward_request(
+            request_content=RequestContent(method="POST", endpoint=ENDPOINT__CHAT_COMPLETIONS, json=payload, model=model),
+            redis_client=redis_client,
+        )
         status = response.status_code
         body_json = response.json()
         if status // 100 != 2:
@@ -133,4 +140,5 @@ async def ocr_beta(
         if body_json.get("usage"):
             document.usage = Usage(**body_json["usage"])
     pdf.close()
+
     return JSONResponse(content=document.model_dump(), status_code=200)

@@ -1,12 +1,13 @@
 from json import dumps
 import logging
-from typing import Any
 from urllib.parse import urljoin
 
 import httpx
 
 from api.schemas.admin.providers import ProviderType
+from api.schemas.core.models import RequestContent
 from api.schemas.rerank import CreateRerank, Reranks
+from api.utils.context import generate_request_id, request_context
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -70,72 +71,46 @@ class TeiModelProvider(BaseModelProvider):
         max_context_length = data.get("max_input_length")
         return max_context_length
 
-    def _format_request(
-        self,
-        json: dict | None = None,
-        files: dict | None = None,
-        data: dict | None = None,
-        endpoint: str | None = None,
-    ) -> tuple[str, dict[str, str], dict | None, dict | None, dict | None]:
+    def _format_request(self, request_content: RequestContent) -> RequestContent:
         """
-        Format a request to a client model. Overridden base class method to support TEI Reranking.
-
-        Args:
-            json(dict): The JSON body to use for the request.
-            files(dict): The files to use for the request.
-            data(dict): The data to use for the request.
-            endpoint(str): The endpoint to use for the request.
-
-        Returns:
-            tuple: The formatted request composed of the url, json, files and data.
+        Format a request to a TEI model, overridden base class method to add TEI specific format request.
         """
-        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[endpoint].lstrip("/"))
-        if json and "model" in json:
-            json["model"] = self.name
+        if "model" in request_content.json:
+            request_content.json["model"] = self.name
 
-        if data and "model" in data:
-            data["model"] = self.name
+        if "model" in request_content.form:
+            request_content.form["model"] = self.name
 
-        if endpoint.endswith(ENDPOINT__RERANK):
-            top_n = json.get("top_n")
-            json = CreateRerank(**json).format(provider=ProviderType.TEI).model_dump()
-            json["top_n"] = top_n  # @TODO: remove after request context feature is implemented
+        if request_content.endpoint.endswith(ENDPOINT__RERANK):
+            request_content.json = CreateRerank(**request_content.json).format(provider=ProviderType.TEI).model_dump()
+            request_content.additional_data["top_n"] = request_content.json.get("top_n")
 
-        return url, json, files, data
+        return request_content
 
-    def _format_response(
-        self,
-        json: dict,
-        response: httpx.Response,
-        endpoint: str,
-        additional_data: dict[str, Any] | None = None,
-        request_latency: float = 0.0,
-    ) -> httpx.Response:
+    def _format_response(self, request_content: RequestContent, response: httpx.Response, request_latency: float = 0.0) -> httpx.Response:
         """
-        Format a response from a client model and add usage data and model ID to the response. This method can be overridden by a subclass to add additional headers or parameters.
-
-        Args:
-            json(dict): The JSON body of the request to the API.
-            response(httpx.Response): The response from the API.
-            additional_data(Dict[str, Any]): The additional data to add to the response (default: {}).
-
-        Returns:
-            httpx.Response: The formatted response.
+        Format a response from a TEI model, overridden base class method to convert TEI reranking response to a standard response.
         """
-
-        if additional_data is None:
-            additional_data = {}
 
         content_type = response.headers.get("Content-Type", "")
         if content_type == "application/json":
-            raw_response = response.json()
-            if endpoint == ENDPOINT__RERANK:
-                data = Reranks.build_from(provider=ProviderType.TEI, response=raw_response, top_n=json.get("top_n")).model_dump()
-            else:
-                data = raw_response
-            data.update(self._get_additional_data(json=json, data=data, stream=False, endpoint=endpoint, request_latency=request_latency))
-            data.update(additional_data)
+            response_data = response.json()
+            top_n = request_content.additional_data.pop("top_n")
+            if request_content.endpoint == ENDPOINT__RERANK:
+                response_data = Reranks.build_from(provider=ProviderType.TEI, response_data=response_data, top_n=top_n).model_dump()
 
-            response = httpx.Response(status_code=response.status_code, content=dumps(data))
+            usage = self._get_usage(request_content=request_content, response_data=response_data, stream=False, request_latency=request_latency)
+
+            if request_context.get().id is None:
+                request_id = response_data.get("id", generate_request_id())
+                request_context.get().id = request_id
+            else:
+                request_id = request_context.get().id
+
+            additional_data = request_content.additional_data
+            additional_data.update({"model": request_content.model, "id": request_id, "usage": usage.model_dump()})
+            response.update(additional_data)
+
+            response = httpx.Response(status_code=response.status_code, content=dumps(response))
 
         return response

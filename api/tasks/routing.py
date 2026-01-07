@@ -5,7 +5,7 @@ from billiard.exceptions import SoftTimeLimitExceeded
 from celery.exceptions import MaxRetriesExceededError, Retry
 
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
-from api.schemas.core.metrics import Metric
+from api.schemas.core.models import Metric
 from api.tasks import app, create_model_queue, get_redis_client
 from api.utils.load_balancing import apply_sync_load_balancing
 from api.utils.qos import apply_sync_qos_policy

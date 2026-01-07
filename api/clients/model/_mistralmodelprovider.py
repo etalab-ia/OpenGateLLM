@@ -1,11 +1,12 @@
 import base64
 from json import dumps
 import logging
-from typing import Any
 from urllib.parse import urljoin
 
 import httpx
 
+from api.schemas.core.models import RequestContent
+from api.utils.context import generate_request_id, request_context
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -74,35 +75,29 @@ class MistralModelProvider(BaseModelProvider):
 
         return max_context_length
 
-    def _format_request(
-        self,
-        json: dict | None = None,
-        files: dict | None = None,
-        data: dict | None = None,
-        endpoint: str | None = None,
-    ) -> tuple[str, dict[str, str] | None, dict | None, dict | None, dict | None]:
+    def _format_request(self, request_content: RequestContent) -> RequestContent:
         """
         Converts an openAI compatible /chat/completions request to Mistral compatible /chat/completions
         Converts an openAI compatible /audio/transcription request to a Mistral compatible /chat/completions request
         """
-        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[endpoint].lstrip("/"))
-        if json and "model" in json:
-            json["model"] = self.name
 
-        if data and "model" in data:
-            data["model"] = self.name
+        if "model" in request_content.json:
+            request_content.json["model"] = self.name
 
-        if endpoint == ENDPOINT__CHAT_COMPLETIONS:
+        if "model" in request_content.form:
+            request_content.form["model"] = self.name
+
+        if request_content.endpoint == ENDPOINT__CHAT_COMPLETIONS:
             # see https://docs.mistral.ai/api#operation-chat_completion_v1_chat_completions_post
-            json["frequency_penalty"] = 0.0 if json["frequency_penalty"] is None else json["frequency_penalty"]
-            json["random_seed"] = json.get("random_seed", json.get("seed"))
-            json["parallel_tool_calls"] = False if json["parallel_tool_calls"] is None else json["parallel_tool_calls"]
-            json["presence_penalty"] = 0.0 if json["presence_penalty"] is None else json["presence_penalty"]
-            json["response_format"] = {"type": "text"} if json["response_format"] is None else json["response_format"]
-            if json.get("stop") is None:
-                json.pop("stop", None)
-            json["stream"] = False if json["stream"] is None else json["stream"]
-            json["top_p"] = 1.0 if json["top_p"] is None else json["top_p"]
+            request_content.json["frequency_penalty"] = 0.0 if request_content.json["frequency_penalty"] is None else request_content.json["frequency_penalty"]  # fmt: off
+            request_content.json["random_seed"] = request_content.json.get("random_seed", request_content.json.get("seed"))
+            request_content.json["parallel_tool_calls"] = False if request_content.json["parallel_tool_calls"] is None else request_content.json["parallel_tool_calls"]  # fmt: off
+            request_content.json["presence_penalty"] = 0.0 if request_content.json["presence_penalty"] is None else request_content.json["presence_penalty"]  # fmt: off
+            request_content.json["response_format"] = {"type": "text"} if request_content.json["response_format"] is None else request_content.json["response_format"]  # fmt: off
+            if request_content.json.get("stop") is None:
+                request_content.json.pop("stop", None)
+            request_content.json["stream"] = False if request_content.json["stream"] is None else request_content.json["stream"]
+            request_content.json["top_p"] = 1.0 if request_content.json["top_p"] is None else request_content.json["top_p"]
 
             authorized_keys = [
                 "frequency_penalty",
@@ -124,14 +119,14 @@ class MistralModelProvider(BaseModelProvider):
                 "tools",
                 "top_p",
             ]
-            for key in list(json.keys()):
+            for key in list(request_content.json.keys()):
                 if key not in authorized_keys:
-                    del json[key]
+                    del request_content.json[key]
 
-        elif endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
-            self._audio_response_format = data.get("response_format", "json")
+        elif request_content.endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
+            self._audio_response_format = request_content.json.get("response_format", "json")
 
-            json = {
+            request_content.json = {
                 "model": self.name,
                 "messages": [
                     {
@@ -139,46 +134,55 @@ class MistralModelProvider(BaseModelProvider):
                         "content": [
                             {
                                 "type": "input_audio",
-                                "input_audio": base64.b64encode(files["file"][1]).decode("utf-8"),
+                                "input_audio": base64.b64encode(request_content.files["file"][1]).decode("utf-8"),
                             },
-                            {"type": "text", "text": data.get("prompt") or f"Transcribe this audio in this language : {data.get("language", "en")}"},
+                            {
+                                "type": "text",
+                                "text": request_content.form.get("prompt")
+                                or f"Transcribe this audio in this language : {request_content.form.get("language", "en")}",
+                            },
                         ],
                     }
                 ],
             }
-            if data.get("temperature"):
-                json["temperature"] = data["temperature"]
-            files = None
-            data = None
+            if request_content.form.get("temperature"):
+                request_content.json["temperature"] = request_content.form["temperature"]
 
-        return url, json, files, data
+            request_content.files = {}
+            request_content.form = {}
+
+        return request_content
 
     def _format_response(
         self,
-        json: dict,
+        request_content: RequestContent,
         response: httpx.Response,
-        endpoint: str,
-        additional_data: dict[str, Any] | None = None,
         request_latency: float = 0.0,
     ) -> httpx.Response:
-        if additional_data is None:
-            additional_data = {}
-
         content_type = response.headers.get("Content-Type", "")
         if content_type == "application/json":
-            data = response.json()
-            data.update(self._get_additional_data(json=json, data=data, stream=False, endpoint=endpoint, request_latency=request_latency))
-            data.update(additional_data)
+            response_data = response.json()
+            usage = self._get_usage(request_content=request_content, response_data=response_data, stream=False, request_latency=request_latency)
 
-            if endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
-                transcription_text = data["choices"][0]["message"]["content"]
+            if request_context.get().id is None:
+                request_id = response_data.get("id", generate_request_id())
+                request_context.get().id = request_id
+            else:
+                request_id = request_context.get().id
+
+            additional_data = request_content.additional_data
+            additional_data.update({"model": self.name, "id": request_id, "usage": usage.model_dump()})
+
+            if request_content.endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
+                transcription_text = response_data["choices"][0]["message"]["content"]
 
                 if self._audio_response_format == "text":
                     response = httpx.Response(status_code=response.status_code, content=transcription_text)
                     return response
                 else:
-                    data = {"id": data.get("id"), "text": transcription_text, "usage": data.get("usage")}
+                    # @TODO: add model name
+                    additional_data = {"id": response_data.get("id"), "text": transcription_text, "usage": response_data.get("usage")}
 
-            response = httpx.Response(status_code=response.status_code, content=dumps(data))
+            response = httpx.Response(status_code=response.status_code, content=dumps(additional_data))
 
         return response

@@ -5,7 +5,7 @@ import pycountry
 from pydantic import Field, constr, model_validator
 
 from api.schemas import BaseModel
-from api.schemas.core.metrics import Metric
+from api.schemas.core.models import Metric
 from api.utils.variables import DEFAULT_TIMEOUT
 
 # Add world as a country code, default value of the carbon footprint computation framework

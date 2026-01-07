@@ -7,7 +7,7 @@ from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
 
 from api.helpers.load_balancing import BaseLoadBalancingStrategy
-from api.schemas.core.metrics import Metric
+from api.schemas.core.models import Metric
 from api.utils.redis import safe_redis_reset
 from api.utils.variables import PREFIX__REDIS_METRIC_TIMESERIE, REDIS__TIMESERIE_RETENTION_SECONDS
 

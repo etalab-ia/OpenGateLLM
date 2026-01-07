@@ -13,7 +13,7 @@ from api.schemas.admin.roles import PermissionType
 from api.schemas.core.context import RequestContext
 from api.schemas.usage import Usage
 from api.utils.configuration import configuration
-from api.utils.context import generate_request_id, request_context
+from api.utils.context import request_context
 from api.utils.lifespan import lifespan
 from api.utils.variables import ROUTER__MONITORING
 
@@ -42,19 +42,7 @@ app.add_middleware(SessionMiddleware, secret_key=configuration.settings.session_
 @app.middleware("http")
 async def set_request_context(request: Request, call_next):
     """Middleware to set request context."""
-    request_context.set(
-        RequestContext(
-            id=generate_request_id(),
-            user_info=None,
-            user_id=None,
-            token_id=None,
-            router_id=None,
-            provider_id=None,
-            method=request.method,
-            endpoint=request.url.path,
-            usage=Usage(),
-        )
-    )
+    request_context.set(RequestContext(method=request.method, endpoint=request.url.path, usage=Usage()))
 
     return await call_next(request)
 

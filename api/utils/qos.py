@@ -1,7 +1,7 @@
 from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
 
-from api.schemas.core.metrics import Metric
+from api.schemas.core.models import Metric
 from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE
 
 

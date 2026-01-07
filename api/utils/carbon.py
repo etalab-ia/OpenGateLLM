@@ -1,16 +1,12 @@
-import logging
-
 from ecologits.tracers.utils import compute_llm_impacts, electricity_mixes
 
 from api.schemas.admin.providers import ProviderCarbonFootprintZone
 from api.schemas.usage import CarbonFootprintUsage, CarbonFootprintUsageKgCO2eq, CarbonFootprintUsageKWh
 
-logger = logging.getLogger(__name__)
-
 
 def get_carbon_footprint(
     active_params: int,
-    total_params: int | None,
+    total_params: int,
     model_zone: ProviderCarbonFootprintZone,
     token_count: int,
     request_latency: float,
@@ -27,16 +23,6 @@ def get_carbon_footprint(
     Returns:
         CarbonFootprintUsage: Computed carbon footprint
     """
-    assert request_latency >= 0, "request_latency must be a positive number"
-
-    # Short-circuit when we cannot (or should not) compute impacts.
-    # This avoids calling ecologits with missing model parameters and matches unit-test expectations.
-    if token_count <= 0 or active_params <= 0 or total_params in (None, 0):
-        return CarbonFootprintUsage(
-            kWh=CarbonFootprintUsageKWh(min=0.0, max=0.0),
-            kgCO2eq=CarbonFootprintUsageKgCO2eq(min=0.0, max=0.0),
-        )
-
     electricity_mix = electricity_mixes.find_electricity_mix(zone=model_zone.value)
     if not electricity_mix:
         raise ValueError(f"Electricity zone {model_zone.value} not found")

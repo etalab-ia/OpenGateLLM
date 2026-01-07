@@ -9,7 +9,7 @@ from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderTyp
 from api.schemas.admin.roles import LimitType, PermissionType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.collections import CollectionVisibility
-from api.schemas.core.metrics import Metric
+from api.schemas.core.models import Metric
 from api.schemas.models import ModelType
 from api.utils.variables import DEFAULT_TIMEOUT
 

@@ -19,6 +19,7 @@ from api.helpers.models import ModelRegistry
 from api.schemas.chunks import Chunk
 from api.schemas.collections import Collection, CollectionVisibility
 from api.schemas.core.context import RequestContext
+from api.schemas.core.models import RequestContent
 from api.schemas.documents import Chunker, Document
 from api.schemas.parse import ParsedDocument, ParsedDocumentOutputFormat
 from api.schemas.search import Search
@@ -461,9 +462,12 @@ class DocumentManager:
 
     async def _create_embeddings(self, provider: ModelProvider, input_texts: list[str], redis_client: AsyncRedis) -> list[float]:
         response = await provider.forward_request(
-            method="POST",
-            json={"input": input_texts, "model": self.vector_store_model, "encoding_format": "float"},
-            endpoint=ENDPOINT__EMBEDDINGS,
+            request_content=RequestContent(
+                method="POST",
+                endpoint=ENDPOINT__EMBEDDINGS,
+                json={"input": input_texts, "model": self.vector_store_model, "encoding_format": "float"},
+                model=self.vector_store_model,
+            ),
             redis_client=redis_client,
         )
         return [vector["embedding"] for vector in response.json()["data"]]

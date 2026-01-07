@@ -13,7 +13,7 @@ import yaml
 
 from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
-from api.schemas.core.metrics import Metric
+from api.schemas.core.models import Metric
 from api.schemas.models import ModelType
 from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, ROUTER__ADMIN, ROUTER__AUTH, ROUTERS
 

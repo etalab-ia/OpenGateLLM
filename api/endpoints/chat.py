@@ -10,6 +10,7 @@ from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithSt
 from api.helpers.models import ModelRegistry
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk, CreateChatCompletion
 from api.schemas.core.context import RequestContext
+from api.schemas.core.models import RequestContent
 from api.schemas.exception import HTTPExceptionModel
 from api.schemas.search import Search
 from api.utils.context import global_context
@@ -103,21 +104,16 @@ async def chat_completions(
         request_context=request_context,
     )
 
+    request_content = RequestContent(
+        method="POST",
+        endpoint=ENDPOINT__CHAT_COMPLETIONS,
+        json=body,
+        model=body["model"],
+        additional_data=additional_data,
+    )
     if not body.get("stream", False):
-        response = await model_provider.forward_request(
-            method="POST",
-            json=body,
-            additional_data=additional_data,
-            endpoint=ENDPOINT__CHAT_COMPLETIONS,
-            redis_client=redis_client,
-        )
+        response = await model_provider.forward_request(request_content=request_content, redis_client=redis_client)
         return JSONResponse(content=response.json(), status_code=response.status_code)
     else:
-        stream_iter = model_provider.forward_stream(
-            method="POST",
-            json=body,
-            additional_data=additional_data,
-            endpoint=ENDPOINT__CHAT_COMPLETIONS,
-            redis_client=redis_client,
-        )
+        stream_iter = model_provider.forward_stream(request_content=request_content, redis_client=redis_client)
         return StreamingResponseWithStatusCode(content=stream_iter, media_type="text/event-stream")

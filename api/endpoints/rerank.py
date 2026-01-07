@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
+from api.schemas.core.models import RequestContent
 from api.schemas.rerank import CreateRerank, Reranks
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
 from api.utils.hooks_decorator import hooks
@@ -36,13 +37,8 @@ async def rerank(
         redis_client=redis_client,
         request_context=request_context,
     )
-    payload = body.model_dump()  # dict of the incoming payload
-
-    # Forward the normalized payload
     response = await model_provider.forward_request(
-        method="POST",
-        json=payload,
-        endpoint=ENDPOINT__RERANK,
+        request_content=RequestContent(method="POST", endpoint=ENDPOINT__RERANK, json=body.model_dump(), model=body.model),
         redis_client=redis_client,
     )
 
