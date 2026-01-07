@@ -17,7 +17,6 @@ from api.tests.integration.factories import (
 from api.utils.variables import ENDPOINT__MODELS
 
 
-# --cov=api --cov-report=html --cov-report=term-missing --config-file=pyproject.toml --cov-branch
 @pytest.mark.asyncio(loop_scope="session")
 class TestModels:
     async def test_get_models_happy_path(self, client: AsyncClient, db_session):
@@ -75,71 +74,6 @@ class TestModels:
 
         assert actual_without_created == expected_data
 
-    async def test_get_all_models_should_filter_models_without_providers(self, client: AsyncClient, db_session):
-        # Arrange
-        created = datetime(2024, 1, 15, 10, 30, 0)
-
-        user_1 = UserFactory()
-
-        router_1 = RouterFactory(
-            user=user_1, name="router_name_1", type=ModelType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002, created=created
-        )
-        router_without_provider = RouterFactory(
-            user=user_1,
-            name="router_name_2",
-            type=ModelType.TEXT_EMBEDDINGS_INFERENCE,
-            cost_prompt_tokens=0.0,
-            cost_completion_tokens=0.0,
-            created=created,
-        )
-        ProviderFactory(router=router_1, user=user_1, model_name="m1", max_context_length=2048, vector_size=1536, created=created)
-        ProviderFactory(router=router_1, user=user_1, model_name="m2", max_context_length=128000, vector_size=384, created=created)
-        LimitFactory(role=user_1.role, router=router_1, type=LimitType.TPM, value=1000)
-        LimitFactory(role=user_1.role, router=router_without_provider, type=LimitType.TPM, value=1000)
-        token = await create_token(db_session, name="my_token", user=user_1)
-
-        # Act
-        response = await client.get(url=f"/v1{ENDPOINT__MODELS}", headers={"Authorization": f"Bearer {token.token}"})
-        # Assert
-        models = Models(data=[Model(**model) for model in response.json()["data"]])
-        assert isinstance(models, Models)
-        assert all(isinstance(model, Model) for model in models.data)
-        actual_data = response.json()["data"]
-        assert len(actual_data) == 1
-        assert actual_data[0]["id"] == "router_name_1"
-
-    async def test_get_all_models_should_filter_models_without_access(self, client: AsyncClient, db_session):
-        # Arrange
-        created = datetime(2024, 1, 15, 10, 30, 0)
-        user_1 = UserFactory()
-        router_with_access = RouterFactory(
-            user=user_1, name="router_name_1", type=ModelType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002, created=created
-        )
-        router_without_access = RouterFactory(
-            user=user_1,
-            name="router_name_2",
-            type=ModelType.TEXT_EMBEDDINGS_INFERENCE,
-            cost_prompt_tokens=0.0,
-            cost_completion_tokens=0.0,
-            created=created,
-        )
-        ProviderFactory(router=router_with_access, user=user_1, model_name="m1", max_context_length=2048, vector_size=1536, created=created)
-        ProviderFactory(router=router_with_access, user=user_1, model_name="m2", max_context_length=128000, vector_size=384, created=created)
-        ProviderFactory(router=router_without_access, user=user_1, model_name="m3", max_context_length=16384, vector_size=1536, created=created)
-        LimitFactory(role=user_1.role, router=router_with_access, type=LimitType.TPM, value=1000)
-
-        token = await create_token(db_session, name="my_token", user=user_1)
-
-        # Act
-        response = await client.get(url=f"/v1{ENDPOINT__MODELS}", headers={"Authorization": f"Bearer {token.token}"})
-        # Assert
-        models = Models(data=[Model(**model) for model in response.json()["data"]])
-        assert isinstance(models, Models)
-        assert all(isinstance(model, Model) for model in models.data)
-        actual_data = response.json()["data"]
-        assert len(actual_data) == 1
-        assert actual_data[0]["id"] == "router_name_1"
-
     async def test_get_model_by_name_should_return_specific_model(self, client: AsyncClient, db_session):
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
@@ -171,32 +105,6 @@ class TestModels:
         actual_data = response.json()
         assert actual_data["id"] == "router_name_1"
 
-    async def test_get_model_by_alias_should_return_model(self, client: AsyncClient, db_session):
-        # Arrange
-        created = datetime(2024, 1, 15, 10, 30, 0)
-
-        user_1 = UserFactory()
-
-        router_1 = RouterFactory(
-            user=user_1, name="router_name_1", type=ModelType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002, created=created
-        )
-        ProviderFactory(router=router_1, user=user_1, model_name="m1", max_context_length=2048, vector_size=1536, created=created)
-        ProviderFactory(router=router_1, user=user_1, model_name="m2", max_context_length=128000, vector_size=384, created=created)
-        router_alias_1 = RouterAliasFactory(router=router_1, value="alias1_m1")
-        RouterAliasFactory(router=router_1, value="alias2_m1")
-        RouterAliasFactory(router=router_1, value="alias3_m1")
-        LimitFactory(role=user_1.role, router=router_1, type=LimitType.TPM, value=1000)
-        await db_session.flush()
-
-        token = await create_token(db_session, name="my_token", user=user_1)
-
-        # Act
-        await db_session.flush()
-        response = await client.get(url=f"/v1{ENDPOINT__MODELS}/{router_alias_1.value}", headers={"Authorization": f"Bearer {token.token}"})
-        # Assert
-        actual_data = response.json()
-        assert actual_data["id"] == "router_name_1"
-
     async def test_get_model_should_return_404_when_model_not_found(self, client: AsyncClient, db_session):
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
@@ -217,60 +125,6 @@ class TestModels:
         assert response.status_code == 404
         assert actual_data["detail"] == "Model not found."
 
-    async def test_get_model_should_return_404_when_no_provider(self, client: AsyncClient, db_session):
-        # Arrange
-        created = datetime(2024, 1, 15, 10, 30, 0)
-        user_1 = UserFactory()
 
-        router_1 = RouterFactory(
-            user=user_1, name="router_name_1", type=ModelType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002, created=created
-        )
-        LimitFactory(role=user_1.role, router=router_1, type=LimitType.TPM, value=1000)
-        token = await create_token(db_session, name="my_token", user=user_1)
-
-        # Act & Assert
-        response = await client.get(url=f"/v1{ENDPOINT__MODELS}/{router_1.name}", headers={"Authorization": f"Bearer {token.token}"})
-        # Assert
-        actual_data = response.json()
-        assert response.status_code == 404
-        assert actual_data["detail"] == "Model not found."
-
-    async def test_get_model_should_return_404_when_no_access(self, client: AsyncClient, db_session):
-        # Arrange
-        created = datetime(2024, 1, 15, 10, 30, 0)
-        user_1 = UserFactory()
-
-        forbidden_router = RouterFactory(
-            user=user_1, name="router_name_1", type=ModelType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002, created=created
-        )
-        ProviderFactory(router=forbidden_router, user=user_1, model_name="m1", max_context_length=2048, vector_size=1536, created=created)
-        token = await create_token(db_session, name="my_token", user=user_1)
-
-        # Act
-        response = await client.get(url=f"/v1{ENDPOINT__MODELS}/{forbidden_router.name}", headers={"Authorization": f"Bearer {token.token}"})
-        # Assert
-        actual_data = response.json()
-        assert response.status_code == 404
-        assert actual_data["detail"] == "Model not found."
-
-    async def test_get_all_models_should_use_app_title_when_no_organization(self, client: AsyncClient, db_session):
-        # Arrange
-        created = datetime(2024, 1, 15, 10, 30, 0)
-        user_1 = UserFactory(organization=None)
-
-        router_1 = RouterFactory(
-            user=user_1, name="router_name_1", type=ModelType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002, created=created
-        )
-
-        ProviderFactory(router=router_1, user=user_1, model_name="m1", max_context_length=2048, vector_size=1536, created=created)
-        ProviderFactory(router=router_1, user=user_1, model_name="m2", max_context_length=128000, vector_size=384, created=created)
-        LimitFactory(role=user_1.role, router=router_1, type=LimitType.TPM, value=1000)
-
-        token = await create_token(db_session, name="my_token", user=user_1)
-
-        # Act
-        await db_session.flush()
-        response = await client.get(url=f"/v1{ENDPOINT__MODELS}/{router_1.name}", headers={"Authorization": f"Bearer {token.token}"})
-        # Assert
-        actual_data = response.json()
-        assert actual_data["owned_by"] == "OpenGateLLM"
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

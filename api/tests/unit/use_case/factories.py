@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 import random
 import unicodedata
 
@@ -18,8 +18,8 @@ class RoleFactory(factory.Factory):
         model = Role
 
     name = factory.Faker("bothify", text="role_????")
-    created = factory.LazyFunction(datetime.utcnow)
-    updated = factory.LazyFunction(datetime.utcnow)
+    created = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
+    updated = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
 
     class Params:
         admin = factory.Trait(name="admin")
@@ -41,8 +41,8 @@ class UserFactory(factory.Factory):
     iss = None
     priority = 0
     expires = None
-    created = factory.LazyFunction(datetime.utcnow)
-    updated = factory.LazyFunction(datetime.utcnow)
+    created = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
+    updated = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
 
     @factory.lazy_attribute
     def email(self):
@@ -76,8 +76,8 @@ class RouterFactory(factory.Factory):
     cost_prompt_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     cost_completion_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     providers = 0
-    created = factory.LazyFunction(lambda: int(datetime.utcnow().timestamp()))
-    updated = factory.LazyFunction(lambda: int(datetime.utcnow().timestamp()))
+    created = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
+    updated = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
 
     class Params:
         free = factory.Trait(cost_prompt_tokens=0.0, cost_completion_tokens=0.0)

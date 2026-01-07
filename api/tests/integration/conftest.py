@@ -11,7 +11,6 @@ from api.main import app
 from api.sql.models import Base
 from api.tests.integration import factories
 
-# TEST_DATABASE_URL = getattr(configuration.dependencies.postgres, 'url', "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db")
 TEST_DATABASE_URL = "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db"
 
 

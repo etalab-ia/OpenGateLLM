@@ -75,8 +75,7 @@ test = [
     "respx",
     "responses",
     "openmockllm @ git+https://github.com/etalab-ia/openmockllm.git@main",
-    "factory-boy",
-#    "asgi_lifespan"
+    "factory-boy==3.3.3",
 
 ]
 

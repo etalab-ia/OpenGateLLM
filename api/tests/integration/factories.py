@@ -30,8 +30,8 @@ class OrganizationFactory(BaseFactory):
         model = Organization
 
     name = factory.Faker("company", locale="fr_FR")
-    created = factory.LazyFunction(datetime.utcnow)
-    updated = factory.LazyFunction(datetime.utcnow)
+    created = factory.LazyFunction(lambda: datetime.now())
+    updated = factory.LazyFunction(lambda: datetime.now())
 
     class Params:
         administration = factory.Trait(name=factory.Faker("bothify", text="Administration ####"))
@@ -43,8 +43,8 @@ class RoleFactory(BaseFactory):
         model = Role
 
     name = factory.Faker("bothify", text="role_????")
-    created = factory.LazyFunction(datetime.utcnow)
-    updated = factory.LazyFunction(datetime.utcnow)
+    created = factory.LazyFunction(lambda: datetime.now())
+    updated = factory.LazyFunction(lambda: datetime.now())
 
     class Params:
         admin = factory.Trait(name="admin")
@@ -68,8 +68,8 @@ class UserFactory(SQLAlchemyModelFactory):
     iss = None
     priority = 0
     expires = None
-    created = factory.LazyFunction(datetime.utcnow)
-    updated = factory.LazyFunction(datetime.utcnow)
+    created = factory.LazyFunction(lambda: datetime.now())
+    updated = factory.LazyFunction(lambda: datetime.now())
 
     @factory.lazy_attribute
     def email(self):
@@ -96,17 +96,17 @@ class TokenFactory(BaseFactory):
     user = factory.SubFactory(UserFactory)
     name = factory.Faker("word")
     token = "tmp"
-    expires = factory.LazyFunction(lambda: datetime.utcnow() + timedelta(days=30))
-    created = factory.LazyFunction(datetime.utcnow)
+    expires = factory.LazyFunction(lambda: datetime.now() + timedelta(days=30))
+    created = factory.LazyFunction(lambda: datetime.now())
 
     class Params:
-        expired = factory.Trait(expires=factory.LazyFunction(lambda: datetime.utcnow() - timedelta(days=1)))
+        expired = factory.Trait(expires=factory.LazyFunction(lambda: datetime.now() - timedelta(days=1)))
 
         never_expires = factory.Trait(expires=None)
 
-        short_lived = factory.Trait(expires=factory.LazyFunction(lambda: datetime.utcnow() + timedelta(hours=1)))
+        short_lived = factory.Trait(expires=factory.LazyFunction(lambda: datetime.now() + timedelta(hours=1)))
 
-        long_lived = factory.Trait(expires=factory.LazyFunction(lambda: datetime.utcnow() + timedelta(days=365)))
+        long_lived = factory.Trait(expires=factory.LazyFunction(lambda: datetime.now() + timedelta(days=365)))
 
 
 class TokenForUserFactory(TokenFactory):
@@ -131,8 +131,8 @@ class RouterFactory(SQLAlchemyModelFactory):
     load_balancing_strategy = factory.Faker("random_element", elements=list(RouterLoadBalancingStrategy))
     cost_prompt_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     cost_completion_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
-    created = factory.LazyFunction(datetime.utcnow)
-    updated = factory.LazyFunction(datetime.utcnow)
+    created = factory.LazyFunction(lambda: datetime.now())
+    updated = factory.LazyFunction(lambda: datetime.now())
 
     class Params:
         free = factory.Trait(cost_prompt_tokens=0.0, cost_completion_tokens=0.0)
@@ -173,8 +173,8 @@ class ProviderFactory(SQLAlchemyModelFactory):
     qos_limit = factory.Faker("pyfloat", left_digits=2, right_digits=2, min_value=0.5, max_value=0.99)
     max_context_length = factory.Faker("random_element", elements=[2048, 4096, 8192, 16384, 32768, 128000])
     vector_size = factory.Faker("random_element", elements=[384, 768, 1024, 1536, 3072])
-    created = factory.LazyFunction(datetime.utcnow)
-    updated = factory.LazyFunction(datetime.utcnow)
+    created = factory.LazyFunction(lambda: datetime.now())
+    updated = factory.LazyFunction(lambda: datetime.now())
 
     class Params:
         openai_like = factory.Trait(

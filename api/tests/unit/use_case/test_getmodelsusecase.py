@@ -13,7 +13,6 @@ from api.use_cases.models._getmodelsusecase import ModelNotFound, Success
 
 @pytest.fixture
 def router_repository():
-    """Mock du RouterRepository"""
     repo = Mock()
     repo.get_all_routers = AsyncMock()
     repo.get_organization_name = AsyncMock()
@@ -22,7 +21,6 @@ def router_repository():
 
 @pytest.fixture
 def user_info_repository():
-    """Mock du UserInfoRepository"""
     repo = Mock()
     repo.get_user_info = AsyncMock()
     return repo
@@ -128,6 +126,7 @@ class TestGetModelsUseCase:
         router_repository.get_all_routers.return_value = sample_routers
         router_repository.get_organization_name.return_value = "Anthropic"
 
+        expected_model_name = "claude-3"
         use_case = GetModelsUseCase(
             user_id=1,
             router_repository=router_repository,
@@ -135,12 +134,12 @@ class TestGetModelsUseCase:
         )
 
         # Act
-        result = await use_case.execute(name="claude-3")
+        result = await use_case.execute(name=expected_model_name)
 
         # Assert
         assert isinstance(result, Success)
         assert len(result.models) == 1
-        assert result.models[0].id == "claude-3"
+        assert result.models[0].id == expected_model_name
 
     @pytest.mark.asyncio
     async def test_should_return_a_list_with_one_model_when_an_alias_is_given(
@@ -185,7 +184,6 @@ class TestGetModelsUseCase:
 
         # Assert
         assert isinstance(result, ModelNotFound)
-        assert result.message == ""
 
     @pytest.mark.asyncio
     async def test_should_return_an_empty_list_when_user_has_no_limit_defined(self, router_repository, user_info_repository, sample_routers):

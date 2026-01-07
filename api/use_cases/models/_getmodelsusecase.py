@@ -12,7 +12,7 @@ class Success:
 
 @dataclass
 class ModelNotFound:
-    message: str
+    pass
 
 
 type Result = Success | ModelNotFound
@@ -33,7 +33,7 @@ class GetModelsUseCase:
         if name is not None:
             routers = [router for router in routers if router.name == name or any(alias == name for alias in router.aliases)]
             if not routers:
-                return ModelNotFound("")
+                return ModelNotFound()
 
         for router in routers:
             if router.providers > 0:
@@ -55,5 +55,5 @@ class GetModelsUseCase:
                     )
 
         if name is not None and len(models) == 0:
-            return ModelNotFound("")
+            return ModelNotFound()
         return Success(models=models)
