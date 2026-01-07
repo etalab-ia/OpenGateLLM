@@ -9,14 +9,12 @@ from sqlalchemy.orm import sessionmaker
 
 from api.clients.parser import BaseParserClient as ParserClient
 from api.clients.vector_store import BaseVectorStoreClient as VectorStoreClient
-from api.clients.web_search_engine import BaseWebSearchEngineClient as WebSearchEngineClient
 from api.helpers._documentmanager import DocumentManager
 from api.helpers._identityaccessmanager import IdentityAccessManager
 from api.helpers._limiter import Limiter
 from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
-from api.helpers._websearchmanager import WebSearchManager
 from api.helpers.models import ModelRegistry
 from api.schemas.core.configuration import Configuration
 from api.schemas.core.context import GlobalContext
@@ -37,11 +35,10 @@ async def lifespan(app: FastAPI):
     # Dependencies
     parser = ParserClient.import_module(type=configuration.dependencies.parser.type)(**configuration.dependencies.parser.model_dump()) if configuration.dependencies.parser else None  # fmt: off
     vector_store = VectorStoreClient.import_module(type=configuration.dependencies.vector_store.type)(**configuration.dependencies.vector_store.model_dump()) if configuration.dependencies.vector_store else None  # fmt: off
-    web_search_engine = WebSearchEngineClient.import_module(type=configuration.dependencies.web_search_engine.type)(**configuration.dependencies.web_search_engine.model_dump()) if configuration.dependencies.web_search_engine else None  # fmt: off
 
     assert await vector_store.check() if vector_store else True, "Vector store database is not reachable."
 
-    dependencies = SimpleNamespace(parser=parser, vector_store=vector_store, web_search_engine=web_search_engine)
+    dependencies = SimpleNamespace(parser=parser, vector_store=vector_store)
 
     # perform async health checks for external dependencies when possible
     try:
@@ -88,7 +85,7 @@ async def _setup_usage_manager(configuration: Configuration, global_context: Glo
 
 
 async def _setup_postgres_session(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
-    """Setup the PostgreSQL session by creating the session pool."""
+    """Set up the PostgreSQL session by creating the session pool."""
 
     engine = create_async_engine(**configuration.dependencies.postgres.model_dump())
     postgres_session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -128,7 +125,7 @@ async def _setup_tokenizer(configuration: Configuration, global_context: GlobalC
 async def _setup_document_manager(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
     assert global_context.model_registry, "Set model registry in global context before setting up document manager."
 
-    web_search_manager, parser_manager = None, None
+    parser_manager = None
 
     if dependencies.vector_store is None:
         global_context.document_manager = None
@@ -145,16 +142,7 @@ async def _setup_document_manager(configuration: Configuration, global_context: 
         vector_store=dependencies.vector_store,
         vector_store_model=configuration.settings.vector_store_model,
         parser_manager=parser_manager,
-        web_search_manager=web_search_manager,
     )
-
-    if dependencies.web_search_engine:
-        web_search_manager = WebSearchManager(
-            web_search_engine=dependencies.web_search_engine,
-            query_model=configuration.settings.search_web_query_model,
-            limited_domains=configuration.settings.search_web_limited_domains,
-            user_agent=configuration.settings.search_web_user_agent,
-        )
 
     parser_manager = ParserManager(parser=dependencies.parser)
 
@@ -162,5 +150,4 @@ async def _setup_document_manager(configuration: Configuration, global_context: 
         vector_store=dependencies.vector_store,
         vector_store_model=configuration.settings.vector_store_model,
         parser_manager=parser_manager,
-        web_search_manager=web_search_manager,
     )

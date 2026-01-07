@@ -8,10 +8,12 @@ Redis is a **required dependency** for OpenGateLLM to function.
 
 ## Overview
 
-Redis handles two critical functions in OpenGateLLM:
+Redis handles **three** critical functions in OpenGateLLM:
 
-- **Rate Limiting**: Tracks and enforces API usage limits (requests per minute/day, tokens per minute/day) for each user and model
-- **Performance Metrics**: Stores time-series data for model performance monitoring (latency, time to first token)
+- **Rate Limiting**: Tracks API usage limits (RPM, RPD, TPM, TPD)
+- **Performance Metrics**: Stores time-series latency and TTFT metrics
+- **Result Backend (when queuing is enabled)**:  
+  When Celery-based request queuing is enabled, Redis is also used as the **Celery result backend**, where Celery workers store routing results for the API to retrieve.
 
 ### Rate Limiting
 

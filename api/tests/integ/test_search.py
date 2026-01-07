@@ -5,7 +5,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 import pytest
 
-from api.schemas.search import Search, Searches
+from api.schemas.search import Searches
 from api.utils.variables import ENDPOINT__COLLECTIONS, ENDPOINT__DOCUMENTS, ENDPOINT__FILES, ENDPOINT__SEARCH
 
 logger = logging.getLogger(__name__)
@@ -77,24 +77,6 @@ class TestSearch:
         data = {"prompt": "", "collections": [COLLECTION_ID], "k": 3}
         response = client.post_without_permissions(url=f"/v1{ENDPOINT__SEARCH}", json=data)
         assert response.status_code == 422, response.text
-
-    def test_web_search(self, client: TestClient, setup):
-        """Test search with the web search."""
-        COLLECTION_ID, DOCUMENT_IDS = setup
-
-        data = {"prompt": "What is the largest planet in our solar system?", "web_search": True, "k": 3}
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__SEARCH}", json=data)
-        assert response.status_code == 200, response.text
-
-        searches = Searches(**response.json())
-        assert isinstance(searches, Searches)
-        assert all(isinstance(search, Search) for search in searches.data)
-
-        if len(searches.data) > 0:
-            search = searches.data[0]
-            assert search.chunk.metadata["document_name"].startswith("http")
-        else:
-            logger.info("No web search results.")
 
     def test_search_access_other_user_collection(self, client: TestClient, setup):
         """Test search with the web search."""

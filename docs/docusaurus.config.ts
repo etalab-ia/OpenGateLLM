@@ -89,7 +89,7 @@ const config: Config = {
         },
         {
           label: 'API Reference',
-          href: albert_api_url + '/documentation',
+          href: albert_api_url + '/reference',
           position: 'left',
         },
         {
@@ -141,7 +141,7 @@ const config: Config = {
             },
             {
               label: 'API Reference',
-              href: albert_api_url + '/documentation',
+              href: albert_api_url + '/reference',
             },
             {
               label: 'API Swagger',

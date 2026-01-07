@@ -106,13 +106,6 @@ dependencies:
   celery:
     broker_url: amqp://${RABBITMQ_USER:-rabbitmq}:${RABBITMQ_PASSWORD:-changeme}@${RABBITMQ_HOST:-localhost}:${RABBITMQ_PORT:-5672}/
 
-  brave:
-    headers:
-      Accept: application/json
-      X-Subscription-Token: ${BRAVE_API_KEY}
-    country: "fr"
-    safesearch: "strict"
-
 # ---------------------------------- settings -----------------------------------
 settings:
   session_secret_key: -ftzKBct7qN22sgnkI9ApWD2ny_dHQVlPd2OPDSk5MM
@@ -123,36 +116,5 @@ settings:
   monitoring_postgres_enabled: True
   monitoring_prometheus_enabled: True
   vector_store_model: embeddings-small
-  search_web_query_model: albert-small
-  search_web_limited_domains:
-      - service-public.fr
-      - gouv.fr
-      - caf.fr
-      - info-retraite.fr
-      - ameli.fr
-      - elysee.fr
-      - wikipedia.org
-      - autoritedelaconcurrence.fr
-      - assemblee-nationale.fr
-      - elysee.fr
-      - conseil-etat.fr
-      - departements.fr
-      - courdecassation.fr
-      - lcp.fr
-      - senat.fr
-      - gouvernement.fr
-      - vie-publique.fr
-      - elections-legislatives.fr
-      - ccomptes.fr
-      - conseil-constitutionnel.fr
-      - ladocumentationfrancaise.fr
-      - franceinfo.fr
-      - lefigaro.fr
-      - ouest-france.fr
-      - lemonde.fr
-      - leparisien.fr
-      - refugies.info
-      - stackoverflow.com
-  search_web_user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
   search_multi_agents_synthesis_model: albert-large
   search_multi_agents_reranker_model: albert-small

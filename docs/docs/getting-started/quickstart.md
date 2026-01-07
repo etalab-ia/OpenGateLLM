@@ -1,6 +1,12 @@
 # Quickstart
 
-You can run OpenGateLLM without any configuration with Docker.
+## Prerequisites
+
+- Docker and Docker Compose
+
+## Run OpenGateLLM
+
+Execute the following command to run OpenGateLLM as quickstart setup:
 ```bash
 make quickstart
 ```

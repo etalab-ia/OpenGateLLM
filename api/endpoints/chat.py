@@ -72,7 +72,6 @@ async def chat_completions(
                 limit=initial_body.search_args.limit,
                 offset=initial_body.search_args.offset,
                 rff_k=initial_body.search_args.rff_k,
-                web_search=initial_body.search_args.web_search,
             )
             if results:
                 chunks = "\n".join([result.chunk.content for result in results])

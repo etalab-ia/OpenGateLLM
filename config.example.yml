@@ -39,13 +39,6 @@ dependencies:
   #     - "elastic"
   #     - ${ELASTIC_PASSWORD}
 
-  # brave:
-  #   headers:
-  #     Accept: application/json
-  #     X-Subscription-Token: ${BRAVE_API_KEY}
-  #   country: "fr"
-  #   safesearch: "strict"
-
   # sentry:
   #   dsn: ${SENTRY_DSN}
 
@@ -76,10 +69,6 @@ settings:
   # monitoring_prometheus_enabled: True
 
   # vector_store_model: my-model
-
-  # search_web_query_model: my-model
-  # search_web_limited_domains: ["google.com", "wikipedia.org"]
-  # search_web_user_agent: None
 
   # search_multi_agents_synthesis_model: my-model
   # search_multi_agents_reranker_model: my-model

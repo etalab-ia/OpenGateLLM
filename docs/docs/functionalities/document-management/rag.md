@@ -24,11 +24,10 @@ OpenGateLLM supports multiple search methods:
 - `offset`: Pagination offset (default: 0)
 - `rff_k`: RRF constant for hybrid search (default: 20)
 - `score_threshold`: Minimum similarity score (0.0-1.0, only for semantic)
-- `web_search`: Add internet search results (default: false)
-- `web_search_k`: Number of web results (default: 5)
 
 ## Search Flow
 
+[//]: # TODO - Update Mermaid Graph to remove web search
 ```mermaid
 graph TD
     A[Search Request] --> B{Web Search?}
@@ -90,9 +89,7 @@ graph TD
       "prompt": "Latest AI developments",
       "collections": [1],
       "method": "semantic",
-      "limit": 10,
-      "web_search": true,
-      "web_search_k": 5
+      "limit": 10
     }'
   ```
   </TabItem>
@@ -100,21 +97,6 @@ graph TD
 
 :::info
 See [Configuration](../../getting-started/configuration.md) for more details.
-:::
-
-## Web Search Integration
-
-When `web_search` is enabled, OpenGateLLM:
-
-1. Generates a web search query from your prompt
-2. Retrieves results from the configured web search engine
-3. Creates a temporary collection to store web results
-4. Parses and processes each web result as a document
-5. Performs the search across both your collections and web results
-6. Automatically deletes the temporary web collection after returning results
-
-:::info
-Web search integration requires a web search engine to be configured. See [Configuration](../../getting-started/configuration.md) for more details.
 :::
 
 ## Next Steps

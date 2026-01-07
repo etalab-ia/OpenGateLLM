@@ -85,7 +85,6 @@ jobs:
         make test-integ action=all
       env:
         CONFIG_FILE: ${{ matrix.config_file }}
-        BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
         ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}
     
     - name: Tear down Docker Compose
