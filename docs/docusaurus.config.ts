@@ -93,11 +93,6 @@ const config: Config = {
           position: 'left',
         },
         {
-            label: 'API Swagger',
-            href: albert_api_url + '/swagger',
-            position: 'left',
-        },
-        {
           type: 'search',
           position: 'right',
         },

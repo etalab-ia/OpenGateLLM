@@ -6,7 +6,7 @@
 <img src="./docs/static/img/logo.svg" alt="Logo" width="128" height="128">
 
 # OpenGateLLM
-### **[Documentation](https://docs.opengatellm.org) | [API Reference](https://albert.api.etalab.gouv.fr/reference) | [API Swagger](https://albert.api.etalab.gouv.fr/swagger)**
+### **[Documentation](https://docs.opengatellm.org) | [API Reference](https://albert.api.etalab.gouv.fr/reference)**
 
 > [!WARNING]
 > **The API is still under beta version, major breaking changes may occur.**
