@@ -1,6 +1,6 @@
 [//]: # (TODO - Add automatically the title, the PR number, the issue number, and the source and target branches)
 [//]: # (TODO - Add automatically the number of commits / commit messages summary in this PR)
-# Pull Request Title: [Please insert the PR title here]
+[//]: # (# Pull Request Title: [Please insert the PR title here])
 
 ## Description
 Please provide a summarized description of what was done in this PR.
@@ -89,7 +89,6 @@ NB: For a concise overview of software testing types, see [this Atlassian's guid
 
 ### Git & Process Standards
 - [ ] PR title follows [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
-- [ ] Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
 - [ ] PR is correctly labeled
 - [ ] PR is linked to relevant issue(s) / project(s)
 - [ ] Author is assigned to the PR
@@ -115,19 +114,6 @@ Please confirm that the following steps have been completed for the database mig
 - [ ] Migration upgrade tested locally
 - [ ] Migration downgrade tested locally
 - [ ] Migration documented (if applicable)
-
-### Operating System
-
-Please select the operating system(s) on which the changes have been tested:
-- [ ] Linux
-- [ ] Linux (using Docker)
-- [ ] Windows
-- [ ] Windows (using Docker)
-- [ ] macOS
-- [ ] macOS (using Docker)
-- [ ] Other (specify below)
-
-If applicable, please provide more details about the operating systems here (known limitations, environment specific behavior, failed tests, etc.), otherwise delete this part.
 
 ## Reviewer Focus
 
