@@ -12,12 +12,12 @@ class ModelCosts(BaseModel):
 
 
 class ModelType(str, Enum):
-    IMAGE_TEXT_TO_TEXT = "image-text-to-text"
     AUTOMATIC_SPEECH_RECOGNITION = "automatic-speech-recognition"
+    IMAGE_TEXT_TO_TEXT = "image-text-to-text"
+    IMAGE_TO_TEXT = "image-to-text"
     TEXT_EMBEDDINGS_INFERENCE = "text-embeddings-inference"
     TEXT_GENERATION = "text-generation"
     TEXT_CLASSIFICATION = "text-classification"
-    IMAGE_TO_TEXT = "image-to-text"
 
 
 class Model(BaseModel):
