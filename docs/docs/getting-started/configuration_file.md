@@ -183,7 +183,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 | load_balancing_strategy | string | Routing strategy for load balancing between providers of the model. |  | shuffle | • shuffle<br></br>• least_busy | least_busy |
 | name | string | Unique name exposed to clients when selecting the model. |  |  |  | gpt-4o |
 | providers | array | API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type. For details of configuration, see the [ModelProvider section](#modelprovider). |  |  |  |  |
-| type | string | Type of the model. It will be used to identify the model type. |  |  | • image-text-to-text<br></br>• automatic-speech-recognition<br></br>• text-embeddings-inference<br></br>• text-generation<br></br>• text-classification<br></br>• image-to-text | text-generation |
+| type | string | Type of the model. It will be used to identify the model type. |  |  | • automatic-speech-recognition<br></br>• image-text-to-text<br></br>• image-to-text<br></br>• text-embeddings-inference<br></br>• text-generation<br></br>• text-classification | text-generation |
 
 <br></br>
 
