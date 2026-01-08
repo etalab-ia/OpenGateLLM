@@ -3,7 +3,7 @@ import traceback
 
 from limits import RateLimitItemPerDay, RateLimitItemPerMinute
 from limits.aio import storage, strategies
-from redis.asyncio import ConnectionPool, Redis
+from redis.asyncio import ConnectionPool, Redis, RedisError
 
 from api.schemas.admin.roles import LimitType
 from api.schemas.core.configuration import LimitingStrategy
@@ -26,6 +26,15 @@ class Limiter:
             self.strategy = strategies.FixedWindowRateLimiter(storage=self.redis_client)
         else:  # SLIDING_WINDOW
             self.strategy = strategies.SlidingWindowCounterRateLimiter(storage=self.redis_client)
+
+    async def reset(self) -> None:
+        """
+        Reset the limits when starting the API.
+        """
+        try:
+            await self.redis_client.reset()
+        except RedisError:
+            logger.error(msg="Redis error during rate limit reset.", exc_info=True)
 
     async def hit(self, user_id: int, router_id: int, type: LimitType, value: int | None = None, cost: int = 1) -> bool | None:
         """

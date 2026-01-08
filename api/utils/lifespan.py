@@ -60,6 +60,8 @@ async def lifespan(app: FastAPI):
     await _setup_tokenizer(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_document_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
 
+    await global_context.limiter.reset()
+
     yield
 
     # cleanup resources when app shuts down
