@@ -93,7 +93,7 @@ async def _setup_postgres_session(configuration: Configuration, global_context: 
 
 
 async def _setup_model_registry(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
-    """Setup the model registry by fetching the models defined in the DB and the configuration. Basic conflict handling between the DB and config."""
+    """Set up the model registry by fetching the models defined in the DB and the configuration. Basic conflict handling between the DB and config."""
     queuing_enabled = configuration.dependencies.celery is not None
     async for postgres_session in get_postgres_session():
         global_context.model_registry = ModelRegistry(

@@ -3,12 +3,12 @@ import traceback
 
 from limits import RateLimitItemPerDay, RateLimitItemPerMinute
 from limits.aio import storage, strategies
-from redis.asyncio import ConnectionPool
+from redis.asyncio import ConnectionPool, Redis
 
 from api.schemas.admin.roles import LimitType
 from api.schemas.core.configuration import LimitingStrategy
 from api.schemas.me.info import UserInfo
-from api.utils.exceptions import InsufficientPermissionException, RateLimitExceeded
+from api.utils.exceptions import InsufficientPermissionException, ModelNotFoundException, RateLimitExceeded
 from api.utils.variables import PREFIX__REDIS_RATE_LIMIT
 
 logger = logging.getLogger(__name__)
@@ -18,6 +18,7 @@ class Limiter:
     def __init__(self, redis_pool: ConnectionPool, strategy: LimitingStrategy):
         self.redis_pool = redis_pool
         self.redis_client = storage.RedisStorage(uri=self.redis_pool.url, connection_pool=self.redis_pool, implementation="redispy")
+        self.redis = Redis.from_url(url=self.redis_pool.url)
 
         if strategy == LimitingStrategy.MOVING_WINDOW:
             self.strategy = strategies.MovingWindowRateLimiter(storage=self.redis_client)
@@ -32,7 +33,7 @@ class Limiter:
 
         Args:
             user_id(int): The user ID to check the limit for.
-            model(str): The model to check the limit for.
+            router_id (int): The router ID to check the limit for.
             type(LimitType): The type of limit to check.
             value(Optional[int]): The value of the limit. If not provided, the limit will be hit.
             cost(int): The cost of the limit, defaults to 1.
@@ -53,7 +54,14 @@ class Limiter:
             elif type == LimitType.RPD:
                 limit = RateLimitItemPerDay(amount=value)
 
-            result = await self.strategy.hit(limit, f"{PREFIX__REDIS_RATE_LIMIT}:{type.value}:{user_id}:{router_id}", cost=cost)
+            key = f"{PREFIX__REDIS_RATE_LIMIT}:{type.value}:{user_id}:{router_id}"
+            result = await self.strategy.hit(limit, key, cost=cost)
+
+            if not result:
+                res = await self.redis.ttl(key)
+                if res == -1:
+                    await self.redis.delete(key)
+
             return result
 
         except Exception:
@@ -86,16 +94,22 @@ class Limiter:
         if user_info.id == 0:
             return
 
+        has_access = False
         tpm, tpd, rpm, rpd = 0, 0, 0, 0
         for limit in user_info.limits:
-            if limit.router == router_id and limit.type == LimitType.TPM:
-                tpm = limit.value
-            elif limit.router == router_id and limit.type == LimitType.TPD:
-                tpd = limit.value
-            elif limit.router == router_id and limit.type == LimitType.RPM:
-                rpm = limit.value
-            elif limit.router == router_id and limit.type == LimitType.RPD:
-                rpd = limit.value
+            if limit.router == router_id:
+                has_access = True
+                if limit.type == LimitType.TPM:
+                    tpm = limit.value
+                elif limit.type == LimitType.TPD:
+                    tpd = limit.value
+                elif limit.type == LimitType.RPM:
+                    rpm = limit.value
+                elif limit.type == LimitType.RPD:
+                    rpd = limit.value
+
+        if not has_access:
+            raise ModelNotFoundException()
 
         if 0 in [tpm, tpd, rpm, rpd]:
             raise InsufficientPermissionException(detail="Insufficient permissions to access the model.")

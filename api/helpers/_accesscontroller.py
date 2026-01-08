@@ -7,7 +7,7 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas.admin.roles import LimitType, PermissionType
+from api.schemas.admin.roles import PermissionType
 from api.schemas.admin.users import User
 from api.schemas.collections import CollectionVisibility
 from api.schemas.me.info import UserInfo
@@ -17,8 +17,6 @@ from api.utils.exceptions import (
     InsufficientPermissionException,
     InvalidAPIKeyException,
     InvalidAuthenticationSchemeException,
-    ModelNotFoundException,
-    RateLimitExceeded,
 )
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
@@ -90,7 +88,8 @@ class AccessController:
 
         return user_info
 
-    async def _check_api_key(self, request: Request, api_key: HTTPAuthorizationCredentials, postgres_session: AsyncSession) -> tuple[UserInfo, int]:
+    @staticmethod
+    async def _check_api_key(request: Request, api_key: HTTPAuthorizationCredentials, postgres_session: AsyncSession) -> tuple[UserInfo, int, str]:
         if api_key.scheme != "Bearer":
             raise InvalidAuthenticationSchemeException()
 
@@ -133,63 +132,15 @@ class AccessController:
         if self.permissions and not set(permissions).intersection(set(self.permissions)):
             raise InsufficientPermissionException()
 
-    async def _check_limits(self, user_info: UserInfo, router_id: int, prompt_tokens: int | None = None) -> None:
-        if user_info.id == 0:
-            return
-        has_access = False
-        tpm, tpd, rpm, rpd = 0, 0, 0, 0
-        for limit in user_info.limits:
-            if limit.router == router_id:
-                has_access = True
-                if limit.type == LimitType.TPM:
-                    tpm = limit.value
-                elif limit.type == LimitType.TPD:
-                    tpd = limit.value
-                elif limit.type == LimitType.RPM:
-                    rpm = limit.value
-                elif limit.type == LimitType.RPD:
-                    rpd = limit.value
-
-        if not has_access:
-            raise ModelNotFoundException()
-
-        if 0 in [tpm, tpd, rpm, rpd]:
-            raise InsufficientPermissionException(detail="Insufficient permissions to access the model.")
-
-        # RPM
-        check = await global_context.limiter.hit(user_id=user_info.id, router_id=router_id, type=LimitType.RPM, value=rpm)
-        if not check:
-            remaining = await global_context.limiter.remaining(user_id=user_info.id, router_id=router_id, type=LimitType.RPM, value=rpm)
-            raise RateLimitExceeded(detail=f"{str(rpm)} requests per minute exceeded (remaining: {remaining}).")
-
-        # RPD
-        check = await global_context.limiter.hit(user_id=user_info.id, router_id=router_id, type=LimitType.RPD, value=rpd)
-        if not check:
-            remaining = await global_context.limiter.remaining(user_id=user_info.id, router_id=router_id, type=LimitType.RPD, value=rpd)
-            raise RateLimitExceeded(detail=f"{str(rpd)} requests per day exceeded (remaining: {remaining}).")
-
-        if not prompt_tokens:
-            return
-
-        # TPM
-        check = await global_context.limiter.hit(user_id=user_info.id, router_id=router_id, type=LimitType.TPM, value=tpm, cost=prompt_tokens)
-        if not check:
-            remaining = await global_context.limiter.remaining(user_id=user_info.id, router_id=router_id, type=LimitType.TPM, value=tpm)
-            raise RateLimitExceeded(detail=f"{str(tpm)} input tokens per minute exceeded (remaining: {remaining}).")
-
-        # TPD
-        check = await global_context.limiter.hit(user_id=user_info.id, router_id=router_id, type=LimitType.TPD, value=tpd, cost=prompt_tokens)
-        if not check:
-            remaining = await global_context.limiter.remaining(user_id=user_info.id, router_id=router_id, type=LimitType.TPD, value=tpd)
-            raise RateLimitExceeded(detail=f"{str(tpd)} input tokens per day exceeded (remaining: {remaining}).")
-
-    async def _check_audio_transcription(self, body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
+    @staticmethod
+    async def _check_audio_transcription(body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
         router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), postgres_session=postgres_session)
         if router_id is None:
             return
-        await self._check_limits(user_info=user_info, router_id=router_id)
+        await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id)
 
-    async def _check_chat_completions(self, body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
+    @staticmethod
+    async def _check_chat_completions(body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
         router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), postgres_session=postgres_session)
 
         if router_id is None:
@@ -202,45 +153,51 @@ class AccessController:
                 model_name=global_context.document_manager.vector_store_model,
                 postgres_session=postgres_session,
             )
-            await self._check_limits(user_info=user_info, router_id=search_router_id, prompt_tokens=prompt_tokens)
+            await global_context.limiter.check_user_limits(user_info=user_info, router_id=search_router_id, prompt_tokens=prompt_tokens)
 
-        await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
+        await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
-    async def _check_collections(self, body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
+    @staticmethod
+    async def _check_collections(body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
         if body.get("visibility") == CollectionVisibility.PUBLIC and PermissionType.CREATE_PUBLIC_COLLECTION not in user_info.permissions:
             raise InsufficientPermissionException("Missing permission to update collection visibility to public.")
 
-    async def _check_embeddings(self, body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
+    @staticmethod
+    async def _check_embeddings(body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
         router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), postgres_session=postgres_session)
         if router_id is None:
             return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__EMBEDDINGS, body=body)
-        await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
+        await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
-    async def _check_files(self, user_info: UserInfo, postgres_session: AsyncSession) -> None:
+    @staticmethod
+    async def _check_files(user_info: UserInfo, postgres_session: AsyncSession) -> None:
         router_id = await global_context.model_registry.get_router_id_from_model_name(
             model_name=global_context.document_manager.vector_store_model,
             postgres_session=postgres_session,
         )
         if router_id is None:
             return
-        await self._check_limits(user_info=user_info, router_id=router_id)
+        await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id)
 
-    async def _check_ocr(self, body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
+    @staticmethod
+    async def _check_ocr(body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
         router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), postgres_session=postgres_session)
         if router_id is None:
             return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__OCR, body=body)
-        await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
+        await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
-    async def _check_rerank(self, body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
+    @staticmethod
+    async def _check_rerank(body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
         router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), postgres_session=postgres_session)
         if router_id is None:
             return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__RERANK, body=body)
-        await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
+        await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
-    async def _check_search(self, body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
+    @staticmethod
+    async def _check_search(body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
         router_id = await global_context.model_registry.get_router_id_from_model_name(
             model_name=global_context.document_manager.vector_store_model,
             postgres_session=postgres_session,
@@ -248,9 +205,10 @@ class AccessController:
         if router_id is None:
             return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__SEARCH, body=body)
-        await self._check_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
+        await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
-    async def _safely_parse_body(self, request: Request) -> dict:
+    @staticmethod
+    async def _safely_parse_body(request: Request) -> dict:
         """Safely parse request body as JSON or form data, handling encoding errors."""
         try:
             # Check content type to determine parsing strategy

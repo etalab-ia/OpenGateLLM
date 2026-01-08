@@ -108,11 +108,11 @@ class ModelRegistry:
 
     async def setup(self, models: list[ModelConfiguration], postgres_session: AsyncSession) -> None:
         """
-        Setup the model registry by creating the routers and providers from the configuration and
+        Set up the model registry by creating the routers and providers from the configuration and
         creating the consumers for the routers. Run in lifespan context.
 
         Args:
-            models(list[ModelConfiguration]): The models to setup
+            models(list[ModelConfiguration]): The models to set up
             postgres_session(AsyncSession): The database postgres_session
         """
         for model in models:
@@ -246,7 +246,8 @@ class ModelRegistry:
 
         return router_id
 
-    async def delete_router(self, router_id: int, postgres_session: AsyncSession) -> None:
+    @staticmethod
+    async def delete_router(router_id: int, postgres_session: AsyncSession) -> None:
         """
         Delete a model router and all its providers.
 
@@ -330,8 +331,8 @@ class ModelRegistry:
 
         await postgres_session.commit()
 
+    @staticmethod
     async def get_routers(
-        self,
         router_id: int | None,
         name: str | None,
         postgres_session: AsyncSession,
@@ -540,8 +541,8 @@ class ModelRegistry:
 
         return provider_id
 
+    @staticmethod
     async def delete_provider(
-        self,
         provider_id: int,
         postgres_session: AsyncSession,
     ) -> None:
@@ -549,7 +550,6 @@ class ModelRegistry:
         Delete a model provider by ID.
 
         Args:
-            router_id(int): The router ID
             provider_id(int): The provider ID
             postgres_session(AsyncSession): Database postgres_session
         """
@@ -566,8 +566,8 @@ class ModelRegistry:
         await postgres_session.execute(query)
         await postgres_session.commit()
 
+    @staticmethod
     async def get_providers(
-        self,
         router_id: int,
         provider_id: int | None,
         postgres_session: AsyncSession,
@@ -780,7 +780,8 @@ class ModelRegistry:
 
         return models
 
-    async def get_router_id_from_model_name(self, model_name: str, postgres_session: AsyncSession) -> int | None:
+    @staticmethod
+    async def get_router_id_from_model_name(model_name: str, postgres_session: AsyncSession) -> int | None:
         """
         Retrieve the router ID from a model name, return None if the model name is not found.
 
