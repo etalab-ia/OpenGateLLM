@@ -41,7 +41,7 @@ session.headers.update({"Authorization": f"Bearer {api_key}"})
 client = Mistral(server_url=server_url, api_key=api_key)
 ```
 
-Find a audio model with `/v1/models` endpoint to perform OCR. Theses models have the type `image-to-text`.
+Find an OCR model with `/v1/models` endpoint to perform OCR. Theses models have the type `image-to-text`.
 
 
 ```python
