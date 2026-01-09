@@ -160,6 +160,7 @@ class DocumentManager:
             .outerjoin(UserTable, CollectionTable.user_id == UserTable.id)
             .group_by(CollectionTable.id, UserTable.name)
             .offset(offset=offset)
+            .order_by(CollectionTable.created.desc())
             .limit(limit=limit)
         )
 
@@ -427,8 +428,8 @@ class DocumentManager:
 
         return searches
 
+    @staticmethod
     def _split(
-        self,
         document: ParsedDocument,
         chunker: Chunker,
         chunk_size: int,
