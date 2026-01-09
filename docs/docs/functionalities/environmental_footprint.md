@@ -1,12 +1,26 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Environmental footprint
 
 OpenGateLLM tracks the environmental impact of AI model usage through the [EcoLogits](https://ecologits.ai) library, which provides a comprehensive view of the environmental footprint of generative AI models at inference.
 
 ## Model carbon footprint configuration
 
-For each model provider, you can define the carbon footprint parameters in the `config.yml` file. The configuration includes the number of total and active parameters (in billions), as well as the hosting zone. 
+For each model provider, you can define the carbon footprint parameters. Either through the *Provider settings* page in the Playground UI, or via the `config.yml` file. For more details on model configuration, see the [model addition documentation](../models/configuration.md).
 
-The following parameters are used for carbon footprint computation:
+
+<Tabs>
+  <TabItem value="playground" label="By Playground UI" default>
+
+For each model provider, you can define the carbon footprint parameters in the *Provider settings* page of the Playground. The form fields includes the number of total and active parameters (in billions), as well as the hosting zone. 
+
+![Provider settings page](../../static/img/playground/environmental_footprint_2.png)
+
+</TabItem>
+  <TabItem value="config" label="By configuration file" default>
+
+For each model provider, you can define the carbon footprint parameters in the `config.yml` file. The following parameters are used for carbon footprint computation:
 - `model_total_params`
 - `model_active_params`
 - `model_hosting_zone`
@@ -30,11 +44,15 @@ models:
         model_hosting_zone: WOR
 ```
 
-:::info
-Carbon footprint computation requires at least `model_total_params` to be defined. If not provided, the environmental impact will not be computed for that model provider.
+</TabItem>
+</Tabs>
 
-Carbon footprint is only supported for `text-generation` and `image-text-to-text` model types.
+:::info
+Carbon footprint computation requires `model_total_params` and `model_active_params` to be defined. If not provided, the environmental impact will not be computed for that model provider (display as 0 kWh and 0 kgCO2eq).
+
+Carbon footprint is only supported for `text-generation` and `image-text-to-text` model types. For other model types, the environmental impact will not be computed (display as 0 kWh and 0 kgCO2eq).
 :::
+
 
 ## Environmental impact metrics
 
@@ -81,6 +99,10 @@ For each call to a generative AI model, the API returns environmental impact met
 ```
 
 After the request is processed, the carbon footprint of the request is store in *usage* table by the [hooks decorator](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/utils/hooks_decorator.py) attached to each endpoint. See [usage monitoring documentation](./usage.md) for more information. 
+
+You can also see the carbon footprint of the request in the *Usage* page of the Playground.
+
+![Usage page](../../static/img/playground/environmental_footprint_1.png)
 
 ## How it works
 
