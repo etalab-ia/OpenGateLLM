@@ -35,7 +35,7 @@ Pour résoudre ce problème, `_routerrepository.py` devrait importer directement
 from api.domain.router import Model, Router
 
 # Utiliser :
-from api.domain.router.model import Model
-from api.domain.router.router import Router
+from api.domain.router import Model
+from api.domain.router import Router
 ```
 

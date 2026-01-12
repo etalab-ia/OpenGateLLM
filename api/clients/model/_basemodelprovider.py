@@ -1,6 +1,5 @@
 from abc import ABC
 import ast
-import importlib
 from json import JSONDecodeError, dumps, loads
 import logging
 import re
@@ -77,16 +76,44 @@ class BaseModelProvider(ABC):
         """
         Static method to import a subclass of BaseModelProvider.
 
+        .. deprecated:: 2026-01-08
+            Use :class:`ModelProviderClientFactory.get_provider_class()` instead.
+            This method uses string-based imports which are fragile and not type-safe.
+
         Args:
             type(str): The type of model provider to import.
 
         Returns:
             Type[BaseModelProvider]: The subclass of BaseModelProvider.
+
+        Example:
+            Old (deprecated):
+                >>> cls = BaseModelProvider.import_module(ProviderType.OPENAI)
+                >>> provider = cls(url=..., key=..., ...)
+
+            New (recommended):
+                >>> from api.clients.model import ModelProviderClientFactory
+                >>> provider = ModelProviderClientFactory.create(
+                ...     provider_type=ProviderType.OPENAI,
+                ...     url=...,
+                ...     key=...,
+                ...     timeout=...,
+                ...     model_name=...,
+                ... )
         """
+        import warnings
 
-        module = importlib.import_module(f"api.clients.model._{type.value}modelprovider")
+        warnings.warn(
+            "BaseModelProvider.import_module() is deprecated. "
+            "Use ModelProviderClientFactory.get_provider_class() or ModelProviderClientFactory.create() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
-        return getattr(module, f"{type.capitalize()}ModelProvider")
+        # Delegate to the factory instead of magic imports
+        from api.clients.model._factory import ModelProviderClientFactory
+
+        return ModelProviderClientFactory.get_provider_class(type)
 
     @staticmethod
     async def get_max_context_length(self) -> int | None:

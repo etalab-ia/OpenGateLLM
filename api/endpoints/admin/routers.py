@@ -7,35 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
 from api.schemas.admin.roles import PermissionType
-from api.schemas.admin.routers import CreateRouter, CreateRouterResponse, Router, Routers, UpdateRouter
-from api.utils.context import request_context
+from api.schemas.admin.routers import Router, Routers, UpdateRouter
 from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import ENDPOINT__ADMIN_ROUTERS, ROUTER__ADMIN
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
-
-
-@router.post(path=ENDPOINT__ADMIN_ROUTERS, dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))], status_code=201)
-async def create_router(
-    request: Request,
-    body: CreateRouter = Body(description="The router creation request."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-    model_registry: ModelRegistry = Depends(get_model_registry),
-) -> CreateRouterResponse:
-    """
-    Create a model (without any providers).
-    """
-    router_id = await model_registry.create_router(
-        name=body.name,
-        type=body.type,
-        aliases=body.aliases,
-        load_balancing_strategy=body.load_balancing_strategy,
-        cost_prompt_tokens=body.cost_prompt_tokens,
-        cost_completion_tokens=body.cost_completion_tokens,
-        user_id=request_context.get().user_info.id,
-        postgres_session=postgres_session,
-    )
-    return JSONResponse(status_code=201, content=CreateRouterResponse(id=router_id).model_dump())
 
 
 @router.delete(

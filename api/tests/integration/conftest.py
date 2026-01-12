@@ -61,6 +61,7 @@ async def db_session(test_session_factory) -> AsyncGenerator[AsyncSession, None]
                 factories.ProviderForRouterFactory._meta.sqlalchemy_session = session
                 factories.OrganizationFactory._meta.sqlalchemy_session = session
                 factories.LimitFactory._meta.sqlalchemy_session = session
+                factories.PermissionFactory._meta.sqlalchemy_session = session
                 yield session
         finally:
             await session.rollback()

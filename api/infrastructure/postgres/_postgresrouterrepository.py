@@ -1,4 +1,5 @@
-from sqlalchemy import Integer, cast, func, select
+from sqlalchemy import Integer, cast, func, insert, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.router import RouterRepository
@@ -8,12 +9,17 @@ from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 from api.sql.models import User as UserTable
+from api.tasks import add_model_queue_to_running_worker
+from api.utils.exceptions import RouterAliasAlreadyExistsException, RouterAlreadyExistsException
+from api.utils.variables import PREFIX__CELERY_QUEUE_ROUTING
 
 
 class PostgresRouterRepository(RouterRepository):
     def __init__(self, postgres_session: AsyncSession, app_title: str):
+        self.queuing_enabled = False
         self.postgres_session = postgres_session
         self.app_title = app_title
+        self.master_user_id = 0
 
     async def get_organization_name(self, user_id) -> str:
         query = (
@@ -56,7 +62,7 @@ class PostgresRouterRepository(RouterRepository):
         aliases = await self.get_all_aliases()
 
         for row in router_results:
-            user_id = 0 if row["user_id"] is None else row["user_id"]  # 0 corresponds to master user ID
+            user_id = self.master_user_id if row["user_id"] is None else row["user_id"]
             routers.append(
                 Router(
                     id=row["id"],
@@ -85,3 +91,55 @@ class PostgresRouterRepository(RouterRepository):
                 aliases[row.router_id] = []
             aliases[row.router_id].append(row.value)
         return aliases
+
+    async def create_router(
+        self,
+        name: str,
+        type: ModelType,
+        aliases: list[str],
+        load_balancing_strategy: RouterLoadBalancingStrategy,
+        cost_prompt_tokens: float,
+        cost_completion_tokens: float,
+        user_id: str,
+    ) -> list[Router]:
+        user_id = None if user_id == 0 else user_id  # 0 corresponds to master user ID
+        try:
+            query = (
+                insert(RouterTable)
+                .values(
+                    user_id=user_id,
+                    name=name,
+                    type=type.value,
+                    load_balancing_strategy=load_balancing_strategy.value,
+                    cost_prompt_tokens=cost_prompt_tokens,
+                    cost_completion_tokens=cost_completion_tokens,
+                )
+                .returning(RouterTable.id)
+            )
+            result = await self.postgres_session.execute(query)
+            router_id = result.scalar_one()
+        except IntegrityError:
+            await self.postgres_session.rollback()
+            raise RouterAlreadyExistsException()
+
+        # Check names integrity
+        check_names = [name, *aliases]
+        query = select(RouterAliasTable.value).where(RouterAliasTable.value.in_(check_names))
+        result = await self.postgres_session.execute(query)
+        existing_aliases = [alias[0] for alias in result.all()]
+        if existing_aliases:
+            await self.postgres_session.rollback()
+            raise RouterAliasAlreadyExistsException()
+
+        # Add aliases
+        if aliases:
+            for alias in aliases:
+                query = insert(RouterAliasTable).values(value=alias, router_id=router_id)
+                await self.postgres_session.execute(query)
+
+        await self.postgres_session.commit()
+
+        if self.queuing_enabled:
+            add_model_queue_to_running_worker(queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router_id}")
+
+        return router_id

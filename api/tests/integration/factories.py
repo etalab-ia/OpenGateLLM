@@ -12,7 +12,7 @@ from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderTyp
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.core.metrics import Metric
 from api.schemas.models import ModelType
-from api.sql.models import Limit, Organization, Provider, Role, Router, RouterAlias, Token, User
+from api.sql.models import Limit, Organization, Permission, Provider, Role, Router, RouterAlias, Token, User
 
 
 class BaseFactory(SQLAlchemyModelFactory):
@@ -51,6 +51,24 @@ class RoleFactory(BaseFactory):
         user = factory.Trait(name="user")
         guest = factory.Trait(name="guest")
         moderator = factory.Trait(name="moderator")
+
+
+class PermissionFactory(BaseFactory):
+    """Factory for creating permissions for roles."""
+
+    class Meta:
+        model = Permission
+
+    role_id = None
+    role = factory.SubFactory(RoleFactory)
+    permission = factory.Faker("random_element", elements=list(PermissionType))
+    created = factory.LazyFunction(lambda: datetime.now())
+
+    class Params:
+        admin = factory.Trait(permission=PermissionType.ADMIN)
+        create_public_coolection = factory.Trait(permission=PermissionType.CREATE_PUBLIC_COLLECTION)
+        read_metric = factory.Trait(permission=PermissionType.READ_METRIC)
+        provide_models = factory.Trait(permission=PermissionType.PROVIDE_MODELS)
 
 
 class UserFactory(SQLAlchemyModelFactory):
