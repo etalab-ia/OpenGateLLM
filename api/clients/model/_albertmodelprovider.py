@@ -23,7 +23,7 @@ class AlbertModelProvider(BaseModelProvider):
         ENDPOINT__CHAT_COMPLETIONS: "/v1/chat/completions",
         ENDPOINT__EMBEDDINGS: "/v1/embeddings",
         ENDPOINT__MODELS: "/v1/models",
-        ENDPOINT__OCR: "/v1/chat/completions",
+        ENDPOINT__OCR: "/v1/ocr",
         ENDPOINT__RERANK: "/v1/rerank",
     }
 
