@@ -8,6 +8,7 @@ from redis.asyncio import Redis as AsyncRedis
 
 from api.helpers.load_balancing import BaseLoadBalancingStrategy
 from api.schemas.core.metrics import Metric
+from api.utils.redis import safe_redis_reset
 from api.utils.variables import PREFIX__REDIS_METRIC_TIMESERIE, REDIS__TIMESERIE_RETENTION_SECONDS
 
 logger = logging.getLogger(__name__)
@@ -71,8 +72,8 @@ class LeastBusyLoadBalancingStrategy(BaseLoadBalancingStrategy):
                 series = [(ts, val) for ts, val in result]
 
             except Exception as e:
-                logger.error(f"Failed to fetch timeseries for {key}: {e}", exc_info=True)
-                await self.redis_client.reset()
+                logger.debug(f"Failed to fetch timeseries for {key}: {e}", exc_info=True)
+                await safe_redis_reset(self.redis_client)
                 series = []
 
             if not series:

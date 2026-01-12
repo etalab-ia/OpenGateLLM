@@ -1,74 +1,58 @@
 # ----------------------------------- models ------------------------------------
-models:
-  - name: albert-large
-    type: image-text-to-text
-    owned_by: test
-    cost_prompt_tokens: 1
-    cost_completion_tokens: 3
-    aliases: ["mistralai/Mistral-Small-3.1-24B-Instruct-2503"]
-    providers:
-      - type: albert
-        key: ${ALBERT_API_KEY}
-        timeout: 120
-        model_name: albert-large
-        model_total_params: 24
-        model_active_params: 24
-        model_hosting_zone: FRA
-        max_parallel_requests: 5
-  
-  - name: albert-small
+models:  
+  - name: mistralai/Ministral-3-8B-Instruct-2512
     type: text-generation
     load_balancing_strategy: shuffle
-    aliases: ["meta-llama/Llama-3.1-8B-Instruct"]
+    aliases: ["openweight-small"]
     cost_prompt_tokens: 1
     cost_completion_tokens: 3
     providers:
       - type: albert
         key: ${ALBERT_API_KEY}
         timeout: 120
-        model_name: albert-small
+        model_name: mistralai/Ministral-3-8B-Instruct-2512
         model_total_params: 8
         model_active_params: 8
         model_hosting_zone: FRA
         qos_metric: inflight
         qos_limit: 5
 
-  - name: embeddings-small
+  - name: BAAI/bge-m3
     type: text-embeddings-inference
-    aliases: ["BAAI/bge-m3"]
+    aliases: ["openweight-embedding"]
     cost_prompt_tokens: 1
     cost_completion_tokens: 3
     providers:
       - type: albert
         key: ${ALBERT_API_KEY}
         timeout: 120
-        model_name: embeddings-small
+        model_name: BAAI/bge-m3
         model_total_params: 8
         model_active_params: 8
         model_hosting_zone: FRA
         max_parallel_requests: 5
 
-  - name: audio-large
+  - name: openai/whisper-large-v3
     type: automatic-speech-recognition
-    aliases: ["openai/whisper-large-v3"]
+    aliases: ["openweight-audio"]
     providers:
       - type: albert
         key: ${ALBERT_API_KEY}
         timeout: 120
-        model_name: audio-large
+        model_name: openai/whisper-large-v3
         model_total_params: 8
         model_active_params: 8
         model_hosting_zone: FRA
         max_parallel_requests: 5
 
-  - name: rerank-small
+  - name: BAAI/bge-reranker-v2-m3
     type: text-classification
-    aliases: ["BAAI/bge-reranker-v2-m3"]
+    aliases: ["openweight-reranker"]
     providers:
       - type: albert
         key: ${ALBERT_API_KEY}
         timeout: 120
-        model_name: rerank-small
+        model_name: BAAI/bge-reranker-v2-m3
         model_total_params: 8
         model_active_params: 8
         model_hosting_zone: FRA
@@ -91,7 +75,14 @@ dependencies:
 
   redis:
     url: redis://:changeme@localhost:${REDIS_PORT:-6379}
-
+    max_connections: 200
+    socket_keepalive: True
+    socket_connect_timeout: 5
+    retry_on_timeout: True
+    health_check_interval: 30
+    decode_responses: False
+    socket_keepalive: True
+  
   elasticsearch:
     hosts: http://localhost:${ELASTICSEARCH_PORT:-9200}
     basic_auth:

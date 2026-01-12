@@ -40,7 +40,7 @@ async def get_redis_client() -> AsyncRedis:
         AsyncRedis: A Redis client instance using the global connection pool.
     """
 
-    client = await redis.Redis.from_pool(connection_pool=global_context.redis_pool)
+    client = redis.Redis(connection_pool=global_context.redis_pool)
 
     yield client
 

@@ -19,6 +19,7 @@ from api.schemas.usage import Detail, Usage
 from api.utils.carbon import get_carbon_footprint
 from api.utils.context import generate_request_id, global_context, request_context
 from api.utils.exceptions import ModelIsTooBusyException
+from api.utils.redis import redis_retry, safe_redis_reset
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -296,7 +297,7 @@ class BaseModelProvider(ABC):
                 await redis_client.ts().add(key=key, timestamp=int(time.time() * 1000), value=ttft)
         except Exception:
             logger.error(f"Failed to log request metrics (TTFT) in redis (id: {self.id})", exc_info=True)
-            await redis_client.reset()
+            await safe_redis_reset(redis_client)
 
         try:
             if latency is not None:
@@ -306,7 +307,7 @@ class BaseModelProvider(ABC):
                 await redis_client.ts().add(key=key, timestamp=int(time.time() * 1000), value=latency)
         except Exception:
             logger.error(f"Failed to log request metrics (latency) in redis (id: {self.id})", exc_info=True)
-            await redis_client.reset()
+            await safe_redis_reset(redis_client)
 
     async def forward_request(
         self,
@@ -340,10 +341,7 @@ class BaseModelProvider(ABC):
 
         inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
         try:
-            try:
-                await redis_client.incr(name=inflight_key)
-            except Exception:
-                logger.error("Unable to increment redis inflight key")
+            await redis_retry(redis_client.incr, name=inflight_key, max_retries=2)
 
             async with httpx.AsyncClient(timeout=self.timeout) as async_client:
                 try:
@@ -377,10 +375,7 @@ class BaseModelProvider(ABC):
                         message = response.text
                     raise HTTPException(status_code=response.status_code, detail=message)
         finally:
-            try:
-                await redis_client.decr(name=inflight_key)
-            except Exception:
-                logger.error("Unable to decrement redis requests inflight key")
+            await redis_retry(redis_client.decr, name=inflight_key, max_retries=2)
 
         # add additional data to the response
         request_latency = end_time - start_time

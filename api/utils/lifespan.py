@@ -68,11 +68,11 @@ async def lifespan(app: FastAPI):
 
 
 async def _setup_redis_pool(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
-    redis_pool = redis.ConnectionPool.from_url(url=configuration.dependencies.redis.url)
-    redis_pool.url = configuration.dependencies.redis.url
+    redis_pool = redis.ConnectionPool.from_url(**configuration.dependencies.redis.model_dump())
+    redis_pool.url = configuration.dependencies.redis.url  # for celery
 
     # check if redis is reachable
-    redis_client = redis.Redis.from_pool(connection_pool=redis_pool)
+    redis_client = redis.Redis(connection_pool=redis_pool)
     ping = await redis_client.ping()
     assert ping, "Redis database is not reachable."
     await redis_client.aclose()

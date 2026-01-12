@@ -17,7 +17,7 @@ _redis_pool = None
 def init_redis_pool(**kwargs):
     """Initialize Redis connection pool when Celery worker starts."""
     global _redis_pool
-    _redis_pool = ConnectionPool.from_url(url=configuration.dependencies.redis.url)
+    _redis_pool = ConnectionPool.from_url(**configuration.dependencies.redis.model_dump())
     logger.info("Redis connection pool initialized for Celery worker")
 
 
@@ -33,7 +33,7 @@ def get_redis_client() -> Redis:
     """
     if _redis_pool is None:
         raise RuntimeError("Redis pool not initialized. This function should only be called within Celery tasks after worker initialization.")
-    return Redis.from_pool(connection_pool=_redis_pool)
+    return Redis(connection_pool=_redis_pool)
 
 
 app = Celery(main=configuration.settings.app_title)
