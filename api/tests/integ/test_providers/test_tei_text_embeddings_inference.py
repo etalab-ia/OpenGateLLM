@@ -42,6 +42,7 @@ def setup_tei_test_embeddings_inference(client: TestClient):
         raise e
     finally:
         kill_openmockllm(process=process)
+        pass
 
 
 @pytest.mark.usefixtures("client", "setup_tei_test_embeddings_inference")
@@ -51,7 +52,7 @@ class TestMistral:
 
         key, model_name = setup_tei_test_embeddings_inference
 
-        response = client.post_without_permissions(
+        response = client.post(
             f"/v1{ENDPOINT__EMBEDDINGS}",
             json={
                 "model": model_name,

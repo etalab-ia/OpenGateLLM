@@ -1,5 +1,6 @@
 import datetime as dt
 import logging
+from pathlib import Path
 import random
 import subprocess
 import time
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 def generate_test_id(prefix: str) -> str:
-    return f"{prefix}_{dt.datetime.now().strftime("%Y%m%d%H%M%S")}_{uuid4()}"
+    return f"{prefix}_{dt.datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid4()}"
 
 
 def run_openmockllm(test_id: str, **kwargs) -> subprocess.Popen:
@@ -51,11 +52,23 @@ def run_openmockllm(test_id: str, **kwargs) -> subprocess.Popen:
         command.append(f"--{key}")
         command.append(str(value))
 
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # Create logs directory if it doesn't exist
+    logs_dir = Path("logs/openmockllm")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create log file with unique name
+    log_file_path = logs_dir / f"openmockllm_{test_id}_{port}.log"
+    log_file = open(log_file_path, "w")
+
+    logger.info(f"openmockllm logs will be written to: {log_file_path.absolute()}")
+
+    process = subprocess.Popen(command, stdout=log_file, stderr=log_file)
 
     url = f"http://localhost:{port}"
     process.url = url
     process.model_name = model_name
+    process.log_file = log_file
+    process.log_file_path = log_file_path
 
     # Wait for the server to be ready with health check
     max_retries = 30  # 30 seconds max wait time
@@ -64,20 +77,24 @@ def run_openmockllm(test_id: str, **kwargs) -> subprocess.Popen:
         # Check if process has terminated unexpectedly
         returncode = process.poll()
         if returncode is not None:
-            # Process has terminated, try to read stderr for error message
+            # Process has terminated, try to read error from log file
             error_msg = "Unknown error"
             try:
                 # Use wait with timeout to avoid blocking indefinitely
                 process.wait(timeout=0.1)
-                # Process has finished, try to read stderr
-                if process.stderr:
-                    stderr_data = process.stderr.read()
-                    if stderr_data:
-                        error_msg = stderr_data.decode(errors="replace")
-            except (subprocess.TimeoutExpired, AttributeError):
-                # stderr might not be readable or process already finished
+                # Try to read the log file for error message
+                if hasattr(process, "log_file_path") and process.log_file_path.exists():
+                    process.log_file.flush()  # Ensure all data is written
+                    error_msg = process.log_file_path.read_text()[-1000:]  # Last 1000 chars
+            except Exception:
+                # Log file might not be readable
                 pass
-            raise RuntimeError(f"openmockllm process failed to start. " f"Process exited with code {returncode}. Error: {error_msg}")
+            raise RuntimeError(
+                f"openmockllm process failed to start. "
+                f"Process exited with code {returncode}. "
+                f"Check logs at {process.log_file_path if hasattr(process, 'log_file_path') else 'unknown'}. "
+                f"Error: {error_msg}"
+            )
 
         try:
             # Check if the server is responding by calling /v1/models endpoint
@@ -96,20 +113,23 @@ def run_openmockllm(test_id: str, **kwargs) -> subprocess.Popen:
                     error_msg = "Unknown error"
                     try:
                         process.wait(timeout=0.1)
-                        if process.stderr:
-                            stderr_data = process.stderr.read()
-                            if stderr_data:
-                                error_msg = stderr_data.decode(errors="replace")
-                    except (subprocess.TimeoutExpired, AttributeError):
+                        # Try to read the log file for error message
+                        if hasattr(process, "log_file_path") and process.log_file_path.exists():
+                            process.log_file.flush()  # Ensure all data is written
+                            error_msg = process.log_file_path.read_text()[-1000:]  # Last 1000 chars
+                    except Exception:
                         pass
                     raise RuntimeError(
                         f"openmockllm process failed to start after {max_retries} attempts. "
-                        f"Process exited with code {returncode}. Error: {error_msg}"
+                        f"Process exited with code {returncode}. "
+                        f"Check logs at {process.log_file_path if hasattr(process, 'log_file_path') else 'unknown'}. "
+                        f"Error: {error_msg}"
                     )
                 else:
                     raise RuntimeError(
                         f"openmockllm server at {url} did not become ready after {max_retries} attempts. "
-                        f"Process is still running but not responding."
+                        f"Process is still running but not responding. "
+                        f"Check logs at {process.log_file_path if hasattr(process, 'log_file_path') else 'unknown'}"
                     )
 
     return process
@@ -123,6 +143,13 @@ def kill_openmockllm(process: subprocess.Popen) -> None:
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait()
+    finally:
+        # Close log file if it exists
+        if hasattr(process, "log_file") and process.log_file:
+            try:
+                process.log_file.close()
+            except Exception:
+                pass
 
 
 def create_router(model_name: str, model_type: ModelType, client: TestClient) -> int:
@@ -157,7 +184,7 @@ def create_provider(router_id: int, provider_url: str, provider_key: str, provid
 
 def create_role(router_id: int, client: TestClient) -> int:
     payload = CreateRole(
-        name=f"test-role-{dt.datetime.now().strftime("%Y%m%d%H%M%S")}",
+        name=f"test-role-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}",
         limits=[
             Limit(router=router_id, type=LimitType.RPM, value=None),
             Limit(router=router_id, type=LimitType.RPD, value=None),
@@ -175,8 +202,8 @@ def create_role(router_id: int, client: TestClient) -> int:
 
 def create_user(role_id: int, client: TestClient) -> int:
     payload = CreateUser(
-        name=f"test-user-{dt.datetime.now().strftime("%Y%m%d%H%M%S")}",
-        email=f"test-user-{dt.datetime.now().strftime("%Y%m%d%H%M%S")}@example.com",
+        name=f"test-user-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}",
+        email=f"test-user-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}@example.com",
         role=role_id,
         password="test-password",
     )
