@@ -20,7 +20,7 @@ from api.utils.variables import ENDPOINT__OCR
 
 
 @pytest.fixture(scope="module")
-def setup_mistral_image_to_text_model_and_user(client: TestClient):
+def setup_mistral_image_to_text(client: TestClient):
     test_id = generate_test_id(prefix="TestUsage")
     process = run_openmockllm(test_id=test_id, backend="mistral")
     try:
@@ -35,7 +35,7 @@ def setup_mistral_image_to_text_model_and_user(client: TestClient):
         )
         role_id = create_role(router_id=router_id, client=client)
         user_id = create_user(role_id=role_id, client=client)
-        _, key = create_token(user_id=user_id, token_name=f"test-token-{dt.datetime.now().strftime("%Y%m%d%H%M%S")}", client=client)
+        _, key = create_token(user_id=user_id, token_name=f"test-token-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}", client=client)
 
         yield key, process.model_name
     except Exception as e:
@@ -46,7 +46,7 @@ def setup_mistral_image_to_text_model_and_user(client: TestClient):
 
 @pytest.mark.usefixtures("client", "setup_mistral_image_to_text_model_and_user")
 class TestMistral:
-    def test_mistral_image_to_text_successful(self, client: TestClient, setup_mistral_image_to_text_model_and_user):
+    def test_mistral_ocr_successful(self, client: TestClient, setup_mistral_image_to_text_model_and_user: tuple[str, str]):
         """Test successful OCR processing of a PDF file."""
 
         key, model_name = setup_mistral_image_to_text_model_and_user
