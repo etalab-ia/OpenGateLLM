@@ -5,6 +5,8 @@ from urllib.parse import urljoin
 
 import httpx
 
+from api.schemas.admin.providers import ProviderType
+from api.schemas.rerank import CreateRerank, Reranks
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -95,9 +97,9 @@ class TeiModelProvider(BaseModelProvider):
             data["model"] = self.name
 
         if endpoint.endswith(ENDPOINT__RERANK):
-            query = json.get("query") or json.get("prompt")
-            texts = json.get("documents") or json.get("input")
-            json = {"query": query, "texts": texts, "top_n": json.get("top_n")}
+            top_n = json.get("top_n")
+            json = CreateRerank(**json).format(provider=ProviderType.TEI).model_dump()
+            json["top_n"] = top_n  # @TODO: remove after request context feature is implemented
 
         return url, json, files, data
 
@@ -126,28 +128,10 @@ class TeiModelProvider(BaseModelProvider):
 
         content_type = response.headers.get("Content-Type", "")
         if content_type == "application/json":
-            data = response.json()
-
-            if isinstance(data, list):  # for TEI reranking
-                top_n = json.get("top_n") if isinstance(json, dict) else None
-                if top_n and isinstance(data, list) and len(data) > top_n:
-                    data = data[:top_n]
-                data = {"data": data}
+            raw_response = response.json()
+            data = Reranks.build_from(provider=ProviderType.TEI, response=raw_response, top_n=json.get("top_n")).model_dump()
             data.update(self._get_additional_data(json=json, data=data, stream=False, endpoint=endpoint, request_latency=request_latency))
             data.update(additional_data)
-
-            if "data" in data and "results" not in data:
-                items = data.get("data", [])
-                transformed = []
-                for item in items:
-                    if isinstance(item, dict):
-                        new_item = item.copy()
-                        if "score" in new_item:
-                            new_item["relevance_score"] = new_item.pop("score")
-                        transformed.append(new_item)
-                    else:
-                        transformed.append(item)
-                data["results"] = transformed
 
             response = httpx.Response(status_code=response.status_code, content=dumps(data))
 

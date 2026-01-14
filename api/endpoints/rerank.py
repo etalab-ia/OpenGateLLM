@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
-from api.schemas.rerank import RerankRequest, Reranks
+from api.schemas.rerank import CreateRerank, Reranks
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
 from api.utils.hooks_decorator import hooks
 from api.utils.variables import ENDPOINT__RERANK, ROUTER__RERANK
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__RERANK.title()])
 @hooks
 async def rerank(
     request: Request,
-    body: RerankRequest,
+    body: CreateRerank,
     model_registry: ModelRegistry = Depends(get_model_registry),
     redis_client: AsyncRedis = Depends(get_redis_client),
     postgres_session: AsyncSession = Depends(get_postgres_session),
@@ -37,17 +37,6 @@ async def rerank(
         request_context=request_context,
     )
     payload = body.model_dump()  # dict of the incoming payload
-
-    # If documents provided, override input and remove documents
-    if payload.get("documents") is not None:
-        payload["input"] = payload["documents"]
-        payload.pop("documents", None)
-
-    # If query provided and not empty, override prompt and remove query
-    query_val = payload.get("query")
-    if query_val is not None and (isinstance(query_val, str) and query_val.strip() != ""):
-        payload["prompt"] = query_val.strip()
-        payload.pop("query", None)
 
     # Forward the normalized payload
     response = await model_provider.forward_request(
