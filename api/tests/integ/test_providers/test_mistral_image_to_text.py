@@ -45,7 +45,7 @@ def setup_mistral_image_to_text(client: TestClient):
 
 
 @pytest.mark.usefixtures("client", "setup_mistral_image_to_text")
-class TestMistral:
+class TestMistralImageToText:
     def test_mistral_ocr_successful(self, client: TestClient, setup_mistral_image_to_text: tuple[str, str]):
         """Test successful OCR processing of a PDF file."""
 

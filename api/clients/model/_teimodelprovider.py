@@ -129,7 +129,10 @@ class TeiModelProvider(BaseModelProvider):
         content_type = response.headers.get("Content-Type", "")
         if content_type == "application/json":
             raw_response = response.json()
-            data = Reranks.build_from(provider=ProviderType.TEI, response=raw_response, top_n=json.get("top_n")).model_dump()
+            if endpoint == ENDPOINT__RERANK:
+                data = Reranks.build_from(provider=ProviderType.TEI, response=raw_response, top_n=json.get("top_n")).model_dump()
+            else:
+                data = raw_response
             data.update(self._get_additional_data(json=json, data=data, stream=False, endpoint=endpoint, request_latency=request_latency))
             data.update(additional_data)
 
