@@ -53,23 +53,27 @@ class Limiter:
         if value is None:
             return True
 
+        granularity = "minute"
         try:
             if type == LimitType.TPM:
                 limit = RateLimitItemPerMinute(amount=value)
             elif type == LimitType.TPD:
                 limit = RateLimitItemPerDay(amount=value)
+                granularity = "day"
             elif type == LimitType.RPM:
                 limit = RateLimitItemPerMinute(amount=value)
             elif type == LimitType.RPD:
                 limit = RateLimitItemPerDay(amount=value)
+                granularity = "day"
 
             key = f"{PREFIX__REDIS_RATE_LIMIT}:{type.value}:{user_id}:{router_id}"
             result = await self.strategy.hit(limit, key, cost=cost)
 
-            if not result:
-                res = await self.redis.ttl(key)
+            if result:
+                full_key = f"LIMITS:LIMITER/{key}/{value}/1/{granularity}"
+                res = await self.redis.ttl(full_key)
                 if res == -1:
-                    await self.redis.delete(key)
+                    await self.redis.delete(full_key)
 
             return result
 
