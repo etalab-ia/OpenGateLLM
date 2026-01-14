@@ -107,7 +107,7 @@ class TestChat:
         params = {
             "model": MODEL_ID,
             "messages": [{"role": "user", "content": "Hello, how are you?"}],
-            "guided_regex": 10,  # this param must be a string (see  https://github.com/vllm-project/vllm/blob/86cbd2eee97a98df59c531c34d2aeff5a2b5765d/vllm/entrypoints/openai/protocol.py#L328)
+            "ignore_eos": 10,  # this param must be a bool (see  https://github.com/vllm-project/vllm/blob/86cbd2eee97a98df59c531c34d2aeff5a2b5765d/vllm/entrypoints/openai/protocol.py#L328)
             "stream": False,
             "n": 1,
             "max_tokens": 10,

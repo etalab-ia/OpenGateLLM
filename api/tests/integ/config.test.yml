@@ -45,19 +45,6 @@ models:
         model_hosting_zone: FRA
         max_parallel_requests: 5
 
-  - name: BAAI/bge-reranker-v2-m3
-    type: text-classification
-    aliases: ["openweight-reranker"]
-    providers:
-      - type: albert
-        key: ${ALBERT_API_KEY}
-        timeout: 120
-        model_name: BAAI/bge-reranker-v2-m3
-        model_total_params: 8
-        model_active_params: 8
-        model_hosting_zone: FRA
-        max_parallel_requests: 5
-
 # -------------------------------- dependencies ---------------------------------
 dependencies:
   postgres:
