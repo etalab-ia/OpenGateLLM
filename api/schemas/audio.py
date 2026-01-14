@@ -2,10 +2,11 @@ from enum import Enum
 from typing import Literal
 
 from fastapi import Form
-from openai.types.audio import Transcription
 from pydantic import Field
 
 from api.schemas import BaseModel
+from api.schemas.admin.providers import ProviderType
+from api.schemas.core.models import RequestContent
 from api.schemas.usage import Usage
 from api.utils.variables import SUPPORTED_LANGUAGES
 
@@ -21,34 +22,34 @@ AudioTranscriptionResponseFormatForm: Literal["json", "text"] = Form(default="js
 AudioTranscriptionTemperatureForm: float = Form(default=0, ge=0, le=1, description="The sampling temperature, between 0 and 1. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. If set to 0, the model will use log probability to automatically increase the temperature until certain thresholds are hit.")  # fmt: off
 
 
-class AudioTranscription(Transcription):
-    id: str = Field(default=None, description="A unique identifier for the audio transcription.")
-    text: str = Field()
-    usage: Usage | None = Field(default=None, description="Usage statistics for the transcription request.")
+class CreateAudioTranscription(BaseModel):
+    model: str = AudioTranscriptionModelForm
+    language: AudioTranscriptionLanguage | Literal[""] = AudioTranscriptionLanguageForm
+    prompt: str = AudioTranscriptionPromptForm
+    response_format: Literal["json", "text"] = AudioTranscriptionResponseFormatForm
+    temperature: float = AudioTranscriptionTemperatureForm
 
 
-class Word(BaseModel):
-    word: str
-    start: float
-    end: float
+class AudioTranscription(BaseModel):
+    id: str = Field(default=..., description="A unique identifier for the audio transcription.")
+    text: str = Field(default=..., description="The transcription text.")
+    model: str = Field(default=..., description="The model used to generate the transcription.")
+    usage: Usage = Field(default_factory=Usage, description="Usage information for the request.")
 
+    @classmethod
+    def build_from(cls, provider_type: ProviderType, request_content: RequestContent, response_data: dict) -> "AudioTranscription":
+        match provider_type:
+            case ProviderType.ALBERT:
+                response_data.update(request_content.additional_data)
+                return cls(**response_data)
 
-class Segment(BaseModel):
-    id: int
-    seek: int
-    start: float
-    end: float
-    text: str
-    tokens: list[int]
-    temperature: float
-    avg_logprob: float
-    compression_ratio: float
-    no_speech_prob: float
+            case ProviderType.MISTRAL:
+                text = response_data["choices"][0]["message"]["content"]
+                return cls(text=text, **request_content.additional_data)
 
+            case ProviderType.VLLM:
+                response_data.update(request_content.additional_data)
+                return cls(**response_data)
 
-class AudioTranscriptionVerbose(AudioTranscription):
-    language: str
-    duration: float
-    text: str
-    words: list[Word]
-    segments: list[Segment]
+            case _:
+                raise NotImplementedError(f"Provider {provider_type} not implemented")

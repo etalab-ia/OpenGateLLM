@@ -51,7 +51,7 @@ class TestMistralImageToText:
 
         key, model_name = setup_mistral_image_to_text
 
-        response = client.post_without_permissions(
+        response = client.post(
             f"/v1{ENDPOINT__OCR}",
             json={"model": model_name, "document": {"type": "document_url", "document_url": "https://www.princexml.com/samples/magic6/magic.pdf"}},
             headers={"Authorization": f"Bearer {key}"},

@@ -13,11 +13,13 @@ import httpx
 from redis.asyncio import Redis as AsyncRedis
 
 from api.schemas.admin.providers import ProviderType
+from api.schemas.audio import AudioTranscription
 from api.schemas.core.models import Metric, RequestContent
+from api.schemas.rerank import Reranks
 from api.schemas.usage import Usage
 from api.utils.carbon import get_carbon_footprint
 from api.utils.context import generate_request_id, global_context, request_context
-from api.utils.exceptions import ModelIsTooBusyException
+from api.utils.exceptions import ModelIsTooBusyException, ResponseFormatFailedException
 from api.utils.redis import redis_retry, safe_redis_reset
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
@@ -54,18 +56,18 @@ class BaseModelProvider(ABC):
         model_total_params: int | None,
         model_active_params: int | None,
     ) -> None:
-        self.name = model_name
-
-        self.hosting_zone = model_hosting_zone
-        self.total_params = model_total_params
-        self.active_params = model_active_params
+        self.model_name = model_name
+        self.model_hosting_zone = model_hosting_zone
+        self.model_total_params = model_total_params
+        self.model_active_params = model_active_params
         self.url = url
         self.key = key
         self.timeout = timeout
 
-        self.id = None  # set by the ModelRegistry when the provider is created
-        self.cost_prompt_tokens = None  # set by the ModelRegistry when the provider is retrieved
-        self.cost_completion_tokens = None  # set by the ModelRegistry when the provider is retrieved
+        self.type: ProviderType | None = None  # set by the child ModelProvider class when the provider is created
+        self.id: int | None = None  # set by the ModelRegistry when the provider is created
+        self.cost_prompt_tokens: float | None = None  # set by the ModelRegistry when the provider is retrieved
+        self.cost_completion_tokens: float | None = None  # set by the ModelRegistry when the provider is retrieved
 
         self.headers = {"Authorization": f"Bearer {self.key}"} if self.key else {}
 
@@ -100,7 +102,7 @@ class BaseModelProvider(ABC):
         url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[ENDPOINT__EMBEDDINGS].lstrip("/"))
 
         async with httpx.AsyncClient() as client:
-            response = await client.post(url=url, headers=self.headers, json={"model": self.name, "input": "hello world"}, timeout=self.timeout)
+            response = await client.post(url=url, headers=self.headers, json={"model": self.model_name, "input": "hello world"}, timeout=self.timeout)
             assert response.status_code == 200, f"Model is not reachable ({response.status_code} - {response.text})."
 
         data = response.json()["data"]
@@ -128,8 +130,7 @@ class BaseModelProvider(ABC):
             Usage | None: The usage data.
         """
 
-        usage = None
-
+        usage = request_context.get().usage
         # In Celery worker processes the FastAPI app initialization (which sets global_context.tokenizer)
         # might not have fully run. Accessing global_context.tokenizer directly could raise AttributeError.
         # We skip usage computation if tokenizer is absent so we still return the provider response.
@@ -137,15 +138,14 @@ class BaseModelProvider(ABC):
         if tokenizer and request_content.endpoint in tokenizer.USAGE_ENDPOINTS:
             try:
                 completion_tokens = 0
-                usage = request_context.get().usage
                 prompt_tokens = tokenizer.get_prompt_tokens(endpoint=request_content.endpoint, body=request_content.json)
                 completion_tokens = tokenizer.get_completion_tokens(endpoint=request_content.endpoint, response_data=response_data, stream=stream)
                 total_tokens = prompt_tokens + completion_tokens
 
                 carbon_footprint = get_carbon_footprint(
-                    active_params=self.active_params,
-                    total_params=self.total_params,
-                    model_zone=self.hosting_zone,
+                    active_params=self.model_active_params,
+                    total_params=self.model_total_params,
+                    model_zone=self.model_hosting_zone,
                     token_count=total_tokens,
                     request_latency=request_latency,
                 )
@@ -179,39 +179,59 @@ class BaseModelProvider(ABC):
             content(RequestContent): The formatted request content.
         """
         if "model" in request_content.json:
-            request_content.json["model"] = self.name
+            request_content.json["model"] = self.model_name
 
         if "model" in request_content.form:
-            request_content.form["model"] = self.name
+            request_content.form["model"] = self.model_name
 
         return request_content
 
     def _format_response(self, request_content: RequestContent, response: httpx.Response, request_latency: float = 0.0) -> httpx.Response:
         """
-        Format a response from a provider model and add usage data and model ID to the response. This method can be overridden by a subclass to add additional headers or parameters.
-
-        Args:
-            request_content(RequestContent): The request content to format.
-            response(httpx.Response): The response from the API.
-            request_latency(float): The request latency in seconds.
-
-        Returns:
-            httpx.Response: The formatted response.
+        Format a response from a TEI model, overridden base class method to convert TEI reranking response to a standard response.
         """
+
         content_type = response.headers.get("Content-Type", "")
         if content_type == "application/json":
             response_data = response.json()
+
             usage = self._get_usage(request_content=request_content, response_data=response_data, stream=False, request_latency=request_latency)
 
             if request_context.get().id is None:
-                request_id = response_data.get("id", generate_request_id())
-                request_context.get().id = request_id
-            else:
-                request_id = request_context.get().id
+                if isinstance(response_data, dict) and "id" in response_data:
+                    request_context.get().id = response_data["id"]
+                else:
+                    request_context.get().id = generate_request_id()
 
             additional_data = request_content.additional_data
-            additional_data.update({"id": request_id, "model": request_content.model, "usage": usage.model_dump()})
-            response_data.update(additional_data)
+            additional_data.update({"model": request_content.model, "id": request_context.get().id, "usage": usage.model_dump()})
+
+            try:
+                if request_content.endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
+                    response_data = AudioTranscription.build_from(
+                        provider_type=self.type,
+                        request_content=request_content,
+                        response_data=response_data,
+                    )
+                    if request_content.form.get("response_format") == "text":
+                        response = httpx.Response(status_code=response.status_code, content=response_data.text)
+                        return response
+                    else:
+                        response_data = response_data.model_dump()
+
+                elif request_content.endpoint == ENDPOINT__RERANK:
+                    response_data = Reranks.build_from(
+                        provider_type=self.type,
+                        request_content=request_content,
+                        response_data=response_data,
+                    ).model_dump()
+
+                else:
+                    response_data.update(additional_data)
+            except Exception as e:
+                logger.error(f"Failed to build response from {self.model_name}: {e}.", exc_info=True)
+                raise ResponseFormatFailedException()
+
             response = httpx.Response(status_code=response.status_code, content=dumps(response_data))
 
         return response
@@ -304,7 +324,7 @@ class BaseModelProvider(ABC):
                 ) as e:
                     raise ModelIsTooBusyException(detail=f"Model is too busy ({e}), please try again later")
                 except Exception as e:
-                    logger.exception(msg=f"Failed to forward request to {self.name}: {e}.")
+                    logger.exception(msg=f"Failed to forward request to {self.model_name}: {e}.")
                     raise HTTPException(status_code=500, detail=type(e).__name__)
                 try:
                     response.raise_for_status()
@@ -377,7 +397,7 @@ class BaseModelProvider(ABC):
             request_id = request_context.get().id
 
         additional_data = request_content.additional_data
-        additional_data.update({"model": self.name, "id": request_id, "usage": usage.model_dump()})
+        additional_data.update({"model": self.model_name, "id": request_id, "usage": usage.model_dump()})
         extra_chunk.update(additional_data)
 
         return extra_chunk

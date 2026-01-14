@@ -3,6 +3,7 @@ from urllib.parse import urljoin
 
 import httpx
 
+from api.schemas.admin.providers import ProviderType
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -49,6 +50,7 @@ class VllmModelProvider(BaseModelProvider):
             model_total_params=model_total_params,
             model_active_params=model_active_params,
         )
+        self.type = ProviderType.VLLM
 
     async def get_max_context_length(self) -> int | None:
         url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[ENDPOINT__MODELS].lstrip("/"))
@@ -58,12 +60,12 @@ class VllmModelProvider(BaseModelProvider):
                 response = await client.get(url=url, headers=self.headers, timeout=self.timeout)
                 response.raise_for_status()
         except Exception as e:
-            logger.error(f"Error getting max context length for {self.name}: {e}", exc_info=True)
+            logger.error(f"Error getting max context length for {self.model_name}: {e}", exc_info=True)
             raise AssertionError(f"Model is not reachable ({e}).")
 
         data = response.json()
-        models = [model for model in data["data"] if model["id"] == self.name]
-        assert len(models) == 1, f"Model not found ({self.name})."
+        models = [model for model in data["data"] if model["id"] == self.model_name]
+        assert len(models) == 1, f"Model not found ({self.model_name})."
 
         model = models[0]
         max_context_length = model.get("max_model_len")

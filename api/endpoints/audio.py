@@ -79,9 +79,5 @@ async def audio_transcriptions(
         response = PlainTextResponse(content=response.text, status_code=response.status_code)
     else:
         response = JSONResponse(content=AudioTranscription(**response.json()).model_dump(), status_code=response.status_code)
-        # response = JSONResponse(content=response.json(), status_code=response.status_code)
-        # TODO :
-        #  modify AudioTranscription to fit vLLM
-        #  modify the response so that it return a AudioTranscription like vLLM
 
     return response

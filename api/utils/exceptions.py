@@ -258,6 +258,11 @@ class TaskFailedException(HTTPException):
         super().__init__(status_code=status_code, detail=detail)
 
 
+class ResponseFormatFailedException(HTTPException):
+    def __init__(self, detail: str = "Response formatting failed.") -> None:
+        super().__init__(status_code=500, detail=detail)
+
+
 # 503
 class ModelIsTooBusyException(HTTPException):
     def __init__(self, detail: str = "Model is too busy, please try again later.") -> None:

@@ -4,7 +4,7 @@ from pydantic import Field, constr, model_validator
 
 from api.schemas import BaseModel
 from api.schemas.admin.providers import ProviderType
-from api.schemas.core.models import TEICreateRerank, TEIReranks
+from api.schemas.core.models import RequestContent, TEICreateRerank
 from api.schemas.usage import Usage
 
 
@@ -56,34 +56,32 @@ class RerankResult(BaseModel):
 
 class Reranks(BaseModel):
     object: Literal["list"] = "list"
-    id: str = Field(default=..., description="A unique identifier for the reranking.")
+    id: str = Field(default=..., description="A unique identifier for the request.")
     data: list[Rerank] = Field(default=..., description="The list of reranked texts.", deprecated=True)
     results: list[RerankResult] = Field(default=..., description="The list of reranked texts.")
     model: str = Field(default=..., description="The model used to generate the reranking.")
     usage: Usage = Field(default_factory=Usage, description="Usage information for the request.")
 
     @classmethod
-    def build_from(cls, provider: ProviderType, response_data: dict, top_n: int | None):
-        match provider:
+    def build_from(cls, provider_type: ProviderType, request_content: RequestContent, response_data: dict):
+        match provider_type:
             case ProviderType.TEI:
-                try:
-                    response = TEIReranks(root=response_data)
-                except Exception as e:
-                    raise ValueError(f"Invalid response format: {e}")
                 data = []
                 results = []
-                if top_n is not None:
-                    response.root = sorted(response.root, key=lambda x: x.score, reverse=True)[:top_n]
-                for rank in response.root:
-                    data.append(Rerank(index=rank.index, score=rank.score))
-                    results.append(RerankResult(relevance_score=rank.score, index=rank.index))
-                return cls(id="", data=data, results=results, model="")
+                if request_content.additional_data["top_n"] is not None:
+                    response_data = sorted(response_data, key=lambda x: x["score"], reverse=True)[: request_content.additional_data.get("top_n")]
+                    request_content.additional_data.pop("top_n")
+                for rank in response_data:
+                    data.append(Rerank(index=rank["index"], score=rank["score"]))
+                    results.append(RerankResult(relevance_score=rank["score"], index=rank["index"]))
+                return cls(data=data, results=results, **request_content.additional_data)
 
             case ProviderType.ALBERT:
                 try:
+                    response_data.update(request_content.additional_data)
                     return cls(**response_data)
                 except Exception as e:
                     raise ValueError(f"Invalid response format: {e}")
 
             case _:
-                raise NotImplementedError(f"Provider {provider} not implemented")
+                raise NotImplementedError(f"Provider {provider_type} not implemented")

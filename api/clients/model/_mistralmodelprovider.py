@@ -1,12 +1,11 @@
 import base64
-from json import dumps
 import logging
 from urllib.parse import urljoin
 
 import httpx
 
+from api.schemas.admin.providers import ProviderType
 from api.schemas.core.models import RequestContent
-from api.utils.context import generate_request_id, request_context
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -53,7 +52,7 @@ class MistralModelProvider(BaseModelProvider):
             key=key,
             timeout=timeout,
         )
-        self._audio_response_format = "json"
+        self.type = ProviderType.MISTRAL
 
     async def get_max_context_length(self) -> int | None:
         url = urljoin(base=str(self.url), url=self.ENDPOINT_TABLE[ENDPOINT__MODELS].lstrip("/"))
@@ -63,12 +62,12 @@ class MistralModelProvider(BaseModelProvider):
                 response = await client.get(url=url, headers=self.headers, timeout=self.timeout)
                 response.raise_for_status()
         except Exception as e:
-            logger.error(f"Error getting max context length for {self.name}: {e}", exc_info=True)
+            logger.error(f"Error getting max context length for {self.model_name}: {e}", exc_info=True)
             raise AssertionError(f"Model is not reachable ({e}).")
 
         data = response.json()["data"]
-        models = [model for model in data if model["id"] == self.name]
-        assert len(models) == 1, f"Model not found ({self.name})."
+        models = [model for model in data if model["id"] == self.model_name]
+        assert len(models) == 1, f"Model not found ({self.model_name})."
 
         model = models[0]
         max_context_length = model.get("max_context_length")
@@ -82,10 +81,10 @@ class MistralModelProvider(BaseModelProvider):
         """
 
         if "model" in request_content.json:
-            request_content.json["model"] = self.name
+            request_content.json["model"] = self.model_name
 
         if "model" in request_content.form:
-            request_content.form["model"] = self.name
+            request_content.form["model"] = self.model_name
 
         if request_content.endpoint == ENDPOINT__CHAT_COMPLETIONS:
             # see https://docs.mistral.ai/api#operation-chat_completion_v1_chat_completions_post
@@ -124,10 +123,8 @@ class MistralModelProvider(BaseModelProvider):
                     del request_content.json[key]
 
         elif request_content.endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
-            self._audio_response_format = request_content.json.get("response_format", "json")
-
             request_content.json = {
-                "model": self.name,
+                "model": self.model_name,
                 "messages": [
                     {
                         "role": "user",
@@ -152,37 +149,3 @@ class MistralModelProvider(BaseModelProvider):
             request_content.form = {}
 
         return request_content
-
-    def _format_response(
-        self,
-        request_content: RequestContent,
-        response: httpx.Response,
-        request_latency: float = 0.0,
-    ) -> httpx.Response:
-        content_type = response.headers.get("Content-Type", "")
-        if content_type == "application/json":
-            response_data = response.json()
-            usage = self._get_usage(request_content=request_content, response_data=response_data, stream=False, request_latency=request_latency)
-
-            if request_context.get().id is None:
-                request_id = response_data.get("id", generate_request_id())
-                request_context.get().id = request_id
-            else:
-                request_id = request_context.get().id
-
-            additional_data = request_content.additional_data
-            additional_data.update({"model": self.name, "id": request_id, "usage": usage.model_dump()})
-
-            if request_content.endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
-                transcription_text = response_data["choices"][0]["message"]["content"]
-
-                if self._audio_response_format == "text":
-                    response = httpx.Response(status_code=response.status_code, content=transcription_text)
-                    return response
-                else:
-                    # @TODO: add model name
-                    additional_data = {"id": response_data.get("id"), "text": transcription_text, "usage": response_data.get("usage")}
-
-            response = httpx.Response(status_code=response.status_code, content=dumps(additional_data))
-
-        return response
