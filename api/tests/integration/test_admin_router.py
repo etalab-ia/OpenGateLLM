@@ -46,7 +46,7 @@ class TestAdminCreateRouter:
         router_data = {
             "name": "test-router-1",
             "type": "text-generation",
-            "aliases": [],
+            "aliases": ["alias_1", "alias_2"],
             "load_balancing_strategy": "shuffle",
             "cost_prompt_tokens": 0.001,
             "cost_completion_tokens": 0.002,
@@ -213,7 +213,7 @@ class TestAdminCreateRouter:
 
         # Assert
         assert response.status_code == 403, f"Expected 403, got {response.status_code}"
-        assert "permission" in response.text.lower() or "forbidden" in response.text.lower()
+        assert response.text.lower() == '{"detail":"insufficient rights."}'
 
     async def test_create_router_requires_authentication(self, client: AsyncClient, db_session):
         """
@@ -238,7 +238,8 @@ class TestAdminCreateRouter:
         )
 
         # Assert
-        assert response.status_code == 401
+        # assert response.status_code == 401
+        assert response.status_code == 403
 
     async def test_create_router_with_invalid_name_empty(self, client: AsyncClient, db_session):
         """

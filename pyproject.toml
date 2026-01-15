@@ -74,10 +74,11 @@ test = [
     "pytest-xdist==3.6.1",
     "pytest-asyncio==1.0.0",
     "pytest-mock==3.14.1",
-    "respx",
-    "responses",
+    "respx==0.22.0",
+    "responses==0.25.8",
     "openmockllm @ git+https://github.com/etalab-ia/openmockllm.git@main",
     "factory-boy==3.3.3",
+    "gevent==25.9.1"
 
 ]
 
@@ -119,6 +120,7 @@ forced-separate = ["tests"]
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 
 [tool.pytest.ini_options]
+pythonpath = ["."]
 testpaths = ["tests"]
 log_cli = true
 log_cli_level = "INFO"

@@ -80,7 +80,7 @@ class TestGetAllAliases:
         RouterAliasFactory(router=router_4, value="alias2_m4")
         await db_session.flush()
         # Act
-        aliases = await repository.get_all_aliases()
+        aliases = await repository.get_aliases_by_router_id()
         # Assert
         assert aliases == {
             router_1.id: ["alias1_m1", "alias2_m1"],

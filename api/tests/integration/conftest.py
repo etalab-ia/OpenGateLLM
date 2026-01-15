@@ -74,7 +74,14 @@ async def client(db_session) -> AsyncGenerator[AsyncClient, None]:
 
     async def override_get_postgres_session():
         """Override the database session dependency."""
-        yield db_session
+        try:
+            yield db_session
+            if db_session.in_transaction():
+                await db_session.flush()
+        except Exception:
+            if db_session.in_transaction():
+                await db_session.rollback()
+            raise
 
     app.dependency_overrides[get_postgres_session] = override_get_postgres_session
 

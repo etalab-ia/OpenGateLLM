@@ -15,7 +15,7 @@ http_bearer = HTTPBearer()
 async def get_current_key(
     request: Request,
     api_key: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
-    key_repository: KeyRepository = Depends(get_key_repository),  # factory vers PostgresKeyValidator
+    key_repository: KeyRepository = Depends(get_key_repository),
     master_key: str = Depends(get_master_key),
     request_context: RequestContext = Depends(get_request_context),
 ) -> Key:

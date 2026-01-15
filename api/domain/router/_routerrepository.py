@@ -13,14 +13,22 @@ class RouterRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_aliases(self, filtered_names: list[str]) -> list[str]:
+        pass
+
+    @abstractmethod
+    async def insert_aliases(self, aliases: list[str], router_id: int) -> list[str]:
+        pass
+
+    @abstractmethod
     async def create_router(
         self,
         name: str,
-        type: ModelType,
+        router_type: ModelType,
         aliases: list[str],
         load_balancing_strategy: RouterLoadBalancingStrategy,
         cost_prompt_tokens: float,
         cost_completion_tokens: float,
         user_id: str,
-    ) -> list[Router]:
+    ) -> Router:
         pass

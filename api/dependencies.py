@@ -23,10 +23,14 @@ async def get_postgres_session() -> AsyncSession:
 
     session_factory = global_context.postgres_session_factory
     async with session_factory() as postgres_session:
-        yield postgres_session
-
-        if postgres_session.in_transaction():
-            await postgres_session.close()
+        try:
+            yield postgres_session
+            if postgres_session.in_transaction():
+                await postgres_session.commit()
+        except Exception:
+            if postgres_session.in_transaction():
+                await postgres_session.rollback()
+            raise
 
 
 def get_request_context() -> ContextVar[RequestContext]:
