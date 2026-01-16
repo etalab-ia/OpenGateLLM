@@ -1,16 +1,17 @@
 from contextvars import ContextVar
 from typing import Annotated
-from uuid import UUID
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import APIRouter, Depends, Path, Query, Request, Response, Security
 from fastapi.responses import JSONResponse
+from pydantic import StringConstraints
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers.models import ModelRegistry
+from api.schemas.chunks import Chunks, ChunksResponse, CreateChunks
 from api.schemas.core.context import RequestContext
 from api.schemas.documents import CreateDocumentForm, Document, DocumentResponse, Documents
 from api.utils.context import global_context
@@ -22,7 +23,6 @@ from api.utils.dependencies import (
     get_redis_client,
     get_request_context,
 )
-from api.utils.exceptions import CollectionNotFoundException, DocumentNotFoundException
 from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.DOCUMENTS.title()])
@@ -40,21 +40,13 @@ async def create_document(
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
-    Parse a file and create a document.
+    Upload a file, parse and split it into chunks, then create a document. If no file is provided, the document will be created without content, use POST `/v1/documents/{document_id}/chunks` to fill it.
     """
-    if not global_context.document_manager:  # no vector store available
-        raise CollectionNotFoundException()
-
     document_id = await global_context.document_manager.create_document(
-        request_context=request_context,
-        elasticsearch_vector_store=elasticsearch_vector_store,
-        elasticsearch_client=elasticsearch_client,
-        postgres_session=postgres_session,
-        redis_client=redis_client,
-        model_registry=model_registry,
-        collection_id=data.collection,
         file=data.file,
-        chunker=data.chunker,
+        name=data.name,
+        collection_id=data.collection_id,
+        disable_chunking=data.disable_chunking,
         chunk_size=data.chunk_size,
         chunk_min_size=data.chunk_min_size,
         chunk_overlap=data.chunk_overlap,
@@ -62,20 +54,21 @@ async def create_document(
         separators=data.separators,
         preset_separators=data.preset_separators,
         metadata=data.metadata,
+        request_context=request_context,
+        elasticsearch_vector_store=elasticsearch_vector_store,
+        elasticsearch_client=elasticsearch_client,
+        postgres_session=postgres_session,
+        redis_client=redis_client,
+        model_registry=model_registry,
     )
 
     return JSONResponse(content=DocumentResponse(id=document_id).model_dump(), status_code=201)
 
 
-@router.get(
-    path=EndpointRoute.DOCUMENTS + "/{document}",
-    dependencies=[Security(dependency=AccessController())],
-    status_code=200,
-    response_model=Document,
-)
+@router.get(path=EndpointRoute.DOCUMENTS + "/{document_id:path}", dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Document)  # fmt: off
 async def get_document(
     request: Request,
-    document: int = Path(description="The document ID"),
+    document_id: Annotated[int, Path(ge=0, description="The document ID")],
     postgres_session: AsyncSession = Depends(get_postgres_session),
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
@@ -84,14 +77,11 @@ async def get_document(
     """
     Get a document by ID.
     """
-    if not global_context.document_manager:  # no vector store available
-        raise DocumentNotFoundException()
-
     documents = await global_context.document_manager.get_documents(
         postgres_session=postgres_session,
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,
-        document_id=document,
+        document_id=document_id,
         user_id=request_context.get().user_info.id,
     )
 
@@ -101,10 +91,10 @@ async def get_document(
 @router.get(path=EndpointRoute.DOCUMENTS, dependencies=[Security(dependency=AccessController())], status_code=200)
 async def get_documents(
     request: Request,
-    name: str | None = Query(default=None, description="Filter documents by name."),
-    collection: int | None = Query(default=None, description="Filter documents by collection ID"),
-    limit: int | None = Query(default=10, ge=1, le=100, description="The number of documents to return"),
-    offset: int | UUID = Query(default=0, description="The offset of the first document to return"),
+    name: Annotated[str | None, StringConstraints(min_length=1, strip_whitespace=True)] = Query(default=None, description="Filter documents by name"),
+    collection_id: int | None = Query(gt=0, default=None, description="Filter documents by collection ID"),
+    limit: int = Query(ge=1, le=100, default=10, description="The number of documents to return"),
+    offset: int = Query(default=0, description="The offset of the first document to return"),
     postgres_session: AsyncSession = Depends(get_postgres_session),
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
@@ -113,18 +103,11 @@ async def get_documents(
     """
     Get all documents ID from a collection.
     """
-
-    if not global_context.document_manager:  # no vector store available
-        if collection:
-            raise CollectionNotFoundException()
-
-        return Documents(data=[])
-
     data = await global_context.document_manager.get_documents(
         postgres_session=postgres_session,
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,
-        collection_id=collection,
+        collection_id=collection_id,
         document_name=name,
         limit=limit,
         offset=offset,
@@ -134,10 +117,10 @@ async def get_documents(
     return JSONResponse(content=Documents(data=data).model_dump(), status_code=200)
 
 
-@router.delete(path=EndpointRoute.DOCUMENTS + "/{document}", dependencies=[Security(dependency=AccessController())], status_code=204)
+@router.delete(path=EndpointRoute.DOCUMENTS + "/{document_id:path}", dependencies=[Security(dependency=AccessController())], status_code=204)  # fmt: off
 async def delete_document(
     request: Request,
-    document: int = Path(description="The document ID"),
+    document_id: Annotated[int, Path(gt=0, description="The document ID")],
     postgres_session: AsyncSession = Depends(get_postgres_session),
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
@@ -146,15 +129,118 @@ async def delete_document(
     """
     Delete a document.
     """
-    if not global_context.document_manager:  # no vector store available
-        raise DocumentNotFoundException()
-
     await global_context.document_manager.delete_document(
         postgres_session=postgres_session,
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,
-        document_id=document,
+        document_id=document_id,
         user_id=request_context.get().user_info.id,
     )
 
     return Response(status_code=204)
+
+
+@router.post(path=EndpointRoute.DOCUMENTS + "/{document_id:path}/chunks", dependencies=[Security(dependency=AccessController())], status_code=201)  # fmt: off
+async def create_document_chunks(
+    request: Request,
+    document_id: Annotated[int, Path(gt=0, description="The document ID")],
+    body: CreateChunks,
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
+    elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
+    redis_client: AsyncRedis = Depends(get_redis_client),
+    model_registry: ModelRegistry = Depends(get_model_registry),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+) -> JSONResponse:
+    """
+    Fill document with chunks.
+    """
+    chunk_ids = await global_context.document_manager.create_document_chunks(
+        postgres_session=postgres_session,
+        document_id=document_id,
+        chunks=body.chunks,
+        user_id=request_context.get().user_info.id,
+        elasticsearch_vector_store=elasticsearch_vector_store,
+        elasticsearch_client=elasticsearch_client,
+        redis_client=redis_client,
+        model_registry=model_registry,
+        request_context=request_context,
+    )
+
+    return JSONResponse(content=ChunksResponse(document_id=document_id, ids=chunk_ids).model_dump(), status_code=201)
+
+
+@router.delete(path=EndpointRoute.DOCUMENTS + "/{document_id:path}/chunks/{chunk_id:path}", dependencies=[Security(dependency=AccessController())], status_code=204)  # fmt: off
+async def delete_document_chunk(
+    request: Request,
+    document_id: Annotated[int, Path(gt=0, description="The document ID")],
+    chunk_id: Annotated[int, Path(ge=0, description="The chunk ID")],
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
+    elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+) -> Response:
+    """
+    Delete a chunk of a document.
+    """
+    await global_context.document_manager.delete_document_chunk(
+        postgres_session=postgres_session,
+        elasticsearch_vector_store=elasticsearch_vector_store,
+        elasticsearch_client=elasticsearch_client,
+        document_id=document_id,
+        chunk_id=chunk_id,
+        user_id=request_context.get().user_info.id,
+    )
+    return Response(status_code=204)
+
+
+@router.get(path=EndpointRoute.DOCUMENTS + "/{document_id:path}/chunks", dependencies=[Security(dependency=AccessController())], status_code=200)  # fmt: off
+async def get_document_chunks(
+    request: Request,
+    document_id: Annotated[int, Path(gt=0, description="The document ID")],
+    limit: int = Query(ge=1, le=100, default=10, description="The number of chunks to return"),
+    offset: int = Query(default=0, description="The offset of the first chunk to return"),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
+    elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+) -> JSONResponse:
+    """
+    Get chunks of a document.
+    """
+    chunks = await global_context.document_manager.get_document_chunks(
+        postgres_session=postgres_session,
+        elasticsearch_vector_store=elasticsearch_vector_store,
+        elasticsearch_client=elasticsearch_client,
+        document_id=document_id,
+        limit=limit,
+        offset=offset,
+        user_id=request_context.get().user_info.id,
+    )
+
+    return JSONResponse(content=Chunks(data=chunks).model_dump(), status_code=200)
+
+
+@router.get(path=EndpointRoute.DOCUMENTS + "/{document_id:path}/chunks/{chunk_id:path}", dependencies=[Security(dependency=AccessController())],status_code=200)  # fmt: off
+async def get_document_chunk(
+    request: Request,
+    document_id: Annotated[int, Path(gt=0, description="The document ID")],
+    chunk_id: Annotated[int, Path(ge=0, description="The chunk ID")],
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
+    elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+) -> JSONResponse:
+    """
+    Get a chunk of a document.
+    """
+    chunks = await global_context.document_manager.get_document_chunk(
+        postgres_session=postgres_session,
+        elasticsearch_vector_store=elasticsearch_vector_store,
+        elasticsearch_client=elasticsearch_client,
+        document_id=document_id,
+        chunk_id=chunk_id,
+        user_id=request_context.get().user_info.id,
+    )
+
+    return JSONResponse(content=chunks[0].model_dump(), status_code=200)

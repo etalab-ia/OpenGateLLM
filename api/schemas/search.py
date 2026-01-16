@@ -24,9 +24,10 @@ class SearchArgs(BaseModel):
     score_threshold: Annotated[float, Field(default=0.0, ge=0.0, le=1.0, description="Score of cosine similarity threshold for filtering results, only available for semantic search method.")]  # fmt: off
 
     @model_validator(mode="after")
-    def score_threshold_filter(self) -> "SearchArgs":
+    def validate_score_threshold(self) -> "SearchArgs":
         if self.score_threshold > 0.0 and self.method != SearchMethod.SEMANTIC:
             raise WrongSearchMethodException(detail="Score threshold is only available for semantic search method.")
+
         return self
 
 
@@ -42,5 +43,5 @@ class Search(BaseModel):
 
 class Searches(BaseModel):
     object: Annotated[Literal["list"], Field(default="list", description="The type of the object.")]
-    data: Annotated[list[Search], Field(description="Search results.")]
+    data: Annotated[list[Search], Field(description="List of search results.")]
     usage: Annotated[Usage, Field(default_factory=Usage, description="Usage information for the request.")]

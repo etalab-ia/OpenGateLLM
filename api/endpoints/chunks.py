@@ -1,5 +1,3 @@
-from uuid import UUID
-
 from elasticsearch import AsyncElasticsearch
 from fastapi import APIRouter, Depends, Path, Query, Request, Security
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +13,7 @@ from api.utils.variables import EndpointRoute, RouterName
 router = APIRouter(prefix="/v1", tags=[RouterName.CHUNKS.title()])
 
 
-@router.get(path=EndpointRoute.CHUNKS + "/{document:path}/{chunk:path}", dependencies=[Security(dependency=AccessController())], status_code=200)
+@router.get(path=EndpointRoute.CHUNKS + "/{document:path}/{chunk:path}", dependencies=[Security(dependency=AccessController())], status_code=200, deprecated=True)  # fmt: off
 async def get_chunk(
     request: Request,
     document: int = Path(description="The document ID"),
@@ -30,7 +28,7 @@ async def get_chunk(
     if not global_context.document_manager:  # no vector store available
         raise ChunkNotFoundException()
 
-    chunks = await global_context.document_manager.get_chunks(
+    chunks = await global_context.document_manager.get_document_chunks(
         postgres_session=postgres_session,
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,
@@ -42,12 +40,12 @@ async def get_chunk(
     return chunks[0]
 
 
-@router.get(path=EndpointRoute.CHUNKS + "/{document}", dependencies=[Security(dependency=AccessController())], status_code=200)
+@router.get(path=EndpointRoute.CHUNKS + "/{document}", dependencies=[Security(dependency=AccessController())], status_code=200, deprecated=True)  # fmt: off
 async def get_chunks(
     request: Request,
     document: int = Path(description="The document ID"),
     limit: int = Query(default=10, ge=1, le=100, description="The number of documents to return"),
-    offset: int | UUID = Query(default=0, description="The offset of the first document to return"),
+    offset: int = Query(default=0, description="The offset of the first document to return"),
     postgres_session: AsyncSession = Depends(get_postgres_session),
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
@@ -58,7 +56,7 @@ async def get_chunks(
     if not global_context.document_manager:  # no vector store available
         data = []
     else:
-        data = await global_context.document_manager.get_chunks(
+        data = await global_context.document_manager.get_document_chunks(
             postgres_session=postgres_session,
             elasticsearch_vector_store=elasticsearch_vector_store,
             elasticsearch_client=elasticsearch_client,

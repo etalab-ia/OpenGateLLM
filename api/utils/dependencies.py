@@ -12,6 +12,7 @@ from api.helpers._usagemanager import UsageManager
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
 from api.utils.context import global_context, request_context
+from api.utils.exceptions import FeatureNotEnabledException
 
 
 def get_request_context() -> ContextVar[RequestContext]:
@@ -71,6 +72,9 @@ def get_elasticsearch_vector_store() -> ElasticsearchVectorStore:
     """
     Get the ElasticsearchVectorStore instance from the global context.
     """
+
+    if not global_context.elasticsearch_vector_store:
+        raise FeatureNotEnabledException()
 
     return global_context.elasticsearch_vector_store
 

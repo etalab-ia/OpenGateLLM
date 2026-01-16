@@ -23,9 +23,6 @@ async def create_collection(
     """
     Create a new collection.
     """
-    if not global_context.document_manager:  # no vector store available
-        raise CollectionNotFoundException()
-
     collection_id = await global_context.document_manager.create_collection(
         postgres_session=postgres_session,
         name=body.name,
@@ -38,25 +35,22 @@ async def create_collection(
 
 
 @router.get(
-    path=EndpointRoute.COLLECTIONS + "/{collection}",
+    path=EndpointRoute.COLLECTIONS + "/{collection_id:path}",
     dependencies=[Security(dependency=AccessController())],
     status_code=200,
     response_model=Collection,
 )
 async def get_collection(
     request: Request,
-    collection: int = Path(..., description="The collection ID"),
+    collection_id: int = Path(..., description="The collection ID"),
     postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get a collection by ID.
     """
-    if not global_context.document_manager:  # no vector store available
-        raise CollectionNotFoundException()
-
     collections = await global_context.document_manager.get_collections(
         postgres_session=postgres_session,
-        collection_id=collection,
+        collection_id=collection_id,
         user_id=request_context.get().user_info.id,
     )
 
@@ -75,25 +69,22 @@ async def get_collections(
     """
     Get list of collections.
     """
-    if not global_context.document_manager:  # no vector store available
-        data = []
-    else:
-        data = await global_context.document_manager.get_collections(
-            postgres_session=postgres_session,
-            user_id=request_context.get().user_info.id,
-            collection_name=name,
-            visibility=visibility,
-            offset=offset,
-            limit=limit,
-        )
+    data = await global_context.document_manager.get_collections(
+        postgres_session=postgres_session,
+        user_id=request_context.get().user_info.id,
+        collection_name=name,
+        visibility=visibility,
+        offset=offset,
+        limit=limit,
+    )
 
     return JSONResponse(status_code=200, content=Collections(data=data).model_dump())
 
 
-@router.delete(path=EndpointRoute.COLLECTIONS + "/{collection}", dependencies=[Security(dependency=AccessController())], status_code=204)
+@router.delete(path=EndpointRoute.COLLECTIONS + "/{collection_id:path}", dependencies=[Security(dependency=AccessController())], status_code=204)
 async def delete_collection(
     request: Request,
-    collection: int = Path(..., description="The collection ID"),
+    collection_id: int = Path(..., description="The collection ID"),
     postgres_session: AsyncSession = Depends(get_postgres_session),
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
@@ -109,16 +100,16 @@ async def delete_collection(
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,
         user_id=request_context.get().user_info.id,
-        collection_id=collection,
+        collection_id=collection_id,
     )
 
     return Response(status_code=204)
 
 
-@router.patch(path=EndpointRoute.COLLECTIONS + "/{collection}", dependencies=[Security(dependency=AccessController())], status_code=204)
+@router.patch(path=EndpointRoute.COLLECTIONS + "/{collection_id:path}", dependencies=[Security(dependency=AccessController())], status_code=204)
 async def update_collection(
     request: Request,
-    collection: int = Path(..., description="The collection ID"),
+    collection_id: int = Path(..., description="The collection ID"),
     body: CollectionUpdateRequest = Body(..., description="The collection to update."),
     postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> Response:
@@ -131,7 +122,7 @@ async def update_collection(
     await global_context.document_manager.update_collection(
         postgres_session=postgres_session,
         user_id=request_context.get().user_info.id,
-        collection_id=collection,
+        collection_id=collection_id,
         name=body.name,
         visibility=body.visibility,
         description=body.description,
