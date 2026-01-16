@@ -29,18 +29,22 @@ class CreateRerank(BaseModel):
 
         return self
 
-    def format(self, provider: ProviderType):
-        match provider:
+    @staticmethod
+    def format_request(provider_type: ProviderType, request_content: RequestContent):
+        match provider_type:
             case ProviderType.ALBERT:
-                return self
+                return request_content
 
             case ProviderType.TEI:
-                query = self.query if self.query else self.prompt
-                texts = self.input if self.input else self.documents
-                return TEICreateRerank(query=query, texts=texts)
+                request_content.additional_data["top_n"] = request_content.json.get("top_n")
+                query = request_content.json.get("query") or request_content.json.get("prompt")
+                texts = request_content.json.get("input") or request_content.json.get("documents")
+                request_content.json = TEICreateRerank(query=query, texts=texts).model_dump()
+
+                return request_content
 
             case _:
-                raise NotImplementedError(f"Provider {provider} not implemented")
+                raise NotImplementedError(f"Provider {provider_type} not implemented")
 
 
 class Rerank(BaseModel):
@@ -65,6 +69,10 @@ class Reranks(BaseModel):
     @classmethod
     def build_from(cls, provider_type: ProviderType, request_content: RequestContent, response_data: dict):
         match provider_type:
+            case ProviderType.ALBERT:
+                response_data.update(request_content.additional_data)
+                return cls(**response_data)
+
             case ProviderType.TEI:
                 data = []
                 results = []
@@ -75,13 +83,6 @@ class Reranks(BaseModel):
                     data.append(Rerank(index=rank["index"], score=rank["score"]))
                     results.append(RerankResult(relevance_score=rank["score"], index=rank["index"]))
                 return cls(data=data, results=results, **request_content.additional_data)
-
-            case ProviderType.ALBERT:
-                try:
-                    response_data.update(request_content.additional_data)
-                    return cls(**response_data)
-                except Exception as e:
-                    raise ValueError(f"Invalid response format: {e}")
 
             case _:
                 raise NotImplementedError(f"Provider {provider_type} not implemented")

@@ -5,7 +5,6 @@ description = "OpenGateLLM project"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = [
-    "openai==1.63.0",
     "requests==2.32.4",
     "pydantic==2.10.6",
     "pydantic-settings==2.7.1",
@@ -27,6 +26,8 @@ api = [
     "ecologits==0.8.2",
     "itsdangerous>=2.2.0",
     "cryptography>=3.4.8",
+    "openai>=2.15.0",
+    "mistralai==1.10.0",
 
     # data
     "langchain-text-splitters==0.3.8",

@@ -3,38 +3,38 @@ from fastapi import HTTPException
 
 # 400
 class MasterNotAllowedException(HTTPException):
-    def __init__(self, detail: str = "Master is not allowed to process this action."):
+    def __init__(self, detail: str = "Master is not allowed to process this action.") -> None:
         super().__init__(status_code=400, detail=detail)
 
 
 class WrongSearchMethodException(HTTPException):
-    def __init__(self, detail: str = "Wrong search method."):
+    def __init__(self, detail: str = "Wrong search method.") -> None:
         super().__init__(status_code=400, detail=detail)
 
 
 class InsufficientBudgetException(HTTPException):
-    def __init__(self, detail: str = "Insufficient budget."):
+    def __init__(self, detail: str = "Insufficient budget.") -> None:
         super().__init__(status_code=400, detail=detail)
 
 
 class InvalidTokenExpirationException(HTTPException):
-    def __init__(self, detail: str = "Invalid token expiration."):
+    def __init__(self, detail: str = "Invalid token expiration.") -> None:
         super().__init__(status_code=400, detail=detail)
 
 
 class InvalidProviderTypeException(HTTPException):
-    def __init__(self, detail: str = "Invalid model provider type for this model router type."):
+    def __init__(self, detail: str = "Invalid model provider type for this model router type.") -> None:
         super().__init__(status_code=400, detail=detail)
 
 
 # 401
 class InvalidCurrentPasswordException(HTTPException):
-    def __init__(self, detail: str = "Invalid current password."):
+    def __init__(self, detail: str = "Invalid current password.") -> None:
         super().__init__(status_code=401, detail=detail)
 
 
 class InvalidPasswordException(HTTPException):
-    def __init__(self, detail: str = "Invalid password."):
+    def __init__(self, detail: str = "Invalid password.") -> None:
         super().__init__(status_code=401, detail=detail)
 
 
@@ -60,17 +60,17 @@ class ReservedEmailException(HTTPException):
 
 
 class InconsistentModelVectorSizeException(HTTPException):
-    def __init__(self, detail: str = "Inconsistent model vector size."):
+    def __init__(self, detail: str = "Inconsistent model vector size.") -> None:
         super().__init__(status_code=403, detail=detail)
 
 
 class InconsistentModelMaxContextLengthException(HTTPException):
-    def __init__(self, detail: str = "Inconsistent model max context length."):
+    def __init__(self, detail: str = "Inconsistent model max context length.") -> None:
         super().__init__(status_code=403, detail=detail)
 
 
 class InconsistentModelCostsException(HTTPException):
-    def __init__(self, detail: str = "Inconsistent model costs."):
+    def __init__(self, detail: str = "Inconsistent model costs.") -> None:
         super().__init__(status_code=403, detail=detail)
 
 
@@ -131,53 +131,53 @@ class OrganizationNotFoundException(HTTPException):
 
 
 class PasswordNotFoundException(HTTPException):
-    def __init__(self, detail: str = "Password not set, please contact an administrator."):
+    def __init__(self, detail: str = "Password not set, please contact an administrator.") -> None:
         super().__init__(status_code=404, detail=detail)
 
 
 # 409
 class RoleAlreadyExistsException(HTTPException):
-    def __init__(self, detail: str = "Role already exists."):
+    def __init__(self, detail: str = "Role already exists.") -> None:
         super().__init__(status_code=409, detail=detail)
 
 
 class UserAlreadyExistsException(HTTPException):
-    def __init__(self, detail: str = "User already exists."):
+    def __init__(self, detail: str = "User already exists.") -> None:
         super().__init__(status_code=409, detail=detail)
 
 
 class OrganizationAlreadyExistsException(HTTPException):
-    def __init__(self, detail: str = "Organization already exists."):
+    def __init__(self, detail: str = "Organization already exists.") -> None:
         super().__init__(status_code=409, detail=detail)
 
 
 class OrganizationNameAlreadyTakenException(HTTPException):
-    def __init__(self, detail: str = "Organization name already taken. Please, choose another one."):
+    def __init__(self, detail: str = "Organization name already taken. Please, choose another one.") -> None:
         super().__init__(status_code=409, detail=detail)
 
 
 class ProviderAlreadyExistsException(HTTPException):
-    def __init__(self, detail: str = "Model provider already exists."):
+    def __init__(self, detail: str = "Model provider already exists.") -> None:
         super().__init__(status_code=409, detail=detail)
 
 
 class RouterAliasAlreadyExistsException(HTTPException):
-    def __init__(self, detail: str = "Name conflict with existing router or alias."):
+    def __init__(self, detail: str = "Name conflict with existing router or alias.") -> None:
         super().__init__(status_code=409, detail=detail)
 
 
 class RouterAlreadyExistsException(HTTPException):
-    def __init__(self, detail: str = "Model router already exists."):
+    def __init__(self, detail: str = "Model router already exists.") -> None:
         super().__init__(status_code=409, detail=detail)
 
 
 class DeleteRoleWithUsersException(HTTPException):
-    def __init__(self, detail: str = "Delete role with users is not allowed."):
+    def __init__(self, detail: str = "Delete role with users is not allowed.") -> None:
         super().__init__(status_code=409, detail=detail)
 
 
 class DeleteOrganizationWithUsersException(HTTPException):
-    def __init__(self, detail: str = "Delete organization with users is not allowed."):
+    def __init__(self, detail: str = "Delete organization with users is not allowed.") -> None:
         super().__init__(status_code=409, detail=detail)
 
 
@@ -256,6 +256,11 @@ class VectorizationFailedException(HTTPException):
 class TaskFailedException(HTTPException):
     def __init__(self, status_code: int = 500, detail: str = "Celery task failed.") -> None:
         super().__init__(status_code=status_code, detail=detail)
+
+
+class RequestFormatFailedException(HTTPException):
+    def __init__(self, detail: str = "Request formatting failed.") -> None:
+        super().__init__(status_code=500, detail=detail)
 
 
 class ResponseFormatFailedException(HTTPException):

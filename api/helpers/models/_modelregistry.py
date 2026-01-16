@@ -496,7 +496,7 @@ class ModelRegistry:
                 vector_size = None
 
         except AssertionError as e:
-            logger.debug(f"Provider {provider.name} not reachable: {e}", exc_info=True)
+            logger.debug(f"Provider {provider.model_name} not reachable: {e}", exc_info=True)
             raise ProviderNotReachableException()
 
         # consistency check

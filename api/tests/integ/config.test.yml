@@ -4,8 +4,8 @@ models:
     type: text-generation
     load_balancing_strategy: shuffle
     aliases: ["openweight-small"]
-    cost_prompt_tokens: 1
-    cost_completion_tokens: 3
+    cost_prompt_tokens: 10
+    cost_completion_tokens: 30
     providers:
       - type: albert
         key: ${ALBERT_API_KEY}
@@ -20,8 +20,8 @@ models:
   - name: BAAI/bge-m3
     type: text-embeddings-inference
     aliases: ["openweight-embedding"]
-    cost_prompt_tokens: 1
-    cost_completion_tokens: 3
+    cost_prompt_tokens: 10
+    cost_completion_tokens: 30
     providers:
       - type: albert
         key: ${ALBERT_API_KEY}

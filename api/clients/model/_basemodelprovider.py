@@ -13,9 +13,10 @@ import httpx
 from redis.asyncio import Redis as AsyncRedis
 
 from api.schemas.admin.providers import ProviderType
-from api.schemas.audio import AudioTranscription
+from api.schemas.audio import AudioTranscription, CreateAudioTranscription
+from api.schemas.chat import CreateChatCompletion
 from api.schemas.core.models import Metric, RequestContent
-from api.schemas.rerank import Reranks
+from api.schemas.rerank import CreateRerank, Reranks
 from api.schemas.usage import Usage
 from api.utils.carbon import get_carbon_footprint
 from api.utils.context import generate_request_id, global_context, request_context
@@ -183,6 +184,19 @@ class BaseModelProvider(ABC):
 
         if "model" in request_content.form:
             request_content.form["model"] = self.model_name
+        # try:
+        if request_content.endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
+            request_content = CreateAudioTranscription.format_request(provider_type=self.type, request_content=request_content)
+
+        if request_content.endpoint == ENDPOINT__CHAT_COMPLETIONS:
+            request_content = CreateChatCompletion.format_request(provider_type=self.type, request_content=request_content)
+
+        if request_content.endpoint == ENDPOINT__RERANK:
+            request_content = CreateRerank.format_request(provider_type=self.type, request_content=request_content)
+
+        # except Exception as e:
+        #     logger.error(f"Failed to format request for {self.model_name}: {e}.", exc_info=True)
+        #     raise RequestFormatFailedException()
 
         return request_content
 
@@ -212,12 +226,7 @@ class BaseModelProvider(ABC):
                         provider_type=self.type,
                         request_content=request_content,
                         response_data=response_data,
-                    )
-                    if request_content.form.get("response_format") == "text":
-                        response = httpx.Response(status_code=response.status_code, content=response_data.text)
-                        return response
-                    else:
-                        response_data = response_data.model_dump()
+                    ).model_dump()
 
                 elif request_content.endpoint == ENDPOINT__RERANK:
                     response_data = Reranks.build_from(
@@ -228,6 +237,7 @@ class BaseModelProvider(ABC):
 
                 else:
                     response_data.update(additional_data)
+
             except Exception as e:
                 logger.error(f"Failed to build response from {self.model_name}: {e}.", exc_info=True)
                 raise ResponseFormatFailedException()
@@ -258,7 +268,7 @@ class BaseModelProvider(ABC):
 
         Args:
             redis_client(AsyncRedis): The redis client to use for the request.
-            ttft(int | None): The time to first token in microseconds (us).
+            ttft(int | None): The time to first token in milliseconds (ms).
             latency(int | None): The latency in milliseconds (ms).
         """
         request_context.get().ttft = ttft
@@ -433,6 +443,7 @@ class BaseModelProvider(ABC):
                     buffer = list()
                     start_time = time.perf_counter()
                     first_token_time = None
+                    done_found = False
                     async for chunk in response.aiter_raw():
                         # error case
                         if response.status_code // 100 != 2:
@@ -454,13 +465,14 @@ class BaseModelProvider(ABC):
                                         # The first token comes in the first non-empty chunk of the stream
                                         if loads((chunk.decode(encoding="utf-8")).removeprefix("data: "))["choices"][0]["delta"]["content"] != "":
                                             first_token_time = time.perf_counter()
-                                    except Exception as e:
-                                        logger.debug("Chunk data could not be processed to compute time to first token")
+                                    except Exception:
+                                        pass
 
                                 yield chunk, response.status_code
 
                             # end of the stream
                             else:
+                                done_found = True
                                 last_chunks = chunk[: match.start()]
                                 done_chunk = chunk[match.start() :]
 
@@ -472,11 +484,7 @@ class BaseModelProvider(ABC):
 
                                 end_time = time.perf_counter()
                                 request_latency = int((end_time - start_time) * 1000)  # ms
-                                if first_token_time is not None:
-                                    ttft = int((first_token_time - start_time) * 1000)  # ms
-                                else:
-                                    logger.warning(f"Time to first token could not be determined for request {request_context.get().id}.")
-                                    ttft = None
+                                ttft = int((first_token_time - start_time) * 1000) if first_token_time is not None else None
 
                                 extra_chunk = self._format_stream_response(
                                     request_content=request_content,
@@ -493,6 +501,28 @@ class BaseModelProvider(ABC):
                                 yield last_chunks, response.status_code
                                 yield f"data: {dumps(extra_chunk)}\n\n".encode(), response.status_code
                                 yield done_chunk, response.status_code
+
+                    # If [DONE] pattern was not found, calculate metrics now
+                    if not done_found and response.status_code // 100 == 2:
+                        end_time = time.perf_counter()
+                        request_latency = int((end_time - start_time) * 1000)  # ms
+                        if first_token_time is not None:
+                            ttft = int((first_token_time - start_time) * 1000)  # ms
+                        else:
+                            logger.warning(f"Time to first token could not be determined for request {request_context.get().id}.")
+                            ttft = None
+
+                        extra_chunk = self._format_stream_response(
+                            request_content=request_content,
+                            response=buffer,
+                            request_latency=request_latency,
+                        )
+                        await self._log_performance_metric(redis_client=redis_client, ttft=ttft, latency=int(request_latency))
+
+                        # Yield the extra chunk with usage info
+                        if extra_chunk is not None:
+                            yield f"\n\ndata: {dumps(extra_chunk)}\n\n".encode(), response.status_code
+                            yield b"data: [DONE]\n\n", response.status_code
 
             except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout, httpx.WriteTimeout, httpx.PoolTimeout) as e:
                 yield dumps({"detail": "Request timed out, model is too busy."}).encode(), 504

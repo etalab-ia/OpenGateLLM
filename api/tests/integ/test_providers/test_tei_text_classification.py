@@ -60,6 +60,7 @@ class TestTeiTextClassification:
             headers={"Authorization": f"Bearer {key}"},
         )
         assert response.status_code == 200, response.text
+        assert len(response.json()["results"]) == 3
         Reranks(**response.json())  # validate format
 
     def test_tei_rerank_legacy_format_successful(self, client: TestClient, setup_tei_test_classification: tuple[str, str]):
@@ -161,23 +162,9 @@ class TestTeiTextClassification:
         assert response.status_code == 422, response.text
         assert response.json()["detail"][0]["msg"] == "Value error, documents and input cannot both be provided"
 
-    def test_rerank_with_rerank_model_with_n(self, client: TestClient, setup_tei_test_classification: tuple[str, str]):
-        """Test the POST /rerank with the second version of the rerank model (query and documents)."""
+    def test_rerank_with_rerank_model_with_top_n(self, client: TestClient, setup_tei_test_classification: tuple[str, str]):
+        """Test the POST /rerank with the top_n parameter."""
         key, model_name = setup_tei_test_classification
-
-        response = client.post(
-            url=f"/v1{ENDPOINT__RERANK}",
-            json={
-                "model": model_name,
-                "query": "The sun is shining.",
-                "documents": ["Sentence 1", "Sentence 2", "Sentence 3", "Sentence 4", "Sentence 5", "Sentence 6"],
-            },
-            headers={"Authorization": f"Bearer {key}"},
-        )
-        assert response.status_code == 200, response.text
-        assert len(response.json()["results"]) == 6
-
-        Reranks(**response.json())  # test output format
 
         response = client.post(
             url=f"/v1{ENDPOINT__RERANK}",
@@ -195,7 +182,7 @@ class TestTeiTextClassification:
         Reranks(**response.json())  # test output format
 
     def test_rerank_with_rerank_model_with_higher_top_n(self, client: TestClient, setup_tei_test_classification: tuple[str, str]):
-        """Test the POST /rerank with the second version of the rerank model (query and documents)."""
+        """Test the POST /rerank with a higher top_n parameter than the number of documents."""
         key, model_name = setup_tei_test_classification
 
         response = client.post(

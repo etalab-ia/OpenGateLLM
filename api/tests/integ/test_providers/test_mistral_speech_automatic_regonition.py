@@ -1,4 +1,5 @@
 import datetime as dt
+from json.decoder import JSONDecodeError
 import os
 
 from fastapi.testclient import TestClient
@@ -78,6 +79,12 @@ class TestMistralAutomaticSpeechRecognition:
             response = client.post(f"/v1{ENDPOINT__AUDIO_TRANSCRIPTIONS}", files=files, data=data, headers={"Authorization": f"Bearer {api_key}"})
 
         assert response.status_code == 200, response.text
+        try:
+            response.json()
+            assert False, "Response is valid JSON"
+        except JSONDecodeError:
+            pass
+
         assert isinstance(response.text, str)
         assert len(response.text) > 0
 

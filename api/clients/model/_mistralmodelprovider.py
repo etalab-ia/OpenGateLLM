@@ -1,11 +1,9 @@
-import base64
 import logging
 from urllib.parse import urljoin
 
 import httpx
 
 from api.schemas.admin.providers import ProviderType
-from api.schemas.core.models import RequestContent
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -73,79 +71,3 @@ class MistralModelProvider(BaseModelProvider):
         max_context_length = model.get("max_context_length")
 
         return max_context_length
-
-    def _format_request(self, request_content: RequestContent) -> RequestContent:
-        """
-        Converts an openAI compatible /chat/completions request to Mistral compatible /chat/completions
-        Converts an openAI compatible /audio/transcription request to a Mistral compatible /chat/completions request
-        """
-
-        if "model" in request_content.json:
-            request_content.json["model"] = self.model_name
-
-        if "model" in request_content.form:
-            request_content.form["model"] = self.model_name
-
-        if request_content.endpoint == ENDPOINT__CHAT_COMPLETIONS:
-            # see https://docs.mistral.ai/api#operation-chat_completion_v1_chat_completions_post
-            request_content.json["frequency_penalty"] = 0.0 if request_content.json["frequency_penalty"] is None else request_content.json["frequency_penalty"]  # fmt: off
-            request_content.json["random_seed"] = request_content.json.get("random_seed", request_content.json.get("seed"))
-            request_content.json["parallel_tool_calls"] = False if request_content.json["parallel_tool_calls"] is None else request_content.json["parallel_tool_calls"]  # fmt: off
-            request_content.json["presence_penalty"] = 0.0 if request_content.json["presence_penalty"] is None else request_content.json["presence_penalty"]  # fmt: off
-            request_content.json["response_format"] = {"type": "text"} if request_content.json["response_format"] is None else request_content.json["response_format"]  # fmt: off
-            if request_content.json.get("stop") is None:
-                request_content.json.pop("stop", None)
-            request_content.json["stream"] = False if request_content.json["stream"] is None else request_content.json["stream"]
-            request_content.json["top_p"] = 1.0 if request_content.json["top_p"] is None else request_content.json["top_p"]
-
-            authorized_keys = [
-                "frequency_penalty",
-                "max_tokens",
-                "messages",
-                "model",
-                "n",
-                "parallel_tool_calls",
-                "prediction",
-                "presence_penalty",
-                "prompt_mode",
-                "random_seed",
-                "response_format",
-                "safe_prompt",
-                "stop",
-                "stream",
-                "temperature",
-                "tool_choice",
-                "tools",
-                "top_p",
-            ]
-            for key in list(request_content.json.keys()):
-                if key not in authorized_keys:
-                    del request_content.json[key]
-
-        elif request_content.endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
-            request_content.json = {
-                "model": self.model_name,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "input_audio",
-                                "input_audio": base64.b64encode(request_content.files["file"][1]).decode("utf-8"),
-                            },
-                            {
-                                "type": "text",
-                                "text": request_content.form.get("prompt")
-                                or f"Transcribe this audio in this language : {request_content.form.get("language", "en")}",
-                            },
-                        ],
-                    }
-                ],
-            }
-            if request_content.form.get("temperature"):
-                request_content.json["temperature"] = request_content.form["temperature"]
-
-            request_content.files = {}
-            request_content.form = {}
-
-        return request_content

@@ -1,7 +1,7 @@
 from enum import Enum
 from http import HTTPMethod
 
-from pydantic import BaseModel, Field, RootModel, conint
+from pydantic import BaseModel, Field
 
 from api.utils import variables
 
@@ -40,13 +40,3 @@ class TEICreateRerank(BaseModel):
     texts: list[str] = Field(..., examples=[["Deep Learning is ..."]])
     truncate: bool | None = Field(False, examples=[False])
     truncation_direction: TruncationDirection = "right"
-
-
-class Rank(BaseModel):
-    index: conint(ge=0) = Field(..., examples=["0"])
-    score: float = Field(..., examples=["1.0"])
-    text: str | None = Field(None, examples=["Deep Learning is ..."])
-
-
-class TEIReranks(RootModel[list[Rank]]):
-    root: list[Rank]

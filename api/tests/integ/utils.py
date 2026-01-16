@@ -14,6 +14,7 @@ from api.schemas.admin.roles import CreateRole, Limit, LimitType
 from api.schemas.admin.routers import CreateRouter
 from api.schemas.admin.tokens import CreateToken
 from api.schemas.admin.users import CreateUser
+from api.schemas.core.configuration import Metric
 from api.schemas.models import ModelType
 from api.utils.variables import (
     ENDPOINT__ADMIN_PROVIDERS,
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 def generate_test_id(prefix: str) -> str:
-    return f"{prefix}_{dt.datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid4()}"
+    return f"{prefix}_{dt.datetime.now().strftime("%Y%m%d%H%M%S")}_{uuid4()}"
 
 
 def run_openmockllm(test_id: str, **kwargs) -> subprocess.Popen:
@@ -92,7 +93,7 @@ def run_openmockllm(test_id: str, **kwargs) -> subprocess.Popen:
             raise RuntimeError(
                 f"openmockllm process failed to start. "
                 f"Process exited with code {returncode}. "
-                f"Check logs at {process.log_file_path if hasattr(process, 'log_file_path') else 'unknown'}. "
+                f"Check logs at {process.log_file_path if hasattr(process, "log_file_path") else "unknown"}. "
                 f"Error: {error_msg}"
             )
 
@@ -122,14 +123,14 @@ def run_openmockllm(test_id: str, **kwargs) -> subprocess.Popen:
                     raise RuntimeError(
                         f"openmockllm process failed to start after {max_retries} attempts. "
                         f"Process exited with code {returncode}. "
-                        f"Check logs at {process.log_file_path if hasattr(process, 'log_file_path') else 'unknown'}. "
+                        f"Check logs at {process.log_file_path if hasattr(process, "log_file_path") else "unknown"}. "
                         f"Error: {error_msg}"
                     )
                 else:
                     raise RuntimeError(
                         f"openmockllm server at {url} did not become ready after {max_retries} attempts. "
                         f"Process is still running but not responding. "
-                        f"Check logs at {process.log_file_path if hasattr(process, 'log_file_path') else 'unknown'}"
+                        f"Check logs at {process.log_file_path if hasattr(process, "log_file_path") else "unknown"}"
                     )
 
     return process
@@ -161,7 +162,19 @@ def create_router(model_name: str, model_type: ModelType, client: TestClient) ->
     return router_id
 
 
-def create_provider(router_id: int, provider_url: str, provider_key: str, provider_name: str, provider_type: ProviderType, client: TestClient) -> int:
+def create_provider(
+    router_id: int,
+    provider_url: str,
+    provider_key: str,
+    provider_name: str,
+    provider_type: ProviderType,
+    client: TestClient,
+    model_hosting_zone: ProviderCarbonFootprintZone = ProviderCarbonFootprintZone.WOR,
+    model_total_params: int = 0,
+    model_active_params: int = 0,
+    qos_metric: Metric | None = None,
+    qos_limit: float | None = None,
+) -> int:
     payload = CreateProvider(
         router=router_id,
         type=provider_type,
@@ -169,11 +182,11 @@ def create_provider(router_id: int, provider_url: str, provider_key: str, provid
         key=provider_key,
         timeout=10,
         model_name=provider_name,
-        model_hosting_zone=ProviderCarbonFootprintZone.WOR,
-        model_total_params=0,
-        model_active_params=0,
-        qos_metric=None,
-        qos_limit=None,
+        model_hosting_zone=model_hosting_zone,
+        model_total_params=model_total_params,
+        model_active_params=model_active_params,
+        qos_metric=qos_metric,
+        qos_limit=qos_limit,
     )
     response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_PROVIDERS}", json=payload.model_dump())
     assert response.status_code == 201, response.text
@@ -184,7 +197,7 @@ def create_provider(router_id: int, provider_url: str, provider_key: str, provid
 
 def create_role(router_id: int, client: TestClient) -> int:
     payload = CreateRole(
-        name=f"test-role-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}",
+        name=f"test-role-{dt.datetime.now().strftime("%Y%m%d%H%M%S")}",
         limits=[
             Limit(router=router_id, type=LimitType.RPM, value=None),
             Limit(router=router_id, type=LimitType.RPD, value=None),
@@ -202,8 +215,8 @@ def create_role(router_id: int, client: TestClient) -> int:
 
 def create_user(role_id: int, client: TestClient) -> int:
     payload = CreateUser(
-        name=f"test-user-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}",
-        email=f"test-user-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}@example.com",
+        name=f"test-user-{dt.datetime.now().strftime("%Y%m%d%H%M%S")}",
+        email=f"test-user-{dt.datetime.now().strftime("%Y%m%d%H%M%S")}@example.com",
         role=role_id,
         password="test-password",
     )

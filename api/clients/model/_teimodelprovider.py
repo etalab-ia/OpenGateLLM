@@ -4,8 +4,6 @@ from urllib.parse import urljoin
 import httpx
 
 from api.schemas.admin.providers import ProviderType
-from api.schemas.core.models import RequestContent
-from api.schemas.rerank import CreateRerank
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
     ENDPOINT__CHAT_COMPLETIONS,
@@ -69,19 +67,3 @@ class TeiModelProvider(BaseModelProvider):
         assert self.model_name == data["model_id"], f"Model not found ({self.model_name})."
         max_context_length = data.get("max_input_length")
         return max_context_length
-
-    def _format_request(self, request_content: RequestContent) -> RequestContent:
-        """
-        Format a request to a TEI model, overridden base class method to add TEI specific format request.
-        """
-        if "model" in request_content.json:
-            request_content.json["model"] = self.model_name
-
-        if "model" in request_content.form:
-            request_content.form["model"] = self.model_name
-
-        if request_content.endpoint.endswith(ENDPOINT__RERANK):
-            request_content.additional_data["top_n"] = request_content.json.get("top_n")
-            request_content.json = CreateRerank(**request_content.json).format(provider=ProviderType.TEI).model_dump()
-
-        return request_content

@@ -1,9 +1,12 @@
 from typing import Any, Literal
 
+from mistralai.models import ChatCompletionRequest
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import Field, field_validator, model_validator
 
 from api.schemas import BaseModel
+from api.schemas.admin.providers import ProviderType
+from api.schemas.core.models import RequestContent
 from api.schemas.search import Search, SearchArgs
 from api.schemas.usage import Usage
 
@@ -60,6 +63,25 @@ class CreateChatCompletion(BaseModel):
                 raise ValueError("search_args is required when search is true")
 
         return values
+
+    @staticmethod
+    def format_request(provider_type: ProviderType, request_content: RequestContent):
+        match provider_type:
+            case ProviderType.ALBERT:
+                return request_content
+
+            case ProviderType.MISTRAL:
+                request_content.json = ChatCompletionRequest(**request_content.json).model_dump()
+                return request_content
+
+            case ProviderType.OPENAI:
+                return request_content
+
+            case ProviderType.VLLM:
+                return request_content
+
+            case _:
+                raise NotImplementedError(f"Provider {provider_type} not implemented")
 
 
 class ChatCompletion(ChatCompletion):

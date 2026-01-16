@@ -336,11 +336,16 @@ class TestAuth:
         assert response.status_code == 200, response.text
 
         completion_tokens = len(tokenizer.encode(response.json()["choices"][0]["message"]["content"]))
-        cost = round(prompt_tokens / 1000000 * 1 + completion_tokens / 1000000 * 3, ndigits=6)
+        cost = round(
+            prompt_tokens / 1000000 * text_generation_router.cost_prompt_tokens
+            + completion_tokens / 1000000 * text_generation_router.cost_completion_tokens,
+            ndigits=6,
+        )
 
         assert response.json()["usage"]["cost"] == cost, response.text
 
         # Check that the budget is updated
+        time.sleep(1)
         response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_id}")
         assert response.json()["budget"] < initial_budget, response.text
 

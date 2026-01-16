@@ -24,7 +24,7 @@ from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__ME_USAGE
 @pytest.fixture(scope="module")
 def setup_model_and_user(client: TestClient):
     test_id = generate_test_id(prefix="TestUsage")
-    process = run_openmockllm(test_id=test_id, backend="vllm")
+    process = run_openmockllm(test_id=test_id, backend="mistral")
     try:
         router_id = create_router(model_name=process.model_name, model_type=ModelType.TEXT_GENERATION, client=client)
         create_provider(
@@ -32,7 +32,9 @@ def setup_model_and_user(client: TestClient):
             provider_url=process.url,
             provider_key=None,
             provider_name=process.model_name,
-            provider_type=ProviderType.VLLM,
+            provider_type=ProviderType.MISTRAL,
+            model_total_params=100,
+            model_active_params=100,
             client=client,
         )
         role_id = create_role(router_id=router_id, client=client)
@@ -92,7 +94,7 @@ class TestUsage:
         start_time = int(time.time())
         response = client.post(
             url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
-            headers={"Authorization": f"Bearer aw{key}"},
+            headers={"Authorization": f"Bearer {key}"},
             json={"model": model_name, "messages": [{"role": "user", "content": "Hello, how are you?"}]},
         )
         response.raise_for_status()
