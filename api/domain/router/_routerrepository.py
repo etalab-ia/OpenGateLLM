@@ -25,7 +25,6 @@ class RouterRepository(ABC):
         self,
         name: str,
         router_type: ModelType,
-        aliases: list[str],
         load_balancing_strategy: RouterLoadBalancingStrategy,
         cost_prompt_tokens: float,
         cost_completion_tokens: float,

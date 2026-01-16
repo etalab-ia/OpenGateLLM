@@ -26,15 +26,15 @@ class CreateRouterUseCase:
         user_info = await self.user_info_repository.get_user_info(user_id=user_id)
 
         await self._check_permissions(permissions=user_info.permissions)
-
-        existing_aliases = await self.router_repository.get_aliases(aliases)
+        existing_aliases = []
+        if aliases:
+            existing_aliases = await self.router_repository.get_aliases(aliases)
         if len(existing_aliases) != 0:
             raise RouterAliasAlreadyExistsException()
 
         router = await self.router_repository.create_router(
             name=name,
             router_type=router_type,
-            aliases=aliases,
             load_balancing_strategy=load_balancing_strategy,
             cost_prompt_tokens=cost_prompt_tokens,
             cost_completion_tokens=cost_completion_tokens,
@@ -43,7 +43,7 @@ class CreateRouterUseCase:
 
         if aliases:
             await self.router_repository.insert_aliases(aliases, router.id)
-
+            router.aliases = aliases
         if self.queuing_enabled:
             add_model_queue_to_running_worker(queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router.id}")
 
