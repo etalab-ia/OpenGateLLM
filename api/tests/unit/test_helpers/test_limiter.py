@@ -31,7 +31,7 @@ async def test_limiter_initialization_strategies(strategy, expected_class):
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
 
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis.from_url"):
+    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis"):
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
 
         limiter = Limiter(mock_redis_pool, strategy=strategy)
@@ -56,7 +56,7 @@ async def test_limiter_reset_success(strategy):
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
 
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis.from_url") as MockRedis:
+    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis") as MockRedis:
         mock_storage_instance = AsyncMock(spec=RedisStorage)
         MockStorage.return_value = mock_storage_instance
 
@@ -75,14 +75,14 @@ async def test_limiter_reset_success(strategy):
         limiter = Limiter(mock_redis_pool, strategy=strategy)
 
         # Verify keys exist before reset
-        initial_keys = await limiter.redis.keys("LIMITS*")
+        initial_keys = await limiter.redis_client.keys("LIMITS*")
         assert len(initial_keys) == 2
 
         await limiter.reset()
 
         mock_storage_instance.reset.assert_awaited_once()
 
-        final_keys = await limiter.redis.keys("LIMITS*")
+        final_keys = await limiter.redis_client.keys("LIMITS*")
         assert len(final_keys) == 0
 
 
@@ -95,7 +95,7 @@ async def test_limiter_reset_handles_redis_error():
 
     with (
         patch("api.helpers._limiter.storage.RedisStorage") as MockStorage,
-        patch("api.helpers._limiter.Redis.from_url") as MockRedis,
+        patch("api.helpers._limiter.Redis") as MockRedis,
         patch("api.helpers._limiter.logger") as mock_logger,
     ):
         mock_storage_instance = AsyncMock(spec=RedisStorage)
@@ -132,7 +132,7 @@ async def test_limiter_hit_no_value(strategy):
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
 
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis.from_url") as MockRedis:
+    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis") as MockRedis:
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
         MockRedis.return_value = AsyncMock()
 
@@ -165,7 +165,7 @@ async def test_limiter_hit_types(strategy, limit_type, expected_limit_class_name
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
 
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis.from_url") as MockRedis:
+    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis") as MockRedis:
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
         MockRedis.return_value = AsyncMock()
 
@@ -194,13 +194,13 @@ async def test_limiter_hit_types(strategy, limit_type, expected_limit_class_name
 
 
 @pytest.mark.asyncio
-async def test_limiter_hit_limit_exceeded_with_ttl():
+@pytest.mark.parametrize("strategy", [LimitingStrategy.MOVING_WINDOW, LimitingStrategy.FIXED_WINDOW, LimitingStrategy.SLIDING_WINDOW])
+async def test_limiter_hit_limit_exceeded_with_ttl(strategy):
     """Test hit returns False when limit exceeded and keys have TTL."""
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
-    strategy = LimitingStrategy.FIXED_WINDOW
 
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis.from_url") as MockRedis:
+    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis") as MockRedis:
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
         mock_internal_redis = AsyncMock()
         MockRedis.return_value = mock_internal_redis
@@ -218,15 +218,15 @@ async def test_limiter_hit_limit_exceeded_with_ttl():
 
 
 @pytest.mark.asyncio
-async def test_limiter_hit_limit_exceeded_no_ttl_cleanup():
+@pytest.mark.parametrize("strategy", [LimitingStrategy.MOVING_WINDOW, LimitingStrategy.FIXED_WINDOW, LimitingStrategy.SLIDING_WINDOW])
+async def test_limiter_hit_limit_exceeded_no_ttl_cleanup(strategy):
     """Test cleanup when TTLs are missing (-1)."""
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
-    strategy = LimitingStrategy.FIXED_WINDOW
 
     with (
         patch("api.helpers._limiter.storage.RedisStorage") as MockStorage,
-        patch("api.helpers._limiter.Redis.from_url") as MockRedis,
+        patch("api.helpers._limiter.Redis") as MockRedis,
         patch("api.helpers._limiter.logger") as mock_logger,
     ):
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
@@ -259,15 +259,15 @@ async def test_limiter_hit_limit_exceeded_no_ttl_cleanup():
 
 
 @pytest.mark.asyncio
-async def test_limiter_hit_exception():
+@pytest.mark.parametrize("strategy", [LimitingStrategy.MOVING_WINDOW, LimitingStrategy.FIXED_WINDOW, LimitingStrategy.SLIDING_WINDOW])
+async def test_limiter_hit_exception(strategy):
     """Test fail-open behavior on exception."""
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
-    strategy = LimitingStrategy.FIXED_WINDOW
 
     with (
         patch("api.helpers._limiter.storage.RedisStorage") as MockStorage,
-        patch("api.helpers._limiter.Redis.from_url") as MockRedis,
+        patch("api.helpers._limiter.Redis") as MockRedis,
         patch("api.helpers._limiter.logger") as mock_logger,
     ):
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
@@ -289,13 +289,13 @@ async def test_limiter_hit_exception():
 
 
 @pytest.mark.asyncio
-async def test_limiter_remaining_early_return():
+@pytest.mark.parametrize("strategy", [LimitingStrategy.MOVING_WINDOW, LimitingStrategy.FIXED_WINDOW, LimitingStrategy.SLIDING_WINDOW])
+async def test_limiter_remaining_early_return(strategy):
     """Test remaining returns None immediately if value is None."""
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
-    strategy = LimitingStrategy.FIXED_WINDOW
 
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis.from_url") as MockRedis:
+    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis") as MockRedis:
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
         MockRedis.return_value = AsyncMock()
 
@@ -316,13 +316,13 @@ async def test_limiter_remaining_early_return():
         (LimitType.RPD, "RateLimitItemPerDay", "day"),
     ],
 )
-async def test_limiter_remaining_success(limit_type, expected_limit_class_name, granularity):
+@pytest.mark.parametrize("strategy", [LimitingStrategy.MOVING_WINDOW, LimitingStrategy.FIXED_WINDOW, LimitingStrategy.SLIDING_WINDOW])
+async def test_limiter_remaining_success(limit_type, expected_limit_class_name, granularity, strategy):
     """Test remaining returns correct window stats."""
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
-    strategy = LimitingStrategy.FIXED_WINDOW
 
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis.from_url") as MockRedis:
+    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis") as MockRedis:
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
         MockRedis.return_value = AsyncMock()
 
@@ -355,15 +355,15 @@ async def test_limiter_remaining_success(limit_type, expected_limit_class_name, 
 
 
 @pytest.mark.asyncio
-async def test_limiter_remaining_exception():
+@pytest.mark.parametrize("strategy", [LimitingStrategy.MOVING_WINDOW, LimitingStrategy.FIXED_WINDOW, LimitingStrategy.SLIDING_WINDOW])
+async def test_limiter_remaining_exception(strategy):
     """Test exception handling in remaining."""
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
-    strategy = LimitingStrategy.FIXED_WINDOW
 
     with (
         patch("api.helpers._limiter.storage.RedisStorage") as MockStorage,
-        patch("api.helpers._limiter.Redis.from_url") as MockRedis,
+        patch("api.helpers._limiter.Redis") as MockRedis,
         patch("api.helpers._limiter.logger") as mock_logger,
     ):
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
@@ -384,13 +384,13 @@ async def test_limiter_remaining_exception():
 
 
 @pytest.mark.asyncio
-async def test_limiter_check_user_limits_admin():
+@pytest.mark.parametrize("strategy", [LimitingStrategy.MOVING_WINDOW, LimitingStrategy.FIXED_WINDOW, LimitingStrategy.SLIDING_WINDOW])
+async def test_limiter_check_user_limits_admin(strategy):
     """Test admin (id=0) bypasses all checks."""
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
-    strategy = LimitingStrategy.FIXED_WINDOW
 
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis.from_url") as MockRedis:
+    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis") as MockRedis:
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
         MockRedis.return_value = AsyncMock()
 
@@ -405,13 +405,13 @@ async def test_limiter_check_user_limits_admin():
 
 
 @pytest.mark.asyncio
-async def test_limiter_check_user_limits_no_access():
+@pytest.mark.parametrize("strategy", [LimitingStrategy.MOVING_WINDOW, LimitingStrategy.FIXED_WINDOW, LimitingStrategy.SLIDING_WINDOW])
+async def test_limiter_check_user_limits_no_access(strategy):
     """Test raises ModelNotFoundException when checks fail router access."""
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
-    strategy = LimitingStrategy.FIXED_WINDOW
 
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis.from_url") as MockRedis:
+    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis") as MockRedis:
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
         MockRedis.return_value = AsyncMock()
 
@@ -425,13 +425,13 @@ async def test_limiter_check_user_limits_no_access():
 
 
 @pytest.mark.asyncio
-async def test_limiter_check_user_limits_insufficient_permission():
+@pytest.mark.parametrize("strategy", [LimitingStrategy.MOVING_WINDOW, LimitingStrategy.FIXED_WINDOW, LimitingStrategy.SLIDING_WINDOW])
+async def test_limiter_check_user_limits_insufficient_permission(strategy):
     """Test raises InsufficientPermissionException when any limit value is 0."""
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
-    strategy = LimitingStrategy.FIXED_WINDOW
 
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis.from_url") as MockRedis:
+    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis") as MockRedis:
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
         MockRedis.return_value = AsyncMock()
 
@@ -447,13 +447,13 @@ async def test_limiter_check_user_limits_insufficient_permission():
 
 
 @pytest.mark.asyncio
-async def test_limiter_check_user_limits_rpm_exceeded():
+@pytest.mark.parametrize("strategy", [LimitingStrategy.MOVING_WINDOW, LimitingStrategy.FIXED_WINDOW, LimitingStrategy.SLIDING_WINDOW])
+async def test_limiter_check_user_limits_rpm_exceeded(strategy):
     """Test raises RateLimitExceeded when RPM limit is hit."""
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
-    strategy = LimitingStrategy.FIXED_WINDOW
 
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis.from_url") as MockRedis:
+    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis") as MockRedis:
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
         MockRedis.return_value = AsyncMock()
 
@@ -490,13 +490,13 @@ async def test_limiter_check_user_limits_rpm_exceeded():
 
 
 @pytest.mark.asyncio
-async def test_limiter_check_user_limits_with_prompt_tokens_success():
+@pytest.mark.parametrize("strategy", [LimitingStrategy.MOVING_WINDOW, LimitingStrategy.FIXED_WINDOW, LimitingStrategy.SLIDING_WINDOW])
+async def test_limiter_check_user_limits_with_prompt_tokens_success(strategy):
     """Test success path with prompt tokens."""
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
-    strategy = LimitingStrategy.FIXED_WINDOW
 
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis.from_url") as MockRedis:
+    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis") as MockRedis:
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
         MockRedis.return_value = AsyncMock()
 
@@ -530,13 +530,13 @@ async def test_limiter_check_user_limits_with_prompt_tokens_success():
 
 
 @pytest.mark.asyncio
-async def test_limiter_check_user_limits_rpd_exceeded():
+@pytest.mark.parametrize("strategy", [LimitingStrategy.MOVING_WINDOW, LimitingStrategy.FIXED_WINDOW, LimitingStrategy.SLIDING_WINDOW])
+async def test_limiter_check_user_limits_rpd_exceeded(strategy):
     """Test raises RateLimitExceeded when RPD limit is hit."""
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
-    strategy = LimitingStrategy.FIXED_WINDOW
 
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis.from_url") as MockRedis:
+    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis") as MockRedis:
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
         MockRedis.return_value = AsyncMock()
 
@@ -565,13 +565,13 @@ async def test_limiter_check_user_limits_rpd_exceeded():
 
 
 @pytest.mark.asyncio
-async def test_limiter_check_user_limits_tpd_exceeded():
+@pytest.mark.parametrize("strategy", [LimitingStrategy.MOVING_WINDOW, LimitingStrategy.FIXED_WINDOW, LimitingStrategy.SLIDING_WINDOW])
+async def test_limiter_check_user_limits_tpd_exceeded(strategy):
     """Test raises RateLimitExceeded when TPD limit is hit."""
     mock_redis_pool = MagicMock()
     mock_redis_pool.url = "redis://localhost:6379"
-    strategy = LimitingStrategy.FIXED_WINDOW
 
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis.from_url") as MockRedis:
+    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis") as MockRedis:
         MockStorage.return_value = AsyncMock(spec=RedisStorage)
         MockRedis.return_value = AsyncMock()
         limiter = Limiter(mock_redis_pool, strategy)
