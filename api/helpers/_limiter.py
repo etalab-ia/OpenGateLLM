@@ -17,22 +17,22 @@ logger = logging.getLogger(__name__)
 class Limiter:
     def __init__(self, redis_pool: ConnectionPool, strategy: LimitingStrategy):
         self.redis_pool = redis_pool
-        self.redis_client = storage.RedisStorage(uri=self.redis_pool.url, connection_pool=self.redis_pool, implementation="redispy")
-        self.redis = Redis.from_url(url=self.redis_pool.url)
+        self.redis_storage = storage.RedisStorage(uri=self.redis_pool.url, connection_pool=self.redis_pool, implementation="redispy")
+        self.redis_client = Redis(connection_pool=redis_pool)
 
         if strategy == LimitingStrategy.MOVING_WINDOW:
-            self.strategy = strategies.MovingWindowRateLimiter(storage=self.redis_client)
+            self.strategy = strategies.MovingWindowRateLimiter(storage=self.redis_storage)
         elif strategy == LimitingStrategy.FIXED_WINDOW:
-            self.strategy = strategies.FixedWindowRateLimiter(storage=self.redis_client)
+            self.strategy = strategies.FixedWindowRateLimiter(storage=self.redis_storage)
         else:  # SLIDING_WINDOW
-            self.strategy = strategies.SlidingWindowCounterRateLimiter(storage=self.redis_client)
+            self.strategy = strategies.SlidingWindowCounterRateLimiter(storage=self.redis_storage)
 
     async def reset(self) -> None:
         """
         Reset the limits when starting the API.
         """
         try:
-            await self.redis_client.reset()
+            await self.redis_storage.reset()
         except RedisError:
             logger.error(msg="Redis error during rate limit reset.", exc_info=True)
 
@@ -53,27 +53,23 @@ class Limiter:
         if value is None:
             return True
 
-        granularity = "minute"
         try:
-            if type == LimitType.TPM:
-                limit = RateLimitItemPerMinute(amount=value)
-            elif type == LimitType.TPD:
-                limit = RateLimitItemPerDay(amount=value)
-                granularity = "day"
-            elif type == LimitType.RPM:
-                limit = RateLimitItemPerMinute(amount=value)
-            elif type == LimitType.RPD:
-                limit = RateLimitItemPerDay(amount=value)
-                granularity = "day"
+            match type:
+                case LimitType.TPM | LimitType.RPM:
+                    limit = RateLimitItemPerMinute(amount=value)
+                case LimitType.TPD | LimitType.RPD:
+                    limit = RateLimitItemPerDay(amount=value)
+                case _:
+                    raise ValueError(f"Unsupported limit type: {type}")
 
             key = f"{PREFIX__REDIS_RATE_LIMIT}:{type.value}:{user_id}:{router_id}"
             result = await self.strategy.hit(limit, key, cost=cost)
 
             if result:
-                full_key = f"LIMITS:LIMITER/{key}/{value}/1/{granularity}"
-                res = await self.redis.ttl(full_key)
+                full_key = f"LIMITS:LIMITER/{key}/{value}/1/{limit.GRANULARITY.name}"
+                res = await self.redis_client.ttl(full_key)
                 if res == -1:
-                    await self.redis.delete(full_key)
+                    await self.redis_client.delete(full_key)
 
             return result
 
@@ -87,14 +83,13 @@ class Limiter:
             return None
 
         try:
-            if type == LimitType.TPM:
-                limit = RateLimitItemPerMinute(amount=value)
-            elif type == LimitType.TPD:
-                limit = RateLimitItemPerDay(amount=value)
-            elif type == LimitType.RPM:
-                limit = RateLimitItemPerMinute(amount=value)
-            elif type == LimitType.RPD:
-                limit = RateLimitItemPerDay(amount=value)
+            match type:
+                case LimitType.TPM | LimitType.RPM:
+                    limit = RateLimitItemPerMinute(amount=value)
+                case LimitType.TPD | LimitType.RPD:
+                    limit = RateLimitItemPerDay(amount=value)
+                case _:
+                    raise ValueError(f"Unsupported limit type: {type}")
 
             window = await self.strategy.get_window_stats(limit, f"{PREFIX__REDIS_RATE_LIMIT}:{type.value}:{user_id}:{router_id}")
             return window.remaining
@@ -112,14 +107,15 @@ class Limiter:
         for limit in user_info.limits:
             if limit.router == router_id:
                 has_access = True
-                if limit.type == LimitType.TPM:
-                    tpm = limit.value
-                elif limit.type == LimitType.TPD:
-                    tpd = limit.value
-                elif limit.type == LimitType.RPM:
-                    rpm = limit.value
-                elif limit.type == LimitType.RPD:
-                    rpd = limit.value
+                match limit.type:
+                    case LimitType.TPM:
+                        tpm = limit.value
+                    case LimitType.TPD:
+                        tpd = limit.value
+                    case LimitType.RPM:
+                        rpm = limit.value
+                    case LimitType.RPD:
+                        rpd = limit.value
 
         if not has_access:
             raise ModelNotFoundException()
