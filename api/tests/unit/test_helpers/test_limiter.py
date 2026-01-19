@@ -375,9 +375,8 @@ async def test_limiter_remaining_exception(strategy):
 
         result = await limiter.remaining(user_id=1, router_id=1, type=LimitType.RPM, value=100)
 
-        # Should log error and return None (implicitly)
         assert result is None
-        mock_logger.error.assert_called()
+        mock_logger.debug.assert_called()
 
 
 # =========================== CHECK USER LIMITS METHOD ============================

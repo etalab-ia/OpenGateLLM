@@ -1,5 +1,4 @@
 import logging
-import traceback
 
 from limits import RateLimitItemPerDay, RateLimitItemPerMinute
 from limits.aio import storage, strategies
@@ -36,7 +35,17 @@ class Limiter:
         except RedisError:
             logger.error(msg="Redis error during rate limit reset.", exc_info=True)
 
-    async def hit(self, user_id: int, router_id: int, type: LimitType, value: int | None = None, cost: int = 1) -> bool | None:
+    async def _get_limit(self, type: LimitType, value: int | None = None) -> RateLimitItemPerMinute | RateLimitItemPerDay | None:
+        if value is None:
+            return None
+
+        match type:
+            case LimitType.TPM | LimitType.RPM:
+                return RateLimitItemPerMinute(amount=value)
+            case LimitType.TPD | LimitType.RPD:
+                return RateLimitItemPerDay(amount=value)
+
+    async def hit(self, user_id: int, router_id: int, type: LimitType, value: int | None = None, cost: int = 1) -> bool:
         """
         Check if the user has reached the limit for the given type and router.
 
@@ -50,26 +59,20 @@ class Limiter:
         Returns:
             bool: True if the limit has been hit, False otherwise.
         """
-        if value is None:
+
+        limit = await self._get_limit(type=type, value=value)
+        if limit is None:
             return True
 
         try:
-            match type:
-                case LimitType.TPM | LimitType.RPM:
-                    limit = RateLimitItemPerMinute(amount=value)
-                case LimitType.TPD | LimitType.RPD:
-                    limit = RateLimitItemPerDay(amount=value)
-                case _:
-                    raise ValueError(f"Unsupported limit type: {type}")
-
             key = f"{PREFIX__REDIS_RATE_LIMIT}:{type.value}:{user_id}:{router_id}"
             result = await self.strategy.hit(limit, key, cost=cost)
-
             if result:
                 full_key = f"LIMITS:LIMITER/{key}/{value}/1/{limit.GRANULARITY.name}"
                 res = await self.redis_client.ttl(full_key)
-                if res == -1:
+                if res == -1:  # no TTL, cleanup
                     await self.redis_client.delete(full_key)
+                    return True
 
             return result
 
@@ -79,24 +82,16 @@ class Limiter:
         return True
 
     async def remaining(self, user_id: int, router_id: int, type: LimitType, value: int | None = None) -> int | None:
-        if value is None:
-            return None
-
         try:
-            match type:
-                case LimitType.TPM | LimitType.RPM:
-                    limit = RateLimitItemPerMinute(amount=value)
-                case LimitType.TPD | LimitType.RPD:
-                    limit = RateLimitItemPerDay(amount=value)
-                case _:
-                    raise ValueError(f"Unsupported limit type: {type}")
+            limit = await self._get_limit(type=type, value=value)
+            if limit is None:
+                return
 
             window = await self.strategy.get_window_stats(limit, f"{PREFIX__REDIS_RATE_LIMIT}:{type.value}:{user_id}:{router_id}")
             return window.remaining
 
         except Exception:
-            logger.error(msg="Error during rate limit remaining.")
-            logger.error(msg=traceback.format_exc())
+            logger.debug(msg="Error during rate limit remaining.", exc_info=True)
 
     async def check_user_limits(self, user_info: UserInfo, router_id: int, prompt_tokens: int | None = None) -> None:
         if user_info.id == 0:
