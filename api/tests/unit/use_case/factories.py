@@ -148,4 +148,6 @@ class UserInfoFactory(factory.Factory):
 
         admin = factory.Trait(permissions=[PermissionType.ADMIN])
 
+        without_permission = factory.Trait(permissions=[])
+
         no_organization = factory.Trait(organization=None, name=None)

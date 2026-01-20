@@ -2,11 +2,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.role.entities import PermissionType
+from api.domain.router._routerrepository import RouterNameAlreadyExists
 from api.domain.router.entities import ModelType, RouterLoadBalancingStrategy
 from api.tests.unit.use_case.factories import RouterFactory, UserInfoFactory
 from api.use_cases.admin import CreateRouterUseCase
-from api.utils.exceptions import InsufficientPermissionException, RouterAliasAlreadyExistsException
+from api.use_cases.admin._createrouterusecase import InsufficientPermissionError, RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 
 
 @pytest.fixture
@@ -23,12 +23,12 @@ def user_info_repository():
 
 @pytest.fixture
 def admin_user_info():
-    return UserInfoFactory(id=1, permissions=[PermissionType.ADMIN], limits=[])
+    return UserInfoFactory(id=1, admin=True, limits=[])
 
 
 @pytest.fixture
 def non_admin_user_info():
-    return UserInfoFactory(id=2, permissions=[], limits=[])
+    return UserInfoFactory(id=2, without_permission=True, limits=[])
 
 
 @pytest.fixture
@@ -83,10 +83,10 @@ class TestCreateRouterUseCase:
         )
 
         # Assert
-        assert result.id == 1
-        assert result.name == "test-model"
-        assert result.type == ModelType.TEXT_GENERATION
-        assert result == sample_router
+        assert result.router.id == 1
+        assert result.router.name == "test-model"
+        assert result.router.type == ModelType.TEXT_GENERATION
+        assert result.router == sample_router
 
         user_info_repository.get_user_info.assert_called_once_with(user_id=1)
         router_repository.get_aliases.assert_called_once_with(["alias1", "alias2"])
@@ -133,8 +133,8 @@ class TestCreateRouterUseCase:
         )
 
         # Assert
-        assert result.id == 2
-        assert result.name == "model-no-alias"
+        assert result.router.id == 2
+        assert result.router.name == "model-no-alias"
         router_repository.insert_aliases.assert_not_called()
         router_repository.get_aliases.assert_not_called()
         router_repository.create_router.assert_called_once_with(
@@ -147,7 +147,7 @@ class TestCreateRouterUseCase:
         )
 
     @pytest.mark.asyncio
-    async def test_should_raise_exception_when_user_is_not_admin(self, router_repository, user_info_repository, non_admin_user_info):
+    async def test_should_return_insufficient_permission_error_if_user_not_admin(self, router_repository, user_info_repository, non_admin_user_info):
         # Arrange
         user_info_repository.get_user_info.return_value = non_admin_user_info
 
@@ -156,22 +156,25 @@ class TestCreateRouterUseCase:
             user_info_repository=user_info_repository,
         )
 
-        # Act & Assert
-        with pytest.raises(InsufficientPermissionException):
-            await use_case.execute(
-                user_id=2,
-                name="test-model",
-                router_type=ModelType.TEXT_GENERATION,
-                aliases=[],
-                load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
-                cost_prompt_tokens=0.0,
-                cost_completion_tokens=0.0,
-            )
+        # Act
+        error = await use_case.execute(
+            user_id=2,
+            name="test-model",
+            router_type=ModelType.TEXT_GENERATION,
+            aliases=[],
+            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            cost_prompt_tokens=0.0,
+            cost_completion_tokens=0.0,
+        )
 
+        # Assert
+        assert isinstance(error, InsufficientPermissionError)
         router_repository.create_router.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_raise_exception_when_alias_already_exists(self, router_repository, user_info_repository, admin_user_info):
+    async def test_should_return_router_alias_already_exists_when_alias_already_exists(
+        self, router_repository, user_info_repository, admin_user_info
+    ):
         # Arrange
         user_info_repository.get_user_info.return_value = admin_user_info
         router_repository.get_aliases.return_value = ["alias1"]
@@ -181,16 +184,50 @@ class TestCreateRouterUseCase:
             user_info_repository=user_info_repository,
         )
 
-        # Act & Assert
-        with pytest.raises(RouterAliasAlreadyExistsException):
-            await use_case.execute(
-                user_id=1,
-                name="test-model",
-                router_type=ModelType.TEXT_GENERATION,
-                aliases=["alias1", "alias2"],
-                load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
-                cost_prompt_tokens=0.0,
-                cost_completion_tokens=0.0,
-            )
+        # Act
+        error = await use_case.execute(
+            user_id=1,
+            name="test-model",
+            router_type=ModelType.TEXT_GENERATION,
+            aliases=["alias1", "alias2"],
+            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            cost_prompt_tokens=0.0,
+            cost_completion_tokens=0.0,
+        )
 
+        # Assert
+        assert isinstance(error, RouterAliasAlreadyExistsError)
         router_repository.create_router.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_should_return_router_name_already_exists_when_name_already_exists(self, router_repository, user_info_repository, admin_user_info):
+        # Arrange
+        user_info_repository.get_user_info.return_value = admin_user_info
+        router_repository.get_aliases.return_value = []
+        router_repository.create_router.return_value = RouterNameAlreadyExists(name="existing-router")
+        use_case = CreateRouterUseCase(
+            router_repository=router_repository,
+            user_info_repository=user_info_repository,
+        )
+
+        # Act
+        error = await use_case.execute(
+            user_id=1,
+            name="test-model",
+            router_type=ModelType.TEXT_GENERATION,
+            aliases=["alias1", "alias2"],
+            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            cost_prompt_tokens=0.0,
+            cost_completion_tokens=0.0,
+        )
+
+        # Assert
+        assert isinstance(error, RouterNameAlreadyExistsError)
+        router_repository.create_router.assert_called_once_with(
+            name="test-model",
+            router_type=ModelType.TEXT_GENERATION,
+            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            cost_prompt_tokens=0.0,
+            cost_completion_tokens=0.0,
+            user_id=admin_user_info.id,
+        )

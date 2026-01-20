@@ -1,17 +1,41 @@
+from dataclasses import dataclass
+
 from api.domain.role.entities import PermissionType
 from api.domain.router import RouterRepository
+from api.domain.router._routerrepository import RouterNameAlreadyExists
 from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStrategy
 from api.domain.userinfo import UserInfoRepository
-from api.tasks import add_model_queue_to_running_worker
-from api.utils.exceptions import InsufficientPermissionException, RouterAliasAlreadyExistsException
-from api.utils.variables import PREFIX__CELERY_QUEUE_ROUTING
+
+
+@dataclass
+class CreateRouterUseCaseSuccess:
+    router: Router
+
+
+@dataclass
+class RouterAliasAlreadyExistsError:
+    pass
+
+
+@dataclass
+class RouterNameAlreadyExistsError:
+    name: str
+
+
+@dataclass
+class InsufficientPermissionError:
+    pass
+
+
+type CreateRouterUseCaseResult = (
+    CreateRouterUseCaseSuccess | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError | InsufficientPermissionError
+)
 
 
 class CreateRouterUseCase:
     def __init__(self, router_repository: RouterRepository, user_info_repository: UserInfoRepository):
         self.router_repository = router_repository
         self.user_info_repository = user_info_repository
-        self.queuing_enabled = False
 
     async def execute(
         self,
@@ -22,17 +46,19 @@ class CreateRouterUseCase:
         load_balancing_strategy: RouterLoadBalancingStrategy,
         cost_prompt_tokens: float,
         cost_completion_tokens: float,
-    ) -> Router:
+    ) -> CreateRouterUseCaseResult:
         user_info = await self.user_info_repository.get_user_info(user_id=user_id)
 
-        await self._check_permissions(permissions=user_info.permissions)
+        is_admin = self.is_admin(permissions=user_info.permissions)
+        if not is_admin:
+            return InsufficientPermissionError()
         existing_aliases = []
         if aliases:
             existing_aliases = await self.router_repository.get_aliases(aliases)
-        if len(existing_aliases) != 0:
-            raise RouterAliasAlreadyExistsException()
+        if existing_aliases:
+            return RouterAliasAlreadyExistsError()
 
-        router = await self.router_repository.create_router(
+        result = await self.router_repository.create_router(
             name=name,
             router_type=router_type,
             load_balancing_strategy=load_balancing_strategy,
@@ -41,14 +67,15 @@ class CreateRouterUseCase:
             user_id=user_info.id,
         )
 
-        if aliases:
-            await self.router_repository.insert_aliases(aliases, router.id)
-            router.aliases = aliases
-        if self.queuing_enabled:
-            add_model_queue_to_running_worker(queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router.id}")
+        match result:
+            case RouterNameAlreadyExists(name=name):
+                return RouterNameAlreadyExistsError(name)
+            case Router() as router:
+                if aliases:
+                    await self.router_repository.insert_aliases(aliases, router.id)
+                    router.aliases = aliases
 
-        return router
+                return CreateRouterUseCaseSuccess(router)
 
-    async def _check_permissions(self, permissions: list[PermissionType]) -> None:
-        if [PermissionType.ADMIN] and not set(permissions).intersection({PermissionType.ADMIN}):
-            raise InsufficientPermissionException()
+    def is_admin(self, permissions: list[PermissionType]) -> bool:
+        return PermissionType.ADMIN in permissions

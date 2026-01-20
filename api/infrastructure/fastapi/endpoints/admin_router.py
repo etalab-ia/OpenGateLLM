@@ -4,8 +4,19 @@ from fastapi.responses import JSONResponse
 from api.dependencies import create_router_use_case, get_request_context
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
+from api.infrastructure.fastapi.endpoints.exceptions import (
+    InsufficientPermissionHTTPException,
+    RouterAliasAlreadyExistsHTTPException,
+    RouterAlreadyExistsHTTPException,
+)
 from api.infrastructure.fastapi.schemas.routers import CreateRouter, CreateRouterResponse
 from api.use_cases.admin import CreateRouterUseCase
+from api.use_cases.admin._createrouterusecase import (
+    CreateRouterUseCaseSuccess,
+    InsufficientPermissionError,
+    RouterAliasAlreadyExistsError,
+    RouterNameAlreadyExistsError,
+)
 from api.utils.variables import ENDPOINT__ADMIN_ROUTERS, ROUTER__ADMIN
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
@@ -21,7 +32,7 @@ async def create_router(
     """
     Create a model (without any providers).
     """
-    created_router = await create_router_use_case.execute(
+    result = await create_router_use_case.execute(
         user_id=request_context.get().user_id,
         name=body.name,
         router_type=body.type,
@@ -30,37 +41,26 @@ async def create_router(
         cost_prompt_tokens=body.cost_prompt_tokens,
         cost_completion_tokens=body.cost_completion_tokens,
     )
-    return JSONResponse(
-        status_code=201,
-        content=CreateRouterResponse(
-            id=created_router.id,
-            name=created_router.name,
-            type=created_router.type,
-            aliases=created_router.aliases,
-            load_balancing_strategy=created_router.load_balancing_strategy,
-            cost_prompt_tokens=created_router.cost_prompt_tokens,
-            cost_completion_tokens=created_router.cost_completion_tokens,
-        ).model_dump(),
-    )
 
-    # created_router = await create_router_use_case.execute(
-    #     user_id=request_context.get().user_id,
-    #     name=body.name,
-    #     type=body.type,
-    #     aliases=body.aliases,
-    #     load_balancing_strategy=body.load_balancing_strategy,
-    #     cost_prompt_tokens=body.cost_prompt_tokens,
-    #     cost_completion_tokens=body.cost_completion_tokens
-    # )
-    # return JSONResponse(
-    #     status_code=201,
-    #     content=CreateRouterResponse(
-    #         id=created_router.id,
-    #         name=created_router.name,
-    #         type=created_router.type,
-    #         aliases=created_router.aliases,
-    #         load_balancing_strategy=created_router.load_balancing_strategy,
-    #         cost_prompt_tokens=created_router.cost_prompt_tokens,
-    #         cost_completion_tokens=created_router.cost_completion_tokens
-    #     ).model_dump()
-    # )
+    match result:
+        case CreateRouterUseCaseSuccess(created_router):
+            return JSONResponse(
+                status_code=201,
+                content=CreateRouterResponse(
+                    id=created_router.id,
+                    name=created_router.name,
+                    type=created_router.type,
+                    aliases=created_router.aliases,
+                    load_balancing_strategy=created_router.load_balancing_strategy,
+                    cost_prompt_tokens=created_router.cost_prompt_tokens,
+                    cost_completion_tokens=created_router.cost_completion_tokens,
+                ).model_dump(),
+            )
+        case RouterAliasAlreadyExistsError():
+            raise RouterAliasAlreadyExistsHTTPException()
+        case RouterNameAlreadyExistsError(name):
+            raise RouterAlreadyExistsHTTPException(name)
+        case InsufficientPermissionError():
+            raise InsufficientPermissionHTTPException()
+        case _:
+            raise RuntimeError(f"Unhandled result: {result}")

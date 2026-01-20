@@ -1,6 +1,12 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStrategy
+
+
+@dataclass
+class RouterNameAlreadyExists:
+    name: str
 
 
 class RouterRepository(ABC):
@@ -28,6 +34,6 @@ class RouterRepository(ABC):
         load_balancing_strategy: RouterLoadBalancingStrategy,
         cost_prompt_tokens: float,
         cost_completion_tokens: float,
-        user_id: str,
-    ) -> Router:
+        user_id: int,
+    ) -> Router | RouterNameAlreadyExists:
         pass

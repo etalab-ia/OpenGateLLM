@@ -371,7 +371,6 @@ class TestAdminCreateRouter:
         admin_user = UserFactory(admin_user=True)
         PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
 
-        # Create existing router
         existing_router = RouterFactory(
             user=admin_user,
             name="duplicate-name",

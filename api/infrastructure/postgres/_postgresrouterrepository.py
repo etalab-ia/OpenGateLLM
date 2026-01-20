@@ -3,13 +3,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.router import RouterRepository
+from api.domain.router._routerrepository import RouterNameAlreadyExists
 from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStrategy
 from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 from api.sql.models import User as UserTable
-from api.utils.exceptions import RouterAlreadyExistsException
 
 
 class PostgresRouterRepository(RouterRepository):
@@ -98,7 +98,7 @@ class PostgresRouterRepository(RouterRepository):
         cost_prompt_tokens: float,
         cost_completion_tokens: float,
         user_id: int,
-    ) -> Router:
+    ) -> Router | RouterNameAlreadyExists:
         db_user_id = None if user_id == self.master_user_id else user_id
         try:
             query = (
@@ -126,7 +126,7 @@ class PostgresRouterRepository(RouterRepository):
             result = await self.postgres_session.execute(query)
             row = result.one()
         except IntegrityError:
-            raise RouterAlreadyExistsException()
+            return RouterNameAlreadyExists(name=name)
 
         return Router(
             id=row.id,
