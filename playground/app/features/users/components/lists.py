@@ -34,10 +34,26 @@ def user_row_content(user: User) -> rx.Component:
 
 def user_row_description(user: User) -> rx.Component:
     return rx.vstack(
-        rx.text(
-            f"Created: {user.created} • Updated: {user.updated}",
-            size=TEXT_SIZE_LABEL,
-            color=rx.color("mauve", 9),
+        rx.hstack(
+            rx.text(
+                f"Created: {user.created} ",
+                size=TEXT_SIZE_LABEL,
+                color=rx.color("mauve", 9),
+            ),
+            rx.text(
+                f"• Updated: {user.updated} ",
+                size=TEXT_SIZE_LABEL,
+                color=rx.color("mauve", 9),
+            ),
+            rx.cond(
+                user.expires,
+                rx.text(
+                    f"• Expires: {user.expires} ",
+                    size=TEXT_SIZE_LABEL,
+                    color=rx.color("red", 9),
+                ),
+            ),
+            spacing="1",
         ),
         spacing=SPACING_SMALL,
         align_items="start",

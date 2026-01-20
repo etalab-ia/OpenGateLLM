@@ -37,7 +37,7 @@ class UsersState(EntityState):
             organization=organization_name,
             budget=user["budget"],
             priority=user["priority"],
-            expires=dt.datetime.fromtimestamp(user["expires"]).strftime("%Y-%m-%d %H:%M") if user["expires"] else None,
+            expires=dt.datetime.fromtimestamp(user["expires"]).strftime("%Y-%m-%d") if user["expires"] else None,
             created=dt.datetime.fromtimestamp(user["created"]).strftime("%Y-%m-%d %H:%M"),
             updated=dt.datetime.fromtimestamp(user["updated"]).strftime("%Y-%m-%d %H:%M"),
         )
@@ -222,9 +222,6 @@ class UsersState(EntityState):
             yield rx.toast.warning("Role is required", position="bottom-right")
             return
 
-        self.create_entity_loading = True
-        yield
-
         for role in self.roles_list:
             if role["name"] == self.entity_to_create.role:
                 role_id = role["id"]
@@ -239,17 +236,24 @@ class UsersState(EntityState):
                 organization_id = organization["id"]
                 break
 
+        self.create_entity_loading = True
+
+        yield
+
         payload = {
             "email": self.entity_to_create.email,
             "password": self.entity_to_create.password,
             "role": role_id,
-            "expires": self.entity_to_create.expires,
             "priority": self.entity_to_create.priority,
         }
-        if self.entity_to_create.budget == "":
-            payload["budget"] = None
-        else:
+
+        if self.entity_to_create.expires:
+            expires = dt.datetime.strptime(self.entity_to_create.expires, "%Y-%m-%d").timestamp()
+            payload["expires"] = expires
+
+        if self.entity_to_create.budget:
             payload["budget"] = self.entity_to_create.budget
+
         if organization_id:
             payload["organization"] = organization_id
 
