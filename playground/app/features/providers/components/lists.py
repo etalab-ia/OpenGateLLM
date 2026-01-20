@@ -67,17 +67,11 @@ def provider_renderer_row(provider: Provider, with_settings: bool = False) -> rx
 def provider_filters() -> rx.Component:
     return rx.hstack(
         rx.text("Filters", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
-        rx.select.root(
-            rx.select.trigger(size="2", width=SELECT_MEDIUM_WIDTH),
-            rx.select.content(
-                rx.select.item("All routers", value="0"),
-                rx.foreach(
-                    ProvidersState.routers_list,
-                    lambda item: rx.select.item(item["name"], value=item["id"].to(str)),
-                ),
-            ),
-            value=ProvidersState.filter_router_value.to(str),
-            on_change=lambda value: ProvidersState.set_filter_router(value),
+        rx.select(
+            ProvidersState.routers_name_list_with_all,
+            on_change=ProvidersState.set_filter_router,
+            value=ProvidersState.filter_router_value,
+            width=SELECT_MEDIUM_WIDTH,
         ),
         spacing=SPACING_SMALL,
         align="center",

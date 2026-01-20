@@ -3,7 +3,7 @@ import logging
 from typing import Literal
 
 from redis.asyncio import Redis as AsyncRedis
-from sqlalchemy import Integer, cast, delete, func, insert, or_, select, text, update
+from sqlalchemy import Integer, and_, cast, delete, func, insert, or_, select, text, update
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -364,29 +364,39 @@ class ModelRegistry:
             select(func.count(ProviderTable.id)).where(ProviderTable.router_id == RouterTable.id).correlate(RouterTable).scalar_subquery()
         )
 
+        first_provider_subquery = select(
+            ProviderTable.router_id,
+            ProviderTable.max_context_length,
+            ProviderTable.vector_size,
+            func.row_number().over(partition_by=ProviderTable.router_id, order_by=ProviderTable.id).label("rn"),
+        ).subquery()
+
         query = (
-            select(
-                RouterTable.id,
-                RouterTable.name,
-                RouterTable.user_id,
-                RouterTable.type,
-                RouterTable.load_balancing_strategy,
-                RouterTable.cost_prompt_tokens,
-                RouterTable.cost_completion_tokens,
-                ProviderTable.max_context_length,
-                ProviderTable.vector_size,
-                provider_count_subquery.label("providers"),
-                cast(func.extract("epoch", RouterTable.created), Integer).label("created"),
-                cast(func.extract("epoch", RouterTable.updated), Integer).label("updated"),
+            (
+                select(
+                    RouterTable.id,
+                    RouterTable.name,
+                    RouterTable.user_id,
+                    RouterTable.type,
+                    RouterTable.load_balancing_strategy,
+                    RouterTable.cost_prompt_tokens,
+                    RouterTable.cost_completion_tokens,
+                    first_provider_subquery.c.max_context_length,
+                    first_provider_subquery.c.vector_size,
+                    provider_count_subquery.label("providers"),
+                    cast(func.extract("epoch", RouterTable.created), Integer).label("created"),
+                    cast(func.extract("epoch", RouterTable.updated), Integer).label("updated"),
+                )
+                .join(
+                    first_provider_subquery,
+                    and_(first_provider_subquery.c.router_id == RouterTable.id, first_provider_subquery.c.rn == 1),
+                    isouter=True,
+                )
+                .order_by(text(f"{order_by} {order_direction}"))
             )
-            .distinct(RouterTable.id)
-            .join(ProviderTable, ProviderTable.router_id == RouterTable.id, isouter=True)
-            .order_by(text(f"{order_by} {order_direction}"))
+            .offset(offset=offset)
+            .limit(limit=limit)
         )
-        if offset is not None:
-            query = query.offset(offset=offset)
-        if limit is not None:
-            query = query.limit(limit=limit)
 
         if router_id is not None:
             query = query.where(RouterTable.id == router_id)

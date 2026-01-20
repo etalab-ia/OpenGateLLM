@@ -30,6 +30,10 @@ class ProvidersState(EntityState):
     def routers_name_list(self) -> list[str]:
         return sorted([router["name"] for router in self.routers_list])
 
+    @rx.var
+    def routers_name_list_with_all(self) -> list[str]:
+        return ["All routers"] + sorted([router["name"] for router in self.routers_list])
+
     ############################################################
     # Load entities
     ############################################################
@@ -98,8 +102,8 @@ class ProvidersState(EntityState):
             "order_direction": self.order_direction_value,
         }
 
-        if self.filter_router_value != "0":
-            params["router"] = int(self.filter_router_value)
+        if self.filter_router_value != "All routers":
+            params["router"] = self.routers_dict.get(self.filter_router_value, None)
 
         response = None
         try:
@@ -366,21 +370,13 @@ class ProvidersState(EntityState):
     ############################################################
     # Pagination & filters
     ############################################################
-    filter_router_value: str = "0"
     page: int = 1
     per_page: int = 20
     order_by_value: str = "id"
     order_direction: str = "asc"
     order_direction_options: list[str] = ["asc", "desc"]
     order_direction_value: str = "asc"
-    order_by_options: list[str] = ["id", "name", "created"]
-
-    @rx.event
-    async def set_filter_router(self, value: str):
-        self.filter_router_value = value
-        yield
-        async for _ in self.load_entities():
-            yield
+    order_by_options: list[str] = ["id", "model_name", "created"]
 
     @rx.event
     async def set_order_by(self, value: str):
@@ -417,3 +413,14 @@ class ProvidersState(EntityState):
             yield
             async for _ in self.load_entities():
                 yield
+
+    filter_router_value: str = "All routers"
+
+    @rx.event
+    async def set_filter_router(self, value: str):
+        self.filter_router_value = value
+        self.page = 1
+        self.has_more_page = False
+        yield
+        async for _ in self.load_entities():
+            yield
