@@ -1,14 +1,21 @@
+from contextvars import ContextVar
 import logging
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
 from html_to_markdown import convert_to_markdown
 import pymupdf
+from redis.asyncio import Redis as AsyncRedis
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.clients.parser import BaseParserClient as ParserClient
+from api.helpers.models import ModelRegistry
+from api.schemas.core.context import RequestContext
 from api.schemas.core.documents import FileType, ParserParams
+from api.schemas.core.models import RequestContent
+from api.schemas.ocr import CreateOCR
 from api.schemas.parse import ParsedDocument, ParsedDocumentMetadata, ParsedDocumentOutputFormat, ParsedDocumentPage
 from api.utils.exceptions import UnsupportedFileTypeException
+from api.utils.variables import ENDPOINT__OCR
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +56,8 @@ class ParserManager:
         },
     }
 
-    def __init__(self, parser: ParserClient | None = None, *args, **kwargs):
-        self.parser_client = parser
+    def __init__(self, ocr_model: str | None = None):
+        self.ocr_model = ocr_model
 
     def _detect_file_type(self, file: UploadFile, type: FileType | None = None) -> FileType:
         """
@@ -109,10 +116,43 @@ class ParserManager:
 
         return await method_map[file_type](params)
 
-    async def _parse_pdf(self, params: ParserParams) -> ParsedDocument:
-        if self.parser_client and FileType.PDF in self.parser_client.SUPPORTED_FORMATS:
-            document = await self.parser_client.parse(params)
-            return document
+    async def _parse_pdf(
+        self,
+        params: ParserParams,
+        model_registry: ModelRegistry,
+        postgres_session: AsyncSession,
+        redis_client: AsyncRedis,
+        request_context: ContextVar[RequestContext],
+    ) -> ParsedDocument:
+        if self.ocr_model:
+            provider = await model_registry.get_model_provider(
+                model=self.ocr_model,
+                endpoint=ENDPOINT__OCR,
+                postgres_session=postgres_session,
+                redis_client=redis_client,
+                request_context=request_context,
+            )
+            response = await provider.forward_request(
+                request_content=RequestContent(
+                    method="POST",
+                    endpoint=ENDPOINT__OCR,
+                    json=CreateOCR(
+                        include_image_base64=True,
+                        model=self.ocr_model,
+                        force_ocr=force_ocr,
+                        output_format=ParsedDocumentOutputFormat.MARKDOWN,
+                    ).model_dump(),
+                    model=self.ocr_model,
+                ),
+                redis_client=redis_client,
+            )
+            return ParsedDocument(
+                data=[
+                    ParsedDocumentPage(
+                        content=response.json()["data"], images={}, metadata=ParsedDocumentMetadata(document_name=params.file.filename)
+                    )
+                ]
+            )
 
         try:
             file_content = await params.file.read()

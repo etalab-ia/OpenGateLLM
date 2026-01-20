@@ -1,5 +1,6 @@
 import base64
 from enum import Enum
+from typing import Literal
 
 from mistralai.models import AudioChunk, ChatCompletionRequest, TextChunk, UserMessage
 from pydantic import Field
@@ -18,8 +19,14 @@ AudioTranscriptionLanguage = Enum("AudioTranscriptionLanguage", SUPPORTED_LANGUA
 
 
 class CreateAudioTranscription(BaseModel):
+    model: str
+    language: AudioTranscriptionLanguage
+    prompt: str | None
+    response_format: Literal["json", "text"]
+    temperature: float | None
+
     @staticmethod
-    def format_request(provider_type: ProviderType, request_content: RequestContent):
+    async def format_request(provider_type: ProviderType, request_content: RequestContent):
         match provider_type:
             case ProviderType.ALBERT:
                 request_content.form["response_format"] = "json"

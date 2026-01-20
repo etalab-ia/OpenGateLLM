@@ -30,7 +30,7 @@ class CreateRerank(BaseModel):
         return self
 
     @staticmethod
-    def format_request(provider_type: ProviderType, request_content: RequestContent):
+    async def format_request(provider_type: ProviderType, request_content: RequestContent):
         match provider_type:
             case ProviderType.ALBERT:
                 return request_content

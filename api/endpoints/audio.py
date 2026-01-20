@@ -11,6 +11,7 @@ from api.helpers.models import ModelRegistry
 from api.schemas.audio import (
     AudioTranscription,
     AudioTranscriptionLanguage,
+    CreateAudioTranscription,
 )
 from api.schemas.core.context import RequestContext
 from api.schemas.core.models import RequestContent
@@ -47,7 +48,7 @@ async def audio_transcriptions(
     )
 
     file_content = await file.read()
-    form = {"model": model, "response_format": response_format, "temperature": temperature, "language": language.value, "prompt": prompt}
+    form = CreateAudioTranscription(model=model, response_format=response_format, temperature=temperature, language=language.value, prompt=prompt).model_dump()
 
     response = await model_provider.forward_request(
         request_content=RequestContent(

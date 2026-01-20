@@ -200,6 +200,11 @@ class InvalidJSONFormatException(HTTPException):
         super().__init__(status_code=422, detail=detail)
 
 
+class RequestFormatFailedException(HTTPException):
+    def __init__(self, detail: str = "Request formatting failed.") -> None:
+        super().__init__(status_code=422, detail=detail)
+
+
 class WrongModelTypeException(HTTPException):
     def __init__(self, detail: str = "Wrong model type.") -> None:
         super().__init__(status_code=422, detail=detail)
@@ -256,11 +261,6 @@ class VectorizationFailedException(HTTPException):
 class TaskFailedException(HTTPException):
     def __init__(self, status_code: int = 500, detail: str = "Celery task failed.") -> None:
         super().__init__(status_code=status_code, detail=detail)
-
-
-class RequestFormatFailedException(HTTPException):
-    def __init__(self, detail: str = "Request formatting failed.") -> None:
-        super().__init__(status_code=500, detail=detail)
 
 
 class ResponseFormatFailedException(HTTPException):

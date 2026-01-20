@@ -1,10 +1,15 @@
+import base64
+from io import BytesIO
 import re
 from typing import Any, Literal
 
 from fastapi import Form
-from pydantic import Field, constr, model_validator
+import httpx
+from pydantic import Field, constr
 
 from api.schemas import BaseModel
+from api.schemas.admin.providers import ProviderType
+from api.schemas.core.models import MarkerCreateOCR, RequestContent
 from api.schemas.usage import Usage
 
 DEFAULT_PROMPT = """Tu es un système d'OCR très précis. Extrait tout le texte visible de cette image. 
@@ -56,12 +61,94 @@ class CreateOCR(BaseModel):
     bbox_annotation_format: ResponseFormat | None = Field(default=None, description='Specify the format that the model must output for the bounding boxes. By default it will use `{ "type": "text" }`. Setting to `{ "type": "json_object" }` enables JSON mode, which guarantees the message the model generates is in JSON. When using JSON mode you MUST also instruct the model to produce JSON yourself with a system or a user message. Setting to `{ "type": "json_schema" }` enables JSON schema mode, which guarantees the message the model generates is in JSON and follows the schema you provide.')  # fmt: off
     document: DocumentURLChunk | ImageURLChunk = Field(default=..., description="Document to run OCR on.")  # fmt: off
     document_annotation_format: ResponseFormat | None = Field(default=None, description='Specify the format that the model must output for the document. By default it will use `{ "type": "text" }`. Setting to `{ "type": "json_object" }` enables JSON mode, which guarantees the message the model generates is in JSON. When using JSON mode you MUST also instruct the model to produce JSON yourself with a system or a user message. Setting to `{ "type": "json_schema" }` enables JSON schema mode, which guarantees the message the model generates is in JSON and follows the schema you provide.')  # fmt: off
-    # id: str = Field(default=..., description="The ID of the OCR.")  # fmt: off # TODO: add this
+    id: str | None = Field(default=None, description="The ID of the OCR request.")
     image_limit: int | None = Field(default=None, description="Max images to extract")  # fmt: off
     image_min_size: int | None = Field(default=None, description="Minimum height and width of image to extract")  # fmt: off
     include_image_base64: bool | None = Field(default=None, description="Include image URLs in response")  # fmt: off
     model: str | None = Field(default=None, description="The model to use for the OCR.")  # fmt: off
     pages: list[int] | None = Field(default=None, description="Specific pages user wants to process in various formats: single number, range, or list of both. Starts from 0")  # fmt: off
+
+    @staticmethod
+    async def format_request(provider_type: ProviderType, request_content: RequestContent):
+        def _pages_to_page_range(pages: list[int] | None) -> str:
+            if not pages:
+                return ""
+
+            pages = sorted(pages)
+            ranges = []
+            start = prev = pages[0]
+            for p in pages[1:]:
+                if p == prev + 1:
+                    prev = p
+                else:
+                    ranges.append(f"{start}-{prev}" if start != prev else str(start))
+                    start = prev = p
+            ranges.append(f"{start}-{prev}" if start != prev else str(start))
+
+            return ",".join(ranges)
+
+        match provider_type:
+            case ProviderType.ALBERT:
+                return request_content
+
+            case ProviderType.MARKER:
+                request_content.additional_data["include_image_base64"] = request_content.json.get("include_image_base64")
+
+                # files
+                document_url = request_content.json["document"]["document_url"]
+                if document_url.startswith("http"):
+                    async with httpx.AsyncClient() as client:
+                        try:
+                            response = await client.get(document_url)
+                            response.raise_for_status()
+                            file_content = response.content
+                        except Exception:
+                            raise ValueError("Failed to download document URL.")
+                else:
+                    try:
+                        file_content = base64.b64decode(document_url.split(",")[1])
+                    except Exception:
+                        raise ValueError("Invalid base64 encoded document URL.")
+
+                request_content.additional_data["doc_size_bytes"] = len(file_content)
+                request_content.files = {"file": ("pdf.pdf", BytesIO(file_content), "application/pdf")}
+
+                # json
+                request_content.additional_data["include_image_base64"] = request_content.json.get("include_image_base64")
+                page_range = _pages_to_page_range(pages=request_content.json["pages"])
+                document_annotation_format = request_content.json["document_annotation_format"]
+
+                match document_annotation_format.type:
+                    case "text" | None:
+                        output_format = "markdown"
+                    case "json_object":
+                        output_format = "json"
+                    case "json_schema":
+                        raise ValueError("json_schema format is not supported for Marker models")
+
+                if request_content.json["bbox_annotation_format"] is not None:
+                    raise ValueError("bbox_annotation_format parameter is not supported for Marker models")
+                if request_content.json["document_annotation_format"] is not None:
+                    raise ValueError("document_annotation_format parameter is not supported for Marker models")
+                if request_content.json["image_limit"] is not None:
+                    raise ValueError("image_limit parameter is not supported for Marker models")
+                if request_content.json["image_min_size"] is not None:
+                    raise ValueError("image_min_size parameter is not supported for Marker models")
+
+                request_content.json = MarkerCreateOCR(
+                    page_range=page_range,
+                    force_ocr=request_content.json.get("force_ocr", True),
+                    paginate_output=True,
+                    output_format=output_format,
+                ).model_dump()
+
+                return request_content
+
+            case ProviderType.MISTRAL:
+                return request_content
+
+            case _:
+                raise NotImplementedError(f"Provider {provider_type} not implemented")
 
 
 class OCRUsage(BaseModel):
@@ -100,105 +187,39 @@ class OCR(BaseModel):
     usage: Usage | None = Field(default=None, description="Usage information for the request.")  # fmt: off
     usage_info: OCRUsage | None = Field(default=None, description="Usage information for the request.")  # fmt: off
 
+    @classmethod
+    def build_from(cls, provider_type: ProviderType, request_content: RequestContent, response_data: dict):
+        match provider_type:
+            case ProviderType.ALBERT:
+                response_data.update(request_content.additional_data)
+                return cls(**response_data)
 
-class MarkerCreateOCR(CreateOCR):
-    page_range: str = Field(default="", description="Page range to convert, specify comma separated page numbers or ranges. Example: '0,5-10,20'")  # fmt: off
-    force_ocr: bool = Field(default=False, description="Force OCR on all pages of the PDF.  Defaults to False.  This can lead to worse results if you have good text in your PDFs (which is true in most cases).")  # fmt: off
-    paginate_output: bool = Field(default=False, description="Whether to paginate the output.  Defaults to False.  If set to True, each page of the output will be separated by a horizontal rule that contains the page number (2 newlines, {PAGE_NUMBER}, 48 - characters, 2 newlines).")  # fmt: off
-    output_format: Literal["markdown", "json", "html"] = Field(default="markdown", description="The format to output the text in.  Can be 'markdown', 'json', or 'html'.  Defaults to 'markdown'.")  # fmt: off
+            case ProviderType.MARKER:
+                doc_size_bytes = request_content.additional_data.pop("doc_size_bytes")
+                include_image_base64 = request_content.additional_data.pop("include_image_base64")
+                pages = []
+                content = response_data.get("output", "")
+                images = response_data.get("images", {})
+                matches = list(re.finditer(r"\{[0-9]+\}-{48}\n\n", content))
+                for i in range(len(matches)):
+                    offset = len(content) if i == len(matches) - 1 else matches[i + 1].span()[0]
+                    markdown = content[matches[i].span()[1] : offset]
+                    images_page = [
+                        OCRImageObject(
+                            id=key,
+                            image_base64=f"data:image/jpeg;base64,{value}" if include_image_base64 else None,
+                        )
+                        for key, value in images.items()
+                        if key.startswith(f"_page_{i}_")
+                    ]
+                    pages.append(OCRPageObject(index=i, markdown=markdown, images=images_page))
 
-    class ConfigDict:
-        extra = "allow"
+                usage_info = OCRUsage(doc_size_bytes=doc_size_bytes, pages_processed=len(matches))
 
-    @staticmethod
-    def pages_to_page_range(pages: list[int] | None) -> str:
-        if not pages:
-            return ""
+                return cls(pages=pages, usage_info=usage_info, **request_content.additional_data)
 
-        pages = sorted(pages)
-        ranges = []
-        start = prev = pages[0]
-        for p in pages[1:]:
-            if p == prev + 1:
-                prev = p
-            else:
-                ranges.append(f"{start}-{prev}" if start != prev else str(start))
-                start = prev = p
-        ranges.append(f"{start}-{prev}" if start != prev else str(start))
+            case ProviderType.MISTRAL:
+                return cls(**response_data)
 
-        return ",".join(ranges)
-
-    @model_validator(mode="after")
-    def validate_model(self):
-        self.page_range = self.pages_to_page_range(self.pages)
-        if self.document_annotation_format is not None:
-            match self.document_annotation_format.type:
-                case "text":
-                    self.output_format = "markdown"
-                case "json_object":
-                    self.output_format = "json"
-                case "json_schema":
-                    raise ValueError("json_schema format is not supported for Marker models")
-        else:
-            self.output_format = "markdown"
-
-        if self.bbox_annotation_format is not None:
-            raise ValueError("bbox_annotation_format parameter is not supported for Marker models")
-
-        if self.document_annotation_format is not None:
-            raise ValueError("document_annotation_format parameter is not supported for Marker models")
-
-        if self.image_limit is not None:
-            raise ValueError("image_limit parameter is not supported for Marker models")
-        if self.image_min_size is not None:
-            raise ValueError("image_min_size parameter is not supported for Marker models")
-
-        del self.pages
-        del self.bbox_annotation_format
-        del self.document
-        del self.document_annotation_format
-        del self.image_limit
-        del self.image_min_size
-        del self.include_image_base64
-        del self.model
-
-        return self
-
-
-class MarkerOCR(OCR):
-    include_image_base64: bool | None = Field(default=None, description="Include image URLs in response")  # fmt: off
-    format: Literal["markdown", "json", "html"]
-    output: str
-    images: dict[str, str]
-    metadata: dict[str, Any]
-    success: bool
-
-    @model_validator(mode="before")
-    def validate_model_before(cls, values):
-        values["pages"] = []
-        content = values.get("output", "")
-        images = values.get("images", {})
-        matches = list(re.finditer(r"\{[0-9]+\}-{48}\n\n", content))
-        for i in range(len(matches)):
-            offset = len(content) if i == len(matches) - 1 else matches[i + 1].span()[0]
-            markdown = content[matches[i].span()[1] : offset]
-            images_page = [
-                OCRImageObject(id=key, image_base64=f"data:image/jpeg;base64,{value}" if values.get("include_image_base64") else None)
-                for key, value in images.items()
-                if key.startswith(f"_page_{i}_")
-            ]
-            values["pages"].append(OCRPageObject(index=i, markdown=markdown, images=images_page))
-
-        values["usage_info"] = OCRUsage(doc_size_bytes=values.get("usage_info", {}).get("doc_size_bytes"), pages_processed=len(matches))
-        return values
-
-    @model_validator(mode="after")
-    def validate_model_after(self):
-        del self.format
-        del self.output
-        del self.images
-        del self.metadata
-        del self.success
-        del self.include_image_base64
-
-        return self
+            case _:
+                raise NotImplementedError(f"Provider {provider_type} not implemented")

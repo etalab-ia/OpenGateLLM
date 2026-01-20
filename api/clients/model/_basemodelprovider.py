@@ -16,11 +16,12 @@ from api.schemas.admin.providers import ProviderType
 from api.schemas.audio import AudioTranscription, CreateAudioTranscription
 from api.schemas.chat import CreateChatCompletion
 from api.schemas.core.models import Metric, RequestContent
+from api.schemas.ocr import CreateOCR
 from api.schemas.rerank import CreateRerank, Reranks
 from api.schemas.usage import Usage
 from api.utils.carbon import get_carbon_footprint
 from api.utils.context import generate_request_id, global_context, request_context
-from api.utils.exceptions import ModelIsTooBusyException, ResponseFormatFailedException
+from api.utils.exceptions import ModelIsTooBusyException, RequestFormatFailedException, ResponseFormatFailedException
 from api.utils.redis import redis_retry, safe_redis_reset
 from api.utils.variables import (
     ENDPOINT__AUDIO_TRANSCRIPTIONS,
@@ -169,7 +170,7 @@ class BaseModelProvider(ABC):
 
         return usage
 
-    def _format_request(self, request_content: RequestContent) -> RequestContent:
+    async def _format_request(self, request_content: RequestContent) -> RequestContent:
         """
         Format a request to a provider model. This method can be overridden by a subclass to add additional headers or parameters. This method format the requested endpoint thanks the ENDPOINT_TABLE attribute.
 
@@ -179,24 +180,28 @@ class BaseModelProvider(ABC):
         Returns:
             content(RequestContent): The formatted request content.
         """
-        if "model" in request_content.json:
-            request_content.json["model"] = self.model_name
+        try:
+            if "model" in request_content.json:
+                request_content.json["model"] = self.model_name
 
-        if "model" in request_content.form:
-            request_content.form["model"] = self.model_name
-        # try:
-        if request_content.endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
-            request_content = CreateAudioTranscription.format_request(provider_type=self.type, request_content=request_content)
+            if "model" in request_content.form:
+                request_content.form["model"] = self.model_name
+            # try:
+            if request_content.endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
+                request_content = await CreateAudioTranscription.format_request(provider_type=self.type, request_content=request_content)
 
-        if request_content.endpoint == ENDPOINT__CHAT_COMPLETIONS:
-            request_content = CreateChatCompletion.format_request(provider_type=self.type, request_content=request_content)
+            if request_content.endpoint == ENDPOINT__CHAT_COMPLETIONS:
+                request_content = await CreateChatCompletion.format_request(provider_type=self.type, request_content=request_content)
 
-        if request_content.endpoint == ENDPOINT__RERANK:
-            request_content = CreateRerank.format_request(provider_type=self.type, request_content=request_content)
+            if request_content.endpoint == ENDPOINT__OCR:
+                request_content = await CreateOCR.format_request(provider_type=self.type, request_content=request_content)
 
-        # except Exception as e:
-        #     logger.error(f"Failed to format request for {self.model_name}: {e}.", exc_info=True)
-        #     raise RequestFormatFailedException()
+            if request_content.endpoint == ENDPOINT__RERANK:
+                request_content = await CreateRerank.format_request(provider_type=self.type, request_content=request_content)
+
+        except Exception as e:
+            logger.error(f"Failed to format request for {self.model_name}: {e}.", exc_info=True)
+            raise RequestFormatFailedException(detail=f"Failed to format request: {e}")
 
         return request_content
 
@@ -306,7 +311,7 @@ class BaseModelProvider(ABC):
         """
 
         url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[request_content.endpoint].lstrip("/"))
-        request_content = self._format_request(request_content=request_content)
+        request_content = await self._format_request(request_content=request_content)
 
         inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
         try:
@@ -324,15 +329,24 @@ class BaseModelProvider(ABC):
                         data=request_content.form,
                     )
                     end_time = time.perf_counter()
-                except (
-                    httpx.ConnectTimeout,
-                    httpx.PoolTimeout,
-                    httpx.ReadTimeout,
-                    httpx.RemoteProtocolError,
-                    httpx.TimeoutException,
-                    httpx.WriteTimeout,
-                ) as e:
-                    raise ModelIsTooBusyException(detail=f"Model is too busy ({e}), please try again later")
+                except httpx.ConntectTimeout as e:
+                    detail = f"({e})".replace(".", "").lower() if str(e) != "" else "connect timeout"
+                    raise ModelIsTooBusyException(detail=f"Model is too busy ({detail}), please try again later")
+                except httpx.PoolTimeout as e:
+                    detail = f"({e})".replace(".", "").lower() if str(e) != "" else "pool timeout"
+                    raise ModelIsTooBusyException(detail=f"Model is too busy ({detail}), please try again later")
+                except httpx.ReadTimeout as e:
+                    detail = f"({e})".replace(".", "").lower() if str(e) != "" else "read timeout"
+                    raise ModelIsTooBusyException(detail=f"Model is too busy ({detail}), please try again later")
+                except httpx.RemoteProtocolError as e:
+                    detail = f"({e})".replace(".", "").lower() if str(e) != "" else "remote protocol error"
+                    raise ModelIsTooBusyException(detail=f"Model is too busy ({detail}), please try again later")
+                except httpx.TimeoutException as e:
+                    detail = f"({e})".replace(".", "").lower() if str(e) != "" else "timeout exception"
+                    raise ModelIsTooBusyException(detail=f"Model is too busy ({detail}), please try again later")
+                except httpx.WriteTimeout as e:
+                    detail = f"({e})".replace(".", "").lower() if str(e) != "" else "write timeout"
+                    raise ModelIsTooBusyException(detail=f"Model is too busy ({detail}), please try again later")
                 except Exception as e:
                     logger.exception(msg=f"Failed to forward request to {self.model_name}: {e}.")
                     raise HTTPException(status_code=500, detail=type(e).__name__)
@@ -422,7 +436,7 @@ class BaseModelProvider(ABC):
         """
 
         url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[request_content.endpoint].lstrip("/"))
-        request_content = self._format_request(request_content=request_content)
+        request_content = await self._format_request(request_content=request_content)
 
         async with httpx.AsyncClient(timeout=self.timeout) as async_client:
             inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"

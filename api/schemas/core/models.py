@@ -1,5 +1,6 @@
 from enum import Enum
 from http import HTTPMethod
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -27,16 +28,19 @@ class Metric(str, Enum):
     PERFORMANCE = "performance"  # custom performance metric
 
 
+# Marker
+class MarkerCreateOCR(BaseModel):
+    page_range: str = Field(default="", description="Page range to convert, specify comma separated page numbers or ranges. Example: '0,5-10,20'")  # fmt: off
+    force_ocr: bool = Field(default=False, description="Force OCR on all pages of the PDF.  Defaults to False.  This can lead to worse results if you have good text in your PDFs (which is true in most cases).")  # fmt: off
+    paginate_output: bool = Field(default=False, description="Whether to paginate the output.  Defaults to False.  If set to True, each page of the output will be separated by a horizontal rule that contains the page number (2 newlines, {PAGE_NUMBER}, 48 - characters, 2 newlines).")  # fmt: off
+    output_format: Literal["markdown", "json", "html"] = Field(default="markdown", description="The format to output the text in.  Can be 'markdown', 'json', or 'html'.  Defaults to 'markdown'.")  # fmt: off
+
+
 # TEI
-class TruncationDirection(Enum):
-    left = "left"
-    right = "right"
-
-
 class TEICreateRerank(BaseModel):
     query: str = Field(..., examples=["What is Deep Learning?"])
     raw_scores: bool = Field(False, examples=[False])
     return_text: bool = Field(False, examples=[False])
     texts: list[str] = Field(..., examples=[["Deep Learning is ..."]])
     truncate: bool | None = Field(False, examples=[False])
-    truncation_direction: TruncationDirection = "right"
+    truncation_direction: Literal["left", "right"] = Field(default="right")
