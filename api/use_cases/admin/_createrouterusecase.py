@@ -5,26 +5,16 @@ from api.domain.router import RouterRepository
 from api.domain.router._routerrepository import RouterNameAlreadyExists
 from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStrategy
 from api.domain.userinfo import UserInfoRepository
+from api.use_cases.admin.errors import (
+    InsufficientPermissionError,
+    RouterAliasAlreadyExistsError,
+    RouterNameAlreadyExistsError,
+)
 
 
 @dataclass
 class CreateRouterUseCaseSuccess:
     router: Router
-
-
-@dataclass
-class RouterAliasAlreadyExistsError:
-    pass
-
-
-@dataclass
-class RouterNameAlreadyExistsError:
-    name: str
-
-
-@dataclass
-class InsufficientPermissionError:
-    pass
 
 
 type CreateRouterUseCaseResult = (

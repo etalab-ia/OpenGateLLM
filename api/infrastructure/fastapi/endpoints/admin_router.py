@@ -10,8 +10,8 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RouterAlreadyExistsHTTPException,
 )
 from api.infrastructure.fastapi.schemas.routers import CreateRouter, CreateRouterResponse
-from api.use_cases.admin import CreateRouterUseCase
-from api.use_cases.admin._createrouterusecase import (
+from api.use_cases.admin import (
+    CreateRouterUseCase,
     CreateRouterUseCaseSuccess,
     InsufficientPermissionError,
     RouterAliasAlreadyExistsError,

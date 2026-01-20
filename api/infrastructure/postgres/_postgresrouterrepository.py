@@ -125,8 +125,10 @@ class PostgresRouterRepository(RouterRepository):
             )
             result = await self.postgres_session.execute(query)
             row = result.one()
-        except IntegrityError:
-            return RouterNameAlreadyExists(name=name)
+        except IntegrityError as e:
+            if "router_name_key" in str(e.orig):
+                return RouterNameAlreadyExists(name=name)
+            raise
 
         return Router(
             id=row.id,
