@@ -1,4 +1,6 @@
+from collections.abc import AsyncGenerator
 from contextvars import ContextVar
+from typing import Any
 
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +15,7 @@ from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context
 
 
-async def get_postgres_session() -> AsyncSession:
+async def get_postgres_session() -> AsyncGenerator[Any, Any]:
     """
     Get a PostgreSQL postgres_session from the global context.
 

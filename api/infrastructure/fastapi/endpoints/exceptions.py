@@ -7,6 +7,11 @@ from fastapi import HTTPException
 
 
 # 403
+class InvalidAuthenticationSchemeException(HTTPException):
+    def __init__(self, detail: str = "Invalid authentication scheme.") -> None:
+        super().__init__(status_code=403, detail=detail)
+
+
 class InvalidAPIKeyException(HTTPException):
     def __init__(self, detail: str = "Invalid API key.") -> None:
         super().__init__(status_code=403, detail=detail)
@@ -18,6 +23,9 @@ class InsufficientPermissionHTTPException(HTTPException):
 
 
 # 404
+class ModelNotFoundHTTPException(HTTPException):
+    def __init__(self, detail: str = "Model not found.") -> None:
+        super().__init__(status_code=404, detail=detail)
 
 
 # 409
@@ -44,6 +52,11 @@ class RouterAlreadyExistsHTTPException(HTTPException):
 
 
 # 500
+class InternalServerHTTPException(HTTPException):
+    """Exception for unexpected internal errors."""
+
+    def __init__(self, detail: str = "An unexpected error occurred"):
+        super().__init__(status_code=500, detail=detail)
 
 
 # 503

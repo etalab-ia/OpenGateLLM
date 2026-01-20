@@ -1,9 +1,3 @@
-"""
-Integration tests for admin router endpoints.
-
-Tests the /v1/admin/routers endpoint for creating routers.
-"""
-
 from httpx import AsyncClient
 import pytest
 
