@@ -1,6 +1,7 @@
 import pytest
 
-from api.domain.router.entities import ModelType
+from api.domain.router._routerrepository import RouterNameAlreadyExists
+from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStrategy
 from api.infrastructure.postgres import PostgresRouterRepository
 from api.tests.integration.factories import (
     OrganizationFactory,
@@ -88,6 +89,77 @@ class TestGetAllAliases:
             router_3.id: ["alias1_m3"],
             router_4.id: ["alias1_m4", "alias2_m4"],
         }
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestCreateRouter:
+    async def test_create_router_should_return_created_router(self, repository, db_session):
+        # Arrange
+        user = UserFactory()
+        await db_session.flush()
+
+        # Act
+        result = await repository.create_router(
+            name="test-router",
+            router_type=ModelType.TEXT_GENERATION,
+            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            cost_prompt_tokens=0.001,
+            cost_completion_tokens=0.002,
+            user_id=user.id,
+        )
+
+        # Assert
+        assert isinstance(result, Router)
+        assert result.name == "test-router"
+        assert result.type == ModelType.TEXT_GENERATION
+        assert result.load_balancing_strategy == RouterLoadBalancingStrategy.SHUFFLE
+        assert result.cost_prompt_tokens == 0.001
+        assert result.cost_completion_tokens == 0.002
+        assert result.user_id == user.id
+        assert result.aliases == []
+        assert result.providers == 0
+        assert result.id is not None
+        assert result.created is not None
+        assert result.updated is not None
+
+    async def test_create_router_should_return_router_name_already_exists_when_name_is_duplicate(self, repository, db_session):
+        # Arrange
+        user = UserFactory()
+        RouterFactory(user=user, name="duplicate-router")
+        await db_session.flush()
+
+        # Act
+        result = await repository.create_router(
+            name="duplicate-router",
+            router_type=ModelType.TEXT_GENERATION,
+            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            cost_prompt_tokens=0.0,
+            cost_completion_tokens=0.0,
+            user_id=user.id,
+        )
+
+        # Assert
+        assert isinstance(result, RouterNameAlreadyExists)
+        assert result.name == "duplicate-router"
+
+    async def test_create_router_with_master_user_id_should_set_db_user_id_to_null(self, repository, db_session):
+        # Arrange
+        master_user_id = 0
+
+        # Act
+        result = await repository.create_router(
+            name="master-router",
+            router_type=ModelType.TEXT_GENERATION,
+            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            cost_prompt_tokens=0.0,
+            cost_completion_tokens=0.0,
+            user_id=master_user_id,
+        )
+
+        # Assert
+        assert isinstance(result, Router)
+        assert result.user_id == master_user_id
+        assert result.name == "master-router"
 
 
 @pytest.mark.asyncio(loop_scope="session")

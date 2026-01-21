@@ -15,7 +15,7 @@ from api.schemas.models import ModelType
 from api.sql.models import Limit, Organization, Permission, Provider, Role, Router, RouterAlias, Token, User
 
 
-class BaseFactory(SQLAlchemyModelFactory):
+class BaseSQLFactory(SQLAlchemyModelFactory):
     """Base factory with common configuration."""
 
     class Meta:
@@ -23,7 +23,7 @@ class BaseFactory(SQLAlchemyModelFactory):
         sqlalchemy_session_persistence = "flush"
 
 
-class OrganizationFactory(BaseFactory):
+class OrganizationFactory(BaseSQLFactory):
     """Factory pour créer des organisations de test."""
 
     class Meta:
@@ -38,7 +38,7 @@ class OrganizationFactory(BaseFactory):
         ministere = factory.Trait(name=factory.Faker("bothify", text="Ministere ####"))
 
 
-class RoleFactory(BaseFactory):
+class RoleFactory(BaseSQLFactory):
     class Meta:
         model = Role
 
@@ -53,7 +53,7 @@ class RoleFactory(BaseFactory):
         moderator = factory.Trait(name="moderator")
 
 
-class PermissionFactory(BaseFactory):
+class PermissionFactory(BaseSQLFactory):
     """Factory for creating permissions for roles."""
 
     class Meta:
@@ -71,13 +71,14 @@ class PermissionFactory(BaseFactory):
         provide_models = factory.Trait(permission=PermissionType.PROVIDE_MODELS)
 
 
-class UserFactory(SQLAlchemyModelFactory):
+class UserFactory(BaseSQLFactory):
     class Meta:
         model = User
         sqlalchemy_session_persistence = "flush"
 
     name = factory.Faker("name", locale="fr_FR")
     role_id = None
+    id = None
     role = factory.SubFactory(RoleFactory)
     sub = None
     organization_id = None
@@ -106,7 +107,7 @@ class UserFactory(SQLAlchemyModelFactory):
         guest_user = factory.Trait(role=factory.SubFactory(RoleFactory, guest=True), priority=-1)
 
 
-class TokenFactory(BaseFactory):
+class TokenFactory(BaseSQLFactory):
     class Meta:
         model = Token
 
@@ -136,7 +137,7 @@ class TokenForUserFactory(TokenFactory):
         return cls(user=user, **kwargs)
 
 
-class RouterFactory(SQLAlchemyModelFactory):
+class RouterFactory(BaseSQLFactory):
     class Meta:
         model = Router
         sqlalchemy_session_persistence = "flush"
@@ -160,7 +161,7 @@ class RouterFactory(SQLAlchemyModelFactory):
         )
 
 
-class RouterAliasFactory(BaseFactory):
+class RouterAliasFactory(BaseSQLFactory):
     class Meta:
         model = RouterAlias
 
@@ -169,7 +170,7 @@ class RouterAliasFactory(BaseFactory):
     value = factory.Faker("bothify", text="alias_????_####")
 
 
-class ProviderFactory(SQLAlchemyModelFactory):
+class ProviderFactory(BaseSQLFactory):
     class Meta:
         model = Provider
         sqlalchemy_session_persistence = "flush"
@@ -237,7 +238,7 @@ class ProviderForRouterFactory(ProviderFactory):
         return cls.create(router=router, user=user, user_id=user.id, **kwargs)
 
 
-class LimitFactory(factory.alchemy.SQLAlchemyModelFactory):
+class LimitFactory(BaseSQLFactory):
     class Meta:
         model = Limit
         sqlalchemy_session_persistence = "flush"
