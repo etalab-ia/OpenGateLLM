@@ -2,14 +2,15 @@ from contextlib import asynccontextmanager
 import traceback
 from types import SimpleNamespace
 
+from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.clients.parser import BaseParserClient as ParserClient
-from api.clients.vector_store import ElasticsearchVectorStoreClient
 from api.helpers._documentmanager import DocumentManager
+from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers._identityaccessmanager import IdentityAccessManager
 from api.helpers._limiter import Limiter
 from api.helpers._parsermanager import ParserManager
@@ -20,7 +21,7 @@ from api.schemas.core.configuration import Configuration
 from api.schemas.core.context import GlobalContext
 from api.utils.configuration import get_configuration
 from api.utils.context import global_context
-from api.utils.dependencies import get_postgres_session
+from api.utils.dependencies import get_elasticsearch_client, get_postgres_session
 from api.utils.exceptions import RouterNotFoundException
 from api.utils.logging import init_logger
 
@@ -35,12 +36,7 @@ async def lifespan(app: FastAPI):
 
     # Dependencies
     parser = ParserClient.import_module(type=configuration.dependencies.parser.type)(**configuration.dependencies.parser.model_dump()) if configuration.dependencies.parser else None  # fmt: off
-    vector_store = ElasticsearchVectorStoreClient(**configuration.dependencies.vector_store.model_dump()) if configuration.dependencies.vector_store else None  # fmt: off
-
-    assert await vector_store.check() if vector_store else True, "Vector store database is not reachable."
-    await vector_store.setup(vector_size=1024)
-
-    dependencies = SimpleNamespace(parser=parser, vector_store=vector_store)
+    dependencies = SimpleNamespace(parser=parser)
 
     # perform async health checks for external dependencies when possible
     try:
@@ -53,10 +49,13 @@ async def lifespan(app: FastAPI):
         logger.error(msg=f"Health check failed for parser '{parser_name}': {traceback.format_exc()}")
 
     # setup global context
+    await _setup_elasticsearch_client(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_redis_pool(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_usage_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_postgres_session(configuration=configuration, global_context=global_context, dependencies=dependencies)
+
     await _setup_model_registry(configuration=configuration, global_context=global_context, dependencies=dependencies)
+    await _setup_elasticsearch_vector_store(configuration=configuration, global_context=global_context, dependencies=dependencies)
+    await _setup_usage_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_identity_access_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_limiter(configuration=configuration, global_context=global_context, dependencies=dependencies)
     await _setup_tokenizer(configuration=configuration, global_context=global_context, dependencies=dependencies)
@@ -67,8 +66,59 @@ async def lifespan(app: FastAPI):
     yield
 
     # cleanup resources when app shuts down
-    if vector_store:
-        await vector_store.close()
+    if global_context.elasticsearch_client:
+        await global_context.elasticsearch_client.close()
+
+
+async def _setup_elasticsearch_client(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+    if configuration.dependencies.elasticsearch is None:
+        global_context.elasticsearch_client = None
+        return
+
+    kwargs = configuration.dependencies.elasticsearch.model_dump()
+    kwargs.pop("index_name")
+    kwargs.pop("index_language")
+    kwargs.pop("number_of_shards")
+    kwargs.pop("number_of_replicas")
+    global_context.elasticsearch_client = AsyncElasticsearch(**kwargs)
+
+    assert await global_context.elasticsearch_client.ping(), "Elasticsearch database is not reachable."
+
+
+async def _setup_elasticsearch_vector_store(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+    assert global_context.model_registry, "Set model registry in global context before setting up Elasticsearch manager."
+
+    if configuration.dependencies.elasticsearch is None:
+        global_context.elasticsearch_vector_store = None
+        return
+
+    # TODO: handle no vector store
+
+    elasticsearch_client = get_elasticsearch_client()
+
+    async for postgres_session in get_postgres_session():
+        try:
+            routers = await global_context.model_registry.get_routers(
+                router_id=None,
+                name=configuration.settings.vector_store_model,
+                postgres_session=postgres_session,
+            )
+        except RouterNotFoundException:
+            raise ValueError("Vector store model not found.")
+
+        router = routers[0]
+        vector_size = router.vector_size
+        assert vector_size is not None, "Vector size is None (no provider for this model)."
+
+    elasticsearch_vector_store = ElasticsearchVectorStore(index_name=configuration.dependencies.elasticsearch.index_name)
+    await elasticsearch_vector_store.setup(
+        client=elasticsearch_client,
+        index_language=configuration.dependencies.elasticsearch.index_language,
+        number_of_shards=configuration.dependencies.elasticsearch.number_of_shards,
+        number_of_replicas=configuration.dependencies.elasticsearch.number_of_replicas,
+        vector_size=vector_size,
+    )
+    global_context.elasticsearch_vector_store = elasticsearch_vector_store
 
 
 async def _setup_redis_pool(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
@@ -127,40 +177,9 @@ async def _setup_tokenizer(configuration: Configuration, global_context: GlobalC
 
 
 async def _setup_document_manager(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
-    assert global_context.model_registry, "Set model registry in global context before setting up document manager."
-
-    parser_manager = None
-
-    if dependencies.vector_store is None:
+    if global_context.elasticsearch_vector_store is None:
         global_context.document_manager = None
         return
 
-    async for postgres_session in get_postgres_session():
-        try:
-            routers = await global_context.model_registry.get_routers(
-                router_id=None,
-                name=configuration.settings.vector_store_model,
-                postgres_session=postgres_session,
-            )
-        except RouterNotFoundException:
-            raise ValueError("Vector store model not found.")
-
-        router = routers[0]
-        vector_size = router.vector_size
-        assert vector_size is not None, "Vector size is None (no provider for this model)."
-
-    await dependencies.vector_store.setup(vector_size=vector_size)
-
-    global_context.document_manager = DocumentManager(
-        vector_store=dependencies.vector_store,
-        vector_store_model=configuration.settings.vector_store_model,
-        parser_manager=parser_manager,
-    )
-
     parser_manager = ParserManager(parser=dependencies.parser)
-
-    global_context.document_manager = DocumentManager(
-        vector_store=dependencies.vector_store,
-        vector_store_model=configuration.settings.vector_store_model,
-        parser_manager=parser_manager,
-    )
+    global_context.document_manager = DocumentManager(vector_store_model=configuration.settings.vector_store_model, parser_manager=parser_manager)

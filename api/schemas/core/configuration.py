@@ -141,10 +141,6 @@ class ParserType(str, Enum):
     MARKER = "marker"
 
 
-class VectorStoreType(str, Enum):
-    ELASTICSEARCH = "elasticsearch"
-
-
 class DependencyType(str, Enum):
     ALBERT = "albert"
     CELERY = "celery"
@@ -251,9 +247,8 @@ class Dependencies(ConfigBaseModel):
     @model_validator(mode="after")
     def validate_dependencies(self):
         """
-        Check if only one dependency of each family is provided. For example, VectorStoreType can be Elasticsearch, but not both.
+        Check if only one dependency of each family is provided. For example, Elasticsearch can be used, but not both.
 
-        The vector store dependency can be Elasticsearch, it is converted into a single attribute called "vector_store".
         The parser dependency can be Albert or Marker, it is converted into a single attribute called "parser".
         """
 
@@ -274,7 +269,7 @@ class Dependencies(ConfigBaseModel):
                 # Add a `type` field on the dependency object to remember its family (string form)
                 setattr(dep_obj, "type", chosen_enum)
 
-                # Expose the dependency under the generic name (vector_store, parser, ...)
+                # Expose the dependency under the generic name (parser, ...)
                 setattr(values, name, dep_obj)
 
                 # Clean up specific attributes
@@ -285,7 +280,6 @@ class Dependencies(ConfigBaseModel):
             return values
 
         self = create_attribute(name="parser", type=ParserType, values=self)
-        self = create_attribute(name="vector_store", type=VectorStoreType, values=self)
 
         return self
 
@@ -414,7 +408,7 @@ class ConfigFile(ConfigBaseModel):
             raise ValueError(f"Duplicated model or alias names found: {", ".join(set(duplicated_models))}")
 
         # check for interdependencies
-        if self.dependencies.vector_store:
+        if self.dependencies.elasticsearch:
             assert self.settings.vector_store_model, "Vector store model must be defined in settings section."
             assert self.settings.vector_store_model in models["all"], "Vector store model must be defined in models section."
             assert self.settings.vector_store_model in models[ModelType.TEXT_EMBEDDINGS_INFERENCE.value], f"The vector store model must have type {ModelType.TEXT_EMBEDDINGS_INFERENCE}."  # fmt: off

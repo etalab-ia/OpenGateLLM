@@ -3,45 +3,43 @@ import logging
 from elasticsearch import AsyncElasticsearch, helpers
 from elasticsearch.helpers import BulkIndexError
 
-from api.clients.vector_store._basevectorstoreclient import BaseVectorStoreClient
 from api.schemas.chunks import Chunk
+from api.schemas.core.elasticsearch import IndexLanguage
 from api.schemas.search import Search, SearchMethod
 
 logger = logging.getLogger(__name__)
 
 
-class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
+class ElasticsearchVectorStore:
     default_method = SearchMethod.HYBRID
 
-    def __init__(
+    def __init__(self, index_name: str):
+        self.index_name = index_name
+
+    async def setup(
         self,
-        *args,
-        **kwargs,
-    ):
-        kwargs.pop("type", None)
-        self.index_name = kwargs.pop("index_name", None)
-        self.index_language = kwargs.pop("index_language", None)
-        self.number_of_shards = kwargs.pop("number_of_shards", None)
-        self.number_of_replicas = kwargs.pop("number_of_replicas", None)
-
-        AsyncElasticsearch.__init__(self, *args, **kwargs)
-
-    async def setup(self, vector_size: int) -> None:
+        client: AsyncElasticsearch,
+        index_language: IndexLanguage,
+        number_of_shards: int,
+        number_of_replicas: int,
+        vector_size: int,
+    ) -> None:
         """
         Create the index with the correct settings and mappings.
 
         Args:
             vector_size (int): The size of the vector to be used for the index.
         """
+        # @TODO add docstrings
 
         settings = {
-            "number_of_shards": self.number_of_shards,
-            "number_of_replicas": self.number_of_replicas,
+            "number_of_shards": number_of_shards,
+            "number_of_replicas": number_of_replicas,
             "similarity": {"default": {"type": "BM25"}},
             "analysis": {
                 "filter": {
-                    "stop": {"type": "stop", "stopwords": self.index_language.stopwords},
-                    "stemmer": {"type": "stemmer", "language": self.index_language.stemmer},
+                    "stop": {"type": "stop", "stopwords": index_language.stopwords},
+                    "stemmer": {"type": "stemmer", "language": index_language.stemmer},
                 },
                 "analyzer": {
                     "content_analyzer": {
@@ -102,26 +100,18 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
             },
         }
 
-        if await self.indices.exists(index=self.index_name):
+        if await client.indices.exists(index=self.index_name):
             logger.info(f"Index {self.index_name} does not exist, creating index.")
-            existing_mapping = await self.indices.get_mapping(index=self.index_name)
+            existing_mapping = await client.indices.get_mapping(index=self.index_name)
             existing_vector_size = existing_mapping[self.index_name]["mappings"]["properties"]["embedding"]["dims"]
             assert existing_vector_size == vector_size, f"Index has incorrect vector size for index {self.index_name} ({existing_vector_size} != {vector_size})"  # fmt: off
             # @TODO: check index UUID in postgres after dynamic creation PR
-        else:
-            await self.indices.create(index=self.index_name, mappings=mappings, settings=settings)
+            # @TODO: check index language
+            return
 
-    async def check(self) -> bool:
-        try:
-            await self.ping()
-            return True
-        except Exception:
-            return False
+        await client.indices.create(index=self.index_name, mappings=mappings, settings=settings)
 
-    async def close(self) -> None:
-        await super(AsyncElasticsearch, self).transport.close()
-
-    async def delete_collection(self, collection_id: int) -> None:
+    async def delete_collection(self, client: AsyncElasticsearch, collection_id: int) -> None:
         query = {
             "bool": {
                 "must": [
@@ -130,9 +120,9 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
             }
         }
 
-        await self.delete_by_query(index=self.index_name, body={"query": query})
+        await client.delete_by_query(index=self.index_name, body={"query": query})
 
-    async def get_chunk_count(self, collection_id: int, document_id: int) -> int | None:
+    async def get_chunk_count(self, client: AsyncElasticsearch, collection_id: int, document_id: int) -> int | None:
         body = {
             "query": {
                 "bool": {
@@ -143,10 +133,10 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
                 }
             }
         }
-        result = await self.count(index=self.index_name, body=body)
+        result = await client.count(index=self.index_name, body=body)
         return result["count"]
 
-    async def delete_document(self, collection_id: int, document_id: int) -> None:
+    async def delete_document(self, client: AsyncElasticsearch, collection_id: int, document_id: int) -> None:
         query = {
             "bool": {
                 "must": [
@@ -156,9 +146,17 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
             }
         }
 
-        await self.delete_by_query(index=self.index_name, body={"query": query})
+        await client.delete_by_query(index=self.index_name, body={"query": query})
 
-    async def get_chunks(self, collection_id: int, document_id: int, offset: int = 0, limit: int = 10, chunk_id: int | None = None) -> list[Chunk]:
+    async def get_chunks(
+        self,
+        client: AsyncElasticsearch,
+        collection_id: int,
+        document_id: int,
+        offset: int = 0,
+        limit: int = 10,
+        chunk_id: int | None = None,
+    ) -> list[Chunk]:
         body = {
             "query": {
                 "bool": {
@@ -173,7 +171,7 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
         if chunk_id is not None:
             body["query"]["bool"]["must"].append({"term": {"id": chunk_id}})
 
-        results = await self.search(index=self.index_name, body=body, from_=offset, size=limit)
+        results = await client.search(index=self.index_name, body=body, from_=offset, size=limit)
         chunks = []
         for hit in results["hits"]["hits"]:
             chunks.append(
@@ -185,7 +183,14 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
             )
         return chunks
 
-    async def upsert(self, collection_id: int, document_id: int, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
+    async def upsert(
+        self,
+        client: AsyncElasticsearch,
+        collection_id: int,
+        document_id: int,
+        chunks: list[Chunk],
+        embeddings: list[list[float]],
+    ) -> None:
         actions = [
             {
                 "_index": self.index_name,
@@ -202,12 +207,13 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
         ]
 
         try:
-            await helpers.async_bulk(client=self, actions=actions, index=self.index_name)
+            await helpers.async_bulk(client=client, actions=actions, index=self.index_name)
         except BulkIndexError:
             raise
 
     async def search(
         self,
+        client: AsyncElasticsearch,
         method: SearchMethod,
         collection_ids: list[int],
         query_prompt: str,
@@ -221,23 +227,45 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
 
         if method == SearchMethod.SEMANTIC:
             searches = await self._semantic_search(
-                query_vector=query_vector, collection_ids=collection_ids, limit=limit, offset=offset, score_threshold=score_threshold
+                client=client,
+                query_vector=query_vector,
+                collection_ids=collection_ids,
+                limit=limit,
+                offset=offset,
+                score_threshold=score_threshold,
             )
 
         elif method == SearchMethod.LEXICAL:
             searches = await self._lexical_search(
-                query_prompt=query_prompt, collection_ids=collection_ids, limit=limit, offset=offset, score_threshold=score_threshold
+                client=client,
+                query_prompt=query_prompt,
+                collection_ids=collection_ids,
+                limit=limit,
+                offset=offset,
+                score_threshold=score_threshold,
             )
 
         else:  # method == SearchMethod.HYBRID
             searches = await self._hybrid_search(
-                query_prompt=query_prompt, query_vector=query_vector, collection_ids=collection_ids, limit=limit, offset=offset, rff_k=rff_k
+                client=client,
+                query_prompt=query_prompt,
+                query_vector=query_vector,
+                collection_ids=collection_ids,
+                limit=limit,
+                offset=offset,
+                rff_k=rff_k,
             )
 
         return searches
 
     async def _lexical_search(
-        self, query_prompt: str, collection_ids: list[int], limit: int, offset: int, score_threshold: float = 0.0
+        self,
+        client: AsyncElasticsearch,
+        query_prompt: str,
+        collection_ids: list[int],
+        limit: int,
+        offset: int,
+        score_threshold: float = 0.0,
     ) -> list[Search]:
         body = {
             "query": {
@@ -250,7 +278,7 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
             "from": offset,
             "_source": {"excludes": ["embedding"]},
         }
-        results = await AsyncElasticsearch.search(self, index=collection_ids, body=body)
+        results = await client.search(index=self.index_name, body=body)
         hits = [hit for hit in results["hits"]["hits"] if hit]
         searches = [
             Search(
@@ -267,7 +295,13 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
         return searches
 
     async def _semantic_search(
-        self, query_vector: list[float], collection_ids: list[int], limit: int, offset: int, score_threshold: float = 0.0
+        self,
+        client: AsyncElasticsearch,
+        query_vector: list[float],
+        collection_ids: list[int],
+        limit: int,
+        offset: int,
+        score_threshold: float = 0.0,
     ) -> list[Search]:
         body = {
             "knn": {
@@ -281,7 +315,7 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
             "from": offset,
             "_source": {"excludes": ["embedding"]},
         }
-        results = await AsyncElasticsearch.search(self, index=collection_ids, body=body)
+        results = await client.search(index=self.index_name, body=body)
         hits = [hit for hit in results["hits"]["hits"] if hit]
         searches = [
             Search(
@@ -298,12 +332,21 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
         return searches
 
     async def _hybrid_search(
-        self, query_prompt: str, query_vector: list[float], collection_ids: list[int], limit: int, offset: int, rff_k: int, expansion_factor: int = 2
+        self,
+        client: AsyncElasticsearch,
+        query_prompt: str,
+        query_vector: list[float],
+        collection_ids: list[int],
+        limit: int,
+        offset: int,
+        rff_k: int,
+        expansion_factor: int = 2,
     ) -> list[Search]:
         """
         Hybrid search combines lexical and semantic search results using Reciprocal Rank Fusion (RRF).
 
         Args:
+            client: AsyncElasticsearch: The Elasticsearch client
             query_prompt (str): The search prompt
             query_vector (list[float]): The query vector
             collection_ids (list[int]): The collection ids
@@ -316,12 +359,14 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
             A combined list of searches with updated scores
         """
         lexical_searches = await self._lexical_search(
+            client=client,
             query_prompt=query_prompt,
             collection_ids=collection_ids,
             limit=int(limit * expansion_factor),
             offset=offset,
         )
         semantic_searches = await self._semantic_search(
+            client=client,
             query_vector=query_vector,
             collection_ids=collection_ids,
             limit=int(limit * expansion_factor),

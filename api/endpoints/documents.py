@@ -3,6 +3,7 @@ import json
 from typing import Literal
 from uuid import UUID
 
+from elasticsearch import AsyncElasticsearch
 from fastapi import APIRouter, Depends, Path, Query, Request, Response, Security, UploadFile
 from fastapi.responses import JSONResponse
 from langchain_text_splitters import Language
@@ -10,6 +11,7 @@ from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
 from api.schemas.documents import (
@@ -37,7 +39,14 @@ from api.schemas.parse import (
     ParsedDocumentOutputFormat,
 )
 from api.utils.context import global_context
-from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
+from api.utils.dependencies import (
+    get_elasticsearch_client,
+    get_elasticsearch_vector_store,
+    get_model_registry,
+    get_postgres_session,
+    get_redis_client,
+    get_request_context,
+)
 from api.utils.exceptions import CollectionNotFoundException, DocumentNotFoundException, FileSizeLimitExceededException, InvalidJSONFormatException
 from api.utils.variables import ENDPOINT__DOCUMENTS, ROUTER__DOCUMENTS
 
@@ -48,6 +57,8 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__DOCUMENTS.title()])
 async def create_document(
     request: Request,
     postgres_session: AsyncSession = Depends(get_postgres_session),
+    elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
+    elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
     redis_client: AsyncRedis = Depends(get_redis_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
@@ -99,6 +110,8 @@ async def create_document(
 
     document_id = await global_context.document_manager.create_document(
         request_context=request_context,
+        elasticsearch_vector_store=elasticsearch_vector_store,
+        elasticsearch_client=elasticsearch_client,
         postgres_session=postgres_session,
         redis_client=redis_client,
         model_registry=model_registry,
@@ -128,6 +141,8 @@ async def get_document(
     request: Request,
     document: int = Path(description="The document ID"),
     postgres_session: AsyncSession = Depends(get_postgres_session),
+    elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
+    elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
@@ -137,7 +152,11 @@ async def get_document(
         raise DocumentNotFoundException()
 
     documents = await global_context.document_manager.get_documents(
-        postgres_session=postgres_session, document_id=document, user_id=request_context.get().user_info.id
+        postgres_session=postgres_session,
+        elasticsearch_vector_store=elasticsearch_vector_store,
+        elasticsearch_client=elasticsearch_client,
+        document_id=document,
+        user_id=request_context.get().user_info.id,
     )
 
     return JSONResponse(content=documents[0].model_dump(), status_code=200)
@@ -151,6 +170,8 @@ async def get_documents(
     limit: int | None = Query(default=10, ge=1, le=100, description="The number of documents to return"),
     offset: int | UUID = Query(default=0, description="The offset of the first document to return"),
     postgres_session: AsyncSession = Depends(get_postgres_session),
+    elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
+    elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     """
@@ -165,6 +186,8 @@ async def get_documents(
 
     data = await global_context.document_manager.get_documents(
         postgres_session=postgres_session,
+        elasticsearch_vector_store=elasticsearch_vector_store,
+        elasticsearch_client=elasticsearch_client,
         collection_id=collection,
         document_name=name,
         limit=limit,
@@ -180,6 +203,8 @@ async def delete_document(
     request: Request,
     document: int = Path(description="The document ID"),
     postgres_session: AsyncSession = Depends(get_postgres_session),
+    elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
+    elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> Response:
     """
@@ -189,7 +214,11 @@ async def delete_document(
         raise DocumentNotFoundException()
 
     await global_context.document_manager.delete_document(
-        postgres_session=postgres_session, document_id=document, user_id=request_context.get().user_info.id
+        postgres_session=postgres_session,
+        elasticsearch_vector_store=elasticsearch_vector_store,
+        elasticsearch_client=elasticsearch_client,
+        document_id=document,
+        user_id=request_context.get().user_info.id,
     )
 
     return Response(status_code=204)

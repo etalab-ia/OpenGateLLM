@@ -1,9 +1,11 @@
 from contextvars import ContextVar
 
+from elasticsearch import AsyncElasticsearch
 import redis.asyncio as redis
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers._usagemanager import UsageManager
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
@@ -19,17 +21,6 @@ def get_request_context() -> ContextVar[RequestContext]:
     """
 
     return request_context
-
-
-def get_model_registry() -> ModelRegistry:
-    """
-    Get the ModelRegistry instance from the global context.
-
-    Returns:
-        ModelRegistry: The ModelRegistry instance.
-    """
-
-    return global_context.model_registry
 
 
 async def get_redis_client() -> AsyncRedis:
@@ -61,6 +52,36 @@ async def get_postgres_session() -> AsyncSession:
 
         if postgres_session.in_transaction():
             await postgres_session.close()
+
+
+def get_elasticsearch_client() -> AsyncElasticsearch:
+    """
+    Get an Elasticsearch client from the global context (singleton pattern, Elasticsearch is thread-safe).
+
+    Returns:
+        AsyncElasticsearch: An Elasticsearch client instance.
+    """
+
+    return global_context.elasticsearch_client
+
+
+def get_elasticsearch_vector_store() -> ElasticsearchVectorStore:
+    """
+    Get the ElasticsearchVectorStore instance from the global context.
+    """
+
+    return global_context.elasticsearch_vector_store
+
+
+def get_model_registry() -> ModelRegistry:
+    """
+    Get the ModelRegistry instance from the global context.
+
+    Returns:
+        ModelRegistry: The ModelRegistry instance.
+    """
+
+    return global_context.model_registry
 
 
 async def get_usage_manager() -> UsageManager:

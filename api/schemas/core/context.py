@@ -16,7 +16,10 @@ class GlobalContext(BaseModel):
     usage_manager: Any | None = None
     model_registry: Any | None = None
     parser_manager: Any | None = None
+    elasticsearch_vector_store: Any | None = None
     tokenizer: Any | None = None
+
+    elasticsearch_client: Any | None = None
     redis_pool: Any | None = None
     postgres_session_factory: Any | None = None
 
