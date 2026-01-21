@@ -28,6 +28,10 @@ class BaseVectorStoreClient(ABC):
         return getattr(module, f"{type.capitalize()}VectorStoreClient")
 
     @abstractmethod
+    async def setup(self) -> None:
+        """Create the index with the correct settings and mappings."""
+
+    @abstractmethod
     async def check(self) -> bool:
         """Check the health of the underlying vector store connection."""
 

@@ -13,6 +13,7 @@ import yaml
 
 from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
+from api.schemas.core.elasticsearch import IndexLanguage
 from api.schemas.core.models import Metric
 from api.schemas.models import ModelType
 from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, ROUTER__ADMIN, ROUTER__AUTH, ROUTERS
@@ -174,7 +175,9 @@ class CeleryDependency(ConfigBaseModel):
 @custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#elasticsearchdependency")
 class ElasticsearchDependency(ConfigBaseModel):
     # All args of pydantic elastic client is allowed
-    number_of_shards: int = Field(default=1, ge=1, description="Number of shards for the Elasticsearch index.", examples=[1])  # fmt: off
+    index_name: constr(strip_whitespace=True, min_length=1) = Field(..., description="Name of the Elasticsearch index.", examples=["opengatellm"])  # fmt: off
+    index_language: IndexLanguage = Field(default=IndexLanguage.ENGLISH, description="Language of the Elasticsearch index.", examples=[IndexLanguage.ENGLISH.value])  # fmt: off
+    number_of_shards: int = Field(default=24, ge=1, description="Number of shards for the Elasticsearch index.", examples=[1])  # fmt: off
     number_of_replicas: int = Field(default=1, ge=0, description="Number of replicas for the Elasticsearch index.", examples=[1])  # fmt: off
 
 

@@ -37,6 +37,7 @@ async def lifespan(app: FastAPI):
     vector_store = VectorStoreClient.import_module(type=configuration.dependencies.vector_store.type)(**configuration.dependencies.vector_store.model_dump()) if configuration.dependencies.vector_store else None  # fmt: off
 
     assert await vector_store.check() if vector_store else True, "Vector store database is not reachable."
+    # await vector_store.setup(vector_size=1024)
 
     dependencies = SimpleNamespace(parser=parser, vector_store=vector_store)
 

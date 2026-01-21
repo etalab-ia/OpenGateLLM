@@ -42,6 +42,9 @@ class QdrantVectorStoreClient(BaseVectorStoreClient, AsyncQdrantClient):
     async def close(self):
         await AsyncQdrantClient.close(self)
 
+    async def setup(self, vector_size: int) -> None:
+        pass
+
     async def create_collection(self, collection_id: int, vector_size: int) -> None:
         if await AsyncQdrantClient.collection_exists(self, collection_name=str(collection_id)):
             return

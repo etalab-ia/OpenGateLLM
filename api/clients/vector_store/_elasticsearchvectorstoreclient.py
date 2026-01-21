@@ -1,18 +1,120 @@
+import logging
+
 from elasticsearch import AsyncElasticsearch, helpers
 
 from api.clients.vector_store._basevectorstoreclient import BaseVectorStoreClient
 from api.schemas.chunks import Chunk
+from api.schemas.core.configuration import VectorStoreType
+from api.schemas.core.elasticsearch import IndexLanguage
 from api.schemas.search import Search, SearchMethod
+
+logger = logging.getLogger(__name__)
 
 
 class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
     default_method = SearchMethod.HYBRID
 
-    def __init__(self, *args, **kwargs):
-        kwargs.pop("type", None)  # remove type from kwargs to avoid passing it to the super class
-        self.number_of_shards = kwargs.pop("number_of_shards", 1)  # remove number_of_shards from kwargs to avoid passing it to the super class
-        self.number_of_replicas = kwargs.pop("number_of_replicas", 1)  # remove number_of_replicas from kwargs to avoid passing it to the super class
+    def __init__(
+        self,
+        index_name: str,
+        index_language: IndexLanguage,
+        type: VectorStoreType,
+        number_of_shards: int = 1,
+        number_of_replicas: int = 1,
+        *args,
+        **kwargs,
+    ):
+        self.index_name = index_name
+        self.index_language = index_language
+        self.number_of_shards = number_of_shards
+        self.number_of_replicas = number_of_replicas
+
         AsyncElasticsearch.__init__(self, *args, **kwargs)
+
+    async def setup(self, vector_size: int) -> None:
+        """
+        Create the index with the correct settings and mappings.
+
+        Args:
+            vector_size (int): The size of the vector to be used for the index.
+        """
+
+        settings = {
+            "number_of_shards": self.number_of_shards,
+            "number_of_replicas": self.number_of_replicas,
+            "similarity": {"default": {"type": "BM25"}},
+            "analysis": {
+                "filter": {
+                    "stop": {"type": "stop", "stopwords": self.index_language.stopwords},
+                    "stemmer": {"type": "stemmer", "language": self.index_language.stemmer},
+                },
+                "analyzer": {
+                    "content_analyzer": {
+                        "tokenizer": "standard",
+                        "filter": ["lowercase", "stop", "stemmer"],
+                    },
+                },
+            },
+        }
+        mappings = {
+            "dynamic_templates": [
+                {"metadata_objects_disabled": {"path_match": "metadata.*", "match_mapping_type": "object", "mapping": {"enabled": False}}},
+                {
+                    "metadata_dates_by_name": {
+                        "path_match": "metadata.*",
+                        "match_pattern": "regex",
+                        "match": "(?i).*(_at|_date|date)$",
+                        "mapping": {
+                            "type": "date",
+                            "ignore_malformed": True,
+                            "format": "strict_date_optional_time||strict_date_time||yyyy-MM-dd'T'HH:mm:ssZ||epoch_millis",
+                        },
+                    }
+                },
+                {"metadata_bools": {"path_match": "metadata.*", "match_mapping_type": "boolean", "mapping": {"type": "boolean"}}},
+                {
+                    "metadata_numbers_long": {
+                        "path_match": "metadata.*",
+                        "match_mapping_type": "long",
+                        "mapping": {"type": "long", "ignore_malformed": True, "coerce": True},
+                    }
+                },
+                {
+                    "metadata_numbers_double": {
+                        "path_match": "metadata.*",
+                        "match_mapping_type": "double",
+                        "mapping": {"type": "double", "ignore_malformed": True, "coerce": True},
+                    }
+                },
+                {
+                    "metadata_strings": {
+                        "path_match": "metadata.*",
+                        "match_mapping_type": "string",
+                        "mapping": {"type": "keyword", "ignore_above": 1024},
+                    }
+                },
+            ],
+            "date_detection": False,
+            "numeric_detection": False,
+            "properties": {
+                "id": {"type": "integer"},
+                "collection_id": {"type": "integer"},
+                "document_id": {"type": "integer"},
+                "embedding": {"type": "dense_vector", "dims": vector_size, "index": True, "similarity": "cosine"},
+                "content": {"type": "text", "analyzer": "content_analyzer"},
+                "metadata": {"type": "object", "dynamic": True},
+                "created": {"type": "date"},
+            },
+        }
+
+        if await self.indices.exists(index=self.index_name):
+            logger.info(f"Index {self.index_name} does not exist, creating index.")
+            existing_mapping = await self.indices.get_mapping(index=self.index_name)
+            existing_vector_size = existing_mapping[self.index_name]["mappings"]["properties"]["embedding"]["dims"]
+            assert existing_vector_size == vector_size, f"Index has incorrect vector size for index {self.index_name} ({existing_vector_size} != {vector_size})"  # fmt: off
+            # @TODO: check index UUID in postgres after dynamic creation PR
+        else:
+            await self.indices.create(index=self.index_name, mappings=mappings, settings=settings)
 
     async def check(self) -> bool:
         try:
