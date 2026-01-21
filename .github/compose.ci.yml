@@ -34,7 +34,7 @@ services:
     image: rabbitmq:3.13-management
     restart: always
     ports:
-      - "15672:15672"
+      - "${RABBITMQ_UI_PORT:-15672}:15672"
       - "${RABBITMQ_PORT:-5672}:5672"
     environment:
       - RABBITMQ_DEFAULT_USER=rabbitmq

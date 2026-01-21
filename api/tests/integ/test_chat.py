@@ -197,7 +197,7 @@ class TestChat:
             },
         }
         response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
-        assert response.status_code == 200, response.text
+        assert response.status_code == 422, response.text
 
     def test_chat_completions_search_template(self, client: TestClient, setup):
         """Test the GET /chat/completions search template."""

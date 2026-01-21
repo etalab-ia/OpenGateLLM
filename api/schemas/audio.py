@@ -1,8 +1,10 @@
 import base64
 from enum import Enum
+from typing import Literal
 
+from fastapi import File, UploadFile
 from mistralai.models import AudioChunk, ChatCompletionRequest, TextChunk, UserMessage
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from api.schemas import BaseModel
 from api.schemas.admin.providers import ProviderType
@@ -18,6 +20,17 @@ AudioTranscriptionLanguage = Enum("AudioTranscriptionLanguage", SUPPORTED_LANGUA
 
 
 class CreateAudioTranscription(BaseModel):
+    file: UploadFile = File(description="The audio file object (not file name) to transcribe, in one of these formats: mp3 or wav.")  # fmt: off
+    model: str = Field(default=..., description="ID of the model to use. Call `/v1/models` endpoint to get the list of available models, only `automatic-speech-recognition` model type is supported.")  # fmt: off
+    language: AudioTranscriptionLanguage = Field(default=AudioTranscriptionLanguage.EMPTY, description="The language of the output audio. If the output language is different than the audio language, the audio language will be translated into the output language. Supplying the output language in ISO-639-1 (e.g. en, fr) format will improve accuracy and latency.")  # fmt: off
+    prompt: str | None = Field(default=None, description="An optional text to tell the model what to do with the input audio. Default is `Transcribe this audio in this language : {language}`")  # fmt: off
+    response_format: Literal["json", "text"] = Field(default="json", description="The format of the transcript output, in one of these formats: `json` or `text`.")  # fmt: off
+    temperature: float | None = Field(default=None, ge=0, le=1, description="The sampling temperature, between 0 and 1. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. If set to 0, the model will use log probability to automatically increase the temperature until certain thresholds are hit.")  # fmt: off
+
+    @field_validator("language", mode="after")
+    def extract_value_language(cls, language: AudioTranscriptionLanguage) -> str:
+        return language.value
+
     @staticmethod
     def format_request(provider_type: ProviderType, request_content: RequestContent):
         match provider_type:
@@ -43,13 +56,10 @@ class CreateAudioTranscription(BaseModel):
                 return request_content
 
             case ProviderType.VLLM:
-                if request_content.form["language"] == AudioTranscriptionLanguage.EMPTY:
-                    request_content.form.pop("language")
+                request_content.form["language"] = "en" if request_content.form["language"] == "" else request_content.form["language"]
+                request_content.form["temperature"] = 0 if request_content.form["temperature"] is None else request_content.form["temperature"]
+                request_content.form["prompt"] = "" if request_content.form["prompt"] is None else request_content.form["prompt"]
 
-                if request_content.form.get("temperature") is None:
-                    request_content.form.pop("temperature")
-
-                request_content.form["response_format"] = "json"
                 return request_content
 
             case _:
