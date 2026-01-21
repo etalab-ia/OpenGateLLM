@@ -25,8 +25,6 @@ from api.schemas.parse import ParsedDocument, ParsedDocumentOutputFormat
 from api.schemas.search import Search
 from api.sql.models import Collection as CollectionTable
 from api.sql.models import Document as DocumentTable
-from api.sql.models import Provider as ProviderTable
-from api.sql.models import Router as RouterTable
 from api.sql.models import User as UserTable
 from api.utils.exceptions import (
     ChunkingFailedException,
@@ -213,21 +211,6 @@ class DocumentManager:
             raise CollectionNotFoundException()
 
         try:
-            # create index only when the first document is created to avoid increase shard with empty collections
-            query = (
-                select(ProviderTable.vector_size)
-                .where(RouterTable.name == self.vector_store_model)
-                .join(RouterTable, ProviderTable.router_id == RouterTable.id)
-            ).limit(1)
-            result = await postgres_session.execute(query)
-            vector_size = result.scalar_one()
-
-            await self.vector_store.create_collection(collection_id=collection_id, vector_size=vector_size)
-
-        except Exception as e:
-            logger.exception(msg=f"Error during collection ({collection_id}) creation: {e}", exc_info=True)
-            raise VectorizationFailedException()
-        try:
             chunks = self._split(
                 document=document,
                 chunker=chunker,
@@ -264,12 +247,16 @@ class DocumentManager:
             await self._upsert(
                 chunks=chunks,
                 collection_id=collection_id,
+                document_id=document_id,
                 redis_client=redis_client,
                 postgres_session=postgres_session,
                 model_registry=model_registry,
                 request_context=request_context,
             )
         except Exception as e:
+            import traceback
+
+            print(traceback.format_exc())
             logger.exception(msg=f"Error during document creation: {e}")
             await self.delete_document(postgres_session=postgres_session, user_id=request_context.get().user_info.id, document_id=document_id)
             raise VectorizationFailedException(detail=f"Vectorization failed: {e}")
@@ -476,6 +463,7 @@ class DocumentManager:
         self,
         chunks: list[Chunk],
         collection_id: int,
+        document_id: int,
         redis_client: AsyncRedis,
         postgres_session: AsyncSession,
         model_registry: ModelRegistry,
@@ -496,4 +484,4 @@ class DocumentManager:
             embeddings = await self._create_embeddings(provider=provider, input_texts=texts, redis_client=redis_client)
 
             # insert chunks and vectors
-            await self.vector_store.upsert(collection_id=collection_id, chunks=batch, embeddings=embeddings)
+            await self.vector_store.upsert(collection_id=collection_id, document_id=document_id, chunks=batch, embeddings=embeddings)

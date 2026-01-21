@@ -40,16 +40,8 @@ class BaseVectorStoreClient(ABC):
         """Cleanly close the underlying connection/pool."""
 
     @abstractmethod
-    async def create_collection(self, collection_id: int, vector_size: int) -> None:
-        """Create a new collection (index) inside the vector store."""
-
-    @abstractmethod
     async def delete_collection(self, collection_id: int) -> None:
         """Delete a collection (index) from the vector store."""
-
-    @abstractmethod
-    async def get_collections(self) -> list[int]:
-        """Return the list of existing collection identifiers."""
 
     @abstractmethod
     async def get_chunk_count(self, collection_id: int, document_id: int) -> int | None:

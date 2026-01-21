@@ -1,11 +1,10 @@
 import logging
 
 from elasticsearch import AsyncElasticsearch, helpers
+from elasticsearch.helpers import BulkIndexError
 
 from api.clients.vector_store._basevectorstoreclient import BaseVectorStoreClient
 from api.schemas.chunks import Chunk
-from api.schemas.core.configuration import VectorStoreType
-from api.schemas.core.elasticsearch import IndexLanguage
 from api.schemas.search import Search, SearchMethod
 
 logger = logging.getLogger(__name__)
@@ -16,18 +15,14 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
 
     def __init__(
         self,
-        index_name: str,
-        index_language: IndexLanguage,
-        type: VectorStoreType,
-        number_of_shards: int = 1,
-        number_of_replicas: int = 1,
         *args,
         **kwargs,
     ):
-        self.index_name = index_name
-        self.index_language = index_language
-        self.number_of_shards = number_of_shards
-        self.number_of_replicas = number_of_replicas
+        kwargs.pop("type", None)
+        self.index_name = kwargs.pop("index_name", None)
+        self.index_language = kwargs.pop("index_language", None)
+        self.number_of_shards = kwargs.pop("number_of_shards", None)
+        self.number_of_replicas = kwargs.pop("number_of_replicas", None)
 
         AsyncElasticsearch.__init__(self, *args, **kwargs)
 
@@ -126,118 +121,78 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
     async def close(self) -> None:
         await super(AsyncElasticsearch, self).transport.close()
 
-    async def create_collection(self, collection_id: int, vector_size: int) -> None:
-        if await self.indices.exists(index=str(collection_id)):
-            return
-
-        settings = {
-            "number_of_shards": self.number_of_shards,
-            "number_of_replicas": self.number_of_replicas,
-            "similarity": {"default": {"type": "BM25"}},
-            "analysis": {
-                "filter": {
-                    "french_stop": {"type": "stop", "stopwords": "_french_"},
-                    "french_stemmer": {"type": "stemmer", "language": "light_french"},
-                },
-                "analyzer": {
-                    "french_analyzer": {
-                        "tokenizer": "standard",
-                        "filter": ["lowercase", "french_stop", "french_stemmer"],
-                    }
-                },
-            },
-        }
-
-        mappings = {
-            "dynamic_templates": [
-                {"metadata_objects_disabled": {"path_match": "metadata.*", "match_mapping_type": "object", "mapping": {"enabled": False}}},
-                {
-                    "metadata_dates_by_name": {
-                        "path_match": "metadata.*",
-                        "match_pattern": "regex",
-                        "match": "(?i).*(_at|_date|date)$",
-                        "mapping": {
-                            "type": "date",
-                            "ignore_malformed": True,
-                            "format": "strict_date_optional_time||strict_date_time||yyyy-MM-dd'T'HH:mm:ssZ||epoch_millis",
-                        },
-                    }
-                },
-                {"metadata_bools": {"path_match": "metadata.*", "match_mapping_type": "boolean", "mapping": {"type": "boolean"}}},
-                {
-                    "metadata_numbers_long": {
-                        "path_match": "metadata.*",
-                        "match_mapping_type": "long",
-                        "mapping": {"type": "long", "ignore_malformed": True, "coerce": True},
-                    }
-                },
-                {
-                    "metadata_numbers_double": {
-                        "path_match": "metadata.*",
-                        "match_mapping_type": "double",
-                        "mapping": {"type": "double", "ignore_malformed": True, "coerce": True},
-                    }
-                },
-                {
-                    "metadata_strings": {
-                        "path_match": "metadata.*",
-                        "match_mapping_type": "string",
-                        "mapping": {"type": "keyword", "ignore_above": 1024},
-                    }
-                },
-            ],
-            "date_detection": False,
-            "numeric_detection": False,
-            "properties": {
-                "id": {"type": "integer"},
-                "embedding": {"type": "dense_vector", "dims": vector_size},
-                "content": {"type": "text", "analyzer": "french_analyzer"},
-                "metadata": {"type": "object", "dynamic": True},
-            },
-        }
-
-        await self.indices.create(index=str(collection_id), mappings=mappings, settings=settings)
-
     async def delete_collection(self, collection_id: int) -> None:
-        if not await self.indices.exists(index=str(collection_id)):
-            return
+        query = {
+            "bool": {
+                "must": [
+                    {"term": {"collection_id": collection_id}},
+                ]
+            }
+        }
 
-        await self.indices.delete(index=str(collection_id))
-
-    async def get_collections(self) -> list[int]:
-        collections = await self.indices.get_alias()
-        return [int(collection) for collection in collections]
+        await self.delete_by_query(index=self.index_name, body={"query": query})
 
     async def get_chunk_count(self, collection_id: int, document_id: int) -> int | None:
-        try:
-            body = {"query": {"match": {"metadata.document_id": document_id}}}
-            result = await AsyncElasticsearch.count(self, index=str(collection_id), body=body)
-            return result["count"]
-        except Exception:
-            return None
+        body = {
+            "query": {
+                "bool": {
+                    "must": [
+                        {"term": {"collection_id": collection_id}},
+                        {"term": {"document_id": document_id}},
+                    ]
+                }
+            }
+        }
+        result = await self.count(index=self.index_name, body=body)
+        return result["count"]
 
     async def delete_document(self, collection_id: int, document_id: int) -> None:
-        body = {"query": {"match": {"metadata.document_id": document_id}}}
-        await AsyncElasticsearch.delete_by_query(self, index=str(collection_id), body=body)
-        await self.indices.refresh(index=str(collection_id))
+        query = {
+            "bool": {
+                "must": [
+                    {"term": {"collection_id": collection_id}},
+                    {"term": {"document_id": document_id}},
+                ]
+            }
+        }
+
+        await self.delete_by_query(index=self.index_name, body={"query": query})
 
     async def get_chunks(self, collection_id: int, document_id: int, offset: int = 0, limit: int = 10, chunk_id: int | None = None) -> list[Chunk]:
-        body = {"query": {"bool": {"must": [{"match": {"metadata.document_id": document_id}}]}}, "_source": ["id", "content", "metadata"]}
+        body = {
+            "query": {
+                "bool": {
+                    "must": [
+                        {"term": {"collection_id": collection_id}},
+                        {"term": {"document_id": document_id}},
+                    ]
+                },
+            },
+            "_source": {"excludes": ["embedding"]},
+        }
         if chunk_id is not None:
             body["query"]["bool"]["must"].append({"term": {"id": chunk_id}})
 
-        results = await AsyncElasticsearch.search(self, index=str(collection_id), body=body, from_=offset, size=limit)
+        results = await self.search(index=self.index_name, body=body, from_=offset, size=limit)
         chunks = []
         for hit in results["hits"]["hits"]:
-            chunks.append(Chunk(id=hit["_source"]["id"], content=hit["_source"]["content"], metadata=hit["_source"]["metadata"]))
+            chunks.append(
+                Chunk(
+                    id=hit["_source"]["id"],
+                    content=hit["_source"]["content"],
+                    metadata=hit["_source"]["metadata"],
+                )
+            )
         return chunks
 
-    async def upsert(self, collection_id: int, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
+    async def upsert(self, collection_id: int, document_id: int, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
         actions = [
             {
-                "_index": str(collection_id),
+                "_index": self.index_name,
                 "_source": {
                     "id": chunk.id,
+                    "collection_id": collection_id,
+                    "document_id": document_id,
                     "content": chunk.content,
                     "embedding": embedding,
                     "metadata": chunk.metadata,
@@ -246,20 +201,24 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
             for chunk, embedding in zip(chunks, embeddings)
         ]
 
-        await helpers.async_bulk(client=self, actions=actions, index=collection_id)
-        await self.indices.refresh(index=str(collection_id))
+        try:
+            await helpers.async_bulk(client=self, actions=actions, index=self.index_name)
+        except BulkIndexError:
+            raise
 
     async def search(
         self,
         method: SearchMethod,
         collection_ids: list[int],
         query_prompt: str,
-        query_vector: list[float],
+        query_vector: list[float] | None,
         limit: int,
         offset: int,
         rff_k: int | None = 20,
         score_threshold: float = 0.0,
     ) -> list[Search]:
+        assert method is SearchMethod.LEXICAL or query_vector, "Query vector must not be None for semantic and hybrid search methods"
+
         if method == SearchMethod.SEMANTIC:
             searches = await self._semantic_search(
                 query_vector=query_vector, collection_ids=collection_ids, limit=limit, offset=offset, score_threshold=score_threshold
@@ -280,10 +239,13 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
     async def _lexical_search(
         self, query_prompt: str, collection_ids: list[int], limit: int, offset: int, score_threshold: float = 0.0
     ) -> list[Search]:
-        collection_ids = [str(x) for x in collection_ids]
-        fuzziness = {"fuzziness": "AUTO"} if len(query_prompt.split()) < 25 else {}
         body = {
-            "query": {"multi_match": {"query": query_prompt, **fuzziness}},
+            "query": {
+                "bool": {
+                    "must": {"multi_match": {"query": query_prompt, "fuzziness": "AUTO"}},
+                    "filter": {"terms": {"collection_id": collection_ids}},
+                }
+            },
             "size": limit,
             "from": offset,
             "_source": {"excludes": ["embedding"]},
@@ -307,9 +269,14 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
     async def _semantic_search(
         self, query_vector: list[float], collection_ids: list[int], limit: int, offset: int, score_threshold: float = 0.0
     ) -> list[Search]:
-        collection_ids = [str(x) for x in collection_ids]
         body = {
-            "knn": {"field": "embedding", "query_vector": query_vector, "k": limit, "num_candidates": max(limit * 10, 100)},
+            "knn": {
+                "field": "embedding",
+                "query_vector": query_vector,
+                "k": limit,
+                "num_candidates": max(limit * 10, 100),
+                "filter": {"terms": {"collection_id": collection_ids}},
+            },
             "size": limit,
             "from": offset,
             "_source": {"excludes": ["embedding"]},
@@ -339,8 +306,9 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
         Args:
             query_prompt (str): The search prompt
             query_vector (list[float]): The query vector
-            collection_ids (List[int]): The collection ids
-            k (int): The number of results to return
+            collection_ids (list[int]): The collection ids
+            offset (int): The offset of the results to return
+            limit (int): The number of results to return
             rff_k (int): The constant k in the RRF formula
             expansion_factor (int): The factor that increases the number of results to search in each method before reranking
 
@@ -348,10 +316,16 @@ class ElasticsearchVectorStoreClient(BaseVectorStoreClient, AsyncElasticsearch):
             A combined list of searches with updated scores
         """
         lexical_searches = await self._lexical_search(
-            query_prompt=query_prompt, collection_ids=collection_ids, limit=int(limit * expansion_factor), offset=offset
+            query_prompt=query_prompt,
+            collection_ids=collection_ids,
+            limit=int(limit * expansion_factor),
+            offset=offset,
         )
         semantic_searches = await self._semantic_search(
-            query_vector=query_vector, collection_ids=collection_ids, limit=int(limit * expansion_factor), offset=offset
+            query_vector=query_vector,
+            collection_ids=collection_ids,
+            limit=int(limit * expansion_factor),
+            offset=offset,
         )
 
         combined_scores = {}

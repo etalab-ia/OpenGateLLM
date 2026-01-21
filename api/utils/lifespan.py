@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from api.clients.parser import BaseParserClient as ParserClient
-from api.clients.vector_store import BaseVectorStoreClient as VectorStoreClient
+from api.clients.vector_store import ElasticsearchVectorStoreClient
 from api.helpers._documentmanager import DocumentManager
 from api.helpers._identityaccessmanager import IdentityAccessManager
 from api.helpers._limiter import Limiter
@@ -21,6 +21,7 @@ from api.schemas.core.context import GlobalContext
 from api.utils.configuration import get_configuration
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
+from api.utils.exceptions import RouterNotFoundException
 from api.utils.logging import init_logger
 
 logger = init_logger(name=__name__)
@@ -34,10 +35,10 @@ async def lifespan(app: FastAPI):
 
     # Dependencies
     parser = ParserClient.import_module(type=configuration.dependencies.parser.type)(**configuration.dependencies.parser.model_dump()) if configuration.dependencies.parser else None  # fmt: off
-    vector_store = VectorStoreClient.import_module(type=configuration.dependencies.vector_store.type)(**configuration.dependencies.vector_store.model_dump()) if configuration.dependencies.vector_store else None  # fmt: off
+    vector_store = ElasticsearchVectorStoreClient(**configuration.dependencies.vector_store.model_dump()) if configuration.dependencies.vector_store else None  # fmt: off
 
     assert await vector_store.check() if vector_store else True, "Vector store database is not reachable."
-    # await vector_store.setup(vector_size=1024)
+    await vector_store.setup(vector_size=1024)
 
     dependencies = SimpleNamespace(parser=parser, vector_store=vector_store)
 
@@ -135,11 +136,20 @@ async def _setup_document_manager(configuration: Configuration, global_context: 
         return
 
     async for postgres_session in get_postgres_session():
-        router_id = await global_context.model_registry.get_router_id_from_model_name(
-            model_name=configuration.settings.vector_store_model,
-            postgres_session=postgres_session,
-        )
-    assert router_id is not None, "Vector store model not found."
+        try:
+            routers = await global_context.model_registry.get_routers(
+                router_id=None,
+                name=configuration.settings.vector_store_model,
+                postgres_session=postgres_session,
+            )
+        except RouterNotFoundException:
+            raise ValueError("Vector store model not found.")
+
+        router = routers[0]
+        vector_size = router.vector_size
+        assert vector_size is not None, "Vector size is None (no provider for this model)."
+
+    await dependencies.vector_store.setup(vector_size=vector_size)
 
     global_context.document_manager = DocumentManager(
         vector_store=dependencies.vector_store,

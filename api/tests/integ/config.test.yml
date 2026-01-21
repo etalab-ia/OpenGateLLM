@@ -71,6 +71,10 @@ dependencies:
     socket_keepalive: True
   
   elasticsearch:
+    index_name: test_index
+    index_language: french
+    number_of_shards: 1
+    number_of_replicas: 1
     hosts: http://localhost:${ELASTICSEARCH_PORT:-9200}
     basic_auth:
       - elasticsearch
