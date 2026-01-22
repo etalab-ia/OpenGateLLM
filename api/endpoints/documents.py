@@ -1,12 +1,11 @@
 from contextvars import ContextVar
 import json
-from typing import Literal
+from typing import Annotated
 from uuid import UUID
 
 from elasticsearch import AsyncElasticsearch
-from fastapi import APIRouter, Depends, Path, Query, Request, Response, Security, UploadFile
+from fastapi import APIRouter, Depends, Form, Path, Query, Request, Response, Security
 from fastapi.responses import JSONResponse
-from langchain_text_splitters import Language
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,30 +13,7 @@ from api.helpers._accesscontroller import AccessController
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
-from api.schemas.documents import (
-    Chunker,
-    ChunkerForm,
-    ChunkMinSizeForm,
-    ChunkOverlapForm,
-    ChunkSizeForm,
-    CollectionForm,
-    Document,
-    DocumentResponse,
-    Documents,
-    IsSeparatorRegexForm,
-    LengthFunctionForm,
-    MetadataForm,
-    PresetSeparatorsForm,
-    SeparatorsForm,
-)
-from api.schemas.parse import (
-    FileForm,
-    ForceOCRForm,
-    OutputFormatForm,
-    PageRangeForm,
-    PaginateOutputForm,
-    ParsedDocumentOutputFormat,
-)
+from api.schemas.documents import CreateDocumentForm, Document, DocumentResponse, Documents
 from api.utils.context import global_context
 from api.utils.dependencies import (
     get_elasticsearch_client,
@@ -56,57 +32,33 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__DOCUMENTS.title()])
 @router.post(path=ENDPOINT__DOCUMENTS, status_code=201, dependencies=[Security(dependency=AccessController())], response_model=DocumentResponse)
 async def create_document(
     request: Request,
+    data: Annotated[CreateDocumentForm, Form()],
     postgres_session: AsyncSession = Depends(get_postgres_session),
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
     redis_client: AsyncRedis = Depends(get_redis_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
-    file: UploadFile = FileForm,
-    collection: int = CollectionForm,
-    # parse params
-    paginate_output: bool | None = PaginateOutputForm,
-    page_range: str = PageRangeForm,
-    force_ocr: bool = ForceOCRForm,
-    output_format: ParsedDocumentOutputFormat = OutputFormatForm,
-    # chunker params
-    chunker: Chunker = ChunkerForm,
-    chunk_size: int = ChunkSizeForm,
-    chunk_min_size: int = ChunkMinSizeForm,
-    chunk_overlap: int = ChunkOverlapForm,
-    length_function: Literal["len"] = LengthFunctionForm,
-    is_separator_regex: bool = IsSeparatorRegexForm,
-    separators: list[str] = SeparatorsForm,
-    preset_separators: Language | Literal[""] = PresetSeparatorsForm,
-    metadata: str = MetadataForm,
 ) -> JSONResponse:
     """
     Parse a file and create a document.
     """
-    preset_separators = None if preset_separators == "" else preset_separators
-
     try:
-        metadata = json.loads(metadata)
+        metadata = json.loads(data.metadata)
     except Exception as e:
         raise InvalidJSONFormatException(f"Invalid JSON string for metadata: {e}")
 
     if not global_context.document_manager:  # no vector store available
         raise CollectionNotFoundException()
 
-    file_size = len(file.file.read())
+    file_size = len(data.file.file.read())
     if file_size > FileSizeLimitExceededException.MAX_CONTENT_SIZE:
         raise FileSizeLimitExceededException()
-    file.file.seek(0)  # reset file pointer to the beginning of the file
+    data.file.file.seek(0)  # reset file pointer to the beginning of the file
 
-    length_function = len if length_function == "len" else length_function
+    length_function = len if data.length_function == "len" else data.length_function
 
-    document = await global_context.document_manager.parse_file(
-        file=file,
-        paginate_output=paginate_output,
-        page_range=page_range,
-        force_ocr=force_ocr,
-        output_format=output_format,
-    )
+    document = await global_context.document_manager.parse_file(file=data.file, force_ocr=data.force_ocr)
 
     document_id = await global_context.document_manager.create_document(
         request_context=request_context,
@@ -115,17 +67,17 @@ async def create_document(
         postgres_session=postgres_session,
         redis_client=redis_client,
         model_registry=model_registry,
-        collection_id=collection,
+        collection_id=data.collection,
         document=document,
-        chunker=chunker,
-        chunk_size=chunk_size,
-        chunk_min_size=chunk_min_size,
-        chunk_overlap=chunk_overlap,
+        chunker=data.chunker,
+        chunk_size=data.chunk_size,
+        chunk_min_size=data.chunk_min_size,
+        chunk_overlap=data.chunk_overlap,
         length_function=length_function,
-        is_separator_regex=is_separator_regex,
-        separators=separators,
-        preset_separators=preset_separators,
-        metadata=metadata,
+        is_separator_regex=data.is_separator_regex,
+        separators=data.separators,
+        preset_separators=data.preset_separators,
+        metadata=data.metadata,
     )
 
     return JSONResponse(content=DocumentResponse(id=document_id).model_dump(), status_code=201)
