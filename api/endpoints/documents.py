@@ -1,5 +1,4 @@
 from contextvars import ContextVar
-import json
 from typing import Annotated
 from uuid import UUID
 
@@ -23,7 +22,7 @@ from api.utils.dependencies import (
     get_redis_client,
     get_request_context,
 )
-from api.utils.exceptions import CollectionNotFoundException, DocumentNotFoundException, FileSizeLimitExceededException, InvalidJSONFormatException
+from api.utils.exceptions import CollectionNotFoundException, DocumentNotFoundException, FileSizeLimitExceededException
 from api.utils.variables import ENDPOINT__DOCUMENTS, ROUTER__DOCUMENTS
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__DOCUMENTS.title()])
@@ -43,22 +42,19 @@ async def create_document(
     """
     Parse a file and create a document.
     """
-    try:
-        metadata = json.loads(data.metadata)
-    except Exception as e:
-        raise InvalidJSONFormatException(f"Invalid JSON string for metadata: {e}")
-
     if not global_context.document_manager:  # no vector store available
         raise CollectionNotFoundException()
 
-    file_size = len(data.file.file.read())
-    if file_size > FileSizeLimitExceededException.MAX_CONTENT_SIZE:
+    if data.file.size > FileSizeLimitExceededException.MAX_CONTENT_SIZE:
         raise FileSizeLimitExceededException()
-    data.file.file.seek(0)  # reset file pointer to the beginning of the file
 
-    length_function = len if data.length_function == "len" else data.length_function
-
-    document = await global_context.document_manager.parse_file(file=data.file, force_ocr=data.force_ocr)
+    document = await global_context.document_manager.parse_file(
+        file=data.file,
+        paginate_output=False,
+        page_range="",
+        force_ocr=False,
+        output_format="markdown",
+    )
 
     document_id = await global_context.document_manager.create_document(
         request_context=request_context,
@@ -73,7 +69,7 @@ async def create_document(
         chunk_size=data.chunk_size,
         chunk_min_size=data.chunk_min_size,
         chunk_overlap=data.chunk_overlap,
-        length_function=length_function,
+        length_function=len,
         is_separator_regex=data.is_separator_regex,
         separators=data.separators,
         preset_separators=data.preset_separators,
