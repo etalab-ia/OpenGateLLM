@@ -1,3 +1,4 @@
+import json
 import os
 from uuid import uuid4
 
@@ -38,7 +39,7 @@ class TestDocuments:
             "length_function": "len",
             "chunk_min_size": "0",
             "is_separator_regex": "false",
-            "metadata": '{"string_metadata": "test", "int_metadata": 1, "float_metadata": 1.0, "bool_metadata": true}',
+            "metadata": json.dumps({"string_metadata": "test", "int_metadata": 1, "float_metadata": 1.0, "bool_metadata": True}),
         }
 
         with open(file_path, "rb") as file:
@@ -64,7 +65,7 @@ class TestDocuments:
             "length_function": "len",
             "chunk_min_size": "0",
             "is_separator_regex": "false",
-            "metadata": "{}",
+            "metadata": json.dumps({}),
         }
 
         with open(file_path, "rb") as file:

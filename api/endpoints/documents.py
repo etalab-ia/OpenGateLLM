@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from elasticsearch import AsyncElasticsearch
-from fastapi import APIRouter, Depends, Form, Path, Query, Request, Response, Security
+from fastapi import APIRouter, Depends, Path, Query, Request, Response, Security
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +31,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__DOCUMENTS.title()])
 @router.post(path=ENDPOINT__DOCUMENTS, status_code=201, dependencies=[Security(dependency=AccessController())], response_model=DocumentResponse)
 async def create_document(
     request: Request,
-    data: Annotated[CreateDocumentForm, Form()],
+    data: Annotated[CreateDocumentForm, Depends(CreateDocumentForm.as_form)],
     postgres_session: AsyncSession = Depends(get_postgres_session),
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
