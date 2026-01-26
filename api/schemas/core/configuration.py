@@ -13,7 +13,7 @@ import yaml
 
 from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
-from api.schemas.core.elasticsearch import IndexLanguage
+from api.schemas.core.elasticsearch import ElasticsearchIndexLanguage
 from api.schemas.core.models import Metric
 from api.schemas.models import ModelType
 from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, ROUTER__ADMIN, ROUTER__AUTH, ROUTERS
@@ -170,7 +170,7 @@ class CeleryDependency(ConfigBaseModel):
 class ElasticsearchDependency(ConfigBaseModel):
     # All args of pydantic elastic client is allowed
     index_name: constr(strip_whitespace=True, min_length=1) = Field(..., description="Name of the Elasticsearch index.", examples=["opengatellm"])  # fmt: off
-    index_language: IndexLanguage = Field(default=IndexLanguage.ENGLISH, description="Language of the Elasticsearch index.", examples=[IndexLanguage.ENGLISH.value])  # fmt: off
+    index_language: ElasticsearchIndexLanguage = Field(default=ElasticsearchIndexLanguage.ENGLISH, description="Language of the Elasticsearch index.", examples=[ElasticsearchIndexLanguage.ENGLISH.value])  # fmt: off
     number_of_shards: int = Field(default=24, ge=1, description="Number of shards for the Elasticsearch index.", examples=[1])  # fmt: off
     number_of_replicas: int = Field(default=1, ge=0, description="Number of replicas for the Elasticsearch index.", examples=[1])  # fmt: off
 
@@ -350,6 +350,9 @@ class Settings(ConfigBaseModel):
 
     # vector store
     vector_store_model: str | None = Field(default=None, description="Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch). This model must be defined in the `models` section and have type `text-embeddings-inference`.")  # fmt: off
+
+    # document parsing
+    document_parsing_max_concurrent: int = Field(default=10, ge=1, description="Maximum number of concurrent document parsing tasks per worker.")  # fmt: off
 
     # postgres_session
     session_secret_key: str | None = Field(default=None, description='Secret key for postgres_session middleware. If not provided, the master key will be used.', examples=["knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM"])  # fmt: off

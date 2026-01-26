@@ -1,17 +1,12 @@
-from enum import Enum
 from typing import Literal
 
 from fastapi import File, Form, UploadFile
-from pydantic import Field
+from fastapi.exceptions import RequestValidationError
+from pydantic import Field, ValidationError, field_validator
 
 from api.schemas import BaseModel
 from api.schemas.usage import Usage
-
-
-class ParsedDocumentOutputFormat(str, Enum):
-    MARKDOWN = "markdown"
-    JSON = "json"
-    HTML = "html"
+from api.utils.exceptions import FileSizeLimitExceededException
 
 
 class ParsedDocumentMetadata(BaseModel):
@@ -32,10 +27,28 @@ class ParsedDocument(BaseModel):
     usage: Usage = Field(default_factory=Usage, description="Usage information for the request.")
 
 
-FileForm: UploadFile = File(..., description="The file to parse.")  # fmt: off
-PaginateOutputForm: bool | None = Form(default=False, description="Whether to paginate the output.  Defaults to False.  If set to True, each page of the output will be separated by a horizontal rule that contains the page number (2 newlines, {PAGE_NUMBER}, 48 - characters, 2 newlines).")  # fmt: off
-PageRangeForm: str = Form(default="", description="Page range to convert, specify comma separated page numbers or ranges. Example: '0,5-10,20'", pattern=r"^(([0-9]+-[0-9]+|[0-9]+)(,([0-9]+-[0-9]+|[0-9]+))*)?$")  # fmt: off
-ForceOCRForm: bool = Form(default=False, description="Force OCR on all pages of the PDF.  Defaults to False.  This can lead to worse results if you have good text in your PDFs (which is true in most cases).")  # fmt: off
-OutputFormatForm: ParsedDocumentOutputFormat = Form(default=ParsedDocumentOutputFormat.MARKDOWN, description="The format to output the text in.  Can be 'markdown', 'json', or 'html'.  Defaults to 'markdown'.")  # fmt: off
-# TODO: add support for use_llm param
-UseLLMForm: bool | None = Form(default=False, description="Use LLM to improve conversion accuracy. Requires API key if using external services.")  # fmt: off
+class CreateParseForm(BaseModel):
+    file: UploadFile
+    page_range: str
+    force_ocr: bool
+
+    @classmethod
+    def as_form(
+        cls,
+        file: UploadFile = File(default=..., description="The file to parse."),
+        page_range: str = Form(default="", description="Page range to convert, specify comma separated page numbers or ranges. Example: '0,5-10,20'"),
+        force_ocr: bool = Form(
+            default=False,
+            description="Force OCR on all pages of the PDF. Defaults to False. This can lead to worse results if you have good text in your PDFs (which is true in most cases).",
+        ),
+    ) -> "CreateParseForm":
+        try:
+            return cls(file=file, page_range=page_range, force_ocr=force_ocr)
+        except ValidationError as exc:
+            raise RequestValidationError(exc.errors())
+
+    @field_validator("file")
+    def validate_file(cls, file: UploadFile) -> UploadFile:
+        if file.size > FileSizeLimitExceededException.MAX_CONTENT_SIZE:
+            raise FileSizeLimitExceededException()
+        return file

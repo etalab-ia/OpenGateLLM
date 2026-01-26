@@ -1,17 +1,12 @@
-from fastapi import APIRouter, File, Request, Security, UploadFile
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Request, Security
 from fastapi.responses import JSONResponse
 
 from api.helpers._accesscontroller import AccessController
-from api.schemas.parse import (
-    ForceOCRForm,
-    OutputFormatForm,
-    PageRangeForm,
-    PaginateOutputForm,
-    ParsedDocument,
-    ParsedDocumentOutputFormat,
-)
+from api.schemas.core.documents import FileType
+from api.schemas.parse import CreateParseForm, ParsedDocument
 from api.utils.context import global_context
-from api.utils.exceptions import FileSizeLimitExceededException
 from api.utils.variables import ENDPOINT__PARSE, ROUTER__PARSE
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__PARSE.title()])
@@ -20,23 +15,13 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__PARSE.title()])
 @router.post(path=ENDPOINT__PARSE, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=ParsedDocument)
 async def parse(
     request: Request,
-    file: UploadFile = File(...),
-    output_format: ParsedDocumentOutputFormat = OutputFormatForm,
-    force_ocr: bool = ForceOCRForm,
-    page_range: str = PageRangeForm,
-    paginate_output: bool = PaginateOutputForm,
+    data: Annotated[CreateParseForm, Depends(CreateParseForm.as_form)],
 ) -> JSONResponse:
     """
-    Parse a document.
+    Parse a PDF file into markdown.
     """
-    if file.size > FileSizeLimitExceededException.MAX_CONTENT_SIZE:
-        raise FileSizeLimitExceededException()
 
-    document = await global_context.document_manager.parse_file(
-        file=file,
-        output_format=output_format,
-        force_ocr=force_ocr,
-        page_range=page_range,
-        paginate_output=paginate_output,
-    )
+    global_context.document_manager.parser_manager.check_file_type(file=data.file, type=FileType.PDF)
+    document = await global_context.parser.parse(file=data.file, force_ocr=data.force_ocr, page_range=data.page_range)
+
     return JSONResponse(content=document.model_dump(), status_code=200)

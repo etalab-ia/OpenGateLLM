@@ -22,7 +22,7 @@ from api.utils.dependencies import (
     get_redis_client,
     get_request_context,
 )
-from api.utils.exceptions import CollectionNotFoundException, DocumentNotFoundException, FileSizeLimitExceededException
+from api.utils.exceptions import CollectionNotFoundException, DocumentNotFoundException
 from api.utils.variables import ENDPOINT__DOCUMENTS, ROUTER__DOCUMENTS
 
 router = APIRouter(prefix="/v1", tags=[ROUTER__DOCUMENTS.title()])
@@ -45,17 +45,6 @@ async def create_document(
     if not global_context.document_manager:  # no vector store available
         raise CollectionNotFoundException()
 
-    if data.file.size > FileSizeLimitExceededException.MAX_CONTENT_SIZE:
-        raise FileSizeLimitExceededException()
-
-    document = await global_context.document_manager.parse_file(
-        file=data.file,
-        paginate_output=False,
-        page_range="",
-        force_ocr=False,
-        output_format="markdown",
-    )
-
     document_id = await global_context.document_manager.create_document(
         request_context=request_context,
         elasticsearch_vector_store=elasticsearch_vector_store,
@@ -64,12 +53,11 @@ async def create_document(
         redis_client=redis_client,
         model_registry=model_registry,
         collection_id=data.collection,
-        document=document,
+        file=data.file,
         chunker=data.chunker,
         chunk_size=data.chunk_size,
         chunk_min_size=data.chunk_min_size,
         chunk_overlap=data.chunk_overlap,
-        length_function=len,
         is_separator_regex=data.is_separator_regex,
         separators=data.separators,
         preset_separators=data.preset_separators,

@@ -1,8 +1,7 @@
-from collections.abc import Callable
 from contextvars import ContextVar
+from datetime import datetime
 from itertools import batched
 import logging
-import time
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import UploadFile
@@ -19,9 +18,9 @@ from api.helpers.models import ModelRegistry
 from api.schemas.chunks import Chunk
 from api.schemas.collections import Collection, CollectionVisibility
 from api.schemas.core.context import RequestContext
+from api.schemas.core.elasticsearch import ElasticsearchChunkFields
 from api.schemas.core.models import RequestContent
-from api.schemas.documents import Chunker, Document
-from api.schemas.parse import ParsedDocument, ParsedDocumentOutputFormat
+from api.schemas.documents import Chunker, Document, InputChunkMetadata
 from api.schemas.search import Search, SearchMethod
 from api.sql.models import Collection as CollectionTable
 from api.sql.models import Document as DocumentTable
@@ -166,16 +165,15 @@ class DocumentManager:
         elasticsearch_vector_store: ElasticsearchVectorStore,
         elasticsearch_client: AsyncElasticsearch,
         collection_id: int,
-        document: ParsedDocument,
+        file: UploadFile,
+        metadata: InputChunkMetadata,
         chunker: Chunker,
         chunk_size: int,
         chunk_overlap: int,
-        length_function: Callable,
         chunk_min_size: int,
         is_separator_regex: bool | None = None,
         separators: list[str] | None = None,
         preset_separators: Language | None = None,
-        metadata: dict | None = None,
     ) -> int:
         # check if collection exists and prepare document chunks in a single transaction
         result = await postgres_session.execute(
@@ -188,27 +186,35 @@ class DocumentManager:
         except NoResultFound:
             raise CollectionNotFoundException()
 
-        try:
-            chunks = self._split(
-                document=document,
-                chunker=chunker,
-                chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
-                length_function=length_function,
-                is_separator_regex=is_separator_regex,
-                separators=separators,
-                chunk_min_size=chunk_min_size,
-                preset_separators=preset_separators,
-                metadata=metadata,
-            )
-        except Exception as e:
-            logger.exception(msg=f"Error during document splitting: {e}")
-            raise ChunkingFailedException(detail=f"Chunking failed: {e}")
+        # get document name
+        document_name = file.filename
 
-        document_name = document.data[0].metadata.document_name
+        # parse the file
+        content = await self.parser_manager.parse(file=file)
+
+        # split the content into chunks
+        chunks = self._split(
+            content=content,
+            chunker=chunker,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            is_separator_regex=is_separator_regex,
+            separators=separators,
+            chunk_min_size=chunk_min_size,
+            preset_separators=preset_separators,
+        )
+        if len(chunks) == 0:
+            raise ChunkingFailedException(detail="No chunks were extracted from the document.")
+
+        # insert the document into the database
         try:
             result = await postgres_session.execute(
-                statement=insert(table=DocumentTable).values(name=document_name, collection_id=collection_id).returning(DocumentTable.id)
+                statement=insert(table=DocumentTable)
+                .values(
+                    name=document_name,
+                    collection_id=collection_id,
+                )
+                .returning(DocumentTable.id)
             )
         except Exception as e:
             if "foreign key constraint" in str(e).lower() or "fkey" in str(e).lower():
@@ -217,28 +223,30 @@ class DocumentManager:
         document_id = result.scalar_one()
         await postgres_session.commit()
 
-        for chunk in chunks:
-            chunk.metadata["collection_id"] = collection_id
-            chunk.metadata["document_id"] = document_id
-            chunk.metadata["document_created"] = round(time.time())
+        # index the chunks into the vector store
         try:
             await self._upsert(
-                elasticsearch_vector_store=elasticsearch_vector_store,
-                elasticsearch_client=elasticsearch_client,
                 chunks=chunks,
                 collection_id=collection_id,
                 document_id=document_id,
+                document_name=document_name,
+                metadata=metadata,
                 redis_client=redis_client,
+                elasticsearch_vector_store=elasticsearch_vector_store,
+                elasticsearch_client=elasticsearch_client,
                 postgres_session=postgres_session,
                 model_registry=model_registry,
                 request_context=request_context,
             )
         except Exception as e:
-            import traceback
-
-            print(traceback.format_exc())
             logger.exception(msg=f"Error during document creation: {e}")
-            await self.delete_document(postgres_session=postgres_session, user_id=request_context.get().user_info.id, document_id=document_id)
+            await self.delete_document(
+                postgres_session=postgres_session,
+                user_id=request_context.get().user_info.id,
+                document_id=document_id,
+                elasticsearch_vector_store=elasticsearch_vector_store,
+                elasticsearch_client=elasticsearch_client,
+            )
             raise VectorizationFailedException(detail=f"Vectorization failed: {e}")
 
         return document_id
@@ -339,19 +347,6 @@ class DocumentManager:
 
         return chunks
 
-    async def parse_file(
-        self,
-        file: UploadFile,
-        output_format: ParsedDocumentOutputFormat | None = None,
-        force_ocr: bool | None = None,
-        page_range: str = "",
-        paginate_output: bool | None = None,
-        use_llm: bool | None = None,
-    ) -> ParsedDocument:
-        return await self.parser_manager.parse_file(
-            file=file, output_format=output_format, force_ocr=force_ocr, page_range=page_range, paginate_output=paginate_output, use_llm=use_llm
-        )
-
     async def search_chunks(
         self,
         postgres_session: AsyncSession,
@@ -413,32 +408,29 @@ class DocumentManager:
 
     @staticmethod
     def _split(
-        document: ParsedDocument,
+        content: str,
         chunker: Chunker,
         chunk_size: int,
         chunk_min_size: int,
         chunk_overlap: int,
-        length_function: Callable,
         separators: list[str] | None = None,
         is_separator_regex: bool | None = None,
         preset_separators: Language | None = None,
-        metadata: dict | None = None,
     ) -> list[Chunk]:
         if chunker == Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER:
             chunker = RecursiveCharacterTextSplitter(
                 chunk_size=chunk_size,
                 chunk_min_size=chunk_min_size,
                 chunk_overlap=chunk_overlap,
-                length_function=length_function,
+                length_function=len,
                 separators=separators,
                 is_separator_regex=is_separator_regex,
                 preset_separators=preset_separators,
-                metadata=metadata,
             )
         else:  # Chunker.NoSplitter
-            chunker = NoSplitter(chunk_min_size=chunk_min_size, preset_separators=preset_separators, metadata=metadata)
+            chunker = NoSplitter(chunk_min_size=chunk_min_size)
 
-        chunks = chunker.split_document(document=document)
+        chunks = chunker.split(content=content)
 
         return chunks
 
@@ -456,9 +448,11 @@ class DocumentManager:
 
     async def _upsert(
         self,
-        chunks: list[Chunk],
+        chunks: list[str],
         collection_id: int,
         document_id: int,
+        document_name: str,
+        metadata: InputChunkMetadata,
         redis_client: AsyncRedis,
         postgres_session: AsyncSession,
         model_registry: ModelRegistry,
@@ -474,17 +468,34 @@ class DocumentManager:
             redis_client=redis_client,
         )
 
-        batches = batched(iterable=chunks, n=self.BATCH_SIZE)
-        for batch in batches:
+        chunks_batches = batched(iterable=chunks, n=self.BATCH_SIZE)
+        for chunks_batch in chunks_batches:
             # create embeddings
-            texts = [chunk.content for chunk in batch]
-            embeddings = await self._create_embeddings(provider=provider, input_texts=texts, redis_client=redis_client)
+            embeddings = await self._create_embeddings(provider=provider, input_texts=chunks_batch, redis_client=redis_client)
 
+            i = 0
+            elasticsearch_chunks = list()
+            for chunk, embedding in zip(chunks_batch, embeddings):
+                elasticsearch_chunks.append(
+                    ElasticsearchChunkFields(
+                        id=i,
+                        collection_id=collection_id,
+                        document_id=document_id,
+                        document_name=document_name,
+                        content=chunk,
+                        embedding=embedding,
+                        created=datetime.now(),
+                        source_ref=metadata.source_ref,
+                        source_url=metadata.source_url,
+                        source_title=metadata.source_title,
+                        source_format=metadata.source_format,
+                        source_author=metadata.source_author,
+                        source_publisher=metadata.source_publisher,
+                        source_priority=metadata.source_priority,
+                        source_tags=metadata.source_tags,
+                        source_date=metadata.source_date,
+                    )
+                )
+                i += 1
             # insert chunks and vectors
-            await elasticsearch_vector_store.upsert(
-                client=elasticsearch_client,
-                collection_id=collection_id,
-                document_id=document_id,
-                chunks=batch,
-                embeddings=embeddings,
-            )
+            await elasticsearch_vector_store.upsert(client=elasticsearch_client, chunks=elasticsearch_chunks)

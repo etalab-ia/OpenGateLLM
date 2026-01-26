@@ -39,7 +39,7 @@ class TestDocuments:
             "length_function": "len",
             "chunk_min_size": "0",
             "is_separator_regex": "false",
-            "metadata": json.dumps({"string_metadata": "test", "int_metadata": 1, "float_metadata": 1.0, "bool_metadata": True}),
+            "metadata": json.dumps({"source_title": "test", "source_tags": ["tag-1", "tag-2"]}),
         }
 
         with open(file_path, "rb") as file:

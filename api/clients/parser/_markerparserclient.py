@@ -1,11 +1,10 @@
 from io import BytesIO
 import json
+import re
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 import httpx
-import pymupdf
 
-from api.schemas.core.documents import FileType, ParserParams
 from api.schemas.parse import ParsedDocument, ParsedDocumentMetadata, ParsedDocumentPage
 
 from ._baseparserclient import BaseParserClient
@@ -15,8 +14,6 @@ class MarkerParserClient(BaseParserClient):
     """
     Class to interact with the Marker PDF API for document analysis.
     """
-
-    SUPPORTED_FORMATS = [FileType.PDF]
 
     def __init__(self, url: str, headers: dict[str, str], timeout: int, *args, **kwargs) -> None:
         # store configuration but avoid performing network calls in constructor
@@ -30,8 +27,11 @@ class MarkerParserClient(BaseParserClient):
         Returns True on success, raises an exception for non-2xx responses or network errors.
         """
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{self.url}/health", headers=self.headers, timeout=self.timeout)
-            resp.raise_for_status()
+            try:
+                response = await client.get(f"{self.url}/health", headers=self.headers, timeout=self.timeout)
+                response.raise_for_status()
+            except Exception:
+                return False
         return True
 
     def convert_page_range(self, page_range: str, page_count: int) -> list[int]:
@@ -52,49 +52,40 @@ class MarkerParserClient(BaseParserClient):
 
         return pages
 
-    async def parse(self, params: ParserParams) -> ParsedDocument:
-        file_content = await params.file.read()
-
-        try:
-            # Correct way to open PDF from bytes with PyMuPDF
-            pdf = pymupdf.open(stream=file_content, filetype="pdf")
-        except Exception as e:
-            # Handle corrupted or invalid PDF files
-            raise HTTPException(status_code=400, detail=f"Invalid PDF file: {str(e)}")
+    async def parse(self, file: UploadFile, force_ocr: bool | None = None, page_range: str = "") -> ParsedDocument:
+        file_content = await file.read()
 
         data = []
-        payload = {
-            "output_format": params.output_format.value,
-            "force_ocr": params.force_ocr,
-            "paginate_output": params.paginate_output,
-            "use_llm": params.use_llm,
-        }
-        pages = self.convert_page_range(page_range=params.page_range, page_count=pdf.page_count)
         async with httpx.AsyncClient() as client:
-            for i in pages:
-                # Create a fresh BytesIO object for each request to avoid stream consumption issues
-                files = {"file": (params.file.filename, BytesIO(file_content), "application/pdf")}
-                payload["page_range"] = str(i)
+            # Create a fresh BytesIO object for each request to avoid stream consumption issues
+            files = {"file": (file.filename, BytesIO(file_content), "application/pdf")}
+            response = await client.post(
+                url=f"{self.url}/marker/upload",
+                files=files,
+                data={"output_format": "markdown", "page_range": page_range, "force_ocr": force_ocr, "paginate_output": True, "use_llm": False},
+                headers=self.headers,
+                timeout=self.timeout,
+            )
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=json.loads(response.text).get("detail", "Parsing failed."))
 
-                response = await client.post(
-                    url=f"{self.url}/marker/upload",
-                    files=files,
-                    data=payload,
-                    headers=self.headers,
-                    timeout=self.timeout,
+            response_data = response.json()
+            content = response_data.get("output", "")
+            images = response_data.get("images", {})
+            matches = list(re.finditer(r"\{[0-9]+\}-{48}\n\n", content))
+            data = []
+            for i in range(len(matches)):
+                offset = len(content) if i == len(matches) - 1 else matches[i + 1].span()[0]
+                markdown = content[matches[i].span()[1] : offset]
+                images_page = {key: f"data:image/jpeg;base64,{value}" for key, value in images.items() if key.startswith(f"_page_{i}_")}
+                data.append(
+                    ParsedDocumentPage(
+                        content=markdown,
+                        images=images_page,
+                        metadata=ParsedDocumentMetadata(document_name=file.filename, page=i),
+                    )
                 )
-                if response.status_code != 200:
-                    raise HTTPException(status_code=response.status_code, detail=json.loads(response.text).get("detail", "Parsing failed."))
 
-                result = response.json()
-                if not result.get("success", False):
-                    raise HTTPException(status_code=500, detail=result.get("error", "Parsing failed."))
-
-                metadata = ParsedDocumentMetadata(document_name=params.file.filename, page=i)
-                data.append(ParsedDocumentPage(content=result["output"], images=result["images"], metadata=metadata))
-
-        # Close the PDF document to free memory
-        pdf.close()
         document = ParsedDocument(data=data)
 
         return document

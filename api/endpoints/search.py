@@ -63,4 +63,4 @@ async def search(
     usage = request_context.get().usage
     content = Searches(data=data, usage=usage)
 
-    return JSONResponse(content=content.model_dump(), status_code=200)
+    return JSONResponse(content=content.model_dump(mode="json"), status_code=200)

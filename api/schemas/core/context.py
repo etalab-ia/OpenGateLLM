@@ -9,7 +9,6 @@ from api.schemas.usage import Usage
 class GlobalContext(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    # TODO: replace Any with specific types
     document_manager: Any | None = None
     identity_access_manager: Any | None = None
     limiter: Any | None = None
@@ -18,6 +17,7 @@ class GlobalContext(BaseModel):
     parser_manager: Any | None = None
     elasticsearch_vector_store: Any | None = None
     tokenizer: Any | None = None
+    parser: Any | None = None
 
     elasticsearch_client: Any | None = None
     redis_pool: Any | None = None

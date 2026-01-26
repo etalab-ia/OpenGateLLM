@@ -1,6 +1,4 @@
 from contextlib import asynccontextmanager
-import traceback
-from types import SimpleNamespace
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
@@ -34,32 +32,19 @@ async def lifespan(app: FastAPI):
 
     configuration = get_configuration()
 
-    # Dependencies
-    parser = ParserClient.import_module(type=configuration.dependencies.parser.type)(**configuration.dependencies.parser.model_dump()) if configuration.dependencies.parser else None  # fmt: off
-    dependencies = SimpleNamespace(parser=parser)
-
-    # perform async health checks for external dependencies when possible
-    try:
-        if dependencies.parser and hasattr(dependencies.parser, "check_health"):
-            await dependencies.parser.check_health()
-    except Exception:
-        # Log an error with the parser client class name for easier debugging
-        parser_name = getattr(dependencies.parser, "__class__", None)
-        parser_name = parser_name.__name__ if parser_name else "parser"
-        logger.error(msg=f"Health check failed for parser '{parser_name}': {traceback.format_exc()}")
-
     # setup global context
-    await _setup_elasticsearch_client(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_redis_pool(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_postgres_session(configuration=configuration, global_context=global_context, dependencies=dependencies)
+    await _setup_elasticsearch_client(configuration=configuration, global_context=global_context)
+    await _setup_redis_pool(configuration=configuration, global_context=global_context)
+    await _setup_postgres_session(configuration=configuration, global_context=global_context)
 
-    await _setup_model_registry(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_elasticsearch_vector_store(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_usage_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_identity_access_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_limiter(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_tokenizer(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_document_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
+    await _setup_model_registry(configuration=configuration, global_context=global_context)
+    await _setup_elasticsearch_vector_store(configuration=configuration, global_context=global_context)
+    await _setup_usage_manager(configuration=configuration, global_context=global_context)
+    await _setup_identity_access_manager(configuration=configuration, global_context=global_context)
+    await _setup_limiter(configuration=configuration, global_context=global_context)
+    await _setup_tokenizer(configuration=configuration, global_context=global_context)
+    await _setup_parser(configuration=configuration, global_context=global_context)
+    await _setup_document_manager(configuration=configuration, global_context=global_context)
 
     await global_context.limiter.reset()
 
@@ -70,7 +55,7 @@ async def lifespan(app: FastAPI):
         await global_context.elasticsearch_client.close()
 
 
-async def _setup_elasticsearch_client(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_elasticsearch_client(configuration: Configuration, global_context: GlobalContext):
     if configuration.dependencies.elasticsearch is None:
         global_context.elasticsearch_client = None
         return
@@ -85,7 +70,7 @@ async def _setup_elasticsearch_client(configuration: Configuration, global_conte
     assert await global_context.elasticsearch_client.ping(), "Elasticsearch database is not reachable."
 
 
-async def _setup_elasticsearch_vector_store(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_elasticsearch_vector_store(configuration: Configuration, global_context: GlobalContext):
     assert global_context.model_registry, "Set model registry in global context before setting up Elasticsearch manager."
 
     if configuration.dependencies.elasticsearch is None:
@@ -121,7 +106,7 @@ async def _setup_elasticsearch_vector_store(configuration: Configuration, global
     global_context.elasticsearch_vector_store = elasticsearch_vector_store
 
 
-async def _setup_redis_pool(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_redis_pool(configuration: Configuration, global_context: GlobalContext):
     redis_pool = redis.ConnectionPool.from_url(**configuration.dependencies.redis.model_dump())
     redis_pool.url = configuration.dependencies.redis.url  # for celery
 
@@ -134,11 +119,11 @@ async def _setup_redis_pool(configuration: Configuration, global_context: Global
     global_context.redis_pool = redis_pool
 
 
-async def _setup_usage_manager(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_usage_manager(configuration: Configuration, global_context: GlobalContext):
     global_context.usage_manager = UsageManager()
 
 
-async def _setup_postgres_session(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_postgres_session(configuration: Configuration, global_context: GlobalContext):
     """Set up the PostgreSQL session by creating the session pool."""
 
     engine = create_async_engine(**configuration.dependencies.postgres.model_dump())
@@ -146,8 +131,8 @@ async def _setup_postgres_session(configuration: Configuration, global_context: 
     global_context.postgres_session_factory = postgres_session_factory
 
 
-async def _setup_model_registry(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
-    """Set up the model registry by fetching the models defined in the DB and the configuration. Basic conflict handling between the DB and config."""
+async def _setup_model_registry(configuration: Configuration, global_context: GlobalContext):
+    """Setup the model registry by fetching the models defined in the DB and the configuration. Basic conflict handling between the DB and config."""
     queuing_enabled = configuration.dependencies.celery is not None
     async for postgres_session in get_postgres_session():
         global_context.model_registry = ModelRegistry(
@@ -160,7 +145,7 @@ async def _setup_model_registry(configuration: Configuration, global_context: Gl
         await global_context.model_registry.setup(models=configuration.models, postgres_session=postgres_session)
 
 
-async def _setup_identity_access_manager(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_identity_access_manager(configuration: Configuration, global_context: GlobalContext):
     global_context.identity_access_manager = IdentityAccessManager(
         master_key=configuration.settings.auth_master_key,
         key_max_expiration_days=configuration.settings.auth_key_max_expiration_days,
@@ -168,18 +153,28 @@ async def _setup_identity_access_manager(configuration: Configuration, global_co
     )
 
 
-async def _setup_limiter(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_limiter(configuration: Configuration, global_context: GlobalContext):
     global_context.limiter = Limiter(redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy)
 
 
-async def _setup_tokenizer(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_tokenizer(configuration: Configuration, global_context: GlobalContext):
     global_context.tokenizer = UsageTokenizer(tokenizer=configuration.settings.usage_tokenizer)
 
 
-async def _setup_document_manager(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_parser(configuration: Configuration, global_context: GlobalContext):
+    if configuration.dependencies.parser is None:
+        global_context.parser = None
+    else:
+        parser = ParserClient.import_module(type=configuration.dependencies.parser.type)(**configuration.dependencies.parser.model_dump())
+        check_health = await parser.check_health()
+        assert check_health, "Health check failed for parser."
+        global_context.parser = parser
+
+
+async def _setup_document_manager(configuration: Configuration, global_context: GlobalContext):
     if global_context.elasticsearch_vector_store is None:
         global_context.document_manager = None
         return
 
-    parser_manager = ParserManager(parser=dependencies.parser)
+    parser_manager = ParserManager(max_concurrent=configuration.settings.document_parsing_max_concurrent)
     global_context.document_manager = DocumentManager(vector_store_model=configuration.settings.vector_store_model, parser_manager=parser_manager)

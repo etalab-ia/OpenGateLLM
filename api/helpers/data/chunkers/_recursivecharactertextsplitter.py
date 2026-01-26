@@ -1,9 +1,6 @@
 from langchain_text_splitters import Language
 from langchain_text_splitters import RecursiveCharacterTextSplitter as LangChainRecursiveCharacterTextSplitter
 
-from api.schemas.chunks import Chunk
-from api.schemas.parse import ParsedDocument
-
 from ._basesplitter import BaseSplitter
 
 
@@ -24,17 +21,8 @@ class RecursiveCharacterTextSplitter(BaseSplitter):
         else:
             self.splitter = LangChainRecursiveCharacterTextSplitter(*args, **kwargs)
 
-    def split_document(self, document: ParsedDocument) -> list[Chunk]:
-        chunks = list()
-        i = 1
-
-        for page in document.data:
-            content = page.model_dump().get("content", "")
-            content_chunks = self.splitter.split_text(content)
-            for chunk in content_chunks:
-                if len(chunk) < self.chunk_min_size:
-                    continue
-                chunks.append(Chunk(id=i, content=chunk, metadata=page.metadata.model_dump() | self.metadata))
-                i += 1
+    def split(self, content: str) -> list[str]:
+        chunks = self.splitter.split_text(content)
+        chunks = [chunk for chunk in chunks if len(chunk) >= self.chunk_min_size]
 
         return chunks

@@ -2,9 +2,6 @@ from abc import ABC, abstractmethod
 
 from langchain_text_splitters import Language
 
-from api.schemas.chunks import Chunk
-from api.schemas.parse import ParsedDocument
-
 
 class BaseSplitter(ABC):
     def __init__(self, chunk_min_size: int = 0, metadata: dict | None = None, preset_separators: Language | None = None) -> None:
@@ -14,5 +11,5 @@ class BaseSplitter(ABC):
         self.preset_separators = preset_separators
 
     @abstractmethod
-    def split_document(self, document: ParsedDocument) -> list[Chunk]:
+    def split(self, content: str) -> list[str]:
         pass

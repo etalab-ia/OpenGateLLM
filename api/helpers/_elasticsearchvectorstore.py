@@ -3,8 +3,8 @@ import logging
 from elasticsearch import AsyncElasticsearch, helpers
 from elasticsearch.helpers import BulkIndexError
 
-from api.schemas.chunks import Chunk
-from api.schemas.core.elasticsearch import IndexLanguage
+from api.schemas.chunks import Chunk, ChunkMetadata
+from api.schemas.core.elasticsearch import ElasticsearchChunkFields, ElasticsearchIndexLanguage
 from api.schemas.search import Search, SearchMethod
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ class ElasticsearchVectorStore:
     async def setup(
         self,
         client: AsyncElasticsearch,
-        index_language: IndexLanguage,
+        index_language: ElasticsearchIndexLanguage,
         number_of_shards: int,
         number_of_replicas: int,
         vector_size: int,
@@ -28,9 +28,12 @@ class ElasticsearchVectorStore:
         Create the index with the correct settings and mappings.
 
         Args:
-            vector_size (int): The size of the vector to be used for the index.
+            client: AsyncElasticsearch: The Elasticsearch client
+            index_language(ElasticsearchIndexLanguage): The language of the index (dutch, english, french, german, italian, portuguese, spanish, swedish)
+            number_of_shards(int): The number of shards for the index
+            number_of_replicas(int): The number of replicas for the index
+            vector_size(int): The size of the vector to be used for the index
         """
-        # @TODO add docstrings
 
         settings = {
             "number_of_shards": number_of_shards,
@@ -50,56 +53,26 @@ class ElasticsearchVectorStore:
             },
         }
         mappings = {
-            "dynamic_templates": [
-                {"metadata_objects_disabled": {"path_match": "metadata.*", "match_mapping_type": "object", "mapping": {"enabled": False}}},
-                {
-                    "metadata_dates_by_name": {
-                        "path_match": "metadata.*",
-                        "match_pattern": "regex",
-                        "match": "(?i).*(_at|_date|date)$",
-                        "mapping": {
-                            "type": "date",
-                            "ignore_malformed": True,
-                            "format": "strict_date_optional_time||strict_date_time||yyyy-MM-dd'T'HH:mm:ssZ||epoch_millis",
-                        },
-                    }
-                },
-                {"metadata_bools": {"path_match": "metadata.*", "match_mapping_type": "boolean", "mapping": {"type": "boolean"}}},
-                {
-                    "metadata_numbers_long": {
-                        "path_match": "metadata.*",
-                        "match_mapping_type": "long",
-                        "mapping": {"type": "long", "ignore_malformed": True, "coerce": True},
-                    }
-                },
-                {
-                    "metadata_numbers_double": {
-                        "path_match": "metadata.*",
-                        "match_mapping_type": "double",
-                        "mapping": {"type": "double", "ignore_malformed": True, "coerce": True},
-                    }
-                },
-                {
-                    "metadata_strings": {
-                        "path_match": "metadata.*",
-                        "match_mapping_type": "string",
-                        "mapping": {"type": "keyword", "ignore_above": 1024},
-                    }
-                },
-            ],
-            "date_detection": False,
-            "numeric_detection": False,
             "properties": {
+                # chunk core properties
                 "id": {"type": "integer"},
                 "collection_id": {"type": "integer"},
                 "document_id": {"type": "integer"},
+                "document_name": {"type": "keyword"},  # can be overridden by user
                 "embedding": {"type": "dense_vector", "dims": vector_size, "index": True, "similarity": "cosine"},
                 "content": {"type": "text", "analyzer": "content_analyzer"},
-                "metadata": {"type": "object", "dynamic": True},
                 "created": {"type": "date"},
+                # document source properties
+                "source_ref": {"type": "keyword"},
+                "source_url": {"type": "keyword"},
+                "source_title": {"type": "keyword"},
+                "source_author": {"type": "keyword"},
+                "source_publisher": {"type": "keyword"},
+                "source_priority": {"type": "integer"},
+                "source_tags": {"type": "keyword"},  # array of keywords
+                "source_date": {"type": "date"},
             },
         }
-
         if await client.indices.exists(index=self.index_name):
             logger.info(f"Index {self.index_name} does not exist, creating index.")
             existing_mapping = await client.indices.get_mapping(index=self.index_name)
@@ -178,7 +151,20 @@ class ElasticsearchVectorStore:
                 Chunk(
                     id=hit["_source"]["id"],
                     content=hit["_source"]["content"],
-                    metadata=hit["_source"]["metadata"],
+                    metadata=ChunkMetadata(
+                        collection_id=hit["_source"]["collection_id"],
+                        document_id=hit["_source"]["document_id"],
+                        document_name=hit["_source"]["document_name"],
+                        created=hit["_source"]["created"],
+                        source_ref=hit["_source"]["source_ref"],
+                        source_url=hit["_source"]["source_url"],
+                        source_title=hit["_source"]["source_title"],
+                        source_author=hit["_source"]["source_author"],
+                        source_publisher=hit["_source"]["source_publisher"],
+                        source_priority=hit["_source"]["source_priority"],
+                        source_tags=hit["_source"]["source_tags"],
+                        source_date=hit["_source"]["source_date"],
+                    ),
                 )
             )
         return chunks
@@ -186,24 +172,30 @@ class ElasticsearchVectorStore:
     async def upsert(
         self,
         client: AsyncElasticsearch,
-        collection_id: int,
-        document_id: int,
-        chunks: list[Chunk],
-        embeddings: list[list[float]],
+        chunks: list[ElasticsearchChunkFields],
     ) -> None:
         actions = [
             {
                 "_index": self.index_name,
                 "_source": {
                     "id": chunk.id,
-                    "collection_id": collection_id,
-                    "document_id": document_id,
+                    "collection_id": chunk.collection_id,
+                    "document_id": chunk.document_id,
+                    "document_name": chunk.document_name,
                     "content": chunk.content,
-                    "embedding": embedding,
-                    "metadata": chunk.metadata,
+                    "embedding": chunk.embedding,
+                    "source_ref": chunk.source_ref,
+                    "source_url": chunk.source_url,
+                    "source_title": chunk.source_title,
+                    "source_author": chunk.source_author,
+                    "source_publisher": chunk.source_publisher,
+                    "source_priority": chunk.source_priority,
+                    "source_tags": chunk.source_tags,
+                    "source_date": chunk.source_date,
+                    "created": chunk.created,
                 },
             }
-            for chunk, embedding in zip(chunks, embeddings)
+            for chunk in chunks
         ]
 
         try:
@@ -284,7 +276,24 @@ class ElasticsearchVectorStore:
             Search(
                 method=SearchMethod.LEXICAL.value,
                 score=hit["_score"],
-                chunk=Chunk(id=hit["_source"]["id"], content=hit["_source"]["content"], metadata=hit["_source"]["metadata"]),
+                chunk=Chunk(
+                    id=hit["_source"]["id"],
+                    content=hit["_source"]["content"],
+                    metadata=ChunkMetadata(
+                        collection_id=hit["_source"]["collection_id"],
+                        document_id=hit["_source"]["document_id"],
+                        document_name=hit["_source"]["document_name"],
+                        created=hit["_source"]["created"],
+                        source_ref=hit["_source"]["source_ref"],
+                        source_url=hit["_source"]["source_url"],
+                        source_title=hit["_source"]["source_title"],
+                        source_author=hit["_source"]["source_author"],
+                        source_publisher=hit["_source"]["source_publisher"],
+                        source_priority=hit["_source"]["source_priority"],
+                        source_tags=hit["_source"]["source_tags"],
+                        source_date=hit["_source"]["source_date"],
+                    ),
+                ),
             )
             for hit in hits
         ]
@@ -321,7 +330,24 @@ class ElasticsearchVectorStore:
             Search(
                 method=SearchMethod.SEMANTIC.value,
                 score=hit["_score"],
-                chunk=Chunk(id=hit["_source"]["id"], content=hit["_source"]["content"], metadata=hit["_source"]["metadata"]),
+                chunk=Chunk(
+                    id=hit["_source"]["id"],
+                    content=hit["_source"]["content"],
+                    metadata=ChunkMetadata(
+                        collection_id=hit["_source"]["collection_id"],
+                        document_id=hit["_source"]["document_id"],
+                        document_name=hit["_source"]["document_name"],
+                        created=hit["_source"]["created"],
+                        source_ref=hit["_source"]["source_ref"],
+                        source_url=hit["_source"]["source_url"],
+                        source_title=hit["_source"]["source_title"],
+                        source_author=hit["_source"]["source_author"],
+                        source_publisher=hit["_source"]["source_publisher"],
+                        source_priority=hit["_source"]["source_priority"],
+                        source_tags=hit["_source"]["source_tags"],
+                        source_date=hit["_source"]["source_date"],
+                    ),
+                ),
             )
             for hit in hits
         ]

@@ -1,7 +1,7 @@
 import base64
 from contextvars import ContextVar
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Security, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Security, UploadFile
 from fastapi.responses import JSONResponse
 import pymupdf
 from redis.asyncio import Redis as AsyncRedis
@@ -14,7 +14,7 @@ from api.schemas.core.documents import FileType
 from api.schemas.core.models import RequestContent
 from api.schemas.exception import HTTPExceptionModel
 from api.schemas.ocr import OCR, CreateOCR, DPIForm, ModelForm, PromptForm
-from api.schemas.parse import FileForm, ParsedDocument, ParsedDocumentMetadata, ParsedDocumentPage
+from api.schemas.parse import ParsedDocument, ParsedDocumentMetadata, ParsedDocumentPage
 from api.schemas.usage import Usage
 from api.utils.context import global_context
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
@@ -72,7 +72,7 @@ async def ocr(
 @hooks
 async def ocr_beta(
     request: Request,
-    file: UploadFile = FileForm,
+    file: UploadFile = File(..., description="The file to parse."),
     model: str = ModelForm,
     dpi: int = DPIForm,
     prompt: str = PromptForm,

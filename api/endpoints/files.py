@@ -16,8 +16,8 @@ from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
 from api.schemas.core.documents import JsonFile
+from api.schemas.documents import InputChunkMetadata
 from api.schemas.files import ChunkerArgs, FileResponse, FilesRequest
-from api.schemas.parse import ParsedDocumentOutputFormat
 from api.utils.context import global_context
 from api.utils.dependencies import (
     get_elasticsearch_client,
@@ -98,15 +98,6 @@ async def upload_file(
         files = [(file, None)]
 
     for file, metadata in files:
-        document = await global_context.document_manager.parse_file(
-            file=file,
-            output_format=ParsedDocumentOutputFormat.MARKDOWN.value,
-            force_ocr=False,
-            page_range="",
-            paginate_output=False,
-            use_llm=False,
-        )
-
         document_id = await global_context.document_manager.create_document(
             request_context=request_context,
             postgres_session=postgres_session,
@@ -115,15 +106,14 @@ async def upload_file(
             redis_client=redis_client,
             model_registry=model_registry,
             collection_id=request.collection,
-            document=document,
+            file=file,
             chunker=chunker,
             chunk_min_size=chunker_args["chunk_min_size"],
             chunk_size=chunker_args["chunk_size"],
             chunk_overlap=chunker_args["chunk_overlap"],
-            length_function=chunker_args["length_function"],
             separators=chunker_args["separators"],
             is_separator_regex=chunker_args["is_separator_regex"],
-            metadata=metadata,
+            metadata=InputChunkMetadata(),
         )
 
         file.file.close()

@@ -6,8 +6,8 @@ requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = [
     "requests==2.32.4",
-    "pydantic==2.10.6",
-    "pydantic-settings==2.7.1",
+    "pydantic==2.12.5",
+    "pydantic-settings==2.12.0",
     "httpx>=0.27.0",
     "pyyaml==6.0.2",
     "pycountry==24.6.1",
@@ -45,7 +45,7 @@ api = [
     
     # app
     "gunicorn==23.0.0",
-    "fastapi==0.117.1",
+    "fastapi>=0.128.0",
     "prometheus-fastapi-instrumentator==7.0.2",
     "uvicorn==0.37.0",
     "python-multipart==0.0.20",

@@ -163,7 +163,7 @@ class TestChat:
                     chunks.append(chunk)
                     continue
                 # check that the last chunk has a search result
-                assert chunks[i - 1].search_results[0].chunk.metadata["document_id"] in DOCUMENT_IDS
+                assert chunks[i - 1].search_results[0].chunk.metadata.document_id in DOCUMENT_IDS
                 break
 
     def test_chat_completions_search_no_args(self, client: TestClient, setup):
