@@ -146,6 +146,7 @@ settings:
 | auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. |  | changeme |  |  |
 | auth_playground_session_duration | integer | Duration of the playground postgres_session in seconds. |  | 3600 |  |  |
 | disabled_routers | array | Disabled routers to limits services of the API. |  |  | • admin<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• documents<br></br>• embeddings<br></br>• ... | ['embeddings'] |
+| document_parsing_max_concurrent | integer | Maximum number of concurrent document parsing tasks per worker. |  | 10 |  |  |
 | front_url | string | Front-end URL for the application. |  | http://localhost:8501 |  |  |
 | hidden_routers | array | Routers are enabled but hidden in the swagger and the documentation of the API. |  |  | • admin<br></br>• audio<br></br>• auth<br></br>• chat<br></br>• chunks<br></br>• collections<br></br>• documents<br></br>• embeddings<br></br>• ... | ['admin'] |
 | log_format | string | Logging format of the API. |  | [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s |  |  |
@@ -168,7 +169,7 @@ settings:
 | swagger_terms_of_service | string | A URL to the Terms of Service for the API in swagger UI. If provided, this has to be a URL. |  | None |  | https://example.com/terms-of-service |
 | swagger_version | string | Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | latest |  | 2.5.0 |
 | usage_tokenizer | string | Tokenizer used to compute usage of the API. |  | tiktoken_gpt2 | • tiktoken_gpt2<br></br>• tiktoken_r50k_base<br></br>• tiktoken_p50k_base<br></br>• tiktoken_p50k_edit<br></br>• tiktoken_cl100k_base<br></br>• tiktoken_o200k_base |  |
-| vector_store_model | string | Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch or Qdrant). This model must be defined in the `models` section and have type `text-embeddings-inference`. |  | None |  |  |
+| vector_store_model | string | Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch). This model must be defined in the `models` section and have type `text-embeddings-inference`. |  | None |  |  |
 
 <br></br>
 
@@ -219,7 +220,6 @@ For more information to configure model providers, see the [ModelProvider sectio
 | marker | object | If provided, Marker API is used to parse pdf documents. Cannot be used with Albert dependency concurrently. Pass arguments to call Marker API in this section. For details of configuration, see the [MarkerDependency section](#markerdependency). |  | None |  |  |
 | postgres | object | Pass all postgres python SDK arguments, see https://github.com/etalab-ia/opengatellm/blob/main/docs/dependencies/postgres.md for more information. For details of configuration, see the [PostgresDependency section](#postgresdependency). |  |  |  |  |
 | proconnect | object | ProConnect configuration for the API. See https://github.com/etalab-ia/albert-api/blob/main/docs/oauth2_encryption.md for more information. For details of configuration, see the [ProConnect section](#proconnect). |  | None |  |  |
-| qdrant | object | Pass all qdrant python SDK arguments, see https://python-client.qdrant.tech/qdrant_client.qdrant_client for more information. For details of configuration, see the [QdrantDependency section](#qdrantdependency). |  | None |  |  |
 | redis | object | Pass all `from_url()` method arguments of `redis.asyncio.connection.ConnectionPool` class, see https://redis.readthedocs.io/en/stable/connections.html#redis.asyncio.connection.ConnectionPool.from_url for more information. For details of configuration, see the [RedisDependency section](#redisdependency). |  |  |  |  |
 | sentry | object | Pass all sentry python SDK arguments, see https://docs.sentry.io/platforms/python/configuration/options/ for more information. For details of configuration, see the [SentryDependency section](#sentrydependency). |  | None |  |  |
 
@@ -233,10 +233,6 @@ For more information to configure model providers, see the [ModelProvider sectio
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
 | url | string | Redis connection url. |  |  |  | redis://:changeme@localhost:6379 |
-
-<br></br>
-
-#### QdrantDependency
 
 <br></br>
 
@@ -272,8 +268,10 @@ For more information to configure model providers, see the [ModelProvider sectio
 #### ElasticsearchDependency
 | Attribute | Type | Description | Required | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- | --- |
+| index_language | string | Language of the Elasticsearch index. |  | english | • english<br></br>• french<br></br>• german<br></br>• italian<br></br>• portuguese<br></br>• spanish<br></br>• swedish | english |
+| index_name | string | Name of the Elasticsearch index. |  |  |  | opengatellm |
 | number_of_replicas | integer | Number of replicas for the Elasticsearch index. |  | 1 |  | 1 |
-| number_of_shards | integer | Number of shards for the Elasticsearch index. |  | 1 |  | 1 |
+| number_of_shards | integer | Number of shards for the Elasticsearch index. |  | 24 |  | 1 |
 
 <br></br>
 
