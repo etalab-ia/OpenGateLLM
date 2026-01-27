@@ -30,6 +30,7 @@ from api.utils.exceptions import (
     CollectionNotFoundException,
     DocumentNotFoundException,
     MasterNotAllowedException,
+    ParsingDocumentFailedException,
     VectorizationFailedException,
 )
 from api.utils.variables import ENDPOINT__EMBEDDINGS
@@ -190,7 +191,11 @@ class DocumentManager:
         document_name = file.filename
 
         # parse the file
-        content = await self.parser_manager.parse(file=file)
+        try:
+            content = await self.parser_manager.parse(file=file)
+        except Exception as e:
+            logger.exception(f"failed to parse {document_name} ({e}).")
+            raise ParsingDocumentFailedException()
 
         # split the content into chunks
         chunks = self._split(

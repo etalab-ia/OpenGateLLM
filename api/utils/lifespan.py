@@ -77,8 +77,6 @@ async def _setup_elasticsearch_vector_store(configuration: Configuration, global
         global_context.elasticsearch_vector_store = None
         return
 
-    # TODO: handle no vector store
-
     elasticsearch_client = get_elasticsearch_client()
 
     async for postgres_session in get_postgres_session():

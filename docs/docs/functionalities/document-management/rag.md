@@ -51,53 +51,7 @@ graph TD
 
 ## Performing Searches
 
-<Tabs>
-  <TabItem value="Semantic search" label="Semantic search" default>
-  ```bash
-  curl -X POST http://localhost:8000/v1/search \
-    -H "Authorization: Bearer <api_key>" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "prompt": "What is machine learning?",
-      "collections": [1, 2],
-      "method": "semantic",
-      "limit": 10,
-      "score_threshold": 0.7
-    }'
-  ```
-  </TabItem>
-  <TabItem value="Hybrid search" label="Hybrid search">
-  ```bash
-  curl -X POST http://localhost:8000/v1/search \
-    -H "Authorization: Bearer <api_key>" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "prompt": "Python programming",
-      "collections": [1],
-      "method": "hybrid",
-      "limit": 10,
-      "rff_k": 20
-    }'
-  ```
-  </TabItem>
-  <TabItem value="Web search" label="With web search">
-  ```bash
-  curl -X POST http://localhost:8000/v1/search \
-    -H "Authorization: Bearer <api_key>" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "prompt": "Latest AI developments",
-      "collections": [1],
-      "method": "semantic",
-      "limit": 10
-    }'
-  ```
-  </TabItem>
-</Tabs>
 
-:::info
-See [Configuration](../../getting-started/configuration.md) for more details.
-:::
 
 ## Next Steps
 

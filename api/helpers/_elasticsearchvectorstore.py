@@ -2,6 +2,7 @@ import logging
 
 from elasticsearch import AsyncElasticsearch, helpers
 from elasticsearch.helpers import BulkIndexError
+from pydantic import conint
 
 from api.schemas.chunks import Chunk, ChunkMetadata
 from api.schemas.core.elasticsearch import ElasticsearchChunkFields, ElasticsearchIndexLanguage
@@ -216,6 +217,7 @@ class ElasticsearchVectorStore:
         score_threshold: float = 0.0,
     ) -> list[Search]:
         assert method is SearchMethod.LEXICAL or query_vector, "Query vector must not be None for semantic and hybrid search methods"
+        assert rff_k is not None or method is not SearchMethod.HYBRID, "RFF k must not be None for hybrid search method"
 
         if method == SearchMethod.SEMANTIC:
             searches = await self._semantic_search(
@@ -308,8 +310,8 @@ class ElasticsearchVectorStore:
         client: AsyncElasticsearch,
         query_vector: list[float],
         collection_ids: list[int],
-        limit: int,
-        offset: int,
+        limit: conint(gt=1, le=100),
+        offset: conint(ge=0),
         score_threshold: float = 0.0,
     ) -> list[Search]:
         body = {
@@ -324,6 +326,7 @@ class ElasticsearchVectorStore:
             "from": offset,
             "_source": {"excludes": ["embedding"]},
         }
+
         results = await client.search(index=self.index_name, body=body)
         hits = [hit for hit in results["hits"]["hits"] if hit]
         searches = [

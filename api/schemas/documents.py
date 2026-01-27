@@ -42,7 +42,7 @@ class InputChunkMetadata(BaseModel):
     source_format: constr(strip_whitespace=True, min_length=1, max_length=255) | None = Field(default=None, description="The format of the source of the document. If not provided, format will be inferred from the file type (`pdf`, `html`, `md` or `txt`).")  # fmt: off
     source_author: constr(strip_whitespace=True, min_length=1, max_length=255) | None = Field(default=None, description="The author of the source of the document. If not provided, no author will be stored.")  # fmt: off
     source_publisher: constr(strip_whitespace=True, min_length=1, max_length=255) | None = Field(default=None, description="The publisher of the source of the document. If not provided, no publisher will be stored.")  # fmt: off
-    source_priority: conint(ge=0, le=100) = Field(default=0, description="The priority of the source of the document. If not provided, a 0 priority will be stored.")  # fmt: off
+    source_priority: conint(ge=1, le=10) = Field(default=1, description="The priority of the source of the document.")  # fmt: off
     source_tags: conlist(item_type=constr(strip_whitespace=True, min_length=1, max_length=255), min_length=0, max_length=10) = Field(default=[], description="The tags of the source of the document. Use it to categorize the source document. If not provided, no tags will be stored.")  # fmt: off
     source_date: datetime | None = Field(default=None, description="The date of the source of the document. Use it to date the source document. If not provided, no date will be stored.")  # fmt: off
 

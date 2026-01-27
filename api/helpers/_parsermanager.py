@@ -69,11 +69,11 @@ class ParserManager:
 
             case FileType.MD:
                 file_content = await self._read_content(file=file)
-                content = convert_to_markdown(file_content).strip()
+                content = file_content.strip()
 
             case FileType.TXT:
                 file_content = await self._read_content(file=file)
-                content = file_content
+                content = file_content.strip()
 
         return content
 
