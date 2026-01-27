@@ -1,12 +1,7 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 
 from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStrategy
-
-
-@dataclass
-class RouterNameAlreadyExists:
-    name: str
+from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 
 
 class RouterRepository(ABC):
@@ -35,5 +30,6 @@ class RouterRepository(ABC):
         cost_prompt_tokens: float,
         cost_completion_tokens: float,
         user_id: int,
-    ) -> Router | RouterNameAlreadyExists:
+        aliases: list[str] | None = None,
+    ) -> Router | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError:
         pass

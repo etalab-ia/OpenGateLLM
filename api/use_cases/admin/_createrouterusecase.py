@@ -1,15 +1,10 @@
 from dataclasses import dataclass
 
-from api.domain.role.entities import PermissionType
 from api.domain.router import RouterRepository
-from api.domain.router._routerrepository import RouterNameAlreadyExists
 from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStrategy
+from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.domain.userinfo import UserInfoRepository
-from api.use_cases.admin.errors import (
-    InsufficientPermissionError,
-    RouterAliasAlreadyExistsError,
-    RouterNameAlreadyExistsError,
-)
+from api.domain.userinfo.errors import InsufficientPermissionError
 
 
 @dataclass
@@ -39,14 +34,8 @@ class CreateRouterUseCase:
     ) -> CreateRouterUseCaseResult:
         user_info = await self.user_info_repository.get_user_info(user_id=user_id)
 
-        is_admin = self.is_admin(permissions=user_info.permissions)
-        if not is_admin:
+        if not user_info.is_admin:
             return InsufficientPermissionError()
-        existing_aliases = []
-        if aliases:
-            existing_aliases = await self.router_repository.get_aliases(aliases)
-        if existing_aliases:
-            return RouterAliasAlreadyExistsError()
 
         result = await self.router_repository.create_router(
             name=name,
@@ -54,18 +43,12 @@ class CreateRouterUseCase:
             load_balancing_strategy=load_balancing_strategy,
             cost_prompt_tokens=cost_prompt_tokens,
             cost_completion_tokens=cost_completion_tokens,
-            user_id=user_info.id,
+            user_id=user_id,
+            aliases=aliases,
         )
 
         match result:
-            case RouterNameAlreadyExists(name=name):
-                return RouterNameAlreadyExistsError(name)
             case Router() as router:
-                if aliases:
-                    await self.router_repository.insert_aliases(aliases, router.id)
-                    router.aliases = aliases
-
                 return CreateRouterUseCaseSuccess(router)
-
-    def is_admin(self, permissions: list[PermissionType]) -> bool:
-        return PermissionType.ADMIN in permissions
+            case error:
+                return error

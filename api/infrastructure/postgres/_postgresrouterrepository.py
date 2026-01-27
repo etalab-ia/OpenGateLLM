@@ -2,9 +2,10 @@ from sqlalchemy import Integer, cast, func, insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain.key.entities import MASTER_USER_ID
 from api.domain.router import RouterRepository
-from api.domain.router._routerrepository import RouterNameAlreadyExists
 from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStrategy
+from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
@@ -17,7 +18,6 @@ class PostgresRouterRepository(RouterRepository):
         self.queuing_enabled = False
         self.postgres_session = postgres_session
         self.app_title = app_title
-        self.master_user_id = 0
 
     async def get_organization_name(self, user_id) -> str:
         query = (
@@ -98,10 +98,13 @@ class PostgresRouterRepository(RouterRepository):
         cost_prompt_tokens: float,
         cost_completion_tokens: float,
         user_id: int,
-    ) -> Router | RouterNameAlreadyExists:
-        db_user_id = None if user_id == self.master_user_id else user_id
+        aliases: list[str] | None = None,
+    ) -> Router | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError:
+        db_user_id = None if user_id == MASTER_USER_ID else user_id
+        aliases = aliases or []
+
         try:
-            query = (
+            insert_router_query = (
                 insert(RouterTable)
                 .values(
                     user_id=db_user_id,
@@ -123,11 +126,22 @@ class PostgresRouterRepository(RouterRepository):
                     cast(func.extract("epoch", RouterTable.updated), Integer).label("updated"),
                 )
             )
-            result = await self.postgres_session.execute(query)
+            result = await self.postgres_session.execute(insert_router_query)
             row = result.one()
+
+            if aliases:
+                aliases_to_insert = [{"value": alias, "router_id": row.id} for alias in aliases]
+                await self.postgres_session.execute(insert(RouterAliasTable), aliases_to_insert)
+
         except IntegrityError as e:
             if "router_name_key" in str(e.orig):
-                return RouterNameAlreadyExists(name=name)
+                return RouterNameAlreadyExistsError(name=name)
+            if "router_alias_value_key" in str(e.orig):
+                if isinstance(e.params, tuple):
+                    duplicate_aliases = [e.params[1]]
+                else:
+                    duplicate_aliases = [params[1] for params in e.params]
+                return RouterAliasAlreadyExistsError(aliases=duplicate_aliases)
             raise
 
         return Router(
@@ -135,7 +149,7 @@ class PostgresRouterRepository(RouterRepository):
             name=row.name,
             user_id=user_id,
             type=ModelType(row.type),
-            aliases=[],
+            aliases=aliases,
             load_balancing_strategy=RouterLoadBalancingStrategy(row.load_balancing_strategy),
             vector_size=None,
             max_context_length=None,

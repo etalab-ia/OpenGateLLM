@@ -46,7 +46,7 @@ async def test_session_factory(test_engine):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def db_session(test_session_factory) -> AsyncGenerator[AsyncSession, None]:
+async def db_session(test_session_factory) -> AsyncGenerator[AsyncSession]:
     """Provide a transactional scope for each test."""
     async with test_session_factory() as session:
         all_sql_factories = factories.BaseSQLFactory.__subclasses__()

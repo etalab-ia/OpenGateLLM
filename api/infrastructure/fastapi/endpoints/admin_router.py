@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Body, Depends, Security
 
 from api.dependencies import create_router_use_case, get_request_context
+from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
+from api.domain.userinfo.errors import InsufficientPermissionError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.endpoints.exceptions import (
@@ -14,9 +16,6 @@ from api.main import logger
 from api.use_cases.admin import (
     CreateRouterUseCase,
     CreateRouterUseCaseSuccess,
-    InsufficientPermissionError,
-    RouterAliasAlreadyExistsError,
-    RouterNameAlreadyExistsError,
 )
 from api.utils.variables import ENDPOINT__ADMIN_ROUTERS, ROUTER__ADMIN
 
@@ -55,9 +54,9 @@ async def create_router(
 
     match result:
         case CreateRouterUseCaseSuccess(created_router):
-            return CreateRouterResponse.model_validate(created_router.model_dump())
-        case RouterAliasAlreadyExistsError():
-            raise RouterAliasAlreadyExistsHTTPException()
+            return CreateRouterResponse.model_validate(created_router, from_attributes=True)
+        case RouterAliasAlreadyExistsError(name):
+            raise RouterAliasAlreadyExistsHTTPException(name)
         case RouterNameAlreadyExistsError(name):
             raise RouterAlreadyExistsHTTPException(name)
         case InsufficientPermissionError():

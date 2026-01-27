@@ -30,8 +30,8 @@ class ModelNotFoundHTTPException(HTTPException):
 
 # 409
 class RouterAliasAlreadyExistsHTTPException(HTTPException):
-    def __init__(self, detail: str = "Name conflict with existing router or alias."):
-        super().__init__(status_code=409, detail=detail)
+    def __init__(self, aliases: list[str]):
+        super().__init__(status_code=409, detail=f"Following aliases already exist: '{aliases}'")
 
 
 class RouterAlreadyExistsHTTPException(HTTPException):

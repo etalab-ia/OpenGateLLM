@@ -6,11 +6,9 @@ import factory
 from factory import fuzzy
 
 from api.domain.role.entities import Limit, LimitType, PermissionType, Role
-from api.domain.router.entities import Router
+from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStrategy
 from api.domain.user.entities import User
 from api.domain.userinfo.entities import UserInfo
-from api.schemas.admin.routers import RouterLoadBalancingStrategy
-from api.schemas.models import ModelType
 
 
 class RoleFactory(factory.Factory):

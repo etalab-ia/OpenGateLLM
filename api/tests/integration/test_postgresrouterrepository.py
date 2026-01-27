@@ -1,7 +1,7 @@
 import pytest
 
-from api.domain.router._routerrepository import RouterNameAlreadyExists
 from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStrategy
+from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.infrastructure.postgres import PostgresRouterRepository
 from api.tests.integration.factories import (
     OrganizationFactory,
@@ -93,7 +93,7 @@ class TestGetAllAliases:
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestCreateRouter:
-    async def test_create_router_should_return_created_router(self, repository, db_session):
+    async def test_create_router_should_return_created_router_without_alias(self, repository, db_session):
         # Arrange
         user = UserFactory()
         await db_session.flush()
@@ -139,7 +139,7 @@ class TestCreateRouter:
         )
 
         # Assert
-        assert isinstance(result, RouterNameAlreadyExists)
+        assert isinstance(result, RouterNameAlreadyExistsError)
         assert result.name == "duplicate-router"
 
     async def test_create_router_with_master_user_id_should_set_db_user_id_to_null(self, repository, db_session):
@@ -160,6 +160,76 @@ class TestCreateRouter:
         assert isinstance(result, Router)
         assert result.user_id == master_user_id
         assert result.name == "master-router"
+
+    async def test_create_router_with_aliases_should_insert_aliases(self, repository, db_session):
+        # Arrange
+        user = UserFactory()
+        await db_session.flush()
+
+        # Act
+        result = await repository.create_router(
+            name="router-with-aliases",
+            router_type=ModelType.TEXT_GENERATION,
+            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            cost_prompt_tokens=0.0,
+            cost_completion_tokens=0.0,
+            user_id=user.id,
+            aliases=["alias1", "alias2"],
+        )
+
+        # Assert
+        assert isinstance(result, Router)
+        assert result.name == "router-with-aliases"
+        assert result.aliases == ["alias1", "alias2"]
+
+        # Verify aliases are persisted in DB
+        persisted_aliases = await repository.get_aliases(["alias1", "alias2"])
+        assert set(persisted_aliases) == {"alias1", "alias2"}
+
+    async def test_create_router_should_return_router_alias_already_exists_when_one_alias_is_duplicate(self, repository, db_session):
+        # Arrange
+        user = UserFactory()
+        router_with_aliases = RouterFactory(user=user, name="router-with-aliases")
+        router_alias = RouterAliasFactory(id=router_with_aliases.id, value="duplicate-alias")
+        await db_session.flush()
+
+        # Act
+        result = await repository.create_router(
+            name="router",
+            router_type=ModelType.TEXT_GENERATION,
+            aliases=[router_alias.value],
+            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            cost_prompt_tokens=0.0,
+            cost_completion_tokens=0.0,
+            user_id=user.id,
+        )
+
+        # Assert
+        assert isinstance(result, RouterAliasAlreadyExistsError)
+        assert result.aliases == ["duplicate-alias"]
+
+    async def test_create_router_should_return_router_alias_already_exists_when_several_aliases_are_duplicate(self, repository, db_session):
+        # Arrange
+        user = UserFactory()
+        router_with_aliases = RouterFactory(user=user, name="router-with-aliases")
+        router_alias = RouterAliasFactory(id=router_with_aliases.id, value="duplicate-alias")
+        router_alias_2 = RouterAliasFactory(id=router_with_aliases.id, value="duplicate-alias-2")
+        await db_session.flush()
+
+        # Act
+        result = await repository.create_router(
+            name="router",
+            router_type=ModelType.TEXT_GENERATION,
+            aliases=[router_alias.value, router_alias_2.value],
+            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
+            cost_prompt_tokens=0.0,
+            cost_completion_tokens=0.0,
+            user_id=user.id,
+        )
+
+        # Assert
+        assert isinstance(result, RouterAliasAlreadyExistsError)
+        assert result.aliases == ["duplicate-alias", "duplicate-alias-2"]
 
 
 @pytest.mark.asyncio(loop_scope="session")
