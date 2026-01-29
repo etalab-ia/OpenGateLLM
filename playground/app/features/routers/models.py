@@ -17,3 +17,4 @@ class Router(Entity):
     providers: int | None = None
     created: str | None = None
     updated: str | None = None
+    is_default_vector_store: bool = False

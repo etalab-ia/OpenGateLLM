@@ -129,9 +129,11 @@ async def _setup_document_manager(configuration: Configuration, global_context: 
 
     parser_manager = None
 
-    if dependencies.vector_store is None:
+    if dependencies.vector_store is None or configuration.settings.vector_store_model is None:
         global_context.document_manager = None
         return
+    print("dependencies.vector_store", dependencies.vector_store)
+    print("configuration.settings.vector_store_model", configuration.settings.vector_store_model)
 
     async for postgres_session in get_postgres_session():
         router_id = await global_context.model_registry.get_router_id_from_model_name(

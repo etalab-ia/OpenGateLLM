@@ -231,10 +231,6 @@ class ProConnect(ConfigBaseModel):
     default_role: str = Field(default="Freemium", description="Role automatically assigned to users created via ProConnect login on first sign-in. Set this to the role name you want new ProConnect users to receive (must exist in your roles configuration).")  # fmt: off
 
 
-class EmptyDepencency(ConfigBaseModel):
-    pass
-
-
 @custom_validation_error(url="https://github.com/etalab-ia/albert-api/blob/main/docs/configuration.md#dependencies")
 class Dependencies(ConfigBaseModel):
     albert: AlbertDependency | None = Field(default=None, description="If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section.")  # fmt: off
@@ -268,7 +264,7 @@ class Dependencies(ConfigBaseModel):
         The parser dependency can be Albert or Marker, it is converted into a single attribute called "parser".
         """
 
-        def create_attribute(name: str, type: Enum, values: Any):
+        def create_attribute(name: str, type: type[VectorStoreType | ParserType], values: Any):
             candidates = [item for item in type if getattr(values, item.value) is not None]
 
             # Ensure only one dependency of this family is defined
@@ -425,8 +421,7 @@ class ConfigFile(ConfigBaseModel):
             raise ValueError(f"Duplicated model or alias names found: {", ".join(set(duplicated_models))}")
 
         # check for interdependencies
-        if self.dependencies.vector_store:
-            assert self.settings.vector_store_model, "Vector store model must be defined in settings section."
+        if self.dependencies.vector_store and self.settings.vector_store_model:
             assert self.settings.vector_store_model in models["all"], "Vector store model must be defined in models section."
             assert self.settings.vector_store_model in models[ModelType.TEXT_EMBEDDINGS_INFERENCE.value], f"The vector store model must have type {ModelType.TEXT_EMBEDDINGS_INFERENCE}."  # fmt: off
 

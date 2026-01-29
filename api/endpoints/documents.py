@@ -133,7 +133,7 @@ async def get_document(
     """
     Get a document by ID.
     """
-    if not global_context.document_manager:  # no vector store available
+    if not global_context.document_manager:  # no vector store available # TODO - Set as document manager method ??
         raise DocumentNotFoundException()
 
     documents = await global_context.document_manager.get_documents(

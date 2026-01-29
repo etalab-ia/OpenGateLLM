@@ -80,19 +80,26 @@ def entity_form_checkbox_field(
     description: str | None = None,
     on_change: Callable | None = None,
     tooltip: str | None = None,
+    disabled: bool = False,
     **kwargs: Any,
 ) -> rx.Component:
     return rx.hstack(
         rx.checkbox(
             checked=value,
             on_change=on_change,
+            disabled=disabled,
             **kwargs,
         ),
         rx.vstack(
             rx.cond(
                 bool(tooltip),
                 rx.hstack(
-                    rx.text(label, size=TEXT_SIZE_LABEL, weight="bold"),
+                    rx.text(
+                        label,
+                        size=TEXT_SIZE_LABEL,
+                        # weight="bold",
+                        color=rx.cond(disabled, rx.color("mauve", 8), "inherit"),
+                    ),
                     rx.tooltip(
                         rx.icon("info", size=ICON_SIZE_TINY, color=rx.color("mauve", 10)),
                         content=tooltip,
@@ -100,11 +107,20 @@ def entity_form_checkbox_field(
                     spacing=SPACING_TINY,
                     align="center",
                 ),
-                rx.text(label, size=TEXT_SIZE_LABEL, weight="bold"),
+                rx.text(
+                    label,
+                    size=TEXT_SIZE_LABEL,
+                    # weight="bold",
+                    color=rx.cond(disabled, rx.color("mauve", 8), "inherit"),
+                ),
             ),
             rx.cond(
                 bool(description),
-                rx.text(description, size=TEXT_SIZE_LABEL),
+                rx.text(
+                    description,
+                    size=TEXT_SIZE_LABEL,
+                    color=rx.cond(disabled, rx.color("mauve", 8), "inherit"),
+                ),
             ),
             align="start",
             spacing="0",

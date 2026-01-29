@@ -2,7 +2,7 @@ import reflex as rx
 
 from app.core.variables import SPACING_MEDIUM
 from app.features.routers.state import RoutersState
-from app.shared.components.forms import entity_create_form, entity_form_input_field, entity_form_select_field
+from app.shared.components.forms import entity_create_form, entity_form_checkbox_field, entity_form_input_field, entity_form_select_field
 
 
 def router_settings_form_fields() -> rx.Component:
@@ -15,13 +15,23 @@ def router_settings_form_fields() -> rx.Component:
             tooltip="Router name corresponding to the model will be called by users (e.g., my-model)",
             disable=RoutersState.edit_entity_loading,
         ),
-        entity_form_select_field(
-            label="Type",
-            items=RoutersState.router_types_list,
-            value=RoutersState.entity.type,
-            on_change=lambda value: RoutersState.set_edit_entity_attribut("type", value),
-            tooltip="Router type corresponds to the type of the model that will be served (e.g., text-generation for LLM)",
-            disable=RoutersState.edit_entity_loading,
+        rx.vstack(
+            entity_form_select_field(
+                label="Type",
+                items=RoutersState.router_types_list,
+                value=RoutersState.entity.type,
+                on_change=lambda value: RoutersState.set_edit_entity_attribut("type", value),
+                tooltip="Router type corresponds to the type of the model that will be served (e.g., text-generation for LLM)",
+                disable=RoutersState.edit_entity_loading,
+            ),
+            entity_form_checkbox_field(
+                label="Set as default vector store router",
+                value=RoutersState.entity.is_default_vector_store,
+                on_change=lambda value: RoutersState.set_edit_entity_attribut("is_default_vector_store", value),
+                tooltip="Set as default vector store router. This option is only available for type 'text-embeddings-inference' routers.",
+                disabled=(RoutersState.entity.type != "text-embeddings-inference") | (RoutersState.entity.is_default_vector_store is None),
+            ),
+            width="100%",
         ),
         entity_form_input_field(
             label="Aliases",
@@ -88,12 +98,23 @@ def router_create_form_fields() -> rx.Component:
             disable=RoutersState.create_entity_loading,
             placeholder="Enter router name",
         ),
-        entity_form_select_field(
-            label="Type",
-            items=RoutersState.router_types_list,
-            on_change=lambda value: RoutersState.set_new_entity_attribut("type", value),
-            tooltip="Router type (e.g., text-generation)",
-            placeholder="Select type",
+        rx.vstack(
+            entity_form_select_field(
+                label="Type",
+                items=RoutersState.router_types_list,
+                on_change=lambda value: RoutersState.set_new_entity_attribut("type", value),
+                tooltip="Router type (e.g., text-generation)",
+                placeholder="Select type",
+            ),
+            entity_form_checkbox_field(
+                label="Set as default vector store router",
+                value=RoutersState.entity_to_create.is_default_vector_store,
+                on_change=lambda value: RoutersState.set_new_entity_attribut("is_default_vector_store", value),
+                tooltip="Set as default vector store router. This option is only available for type 'text-embeddings-inference' routers.",
+                disabled=(RoutersState.entity_to_create.type != "text-embeddings-inference")
+                | (RoutersState.entity_to_create.is_default_vector_store is None),
+            ),
+            width="100%",
         ),
         entity_form_input_field(
             label="Aliases",
