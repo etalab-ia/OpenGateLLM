@@ -6,11 +6,11 @@ from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.models import ModelType
 from api.tests.helpers import create_token
 from api.tests.integration.factories import (
-    OrganizationFactory,
-    PermissionFactory,
-    RouterAliasFactory,
-    RouterFactory,
-    UserFactory,
+    OrganizationSQLFactory,
+    PermissionSQLFactory,
+    RouterAliasSQLFactory,
+    RouterSQLFactory,
+    UserSQLFactory,
 )
 from api.utils.variables import ENDPOINT__ADMIN_ROUTERS
 
@@ -26,14 +26,14 @@ class TestAdminCreateRouter:
         Should return 201 with router ID.
         """
         # Arrange
-        organization = OrganizationFactory(name="DINUM")
-        admin_user = UserFactory(
+        organization = OrganizationSQLFactory(name="DINUM")
+        admin_user = UserSQLFactory(
             name="Admin User",
             email="admin@example.com",
             organization=organization,
             admin_user=True,
         )
-        PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
+        PermissionSQLFactory(role=admin_user.role, permission=PermissionType.ADMIN)
 
         token = await create_token(db_session, name="admin_token", user=admin_user)
 
@@ -69,8 +69,8 @@ class TestAdminCreateRouter:
         Should successfully create router with all aliases.
         """
         # Arrange
-        admin_user = UserFactory(admin_user=True)
-        PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
+        admin_user = UserSQLFactory(admin_user=True)
+        PermissionSQLFactory(role=admin_user.role, permission=PermissionType.ADMIN)
         token = await create_token(db_session, name="admin_token", user=admin_user)
 
         router_data = {
@@ -119,8 +119,8 @@ class TestAdminCreateRouter:
         Should successfully create router with TEXT_EMBEDDINGS_INFERENCE type.
         """
         # Arrange
-        admin_user = UserFactory(admin_user=True)
-        PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
+        admin_user = UserSQLFactory(admin_user=True)
+        PermissionSQLFactory(role=admin_user.role, permission=PermissionType.ADMIN)
         token = await create_token(db_session, name="admin_token", user=admin_user)
 
         router_data = {
@@ -156,8 +156,8 @@ class TestAdminCreateRouter:
         Should accept zero values for costs.
         """
         # Arrange
-        admin_user = UserFactory(admin_user=True)
-        PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
+        admin_user = UserSQLFactory(admin_user=True)
+        PermissionSQLFactory(role=admin_user.role, permission=PermissionType.ADMIN)
         token = await create_token(db_session, name="admin_token", user=admin_user)
 
         router_data = {
@@ -186,7 +186,7 @@ class TestAdminCreateRouter:
         Should return 403 Forbidden.
         """
         # Arrange - Regular user without admin permission
-        regular_user = UserFactory(regular_user=True)
+        regular_user = UserSQLFactory(regular_user=True)
         token = await create_token(db_session, name="user_token", user=regular_user)
 
         router_data = {
@@ -242,8 +242,8 @@ class TestAdminCreateRouter:
         Should return 422 validation error.
         """
         # Arrange
-        admin_user = UserFactory(admin_user=True)
-        PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
+        admin_user = UserSQLFactory(admin_user=True)
+        PermissionSQLFactory(role=admin_user.role, permission=PermissionType.ADMIN)
         token = await create_token(db_session, name="admin_token", user=admin_user)
 
         router_data = {
@@ -272,8 +272,8 @@ class TestAdminCreateRouter:
         Should return 422 validation error (after stripping).
         """
         # Arrange
-        admin_user = UserFactory(admin_user=True)
-        PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
+        admin_user = UserSQLFactory(admin_user=True)
+        PermissionSQLFactory(role=admin_user.role, permission=PermissionType.ADMIN)
         token = await create_token(db_session, name="admin_token", user=admin_user)
 
         router_data = {
@@ -302,8 +302,8 @@ class TestAdminCreateRouter:
         Should return 422 validation error.
         """
         # Arrange
-        admin_user = UserFactory(admin_user=True)
-        PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
+        admin_user = UserSQLFactory(admin_user=True)
+        PermissionSQLFactory(role=admin_user.role, permission=PermissionType.ADMIN)
         token = await create_token(db_session, name="admin_token", user=admin_user)
 
         router_data = {
@@ -332,8 +332,8 @@ class TestAdminCreateRouter:
         Should return 422 validation error (costs must be >= 0).
         """
         # Arrange
-        admin_user = UserFactory(admin_user=True)
-        PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
+        admin_user = UserSQLFactory(admin_user=True)
+        PermissionSQLFactory(role=admin_user.role, permission=PermissionType.ADMIN)
         token = await create_token(db_session, name="admin_token", user=admin_user)
 
         router_data = {
@@ -362,10 +362,10 @@ class TestAdminCreateRouter:
         Should return 409 Conflict or 400 Bad Request.
         """
         # Arrange
-        admin_user = UserFactory(admin_user=True)
-        PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
+        admin_user = UserSQLFactory(admin_user=True)
+        PermissionSQLFactory(role=admin_user.role, permission=PermissionType.ADMIN)
 
-        existing_router = RouterFactory(
+        existing_router = RouterSQLFactory(
             user=admin_user,
             name="duplicate-name",
             type=ModelType.TEXT_GENERATION,
@@ -400,16 +400,16 @@ class TestAdminCreateRouter:
         Should return 409 Conflict or 400 Bad Request.
         """
         # Arrange
-        admin_user = UserFactory(admin_user=True)
-        PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
+        admin_user = UserSQLFactory(admin_user=True)
+        PermissionSQLFactory(role=admin_user.role, permission=PermissionType.ADMIN)
 
         # Create existing router with alias
-        existing_router = RouterFactory(
+        existing_router = RouterSQLFactory(
             user=admin_user,
             name="existing-router",
             type=ModelType.TEXT_GENERATION,
         )
-        RouterAliasFactory(router=existing_router, value="duplicate-alias")
+        RouterAliasSQLFactory(router=existing_router, value="duplicate-alias")
         await db_session.flush()
 
         token = await create_token(db_session, name="admin_token", user=admin_user)
@@ -440,8 +440,8 @@ class TestAdminCreateRouter:
         Should return 422 validation error.
         """
         # Arrange
-        admin_user = UserFactory(admin_user=True)
-        PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
+        admin_user = UserSQLFactory(admin_user=True)
+        PermissionSQLFactory(role=admin_user.role, permission=PermissionType.ADMIN)
         token = await create_token(db_session, name="admin_token", user=admin_user)
 
         router_data = {
@@ -470,8 +470,8 @@ class TestAdminCreateRouter:
         Should return 422 validation error.
         """
         # Arrange
-        admin_user = UserFactory(admin_user=True)
-        PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
+        admin_user = UserSQLFactory(admin_user=True)
+        PermissionSQLFactory(role=admin_user.role, permission=PermissionType.ADMIN)
         token = await create_token(db_session, name="admin_token", user=admin_user)
 
         router_data = {
@@ -497,8 +497,8 @@ class TestAdminCreateRouter:
         Should create router with trimmed name.
         """
         # Arrange
-        admin_user = UserFactory(admin_user=True)
-        PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
+        admin_user = UserSQLFactory(admin_user=True)
+        PermissionSQLFactory(role=admin_user.role, permission=PermissionType.ADMIN)
         token = await create_token(db_session, name="admin_token", user=admin_user)
 
         router_data = {
@@ -534,8 +534,8 @@ class TestAdminCreateRouter:
         Should use default value (shuffle).
         """
         # Arrange
-        admin_user = UserFactory(admin_user=True)
-        PermissionFactory(role=admin_user.role, permission=PermissionType.ADMIN)
+        admin_user = UserSQLFactory(admin_user=True)
+        PermissionSQLFactory(role=admin_user.role, permission=PermissionType.ADMIN)
         token = await create_token(db_session, name="admin_token", user=admin_user)
 
         router_data = {

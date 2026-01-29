@@ -25,7 +25,7 @@ def user_info_repository():
 
 @pytest.fixture
 def admin_user_info():
-    return UserInfoFactory(id=1, admin=True, limits=[])
+    return UserInfoFactory(id=1, admin=True)
 
 
 @pytest.fixture
@@ -34,7 +34,7 @@ def non_admin_user_info():
 
 
 @pytest.fixture
-def sample_router():
+def sample_router_with_aliases():
     return RouterFactory(
         id=1,
         name="test-model",
@@ -59,11 +59,11 @@ def use_case(router_repository, user_info_repository):
 class TestCreateRouterUseCase:
     @pytest.mark.asyncio
     async def test_should_create_router_with_aliases_when_aliases_are_given(
-        self, router_repository, user_info_repository, admin_user_info, sample_router, use_case
+        self, router_repository, user_info_repository, admin_user_info, sample_router_with_aliases, use_case
     ):
         # Arrange
         user_info_repository.get_user_info.return_value = admin_user_info
-        router_repository.create_router.return_value = sample_router
+        router_repository.create_router.return_value = sample_router_with_aliases
 
         # Act
         result = await use_case.execute(
@@ -77,7 +77,7 @@ class TestCreateRouterUseCase:
         )
 
         # Assert
-        assert result.router == sample_router
+        assert result.router == sample_router_with_aliases
 
         user_info_repository.get_user_info.assert_called_once_with(user_id=1)
         router_repository.create_router.assert_called_once_with(

@@ -4,11 +4,11 @@ from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStr
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.infrastructure.postgres import PostgresRouterRepository
 from api.tests.integration.factories import (
-    OrganizationFactory,
-    ProviderFactory,
-    RouterAliasFactory,
-    RouterFactory,
-    UserFactory,
+    OrganizationSQLFactory,
+    ProviderSQLFactory,
+    RouterAliasSQLFactory,
+    RouterSQLFactory,
+    UserSQLFactory,
 )
 
 
@@ -26,20 +26,22 @@ def repository(db_session, app_title):
 class TestGetAllRouters:
     async def test_get_all_routers_should_return_all_routers(self, repository, db_session):
         # Arrange
-        user_1 = UserFactory()
-        user_2 = UserFactory()
+        user_1 = UserSQLFactory()
+        user_2 = UserSQLFactory()
 
-        router_1 = RouterFactory(user=user_1, name="router_1", type=ModelType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002)
-        router_2 = RouterFactory(
+        router_1 = RouterSQLFactory(
+            user=user_1, name="router_1", type=ModelType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002
+        )
+        router_2 = RouterSQLFactory(
             user=user_1, name="router_2", type=ModelType.TEXT_EMBEDDINGS_INFERENCE, cost_prompt_tokens=0.0, cost_completion_tokens=0.0
         )
-        router_3 = RouterFactory(
+        router_3 = RouterSQLFactory(
             user=user_2, name="router_3", type=ModelType.TEXT_EMBEDDINGS_INFERENCE, cost_prompt_tokens=0.0, cost_completion_tokens=0.0
         )
-        ProviderFactory(router=router_1, user=user_1, model_name="m1", max_context_length=2048, vector_size=1536)
-        ProviderFactory(router=router_1, user=user_1, model_name="m2", max_context_length=128000, vector_size=384)
-        ProviderFactory(router=router_2, user=user_1, model_name="m3")
-        ProviderFactory(router=router_3, user=user_2, model_name="m4")
+        ProviderSQLFactory(router=router_1, user=user_1, model_name="m1", max_context_length=2048, vector_size=1536)
+        ProviderSQLFactory(router=router_1, user=user_1, model_name="m2", max_context_length=128000, vector_size=384)
+        ProviderSQLFactory(router=router_2, user=user_1, model_name="m3")
+        ProviderSQLFactory(router=router_3, user=user_2, model_name="m4")
 
         # Act
         await db_session.flush()
@@ -63,22 +65,22 @@ class TestGetAllRouters:
 class TestGetAllAliases:
     async def test_get_all_aliases_should_return_all_aliases(self, repository, db_session):
         # Arrange
-        organization = OrganizationFactory(name="DINUM")
-        user_1 = UserFactory(organization=organization)
-        user_2 = UserFactory(organization=organization)
-        user_3 = UserFactory()
+        organization = OrganizationSQLFactory(name="DINUM")
+        user_1 = UserSQLFactory(organization=organization)
+        user_2 = UserSQLFactory(organization=organization)
+        user_3 = UserSQLFactory()
 
-        router_1 = RouterFactory(user=user_1)
-        router_2 = RouterFactory(user=user_1)
-        router_3 = RouterFactory(user=user_2)
-        router_4 = RouterFactory(user=user_3)
+        router_1 = RouterSQLFactory(user=user_1)
+        router_2 = RouterSQLFactory(user=user_1)
+        router_3 = RouterSQLFactory(user=user_2)
+        router_4 = RouterSQLFactory(user=user_3)
 
-        RouterAliasFactory(router=router_1, value="alias1_m1")
-        RouterAliasFactory(router=router_1, value="alias2_m1")
-        RouterAliasFactory(router=router_2, value="alias1_m2")
-        RouterAliasFactory(router=router_3, value="alias1_m3")
-        RouterAliasFactory(router=router_4, value="alias1_m4")
-        RouterAliasFactory(router=router_4, value="alias2_m4")
+        RouterAliasSQLFactory(router=router_1, value="alias1_m1")
+        RouterAliasSQLFactory(router=router_1, value="alias2_m1")
+        RouterAliasSQLFactory(router=router_2, value="alias1_m2")
+        RouterAliasSQLFactory(router=router_3, value="alias1_m3")
+        RouterAliasSQLFactory(router=router_4, value="alias1_m4")
+        RouterAliasSQLFactory(router=router_4, value="alias2_m4")
         await db_session.flush()
         # Act
         aliases = await repository.get_aliases_by_router_id()
@@ -95,7 +97,7 @@ class TestGetAllAliases:
 class TestCreateRouter:
     async def test_create_router_should_return_created_router_without_alias(self, repository, db_session):
         # Arrange
-        user = UserFactory()
+        user = UserSQLFactory()
         await db_session.flush()
 
         # Act
@@ -124,8 +126,8 @@ class TestCreateRouter:
 
     async def test_create_router_should_return_router_name_already_exists_when_name_is_duplicate(self, repository, db_session):
         # Arrange
-        user = UserFactory()
-        RouterFactory(user=user, name="duplicate-router")
+        user = UserSQLFactory()
+        RouterSQLFactory(user=user, name="duplicate-router")
         await db_session.flush()
 
         # Act
@@ -163,7 +165,7 @@ class TestCreateRouter:
 
     async def test_create_router_with_aliases_should_insert_aliases(self, repository, db_session):
         # Arrange
-        user = UserFactory()
+        user = UserSQLFactory()
         await db_session.flush()
 
         # Act
@@ -188,9 +190,9 @@ class TestCreateRouter:
 
     async def test_create_router_should_return_router_alias_already_exists_when_one_alias_is_duplicate(self, repository, db_session):
         # Arrange
-        user = UserFactory()
-        router_with_aliases = RouterFactory(user=user, name="router-with-aliases")
-        router_alias = RouterAliasFactory(id=router_with_aliases.id, value="duplicate-alias")
+        user = UserSQLFactory()
+        router_with_aliases = RouterSQLFactory(user=user, name="router-with-aliases")
+        router_alias = RouterAliasSQLFactory(id=router_with_aliases.id, value="duplicate-alias")
         await db_session.flush()
 
         # Act
@@ -210,10 +212,10 @@ class TestCreateRouter:
 
     async def test_create_router_should_return_router_alias_already_exists_when_several_aliases_are_duplicate(self, repository, db_session):
         # Arrange
-        user = UserFactory()
-        router_with_aliases = RouterFactory(user=user, name="router-with-aliases")
-        router_alias = RouterAliasFactory(id=router_with_aliases.id, value="duplicate-alias")
-        router_alias_2 = RouterAliasFactory(id=router_with_aliases.id, value="duplicate-alias-2")
+        user = UserSQLFactory()
+        router_with_aliases = RouterSQLFactory(user=user, name="router-with-aliases")
+        router_alias = RouterAliasSQLFactory(id=router_with_aliases.id, value="duplicate-alias")
+        router_alias_2 = RouterAliasSQLFactory(id=router_with_aliases.id, value="duplicate-alias-2")
         await db_session.flush()
 
         # Act
@@ -237,8 +239,8 @@ class TestGetOrganizationName:
     async def test_get_organization_name_should_return_the_organization_name_from_the_given_id(self, repository, db_session):
         # Arrange
         organization_name = "DINUM"
-        dinum_organization = OrganizationFactory(name=organization_name)
-        user_with_organization = UserFactory(organization=dinum_organization)
+        dinum_organization = OrganizationSQLFactory(name=organization_name)
+        user_with_organization = UserSQLFactory(organization=dinum_organization)
         await db_session.flush()
 
         # Act
@@ -248,7 +250,7 @@ class TestGetOrganizationName:
 
     async def test_get_organization_name_should_return_the_app_title_when_the_user_has_no_organization(self, repository, db_session, app_title):
         # Arrange
-        user_without_organiztion = UserFactory(organization=None)
+        user_without_organiztion = UserSQLFactory(organization=None)
         await db_session.flush()
 
         # Act

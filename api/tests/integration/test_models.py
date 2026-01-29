@@ -7,12 +7,12 @@ from api.domain.role.entities import LimitType
 from api.schemas.models import Model, Models, ModelType
 from api.tests.helpers import create_token
 from api.tests.integration.factories import (
-    LimitFactory,
-    OrganizationFactory,
-    ProviderFactory,
-    RouterAliasFactory,
-    RouterFactory,
-    UserFactory,
+    LimitSQLFactory,
+    OrganizationSQLFactory,
+    ProviderSQLFactory,
+    RouterAliasSQLFactory,
+    RouterSQLFactory,
+    UserSQLFactory,
 )
 from api.utils.variables import ENDPOINT__MODELS
 
@@ -20,26 +20,28 @@ from api.utils.variables import ENDPOINT__MODELS
 @pytest.mark.asyncio(loop_scope="session")
 class TestModels:
     async def test_get_models_happy_path(self, client: AsyncClient, db_session):
-        organization = OrganizationFactory(name="DINUM")
-        user_1 = UserFactory(name="Alice", email="alice@example.com", organization=organization)
-        user_2 = UserFactory(name="Bob", email="bob@example.com")
+        organization = OrganizationSQLFactory(name="DINUM")
+        user_1 = UserSQLFactory(name="Alice", email="alice@example.com", organization=organization)
+        user_2 = UserSQLFactory(name="Bob", email="bob@example.com")
         created = datetime(2024, 1, 15, 10, 30, 0)
-        router_1 = RouterFactory(user=user_1, name="router_1", type=ModelType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002)
-        router_2 = RouterFactory(
+        router_1 = RouterSQLFactory(
+            user=user_1, name="router_1", type=ModelType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002
+        )
+        router_2 = RouterSQLFactory(
             user=user_1, name="router_2", type=ModelType.TEXT_EMBEDDINGS_INFERENCE, cost_prompt_tokens=0.0, cost_completion_tokens=0.0
         )
-        router_3 = RouterFactory(
+        router_3 = RouterSQLFactory(
             user=user_2, name="router_3", type=ModelType.TEXT_EMBEDDINGS_INFERENCE, cost_prompt_tokens=0.0, cost_completion_tokens=0.0
         )
-        ProviderFactory(router=router_1, user=user_1, model_name="m1", max_context_length=2048, vector_size=1536, created=created)
-        ProviderFactory(router=router_1, user=user_1, model_name="m2", max_context_length=128000, vector_size=384, created=created)
-        ProviderFactory(router=router_2, user=user_1, model_name="m3", max_context_length=16384, vector_size=1536, created=created)
-        ProviderFactory(router=router_3, user=user_2, model_name="m4", max_context_length=1024, vector_size=384, created=created)
-        RouterAliasFactory(router=router_1, value="alias1_m1")
-        RouterAliasFactory(router=router_1, value="alias2_m1")
-        RouterAliasFactory(router=router_1, value="alias3_m1")
-        LimitFactory(role=user_1.role, router=router_1)
-        LimitFactory(role=user_1.role, router=router_2)
+        ProviderSQLFactory(router=router_1, user=user_1, model_name="m1", max_context_length=2048, vector_size=1536, created=created)
+        ProviderSQLFactory(router=router_1, user=user_1, model_name="m2", max_context_length=128000, vector_size=384, created=created)
+        ProviderSQLFactory(router=router_2, user=user_1, model_name="m3", max_context_length=16384, vector_size=1536, created=created)
+        ProviderSQLFactory(router=router_3, user=user_2, model_name="m4", max_context_length=1024, vector_size=384, created=created)
+        RouterAliasSQLFactory(router=router_1, value="alias1_m1")
+        RouterAliasSQLFactory(router=router_1, value="alias2_m1")
+        RouterAliasSQLFactory(router=router_1, value="alias3_m1")
+        LimitSQLFactory(role=user_1.role, router=router_1)
+        LimitSQLFactory(role=user_1.role, router=router_2)
 
         token = await create_token(db_session, name="my_token", user=user_1)
         response = await client.get(url=f"/v1{ENDPOINT__MODELS}", headers={"Authorization": f"Bearer {token.token}"})
@@ -78,12 +80,12 @@ class TestModels:
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
 
-        user_1 = UserFactory()
+        user_1 = UserSQLFactory()
 
-        router_1 = RouterFactory(
+        router_1 = RouterSQLFactory(
             user=user_1, name="router_name_1", type=ModelType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002, created=created
         )
-        router_2 = RouterFactory(
+        router_2 = RouterSQLFactory(
             user=user_1,
             name="router_name_2",
             type=ModelType.TEXT_EMBEDDINGS_INFERENCE,
@@ -91,11 +93,11 @@ class TestModels:
             cost_completion_tokens=0.0,
             created=created,
         )
-        ProviderFactory(router=router_1, user=user_1, model_name="m1", max_context_length=2048, vector_size=1536, created=created)
-        ProviderFactory(router=router_1, user=user_1, model_name="m2", max_context_length=128000, vector_size=384, created=created)
-        ProviderFactory(router=router_2, user=user_1, model_name="m3", max_context_length=16384, vector_size=1536, created=created)
-        LimitFactory(role=user_1.role, router=router_1, type=LimitType.TPM, value=1000)
-        LimitFactory(role=user_1.role, router=router_2, type=LimitType.TPM, value=None)
+        ProviderSQLFactory(router=router_1, user=user_1, model_name="m1", max_context_length=2048, vector_size=1536, created=created)
+        ProviderSQLFactory(router=router_1, user=user_1, model_name="m2", max_context_length=128000, vector_size=384, created=created)
+        ProviderSQLFactory(router=router_2, user=user_1, model_name="m3", max_context_length=16384, vector_size=1536, created=created)
+        LimitSQLFactory(role=user_1.role, router=router_1, type=LimitType.TPM, value=1000)
+        LimitSQLFactory(role=user_1.role, router=router_2, type=LimitType.TPM, value=None)
         token = await create_token(db_session, name="my_token", user=user_1)
 
         # Act
@@ -109,13 +111,13 @@ class TestModels:
         # Arrange
         created = datetime(2024, 1, 15, 10, 30, 0)
         non_existent_model = "model_not_exist"
-        user_1 = UserFactory()
+        user_1 = UserSQLFactory()
 
-        router_1 = RouterFactory(
+        router_1 = RouterSQLFactory(
             user=user_1, name="router_name_1", type=ModelType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002, created=created
         )
-        ProviderFactory(router=router_1, user=user_1, model_name="m1", max_context_length=2048, vector_size=1536, created=created)
-        LimitFactory(role=user_1.role, router=router_1, type=LimitType.TPM, value=1000)
+        ProviderSQLFactory(router=router_1, user=user_1, model_name="m1", max_context_length=2048, vector_size=1536, created=created)
+        LimitSQLFactory(role=user_1.role, router=router_1, type=LimitType.TPM, value=1000)
         token = await create_token(db_session, name="my_token", user=user_1)
 
         # Act & Assert
