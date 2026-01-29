@@ -11,6 +11,8 @@ from pydantic import ConfigDict, Field, ValidationError, conint, conlist, constr
 from api.schemas import BaseModel
 from api.utils.exceptions import FileSizeLimitExceededException
 
+PresetSeparators = Enum("PresetSeparators", {**{m.name: m.value for m in Language}, **{"EMPTY": ""}}, type=str)
+
 
 class Document(BaseModel):
     object: Literal["document"] = "document"
@@ -82,7 +84,7 @@ class CreateDocumentForm(BaseModel):
     collection: int
     is_separator_regex: bool
     separators: list[str]
-    preset_separators: Language
+    preset_separators: PresetSeparators
     metadata: InputChunkMetadata
 
     @field_validator("file")
@@ -93,10 +95,10 @@ class CreateDocumentForm(BaseModel):
 
     @model_validator(mode="after")
     def validate_separators(self) -> "CreateDocumentForm":
-        if self.preset_separators == Language.EMPTY:
+        if self.preset_separators == PresetSeparators.EMPTY:
             self.preset_separators = None
 
-        if self.preset_separators == Language.EMPTY and self.separators == []:
+        if self.preset_separators == PresetSeparators.EMPTY and self.separators == []:
             raise ValueError("separators and preset_separators cannot by empty at the same time")
 
         return self
@@ -113,7 +115,7 @@ class CreateDocumentForm(BaseModel):
         chunk_size: int = Form(default=2048, description="The size in characters of the chunks to use for the file upload."),
         is_separator_regex: bool = Form(default=False, description="Whether the separator is a regex to use for the file upload."),
         separators: list[str] = Form(default=[], description="The separators to use for the file upload."),
-        preset_separators: Language = Form(default=Language.MARKDOWN, description="If provided, override separators by the preset specific separators. See [implemented details](https://github.com/langchain-ai/langchain/blob/eb122945832eae9b9df7c70ccd8d51fcd7a1899b/libs/text-splitters/langchain_text_splitters/character.py#L164). If not provided, the language will be inferred from the file type."),
+        preset_separators: PresetSeparators = Form(default=PresetSeparators.MARKDOWN, description="If provided, override separators by the preset specific separators. See [implemented details](https://github.com/langchain-ai/langchain/blob/eb122945832eae9b9df7c70ccd8d51fcd7a1899b/libs/text-splitters/langchain_text_splitters/character.py#L164). If not provided, the language will be inferred from the file type."),
         metadata: InputChunkMetadata = Form(default=InputChunkMetadata(), description="Additional metadata to add to each chunk. Provide a stringified JSON object matching the Metadata schema.", examples=['{"source_title": "Example title", "source_tags": ["tag-1", "tag-2"]}']),
     ) -> "CreateDocumentForm":
         try:
