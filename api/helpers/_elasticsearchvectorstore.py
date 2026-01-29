@@ -1,3 +1,4 @@
+import hashlib
 import logging
 
 from elasticsearch import AsyncElasticsearch, helpers
@@ -178,6 +179,7 @@ class ElasticsearchVectorStore:
         actions = [
             {
                 "_index": self.index_name,
+                "_id": hashlib.sha256(f"{chunk.collection_id}|{chunk.document_id}|{chunk.id}".encode()).hexdigest(),
                 "_source": {
                     "id": chunk.id,
                     "collection_id": chunk.collection_id,

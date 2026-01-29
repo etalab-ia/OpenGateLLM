@@ -34,7 +34,8 @@ api = [
     "elasticsearch[async]==9.0.1",
     "redis==5.2.1",
     "beautifulsoup4==4.13.4",
-    "PyMuPDF==1.26.0",
+    "PyMuPDF==1.26.7",
+    "pymupdf4llm>=0.2.9",
     "alembic>=1.15.2",
     "psycopg2-binary==2.9.10",
     "asyncpg==0.30.0",
@@ -42,6 +43,7 @@ api = [
     "sqlalchemy-utils==0.41.2",
     "sentry-sdk[fastapi]>=2.28.0",
     "bcrypt==4.3.0",
+
     
     # app
     "gunicorn==23.0.0",
