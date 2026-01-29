@@ -14,10 +14,18 @@ class UsersState(EntityState):
 
     @rx.var
     def roles_name_list(self) -> list[str]:
+        return sorted([role["name"] for role in self.roles_list])
+
+    @rx.var
+    def roles_name_list_with_all(self) -> list[str]:
         return ["All roles", *sorted([role["name"] for role in self.roles_list])]
 
     @rx.var
     def organizations_name_list(self) -> list[str]:
+        return sorted([organization["name"] for organization in self.organizations_list])
+
+    @rx.var
+    def organizations_name_list_with_all(self) -> list[str]:
         return ["All organizations", *sorted([organization["name"] for organization in self.organizations_list])]
 
     def _format_user(self, user: dict) -> User:
