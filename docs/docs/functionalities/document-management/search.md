@@ -1,4 +1,8 @@
-# Search
+# Search (RAG)
+
+The POST endpoint `/v1/search` allows you to search for chunks within collections using a query prompt. This increases the context available to a language model through RAG (Retrieval-Augmented Generation). RAG search retrieves relevant chunks from your [collections](./collections.md) based on your query, enabling language models to generate responses grounded in your specific documents and knowledge base.
+
+## RAG search flow
 
 ## Search Methods
 
@@ -67,11 +71,3 @@ OpenGateLLM supports multiple search methods:
 :::info
 See [Configuration](../../getting-started/configuration.md) for more details.
 :::
-
-## Search filters and boosts
-
-## Boosting priority
-
-Priority can be boosted by adding a `source_priority` field to the document metadata. The priority is a number between 1 and 10, where 1 is the highest priority and 10 is the lowest priority. Each priority level increases the score by a factor of 0.1, following a logarithmic scale (log1p). For lexical search, the score is adjusted by ±0.01, and for semantic search, by ±0.02. This adjustment is mainly useful for breaking ties between very similar vectors.
-
-![Boost curve (rescore contribution)](/functionalities/search/search_semantic_boost_priority.png)

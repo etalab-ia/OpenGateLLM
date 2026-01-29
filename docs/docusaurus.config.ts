@@ -58,7 +58,13 @@ const config: Config = {
           editUrl:
             'https://github.com/etalab-ia/OpenGateLLM/tree/main/docs/',
         },
-        blog: false,
+        blog: {
+          blogTitle: 'Docusaurus blog!',
+          blogDescription: 'A Docusaurus powered blog!',
+          postsPerPage: 'ALL',
+          blogSidebarTitle: 'All posts',
+          blogSidebarCount: 'ALL',
+        },
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -86,6 +92,11 @@ const config: Config = {
           sidebarId: 'tutorialSidebar',
           label: 'Documentation',
           position: 'left',
+        },
+        {
+          to: 'blog', 
+          label: 'Blog', 
+          position: 'left'
         },
         {
           label: 'API Reference',
