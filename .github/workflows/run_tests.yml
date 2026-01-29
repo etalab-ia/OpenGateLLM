@@ -56,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        config_file: [api/tests/integ/config.test.yml, api/tests/integ/config.test.queuing.yml]
+        config_file: [api/tests/integ/config.test.yml]
 
     steps:
     - uses: actions/checkout@v4

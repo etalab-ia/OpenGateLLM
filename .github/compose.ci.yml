@@ -1,25 +1,6 @@
 name: opengatellm-ci
 
 services:
-  worker:
-    build:
-      context: ..
-      dockerfile: api/Dockerfile
-      args:
-        BUILD_TARGET: worker
-    volumes:
-      - "../api/tests/integ/config.test.queuing.yml:/config.yml:ro"
-    environment:
-      - RABBITMQ_HOST=rabbitmq
-      - REDIS_HOST=redis
-      - CELERY_EXTRA_ARGS=${CELERY_EXTRA_ARGS:-}
-      - CONFIG_FILE=/config.yml
-    depends_on:
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-
   postgres:
     extends:
       file: ../compose.example.yml
@@ -29,22 +10,6 @@ services:
     extends:
       file: ../compose.example.yml
       service: redis
-
-  rabbitmq:
-    image: rabbitmq:3.13-management
-    restart: always
-    ports:
-      - "${RABBITMQ_UI_PORT:-15672}:15672"
-      - "${RABBITMQ_PORT:-5672}:5672"
-    environment:
-      - RABBITMQ_DEFAULT_USER=rabbitmq
-      - RABBITMQ_DEFAULT_PASS=changeme
-    healthcheck:
-      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping && rabbitmqctl -q status"]
-      interval: 5s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:9.0.2
