@@ -1,3 +1,6 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Search (RAG)
 
 The POST endpoint `/v1/search` allows you to search for chunks within collections using a query prompt. This increases the context available to a language model through RAG (Retrieval-Augmented Generation). RAG search retrieves relevant chunks from your [collections](./collections.md) based on your query, enabling language models to generate responses grounded in your specific documents and knowledge base.

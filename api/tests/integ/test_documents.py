@@ -36,7 +36,6 @@ class TestDocuments:
             "use_llm": "false",
             "paginate_output": "false",
             "chunker": "RecursiveCharacterTextSplitter",
-            "length_function": "len",
             "chunk_min_size": "0",
             "is_separator_regex": "false",
             "metadata": json.dumps({"source_title": "test", "source_tags": ["tag-1", "tag-2"]}),

@@ -422,7 +422,10 @@ class BaseModelProvider(ABC):
         """
 
         def _create_extra_chunk(buffer: list) -> tuple | None:
-            return self._format_stream_response(request_content=request_content, response=buffer)
+            try:
+                return self._format_stream_response(request_content=request_content, response=buffer)
+            except Exception as e:
+                logger.exception(msg=f"Failed to create extra chunk: {e}.")
 
         def _compute_ttft(start_time: float) -> int:
             return int((time.perf_counter() - start_time) * 1000)  # ms
@@ -488,9 +491,7 @@ class BaseModelProvider(ABC):
 
                                 buffer.append(last_chunks)
 
-                                extra_chunk, request_latency, ttft = _create_extra_chunk(start_time=start_time, buffer=buffer)
-
-                                # if error case, yield chunk
+                                extra_chunk = _create_extra_chunk(buffer=buffer)
                                 if extra_chunk is None:
                                     yield chunk, response.status_code
                                     continue

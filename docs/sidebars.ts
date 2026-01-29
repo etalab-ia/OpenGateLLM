@@ -83,7 +83,7 @@ const sidebars: SidebarsConfig = {
                     items: [
                         'functionalities/document-management/collections',
                         'functionalities/document-management/parsing-and-chunking',
-                        'functionalities/document-management/rag',
+                        'functionalities/document-management/search',
                     ],
                 },
                 'functionalities/usage',

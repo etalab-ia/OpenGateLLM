@@ -96,7 +96,7 @@ class CreateDocumentForm(BaseModel):
         if self.preset_separators == Language.EMPTY:
             self.preset_separators = None
 
-        if self.preset_separators is not None and self.separators == []:
+        if self.preset_separators == Language.EMPTY and self.separators == []:
             raise ValueError("separators and preset_separators cannot by empty at the same time")
 
         return self
