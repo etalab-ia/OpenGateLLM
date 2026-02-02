@@ -9,95 +9,81 @@
         <generator>https://github.com/jpmonette/feed</generator>
         <language>en</language>
         <item>
-            <title><![CDATA[0.4.0 - Release note [WIP]]]></title>
+            <title><![CDATA[0.4.0 - Release note]]></title>
             <link>https://docs.opengatellm.org/blog/0.4.0-release-note</link>
             <guid>https://docs.opengatellm.org/blog/0.4.0-release-note</guid>
             <pubDate>Thu, 29 Jan 2026 00:00:00 GMT</pubDate>
-            <description><![CDATA[La version 0.4.0 n'est pas encore disponible dans sa version stable, des modifications mineures sont encore en cours de développement.]]></description>
-            <content:encoded><![CDATA[<div class="theme-admonition theme-admonition-warning admonition_xJq3 alert alert--warning"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>warning</div><div class="admonitionContent_BuS1"><p>La version 0.4.0 n'est pas encore disponible dans sa version stable, des modifications mineures sont encore en cours de développement.</p></div></div>
-<p>A l'occasion de la version 0.4.0 de OpenGateLLM (précédente version 0.3.7), nous avons décidé de reviser notre approche en nous basant sur les recommandations préconisées par Elasticsearch. Les principales modifications sont les suivantes :</p>
+            <description><![CDATA[Version 0.4.0 is not yet available in its stable release, with minor modifications still under development.]]></description>
+            <content:encoded><![CDATA[<div class="theme-admonition theme-admonition-warning admonition_xJq3 alert alert--warning"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>warning</div><div class="admonitionContent_BuS1"><p>Version 0.4.0 is not yet available in its stable release, with minor modifications still under development.</p></div></div>
+<p>With the release of OpenGateLLM version 0.4.0 (previous version 0.3.7), we have decided to revise our approach based on Elasticsearch's recommended best practices. The main changes are as follows:</p>
 <ul>
-<li>Dépréciation du support de Qdrant au profit d'Elasticsearch</li>
-<li>Fusion des index Elasticsearch dans un index unique</li>
-<li>Métadonnées pré-définies pour les documents</li>
+<li>Deprecation of Qdrant support in favor of Elasticsearch</li>
+<li>Consolidation of Elasticsearch indices into a single index</li>
+<li>Pre-defined metadata for documents</li>
 </ul>
-<p>Ces changements majeurs impliquent une migration des données de votre vector store, nous vous proposons ici un script de migration pour vous aider à mettre à jour votre instance.</p>
-<h2 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="préambule">Préambule<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#pr%C3%A9ambule" class="hash-link" aria-label="Direct link to Préambule" title="Direct link to Préambule">​</a></h2>
-<p>Actuellement, nous supportons deux technologies de vector store : Qdrant et Elasticsearch. Nous avons décidé il y a quelque mois de ce concentrer sur Elasticsearch pour la gestion de nos collections de documents. Nous revenons ici sur les raisons de ce choix.</p>
-<p>Cependant depuis quelques semaines nous avons constaté des difficultés de scalabilité avec Elasticsearch. Ces problèmes proviennent de la manière dont nous avons implémenté Elasticsearch dans OpenGateLLM. Pour résoudre ces problèmes, nous avons décidé de reviser notre approche, ce qui implique des changements majeurs et une migrations des données.</p>
-<p>A cet fin nous vous proposons ici de détailler les modifications que nous avons apportées et un script de migration pour vous aider à mettre à jour votre instance.</p>
-<h3 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="pourquoi-elasticsearch-plutôt-que-qdrant-">Pourquoi Elasticsearch plutôt que Qdrant ?<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#pourquoi-elasticsearch-plut%C3%B4t-que-qdrant-" class="hash-link" aria-label="Direct link to Pourquoi Elasticsearch plutôt que Qdrant ?" title="Direct link to Pourquoi Elasticsearch plutôt que Qdrant ?">​</a></h3>
-<p>En matière de Retrieval-Augmented Generation (RAG), il y a 3 méthodes de recherches classiques :</p>
+<p>These major changes require a data migration of your vector store. We provide a migration script here to help you update your instance.</p>
+<h2 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="introduction">Introduction<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#introduction" class="hash-link" aria-label="Direct link to Introduction" title="Direct link to Introduction">​</a></h2>
+<p>Currently, we support two vector store technologies: Qdrant and Elasticsearch. A few months ago, we decided to focus on Elasticsearch for managing our document collections. We revisit the reasons for this choice here.</p>
+<p>However, over the past few weeks, we have encountered scalability issues with Elasticsearch. These problems stem from how we implemented Elasticsearch in OpenGateLLM. To resolve these issues, we decided to revise our approach, which involves major changes and a data migration.</p>
+<p>To this end, we detail the modifications we have made and provide a migration script to help you update your instance.</p>
+<h3 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="why-elasticsearch-over-qdrant">Why Elasticsearch over Qdrant?<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#why-elasticsearch-over-qdrant" class="hash-link" aria-label="Direct link to Why Elasticsearch over Qdrant?" title="Direct link to Why Elasticsearch over Qdrant?">​</a></h3>
+<p>In Retrieval-Augmented Generation (RAG), there are 3 classic search methods:</p>
 <ul>
-<li>La recherche lexicale avec BM25 (TF-IDF)</li>
-<li>La recherche sémantique avec vector similarity</li>
-<li>La recherche hybride avec une combinaison des deux (algorithme de Reciprocal Rank Fusion (RRF) pour combiner les résultats)</li>
+<li>Lexical search with BM25 (TF-IDF)</li>
+<li>Semantic search with vector similarity</li>
+<li>Hybrid search combining both (using the Reciprocal Rank Fusion (RRF) algorithm to combine results)</li>
 </ul>
-<p>Nous cherchions a offrir ces 3 méthodes de recherche à nos utilisateurs. Initialement nous avions implémenté Qdrant pour la recherche sémantique en raison de sa scalabilité.</p>
-<p>Cependant en voulant ajouter la recherche lexicale et la recherche hybride, nous avons constaté que Qdrant ne supportait pas nativement ces méthodes. <a href="https://qdrant.tech/documentation/concepts/inference/" target="_blank" rel="noopener noreferrer">Leur approche</a> est basé sur le déploiement d'un modèle s'ajoutant au vector store.</p>
-<p>De plus, Elasticsearch excelle dans la recherche lexicale avec BM25 et permet nativement la mise en place de filtres complexes sur des champs spécifiques. Pour ces raisons, Elasticsearch nous semble une meilleure solution pour la recherche RAG.</p>
-<p>L'objectif d'OpenGateLLM est de supporter plusieurs solutions de vector store afin de vous laisser le choix de la technologie qui vous convient le mieux.</p>
-<h2 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="changements-majeurs">Changements majeurs<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#changements-majeurs" class="hash-link" aria-label="Direct link to Changements majeurs" title="Direct link to Changements majeurs">​</a></h2>
-<h3 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="fin-du-support-de-qdrant">Fin du support de Qdrant<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#fin-du-support-de-qdrant" class="hash-link" aria-label="Direct link to Fin du support de Qdrant" title="Direct link to Fin du support de Qdrant">​</a></h3>
-<p>Afin de nous concentrer sur un support d'Elasticsearch, nous avons décidé de déprécier le support de Qdrant. Cette décision a été prise après avoir interoger la communauté sur le sujet. En effet, il s'avère qu'actuellement personne n'a fait le choix de Qdrant pour leur instance d'OpenGateLLM.</p>
-<p>De plus, l'équipe d'OpenGateLLM ayant des ressources limitées, nous ne pouvons pas nous permettre de maintenir deux solutions de vector store pour le moment.</p>
-<p>Nous n'excluons pas de revenir sur cette décision dans le futur si la communauté nous le demande. De plus l'objectif reste de supporter plusieurs solutions de vector store à terme, dès lors que nous aurons les ressources nécessaires.</p>
-<h3 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="fusion-des-index-elasticsearch-dans-un-index-unique">Fusion des index Elasticsearch dans un index unique<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#fusion-des-index-elasticsearch-dans-un-index-unique" class="hash-link" aria-label="Direct link to Fusion des index Elasticsearch dans un index unique" title="Direct link to Fusion des index Elasticsearch dans un index unique">​</a></h3>
-<p>Actuellement pour chaque collection, OpenGateLLM crée un index Elasticsearch. Cette approche permet de gérer les collections de manière indépendante. Cependant, cela n'est pas optimale pour la scalabilité. En effet pas défaut ElastiSearch limite le nombre de shards (pour chaque index, ElasticSearch créer au moins un shard). La multiplication des index peut vite devenir dans ce contexteun goulot d'étranglement pour les performances.</p>
+<p>We sought to offer these 3 search methods to our users. Initially, we implemented Qdrant for semantic search due to its scalability.</p>
+<p>However, when wanting to add lexical and hybrid search, we found that Qdrant does not natively support these methods. <a href="https://qdrant.tech/documentation/concepts/inference/" target="_blank" rel="noopener noreferrer">Their approach</a> is based on deploying a model alongside the vector store.</p>
+<p>Additionally, Elasticsearch excels at lexical search with BM25 and natively enables complex filtering on specific fields. For these reasons, Elasticsearch seems like a better solution for RAG search.</p>
+<p>OpenGateLLM's goal is to support multiple vector store solutions to give you the choice of the technology that best suits your needs.</p>
+<h2 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="major-changes">Major Changes<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#major-changes" class="hash-link" aria-label="Direct link to Major Changes" title="Direct link to Major Changes">​</a></h2>
+<h3 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="end-of-qdrant-support">End of Qdrant Support<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#end-of-qdrant-support" class="hash-link" aria-label="Direct link to End of Qdrant Support" title="Direct link to End of Qdrant Support">​</a></h3>
+<p>To focus on Elasticsearch support, we have decided to deprecate Qdrant support. This decision was made after consulting the community on the subject. Indeed, it turns out that currently, no one has chosen Qdrant for their OpenGateLLM instance.</p>
+<p>Additionally, with the OpenGateLLM team having limited resources, we cannot afford to maintain two vector store solutions at this time.</p>
+<p>We do not rule out revisiting this decision in the future if the community requests it. Moreover, the goal remains to support multiple vector store solutions in the long term, once we have the necessary resources.</p>
+<h3 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="consolidation-of-elasticsearch-indices-into-a-single-index">Consolidation of Elasticsearch Indices into a Single Index<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#consolidation-of-elasticsearch-indices-into-a-single-index" class="hash-link" aria-label="Direct link to Consolidation of Elasticsearch Indices into a Single Index" title="Direct link to Consolidation of Elasticsearch Indices into a Single Index">​</a></h3>
+<p>Currently, OpenGateLLM creates an Elasticsearch index for each collection. This approach allows collections to be managed independently. However, this is not optimal for scalability. Indeed, by default, Elasticsearch limits the number of shards (for each index, Elasticsearch creates at least one shard). The multiplication of indices can quickly become a performance bottleneck in this context.</p>
 <blockquote>
 <p><em>A good rule-of-thumb is to ensure you keep the number of shards per node below 20 per GB heap it has configured. A node with a 30GB heap should therefore have a maximum of 600 shards, but the further below this limit you can keep it the better. <a href="https://www.elastic.co/blog/how-many-shards-should-i-have-in-my-elasticsearch-cluster" target="_blank" rel="noopener noreferrer">Source: How many shards should I have in my Elasticsearch cluster?</a></em></p>
 </blockquote>
-<p>Pour résoudre ce problème, nous avons décidé de fusionner tous les index Elasticsearch dans un index unique. Afin de migrer vos données, nous vous proposons un script de migration (voir <a href="https://docs.opengatellm.org/blog/0.4.0-release-note#script-de-migration">Script de migration</a>).</p>
-<h3 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="métadonnées-pré-définies-pour-les-documents">Métadonnées pré-définies pour les documents<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#m%C3%A9tadonn%C3%A9es-pr%C3%A9-d%C3%A9finies-pour-les-documents" class="hash-link" aria-label="Direct link to Métadonnées pré-définies pour les documents" title="Direct link to Métadonnées pré-définies pour les documents">​</a></h3>
-<p>Actuellement lors de la création d'un document, l'utilisateur peut définir des métadonnées pour le document. Il est libre de définir les métadonnées qu'il souhaite avec les types suivants : <code>int</code>, <code>str</code>, <code>float</code>, <code>datetime</code> ou <code>bool</code>.</p>
-<p>Cette ajout dynamique de métadonnée va rapidmeent poser problème avec la fusion des index dans un index unique. En effet, Elasticsearch n'est pas conçu pour supporter de manière optimale des milliers de champs sur un index. Cela risque de créer des problèmes de performances et de scalabilité. Une solution envisageable aurait été de définir des champs avec le type <code>flattened</code>. Cependant cette solution règle que partiellement le problème de performance et limite les actions de filtrage sur ces champs (ils sont alors stockés dans un seul champ et interpréter comme des <code>str</code>).</p>
-<p>Afin d'assurer la scalabilité de l'index Elasticsearch, nous avons décidé de pré-définir les métadonnées pour les documents. Cette approche d'éviter une surcharge de l'index par les métadonnées tout en gardant des fonctionnalités de filtre par type. Nous avons pré-défini les champs de métadonnées suivants :</p>
+<p>To solve this problem, we decided to consolidate all Elasticsearch indices into a single index. To migrate your data, we provide a migration script (see <a href="https://docs.opengatellm.org/blog/0.4.0-release-note#migration-script">Migration Script</a>).</p>
+<h3 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="pre-defined-metadata-for-documents">Pre-defined Metadata for Documents<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#pre-defined-metadata-for-documents" class="hash-link" aria-label="Direct link to Pre-defined Metadata for Documents" title="Direct link to Pre-defined Metadata for Documents">​</a></h3>
+<p>Currently, when creating a document, users can define metadata for the document. They are free to define any metadata they want with the following types: <code>int</code>, <code>str</code>, <code>float</code>, <code>datetime</code>, or <code>bool</code>.</p>
+<p>This dynamic addition of metadata will quickly become problematic with the consolidation of indices into a single index. Indeed, Elasticsearch is not designed to optimally support thousands of fields on an index. This risks creating performance and scalability issues. One possible solution would have been to define fields with the <code>flattened</code> type. However, this solution only partially solves the performance problem and limits filtering actions on these fields (they are then stored in a single field and interpreted as <code>str</code>).</p>
+<p>To ensure the scalability of the Elasticsearch index, we decided to pre-define metadata for documents. This approach avoids overloading the index with metadata while maintaining type-based filtering capabilities.</p>
+<p>These fields must meet two needs:</p>
+<ol>
+<li>To feed a filtering system that will be available in the next release;</li>
+<li>To enable source display in a user interface.</li>
+</ol>
+<p>To meet these two needs, we have pre-defined generic metadata fields useful for RAG search on textual data:</p>
+<table><thead><tr><th>Field</th><th>Type</th><th>Min length</th><th>Max length</th><th>Description</th></tr></thead><tbody><tr><td><code>source_ref</code></td><td><code>str</code></td><td><code>1</code></td><td><code>255</code></td><td>The document repository. This field is intentionally generic so it can be used to match the document ID in a repository or to concatenate chunk location information in the source document (e.g., <code>doc-1#section-1#paragraph-1</code>).</td></tr><tr><td><code>source_url</code></td><td><code>str</code></td><td><code>1</code></td><td><code>255</code></td><td>The document URL. This field is used to display the document in a user interface (web search, S3, etc.).</td></tr><tr><td><code>source_type</code></td><td><code>str</code></td><td><code>1</code></td><td><code>255</code></td><td>The document type (e.g., <code>report</code>, <code>article</code>, <code>book</code>, <code>website</code>, etc.). Types are left to the user's discretion.</td></tr><tr><td><code>source_page</code></td><td><code>int</code></td><td><code>0</code></td><td><code>9999</code></td><td>The document page number. This field is used to display the document page in a user interface. This value will be automatically inferred if not defined by the user and if possible (<code>pdf</code>, <code>ppt</code>, <code>doc</code>, etc.).</td></tr><tr><td><code>source_format</code></td><td><code>str</code></td><td><code>1</code></td><td><code>255</code></td><td>The document format (e.g., <code>pdf</code>, <code>html</code>, <code>md</code>, <code>txt</code>). It is automatically inferred from the file type if not defined.</td></tr><tr><td><code>source_title</code></td><td><code>str</code></td><td><code>1</code></td><td><code>255</code></td><td>The document title.</td></tr><tr><td><code>source_author</code></td><td><code>str</code></td><td><code>1</code></td><td><code>255</code></td><td>The document author.</td></tr><tr><td><code>source_publisher</code></td><td><code>str</code></td><td><code>1</code></td><td><code>255</code></td><td>The document publisher.</td></tr><tr><td><code>source_priority</code></td><td><code>int</code></td><td><code>1</code></td><td><code>10</code></td><td>The document priority. This priority has no effect on search results at the moment. It can be used by the user to reclassify search results afterward.</td></tr><tr><td><code>source_tags</code></td><td><code>list[str]</code></td><td><code>0</code></td><td><code>10</code></td><td>The document tags. These tags generally correspond to the document topics. They can be automatically added with a topic modeling model by the user.</td></tr><tr><td><code>source_date</code></td><td><code>datetime</code></td><td><code>1</code></td><td><code>255</code></td><td>This temporal field is intentionally generic so it can store any date relative to the document that the user deems relevant.</td></tr></tbody></table>
+<p>We have not defined a <code>source_language</code> field because multilingual search is not yet supported. We plan to add it if the need is raised in the future.</p>
+<h2 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="other-changes">Other Changes<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#other-changes" class="hash-link" aria-label="Direct link to Other Changes" title="Direct link to Other Changes">​</a></h2>
+<h3 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="fixes">Fixes<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#fixes" class="hash-link" aria-label="Direct link to Fixes" title="Direct link to Fixes">​</a></h3>
 <ul>
 <li>
-<p><code>source_ref</code> (str 1-255)</p>
-<p>Correspond au référentiel du document. Ce champ est volontairement générique pour qu'il puisse être utilisé pour correspondre à l'ID du document dans un référentiel ou servir à concaténer les informations de localisation du chunk dans le document source (ex: <code>doc-1#page-1#section-1</code>).</p>
-</li>
-<li>
-<p><code>source_url</code> (str 1-255)</p>
-</li>
-<li>
-<p><code>source_title</code> : Le titre du document</p>
-</li>
-<li>
-<p><code>source_author</code> : L'auteur du document</p>
-</li>
-<li>
-<p><code>source_publisher</code> : Le publisher du document</p>
-</li>
-<li>
-<p><code>source_priority</code> : La priorité du document</p>
-</li>
-<li>
-<p><code>source_tags</code> : Les tags du document</p>
-</li>
-<li>
-<p><code>source_date</code> (datetime) : La date du document</p>
-</li>
-</ul>
-<p>Ces champs nous semblent génériques et utiles pour de la recherche RAG sur des données textuelles.</p>
-<h2 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="autres-changements">Autres changements<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#autres-changements" class="hash-link" aria-label="Direct link to Autres changements" title="Direct link to Autres changements">​</a></h2>
+<p>Fixed minor bugs in the Playground:</p>
 <ul>
-<li>
-<p>Correction de bugs mineurs sur le Playground :</p>
-<ul>
-<li>Formatage de la date d'expiration des utilisateurs</li>
-<li>Suppression de l'ancien type de collection ID</li>
-<li>Tri et filtres sur les pages Router et Provider</li>
-<li>Suppression de tous les rôles et organisations pour la création d'utilisateurs</li>
+<li>User expiration date formatting</li>
+<li>Removal of the old collection ID type</li>
+<li>Sorting and filters on Router and Provider pages</li>
+<li>Removal of all roles and organizations for user creation</li>
 </ul>
 </li>
 <li>
-<p>Correction du support des modèles d'audio transcription avec vLLM et Albert API</p>
+<p>Fixed support for the <code>language</code> parameter for audio transcription models with vLLM and Albert API so it can be empty.</p>
 </li>
 </ul>
-<h2 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="script-de-migration">Script de migration<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#script-de-migration" class="hash-link" aria-label="Direct link to Script de migration" title="Direct link to Script de migration">​</a></h2>
-<p>[WIP]</p>
-<div class="theme-admonition theme-admonition-warning admonition_xJq3 alert alert--warning"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>warning</div><div class="admonitionContent_BuS1"><p>La migration des données va supprimer les métadonnées personnalisées des documents. Si vous souhaitez les conserver nous vous invitons à migrer vos données manuellement.</p></div></div>]]></content:encoded>
+<h3 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="improvements">Improvements<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#improvements" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements">​</a></h3>
+<ul>
+<li>Improved code readability for form data request declarations.</li>
+<li>Return of the <code>usage</code> key in stream responses from <code>/v1/chat/completions</code> even if the stream does not end with the <code>[DONE]</code> token.</li>
+</ul>
+<h2 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="migration-script">Migration Script<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#migration-script" class="hash-link" aria-label="Direct link to Migration Script" title="Direct link to Migration Script">​</a></h2>
+<div class="theme-admonition theme-admonition-warning admonition_xJq3 alert alert--warning"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>warning</div><div class="admonitionContent_BuS1"><p>The data migration will delete custom metadata from documents. If you wish to preserve them, we invite you to migrate your data manually.</p></div></div>
+<p>If you are running OpenGateLLM on an existing Elasticsearch instance, we invite you to use the migration script to migrate your data. Find the migration script in the <a href="https://github.com/etalab-ia/OpenGateLLM/blob/main/adr/2026-01-30-es-scaling.md#migration-script" target="_blank" rel="noopener noreferrer">GitHub repository</a>.</p>]]></content:encoded>
             <category>RAG</category>
             <category>Elasticsearch</category>
         </item>
