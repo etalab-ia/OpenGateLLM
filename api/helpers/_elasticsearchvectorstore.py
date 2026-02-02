@@ -67,6 +67,9 @@ class ElasticsearchVectorStore:
                 # document source properties
                 "source_ref": {"type": "keyword"},
                 "source_url": {"type": "keyword"},
+                "source_type": {"type": "keyword"},
+                "source_page": {"type": "integer"},
+                "source_format": {"type": "keyword"},
                 "source_title": {"type": "keyword"},
                 "source_author": {"type": "keyword"},
                 "source_publisher": {"type": "keyword"},
@@ -153,20 +156,7 @@ class ElasticsearchVectorStore:
                 Chunk(
                     id=hit["_source"]["id"],
                     content=hit["_source"]["content"],
-                    metadata=ChunkMetadata(
-                        collection_id=hit["_source"]["collection_id"],
-                        document_id=hit["_source"]["document_id"],
-                        document_name=hit["_source"]["document_name"],
-                        created=hit["_source"]["created"],
-                        source_ref=hit["_source"]["source_ref"],
-                        source_url=hit["_source"]["source_url"],
-                        source_title=hit["_source"]["source_title"],
-                        source_author=hit["_source"]["source_author"],
-                        source_publisher=hit["_source"]["source_publisher"],
-                        source_priority=hit["_source"]["source_priority"],
-                        source_tags=hit["_source"]["source_tags"],
-                        source_date=hit["_source"]["source_date"],
-                    ),
+                    metadata=ChunkMetadata.from_elasticsearch(hit),
                 )
             )
         return chunks
@@ -189,6 +179,9 @@ class ElasticsearchVectorStore:
                     "embedding": chunk.embedding,
                     "source_ref": chunk.source_ref,
                     "source_url": chunk.source_url,
+                    "source_type": chunk.source_type,
+                    "source_page": chunk.source_page,
+                    "source_format": chunk.source_format,
                     "source_title": chunk.source_title,
                     "source_author": chunk.source_author,
                     "source_publisher": chunk.source_publisher,
@@ -283,20 +276,7 @@ class ElasticsearchVectorStore:
                 chunk=Chunk(
                     id=hit["_source"]["id"],
                     content=hit["_source"]["content"],
-                    metadata=ChunkMetadata(
-                        collection_id=hit["_source"]["collection_id"],
-                        document_id=hit["_source"]["document_id"],
-                        document_name=hit["_source"]["document_name"],
-                        created=hit["_source"]["created"],
-                        source_ref=hit["_source"]["source_ref"],
-                        source_url=hit["_source"]["source_url"],
-                        source_title=hit["_source"]["source_title"],
-                        source_author=hit["_source"]["source_author"],
-                        source_publisher=hit["_source"]["source_publisher"],
-                        source_priority=hit["_source"]["source_priority"],
-                        source_tags=hit["_source"]["source_tags"],
-                        source_date=hit["_source"]["source_date"],
-                    ),
+                    metadata=ChunkMetadata.from_elasticsearch(hit),
                 ),
             )
             for hit in hits
@@ -338,20 +318,7 @@ class ElasticsearchVectorStore:
                 chunk=Chunk(
                     id=hit["_source"]["id"],
                     content=hit["_source"]["content"],
-                    metadata=ChunkMetadata(
-                        collection_id=hit["_source"]["collection_id"],
-                        document_id=hit["_source"]["document_id"],
-                        document_name=hit["_source"]["document_name"],
-                        created=hit["_source"]["created"],
-                        source_ref=hit["_source"]["source_ref"],
-                        source_url=hit["_source"]["source_url"],
-                        source_title=hit["_source"]["source_title"],
-                        source_author=hit["_source"]["source_author"],
-                        source_publisher=hit["_source"]["source_publisher"],
-                        source_priority=hit["_source"]["source_priority"],
-                        source_tags=hit["_source"]["source_tags"],
-                        source_date=hit["_source"]["source_date"],
-                    ),
+                    metadata=ChunkMetadata.from_elasticsearch(hit),
                 ),
             )
             for hit in hits

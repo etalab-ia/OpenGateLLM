@@ -190,6 +190,9 @@ class DocumentManager:
         # get document name
         document_name = file.filename
 
+        # get document format
+        # @TODO: implement after type detection refactoring
+
         # parse the file
         try:
             content = await self.parser_manager.parse(file=file)

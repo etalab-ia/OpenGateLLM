@@ -5,6 +5,7 @@ import gc
 import logging
 import math
 import os
+import random
 import time
 from typing import Any
 
@@ -17,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.schemas.core.elasticsearch import ElasticsearchChunkFields, ElasticsearchIndexLanguage
 from api.sql.models import Collection as CollectionTable
+from api.sql.models import Document as DocumentTable
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s - %(message)s", datefmt="%y:%m:%d %H:%M:%S")
 logger = logging.getLogger(__name__)
@@ -69,6 +71,13 @@ class PostgreSQL:
 
         return collections
 
+    async def get_documents(self, collection_id: str):
+        async with self.engine.connect() as connection:
+            query = select(DocumentTable.id).where(DocumentTable.collection_id == collection_id)
+            result = await connection.execute(query)
+
+        return [document[0] for document in result.fetchall()]
+
 
 class ElasticSearchSource:
     def __init__(self, url: str, username: str, password: str):
@@ -93,6 +102,26 @@ class ElasticSearchSource:
 
         collections = sorted(collections, key=lambda i: i.id)
         return collections
+
+    async def get_chunks(self, collection_id: int, document_id: int, offset: int = 0, limit: int = 1000):
+        query = {"bool": {"must": [{"terms": {"metadata.document_id": [document_id]}}]}}
+        chunks = []
+        results = await self.client.search(index=str(collection_id), query=query, size=limit, from_=offset)
+        chunks = [
+            ElasticsearchChunkFields(
+                id=hit["_source"].get("id", 0),
+                collection_id=collection_id,
+                document_id=hit["_source"]["metadata"]["document_id"],
+                content=hit["_source"]["content"],
+                embedding=hit["_source"]["embedding"],
+                document_name=hit["_source"]["metadata"].get("document_name"),
+                created=hit["_source"]["metadata"].get("document_created", hit["_source"]["metadata"].get("document_created_at", int(time.time()))),
+            )
+            for hit in results["hits"]["hits"]
+        ]
+
+        chunks = sorted(chunks, key=lambda chunk: chunk.id)
+        return chunks
 
 
 class ElasticSearchDestination:
@@ -159,26 +188,24 @@ class ElasticSearchDestination:
 
         return collections
 
+    async def get_chunks(self, collection_id: int, document_id: int, offset: int = 0, limit: int = 1000):
+        results = await self.client.search(
+            index=self.index_name,
+            query={
+                "bool": {
+                    "must": [
+                        {"term": {"collection_id": collection_id}},
+                        {"term": {"document_id": document_id}},
+                    ]
+                }
+            },
+            size=limit,
+            from_=offset,
+        )
+        chunks = [ElasticsearchChunkFields(**hit["_source"]) for hit in results["hits"]["hits"]]
 
-class BufferedLogger:
-    def __init__(self, collection_id: int, total_collections: int):
-        self.buffer = []
-        self.pid = os.getpid()
-        self.collection_id = collection_id
-        self.total_collections = total_collections
-
-    def log(self, message: str, i: int):
-        prefix = f"[{self.pid}][{self.collection_id}][{i}/{self.total_collections}]\t"
-        msg = str(message)
-        if msg.startswith("\n"):
-            msg = msg.lstrip("\n")
-        self.buffer.append(f"{prefix} {msg}")
-
-    def flush(self, newline: bool = True):
-        if self.buffer:
-            logger.info("") if newline else None
-            logger.info("\n".join(self.buffer))
-            self.buffer = []
+        chunks = sorted(chunks, key=lambda chunk: chunk.id)
+        return chunks
 
 
 # ============================== FUNCTIONS ==============================
@@ -197,8 +224,6 @@ async def core_migration_logic(
         collection_chunk_counter = 0
         scroll_id = None
         try:
-            logger.info(f"[{pid}][{i}/{total_collections}][{collection.id}]\tstarting to fetch chunks from source collection...")
-
             # Initialize scroll
             results = await es_source.client.search(index=collection.index, size=10000, scroll="5m", body={"query": {"match_all": {}}})
             scroll_id = results.get("_scroll_id")
@@ -237,14 +262,13 @@ async def core_migration_logic(
                 scroll_id = results.get("_scroll_id")
 
         except Exception as e:
-            logger.exception(f"  Error processing during migration (collection {collection.index}): {e}")
+            logger.exception(f"[{pid}][{i}/{total_collections}][{collection.id}]\terror processing during migration: {e}")
         finally:
-            # Clear scroll context
             if scroll_id:
                 try:
                     await es_source.client.clear_scroll(scroll_id=scroll_id)
                 except Exception:
-                    pass  # Ignore errors when clearing scroll
+                    pass
 
         gc.collect()
 
@@ -284,22 +308,31 @@ async def migrate(config: Config, es_source: ElasticSearchSource, es_destination
     logger.info(f"{len(source_collections)} collections are available in the source Elasticsearch cluster")
 
     destination_collections = await es_destination.get_collections()
-    migration_collections = []
+    collections_to_migrate = []
+    collections_to_skip = 0
     for source_collection in source_collections:
         migrated = False
+        if source_collection.chunks == 0:
+            collections_to_skip += 1
+            continue
         for destination_collection in destination_collections:
             if source_collection.id == destination_collection.id and source_collection.chunks == destination_collection.chunks:
                 migrated = True
+                collections_to_skip += 1
                 break
         if not migrated:
-            migration_collections.append(source_collection)
-    logger.info(f"{len(migration_collections)} collections will be migrated")
+            collections_to_migrate.append(source_collection)
+    logger.info(f"{len(collections_to_migrate)} collections will be migrated")
+    logger.info(f"{collections_to_skip} collections will be skipped (already migrated)")
+
+    if not collections_to_migrate:
+        return
 
     # run migration
     num_processes = int(os.cpu_count() / 4 * 3) or 1
 
-    chunk_size = math.ceil(len(migration_collections) / num_processes)
-    batches = [migration_collections[i : i + chunk_size] for i in range(0, len(migration_collections), chunk_size)]
+    chunk_size = math.ceil(len(collections_to_migrate) / num_processes)
+    batches = [collections_to_migrate[i : i + chunk_size] for i in range(0, len(collections_to_migrate), chunk_size)]
 
     with ProcessPoolExecutor(max_workers=num_processes) as executor:
         futures = [executor.submit(process_migration_batch, config, batch) for batch in batches]
@@ -311,6 +344,58 @@ async def migrate(config: Config, es_source: ElasticSearchSource, es_destination
                 raise e
             finally:
                 future.cancel()
+
+
+async def sanity_check(psql: PostgreSQL, es_source: ElasticSearchSource, es_destination: ElasticSearchDestination):
+    chunk_counts, check_counter = 0, 0
+    collections = await es_source.get_collections()
+    for collection in collections:
+        chunk_counts += collection.chunks
+
+    random.shuffle(collections)
+    max_checks = int(chunk_counts * 0.1)  # check 10% of the chunks
+    logger.info(f"Starting sanity check, evaluating 10% of the source chunks ({max_checks} chunks)...")
+
+    for collection in collections:
+        documents = await psql.get_documents(collection_id=collection.id)
+        if len(documents) == 0:
+            continue
+
+        if check_counter > max_checks:
+            logger.info(f"Sanity check completed for {check_counter} chunks, stopping.")
+            break
+
+        documents = random.sample(documents, k=min(100, len(documents)))
+        logger.info(f"[{check_counter}/{max_checks}]\tChecking\t{len(documents):>10} documents\tcollection {collection.id:>10}")
+        for document_id in documents:
+            source_chunks = await es_source.get_chunks(collection_id=collection.id, document_id=document_id)
+            check_counter += len(source_chunks)
+            destination_chunks = await es_destination.get_chunks(collection_id=collection.id, document_id=document_id)
+            if len(source_chunks) != len(destination_chunks):
+                logger.error(f"Collection {collection.id} has {len(source_chunks)} chunks in the source and {len(destination_chunks)} chunks in the destination (document {document_id})")  # fmt: off
+                continue
+
+            mapping = {obj.id: obj for obj in destination_chunks}
+            zipped = [(a, mapping[a.id]) for a in source_chunks if a.id in mapping]
+            if len(source_chunks) == 0:
+                continue
+            for source_chunk, destination_chunk in zipped:
+                if source_chunk.id != destination_chunk.id:
+                    logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same ID ({source_chunk.id} != {destination_chunk.id})")  # fmt: off
+                if source_chunk.collection_id != destination_chunk.collection_id:
+                    logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same collection ID ({source_chunk.collection_id} != {destination_chunk.collection_id})")  # fmt: off
+                if source_chunk.document_id != destination_chunk.document_id:
+                    logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same document ID ({source_chunk.document_id} != {destination_chunk.document_id})")  # fmt: off
+                if source_chunk.content != destination_chunk.content:
+                    logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same content)")  # fmt: off
+                if source_chunk.embedding != destination_chunk.embedding:
+                    logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same embedding")  # fmt: off
+                if source_chunk.document_name != destination_chunk.document_name:
+                    logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same document name ({source_chunk.document_name} != {destination_chunk.document_name})")  # fmt: off
+                if source_chunk.created != destination_chunk.created:
+                    logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same created ({source_chunk.created} != {destination_chunk.created})")  # fmt: off
+
+    logger.info(f"Sanity check completed for {check_counter} chunks")
 
 
 async def main():
@@ -338,9 +423,10 @@ async def main():
     )
     try:
         await migrate(config=config, es_source=es_source, es_destination=es_destination, psql=psql)
-        logger.info("\nMigration successfully completed!\n")
+        logger.info("Migration successfully completed!")
+        await sanity_check(psql=psql, es_source=es_source, es_destination=es_destination)
     except Exception as e:
-        logger.error(f"Migration failed: {e}")
+        logger.exception(f"Migration failed: {e}")
     finally:
         await psql.engine.dispose()
         await es_source.client.close()
