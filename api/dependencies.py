@@ -4,7 +4,6 @@ from contextvars import ContextVar
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.clients.model import BaseModelProvider
 from api.domain.key import KeyRepository
 from api.infrastructure.postgres import PostgresKeyRepository, PostgresRouterRepository, PostgresUserInfoRepository
 from api.schemas.core.context import RequestContext
@@ -69,90 +68,3 @@ def get_key_repository(postgres_session: AsyncSession = Depends(get_postgres_ses
 
 def get_master_key() -> str:
     return configuration.settings.auth_master_key
-
-
-def get_model_provider_factory():
-    """
-    Get the ModelProviderClientFactory instance.
-
-    This is a singleton factory used to create model provider clients.
-
-    Returns:
-        ModelProviderClientFactory: The factory instance.
-
-    Example:
-        >>> from api.clients.model import BaseModelProvider
-        >>> from api.schemas.admin.providers import ProviderType
-        >>>
-        >>> @app.get("/test")
-        >>> async def test(factory = Depends(get_model_provider_factory)):
-        ...     provider = factory.create(
-        ...         provider_type=ProviderType.OPENAI,
-        ...         url="https://api.openai.com",
-        ...         key="sk-...",
-        ...         timeout=30,
-        ...         model_name="gpt-4",
-        ...     )
-        ...     return {"provider": provider.name}
-    """
-    from api.clients.model import ModelProviderClientFactory
-
-    return ModelProviderClientFactory
-
-
-def create_model_provider(
-    provider_type: str,
-    url: str,
-    key: str | None,
-    timeout: int,
-    model_name: str,
-    model_carbon_footprint_zone: str | None = None,
-    model_carbon_footprint_total_params: int | None = None,
-    model_carbon_footprint_active_params: int | None = None,
-) -> BaseModelProvider:
-    """
-    Dependency injection helper to create a model provider client.
-
-    This function wraps ModelProviderClientFactory.create() and can be used
-    directly in FastAPI dependency injection.
-
-    Args:
-        provider_type: Type of provider (e.g., "openai", "mistral")
-        url: Base URL of the provider API
-        key: API key (optional)
-        timeout: Request timeout in seconds
-        model_name: Name of the model
-        model_carbon_footprint_zone: Zone for carbon calculation
-        model_carbon_footprint_total_params: Total params
-        model_carbon_footprint_active_params: Active params
-
-    Returns:
-        A model provider client instance
-
-    Example:
-        This can be used in endpoints that need a provider client:
-
-        >>> @app.post("/forward")
-        >>> async def forward_request(
-        ...     request: RequestBody,
-        ...     provider = Depends(create_model_provider),
-        ... ):
-        ...     response = await provider.forward_request(...)
-        ...     return response
-    """
-    from api.clients.model import ModelProviderClientFactory
-    from api.schemas.admin.providers import ProviderType
-
-    if isinstance(provider_type, str):
-        provider_type = ProviderType(provider_type)
-
-    return ModelProviderClientFactory.create(
-        provider_type=provider_type,
-        url=url,
-        key=key,
-        timeout=timeout,
-        model_name=model_name,
-        model_carbon_footprint_zone=model_carbon_footprint_zone,
-        model_carbon_footprint_total_params=model_carbon_footprint_total_params,
-        model_carbon_footprint_active_params=model_carbon_footprint_active_params,
-    )
