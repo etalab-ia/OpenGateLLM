@@ -1,4 +1,4 @@
-# ADR-001: Migration to Clean Architecture
+# ADR- 2026-01-07 - Migration to Clean Architecture
 
 **Status:** In Progress
 **Date:** 2026-01-07
@@ -309,6 +309,6 @@ pytest api/tests/integration --cov=api --cov-report=html --cov-report=term-missi
 
 ## Revision History
 
-| Date       | Author           | Changes                              |
-|------------|------------------|--------------------------------------|
-| 2025-01-07 | Development Team | Initial ADR based on GetModelsUseCase migration |
+| Date | Author | Changes |
+| --- | --- | --- |
+| 2026-01-07 | Development Team | Initial ADR based on GetModelsUseCase migration |

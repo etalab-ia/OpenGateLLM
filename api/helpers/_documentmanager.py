@@ -15,12 +15,12 @@ from api.clients.model import BaseModelProvider as ModelProvider
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers.data.chunkers import NoSplitter, RecursiveCharacterTextSplitter
 from api.helpers.models import ModelRegistry
-from api.schemas.chunks import Chunk
+from api.schemas.chunks import Chunk, ChunkMetadata
 from api.schemas.collections import Collection, CollectionVisibility
 from api.schemas.core.context import RequestContext
-from api.schemas.core.elasticsearch import ElasticsearchChunkFields
+from api.schemas.core.elasticsearch import ElasticsearchChunk
 from api.schemas.core.models import RequestContent
-from api.schemas.documents import Chunker, Document, InputChunkMetadata
+from api.schemas.documents import Chunker, Document
 from api.schemas.search import Search, SearchMethod
 from api.sql.models import Collection as CollectionTable
 from api.sql.models import Document as DocumentTable
@@ -167,7 +167,7 @@ class DocumentManager:
         elasticsearch_client: AsyncElasticsearch,
         collection_id: int,
         file: UploadFile,
-        metadata: InputChunkMetadata,
+        metadata: ChunkMetadata | None,
         chunker: Chunker,
         chunk_size: int,
         chunk_overlap: int,
@@ -460,7 +460,7 @@ class DocumentManager:
         collection_id: int,
         document_id: int,
         document_name: str,
-        metadata: InputChunkMetadata,
+        metadata: ChunkMetadata | None,
         redis_client: AsyncRedis,
         postgres_session: AsyncSession,
         model_registry: ModelRegistry,
@@ -475,35 +475,23 @@ class DocumentManager:
             request_context=request_context,
             redis_client=redis_client,
         )
-
-        chunks_batches = batched(iterable=chunks, n=self.BATCH_SIZE)
-        for chunks_batch in chunks_batches:
-            # create embeddings
-            embeddings = await self._create_embeddings(provider=provider, input_texts=chunks_batch, redis_client=redis_client)
-
-            i = 0
-            elasticsearch_chunks = list()
-            for chunk, embedding in zip(chunks_batch, embeddings):
-                elasticsearch_chunks.append(
-                    ElasticsearchChunkFields(
+        i = 0
+        batches = batched(iterable=chunks, n=self.BATCH_SIZE)
+        for batch in batches:
+            batch_chunks = []
+            embeddings = await self._create_embeddings(provider=provider, input_texts=batch, redis_client=redis_client)
+            for content, embedding in zip(batch, embeddings):
+                batch_chunks.append(
+                    ElasticsearchChunk(
                         id=i,
                         collection_id=collection_id,
                         document_id=document_id,
                         document_name=document_name,
-                        content=chunk,
+                        content=content,
                         embedding=embedding,
+                        metadata=metadata,
                         created=datetime.now(),
-                        source_ref=metadata.source_ref,
-                        source_url=metadata.source_url,
-                        source_title=metadata.source_title,
-                        source_format=metadata.source_format,
-                        source_author=metadata.source_author,
-                        source_publisher=metadata.source_publisher,
-                        source_priority=metadata.source_priority,
-                        source_tags=metadata.source_tags,
-                        source_date=metadata.source_date,
                     )
                 )
                 i += 1
-            # insert chunks and vectors
-            await elasticsearch_vector_store.upsert(client=elasticsearch_client, chunks=elasticsearch_chunks)
+            await elasticsearch_vector_store.upsert(client=elasticsearch_client, chunks=batch_chunks)

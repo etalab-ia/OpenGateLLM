@@ -48,6 +48,104 @@ class TestDocuments:
 
         assert response.status_code == 201, response.text
 
+    def test_post_document_empty_metadata(self, client: TestClient, collection):
+        file_path = "api/tests/integ/assets/pdf.pdf"
+
+        data = {  # with metadata
+            "collection": str(collection),
+            "output_format": "markdown",
+            "force_ocr": "false",
+            "chunk_size": "1000",
+            "chunk_overlap": "200",
+            "use_llm": "false",
+            "paginate_output": "false",
+            "chunker": "RecursiveCharacterTextSplitter",
+            "chunk_min_size": "0",
+            "is_separator_regex": "false",
+        }
+
+        with open(file_path, "rb") as file:
+            files = {"file": (os.path.basename(file_path), file, "application/pdf")}
+            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            file.close()
+
+        assert response.status_code == 201, response.text
+
+        data["metadata"] = ""
+
+        with open(file_path, "rb") as file:
+            files = {"file": (os.path.basename(file_path), file, "application/pdf")}
+            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            file.close()
+
+        assert response.status_code == 201, response.text
+
+        data["metadata"] = None
+
+        with open(file_path, "rb") as file:
+            files = {"file": (os.path.basename(file_path), file, "application/pdf")}
+            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            file.close()
+
+        assert response.status_code == 201, response.text
+
+        data["metadata"] = "{}"
+
+        with open(file_path, "rb") as file:
+            files = {"file": (os.path.basename(file_path), file, "application/pdf")}
+            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            file.close()
+
+        assert response.status_code == 422, response.text
+
+    def test_post_document_invalid_metadata_malformed(self, client: TestClient, collection):
+        file_path = "api/tests/integ/assets/pdf.pdf"
+
+        data = {  # with metadata
+            "collection": str(collection),
+            "output_format": "markdown",
+            "force_ocr": "false",
+            "chunk_size": "1000",
+            "chunk_overlap": "200",
+            "use_llm": "false",
+            "paginate_output": "false",
+            "chunker": "RecursiveCharacterTextSplitter",
+            "chunk_min_size": "0",
+            "is_separator_regex": "false",
+            "metadata": "{test}",
+        }
+
+        with open(file_path, "rb") as file:
+            files = {"file": (os.path.basename(file_path), file, "application/pdf")}
+            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            file.close()
+
+        assert response.status_code == 422, response.text
+
+    def test_post_document_invalid_metadata_str_too_long(self, client: TestClient, collection):
+        file_path = "api/tests/integ/assets/pdf.pdf"
+
+        data = {  # with metadata
+            "collection": str(collection),
+            "output_format": "markdown",
+            "force_ocr": "false",
+            "chunk_size": "1000",
+            "chunk_overlap": "200",
+            "use_llm": "false",
+            "paginate_output": "false",
+            "chunker": "RecursiveCharacterTextSplitter",
+            "chunk_min_size": "0",
+            "is_separator_regex": "false",
+            "metadata": json.dumps({"source_title": "o" * 300}),
+        }
+
+        with open(file_path, "rb") as file:
+            files = {"file": (os.path.basename(file_path), file, "application/pdf")}
+            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            file.close()
+
+        assert response.status_code == 422, response.text
+
     def test_get_documents(self, client: TestClient, collection):
         # Create document
         file_path = "api/tests/integ/assets/pdf.pdf"
@@ -64,7 +162,6 @@ class TestDocuments:
             "length_function": "len",
             "chunk_min_size": "0",
             "is_separator_regex": "false",
-            "metadata": json.dumps({}),
         }
 
         with open(file_path, "rb") as file:

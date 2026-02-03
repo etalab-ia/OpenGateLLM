@@ -1,5 +1,4 @@
 from contextvars import ContextVar
-from datetime import datetime
 from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock
 
@@ -10,12 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import Headers
 
 from api.helpers._documentmanager import DocumentManager
-from api.schemas.chunks import Chunk, ChunkMetadata
+from api.schemas.chunks import Chunk
 from api.schemas.collections import CollectionVisibility
 from api.schemas.core.context import RequestContext
-from api.schemas.documents import Chunker, InputChunkMetadata
+from api.schemas.documents import Chunker
 from api.schemas.me.info import UserInfo
-from api.schemas.parse import ParsedDocument, ParsedDocumentMetadata, ParsedDocumentPage
 from api.schemas.usage import Usage
 from api.utils.exceptions import (
     ChunkingFailedException,
@@ -48,7 +46,7 @@ async def test_create_document_collection_no_longer_exists():
     mock_collection_result = MagicMock()
     mock_collection_result.scalar_one.side_effect = NoResultFound()
     mock_session.execute.return_value = mock_collection_result
-    mock_metadata = InputChunkMetadata(source_tags=["test", "test2"], source_title="Test document")
+    mock_metadata = {"source_tags": ["test", "test2"], "source_title": "Test document"}
     mock_file = create_upload_file("#Test document content", "sample.md", "text/markdown")
     mock_redis_client = AsyncMock()
     mock_model_registry = AsyncMock()
@@ -351,7 +349,7 @@ async def test_create_document_success(monkeypatch):
     document_manager._upsert = AsyncMock()
 
     mock_file = create_upload_file("Test content", "test.txt", "text/plain")
-    mock_metadata = InputChunkMetadata(source_tags=["test"])
+    mock_metadata = {"source_tags": ["test"]}
     mock_redis = AsyncMock()
     mock_model_registry = AsyncMock()
     mock_request_context_obj = RequestContext(
@@ -365,7 +363,7 @@ async def test_create_document_success(monkeypatch):
     )
     mock_request_context = ContextVar("test_request_context", default=mock_request_context_obj)
     mock_request_context.set(mock_request_context_obj)
-    
+
     document_id = await document_manager.create_document(
         postgres_session=mock_session,
         redis_client=mock_redis,
@@ -613,16 +611,8 @@ async def test_get_chunks_success():
 
     # Mock chunks returned from Elasticsearch
     mock_chunks = [
-        Chunk(
-            id=1,
-            metadata=ChunkMetadata(collection_id=123, document_id=456, document_name="test.txt", created=datetime.fromtimestamp(1700000000)),
-            content="chunk 1",
-        ),
-        Chunk(
-            id=2,
-            metadata=ChunkMetadata(collection_id=123, document_id=456, document_name="test.txt", created=datetime.fromtimestamp(1700000000)),
-            content="chunk 2",
-        ),
+        Chunk(id=1, collection=123, document=456, document_name="test.txt", metadata={"my_tags": ["tag1", "tag2"]}, content="chunk 1"),
+        Chunk(id=2, collection=123, document=456, document_name="test.txt", metadata={"my_tags": ["tag1", "tag2"]}, content="chunk 2"),
     ]
     mock_elasticsearch_vector_store.get_chunks = AsyncMock(return_value=mock_chunks)
 
@@ -887,7 +877,7 @@ async def test_create_document_parsing_fails():
     document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
 
     mock_file = create_upload_file("Test content", "test.txt", "text/plain")
-    mock_metadata = InputChunkMetadata(source_tags=["test"])
+    mock_metadata = {"source_tags": ["test"]}
 
     mock_request_context_obj = RequestContext(
         id="123",
@@ -942,7 +932,7 @@ async def test_create_document_empty_chunks():
     document_manager._split = MagicMock(return_value=[])
 
     mock_file = create_upload_file("Test content", "test.txt", "text/plain")
-    mock_metadata = InputChunkMetadata(source_tags=["test"])
+    mock_metadata = {"source_tags": ["test"]}
 
     mock_request_context_obj = RequestContext(
         id="123",
@@ -1012,7 +1002,7 @@ async def test_create_document_vectorization_fails(monkeypatch):
     document_manager._upsert = AsyncMock(side_effect=Exception("Vectorization error"))
 
     mock_file = create_upload_file("Test content", "test.txt", "text/plain")
-    mock_metadata = InputChunkMetadata(source_tags=["test"])
+    mock_metadata = {"source_tags": ["test"]}
 
     mock_request_context_obj = RequestContext(
         id="123",

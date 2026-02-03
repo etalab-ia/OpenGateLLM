@@ -16,7 +16,6 @@ from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
 from api.schemas.core.documents import JsonFile
-from api.schemas.documents import InputChunkMetadata
 from api.schemas.files import ChunkerArgs, FileResponse, FilesRequest
 from api.utils.context import global_context
 from api.utils.dependencies import (
@@ -113,7 +112,7 @@ async def upload_file(
             chunk_overlap=chunker_args["chunk_overlap"],
             separators=chunker_args["separators"],
             is_separator_regex=chunker_args["is_separator_regex"],
-            metadata=InputChunkMetadata(),
+            metadata=None,
         )
 
         file.file.close()

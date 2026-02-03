@@ -1,9 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import Field
-
-from api.schemas.documents import InputChunkMetadata
+from pydantic import BaseModel
 
 
 class ElasticsearchIndexLanguage(str, Enum):
@@ -31,11 +29,12 @@ class ElasticsearchIndexLanguage(str, Enum):
         return obj
 
 
-class ElasticsearchChunkFields(InputChunkMetadata):
-    id: int = Field(default=..., description="The ID of the chunk.")  # fmt: off
-    collection_id: int = Field(default=..., description="The ID of the collection the chunk belongs to.")  # fmt: off
-    document_id: int = Field(default=..., description="The ID of the document the chunk belongs to.")  # fmt: off
-    document_name: str = Field(default=..., description="The name of the document the chunk belongs to.")  # fmt: off
-    embedding: list[float] = Field(default=[], description="The embedding of the chunk.")  # fmt: off
-    content: str = Field(default=..., description="The content of the chunk.")  # fmt: off
-    created: datetime = Field(default=..., description="The date of the chunk creation.")  # fmt: off
+class ElasticsearchChunk(BaseModel):
+    id: int
+    collection_id: int
+    document_id: int
+    document_name: str
+    content: str
+    embedding: list[float]
+    metadata: dict | None
+    created: datetime
