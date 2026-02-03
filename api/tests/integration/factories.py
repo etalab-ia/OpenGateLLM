@@ -42,7 +42,14 @@ class RoleSQLFactory(BaseSQLFactory):
     updated = factory.LazyFunction(lambda: datetime.now())
 
     class Params:
-        admin = factory.Trait(name="admin")
+        admin = factory.Trait(
+            name="admin",
+            admin_permission=factory.RelatedFactory(
+                "api.tests.integration.factories.PermissionSQLFactory",
+                factory_related_name="role",
+                permission=PermissionType.ADMIN,
+            ),
+        )
         user = factory.Trait(name="user")
         guest = factory.Trait(name="guest")
         moderator = factory.Trait(name="moderator")
@@ -58,7 +65,10 @@ class PermissionSQLFactory(BaseSQLFactory):
     created = factory.LazyFunction(lambda: datetime.now())
 
     class Params:
-        admin = factory.Trait(permission=PermissionType.ADMIN)
+        admin = factory.Trait(
+            permission=PermissionType.ADMIN,
+            role=factory.SubFactory(RoleSQLFactory, admin=True),
+        )
         create_public_collection = factory.Trait(permission=PermissionType.CREATE_PUBLIC_COLLECTION)
         read_metric = factory.Trait(permission=PermissionType.READ_METRIC)
         provide_models = factory.Trait(permission=PermissionType.PROVIDE_MODELS)
@@ -134,6 +144,13 @@ class RouterSQLFactory(BaseSQLFactory):
     cost_completion_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     created = factory.LazyFunction(lambda: datetime.now())
     updated = factory.LazyFunction(lambda: datetime.now())
+
+    @factory.post_generation
+    def alias(self, create, extracted, **kwargs):
+        if not create or not extracted:
+            return
+        for alias_value in extracted:
+            RouterAliasSQLFactory(router=self, value=alias_value)
 
     class Params:
         free = factory.Trait(cost_prompt_tokens=0.0, cost_completion_tokens=0.0)

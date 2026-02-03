@@ -128,3 +128,9 @@ log_cli_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
+filterwarnings = [
+    # Ignore warnings from external libraries
+    "ignore:builtin type Swig.*:DeprecationWarning",
+    # factory_boy doesn't fully support async SQLAlchemy sessions
+    "ignore:coroutine 'AsyncSession.flush' was never awaited:RuntimeWarning",
+]
