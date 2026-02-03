@@ -16,6 +16,7 @@ from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
+from api.schemas.admin.routers import Router
 from api.schemas.core.configuration import Configuration
 from api.schemas.core.context import GlobalContext
 from api.utils.configuration import get_configuration
@@ -51,14 +52,14 @@ async def lifespan(app: FastAPI):
         logger.error(msg=f"Health check failed for parser '{parser_name}': {traceback.format_exc()}")
 
     # setup global context
-    await _setup_redis_pool(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_usage_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_postgres_session(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_model_registry(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_identity_access_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_limiter(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_tokenizer(configuration=configuration, global_context=global_context, dependencies=dependencies)
-    await _setup_document_manager(configuration=configuration, global_context=global_context, dependencies=dependencies)
+    await _setup_redis_pool(configuration=configuration, global_context=global_context)
+    await _setup_usage_manager(global_context=global_context)
+    await _setup_postgres_session(configuration=configuration, global_context=global_context)
+    await _setup_model_registry(configuration=configuration, global_context=global_context)
+    await _setup_identity_access_manager(configuration=configuration, global_context=global_context)
+    await _setup_limiter(configuration=configuration, global_context=global_context)
+    await _setup_tokenizer(configuration=configuration, global_context=global_context)
+    await _setup_document_manager(global_context=global_context, dependencies=dependencies)
 
     await global_context.limiter.reset()
 
@@ -69,7 +70,7 @@ async def lifespan(app: FastAPI):
         await vector_store.close()
 
 
-async def _setup_redis_pool(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_redis_pool(configuration: Configuration, global_context: GlobalContext):
     redis_pool = redis.ConnectionPool.from_url(**configuration.dependencies.redis.model_dump())
     redis_pool.url = configuration.dependencies.redis.url  # for celery
 
@@ -82,11 +83,11 @@ async def _setup_redis_pool(configuration: Configuration, global_context: Global
     global_context.redis_pool = redis_pool
 
 
-async def _setup_usage_manager(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_usage_manager(global_context: GlobalContext):
     global_context.usage_manager = UsageManager()
 
 
-async def _setup_postgres_session(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_postgres_session(configuration: Configuration, global_context: GlobalContext):
     """Set up the PostgreSQL session by creating the session pool."""
 
     engine = create_async_engine(**configuration.dependencies.postgres.model_dump())
@@ -94,7 +95,7 @@ async def _setup_postgres_session(configuration: Configuration, global_context: 
     global_context.postgres_session_factory = postgres_session_factory
 
 
-async def _setup_model_registry(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_model_registry(configuration: Configuration, global_context: GlobalContext):
     """Set up the model registry by fetching the models defined in the DB and the configuration. Basic conflict handling between the DB and config."""
     queuing_enabled = configuration.dependencies.celery is not None
     async for postgres_session in get_postgres_session():
@@ -108,7 +109,7 @@ async def _setup_model_registry(configuration: Configuration, global_context: Gl
         await global_context.model_registry.setup(models=configuration.models, postgres_session=postgres_session)
 
 
-async def _setup_identity_access_manager(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_identity_access_manager(configuration: Configuration, global_context: GlobalContext):
     global_context.identity_access_manager = IdentityAccessManager(
         master_key=configuration.settings.auth_master_key,
         key_max_expiration_days=configuration.settings.auth_key_max_expiration_days,
@@ -116,42 +117,45 @@ async def _setup_identity_access_manager(configuration: Configuration, global_co
     )
 
 
-async def _setup_limiter(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_limiter(
+    configuration: Configuration,
+    global_context: GlobalContext,
+):
     global_context.limiter = Limiter(redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy)
 
 
-async def _setup_tokenizer(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_tokenizer(configuration: Configuration, global_context: GlobalContext):
     global_context.tokenizer = UsageTokenizer(tokenizer=configuration.settings.usage_tokenizer)
 
 
-async def _setup_document_manager(configuration: Configuration, global_context: GlobalContext, dependencies: SimpleNamespace):
+async def _setup_document_manager(global_context: GlobalContext, dependencies: SimpleNamespace) -> DocumentManager | None:
     assert global_context.model_registry, "Set model registry in global context before setting up document manager."
 
-    parser_manager = None
-
-    if dependencies.vector_store is None or configuration.settings.vector_store_model is None:
+    if dependencies.vector_store is None:
         global_context.document_manager = None
         return
-    print("dependencies.vector_store", dependencies.vector_store)
-    print("configuration.settings.vector_store_model", configuration.settings.vector_store_model)
 
+    router: Router | None = None
     async for postgres_session in get_postgres_session():
-        router_id = await global_context.model_registry.get_router_id_from_model_name(
-            model_name=configuration.settings.vector_store_model,
-            postgres_session=postgres_session,
-        )
-    assert router_id is not None, "Vector store model not found."
+        routers = await global_context.model_registry.get_routers(router_id=None, name=None, postgres_session=postgres_session)
+        embeddings_routers: list[Router] = [r for r in routers if "text-embeddings-inference" in getattr(r, "type")]
 
-    global_context.document_manager = DocumentManager(
-        vector_store=dependencies.vector_store,
-        vector_store_model=configuration.settings.vector_store_model,
-        parser_manager=parser_manager,
-    )
+        if not embeddings_routers:
+            global_context.document_manager = None
+            return
+
+        default_router = next((r for r in embeddings_routers if getattr(r, "is_default", False)), None)
+        if default_router:
+            router = default_router
+
+    if router is None:
+        global_context.document_manager = None
+        return
 
     parser_manager = ParserManager(parser=dependencies.parser)
 
     global_context.document_manager = DocumentManager(
         vector_store=dependencies.vector_store,
-        vector_store_model=configuration.settings.vector_store_model,
+        vector_store_model=router.name,
         parser_manager=parser_manager,
     )

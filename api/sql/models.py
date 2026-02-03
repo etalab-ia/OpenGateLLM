@@ -2,7 +2,7 @@ import datetime as dt
 from http import HTTPMethod
 from typing import Optional
 
-from sqlalchemy import ForeignKey, UniqueConstraint, func
+from sqlalchemy import ForeignKey, Index, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 
 from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
@@ -191,10 +191,20 @@ class Router(Base):
     name: Mapped[str] = mapped_column(unique=True)
     type: Mapped[ModelType]
     load_balancing_strategy: Mapped[RouterLoadBalancingStrategy]
+    is_default: Mapped[bool] = mapped_column(default=False)
     cost_prompt_tokens: Mapped[float] = mapped_column(default=0.0)
     cost_completion_tokens: Mapped[float] = mapped_column(default=0.0)
     created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
     updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index(
+            "unique_default_per_model_type",
+            "type",
+            unique=True,
+            postgresql_where=text("is_default IS TRUE"),
+        ),
+    )
 
     user: Mapped["User"] = relationship(back_populates="router")
     alias: Mapped[list["RouterAlias"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)

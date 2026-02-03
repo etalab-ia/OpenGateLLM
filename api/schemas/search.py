@@ -19,7 +19,7 @@ class SearchMethod(str, Enum):
 
 class SearchArgs(BaseModel):
     collections: list[int] = Field(min_items=1, description="List of collections ID")
-    rff_k: int = Field(default=20, description="k constant in RFF algorithm")
+    rff_k: int = Field(default=20, description="k constant in RFF algorithm")  # TO FIX: Does this allow zero or negative? Risk of invalid value IMO.
     k: int = Field(gt=0, le=200, default=10, deprecated=True, description="[DEPRECATED: use limit instead]Number of results to return")
     limit: int = Field(gt=0, le=200, default=10, description="Number of results to return")
     offset: int = Field(ge=0, default=0, description="Offset for pagination, specifying how many results to skip from the beginning")

@@ -17,6 +17,7 @@ class CreateRouter(BaseModel):
     type: ModelType = Field(..., description="Type of the model router. It will be used to identify the model router type.", examples=["text-generation"])  # fmt: off
     aliases: list[constr(strip_whitespace=True, min_length=1, max_length=64)] = Field(default_factory=list, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]])  # fmt: off
     load_balancing_strategy: RouterLoadBalancingStrategy = Field(default=RouterLoadBalancingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["least_busy"])  # fmt: off
+    is_default: bool = Field(default=False, description="Whether the router is the default one for its type.")
     cost_prompt_tokens: float = Field(default=0.0, ge=0.0, description="Cost of a million prompt tokens (decrease user budget)")
     cost_completion_tokens: float = Field(default=0.0, ge=0.0, description="Cost of a million completion tokens (decrease user budget)")
 
@@ -30,6 +31,7 @@ class UpdateRouter(BaseModel):
     type: ModelType | None = Field(default=None, description="Type of the model router. It will be used to identify the model router type.", examples=["text-generation"])  # fmt: off
     aliases: list[constr(strip_whitespace=True, min_length=1, max_length=64)] | None = Field(default=None, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]])  # fmt: off
     load_balancing_strategy: RouterLoadBalancingStrategy | None = Field(default=None, description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["least_busy"])  # fmt: off
+    is_default: bool | None = Field(default=None, description="Whether the router is the default one for its type.")
     cost_prompt_tokens: float | None = Field(default=None, ge=0.0, description="Cost of a million prompt tokens (decrease user budget)")
     cost_completion_tokens: float | None = Field(default=None, ge=0.0, description="Cost of a million completion tokens (decrease user budget)")
 
@@ -42,6 +44,7 @@ class Router(BaseModel):
     type: ModelType = Field(..., description="Type of the model router. It will be used to identify the model router type.", examples=["text-generation"])  # fmt: off
     aliases: list[str] | None = Field(default=None, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]])  # fmt: off
     load_balancing_strategy: RouterLoadBalancingStrategy = Field(..., description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["least_busy"])  # fmt: off
+    is_default: bool = Field(..., description="Whether the router is the default one for its type.")
     vector_size: int | None = Field(default=None, description="Dimension of the vectors, if the models are embeddings. Make sure it is the same for all models.")  # fmt: off
     max_context_length: int | None = Field(default=None, description="Maximum amount of tokens a context could contains. Make sure it is the same for all models.")  # fmt: off
     cost_prompt_tokens: float = Field(description="Cost of a million prompt tokens (decrease user budget)")

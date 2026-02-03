@@ -361,9 +361,6 @@ class Settings(ConfigBaseModel):
     monitoring_postgres_enabled: bool = Field(default=True, description="If true, the log usage will be written in the PostgreSQL database.")  # fmt: off
     monitoring_prometheus_enabled: bool = Field(default=True, description="If true, Prometheus metrics will be exposed in the `/metrics` endpoint.")  # fmt: off
 
-    # vector store
-    vector_store_model: str | None = Field(default=None, description="Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch or Qdrant). This model must be defined in the `models` section and have type `text-embeddings-inference`.")  # fmt: off
-
     # postgres_session
     session_secret_key: str | None = Field(default=None, description='Secret key for postgres_session middleware. If not provided, the master key will be used.', examples=["knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM"])  # fmt: off
 
@@ -419,11 +416,6 @@ class ConfigFile(ConfigBaseModel):
         duplicated_models = [model for model in models["all"] if models["all"].count(model) > 1]
         if duplicated_models:
             raise ValueError(f"Duplicated model or alias names found: {", ".join(set(duplicated_models))}")
-
-        # check for interdependencies
-        if self.dependencies.vector_store and self.settings.vector_store_model:
-            assert self.settings.vector_store_model in models["all"], "Vector store model must be defined in models section."
-            assert self.settings.vector_store_model in models[ModelType.TEXT_EMBEDDINGS_INFERENCE.value], f"The vector store model must have type {ModelType.TEXT_EMBEDDINGS_INFERENCE}."  # fmt: off
 
         return self
 

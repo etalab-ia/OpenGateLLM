@@ -122,6 +122,7 @@ class ModelRegistry:
                     type=model.type,
                     aliases=model.aliases,
                     load_balancing_strategy=model.load_balancing_strategy,
+                    is_default=False,
                     cost_prompt_tokens=model.cost_prompt_tokens,
                     cost_completion_tokens=model.cost_completion_tokens,
                     user_id=0,  # setup as master user
@@ -181,6 +182,7 @@ class ModelRegistry:
         type: ModelType,
         aliases: list[str],
         load_balancing_strategy: RouterLoadBalancingStrategy,
+        is_default: bool,
         cost_prompt_tokens: float,
         cost_completion_tokens: float,
         user_id: int,
@@ -194,6 +196,7 @@ class ModelRegistry:
             type(ModelType): The type of model
             aliases(List[str]): List of aliases for the model
             load_balancing_strategy(RouterLoadBalancingStrategy): The routing strategy to use
+            is_default(bool): Whether the router is default for its type
             cost_prompt_tokens(float): The cost of a million prompt tokens
             cost_completion_tokens(float): The cost of a million completion tokens
             user_id(int): The user ID of owner of the router
@@ -213,6 +216,7 @@ class ModelRegistry:
                     name=name,
                     type=type.value,
                     load_balancing_strategy=load_balancing_strategy.value,
+                    is_default=is_default,
                     cost_prompt_tokens=cost_prompt_tokens,
                     cost_completion_tokens=cost_completion_tokens,
                 )
@@ -276,6 +280,7 @@ class ModelRegistry:
         type: ModelType | None,
         aliases: list[str] | None,
         load_balancing_strategy: RouterLoadBalancingStrategy | None,
+        is_default: bool | None,
         cost_prompt_tokens: float | None,
         cost_completion_tokens: float | None,
         postgres_session: AsyncSession,
@@ -289,6 +294,7 @@ class ModelRegistry:
             type(Optional[ModelType]): Optional new type
             aliases(Optional[List[str]]): Optional new aliases list (replaces existing)
             load_balancing_strategy(Optional[RouterLoadBalancingStrategy]): Optional new routing strategy
+            is_default(Optional[bool]): Optional new is_default flag (one True per type)
             cost_prompt_tokens(Optional[float]): Optional new cost of a million prompt tokens
             cost_completion_tokens(Optional[float]): Optional new cost of a million completion tokens
             postgres_session(AsyncSession): Database postgres_session
@@ -311,6 +317,8 @@ class ModelRegistry:
             update_values["type"] = type.value
         if load_balancing_strategy is not None:
             update_values["load_balancing_strategy"] = load_balancing_strategy.value
+        if is_default is not None:
+            update_values["is_default"] = is_default
         if name is not None:
             update_values["name"] = name
         if cost_prompt_tokens is not None:
@@ -330,6 +338,7 @@ class ModelRegistry:
                 await postgres_session.execute(query)
 
         await postgres_session.commit()
+        # TODO: Make the update method return the updated router
 
     @staticmethod
     async def get_routers(
@@ -379,6 +388,7 @@ class ModelRegistry:
                     RouterTable.user_id,
                     RouterTable.type,
                     RouterTable.load_balancing_strategy,
+                    RouterTable.is_default,
                     RouterTable.cost_prompt_tokens,
                     RouterTable.cost_completion_tokens,
                     first_provider_subquery.c.max_context_length,
@@ -429,6 +439,7 @@ class ModelRegistry:
                     type=ModelType(row["type"]),
                     aliases=aliases.get(row["id"], []),
                     load_balancing_strategy=RouterLoadBalancingStrategy(row["load_balancing_strategy"]),
+                    is_default=row["is_default"],
                     vector_size=row["vector_size"],
                     max_context_length=row["max_context_length"],
                     cost_prompt_tokens=row["cost_prompt_tokens"] or 0.0,

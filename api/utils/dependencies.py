@@ -1,8 +1,7 @@
+from collections.abc import AsyncGenerator, AsyncIterator
 from contextvars import ContextVar
 
 import redis.asyncio as redis
-from redis.asyncio import Redis as AsyncRedis
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._usagemanager import UsageManager
 from api.helpers.models import ModelRegistry
@@ -32,7 +31,7 @@ def get_model_registry() -> ModelRegistry:
     return global_context.model_registry
 
 
-async def get_redis_client() -> AsyncRedis:
+async def get_redis_client() -> AsyncGenerator:
     """
     Get a Redis client built from the shared connection pool.
 
@@ -47,7 +46,7 @@ async def get_redis_client() -> AsyncRedis:
     await client.aclose()
 
 
-async def get_postgres_session() -> AsyncSession:
+async def get_postgres_session() -> AsyncIterator:
     """
     Get a PostgreSQL postgres_session from the global context.
 
