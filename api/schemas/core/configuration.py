@@ -4,7 +4,7 @@ import logging
 import os
 from pathlib import Path
 import re
-from typing import Any, Literal
+from typing import Any, Literal, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field, constr, field_validator, model_validator
 from pydantic import ValidationError as PydanticValidationError
@@ -32,23 +32,47 @@ def custom_validation_error(url: str | None = None):
     class ValidationError(Exception):
         def __init__(self, exc: PydanticValidationError, cls: BaseModel, url: str):
             super().__init__()
-            error_count = exc.error_count()
             error_content = exc.errors()
-            message = f"{error_count} validation error for {cls.__name__}\n"
 
+            def resolve_model_for_error(model: type[BaseModel], loc: tuple[Any, ...]):
+                current_model = model
+                resolved_url = getattr(current_model, "__custom_validation_error_url__", None)
+
+                for idx, part in enumerate(loc):
+                    if not isinstance(part, str):
+                        continue
+                    if part not in current_model.__pydantic_fields__:
+                        break
+
+                    field_info = current_model.__pydantic_fields__[part]
+
+                    annotation = field_info.annotation
+                    next_model = None
+                    origin = get_origin(annotation)
+                    args = get_args(annotation)
+                    candidates = args if origin is not None else (annotation,)
+
+                    for candidate in candidates:
+                        if isinstance(candidate, type) and issubclass(candidate, BaseModel):
+                            next_model = candidate
+                            break
+
+                    if next_model is None:
+                        break
+
+                    current_model = next_model
+                    resolved_url = getattr(current_model, "__custom_validation_error_url__", resolved_url)
+
+                return resolved_url
+
+            message = str(exc)
             for error in error_content:
-                url = url or error["url"]
-                if error["type"] == "assertion_error":
-                    message += f"{error["msg"]}\n"
-                else:
-                    if len(error["loc"]) > 0:
-                        message += f"{error["loc"][0]}\n"
-                    message += f"  {error["msg"]} [type={error["type"]}, input_value={error.get("input", "")}, input_type={type(error.get("input")).__name__}]\n"  # fmt: off
-                    if len(error["loc"]) > 0:
-                        description = cls.__pydantic_fields__[error["loc"][0]].description
-                        if description:
-                            message += f"\n  {description}\n"
-                message += f"    For further information visit {url}\n\n"
+                loc = tuple(error.get("loc", ()))
+                resolved_url = resolve_model_for_error(cls, loc)
+                target_url = resolved_url or url or error["url"]
+                original_line = f"    For further information visit {error["url"]}"
+                replacement_line = f"    For further information visit {target_url}"
+                message = message.replace(original_line, replacement_line, 1)
 
             self.message = message
 
@@ -57,6 +81,7 @@ def custom_validation_error(url: str | None = None):
 
     def decorator(cls: type[BaseModel]):
         original_init = cls.__init__
+        cls.__custom_validation_error_url__ = url
 
         @wraps(original_init)
         def new_init(self, **data):
