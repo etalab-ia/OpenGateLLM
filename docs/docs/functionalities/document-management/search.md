@@ -1,9 +1,11 @@
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-# Retrieval-Augmented Generation (RAG)
+# Search (RAG)
 
-RAG (Retrieval-Augmented Generation) search allows you to retrieve relevant chunks from your [collections](./collections.md) based on a query. This enables language models to generate responses grounded in your specific documents and knowledge base.
+The POST endpoint `/v1/search` allows you to search for chunks within collections using a query prompt. This increases the context available to a language model through RAG (Retrieval-Augmented Generation). RAG search retrieves relevant chunks from your [collections](./collections.md) based on your query, enabling language models to generate responses grounded in your specific documents and knowledge base.
+
+## RAG search flow
 
 ## Search Methods
 
@@ -15,7 +17,7 @@ OpenGateLLM supports multiple search methods:
 | `lexical` | Keyword-based search (BM25) |
 | `hybrid` | Combination of semantic and lexical search |
 
-## Search Parameters
+## Search query
 
 - `prompt`: Search query (required)
 - `collections`: List of collection IDs to search in (required)
@@ -24,32 +26,6 @@ OpenGateLLM supports multiple search methods:
 - `offset`: Pagination offset (default: 0)
 - `rff_k`: RRF constant for hybrid search (default: 20)
 - `score_threshold`: Minimum similarity score (0.0-1.0, only for semantic)
-
-## Search Flow
-
-[//]: # TODO - Update Mermaid Graph to remove web search
-```mermaid
-graph TD
-    A[Search Request] --> B{Web Search?}
-    B -->|Yes| C[Create Web Collection]
-    B -->|No| D[Query Vector Store]
-    C --> D
-    D --> E{Method?}
-    E -->|semantic| F[Semantic Search]
-    E -->|lexical| G[Lexical Search]
-    E -->|hybrid| H[Hybrid Search]
-    F --> J[Return Results]
-    G --> J
-    H --> J
-    I --> K[Synthesis & Reranking]
-    K --> J
-    J --> L{Web Collection?}
-    L -->|Yes| M[Delete Web Collection]
-    L -->|No| N[End]
-    M --> N
-```
-
-## Performing Searches
 
 <Tabs>
   <TabItem value="Semantic search" label="Semantic search" default>
@@ -98,9 +74,3 @@ graph TD
 :::info
 See [Configuration](../../getting-started/configuration.md) for more details.
 :::
-
-## Next Steps
-
-- Learn how to create and manage collections: [Collections](./collections.md)
-- Learn how to import and process documents: [Parsing and Chunking](./parsing-and-chunking.md)
-

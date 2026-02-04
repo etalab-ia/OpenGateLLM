@@ -13,6 +13,7 @@ import yaml
 
 from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
+from api.schemas.core.elasticsearch import ElasticsearchIndexLanguage
 from api.schemas.core.models import Metric
 from api.schemas.models import ModelType
 from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, ROUTER__ADMIN, ROUTER__AUTH, ROUTERS
@@ -140,16 +141,10 @@ class ParserType(str, Enum):
     MARKER = "marker"
 
 
-class VectorStoreType(str, Enum):
-    ELASTICSEARCH = "elasticsearch"
-    QDRANT = "qdrant"
-
-
 class DependencyType(str, Enum):
     ALBERT = "albert"
     CELERY = "celery"
     ELASTICSEARCH = "elasticsearch"
-    QDRANT = "qdrant"
     MARKER = "marker"
     POSTGRES = "postgres"
     REDIS = "redis"
@@ -174,19 +169,10 @@ class CeleryDependency(ConfigBaseModel):
 @custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#elasticsearchdependency")
 class ElasticsearchDependency(ConfigBaseModel):
     # All args of pydantic elastic client is allowed
-    number_of_shards: int = Field(default=1, ge=1, description="Number of shards for the Elasticsearch index.", examples=[1])  # fmt: off
+    index_name: constr(strip_whitespace=True, min_length=1) = Field(..., description="Name of the Elasticsearch index.", examples=["opengatellm"])  # fmt: off
+    index_language: ElasticsearchIndexLanguage = Field(default=ElasticsearchIndexLanguage.ENGLISH, description="Language of the Elasticsearch index.", examples=[ElasticsearchIndexLanguage.ENGLISH.value])  # fmt: off
+    number_of_shards: int = Field(default=24, ge=1, description="Number of shards for the Elasticsearch index.", examples=[1])  # fmt: off
     number_of_replicas: int = Field(default=1, ge=0, description="Number of replicas for the Elasticsearch index.", examples=[1])  # fmt: off
-
-
-@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#qdrantdependency")
-class QdrantDependency(ConfigBaseModel):
-    @model_validator(mode="after")
-    def force_rest(cls, values):
-        if hasattr(values, "prefer_grpc") and values.prefer_grpc:
-            logging.warning(msg="Qdrant does not support grpc for create index payload, force REST connection.")
-            values.prefer_grpc = False
-
-        return values
 
 
 @custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#markerdependency")
@@ -236,7 +222,6 @@ class Dependencies(ConfigBaseModel):
     albert: AlbertDependency | None = Field(default=None, description="If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section.")  # fmt: off
     celery: CeleryDependency | None = Field(default=None, description="If provided, Celery is used to run tasks asynchronously with queues. Pass arguments to call Celery in this section.")  # fmt: off
     elasticsearch: ElasticsearchDependency | None = Field(default=None, description="Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information. Some others arguments are available to configure the Elasticsearch index. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency).")  # fmt: off
-    qdrant: QdrantDependency | None = Field(default=None, description="Pass all qdrant python SDK arguments, see https://python-client.qdrant.tech/qdrant_client.qdrant_client for more information.")  # fmt: off
     marker: MarkerDependency | None = Field(default=None, description="If provided, Marker API is used to parse pdf documents. Cannot be used with Albert dependency concurrently. Pass arguments to call Marker API in this section.")  # fmt: off
     postgres: PostgresDependency = Field(..., description="Pass all postgres python SDK arguments, see https://github.com/etalab-ia/opengatellm/blob/main/docs/dependencies/postgres.md for more information.")  # fmt: off
     redis: RedisDependency  = Field(..., description="Pass all `from_url()` method arguments of `redis.asyncio.connection.ConnectionPool` class, see https://redis.readthedocs.io/en/stable/connections.html#redis.asyncio.connection.ConnectionPool.from_url for more information.")  # fmt: off
@@ -258,13 +243,12 @@ class Dependencies(ConfigBaseModel):
     @model_validator(mode="after")
     def validate_dependencies(self):
         """
-        Check if only one dependency of each family is provided. For example, VectorStoreType can be Qdrant or Elasticsearch, but not both.
+        Check if only one dependency of each family is provided. For example, Elasticsearch can be used, but not both.
 
-        The vector store dependency can be Qdrant or Elasticsearch, it is converted into a single attribute called "vector_store".
         The parser dependency can be Albert or Marker, it is converted into a single attribute called "parser".
         """
 
-        def create_attribute(name: str, type: type[VectorStoreType | ParserType], values: Any):
+        def create_attribute(name: str, type: Enum, values: Any):
             candidates = [item for item in type if getattr(values, item.value) is not None]
 
             # Ensure only one dependency of this family is defined
@@ -281,7 +265,7 @@ class Dependencies(ConfigBaseModel):
                 # Add a `type` field on the dependency object to remember its family (string form)
                 setattr(dep_obj, "type", chosen_enum)
 
-                # Expose the dependency under the generic name (vector_store, parser, ...)
+                # Expose the dependency under the generic name (parser, ...)
                 setattr(values, name, dep_obj)
 
                 # Clean up specific attributes
@@ -292,7 +276,6 @@ class Dependencies(ConfigBaseModel):
             return values
 
         self = create_attribute(name="parser", type=ParserType, values=self)
-        self = create_attribute(name="vector_store", type=VectorStoreType, values=self)
 
         return self
 
@@ -360,6 +343,9 @@ class Settings(ConfigBaseModel):
     # monitoring
     monitoring_postgres_enabled: bool = Field(default=True, description="If true, the log usage will be written in the PostgreSQL database.")  # fmt: off
     monitoring_prometheus_enabled: bool = Field(default=True, description="If true, Prometheus metrics will be exposed in the `/metrics` endpoint.")  # fmt: off
+
+    # document parsing
+    document_parsing_max_concurrent: int = Field(default=10, ge=1, description="Maximum number of concurrent document parsing tasks per worker.")  # fmt: off
 
     # postgres_session
     session_secret_key: str | None = Field(default=None, description='Secret key for postgres_session middleware. If not provided, the master key will be used.', examples=["knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM"])  # fmt: off

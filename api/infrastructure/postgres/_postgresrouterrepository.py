@@ -30,7 +30,6 @@ class PostgresRouterRepository(RouterRepository):
         provider_count_subquery = (
             select(func.count(ProviderTable.id)).where(ProviderTable.router_id == RouterTable.id).correlate(RouterTable).scalar_subquery()
         )
-        # TODO: un router a plusieurs providers. Comment sont choisis max_content_length and vector_size ?
         query = (
             select(
                 RouterTable.id,

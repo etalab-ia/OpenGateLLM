@@ -3,6 +3,7 @@ from io import BytesIO
 import json
 from pathlib import Path
 
+from elasticsearch import AsyncElasticsearch
 from fastapi import APIRouter, Body, Depends, File, Security, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -11,13 +12,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import Headers
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
 from api.schemas.core.documents import JsonFile
+from api.schemas.documents import InputChunkMetadata
 from api.schemas.files import ChunkerArgs, FileResponse, FilesRequest
-from api.schemas.parse import ParsedDocumentOutputFormat
 from api.utils.context import global_context
-from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
+from api.utils.dependencies import (
+    get_elasticsearch_client,
+    get_elasticsearch_vector_store,
+    get_model_registry,
+    get_postgres_session,
+    get_redis_client,
+    get_request_context,
+)
 from api.utils.exceptions import CollectionNotFoundException, FileSizeLimitExceededException, InvalidJSONFormatException
 from api.utils.variables import ENDPOINT__FILES
 
@@ -32,6 +41,8 @@ async def upload_file(
     model_registry: ModelRegistry = Depends(get_model_registry),
     postgres_session: AsyncSession = Depends(get_postgres_session),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
+    elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
 ) -> JSONResponse:
     """
     **[DEPRECATED]** Upload a file to be processed, chunked, and stored into a vector database. Supported file types : pdf, html, json.
@@ -87,30 +98,22 @@ async def upload_file(
         files = [(file, None)]
 
     for file, metadata in files:
-        document = await global_context.document_manager.parse_file(
-            file=file,
-            output_format=ParsedDocumentOutputFormat.MARKDOWN.value,
-            force_ocr=False,
-            page_range="",
-            paginate_output=False,
-            use_llm=False,
-        )
-
         document_id = await global_context.document_manager.create_document(
             request_context=request_context,
             postgres_session=postgres_session,
+            elasticsearch_vector_store=elasticsearch_vector_store,
+            elasticsearch_client=elasticsearch_client,
             redis_client=redis_client,
             model_registry=model_registry,
             collection_id=request.collection,
-            document=document,
+            file=file,
             chunker=chunker,
             chunk_min_size=chunker_args["chunk_min_size"],
             chunk_size=chunker_args["chunk_size"],
             chunk_overlap=chunker_args["chunk_overlap"],
-            length_function=chunker_args["length_function"],
             separators=chunker_args["separators"],
             is_separator_regex=chunker_args["is_separator_regex"],
-            metadata=metadata,
+            metadata=InputChunkMetadata(),
         )
 
         file.file.close()

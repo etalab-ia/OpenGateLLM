@@ -1,11 +1,13 @@
 from contextvars import ContextVar
 
+from elasticsearch import AsyncElasticsearch
 from fastapi import APIRouter, Depends, Request, Security
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 from api.helpers.models import ModelRegistry
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk, CreateChatCompletion
@@ -14,7 +16,14 @@ from api.schemas.core.models import RequestContent
 from api.schemas.exception import HTTPExceptionModel
 from api.schemas.search import Search
 from api.utils.context import global_context
-from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
+from api.utils.dependencies import (
+    get_elasticsearch_client,
+    get_elasticsearch_vector_store,
+    get_model_registry,
+    get_postgres_session,
+    get_redis_client,
+    get_request_context,
+)
 from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, WrongModelTypeException
 from api.utils.hooks_decorator import hooks
 from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ROUTER__CHAT
@@ -40,6 +49,8 @@ async def chat_completions(
     model_registry: ModelRegistry = Depends(get_model_registry),
     postgres_session: AsyncSession = Depends(get_postgres_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
+    elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
+    elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse | StreamingResponseWithStatusCode:
     """Creates a model response for the given chat conversation.
@@ -56,6 +67,8 @@ async def chat_completions(
         inner_redis_client: AsyncRedis,
         inner_model_registry: ModelRegistry,
         inner_request_context: ContextVar[RequestContext],
+        inner_elasticsearch_vector_store: ElasticsearchVectorStore,
+        inner_elasticsearch_client: AsyncElasticsearch,
     ) -> tuple[CreateChatCompletion, list[Search]]:
         results = []
         if initial_body.search:
@@ -64,6 +77,8 @@ async def chat_completions(
 
             results = await global_context.document_manager.search_chunks(
                 request_context=request_context,
+                elasticsearch_vector_store=inner_elasticsearch_vector_store,
+                elasticsearch_client=inner_elasticsearch_client,
                 postgres_session=inner_postgres_session,
                 redis_client=inner_redis_client,
                 model_registry=inner_model_registry,
@@ -94,6 +109,8 @@ async def chat_completions(
         inner_redis_client=redis_client,
         inner_model_registry=model_registry,
         inner_request_context=request_context,
+        inner_elasticsearch_vector_store=elasticsearch_vector_store,
+        inner_elasticsearch_client=elasticsearch_client,
     )
     additional_data = {"search_results": results} if results else {}
     model_provider = await model_registry.get_model_provider(

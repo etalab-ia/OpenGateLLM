@@ -1,11 +1,13 @@
+from elasticsearch import AsyncElasticsearch
 from fastapi import APIRouter, Body, Depends, Path, Query, Request, Response, Security
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.schemas.collections import Collection, CollectionRequest, Collections, CollectionUpdateRequest, CollectionVisibility
 from api.utils.context import global_context, request_context
-from api.utils.dependencies import get_postgres_session
+from api.utils.dependencies import get_elasticsearch_client, get_elasticsearch_vector_store, get_postgres_session
 from api.utils.exceptions import CollectionNotFoundException
 from api.utils.variables import ENDPOINT__COLLECTIONS, ROUTER__COLLECTIONS
 
@@ -93,6 +95,8 @@ async def delete_collection(
     request: Request,
     collection: int = Path(..., description="The collection ID"),
     postgres_session: AsyncSession = Depends(get_postgres_session),
+    elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
+    elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
 ) -> Response:
     """
     Delete a collection.
@@ -102,6 +106,8 @@ async def delete_collection(
 
     await global_context.document_manager.delete_collection(
         postgres_session=postgres_session,
+        elasticsearch_vector_store=elasticsearch_vector_store,
+        elasticsearch_client=elasticsearch_client,
         user_id=request_context.get().user_info.id,
         collection_id=collection,
     )

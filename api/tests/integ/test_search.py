@@ -48,7 +48,7 @@ class TestSearch:
         searches = Searches(**response.json())  # test output format
 
         search = searches.data[0]
-        assert search.chunk.metadata["document_id"] in DOCUMENT_IDS
+        assert search.chunk.metadata.document_id in DOCUMENT_IDS
 
     def test_search_with_score_threshold(self, client: TestClient, setup):
         """Test search with a score threshold."""

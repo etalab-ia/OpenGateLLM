@@ -1,14 +1,13 @@
 from abc import ABC, abstractmethod
 import importlib
 
+from fastapi import UploadFile
+
 from api.schemas.core.configuration import ParserType
-from api.schemas.core.documents import ParserParams
 from api.schemas.parse import ParsedDocument
 
 
 class BaseParserClient(ABC):
-    SUPPORTED_FORMATS = []
-
     @staticmethod
     def import_module(type: ParserType) -> "type[BaseParserClient]":
         """
@@ -42,5 +41,9 @@ class BaseParserClient(ABC):
         return pages
 
     @abstractmethod
-    def parse(self, params: ParserParams) -> ParsedDocument:
+    def check_health(self) -> bool:
+        pass
+
+    @abstractmethod
+    def parse(self, file: UploadFile, force_ocr: bool | None = None, page_range: str = "") -> ParsedDocument:
         pass

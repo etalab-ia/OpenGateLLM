@@ -163,7 +163,7 @@ class TestChat:
                     chunks.append(chunk)
                     continue
                 # check that the last chunk has a search result
-                assert chunks[i - 1].search_results[0].chunk.metadata["document_id"] in DOCUMENT_IDS
+                assert chunks[i - 1].search_results[0].chunk.metadata.document_id in DOCUMENT_IDS
                 break
 
     def test_chat_completions_search_no_args(self, client: TestClient, setup):
@@ -197,7 +197,7 @@ class TestChat:
             },
         }
         response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
-        assert response.status_code == 200, response.text
+        assert response.status_code == 422, response.text
 
     def test_chat_completions_search_template(self, client: TestClient, setup):
         """Test the GET /chat/completions search template."""

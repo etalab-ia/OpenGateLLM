@@ -1,25 +1,19 @@
-yangshun:
-  name: Yangshun Tay
-  title: Ex-Meta Staff Engineer, Co-founder GreatFrontEnd
-  url: https://linkedin.com/in/yangshun
-  image_url: https://github.com/yangshun.png
-  page: true
-  socials:
-    x: yangshunz
-    linkedin: yangshun
-    github: yangshun
-    newsletter: https://www.greatfrontend.com
-
-slorber:
-  name: Sébastien Lorber
-  title: Docusaurus maintainer
-  url: https://sebastienlorber.com
-  image_url: https://github.com/slorber.png
+benjaminpilia:
+  name: Benjamin Pilia
+  title: OpenGateLLM developer
+  image_url: https://media.licdn.com/dms/image/v2/D4D03AQH9CMWQZ-kuFg/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1721640001234?e=1770854400&v=beta&t=7sdcWRkA5Xp8CX06Aux2UAxdgCfbmVD4R6hxyuR2r8w
   page:
-    # customize the url of the author page at /blog/authors/<permalink>
-    permalink: '/all-sebastien-lorber-articles'
+    permalink: '/benjamin-pilia'
   socials:
-    x: sebastienlorber
-    linkedin: sebastienlorber
-    github: slorber
-    newsletter: https://thisweekinreact.com
+    linkedin: benjamin-pilia-46784b131
+    github: benjaminpilia
+
+leoguillaume:
+  name: Léo Guillaume
+  title: OpenGateLLM technical lead
+  image_url: https://github.com/leoguillaume.png
+  page:
+    permalink: '/leo-guillaume'
+  socials:
+    linkedin: leoguillaume
+    github: leoguillaume

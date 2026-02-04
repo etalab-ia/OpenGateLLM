@@ -1,11 +1,9 @@
 from io import BytesIO
 import json
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 import httpx
-import pymupdf
 
-from api.schemas.core.documents import FileType, ParserParams
 from api.schemas.parse import ParsedDocument
 
 from ._baseparserclient import BaseParserClient
@@ -17,8 +15,6 @@ class AlbertParserClient(BaseParserClient):
     """
 
     URL = "https://albert.api.etalab.gouv.fr"
-
-    SUPPORTED_FORMATS = [FileType.PDF]
 
     def __init__(self, headers: dict[str, str], timeout: int, url: str | None = None, *args, **kwargs) -> None:
         # store configuration but avoid performing network calls in constructor
@@ -32,33 +28,22 @@ class AlbertParserClient(BaseParserClient):
         Returns True on success, raises an exception for non-2xx responses or network errors.
         """
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{self.url}/health", headers=self.headers, timeout=self.timeout)
-            resp.raise_for_status()
+            try:
+                response = await client.get(f"{self.url}/health", headers=self.headers, timeout=self.timeout)
+                response.raise_for_status()
+            except Exception:
+                return False
         return True
 
-    async def parse(self, params: ParserParams) -> ParsedDocument:
-        file_content = await params.file.read()
-
-        try:
-            # Correct way to open PDF from bytes with PyMuPDF
-            pdf = pymupdf.open(stream=file_content, filetype="pdf")
-        except Exception as e:
-            # Handle corrupted or invalid PDF files
-            raise HTTPException(status_code=400, detail=f"Invalid PDF file: {str(e)}")
-
-        payload = {
-            "output_format": params.output_format.value if params.output_format else None,
-            "force_ocr": params.force_ocr,
-            "paginate_output": params.paginate_output,
-            "use_llm": params.use_llm,
-        }
+    async def parse(self, file: UploadFile, force_ocr: bool | None = None, page_range: str = "") -> ParsedDocument:
+        file_content = await file.read()
 
         async with httpx.AsyncClient() as client:
-            files = {"file": (params.file.filename, BytesIO(file_content), "application/pdf")}
+            files = {"file": (file.filename, BytesIO(file_content), "application/pdf")}
             response = await client.post(
                 url=f"{self.url}/v1/parse-beta",
                 files=files,
-                data=payload,
+                data={"force_ocr": force_ocr, "page_range": page_range},
                 headers=self.headers,
                 timeout=self.timeout,
             )
@@ -71,8 +56,6 @@ class AlbertParserClient(BaseParserClient):
 
             result = response.json()
 
-        # Close the PDF document to free memory
-        pdf.close()
         document = ParsedDocument(data=result["data"])
 
         return document

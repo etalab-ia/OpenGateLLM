@@ -421,6 +421,15 @@ class BaseModelProvider(ABC):
             request_content(RequestContent): The request content to use for the request.
         """
 
+        def _create_extra_chunk(buffer: list) -> tuple | None:
+            try:
+                return self._format_stream_response(request_content=request_content, response=buffer)
+            except Exception as e:
+                logger.exception(msg=f"Failed to create extra chunk: {e}.")
+
+        def _compute_ttft(start_time: float) -> int:
+            return int((time.perf_counter() - start_time) * 1000)  # ms
+
         url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[request_content.endpoint].lstrip("/"))
         request_content = self._format_request(request_content=request_content)
 
@@ -442,8 +451,9 @@ class BaseModelProvider(ABC):
                 ) as response:
                     buffer = list()
                     start_time = time.perf_counter()
-                    first_token_time = None
-                    done_found = False
+                    ttft: float | None = None
+                    done_chunk: bytes | None = None
+
                     async for chunk in response.aiter_raw():
                         # error case
                         if response.status_code // 100 != 2:
@@ -460,11 +470,11 @@ class BaseModelProvider(ABC):
                             match = re.search(rb"data: \[DONE\]", chunk)
                             if not match:
                                 buffer.append(chunk)
-                                if first_token_time is None:
+                                if ttft is None:
                                     try:
                                         # The first token comes in the first non-empty chunk of the stream
                                         if loads((chunk.decode(encoding="utf-8")).removeprefix("data: "))["choices"][0]["delta"]["content"] != "":
-                                            first_token_time = time.perf_counter()
+                                            ttft = _compute_ttft(start_time=start_time)
                                     except Exception:
                                         pass
 
@@ -472,28 +482,16 @@ class BaseModelProvider(ABC):
 
                             # end of the stream
                             else:
-                                done_found = True
                                 last_chunks = chunk[: match.start()]
                                 done_chunk = chunk[match.start() :]
 
                                 # Edge case: the stream consists in just one group of chunks
-                                if first_token_time is None and last_chunks != "" and len(buffer) == 0:
-                                    first_token_time = time.perf_counter()
+                                if ttft is None and last_chunks != "" and len(buffer) == 0:
+                                    ttft = _compute_ttft(start_time=start_time)
 
                                 buffer.append(last_chunks)
 
-                                end_time = time.perf_counter()
-                                request_latency = int((end_time - start_time) * 1000)  # ms
-                                ttft = int((first_token_time - start_time) * 1000) if first_token_time is not None else None
-
-                                extra_chunk = self._format_stream_response(
-                                    request_content=request_content,
-                                    response=buffer,
-                                    request_latency=request_latency,
-                                )
-                                await self._log_performance_metric(redis_client=redis_client, ttft=ttft, latency=int(request_latency))
-
-                                # if error case, yield chunk
+                                extra_chunk = _create_extra_chunk(buffer=buffer)
                                 if extra_chunk is None:
                                     yield chunk, response.status_code
                                     continue
@@ -502,27 +500,13 @@ class BaseModelProvider(ABC):
                                 yield f"data: {dumps(extra_chunk)}\n\n".encode(), response.status_code
                                 yield done_chunk, response.status_code
 
-                    # If [DONE] pattern was not found, calculate metrics now
-                    if not done_found and response.status_code // 100 == 2:
-                        end_time = time.perf_counter()
-                        request_latency = int((end_time - start_time) * 1000)  # ms
-                        if first_token_time is not None:
-                            ttft = int((first_token_time - start_time) * 1000)  # ms
-                        else:
-                            logger.warning(f"Time to first token could not be determined for request {request_context.get().id}.")
-                            ttft = None
+                        if not done_chunk:
+                            extra_chunk = _create_extra_chunk(buffer=buffer)
+                            yield f"data: {dumps(extra_chunk)}\n\n".encode(), response.status_code
+                            yield done_chunk, response.status_code
 
-                        extra_chunk = self._format_stream_response(
-                            request_content=request_content,
-                            response=buffer,
-                            request_latency=request_latency,
-                        )
-                        await self._log_performance_metric(redis_client=redis_client, ttft=ttft, latency=int(request_latency))
-
-                        # Yield the extra chunk with usage info
-                        if extra_chunk is not None:
-                            yield f"\n\ndata: {dumps(extra_chunk)}\n\n".encode(), response.status_code
-                            yield b"data: [DONE]\n\n", response.status_code
+                        request_latency = int((time.perf_counter() - start_time) * 1000)  # ms
+                        await self._log_performance_metric(redis_client=redis_client, ttft=ttft, latency=request_latency)
 
             except (httpx.TimeoutException, httpx.ReadTimeout, httpx.ConnectTimeout, httpx.WriteTimeout, httpx.PoolTimeout) as e:
                 yield dumps({"detail": "Request timed out, model is too busy."}).encode(), 504

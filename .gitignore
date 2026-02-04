@@ -219,3 +219,4 @@ playground/.web
 playground/.states
 playground/.gitignore
 playground/requirements.txt
+run.sh

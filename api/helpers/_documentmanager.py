@@ -1,11 +1,10 @@
-from collections.abc import Callable
 from contextvars import ContextVar
-from functools import wraps
+from datetime import datetime
 from itertools import batched
 import logging
-import time
 
-from fastapi import HTTPException, UploadFile
+from elasticsearch import AsyncElasticsearch
+from fastapi import UploadFile
 from langchain_text_splitters import Language
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy import Integer, cast, delete, distinct, func, insert, or_, select, update
@@ -13,26 +12,25 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.clients.model import BaseModelProvider as ModelProvider
-from api.clients.vector_store import BaseVectorStoreClient
+from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers.data.chunkers import NoSplitter, RecursiveCharacterTextSplitter
 from api.helpers.models import ModelRegistry
 from api.schemas.chunks import Chunk
 from api.schemas.collections import Collection, CollectionVisibility
 from api.schemas.core.context import RequestContext
+from api.schemas.core.elasticsearch import ElasticsearchChunkFields
 from api.schemas.core.models import RequestContent
-from api.schemas.documents import Chunker, Document
-from api.schemas.parse import ParsedDocument, ParsedDocumentOutputFormat
-from api.schemas.search import Search
+from api.schemas.documents import Chunker, Document, InputChunkMetadata
+from api.schemas.search import Search, SearchMethod
 from api.sql.models import Collection as CollectionTable
 from api.sql.models import Document as DocumentTable
-from api.sql.models import Provider as ProviderTable
-from api.sql.models import Router as RouterTable
 from api.sql.models import User as UserTable
 from api.utils.exceptions import (
     ChunkingFailedException,
     CollectionNotFoundException,
     DocumentNotFoundException,
     MasterNotAllowedException,
+    ParsingDocumentFailedException,
     VectorizationFailedException,
 )
 from api.utils.variables import ENDPOINT__EMBEDDINGS
@@ -42,41 +40,15 @@ from ._parsermanager import ParserManager
 logger = logging.getLogger(__name__)
 
 
-def check_dependencies(*, dependencies: list[str]) -> Callable:
-    """
-    Decorator to return a 400 error to the user if the endpoint calls a feature that requires an uninitialized dependency.
-    """
-
-    def decorator(method: Callable) -> Callable:
-        @wraps(method)
-        def wrapper(self, *args, **kwargs):
-            if "vector_store" in dependencies and not self.vector_store:
-                raise HTTPException(status_code=400, detail="Feature not available: vector store is not initialized.")
-            if "parser_manager" in dependencies and not self.parser_manager:
-                raise HTTPException(status_code=400, detail="Feature not available: parser is not initialized.")
-
-            return method(self, *args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
 class DocumentManager:
     BATCH_SIZE = 32
 
-    def __init__(
-        self,
-        vector_store: BaseVectorStoreClient,
-        vector_store_model: str,
-        parser_manager: ParserManager,
-    ) -> None:
-        self.vector_store = vector_store
+    def __init__(self, vector_store_model: str, parser_manager: ParserManager) -> None:
         self.vector_store_model = vector_store_model
         self.parser_manager = parser_manager
 
-    @check_dependencies(dependencies=["vector_store"])
-    async def create_collection(self, postgres_session: AsyncSession, user_id: int, name: str, visibility: CollectionVisibility, description: str | None = None) -> int:  # fmt: off
+    @staticmethod
+    async def create_collection(postgres_session: AsyncSession, user_id: int, name: str, visibility: CollectionVisibility, description: str | None = None) -> int:  # fmt: off
         if user_id == 0:
             raise MasterNotAllowedException(detail="Master user is not allowed to create collection.")
 
@@ -91,8 +63,14 @@ class DocumentManager:
 
         return collection_id
 
-    @check_dependencies(dependencies=["vector_store"])
-    async def delete_collection(self, postgres_session: AsyncSession, user_id: int, collection_id: int) -> None:
+    @staticmethod
+    async def delete_collection(
+        postgres_session: AsyncSession,
+        elasticsearch_vector_store: ElasticsearchVectorStore,
+        elasticsearch_client: AsyncElasticsearch,
+        user_id: int,
+        collection_id: int,
+    ) -> None:
         # check if collection exists
         result = await postgres_session.execute(
             statement=select(CollectionTable.id).where(CollectionTable.id == collection_id).where(CollectionTable.user_id == user_id)
@@ -107,10 +85,10 @@ class DocumentManager:
         await postgres_session.commit()
 
         # delete the collection from vector store
-        await self.vector_store.delete_collection(collection_id=collection_id)
+        await elasticsearch_vector_store.delete_collection(client=elasticsearch_client, collection_id=collection_id)
 
-    @check_dependencies(dependencies=["vector_store"])
-    async def update_collection(self, postgres_session: AsyncSession, user_id: int, collection_id: int, name: str | None = None, visibility: CollectionVisibility | None = None, description: str | None = None) -> None:  # fmt: off
+    @staticmethod
+    async def update_collection(postgres_session: AsyncSession, user_id: int, collection_id: int, name: str | None = None, visibility: CollectionVisibility | None = None, description: str | None = None) -> None:  # fmt: off
         # check if collection exists
         result = await postgres_session.execute(
             statement=select(CollectionTable)
@@ -134,9 +112,8 @@ class DocumentManager:
         )
         await postgres_session.commit()
 
-    @check_dependencies(dependencies=["vector_store"])
+    @staticmethod
     async def get_collections(
-        self,
         postgres_session: AsyncSession,
         user_id: int,
         collection_id: int | None = None,
@@ -182,24 +159,24 @@ class DocumentManager:
 
         return collections
 
-    @check_dependencies(dependencies=["vector_store"])
     async def create_document(
         self,
         postgres_session: AsyncSession,
         redis_client: AsyncRedis,
         model_registry: ModelRegistry,
         request_context: ContextVar[RequestContext],
+        elasticsearch_vector_store: ElasticsearchVectorStore,
+        elasticsearch_client: AsyncElasticsearch,
         collection_id: int,
-        document: ParsedDocument,
+        file: UploadFile,
+        metadata: InputChunkMetadata,
         chunker: Chunker,
         chunk_size: int,
         chunk_overlap: int,
-        length_function: Callable,
         chunk_min_size: int,
         is_separator_regex: bool | None = None,
         separators: list[str] | None = None,
         preset_separators: Language | None = None,
-        metadata: dict | None = None,
     ) -> int:
         # check if collection exists and prepare document chunks in a single transaction
         result = await postgres_session.execute(
@@ -212,42 +189,42 @@ class DocumentManager:
         except NoResultFound:
             raise CollectionNotFoundException()
 
+        # get document name
+        document_name = file.filename
+
+        # get document format
+        # @TODO: implement after type detection refactoring
+
+        # parse the file
         try:
-            # create index only when the first document is created to avoid increase shard with empty collections
-            query = (
-                select(ProviderTable.vector_size)
-                .where(RouterTable.name == self.vector_store_model)
-                .join(RouterTable, ProviderTable.router_id == RouterTable.id)
-            ).limit(1)
-            result = await postgres_session.execute(query)
-            vector_size = result.scalar_one()
-
-            await self.vector_store.create_collection(collection_id=collection_id, vector_size=vector_size)
-
+            content = await self.parser_manager.parse(file=file)
         except Exception as e:
-            logger.exception(msg=f"Error during collection ({collection_id}) creation: {e}", exc_info=True)
-            raise VectorizationFailedException()
-        try:
-            chunks = self._split(
-                document=document,
-                chunker=chunker,
-                chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
-                length_function=length_function,
-                is_separator_regex=is_separator_regex,
-                separators=separators,
-                chunk_min_size=chunk_min_size,
-                preset_separators=preset_separators,
-                metadata=metadata,
-            )
-        except Exception as e:
-            logger.exception(msg=f"Error during document splitting: {e}")
-            raise ChunkingFailedException(detail=f"Chunking failed: {e}")
+            logger.exception(f"failed to parse {document_name} ({e}).")
+            raise ParsingDocumentFailedException()
 
-        document_name = document.data[0].metadata.document_name
+        # split the content into chunks
+        chunks = self._split(
+            content=content,
+            chunker=chunker,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            is_separator_regex=is_separator_regex,
+            separators=separators,
+            chunk_min_size=chunk_min_size,
+            preset_separators=preset_separators,
+        )
+        if len(chunks) == 0:
+            raise ChunkingFailedException(detail="No chunks were extracted from the document.")
+
+        # insert the document into the database
         try:
             result = await postgres_session.execute(
-                statement=insert(table=DocumentTable).values(name=document_name, collection_id=collection_id).returning(DocumentTable.id)
+                statement=insert(table=DocumentTable)
+                .values(
+                    name=document_name,
+                    collection_id=collection_id,
+                )
+                .returning(DocumentTable.id)
             )
         except Exception as e:
             if "foreign key constraint" in str(e).lower() or "fkey" in str(e).lower():
@@ -256,28 +233,36 @@ class DocumentManager:
         document_id = result.scalar_one()
         await postgres_session.commit()
 
-        for chunk in chunks:
-            chunk.metadata["collection_id"] = collection_id
-            chunk.metadata["document_id"] = document_id
-            chunk.metadata["document_created"] = round(time.time())
+        # index the chunks into the vector store
         try:
             await self._upsert(
                 chunks=chunks,
                 collection_id=collection_id,
+                document_id=document_id,
+                document_name=document_name,
+                metadata=metadata,
                 redis_client=redis_client,
+                elasticsearch_vector_store=elasticsearch_vector_store,
+                elasticsearch_client=elasticsearch_client,
                 postgres_session=postgres_session,
                 model_registry=model_registry,
                 request_context=request_context,
             )
         except Exception as e:
             logger.exception(msg=f"Error during document creation: {e}")
-            await self.delete_document(postgres_session=postgres_session, user_id=request_context.get().user_info.id, document_id=document_id)
+            await self.delete_document(
+                postgres_session=postgres_session,
+                user_id=request_context.get().user_info.id,
+                document_id=document_id,
+                elasticsearch_vector_store=elasticsearch_vector_store,
+                elasticsearch_client=elasticsearch_client,
+            )
             raise VectorizationFailedException(detail=f"Vectorization failed: {e}")
 
         return document_id
 
-    @check_dependencies(dependencies=["vector_store"])
-    async def get_documents(self, postgres_session: AsyncSession, user_id: int, collection_id: int | None = None, document_id: int | None = None, document_name: str | None = None, offset: int = 0, limit: int = 10) -> list[Document]:  # fmt: off
+    @staticmethod
+    async def get_documents(postgres_session: AsyncSession, elasticsearch_vector_store: ElasticsearchVectorStore, elasticsearch_client: AsyncElasticsearch, user_id: int, collection_id: int | None = None, document_id: int | None = None, document_name: str | None = None, offset: int = 0, limit: int = 10) -> list[Document]:  # fmt: off
         statement = (
             select(
                 DocumentTable.id,
@@ -305,12 +290,22 @@ class DocumentManager:
 
         # chunks count
         for document in documents:
-            document.chunks = await self.vector_store.get_chunk_count(collection_id=document.collection_id, document_id=document.id)
+            document.chunks = await elasticsearch_vector_store.get_chunk_count(
+                client=elasticsearch_client,
+                collection_id=document.collection_id,
+                document_id=document.id,
+            )
 
         return documents
 
-    @check_dependencies(dependencies=["vector_store"])
-    async def delete_document(self, postgres_session: AsyncSession, user_id: int, document_id: int) -> None:
+    @staticmethod
+    async def delete_document(
+        postgres_session: AsyncSession,
+        elasticsearch_vector_store: ElasticsearchVectorStore,
+        elasticsearch_client: AsyncElasticsearch,
+        user_id: int,
+        document_id: int,
+    ) -> None:
         # check if document exists
         result = await postgres_session.execute(
             statement=select(DocumentTable)
@@ -327,12 +322,13 @@ class DocumentManager:
         await postgres_session.commit()
 
         # delete the document from vector store
-        await self.vector_store.delete_document(collection_id=document.collection_id, document_id=document_id)
+        await elasticsearch_vector_store.delete_document(client=elasticsearch_client, collection_id=document.collection_id, document_id=document_id)
 
-    @check_dependencies(dependencies=["vector_store"])
+    @staticmethod
     async def get_chunks(
-        self,
         postgres_session: AsyncSession,
+        elasticsearch_vector_store: ElasticsearchVectorStore,
+        elasticsearch_client: AsyncElasticsearch,
         user_id: int,
         document_id: int,
         chunk_id: int | None = None,
@@ -351,7 +347,8 @@ class DocumentManager:
         except NoResultFound:
             raise DocumentNotFoundException()
 
-        chunks = await self.vector_store.get_chunks(
+        chunks = await elasticsearch_vector_store.get_chunks(
+            client=elasticsearch_client,
             collection_id=document.collection_id,
             document_id=document_id,
             offset=offset,
@@ -361,30 +358,17 @@ class DocumentManager:
 
         return chunks
 
-    @check_dependencies(dependencies=["parser_manager"])
-    async def parse_file(
-        self,
-        file: UploadFile,
-        output_format: ParsedDocumentOutputFormat | None = None,
-        force_ocr: bool | None = None,
-        page_range: str = "",
-        paginate_output: bool | None = None,
-        use_llm: bool | None = None,
-    ) -> ParsedDocument:
-        return await self.parser_manager.parse_file(
-            file=file, output_format=output_format, force_ocr=force_ocr, page_range=page_range, paginate_output=paginate_output, use_llm=use_llm
-        )
-
-    @check_dependencies(dependencies=["vector_store"])
     async def search_chunks(
         self,
         postgres_session: AsyncSession,
+        elasticsearch_vector_store: ElasticsearchVectorStore,
+        elasticsearch_client: AsyncElasticsearch,
         redis_client: AsyncRedis,
         model_registry: ModelRegistry,
         request_context: ContextVar[RequestContext],
         collection_ids: list[int],
         prompt: str,
-        method: str,
+        method: SearchMethod,
         limit: int,
         offset: int,
         rff_k: int,
@@ -413,10 +397,14 @@ class DocumentManager:
             request_context=request_context,
         )
 
-        response = await self._create_embeddings(provider=provider, input_texts=[prompt], redis_client=redis_client)
-        query_vector = response[0]
+        if method == SearchMethod.LEXICAL:
+            query_vector = None
+        else:
+            response = await self._create_embeddings(provider=provider, input_texts=[prompt], redis_client=redis_client)
+            query_vector = response[0]
 
-        searches = await self.vector_store.search(
+        searches = await elasticsearch_vector_store.search(
+            client=elasticsearch_client,
             method=method,
             collection_ids=collection_ids,
             query_prompt=prompt,
@@ -431,32 +419,29 @@ class DocumentManager:
 
     @staticmethod
     def _split(
-        document: ParsedDocument,
+        content: str,
         chunker: Chunker,
         chunk_size: int,
         chunk_min_size: int,
         chunk_overlap: int,
-        length_function: Callable,
         separators: list[str] | None = None,
         is_separator_regex: bool | None = None,
         preset_separators: Language | None = None,
-        metadata: dict | None = None,
     ) -> list[Chunk]:
         if chunker == Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER:
             chunker = RecursiveCharacterTextSplitter(
                 chunk_size=chunk_size,
                 chunk_min_size=chunk_min_size,
                 chunk_overlap=chunk_overlap,
-                length_function=length_function,
+                length_function=len,
                 separators=separators,
                 is_separator_regex=is_separator_regex,
                 preset_separators=preset_separators,
-                metadata=metadata,
             )
         else:  # Chunker.NoSplitter
-            chunker = NoSplitter(chunk_min_size=chunk_min_size, preset_separators=preset_separators, metadata=metadata)
+            chunker = NoSplitter(chunk_min_size=chunk_min_size)
 
-        chunks = chunker.split_document(document=document)
+        chunks = chunker.split(content=content)
 
         return chunks
 
@@ -474,12 +459,17 @@ class DocumentManager:
 
     async def _upsert(
         self,
-        chunks: list[Chunk],
+        chunks: list[str],
         collection_id: int,
+        document_id: int,
+        document_name: str,
+        metadata: InputChunkMetadata,
         redis_client: AsyncRedis,
         postgres_session: AsyncSession,
         model_registry: ModelRegistry,
         request_context: ContextVar[RequestContext],
+        elasticsearch_vector_store: ElasticsearchVectorStore,
+        elasticsearch_client: AsyncElasticsearch,
     ) -> None:
         provider = await model_registry.get_model_provider(
             model=self.vector_store_model,
@@ -489,11 +479,34 @@ class DocumentManager:
             redis_client=redis_client,
         )
 
-        batches = batched(iterable=chunks, n=self.BATCH_SIZE)
-        for batch in batches:
+        chunks_batches = batched(iterable=chunks, n=self.BATCH_SIZE)
+        for chunks_batch in chunks_batches:
             # create embeddings
-            texts = [chunk.content for chunk in batch]
-            embeddings = await self._create_embeddings(provider=provider, input_texts=texts, redis_client=redis_client)
+            embeddings = await self._create_embeddings(provider=provider, input_texts=chunks_batch, redis_client=redis_client)
 
+            i = 0
+            elasticsearch_chunks = list()
+            for chunk, embedding in zip(chunks_batch, embeddings):
+                elasticsearch_chunks.append(
+                    ElasticsearchChunkFields(
+                        id=i,
+                        collection_id=collection_id,
+                        document_id=document_id,
+                        document_name=document_name,
+                        content=chunk,
+                        embedding=embedding,
+                        created=datetime.now(),
+                        source_ref=metadata.source_ref,
+                        source_url=metadata.source_url,
+                        source_title=metadata.source_title,
+                        source_format=metadata.source_format,
+                        source_author=metadata.source_author,
+                        source_publisher=metadata.source_publisher,
+                        source_priority=metadata.source_priority,
+                        source_tags=metadata.source_tags,
+                        source_date=metadata.source_date,
+                    )
+                )
+                i += 1
             # insert chunks and vectors
-            await self.vector_store.upsert(collection_id=collection_id, chunks=batch, embeddings=embeddings)
+            await elasticsearch_vector_store.upsert(client=elasticsearch_client, chunks=elasticsearch_chunks)

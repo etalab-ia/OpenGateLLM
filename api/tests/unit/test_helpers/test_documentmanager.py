@@ -1,19 +1,35 @@
 from contextvars import ContextVar
+from datetime import datetime
+from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock
 
+from fastapi import UploadFile
 import pytest
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.datastructures import Headers
 
 from api.helpers._documentmanager import DocumentManager
-from api.schemas.chunks import Chunk
+from api.schemas.chunks import Chunk, ChunkMetadata
 from api.schemas.collections import CollectionVisibility
 from api.schemas.core.context import RequestContext
-from api.schemas.documents import Chunker
+from api.schemas.documents import Chunker, InputChunkMetadata
 from api.schemas.me.info import UserInfo
 from api.schemas.parse import ParsedDocument, ParsedDocumentMetadata, ParsedDocumentPage
 from api.schemas.usage import Usage
-from api.utils.exceptions import CollectionNotFoundException
+from api.utils.exceptions import (
+    ChunkingFailedException,
+    CollectionNotFoundException,
+    DocumentNotFoundException,
+    MasterNotAllowedException,
+    ParsingDocumentFailedException,
+    VectorizationFailedException,
+)
+
+
+def create_upload_file(content: str, filename: str, content_type: str) -> UploadFile:
+    """Helper function to create UploadFile from string content."""
+    return UploadFile(filename=filename, file=BytesIO(content.encode("utf-8")), headers=Headers({"content-type": content_type}))
 
 
 @pytest.mark.asyncio
@@ -21,23 +37,23 @@ async def test_create_document_collection_no_longer_exists():
     """Test that CollectionNotFoundException is raised when document is created for a collection that does not exist."""
 
     # Mock dependencies
-    mock_vectore_store = AsyncMock()
     mock_vector_store_model = AsyncMock()
     mock_parser = AsyncMock()
     mock_session = AsyncMock(spec=AsyncSession)
 
     # Create DocumentManager instance
-    document_manager = DocumentManager(vector_store=mock_vectore_store, vector_store_model=mock_vector_store_model, parser_manager=mock_parser)
+    document_manager = DocumentManager(vector_store_model=mock_vector_store_model, parser_manager=mock_parser)
 
     # Mock input parameters
     mock_collection_result = MagicMock()
     mock_collection_result.scalar_one.side_effect = NoResultFound()
     mock_session.execute.return_value = mock_collection_result
-    mock_metadata = ParsedDocumentMetadata(document_name="test_doc.txt")
-    mock_data = ParsedDocumentPage(content="Test document content", images={}, metadata=mock_metadata)
-    mock_document = ParsedDocument(data=[mock_data])
+    mock_metadata = InputChunkMetadata(source_tags=["test", "test2"], source_title="Test document")
+    mock_file = create_upload_file("#Test document content", "sample.md", "text/markdown")
     mock_redis_client = AsyncMock()
     mock_model_registry = AsyncMock()
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
     mock_request_context_obj = RequestContext(
         id="123",
         client="test",
@@ -54,19 +70,21 @@ async def test_create_document_collection_no_longer_exists():
     # Test that the exception is raised with the correct message
     with pytest.raises(CollectionNotFoundException) as exc_info:
         await document_manager.create_document(
+            collection_id=123,
+            file=mock_file,
+            chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
+            chunk_size=1000,
+            chunk_overlap=100,
+            is_separator_regex=False,
+            separators=["\n\n", "\n", " "],
+            chunk_min_size=50,
+            metadata=mock_metadata,
+            elasticsearch_vector_store=mock_elasticsearch_vector_store,
+            elasticsearch_client=mock_elasticsearch_client,
             postgres_session=mock_session,
             redis_client=mock_redis_client,
             model_registry=mock_model_registry,
             request_context=mock_request_context,
-            collection_id=123,
-            document=mock_document,
-            chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
-            chunk_size=1000,
-            chunk_overlap=100,
-            length_function=len,
-            is_separator_regex=False,
-            separators=["\n\n", "\n", " "],
-            chunk_min_size=50,
         )
 
         assert "Collection 123 no longer exists" in str(exc_info.value.detail)
@@ -78,13 +96,12 @@ async def test_get_collections_filter_by_visibility():
     """Test that get_collections correctly filters by visibility (private/public)."""
 
     # Mock dependencies
-    mock_vector_store = AsyncMock()
     mock_vector_store_model = AsyncMock()
     mock_parser = AsyncMock()
     mock_session = AsyncMock(spec=AsyncSession)
 
     # Create DocumentManager instance
-    document_manager = DocumentManager(vector_store=mock_vector_store, vector_store_model=mock_vector_store_model, parser_manager=mock_parser)
+    document_manager = DocumentManager(vector_store_model=mock_vector_store_model, parser_manager=mock_parser)
 
     # Mock input parameters
     mock_private_result = MagicMock()
@@ -145,13 +162,12 @@ async def test_get_collections_filter_by_collection_name():
     """Test that get_collections correctly filters by collection name."""
 
     # Mock dependencies
-    mock_vector_store = AsyncMock()
     mock_vector_store_model = AsyncMock()
     mock_parser = AsyncMock()
     mock_session = AsyncMock(spec=AsyncSession)
 
     # Create DocumentManager instance
-    document_manager = DocumentManager(vector_store=mock_vector_store, vector_store_model=mock_vector_store_model, parser_manager=mock_parser)
+    document_manager = DocumentManager(vector_store_model=mock_vector_store_model, parser_manager=mock_parser)
 
     # Mock input parameters
     mock_result_with_matches = MagicMock()
@@ -228,7 +244,6 @@ async def test_get_collections_filter_by_collection_name():
 
 @pytest.mark.asyncio
 async def test_create_collection_success():
-    mock_vector_store = AsyncMock()
     mock_parser = AsyncMock()
     mock_session = AsyncMock(spec=AsyncSession)
     mock_session.execute = AsyncMock()
@@ -238,7 +253,7 @@ async def test_create_collection_success():
     mock_result.scalar_one.return_value = 42
     mock_session.execute.return_value = mock_result
 
-    document_manager = DocumentManager(vector_store=mock_vector_store, vector_store_model="test-model", parser_manager=mock_parser)
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
 
     collection_id = await document_manager.create_collection(
         postgres_session=mock_session,
@@ -256,6 +271,8 @@ async def test_create_collection_success():
 @pytest.mark.asyncio
 async def test_delete_collection_not_found():
     mock_vector_store = AsyncMock()
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
     mock_parser = AsyncMock()
     mock_session = AsyncMock(spec=AsyncSession)
     mock_session.execute = AsyncMock()
@@ -265,19 +282,27 @@ async def test_delete_collection_not_found():
     mock_result.scalar_one.side_effect = NoResultFound()
     mock_session.execute.return_value = mock_result
 
-    document_manager = DocumentManager(vector_store=mock_vector_store, vector_store_model="test-model", parser_manager=mock_parser)
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
 
     with pytest.raises(CollectionNotFoundException):
-        await document_manager.delete_collection(postgres_session=mock_session, user_id=1, collection_id=99)
+        await document_manager.delete_collection(
+            postgres_session=mock_session,
+            elasticsearch_vector_store=mock_elasticsearch_vector_store,
+            elasticsearch_client=mock_elasticsearch_client,
+            user_id=1,
+            collection_id=99,
+        )
 
-    mock_vector_store.delete_collection.assert_not_called()
+    mock_elasticsearch_vector_store.delete_collection.assert_not_called()
     mock_session.commit.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_delete_collection_success():
     mock_vector_store = AsyncMock()
-    mock_vector_store.delete_collection = AsyncMock()
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_vector_store.delete_collection = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
     mock_parser = AsyncMock()
     mock_session = AsyncMock(spec=AsyncSession)
     mock_session.execute = AsyncMock()
@@ -288,90 +313,87 @@ async def test_delete_collection_success():
     delete_result = MagicMock()
     mock_session.execute.side_effect = [select_result, delete_result]
 
-    document_manager = DocumentManager(vector_store=mock_vector_store, vector_store_model="test-model", parser_manager=mock_parser)
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
 
-    await document_manager.delete_collection(postgres_session=mock_session, user_id=1, collection_id=123)
+    await document_manager.delete_collection(
+        postgres_session=mock_session,
+        elasticsearch_vector_store=mock_elasticsearch_vector_store,
+        elasticsearch_client=mock_elasticsearch_client,
+        user_id=1,
+        collection_id=123,
+    )
 
     assert mock_session.execute.await_count == 2
     mock_session.commit.assert_awaited_once()
-    mock_vector_store.delete_collection.assert_awaited_once_with(collection_id=123)
+    mock_elasticsearch_vector_store.delete_collection.assert_awaited_once_with(client=mock_elasticsearch_client, collection_id=123)
 
 
 @pytest.mark.asyncio
 async def test_create_document_success(monkeypatch):
-    mock_vector_store = AsyncMock()
-    mock_vector_store.create_collection = AsyncMock()
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
     mock_parser = AsyncMock()
+    mock_parser.parse = AsyncMock(return_value="Test content for chunking")
     mock_session = AsyncMock(spec=AsyncSession)
     mock_session.execute = AsyncMock()
     mock_session.commit = AsyncMock()
 
     check_collection = MagicMock()
     check_collection.scalar_one.return_value = MagicMock()
-    fetch_vector_size = MagicMock()
-    fetch_vector_size.scalar_one.return_value = 1536
     insert_document = MagicMock()
     insert_document.scalar_one.return_value = 555
-    mock_session.execute.side_effect = [check_collection, fetch_vector_size, insert_document]
+    mock_session.execute.side_effect = [check_collection, insert_document]
 
-    document_manager = DocumentManager(vector_store=mock_vector_store, vector_store_model="test-model", parser_manager=mock_parser)
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
 
-    chunks = [Chunk(id=1, metadata={}, content="chunk-1")]
+    chunks = ["chunk-1", "chunk-2"]
     document_manager._split = MagicMock(return_value=chunks)
     document_manager._upsert = AsyncMock()
 
-    monkeypatch.setattr("api.helpers._documentmanager.time.time", lambda: 1700000000)
-
-    mock_metadata = ParsedDocumentMetadata(document_name="test_doc.txt")
-    mock_page = ParsedDocumentPage(content="Hello", images={}, metadata=mock_metadata)
-    mock_document = ParsedDocument(data=[mock_page])
+    mock_file = create_upload_file("Test content", "test.txt", "text/plain")
+    mock_metadata = InputChunkMetadata(source_tags=["test"])
     mock_redis = AsyncMock()
     mock_model_registry = AsyncMock()
     mock_request_context_obj = RequestContext(
         id="123",
         client="test",
         method="POST",
-        endpoint="/v1/search",
+        endpoint="/v1/documents",
         user_info=UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[], expires=None, created=0, updated=0),
         token_id=1,
         usage=Usage(),
     )
-    # Use a real ContextVar instead of a mock
     mock_request_context = ContextVar("test_request_context", default=mock_request_context_obj)
     mock_request_context.set(mock_request_context_obj)
+    
     document_id = await document_manager.create_document(
         postgres_session=mock_session,
         redis_client=mock_redis,
         model_registry=mock_model_registry,
         request_context=mock_request_context,
+        elasticsearch_vector_store=mock_elasticsearch_vector_store,
+        elasticsearch_client=mock_elasticsearch_client,
         collection_id=123,
-        document=mock_document,
+        file=mock_file,
+        metadata=mock_metadata,
         chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
         chunk_size=1000,
-        chunk_overlap=50,
-        length_function=len,
-        chunk_min_size=20,
-        is_separator_regex=False,
-        separators=["\n"],
+        chunk_overlap=100,
+        chunk_min_size=50,
     )
 
     assert document_id == 555
     document_manager._split.assert_called_once()
     document_manager._upsert.assert_awaited_once()
-
-    upsert_kwargs = document_manager._upsert.await_args.kwargs
-    upsert_chunks = upsert_kwargs["chunks"]
-    assert upsert_chunks[0].metadata["collection_id"] == 123
-    assert upsert_chunks[0].metadata["document_id"] == 555
-    assert upsert_chunks[0].metadata["document_created"] == 1700000000
-    mock_vector_store.create_collection.assert_awaited_once_with(collection_id=123, vector_size=1536)
     mock_session.commit.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_get_documents_populates_chunk_count():
     mock_vector_store = AsyncMock()
-    mock_vector_store.get_chunk_count = AsyncMock(side_effect=[3, 7])
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_vector_store.get_chunk_count = AsyncMock(side_effect=[3, 7])
+    mock_elasticsearch_client = AsyncMock()
     mock_parser = AsyncMock()
     mock_session = AsyncMock(spec=AsyncSession)
     mock_session.execute = AsyncMock()
@@ -384,23 +406,31 @@ async def test_get_documents_populates_chunk_count():
     mock_result.all.return_value = [row_one, row_two]
     mock_session.execute.return_value = mock_result
 
-    document_manager = DocumentManager(vector_store=mock_vector_store, vector_store_model="test-model", parser_manager=mock_parser)
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
 
     user = UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[], expires=None, created=0, updated=0)
-    documents = await document_manager.get_documents(postgres_session=mock_session, user_id=user.id, collection_id=5)
+    documents = await document_manager.get_documents(
+        postgres_session=mock_session,
+        elasticsearch_vector_store=mock_elasticsearch_vector_store,
+        elasticsearch_client=mock_elasticsearch_client,
+        user_id=user.id,
+        collection_id=5,
+    )
 
     assert len(documents) == 2
     assert documents[0].chunks == 3
     assert documents[1].chunks == 7
-    assert mock_vector_store.get_chunk_count.await_count == 2
+    assert mock_elasticsearch_vector_store.get_chunk_count.await_count == 2
 
 
 @pytest.mark.asyncio
 async def test_search_chunks_returns_empty_when_no_collections():
     mock_vector_store = AsyncMock()
-    mock_vector_store.search = AsyncMock()
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_vector_store.search = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
     mock_parser = AsyncMock()
-    document_manager = DocumentManager(vector_store=mock_vector_store, vector_store_model="test-model", parser_manager=mock_parser)
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
 
     mock_session = AsyncMock(spec=AsyncSession)
     mock_redis = AsyncMock()
@@ -422,6 +452,8 @@ async def test_search_chunks_returns_empty_when_no_collections():
 
     result = await document_manager.search_chunks(
         postgres_session=mock_session,
+        elasticsearch_vector_store=mock_elasticsearch_vector_store,
+        elasticsearch_client=mock_elasticsearch_client,
         redis_client=mock_redis,
         model_registry=mock_model_registry,
         request_context=mock_request_context,
@@ -434,5 +466,631 @@ async def test_search_chunks_returns_empty_when_no_collections():
     )
 
     assert result == []
-    mock_vector_store.search.assert_not_called()
+    mock_elasticsearch_vector_store.search.assert_not_called()
     mock_model_registry.get_model_provider.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_collection_success():
+    """Test successful collection update."""
+    mock_parser = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_session.execute = AsyncMock()
+    mock_session.commit = AsyncMock()
+
+    # Mock the select result
+    select_result = MagicMock()
+    mock_collection = MagicMock()
+    mock_collection.id = 123
+    mock_collection.name = "Old Name"
+    mock_collection.visibility = CollectionVisibility.PRIVATE
+    mock_collection.description = "Old Description"
+    select_result.scalar_one.return_value = mock_collection
+
+    # Mock the update result
+    update_result = MagicMock()
+    mock_session.execute.side_effect = [select_result, update_result]
+
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+
+    await document_manager.update_collection(
+        postgres_session=mock_session,
+        user_id=1,
+        collection_id=123,
+        name="New Name",
+        visibility=CollectionVisibility.PUBLIC,
+        description="New Description",
+    )
+
+    assert mock_session.execute.await_count == 2
+    mock_session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_update_collection_not_found():
+    """Test updating non-existent collection raises CollectionNotFoundException."""
+    mock_parser = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_session.execute = AsyncMock()
+    mock_session.commit = AsyncMock()
+
+    # Mock NoResultFound exception
+    mock_result = MagicMock()
+    mock_result.scalar_one.side_effect = NoResultFound()
+    mock_session.execute.return_value = mock_result
+
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+
+    with pytest.raises(CollectionNotFoundException):
+        await document_manager.update_collection(postgres_session=mock_session, user_id=1, collection_id=999, name="New Name")
+
+    mock_session.commit.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_delete_document_success():
+    """Test successful document deletion from both Postgres and Elasticsearch."""
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_vector_store.delete_document = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
+    mock_parser = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_session.execute = AsyncMock()
+    mock_session.commit = AsyncMock()
+
+    # Mock the select result
+    select_result = MagicMock()
+    mock_document = MagicMock()
+    mock_document.id = 456
+    mock_document.collection_id = 123
+    select_result.scalar_one.return_value = mock_document
+
+    # Mock the delete result
+    delete_result = MagicMock()
+    mock_session.execute.side_effect = [select_result, delete_result]
+
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+
+    await document_manager.delete_document(
+        postgres_session=mock_session,
+        elasticsearch_vector_store=mock_elasticsearch_vector_store,
+        elasticsearch_client=mock_elasticsearch_client,
+        user_id=1,
+        document_id=456,
+    )
+
+    assert mock_session.execute.await_count == 2
+    mock_session.commit.assert_awaited_once()
+    mock_elasticsearch_vector_store.delete_document.assert_awaited_once_with(client=mock_elasticsearch_client, collection_id=123, document_id=456)
+
+
+@pytest.mark.asyncio
+async def test_delete_document_not_found():
+    """Test deleting non-existent document raises DocumentNotFoundException."""
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
+    mock_parser = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_session.execute = AsyncMock()
+    mock_session.commit = AsyncMock()
+
+    # Mock NoResultFound exception
+    mock_result = MagicMock()
+    mock_result.scalar_one.side_effect = NoResultFound()
+    mock_session.execute.return_value = mock_result
+
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+
+    with pytest.raises(DocumentNotFoundException):
+        await document_manager.delete_document(
+            postgres_session=mock_session,
+            elasticsearch_vector_store=mock_elasticsearch_vector_store,
+            elasticsearch_client=mock_elasticsearch_client,
+            user_id=1,
+            document_id=999,
+        )
+
+    mock_elasticsearch_vector_store.delete_document.assert_not_called()
+    mock_session.commit.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_get_chunks_success():
+    """Test retrieving chunks for a document."""
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
+    mock_parser = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_session.execute = AsyncMock()
+
+    # Mock the select result
+    select_result = MagicMock()
+    mock_document = MagicMock()
+    mock_document.id = 456
+    mock_document.collection_id = 123
+    select_result.scalar_one.return_value = mock_document
+    mock_session.execute.return_value = select_result
+
+    # Mock chunks returned from Elasticsearch
+    mock_chunks = [
+        Chunk(
+            id=1,
+            metadata=ChunkMetadata(collection_id=123, document_id=456, document_name="test.txt", created=datetime.fromtimestamp(1700000000)),
+            content="chunk 1",
+        ),
+        Chunk(
+            id=2,
+            metadata=ChunkMetadata(collection_id=123, document_id=456, document_name="test.txt", created=datetime.fromtimestamp(1700000000)),
+            content="chunk 2",
+        ),
+    ]
+    mock_elasticsearch_vector_store.get_chunks = AsyncMock(return_value=mock_chunks)
+
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+
+    chunks = await document_manager.get_chunks(
+        postgres_session=mock_session,
+        elasticsearch_vector_store=mock_elasticsearch_vector_store,
+        elasticsearch_client=mock_elasticsearch_client,
+        user_id=1,
+        document_id=456,
+        offset=0,
+        limit=10,
+    )
+
+    assert len(chunks) == 2
+    assert chunks[0].id == 1
+    assert chunks[1].id == 2
+    mock_elasticsearch_vector_store.get_chunks.assert_awaited_once_with(
+        client=mock_elasticsearch_client, collection_id=123, document_id=456, offset=0, limit=10, chunk_id=None
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_chunks_document_not_found():
+    """Test getting chunks for non-existent document raises DocumentNotFoundException."""
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
+    mock_parser = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_session.execute = AsyncMock()
+
+    # Mock NoResultFound exception
+    mock_result = MagicMock()
+    mock_result.scalar_one.side_effect = NoResultFound()
+    mock_session.execute.return_value = mock_result
+
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+
+    with pytest.raises(DocumentNotFoundException):
+        await document_manager.get_chunks(
+            postgres_session=mock_session,
+            elasticsearch_vector_store=mock_elasticsearch_vector_store,
+            elasticsearch_client=mock_elasticsearch_client,
+            user_id=1,
+            document_id=999,
+        )
+
+    mock_elasticsearch_vector_store.get_chunks.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_search_chunks_with_similarity():
+    """Test semantic search with vector embeddings."""
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
+    mock_parser = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_redis = AsyncMock()
+    mock_model_registry = AsyncMock()
+
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+
+    # Mock collection exists check
+    collection_result = MagicMock()
+    collection_result.scalar_one.return_value = MagicMock()
+    mock_session.execute.return_value = collection_result
+
+    # Mock model provider and embeddings
+    mock_provider = AsyncMock()
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"data": [{"embedding": [0.1, 0.2, 0.3]}]}
+    mock_provider.forward_request = AsyncMock(return_value=mock_response)
+    mock_model_registry.get_model_provider = AsyncMock(return_value=mock_provider)
+
+    # Mock search results
+    mock_search_results = [MagicMock(id=1, content="result 1", score=0.95), MagicMock(id=2, content="result 2", score=0.85)]
+    mock_elasticsearch_vector_store.search = AsyncMock(return_value=mock_search_results)
+
+    mock_request_context_obj = RequestContext(
+        id="123",
+        client="test",
+        method="POST",
+        endpoint="/v1/search",
+        user_info=UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[], expires=None, created=0, updated=0),
+        token_id=1,
+        usage=Usage(),
+    )
+    mock_request_context = ContextVar("test_request_context", default=mock_request_context_obj)
+    mock_request_context.set(mock_request_context_obj)
+
+    result = await document_manager.search_chunks(
+        postgres_session=mock_session,
+        elasticsearch_vector_store=mock_elasticsearch_vector_store,
+        elasticsearch_client=mock_elasticsearch_client,
+        redis_client=mock_redis,
+        model_registry=mock_model_registry,
+        request_context=mock_request_context,
+        collection_ids=[123],
+        prompt="test query",
+        method="similarity",
+        limit=10,
+        offset=0,
+        rff_k=50,
+    )
+
+    assert len(result) == 2
+    mock_model_registry.get_model_provider.assert_awaited_once()
+    mock_provider.forward_request.assert_awaited_once()
+    mock_elasticsearch_vector_store.search.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_search_chunks_with_lexical():
+    """Test lexical search (BM25) without embedding creation."""
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
+    mock_parser = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_redis = AsyncMock()
+    mock_model_registry = AsyncMock()
+
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+
+    # Mock collection exists check
+    collection_result = MagicMock()
+    collection_result.scalar_one.return_value = MagicMock()
+    mock_session.execute.return_value = collection_result
+
+    # Mock model provider (should not be called for lexical search)
+    mock_provider = AsyncMock()
+    mock_model_registry.get_model_provider = AsyncMock(return_value=mock_provider)
+
+    # Mock search results
+    mock_search_results = [MagicMock(id=1, content="result 1", score=5.2), MagicMock(id=2, content="result 2", score=4.1)]
+    mock_elasticsearch_vector_store.search = AsyncMock(return_value=mock_search_results)
+
+    mock_request_context_obj = RequestContext(
+        id="123",
+        client="test",
+        method="POST",
+        endpoint="/v1/search",
+        user_info=UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[], expires=None, created=0, updated=0),
+        token_id=1,
+        usage=Usage(),
+    )
+    mock_request_context = ContextVar("test_request_context", default=mock_request_context_obj)
+    mock_request_context.set(mock_request_context_obj)
+
+    result = await document_manager.search_chunks(
+        postgres_session=mock_session,
+        elasticsearch_vector_store=mock_elasticsearch_vector_store,
+        elasticsearch_client=mock_elasticsearch_client,
+        redis_client=mock_redis,
+        model_registry=mock_model_registry,
+        request_context=mock_request_context,
+        collection_ids=[123],
+        prompt="test query",
+        method="lexical",
+        limit=10,
+        offset=0,
+        rff_k=50,
+    )
+
+    assert len(result) == 2
+    mock_model_registry.get_model_provider.assert_awaited_once()
+    # Verify no embedding creation for lexical search - provider.forward_request should not be called
+    mock_provider.forward_request.assert_not_called()
+    # Verify search was called with None for query_vector
+    call_kwargs = mock_elasticsearch_vector_store.search.call_args.kwargs
+    assert call_kwargs["query_vector"] is None
+    mock_elasticsearch_vector_store.search.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_search_chunks_collection_not_found():
+    """Test searching in non-existent collection raises CollectionNotFoundException."""
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
+    mock_parser = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_redis = AsyncMock()
+    mock_model_registry = AsyncMock()
+
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+
+    # Mock collection not found
+    mock_result = MagicMock()
+    mock_result.scalar_one.side_effect = NoResultFound()
+    mock_session.execute.return_value = mock_result
+
+    mock_request_context_obj = RequestContext(
+        id="123",
+        client="test",
+        method="POST",
+        endpoint="/v1/search",
+        user_info=UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[], expires=None, created=0, updated=0),
+        token_id=1,
+        usage=Usage(),
+    )
+    mock_request_context = ContextVar("test_request_context", default=mock_request_context_obj)
+    mock_request_context.set(mock_request_context_obj)
+
+    with pytest.raises(CollectionNotFoundException):
+        await document_manager.search_chunks(
+            postgres_session=mock_session,
+            elasticsearch_vector_store=mock_elasticsearch_vector_store,
+            elasticsearch_client=mock_elasticsearch_client,
+            redis_client=mock_redis,
+            model_registry=mock_model_registry,
+            request_context=mock_request_context,
+            collection_ids=[999],
+            prompt="test query",
+            method="similarity",
+            limit=10,
+            offset=0,
+            rff_k=50,
+        )
+
+    mock_elasticsearch_vector_store.search.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_collection_master_user_forbidden():
+    """Test that user_id=0 (master user) cannot create collections."""
+    mock_parser = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+
+    with pytest.raises(MasterNotAllowedException) as exc_info:
+        await document_manager.create_collection(
+            postgres_session=mock_session,
+            user_id=0,
+            name="Test Collection",
+            visibility=CollectionVisibility.PRIVATE,
+            description="This should not work",
+        )
+
+    assert "Master user is not allowed" in str(exc_info.value.detail)
+    mock_session.execute.assert_not_called()
+    mock_session.commit.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_document_parsing_fails():
+    """Test ParsingDocumentFailedException when parser fails."""
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
+    mock_parser = AsyncMock()
+    mock_parser.parse = AsyncMock(side_effect=Exception("Parse error"))
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_session.execute = AsyncMock()
+    mock_redis = AsyncMock()
+    mock_model_registry = AsyncMock()
+
+    # Mock collection exists
+    collection_result = MagicMock()
+    collection_result.scalar_one.return_value = MagicMock()
+    mock_session.execute.return_value = collection_result
+
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+
+    mock_file = create_upload_file("Test content", "test.txt", "text/plain")
+    mock_metadata = InputChunkMetadata(source_tags=["test"])
+
+    mock_request_context_obj = RequestContext(
+        id="123",
+        client="test",
+        method="POST",
+        endpoint="/v1/documents",
+        user_info=UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[], expires=None, created=0, updated=0),
+        token_id=1,
+        usage=Usage(),
+    )
+    mock_request_context = ContextVar("test_request_context", default=mock_request_context_obj)
+    mock_request_context.set(mock_request_context_obj)
+
+    with pytest.raises(ParsingDocumentFailedException):
+        await document_manager.create_document(
+            postgres_session=mock_session,
+            redis_client=mock_redis,
+            model_registry=mock_model_registry,
+            request_context=mock_request_context,
+            elasticsearch_vector_store=mock_elasticsearch_vector_store,
+            elasticsearch_client=mock_elasticsearch_client,
+            collection_id=123,
+            file=mock_file,
+            metadata=mock_metadata,
+            chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
+            chunk_size=1000,
+            chunk_overlap=100,
+            chunk_min_size=50,
+        )
+
+
+@pytest.mark.asyncio
+async def test_create_document_empty_chunks():
+    """Test ChunkingFailedException when no chunks extracted."""
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
+    mock_parser = AsyncMock()
+    mock_parser.parse = AsyncMock(return_value="Short content")
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_session.execute = AsyncMock()
+    mock_redis = AsyncMock()
+    mock_model_registry = AsyncMock()
+
+    # Mock collection exists
+    collection_result = MagicMock()
+    collection_result.scalar_one.return_value = MagicMock()
+    mock_session.execute.return_value = collection_result
+
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+
+    # Mock _split to return empty chunks
+    document_manager._split = MagicMock(return_value=[])
+
+    mock_file = create_upload_file("Test content", "test.txt", "text/plain")
+    mock_metadata = InputChunkMetadata(source_tags=["test"])
+
+    mock_request_context_obj = RequestContext(
+        id="123",
+        client="test",
+        method="POST",
+        endpoint="/v1/documents",
+        user_info=UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[], expires=None, created=0, updated=0),
+        token_id=1,
+        usage=Usage(),
+    )
+    mock_request_context = ContextVar("test_request_context", default=mock_request_context_obj)
+    mock_request_context.set(mock_request_context_obj)
+
+    with pytest.raises(ChunkingFailedException) as exc_info:
+        await document_manager.create_document(
+            postgres_session=mock_session,
+            redis_client=mock_redis,
+            model_registry=mock_model_registry,
+            request_context=mock_request_context,
+            elasticsearch_vector_store=mock_elasticsearch_vector_store,
+            elasticsearch_client=mock_elasticsearch_client,
+            collection_id=123,
+            file=mock_file,
+            metadata=mock_metadata,
+            chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
+            chunk_size=1000,
+            chunk_overlap=100,
+            chunk_min_size=50,
+        )
+
+    assert "No chunks were extracted" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_create_document_vectorization_fails(monkeypatch):
+    """Test cleanup when vectorization fails."""
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_client = AsyncMock()
+    mock_parser = AsyncMock()
+    mock_parser.parse = AsyncMock(return_value="Test content for chunking")
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_session.execute = AsyncMock()
+    mock_session.commit = AsyncMock()
+    mock_redis = AsyncMock()
+    mock_model_registry = AsyncMock()
+
+    # Mock collection exists, insert document, and delete document
+    collection_result = MagicMock()
+    collection_result.scalar_one.return_value = MagicMock()
+    insert_document = MagicMock()
+    insert_document.scalar_one.return_value = 555
+    # Additional selects for delete_document check
+    select_for_delete = MagicMock()
+    mock_doc = MagicMock()
+    mock_doc.collection_id = 123
+    select_for_delete.scalar_one.return_value = mock_doc
+    delete_result = MagicMock()
+    mock_session.execute.side_effect = [collection_result, insert_document, select_for_delete, delete_result]
+
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+
+    # Mock _split to return chunks
+    chunks = ["chunk-1", "chunk-2"]
+    document_manager._split = MagicMock(return_value=chunks)
+
+    # Mock _upsert to fail
+    document_manager._upsert = AsyncMock(side_effect=Exception("Vectorization error"))
+
+    mock_file = create_upload_file("Test content", "test.txt", "text/plain")
+    mock_metadata = InputChunkMetadata(source_tags=["test"])
+
+    mock_request_context_obj = RequestContext(
+        id="123",
+        client="test",
+        method="POST",
+        endpoint="/v1/documents",
+        user_info=UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[], expires=None, created=0, updated=0),
+        token_id=1,
+        usage=Usage(),
+    )
+    mock_request_context = ContextVar("test_request_context", default=mock_request_context_obj)
+    mock_request_context.set(mock_request_context_obj)
+
+    with pytest.raises(VectorizationFailedException) as exc_info:
+        await document_manager.create_document(
+            postgres_session=mock_session,
+            redis_client=mock_redis,
+            model_registry=mock_model_registry,
+            request_context=mock_request_context,
+            elasticsearch_vector_store=mock_elasticsearch_vector_store,
+            elasticsearch_client=mock_elasticsearch_client,
+            collection_id=123,
+            file=mock_file,
+            metadata=mock_metadata,
+            chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
+            chunk_size=1000,
+            chunk_overlap=100,
+            chunk_min_size=50,
+        )
+
+    assert "Vectorization failed" in str(exc_info.value.detail)
+    # Verify document was attempted to be deleted from Postgres
+    assert mock_session.execute.await_count == 4  # collection check, insert, delete check, delete
+    mock_elasticsearch_vector_store.delete_document.assert_awaited_once_with(client=mock_elasticsearch_client, collection_id=123, document_id=555)
+
+
+@pytest.mark.asyncio
+async def test_get_documents_with_filters():
+    """Test filtering documents by document_name and document_id."""
+    mock_elasticsearch_vector_store = AsyncMock()
+    mock_elasticsearch_vector_store.get_chunk_count = AsyncMock(return_value=5)
+    mock_elasticsearch_client = AsyncMock()
+    mock_parser = AsyncMock()
+    mock_session = AsyncMock(spec=AsyncSession)
+    mock_session.execute = AsyncMock()
+
+    row = MagicMock()
+    row._asdict.return_value = {"id": 100, "name": "specific_doc.txt", "collection_id": 5, "created": 1697000000}
+    mock_result = MagicMock()
+    mock_result.all.return_value = [row]
+    mock_session.execute.return_value = mock_result
+
+    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+
+    # Test filtering by document_name
+    documents = await document_manager.get_documents(
+        postgres_session=mock_session,
+        elasticsearch_vector_store=mock_elasticsearch_vector_store,
+        elasticsearch_client=mock_elasticsearch_client,
+        user_id=1,
+        collection_id=5,
+        document_name="specific_doc.txt",
+    )
+
+    assert len(documents) == 1
+    assert documents[0].name == "specific_doc.txt"
+    assert documents[0].chunks == 5
+
+    # Test filtering by document_id
+    mock_session.execute.return_value = mock_result
+    documents = await document_manager.get_documents(
+        postgres_session=mock_session,
+        elasticsearch_vector_store=mock_elasticsearch_vector_store,
+        elasticsearch_client=mock_elasticsearch_client,
+        user_id=1,
+        collection_id=5,
+        document_id=100,
+    )
+
+    assert len(documents) == 1
+    assert documents[0].id == 100

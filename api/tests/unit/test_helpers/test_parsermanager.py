@@ -1,14 +1,15 @@
+import asyncio
 from io import BytesIO
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+import threading
+import time
+from unittest.mock import MagicMock, patch
 
-from fastapi import HTTPException, UploadFile
+from fastapi import UploadFile
 import pytest
 from starlette.datastructures import Headers
 
-from api.clients.parser import BaseParserClient as ParserClient
 from api.helpers._parsermanager import ParserManager
-from api.schemas.core.documents import FileType, ParserParams
-from api.schemas.parse import ParsedDocument, ParsedDocumentOutputFormat
+from api.schemas.core.documents import FileType
 from api.utils.exceptions import UnsupportedFileTypeException
 
 
@@ -22,110 +23,80 @@ def create_binary_upload_file(content: bytes, filename: str, content_type: str) 
     return UploadFile(filename=filename, file=BytesIO(content), headers=Headers({"content-type": content_type}))
 
 
-class TestParserManagerInit:
-    """Test ParserManager initialization."""
-
-    def test_init_without_parser(self):
-        """Test initialization without parser client."""
-        manager = ParserManager()
-        assert manager.parser_client is None
-
-    def test_init_with_parser(self):
-        """Test initialization with parser client."""
-        mock_parser = MagicMock(spec=ParserClient)
-        manager = ParserManager(parser=mock_parser)
-        assert manager.parser_client == mock_parser
-
-
 class TestParserManagerDetectFileType:
     """Test file type detection logic."""
 
-    def test_detect_file_type_pdf_valid(self):
+    def test_check_file_type_pdf_valid(self):
         """Test PDF file type detection with valid extension and content type."""
         file = create_binary_upload_file(b"%PDF-1.4 fake pdf content", "document.pdf", "application/pdf")
 
         manager = ParserManager()
-        result = manager._detect_file_type(file)
+        result = manager.check_file_type(file)
 
         assert result == FileType.PDF
 
-    def test_detect_file_type_html_valid(self):
+    def test_check_file_type_html_valid(self):
         """Test HTML file type detection with valid extension and content type."""
         file = create_upload_file("<html><body>Test</body></html>", "page.html", "text/html")
 
         manager = ParserManager()
-        result = manager._detect_file_type(file)
+        result = manager.check_file_type(file)
 
         assert result == FileType.HTML
 
-    def test_detect_file_type_markdown_valid(self):
+    def test_check_file_type_markdown_valid(self):
         """Test Markdown file type detection with valid extension and content type."""
         file = create_upload_file("# README\n\nThis is a test.", "README.md", "text/markdown")
 
         manager = ParserManager()
-        result = manager._detect_file_type(file)
+        result = manager.check_file_type(file)
 
         assert result == FileType.MD
 
-    def test_detect_file_type_txt_valid(self):
+    def test_check_file_type_txt_valid(self):
         """Test text file type detection with valid extension and content type."""
         file = create_upload_file("This is plain text content.", "notes.txt", "text/plain")
 
         manager = ParserManager()
-        result = manager._detect_file_type(file)
+        result = manager.check_file_type(file)
 
         assert result == FileType.TXT
 
-    def test_detect_file_type_content_type_only(self):
+    def test_check_file_type_content_type_only(self):
         """Test file type detection by content type when extension doesn't match."""
         file = create_binary_upload_file(b"%PDF-1.4 fake pdf content", "document.unknown", "application/pdf")
 
         manager = ParserManager()
-        result = manager._detect_file_type(file)
+        result = manager.check_file_type(file)
 
         assert result == FileType.PDF
 
-    def test_detect_file_type_invalid_extension_and_content_type(self):
+    def test_check_file_type_invalid_extension_and_content_type(self):
         """Test UnsupportedFileTypeException for invalid file types."""
         file = create_upload_file("Unknown content", "document.xyz", "application/xyz")
 
         manager = ParserManager()
 
         with pytest.raises(UnsupportedFileTypeException):
-            manager._detect_file_type(file)
+            manager.check_file_type(file)
 
-    def test_detect_file_type_mismatch_with_required_type(self):
+    def test_check_file_type_mismatch_with_required_type(self):
         """Test UnsupportedFileTypeException when detected type doesn't match required type."""
         file = create_binary_upload_file(b"%PDF-1.4 fake pdf content", "document.pdf", "application/pdf")
 
         manager = ParserManager()
 
         with pytest.raises(UnsupportedFileTypeException) as exc_info:
-            manager._detect_file_type(file, type=FileType.HTML)
+            manager.check_file_type(file, type=FileType.HTML)
 
         assert "File must be a html file." in str(exc_info.value)
 
-    def test_detect_file_type_exception_handling(self):
-        """Test exception handling when file properties can't be accessed."""
-        mock_file = MagicMock(spec=UploadFile)
-        # Make accessing filename raise an exception
-        mock_file.filename = PropertyMock(side_effect=Exception("Access error"))
-        mock_file.content_type = "text/plain"
-
-        manager = ParserManager()
-
-        with pytest.raises(HTTPException) as exc_info:
-            manager._detect_file_type(mock_file)
-
-        assert exc_info.value.status_code == 400
-        assert "Invalid file." in str(exc_info.value.detail)
-
-    def test_detect_file_type_case_insensitive_extension(self):
+    def test_check_file_type_case_insensitive_extension(self):
         """Test that extension detection is case insensitive."""
         file = create_binary_upload_file(b"%PDF-1.4 fake pdf content", "document.PDF", "application/pdf")
 
         manager = ParserManager()
-        result = manager._detect_file_type(file)
+        result = manager.check_file_type(file)
 
         assert result == FileType.PDF
 
@@ -167,264 +138,220 @@ class TestParserManagerReadContent:
         assert "" in result or len(result) > 0
 
 
-class TestParserManagerParseFile:
-    """Test main parse_file method."""
+class TestParserManagerParse:
+    """Test parsing functionality."""
 
     @pytest.mark.asyncio
-    async def test_parse_file_delegates_to_correct_method(self):
-        """Test that parse_file delegates to the correct parsing method."""
-        file = create_binary_upload_file(b"%PDF-1.4 fake pdf content", "test.pdf", "application/pdf")
-
-        manager = ParserManager()
-
-        with patch.object(manager, "_parse_pdf") as mock_parse_pdf:
-            mock_parse_pdf.return_value = MagicMock(spec=ParsedDocument)
-
-            await manager.parse_file(file=file)
-
-            mock_parse_pdf.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_parse_file_with_all_params(self):
-        """Test parse_file with all parameters."""
-        file = create_upload_file("<html><body>Test</body></html>", "test.html", "text/html")
-
-        manager = ParserManager()
-
-        with patch.object(manager, "_parse_html") as mock_parse_html:
-            mock_parse_html.return_value = MagicMock(spec=ParsedDocument)
-
-            await manager.parse_file(file=file, output_format=ParsedDocumentOutputFormat.MARKDOWN)
-
-            mock_parse_html.assert_called_once()
-
-
-class TestParserManagerParsePdf:
-    """Test PDF parsing functionality."""
-
-    @pytest.mark.asyncio
-    async def test_parse_pdf_with_parser_client(self):
-        """Test PDF parsing using parser client when available."""
-        mock_parser = MagicMock(spec=ParserClient)
-        mock_parser.SUPPORTED_FORMATS = [FileType.PDF]
-        expected_document = MagicMock(spec=ParsedDocument)
-        # Make parse method async
-        mock_parser.parse = AsyncMock(return_value=expected_document)
-
-        file = create_binary_upload_file(b"%PDF-1.4 fake pdf content", "test.pdf", "application/pdf")
-
-        manager = ParserManager(parser=mock_parser)
-
-        result = await manager._parse_pdf(ParserParams(file=file))
-
-        assert result == expected_document
-        mock_parser.parse.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_parse_pdf_fallback_to_pymupdf(self):
-        """Test PDF parsing fallback to PyMuPDF when no parser client."""
+    async def test_parse_pdf_to_markdown(self):
+        """Test PDF parsing to markdown using pymupdf4llm."""
         file = create_binary_upload_file(b"%PDF-1.4 fake pdf content", "test.pdf", "application/pdf")
 
         mock_pdf = MagicMock()
-        mock_page = MagicMock()
-        mock_page.get_text.return_value = "Page content"
-        mock_pdf.__len__.return_value = 1
-        mock_pdf.__getitem__.return_value = mock_page
+        markdown_content = "# Document Title\n\nThis is the converted markdown content."
 
         manager = ParserManager()
+
+        with patch("pymupdf.open", return_value=mock_pdf) as mock_open:
+            with patch("pymupdf4llm.to_markdown", return_value=markdown_content) as mock_to_markdown:
+                result = await manager.parse(file=file)
+
+                assert isinstance(result, str)
+                assert result == markdown_content
+                mock_open.assert_called_once()
+                mock_to_markdown.assert_called_once_with(mock_pdf)
+
+    @pytest.mark.asyncio
+    async def test_parse_pdf_uses_semaphore(self):
+        """Test that PDF parsing uses the semaphore for concurrent control."""
+        file = create_binary_upload_file(b"%PDF-1.4 fake pdf content", "test.pdf", "application/pdf")
+
+        mock_pdf = MagicMock()
+        markdown_content = "# Test Content"
+
+        manager = ParserManager(max_concurrent=2)
+
+        # Track semaphore acquisition
+        semaphore_acquired = []
+        original_acquire = manager.conversion_semaphore.acquire
+
+        async def tracked_acquire():
+            semaphore_acquired.append(True)
+            return await original_acquire()
+
+        manager.conversion_semaphore.acquire = tracked_acquire
 
         with patch("pymupdf.open", return_value=mock_pdf):
-            result = await manager._parse_pdf(ParserParams(file=file))
+            with patch("pymupdf4llm.to_markdown", return_value=markdown_content):
+                result = await manager.parse(file=file)
 
-            assert isinstance(result, ParsedDocument)
-            assert len(result.data) == 1
-            assert result.data[0].content == "Page content"
-            assert result.data[0].metadata.document_name == "test.pdf"
-            mock_pdf.close.assert_called_once()
+                assert result == markdown_content
+                assert len(semaphore_acquired) == 1  # Semaphore was acquired
 
     @pytest.mark.asyncio
-    async def test_parse_pdf_pymupdf_exception(self):
-        """Test PDF parsing exception handling with PyMuPDF."""
-        file = create_binary_upload_file(b"invalid pdf content", "test.pdf", "application/pdf")
-
-        manager = ParserManager()
-
-        with patch("pymupdf.open", side_effect=Exception("Read error")):
-            with pytest.raises(HTTPException) as exc_info:
-                await manager._parse_pdf(ParserParams(file=file))
-
-            assert exc_info.value.status_code == 500
-            assert "Failed to parse pdf file." in str(exc_info.value.detail)
-
-
-class TestParserManagerParseHtml:
-    """Test HTML parsing functionality."""
-
-    @pytest.mark.asyncio
-    async def test_parse_html_with_parser_client(self):
-        """Test HTML parsing using parser client when available."""
-        mock_parser = MagicMock(spec=ParserClient)
-        mock_parser.SUPPORTED_FORMATS = [FileType.HTML]
-        expected_document = MagicMock(spec=ParsedDocument)
-        # Make parse method async
-        mock_parser.parse = AsyncMock(return_value=expected_document)
-
-        file = create_upload_file("<html><body>Test</body></html>", "test.html", "text/html")
-
-        manager = ParserManager(parser=mock_parser)
-
-        result = await manager._parse_html(ParserParams(file=file))
-
-        assert result == expected_document
-        mock_parser.parse.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_parse_html_fallback_markdown_output(self):
-        """Test HTML parsing with markdown output format."""
-        file = create_upload_file("<h1>Title</h1><p>Content</p>", "test.html", "text/html")
-
-        manager = ParserManager()
-
-        with patch("api.helpers._parsermanager.convert_to_markdown") as mock_convert:
-            mock_convert.return_value = "# Title\n\nContent"
-
-            result = await manager._parse_html(ParserParams(file=file, output_format=ParsedDocumentOutputFormat.MARKDOWN))
-
-            assert isinstance(result, ParsedDocument)
-            assert len(result.data) == 1
-            assert result.data[0].content == "# Title\n\nContent"
-            mock_convert.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_parse_html_fallback_plain_text(self):
-        """Test HTML parsing without markdown conversion."""
-        html_content = "<h1>Title</h1>"
-        file = create_upload_file(html_content, "test.html", "text/html")
-
-        manager = ParserManager()
-
-        result = await manager._parse_html(ParserParams(file=file))
-
-        assert isinstance(result, ParsedDocument)
-        assert len(result.data) == 1
-        assert result.data[0].content == html_content
-
-    @pytest.mark.asyncio
-    async def test_parse_html_exception(self):
-        """Test HTML parsing exception handling."""
-        file = create_upload_file("<html><body>Test</body></html>", "test.html", "text/html")
-
-        manager = ParserManager()
-
-        with patch.object(manager, "_read_content", side_effect=Exception("Read error")):
-            with pytest.raises(HTTPException) as exc_info:
-                await manager._parse_html(ParserParams(file=file))
-
-            assert exc_info.value.status_code == 500
-            assert "Failed to parse html file." in str(exc_info.value.detail)
-
-
-class TestParserManagerParseMd:
-    """Test Markdown parsing functionality."""
-
-    @pytest.mark.asyncio
-    async def test_parse_md_with_parser_client(self):
-        """Test Markdown parsing using parser client when available."""
-        mock_parser = MagicMock(spec=ParserClient)
-        mock_parser.SUPPORTED_FORMATS = [FileType.MD]
-        expected_document = MagicMock(spec=ParsedDocument)
-        # Make parse method async
-        mock_parser.parse = AsyncMock(return_value=expected_document)
-
-        file = create_upload_file("# Title\n\nContent", "test.md", "text/markdown")
-
-        manager = ParserManager(parser=mock_parser)
-
-        result = await manager._parse_md(ParserParams(file=file))
-
-        assert result == expected_document
-        mock_parser.parse.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_parse_md_fallback(self):
-        """Test Markdown parsing fallback when no parser client."""
-        md_content = "# Title\n\nContent"
-        file = create_upload_file(md_content, "test.md", "text/markdown")
-
-        manager = ParserManager()
-
-        result = await manager._parse_md(ParserParams(file=file))
-
-        assert isinstance(result, ParsedDocument)
-        assert len(result.data) == 1
-        assert result.data[0].content == md_content
-        assert result.data[0].metadata.document_name == "test.md"
-
-    @pytest.mark.asyncio
-    async def test_parse_md_exception(self):
-        """Test Markdown parsing exception handling."""
-        file = create_upload_file("# Title\n\nContent", "test.md", "text/markdown")
-
-        manager = ParserManager()
-
-        with patch.object(manager, "_read_content", side_effect=Exception("Read error")):
-            with pytest.raises(HTTPException) as exc_info:
-                await manager._parse_md(ParserParams(file=file))
-
-            assert exc_info.value.status_code == 500
-            assert "Failed to parse markdown file." in str(exc_info.value.detail)
-
-
-class TestParserManagerParseTxt:
-    """Test text file parsing functionality."""
-
-    @pytest.mark.asyncio
-    async def test_parse_txt_with_parser_client(self):
-        """Test text parsing using parser client when available."""
-        mock_parser = MagicMock(spec=ParserClient)
-        mock_parser.SUPPORTED_FORMATS = [FileType.TXT]
-        expected_document = MagicMock(spec=ParsedDocument)
-        # Make parse method async
-        mock_parser.parse = AsyncMock(return_value=expected_document)
-
-        file = create_upload_file("Plain text content", "test.txt", "text/plain")
-
-        manager = ParserManager(parser=mock_parser)
-
-        result = await manager._parse_txt(ParserParams(file=file))
-
-        assert result == expected_document
-        mock_parser.parse.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_parse_txt_fallback(self):
+    async def test_parse_txt(self):
         """Test text parsing fallback when no parser client."""
         txt_content = "Plain text content"
         file = create_upload_file(txt_content, "test.txt", "text/plain")
 
         manager = ParserManager()
 
-        result = await manager._parse_txt(ParserParams(file=file))
+        result = await manager.parse(file=file)
 
-        assert isinstance(result, ParsedDocument)
-        assert len(result.data) == 1
-        # _parse_txt reads raw bytes but they get converted to string in ParsedDocumentPage
-        assert result.data[0].content == txt_content
-        assert result.data[0].metadata.document_name == "test.txt"
+        assert result == txt_content
 
     @pytest.mark.asyncio
-    async def test_parse_txt_exception(self):
-        """Test text parsing exception handling."""
-        file = create_upload_file("Plain text content", "test.txt", "text/plain")
+    async def test_parse_md(self):
+        """Integration test for markdown file parsing end-to-end."""
+        md_content = "# Sample Markdown\n\nThis is **bold** text and *italic* text."
+        file = create_upload_file(md_content, "sample.md", "text/markdown")
 
         manager = ParserManager()
 
-        with patch.object(file, "read", side_effect=Exception("Read error")):
-            with pytest.raises(HTTPException) as exc_info:
-                await manager._parse_txt(ParserParams(file=file))
+        result = await manager.parse(file=file)
 
-            assert exc_info.value.status_code == 500
-            assert "Failed to parse text file." in str(exc_info.value.detail)
+        assert isinstance(result, str)
+        assert result == md_content
+
+    @pytest.mark.asyncio
+    async def test_parse_html(self):
+        """Integration test for HTML file parsing with markdown output."""
+        html_content = "<h1>Sample HTML</h1><p>This is a <strong>paragraph</strong>.</p>"
+        md_content = "# Sample HTML\n\nThis is a **paragraph**."
+        file = create_upload_file(html_content, "sample.html", "text/html")
+
+        manager = ParserManager()
+
+        with patch("api.helpers._parsermanager.convert_to_markdown") as mock_convert:
+            mock_convert.return_value = md_content
+
+            result = await manager.parse(file=file)
+
+            assert result == "# Sample HTML\n\nThis is a **paragraph**."
+
+
+class TestParserManagerSemaphore:
+    """Test semaphore concurrency control for PDF parsing."""
+
+    @pytest.mark.asyncio
+    async def test_semaphore_limits_concurrent_pdf_parsing(self):
+        """Test that semaphore properly limits concurrent PDF parsing operations."""
+        max_concurrent = 2
+        manager = ParserManager(max_concurrent=max_concurrent)
+
+        # Track concurrent executions using threading primitives
+        # (since to_markdown is called in a thread via asyncio.to_thread)
+        concurrent_count = 0
+        max_concurrent_reached = 0
+        lock = threading.Lock()
+
+        def mock_to_markdown(doc):
+            nonlocal concurrent_count, max_concurrent_reached
+            with lock:
+                concurrent_count += 1
+                max_concurrent_reached = max(max_concurrent_reached, concurrent_count)
+
+            # Simulate some work
+            time.sleep(0.1)
+
+            with lock:
+                concurrent_count -= 1
+
+            return "# Markdown content"
+
+        # Create multiple files to parse
+        files = [create_binary_upload_file(b"%PDF-1.4 content", f"test{i}.pdf", "application/pdf") for i in range(5)]
+
+        mock_pdf = MagicMock()
+
+        with patch("pymupdf.open", return_value=mock_pdf):
+            with patch("pymupdf4llm.to_markdown", side_effect=mock_to_markdown):
+                # Parse all files concurrently
+                results = await asyncio.gather(*[manager.parse(file) for file in files])
+
+                # Verify all files were parsed
+                assert len(results) == 5
+                assert all(result == "# Markdown content" for result in results)
+
+                # Verify that we never exceeded the max concurrent limit
+                assert max_concurrent_reached <= max_concurrent
+                assert max_concurrent_reached > 0  # We did have some concurrency
+
+    @pytest.mark.asyncio
+    async def test_semaphore_releases_on_exception(self):
+        """Test that semaphore is properly released even when parsing fails."""
+        manager = ParserManager(max_concurrent=1)
+
+        # First call will fail
+        file1 = create_binary_upload_file(b"%PDF-1.4 content", "test1.pdf", "application/pdf")
+
+        # Second call should succeed (proving semaphore was released)
+        file2 = create_binary_upload_file(b"%PDF-1.4 content", "test2.pdf", "application/pdf")
+
+        mock_pdf = MagicMock()
+        call_count = [0]  # Use list to allow modification in nested function
+
+        def mock_to_markdown(doc):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                raise Exception("Parsing failed")
+            return "# Success"
+
+        with patch("pymupdf.open", return_value=mock_pdf):
+            with patch("pymupdf4llm.to_markdown", side_effect=mock_to_markdown):
+                # First parse should fail
+                with pytest.raises(Exception) as exc_info:
+                    await manager.parse(file1)
+                assert "Parsing failed" in str(exc_info.value)
+
+                # Second parse should succeed (semaphore was released)
+                result = await manager.parse(file2)
+                assert result == "# Success"
+
+    @pytest.mark.asyncio
+    async def test_semaphore_default_value(self):
+        """Test that ParserManager has correct default semaphore value."""
+        manager = ParserManager()
+
+        # Check that semaphore has default value of 10
+        assert manager.conversion_semaphore._value == 10
+
+    @pytest.mark.asyncio
+    async def test_semaphore_custom_value(self):
+        """Test that ParserManager accepts custom semaphore value."""
+        custom_max = 5
+        manager = ParserManager(max_concurrent=custom_max)
+
+        # Check that semaphore has custom value
+        assert manager.conversion_semaphore._value == custom_max
+
+    @pytest.mark.asyncio
+    async def test_semaphore_only_affects_pdf_parsing(self):
+        """Test that semaphore is only used for PDF parsing, not other file types."""
+        manager = ParserManager(max_concurrent=1)
+
+        # Create non-PDF files
+        txt_file = create_upload_file("Text content", "test.txt", "text/plain")
+        md_file = create_upload_file("# Markdown", "test.md", "text/markdown")
+        html_file = create_upload_file("<h1>HTML</h1>", "test.html", "text/html")
+
+        # Mock the semaphore to track if it's used
+        semaphore_used = []
+        original_acquire = manager.conversion_semaphore.acquire
+
+        async def tracked_acquire():
+            semaphore_used.append(True)
+            return await original_acquire()
+
+        manager.conversion_semaphore.acquire = tracked_acquire
+
+        # Parse non-PDF files
+        with patch("api.helpers._parsermanager.convert_to_markdown", return_value="# HTML"):
+            await manager.parse(txt_file)
+            await manager.parse(md_file)
+            await manager.parse(html_file)
+
+        # Semaphore should not have been acquired
+        assert len(semaphore_used) == 0
 
 
 class TestParserManagerEdgeCases:
@@ -450,73 +377,3 @@ class TestParserManagerEdgeCases:
             if file_type in [FileType.PDF, FileType.HTML, FileType.MD, FileType.TXT]:
                 assert file_type in ParserManager.VALID_CONTENT_TYPES
                 assert len(ParserManager.VALID_CONTENT_TYPES[file_type]) > 0
-
-    @pytest.mark.asyncio
-    async def test_parser_client_without_supported_format(self):
-        """Test parsing when parser client doesn't support the file format."""
-        mock_parser = MagicMock(spec=ParserClient)
-        mock_parser.SUPPORTED_FORMATS = []  # No supported formats
-
-        file = create_binary_upload_file(b"%PDF-1.4 fake pdf content", "test.pdf", "application/pdf")
-
-        manager = ParserManager(parser=mock_parser)
-
-        # Should fall back to built-in parsing
-        with patch("pymupdf.open") as mock_pymupdf:
-            mock_pdf = MagicMock()
-            mock_pdf.__len__.return_value = 0
-            mock_pymupdf.return_value = mock_pdf
-
-            result = await manager._parse_pdf(ParserParams(file=file))
-
-            assert isinstance(result, ParsedDocument)
-            mock_pymupdf.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_parse_file_integration_txt(self):
-        """Integration test for text file parsing end-to-end."""
-        txt_content = "This is a sample text file content.\nWith multiple lines."
-        file = create_upload_file(txt_content, "sample.txt", "text/plain")
-
-        manager = ParserManager()
-
-        result = await manager.parse_file(file=file)
-
-        assert isinstance(result, ParsedDocument)
-        assert len(result.data) == 1
-        # Content gets converted to string in ParsedDocumentPage
-        assert result.data[0].content == txt_content
-        assert result.data[0].metadata.document_name == "sample.txt"
-
-    @pytest.mark.asyncio
-    async def test_parse_file_integration_markdown(self):
-        """Integration test for markdown file parsing end-to-end."""
-        md_content = "# Sample Markdown\n\nThis is **bold** text and *italic* text."
-        file = create_upload_file(md_content, "sample.md", "text/markdown")
-
-        manager = ParserManager()
-
-        result = await manager.parse_file(file=file)
-
-        assert isinstance(result, ParsedDocument)
-        assert len(result.data) == 1
-        assert result.data[0].content == md_content
-        assert result.data[0].metadata.document_name == "sample.md"
-
-    @pytest.mark.asyncio
-    async def test_parse_file_integration_html_as_markdown(self):
-        """Integration test for HTML file parsing with markdown output."""
-        html_content = "<h1>Sample HTML</h1><p>This is a <strong>paragraph</strong>.</p>"
-        file = create_upload_file(html_content, "sample.html", "text/html")
-
-        manager = ParserManager()
-
-        with patch("api.helpers._parsermanager.convert_to_markdown") as mock_convert:
-            mock_convert.return_value = "# Sample HTML\n\nThis is a **paragraph**."
-
-            result = await manager.parse_file(file=file, output_format=ParsedDocumentOutputFormat.MARKDOWN)
-
-            assert isinstance(result, ParsedDocument)
-            assert len(result.data) == 1
-            assert result.data[0].content == "# Sample HTML\n\nThis is a **paragraph**."
-            mock_convert.assert_called_once_with(html_content)

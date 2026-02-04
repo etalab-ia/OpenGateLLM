@@ -9,14 +9,17 @@ from api.schemas.usage import Usage
 class GlobalContext(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    # TODO: replace Any with specific types
     document_manager: Any | None = None
     identity_access_manager: Any | None = None
     limiter: Any | None = None
     usage_manager: Any | None = None
     model_registry: Any | None = None
     parser_manager: Any | None = None
+    elasticsearch_vector_store: Any | None = None
     tokenizer: Any | None = None
+    parser: Any | None = None
+
+    elasticsearch_client: Any | None = None
     redis_pool: Any | None = None
     postgres_session_factory: Any | None = None
 
