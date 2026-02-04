@@ -18,11 +18,13 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
     # attribute, type, description, required, default, values, examples
     table = list()
     for property in sorted(properties):
-        type, values, description, required, default, examples = "", "", "", "", "", ""
-
         description = properties[property].get("description", "")
-        required = properties[property].get("required", "")
-        default = convert_field_to_string_if_dict(properties[property].get("default", ""))
+        default = convert_field_to_string_if_dict(
+            properties[property].get(
+                "default",
+                properties[property].get("extra_json_schema", {}).get("default", "**required**"),
+            )
+        )
         examples = convert_field_to_string_if_dict(properties[property].get("examples", [""])[0])
 
         if "anyOf" in properties[property]:
@@ -31,7 +33,7 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
         if "$ref" in properties[property]:
             ref_key = properties[property]["$ref"].split("/")[-1]
             ref = defs[ref_key]
-            type = ref["type"]
+            type = ref.get("type", "")
             values = ref.get("enum", [])
 
             # neested object section, get the data from the nested section
@@ -68,7 +70,7 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
             else:
                 values = ref.get("enum", [])
 
-        table.append([property, type, description, required, default, values, examples])
+        table.append([property, type, description, default, values, examples])
 
     data.append({"title": title, "table": table, "level": level, "header": header})
 
@@ -104,15 +106,15 @@ def convert_to_markdown(data: list):
             markdown += f"{item["header"]}\n<br></br>\n\n"
 
         if len(item["table"]) > 0:
-            markdown += "| Attribute | Type | Description | Required | Default | Values | Examples |\n"
-            markdown += "| --- | --- | --- | --- | --- | --- | --- |\n"
+            markdown += "| Attribute | Type | Description | Default | Values | Examples |\n"
+            markdown += "| --- | --- | --- | --- | --- | --- |\n"
             for row in item["table"]:
-                if len(row[5]) > 10:
-                    row[5] = "• " + "<br></br>• ".join(row[5][:8]) + "<br></br>• ..."
-                elif len(row[5]) > 0:
-                    row[5] = "• " + "<br></br>• ".join(row[5])
+                if len(row[4]) > 10:
+                    row[4] = "• " + "<br></br>• ".join(row[5][:8]) + "<br></br>• ..."
+                elif len(row[4]) > 0:
+                    row[4] = "• " + "<br></br>• ".join(row[4])
                 else:
-                    row[5] = ""
+                    row[4] = ""
 
                 markdown += "| " + " | ".join(str(cell) for cell in row) + " |\n"
 
