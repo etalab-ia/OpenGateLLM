@@ -14,7 +14,7 @@ class Router(Entity):
     max_context_length: int | None = None
     cost_prompt_tokens: float | None = None
     cost_completion_tokens: float | None = None
+    is_default: bool | None = None
     providers: int | None = None
     created: str | None = None
     updated: str | None = None
-    is_default_vector_store: bool = False

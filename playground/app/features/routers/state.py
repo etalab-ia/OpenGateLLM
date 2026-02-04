@@ -51,6 +51,7 @@ class RoutersState(EntityState):
             type=router["type"],
             aliases=",".join(router["aliases"]) if router["aliases"] else "",
             load_balancing_strategy=_load_balancing_strategy_converter.get(router["load_balancing_strategy"]),
+            is_default=router["is_default"],
             max_context_length=router["max_context_length"],
             vector_size=router["vector_size"],
             cost_prompt_tokens=router["cost_prompt_tokens"],
@@ -175,6 +176,7 @@ class RoutersState(EntityState):
         load_balancing_strategy="Shuffle",
         cost_prompt_tokens=0.0,
         cost_completion_tokens=0.0,
+        is_default=False,
     )
 
     @rx.event
@@ -184,6 +186,9 @@ class RoutersState(EntityState):
             setattr(self.entity_to_create, attribute, value.strip())
         else:
             setattr(self.entity_to_create, attribute, value)
+
+        if attribute == "type" and value != "text-embeddings-inference":
+            self.entity_to_create.is_default = False
 
     @rx.event
     async def create_entity(self):
@@ -195,7 +200,9 @@ class RoutersState(EntityState):
         self.create_entity_loading = True
         yield
 
-        new_router_load_balancing_strategy = self.entity_to_create.load_balancing_strategy.lower().replace(" ", "_")
+        new_router_load_balancing_strategy = (
+            self.entity_to_create.load_balancing_strategy.lower().replace(" ", "_") if self.entity_to_create.load_balancing_strategy else "shuffle"
+        )
 
         payload = {
             "name": self.entity_to_create.name,
@@ -203,6 +210,7 @@ class RoutersState(EntityState):
             "load_balancing_strategy": new_router_load_balancing_strategy,
             "cost_prompt_tokens": self.entity_to_create.cost_prompt_tokens,
             "cost_completion_tokens": self.entity_to_create.cost_completion_tokens,
+            "is_default": self.entity_to_create.is_default,
         }
 
         if self.entity_to_create.aliases:
@@ -222,6 +230,16 @@ class RoutersState(EntityState):
                 response.raise_for_status()
 
                 yield rx.toast.success("Router created successfully", position="bottom-right")
+
+                # Reset form
+                self.entity_to_create = Router(
+                    type="text-generation",
+                    load_balancing_strategy="Shuffle",
+                    cost_prompt_tokens=0.0,
+                    cost_completion_tokens=0.0,
+                    is_default=False,
+                )
+
                 async for _ in self.load_entities():
                     yield
 
@@ -248,6 +266,9 @@ class RoutersState(EntityState):
             setattr(self.entity, attribute, value.strip())
         else:
             setattr(self.entity, attribute, value)
+
+        if attribute == "type" and value != "text-embeddings-inference":
+            self.entity.is_default = False
 
     @rx.var
     def is_settings_entity_dialog_open(self) -> bool:
@@ -276,6 +297,7 @@ class RoutersState(EntityState):
             "load_balancing_strategy": router_load_balancing_strategy,
             "cost_prompt_tokens": self.entity.cost_prompt_tokens,
             "cost_completion_tokens": self.entity.cost_completion_tokens,
+            "is_default": self.entity.is_default,
         }
 
         response = None
@@ -347,3 +369,11 @@ class RoutersState(EntityState):
             yield
             async for _ in self.load_entities():
                 yield
+
+    @rx.var
+    def default_vector_store_router(self) -> Router | None:
+        """Get the current default vector store router from the loaded entities."""
+        for router in self.entities:
+            if router.type == "text-embeddings-inference" and router.is_default:
+                return router
+        return None

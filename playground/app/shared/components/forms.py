@@ -12,12 +12,12 @@ def entity_form_select_field(
     value: str | None = None,
     on_change: Callable | None = None,
     disabled: bool = False,
-    tooltip: str | None = None,
+    tooltip: str | rx.Var | None = None,
     **kwargs,
 ) -> rx.Component:
     return rx.vstack(
         rx.cond(
-            bool(tooltip),
+            tooltip,
             rx.hstack(
                 rx.text(label, size=TEXT_SIZE_LABEL, weight="bold"),
                 rx.tooltip(
@@ -46,12 +46,12 @@ def entity_form_input_field(
     label: str,
     value: str,
     on_change: Callable | None = None,
-    tooltip: str | None = None,
+    tooltip: str | rx.Var | None = None,
     **kwargs: Any,
 ) -> rx.Component:
     return rx.vstack(
         rx.cond(
-            bool(tooltip),
+            tooltip,
             rx.hstack(
                 rx.text(label, size=TEXT_SIZE_LABEL, weight="bold"),
                 rx.tooltip(
@@ -77,9 +77,9 @@ def entity_form_input_field(
 def entity_form_checkbox_field(
     label: str,
     value: bool,
-    description: str | None = None,
+    description: str | rx.Var | None = None,
     on_change: Callable | None = None,
-    tooltip: str | None = None,
+    tooltip: str | rx.Var | None = None,
     disabled: bool = False,
     **kwargs: Any,
 ) -> rx.Component:
@@ -92,7 +92,7 @@ def entity_form_checkbox_field(
         ),
         rx.vstack(
             rx.cond(
-                bool(tooltip),
+                tooltip,
                 rx.hstack(
                     rx.text(
                         label,
@@ -115,7 +115,7 @@ def entity_form_checkbox_field(
                 ),
             ),
             rx.cond(
-                bool(description),
+                description,
                 rx.text(
                     description,
                     size=TEXT_SIZE_LABEL,

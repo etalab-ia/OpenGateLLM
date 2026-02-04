@@ -26,10 +26,18 @@ def router_settings_form_fields() -> rx.Component:
             ),
             entity_form_checkbox_field(
                 label="Set as default vector store router",
-                value=RoutersState.entity.is_default_vector_store,
-                on_change=lambda value: RoutersState.set_edit_entity_attribut("is_default_vector_store", value),
-                tooltip="Set as default vector store router. This option is only available for type 'text-embeddings-inference' routers.",
-                disabled=(RoutersState.entity.type != "text-embeddings-inference") | (RoutersState.entity.is_default_vector_store is None),
+                value=(RoutersState.entity.is_default & (RoutersState.entity.type == "text-embeddings-inference")),
+                on_change=lambda value: RoutersState.set_edit_entity_attribut("is_default", value),
+                tooltip=rx.cond(
+                    (RoutersState.entity.type == "text-embeddings-inference")
+                    & (RoutersState.default_vector_store_router.bool())
+                    & (RoutersState.default_vector_store_router.id != RoutersState.entity.id),
+                    "Another router is already set as default vector store. Please uncheck it explicitly before checking this one.",
+                    "Set as default vector store router. This option is only available for type 'text-embeddings-inference' routers.",
+                ),
+                disabled=(RoutersState.entity.type != "text-embeddings-inference")
+                | (RoutersState.entity.is_default is None)
+                | ((RoutersState.default_vector_store_router.bool()) & (RoutersState.default_vector_store_router.id != RoutersState.entity.id)),
             ),
             width="100%",
         ),
@@ -108,11 +116,16 @@ def router_create_form_fields() -> rx.Component:
             ),
             entity_form_checkbox_field(
                 label="Set as default vector store router",
-                value=RoutersState.entity_to_create.is_default_vector_store,
-                on_change=lambda value: RoutersState.set_new_entity_attribut("is_default_vector_store", value),
-                tooltip="Set as default vector store router. This option is only available for type 'text-embeddings-inference' routers.",
+                value=(RoutersState.entity_to_create.is_default & (RoutersState.entity_to_create.type == "text-embeddings-inference")),
+                on_change=lambda value: RoutersState.set_new_entity_attribut("is_default", value),
+                tooltip=rx.cond(
+                    (RoutersState.entity_to_create.type == "text-embeddings-inference") & (RoutersState.default_vector_store_router.bool()),
+                    "Another router is already set as default vector store. Please uncheck it explicitly before checking this one.",
+                    "Set as default vector store router. This option is only available for type 'text-embeddings-inference' routers.",
+                ),
                 disabled=(RoutersState.entity_to_create.type != "text-embeddings-inference")
-                | (RoutersState.entity_to_create.is_default_vector_store is None),
+                | (RoutersState.entity_to_create.is_default is None)
+                | (RoutersState.default_vector_store_router.bool()),
             ),
             width="100%",
         ),
