@@ -169,7 +169,6 @@ settings:
 | swagger_terms_of_service | string | A URL to the Terms of Service for the API in swagger UI. If provided, this has to be a URL. |  | None |  | https://example.com/terms-of-service |
 | swagger_version | string | Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. |  | latest |  | 2.5.0 |
 | usage_tokenizer | string | Tokenizer used to compute usage of the API. |  | tiktoken_gpt2 | • tiktoken_gpt2<br></br>• tiktoken_r50k_base<br></br>• tiktoken_p50k_base<br></br>• tiktoken_p50k_edit<br></br>• tiktoken_cl100k_base<br></br>• tiktoken_o200k_base |  |
-| vector_store_model | string | Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch). This model must be defined in the `models` section and have type `text-embeddings-inference`. |  | None |  |  |
 
 <br></br>
 
