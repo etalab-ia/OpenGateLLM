@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - 622-fix-fastapi-monitoring-dashboard
   release:
     types: 
       - published
