@@ -3,8 +3,8 @@ set -e
 
 GUNICORN_CMD_ARGS=${GUNICORN_CMD_ARGS:-""} # ex: --log-config app/log.conf
 
-export PROMETHEUS_MULTIPROC_DIR="${PROMETHEUS_MULTIPROC_DIR:-/tmp/prometheus_multiproc}"
 mkdir -p "$PROMETHEUS_MULTIPROC_DIR"
+# Empty prometheus dir if if it exists
 rm -rf "${PROMETHEUS_MULTIPROC_DIR:?}"/*
 
 python -m alembic -c api/alembic.ini upgrade head
