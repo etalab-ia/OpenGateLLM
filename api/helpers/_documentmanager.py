@@ -47,7 +47,8 @@ class DocumentManager:
         self.vector_store_model = vector_store_model
         self.parser_manager = parser_manager
 
-    async def create_collection(self, postgres_session: AsyncSession, user_id: int, name: str, visibility: CollectionVisibility, description: str | None = None) -> int:  # fmt: off
+    @staticmethod
+    async def create_collection(postgres_session: AsyncSession, user_id: int, name: str, visibility: CollectionVisibility, description: str | None = None) -> int:  # fmt: off
         if user_id == 0:
             raise MasterNotAllowedException(detail="Master user is not allowed to create collection.")
 
@@ -62,8 +63,8 @@ class DocumentManager:
 
         return collection_id
 
+    @staticmethod
     async def delete_collection(
-        self,
         postgres_session: AsyncSession,
         elasticsearch_vector_store: ElasticsearchVectorStore,
         elasticsearch_client: AsyncElasticsearch,
@@ -86,7 +87,8 @@ class DocumentManager:
         # delete the collection from vector store
         await elasticsearch_vector_store.delete_collection(client=elasticsearch_client, collection_id=collection_id)
 
-    async def update_collection(self, postgres_session: AsyncSession, user_id: int, collection_id: int, name: str | None = None, visibility: CollectionVisibility | None = None, description: str | None = None) -> None:  # fmt: off
+    @staticmethod
+    async def update_collection(postgres_session: AsyncSession, user_id: int, collection_id: int, name: str | None = None, visibility: CollectionVisibility | None = None, description: str | None = None) -> None:  # fmt: off
         # check if collection exists
         result = await postgres_session.execute(
             statement=select(CollectionTable)
@@ -110,8 +112,8 @@ class DocumentManager:
         )
         await postgres_session.commit()
 
+    @staticmethod
     async def get_collections(
-        self,
         postgres_session: AsyncSession,
         user_id: int,
         collection_id: int | None = None,
@@ -258,8 +260,8 @@ class DocumentManager:
 
         return document_id
 
+    @staticmethod
     async def get_documents(
-        self,
         postgres_session: AsyncSession,
         elasticsearch_vector_store: ElasticsearchVectorStore,
         elasticsearch_client: AsyncElasticsearch,
@@ -305,8 +307,8 @@ class DocumentManager:
 
         return documents
 
+    @staticmethod
     async def delete_document(
-        self,
         postgres_session: AsyncSession,
         elasticsearch_vector_store: ElasticsearchVectorStore,
         elasticsearch_client: AsyncElasticsearch,
@@ -331,8 +333,8 @@ class DocumentManager:
         # delete the document from vector store
         await elasticsearch_vector_store.delete_document(client=elasticsearch_client, collection_id=document.collection_id, document_id=document_id)
 
+    @staticmethod
     async def get_chunks(
-        self,
         postgres_session: AsyncSession,
         elasticsearch_vector_store: ElasticsearchVectorStore,
         elasticsearch_client: AsyncElasticsearch,

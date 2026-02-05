@@ -169,7 +169,7 @@ class ElasticsearchVectorStore:
         score_threshold: float = 0.0,
     ) -> list[Search]:
         assert method is SearchMethod.LEXICAL or query_vector, "Query vector must not be None for semantic and hybrid search methods"
-        assert rff_k is not None or method is not SearchMethod.HYBRID, "RFF k must not be None for hybrid search method"
+        assert rff_k is not None or method is not SearchMethod.HYBRID, "rff_k must not be None for hybrid search method"
 
         if method == SearchMethod.SEMANTIC:
             searches = await self._semantic_search(
@@ -188,7 +188,6 @@ class ElasticsearchVectorStore:
                 collection_ids=collection_ids,
                 limit=limit,
                 offset=offset,
-                score_threshold=score_threshold,
             )
 
         else:  # method == SearchMethod.HYBRID
@@ -211,7 +210,6 @@ class ElasticsearchVectorStore:
         collection_ids: list[int],
         limit: int,
         offset: int,
-        score_threshold: float = 0.0,
     ) -> list[Search]:
         body = {
             "query": {
@@ -233,7 +231,6 @@ class ElasticsearchVectorStore:
             )
             for hit in results["hits"]["hits"]
         ]
-        searches = [search for search in searches if search.score >= score_threshold]
         searches = sorted(searches, key=lambda x: x.score, reverse=True)[:limit]
 
         return searches

@@ -59,6 +59,7 @@ async def search(
         limit=body.limit,
         offset=body.offset,
         rff_k=body.rff_k,
+        score_threshold=body.score_threshold,
     )
     usage = request_context.get().usage
     content = Searches(data=data, usage=usage)
