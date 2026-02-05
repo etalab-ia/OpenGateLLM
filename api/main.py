@@ -1,12 +1,13 @@
 from importlib import import_module
 import logging
+import os
 import pkgutil
 
 from fastapi import Depends, FastAPI, Request
 from prometheus_fastapi_instrumentator import Instrumentator
 import sentry_sdk
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 from api.helpers._accesscontroller import AccessController
 from api.schemas.admin.roles import PermissionType
@@ -86,7 +87,26 @@ if ROUTER__MONITORING not in configuration.settings.disabled_routers:
     include_in_schema = ROUTER__MONITORING not in configuration.settings.hidden_routers
     if configuration.settings.monitoring_prometheus_enabled:
         app.instrumentator = Instrumentator().instrument(app=app)
-        app.instrumentator.expose(app=app, should_gzip=True, tags=[ROUTER__MONITORING.title()], dependencies=[Depends(dependency=AccessController(permissions=[PermissionType.READ_METRIC]))], include_in_schema=include_in_schema)  # fmt: off
+
+        @app.get(
+            path="/metrics",
+            tags=[ROUTER__MONITORING.title()],
+            dependencies=[Depends(dependency=AccessController(permissions=[PermissionType.READ_METRIC]))],
+            include_in_schema=include_in_schema,
+        )
+        def metrics() -> Response:
+            import prometheus_client
+
+            if os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+                from prometheus_client import CollectorRegistry, multiprocess
+
+                registry = CollectorRegistry()
+                multiprocess.MultiProcessCollector(registry)
+            else:
+                registry = prometheus_client.REGISTRY
+
+            data = prometheus_client.generate_latest(registry)
+            return Response(content=data, media_type=prometheus_client.CONTENT_TYPE_LATEST)
 
     @app.get(path="/health", tags=[ROUTER__MONITORING.title()], include_in_schema=include_in_schema)
     def health() -> JSONResponse:
