@@ -4,6 +4,8 @@ import os
 import pkgutil
 
 from fastapi import Depends, FastAPI, Request
+import prometheus_client
+from prometheus_client import CollectorRegistry, multiprocess
 from prometheus_fastapi_instrumentator import Instrumentator
 import sentry_sdk
 from starlette.middleware.sessions import SessionMiddleware
@@ -95,11 +97,7 @@ if ROUTER__MONITORING not in configuration.settings.disabled_routers:
             include_in_schema=include_in_schema,
         )
         def metrics() -> Response:
-            import prometheus_client
-
             if os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
-                from prometheus_client import CollectorRegistry, multiprocess
-
                 registry = CollectorRegistry()
                 multiprocess.MultiProcessCollector(registry)
             else:

@@ -4,7 +4,7 @@ set -e
 GUNICORN_CMD_ARGS=${GUNICORN_CMD_ARGS:-""} # ex: --log-config app/log.conf
 
 mkdir -p "$PROMETHEUS_MULTIPROC_DIR"
-# Empty prometheus dir if if it exists
+# Empty prometheus dir if it exists, to prevent ghost metrics being ingested twice in case of docker restart
 rm -rf "${PROMETHEUS_MULTIPROC_DIR:?}"/*
 
 python -m alembic -c api/alembic.ini upgrade head
