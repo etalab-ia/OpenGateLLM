@@ -18,10 +18,6 @@ class RouterRepository(ABC):
         pass
 
     @abstractmethod
-    async def insert_aliases(self, aliases: list[str], router_id: int) -> list[str]:
-        pass
-
-    @abstractmethod
     async def create_router(
         self,
         name: str,

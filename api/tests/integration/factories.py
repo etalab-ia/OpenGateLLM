@@ -152,6 +152,13 @@ class RouterSQLFactory(BaseSQLFactory):
         for alias_value in extracted:
             RouterAliasSQLFactory(router=self, value=alias_value)
 
+    @factory.post_generation
+    def providers(self, create, extracted, **kwargs):
+        if not create or not extracted:
+            return
+        for i in range(extracted):
+            ProviderSQLFactory(router=self, user=self.user, model_name=f"{self.name}_provider_{i + 1}", **kwargs)
+
     class Params:
         free = factory.Trait(cost_prompt_tokens=0.0, cost_completion_tokens=0.0)
         expensive = factory.Trait(

@@ -60,7 +60,7 @@ class PostgresRouterRepository(RouterRepository):
         aliases = await self.get_aliases_by_router_id()
 
         for row in router_results:
-            user_id = self.master_user_id if row["user_id"] is None else row["user_id"]
+            user_id = MASTER_USER_ID if row["user_id"] is None else row["user_id"]
             routers.append(
                 Router(
                     id=row["id"],
@@ -166,8 +166,3 @@ class PostgresRouterRepository(RouterRepository):
             query = query.where(RouterAliasTable.value.in_(filtered_aliases))
         result = await self.postgres_session.execute(query)
         return [row[0] for row in result.all()]
-
-    async def insert_aliases(self, aliases: list[str], router_id: int) -> list[str]:
-        aliases_by_id = [{"value": alias, "router_id": router_id} for alias in aliases]
-        await self.postgres_session.execute(insert(RouterAliasTable), aliases_by_id)
-        return aliases
