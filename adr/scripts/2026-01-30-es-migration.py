@@ -232,7 +232,6 @@ async def core_migration_logic(
     total_collections = len(collections)
 
     for i, collection in enumerate(collections):
-        logger.info(f"[{pid}][{i}/{total_collections}][{collection.id}]\tstarting migration of collection...")  # fmt: off
         try:
             collection_chunk_counter = 0
 
@@ -339,21 +338,30 @@ async def migrate(config: Config, es_source: ElasticSearchSource, es_destination
 
     destination_collections = await es_destination.get_collections()
     collections_to_migrate = []
-    collections_to_skip = 0
+    collections_to_skip_already_migrated = 0
+    collections_to_skip_empty = 0
+    collections_to_skip_partially_migrated = 0
+
     for source_collection in source_collections:
         migrated = False
         if source_collection.chunks == 0:
-            collections_to_skip += 1
+            collections_to_skip_empty += 1
             continue
         for destination_collection in destination_collections:
-            if source_collection.id == destination_collection.id and source_collection.chunks == destination_collection.chunks:
-                migrated = True
-                collections_to_skip += 1
-                break
+            if source_collection.id == destination_collection.id:
+                if source_collection.chunks == destination_collection.chunks:
+                    migrated = True
+                    collections_to_skip_already_migrated += 1
+                    break
+                else:
+                    collections_to_skip_partially_migrated += 1
+                    break
         if not migrated:
             collections_to_migrate.append(source_collection)
-    logger.info(f"{len(collections_to_migrate)} collections will be migrated")
-    logger.info(f"{collections_to_skip} collections will be skipped (already migrated or empty)")
+    logger.info(f"{len(source_collections)} collections in source Elasticsearch.")
+    logger.info(f"{collections_to_skip_already_migrated} collections will be skipped (already migrated)")
+    logger.info(f"{collections_to_skip_empty} collections will be skipped (empty)")
+    logger.info(f"{len(collections_to_migrate)} collections will be migrated (with {collections_to_skip_partially_migrated} collections partially migrated)")  # fmt:off
 
     if not collections_to_migrate:
         return
