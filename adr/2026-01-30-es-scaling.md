@@ -144,6 +144,11 @@ The environment variables are:
 ./run.sh
 ```
 
+With nohup to run the script in the background:
+```bash
+nohup ./run.sh > migration.log 2>&1 &
+```
+
 The script will output the progress of the migration to the `migration.log` file. If script fails, you can rerun it, it will continue from the last point where it failed.
 
 5. Check the migration

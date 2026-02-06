@@ -50,12 +50,14 @@ class CreateDocumentForm(BaseModel):
     metadata: str
 
     @field_validator("file")
+    @classmethod
     def validate_file(cls, file: UploadFile) -> UploadFile:
         if file.size > FileSizeLimitExceededException.MAX_CONTENT_SIZE:
             raise FileSizeLimitExceededException()
         return file
 
     @field_validator("metadata", mode="after")
+    @classmethod
     def parse_metadata(cls, metadata: str | None) -> dict | None:
         if metadata is None:
             return metadata
@@ -94,7 +96,7 @@ class CreateDocumentForm(BaseModel):
         is_separator_regex: bool = Form(default=False, description="Whether the separator is a regex to use for the file upload."),
         separators: list[str] = Form(default=[], description="The separators to use for the file upload. `separators` and `preset_separators`parameters cannot by empty at the same time."),
         preset_separators: PresetSeparators = Form(default=PresetSeparators.MARKDOWN, description="If provided, override separators by the preset specific separators. See [implemented details](https://github.com/langchain-ai/langchain/blob/eb122945832eae9b9df7c70ccd8d51fcd7a1899b/libs/text-splitters/langchain_text_splitters/character.py#L164). `separators` and `preset_separators`parameters cannot by empty at the same time."),
-        metadata: str | None = Form(default="", description="Additional metadata to add to each chunk. Provide a stringified JSON object matching the Metadata schema. For empty metadata, provide `\"\"`, `None` or skip the parameter; `\"{}\"` is not accepted.", examples=['{"source_date": "2026-01-05", "source_tags": ["tag1", "tag2"]}']),
+        metadata: str | None = Form(default="", description="Additional metadata to add to each chunk. Provide a stringified JSON object matching the Metadata schema.", examples=['{"source_date": "2026-01-05", "source_tags": ["tag1", "tag2"]}']),
     ) -> "CreateDocumentForm":
         try:
             return cls(
