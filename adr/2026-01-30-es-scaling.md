@@ -132,7 +132,7 @@ The environment variables are:
 | `DESTINATION_ES_URL` | The URL of the destination Elasticsearch cluster must be in the format `http://<host>:<port>`. | `http://localhost:9200` |
 | `DESTINATION_ES_USERNAME` | The username of the destination Elasticsearch cluster. | `elasticsearch` |
 | `DESTINATION_ES_PASSWORD` | The password of the destination Elasticsearch cluster. | `changeme` |
-| `DESTINATION_ES_INDEX_NAME` | The name of the destination Elasticsearch index. By default, the index name is `opengatellm`, corresponds to the default index name in the configuration file. | `opengatellm` |
+| `DESTINATION_ES_INDEX_NAME` | The name of the destination Elasticsearch index. By default, the index name is `opengatellm`, corresponds to the default index name in the configuration file. We recommand to use a name that refer to the embedding model used (ex: `1770395108_baaibgem3_1024` for `baaibgem3` model with `1024` dimension)| `opengatellm` |
 | `DESTINATION_ES_VECTOR_SIZE` | The vector size corresponds to the dimension of the vector embedding used by the embeddings model setup in your configuration file (ex: `1024`). | `1024` |
 | `DESTINATION_ES_NUMBER_OF_SHARDS` | The number of shards of the destination Elasticsearch index, check Elasticsearch documentation to know the maximum number of shards per node. | `1` |
 | `DESTINATION_ES_NUMBER_OF_REPLICAS` | The number of replicas of the destination Elasticsearch index, check Elasticsearch documentation to know the maximum number of replicas per node. | `1` |
@@ -149,7 +149,7 @@ The environment variables are:
 2. With nohup to run the script in the background:
 
     ```bash
-    nohup ./run.sh > migration.log 2>&1 &
+    nohup bash ./run.sh > migration.log 2>&1 &
     ```
 
 In both cases, the script will output the progress of the migration to the `migration.log` file. If script fails, you can rerun it, it will continue from the last point where it failed.

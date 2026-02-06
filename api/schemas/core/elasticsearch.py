@@ -1,10 +1,10 @@
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel
 
 
-class ElasticsearchIndexLanguage(str, Enum):
+class ElasticsearchIndexLanguage(StrEnum):
     """
     The language of the Elasticsearch index, composed by the value, the stopwords and the stemmer.
     For more information about stemmer, see https://www.elastic.co/docs/reference/text-analysis/analysis-stemmer-tokenfilter#analysis-stemmer-tokenfilter-configure-parms.
@@ -33,7 +33,6 @@ class ElasticsearchChunk(BaseModel):
     id: int
     collection_id: int
     document_id: int
-    document_name: str
     content: str
     embedding: list[float]
     metadata: dict | None

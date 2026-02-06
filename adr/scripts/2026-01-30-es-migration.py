@@ -123,7 +123,6 @@ class ElasticSearchSource:
                     id=hit["_source"].get("id", 0),
                     collection_id=collection_id,
                     document_id=hit["_source"]["metadata"]["document_id"],
-                    document_name=hit["_source"]["metadata"].get("document_name", "unknown"),
                     content=hit["_source"]["content"],
                     embedding=hit["_source"]["embedding"],
                     metadata=metadata,
@@ -272,7 +271,6 @@ async def core_migration_logic(
                             id=hit["_source"].get("id", 0),
                             collection_id=hit["_source"]["metadata"]["collection_id"],
                             document_id=hit["_source"]["metadata"]["document_id"],
-                            document_name=hit["_source"]["metadata"].get("document_name", "unknown"),
                             content=hit["_source"]["content"],
                             embedding=hit["_source"]["embedding"],
                             metadata=metadata,
@@ -428,8 +426,6 @@ async def sanity_check(psql: PostgreSQL, es_source: ElasticSearchSource, es_dest
                     logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same content)")  # fmt: off
                 if source_chunk.embedding != destination_chunk.embedding:
                     logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same embedding")  # fmt: off
-                if source_chunk.document_name != destination_chunk.document_name:
-                    logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same document name ({source_chunk.document_name} != {destination_chunk.document_name})")  # fmt: off
                 if source_chunk.created != destination_chunk.created:
                     logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same created ({source_chunk.created} != {destination_chunk.created})")  # fmt: off
 
@@ -437,7 +433,7 @@ async def sanity_check(psql: PostgreSQL, es_source: ElasticSearchSource, es_dest
 
 
 async def main():
-    logger.info(f"Script started at: {datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z")}\n")
+    logger.info(f"Script started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}\n")
 
     config = Config()
 

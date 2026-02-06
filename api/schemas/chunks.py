@@ -20,7 +20,6 @@ class Chunk(BaseModel):
     id: Annotated[int, Field(ge=0, default=..., description="The ID of the chunk.")]
     collection: Annotated[int, Field(ge=0, default=..., description="The ID of the collection the chunk belongs to.")]
     document: Annotated[int, Field(ge=0, default=..., description="The ID of the document the chunk belongs to.")]
-    document_name: Annotated[str, Field(min_length=1, max_length=255, default=..., description="The name of the document the chunk belongs to.")]
     content: Annotated[str, Field(min_length=1, default=..., description="The content of the chunk.")]
     metadata: ChunkMetadata | None = Field(default=None, description="Metadata of the chunk")
     created: Annotated[datetime, Field(default=datetime.now(), description="The date of the chunk creation.")]
@@ -35,7 +34,6 @@ class Chunk(BaseModel):
             id=hit["_source"]["id"],
             collection=hit["_source"]["collection_id"],
             document=hit["_source"]["document_id"],
-            document_name=hit["_source"]["document_name"],
             content=hit["_source"]["content"],
             metadata=hit["_source"]["metadata"],
             created=hit["_source"]["created"],

@@ -237,7 +237,6 @@ class DocumentManager:
                 chunks=chunks,
                 collection_id=collection_id,
                 document_id=document_id,
-                document_name=document_name,
                 metadata=metadata,
                 redis_client=redis_client,
                 elasticsearch_vector_store=elasticsearch_vector_store,
@@ -259,7 +258,18 @@ class DocumentManager:
 
         return document_id
 
-    async def get_documents(self, postgres_session: AsyncSession, elasticsearch_vector_store: ElasticsearchVectorStore, elasticsearch_client: AsyncElasticsearch, user_id: int, collection_id: int | None = None, document_id: int | None = None, document_name: str | None = None, offset: int = 0, limit: int = 10) -> list[Document]:  # fmt: off
+    async def get_documents(
+        self,
+        postgres_session: AsyncSession,
+        elasticsearch_vector_store: ElasticsearchVectorStore,
+        elasticsearch_client: AsyncElasticsearch,
+        user_id: int,
+        collection_id: int | None = None,
+        document_id: int | None = None,
+        document_name: str | None = None,
+        offset: int = 0,
+        limit: int = 10,
+    ) -> list[Document]:
         statement = (
             select(
                 DocumentTable.id,
@@ -459,7 +469,6 @@ class DocumentManager:
         chunks: list[str],
         collection_id: int,
         document_id: int,
-        document_name: str,
         metadata: ChunkMetadata | None,
         redis_client: AsyncRedis,
         postgres_session: AsyncSession,
@@ -486,7 +495,6 @@ class DocumentManager:
                         id=i,
                         collection_id=collection_id,
                         document_id=document_id,
-                        document_name=document_name,
                         content=content,
                         embedding=embedding,
                         metadata=metadata,

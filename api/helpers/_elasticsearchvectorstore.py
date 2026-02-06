@@ -3,7 +3,6 @@ import logging
 
 from elasticsearch import AsyncElasticsearch, helpers
 from elasticsearch.helpers import BulkIndexError
-from pydantic import conint
 
 from api.schemas.chunks import Chunk
 from api.schemas.core.elasticsearch import ElasticsearchChunk, ElasticsearchIndexLanguage
@@ -60,7 +59,6 @@ class ElasticsearchVectorStore:
                 "id": {"type": "integer"},
                 "collection_id": {"type": "integer"},
                 "document_id": {"type": "integer"},
-                "document_name": {"type": "keyword"},
                 "embedding": {"type": "dense_vector", "dims": vector_size, "index": True, "similarity": "cosine"},
                 "content": {"type": "text", "analyzer": "content_analyzer"},
                 "metadata": {"type": "flattened"},
@@ -72,8 +70,7 @@ class ElasticsearchVectorStore:
             existing_mapping = await client.indices.get_mapping(index=self.index_name)
             existing_vector_size = existing_mapping[self.index_name]["mappings"]["properties"]["embedding"]["dims"]
             assert existing_vector_size == vector_size, f"Index has incorrect vector size for index {self.index_name} ({existing_vector_size} != {vector_size})"  # fmt: off
-            # @TODO: check index UUID in postgres after dynamic creation PR
-            # @TODO: check index language
+
             return
 
         await client.indices.create(index=self.index_name, mappings=mappings, settings=settings)
@@ -139,7 +136,7 @@ class ElasticsearchVectorStore:
             body["query"]["bool"]["must"].append({"term": {"id": chunk_id}})
 
         results = await client.search(index=self.index_name, body=body, from_=offset, size=limit)
-        chunks = [Chunk.from_elasticsearch(hit=hit) for hit in results["hits"]["hits"]]
+        chunks = [Chunk.from_elasticsearch(hit) for hit in results["hits"]["hits"]]
         chunks = sorted(chunks, key=lambda chunk: chunk.id)
 
         return chunks
@@ -149,16 +146,7 @@ class ElasticsearchVectorStore:
             {
                 "_index": self.index_name,
                 "_id": hashlib.sha256(f"{chunk.collection_id}|{chunk.document_id}|{chunk.id}".encode()).hexdigest(),
-                "_source": {
-                    "id": chunk.id,
-                    "collection_id": chunk.collection_id,
-                    "document_id": chunk.document_id,
-                    "document_name": chunk.document_name,
-                    "content": chunk.content,
-                    "embedding": chunk.embedding,
-                    "metadata": chunk.metadata,
-                    "created": chunk.created,
-                },
+                "_source": chunk.model_dump(),
             }
             for chunk in chunks
         ]
@@ -255,8 +243,8 @@ class ElasticsearchVectorStore:
         client: AsyncElasticsearch,
         query_vector: list[float],
         collection_ids: list[int],
-        limit: conint(gt=1, le=100),
-        offset: conint(ge=0),
+        limit: int,
+        offset: int,
         score_threshold: float = 0.0,
     ) -> list[Search]:
         body = {
