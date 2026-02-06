@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 from fastapi import File, Form, UploadFile
 from fastapi.exceptions import RequestValidationError
 from langchain_text_splitters import Language
-from pydantic import Field, TypeAdapter, ValidationError, field_validator, model_validator
+from pydantic import Field, StringConstraints, TypeAdapter, ValidationError, field_validator, model_validator
 
 from api.schemas import BaseModel
 from api.schemas.chunks import ChunkMetadata
@@ -58,20 +58,16 @@ class CreateDocumentForm(BaseModel):
 
     @field_validator("metadata", mode="after")
     @classmethod
-    def parse_metadata(cls, metadata: str | None) -> dict | None:
-        if metadata is None:
-            return metadata
-        if isinstance(metadata, str):
-            metadata = metadata.strip()
-            if metadata == "":
-                return None
-            try:
-                metadata = json.loads(metadata)
-                return TypeAdapter(ChunkMetadata).validate_python(metadata)
-            except json.JSONDecodeError:
-                raise ValueError("metadata must be a JSON object")
-            except ValidationError as e:
-                raise e
+    def parse_metadata(cls, metadata: str) -> dict | None:
+        if metadata == "":
+            return None
+        try:
+            metadata = json.loads(metadata)
+            return TypeAdapter(ChunkMetadata).validate_python(metadata)
+        except json.JSONDecodeError:
+            raise ValueError("metadata must be a JSON object")
+        except ValidationError as e:
+            raise e
 
     @model_validator(mode="after")
     def validate_separators(self) -> "CreateDocumentForm":
@@ -96,7 +92,7 @@ class CreateDocumentForm(BaseModel):
         is_separator_regex: bool = Form(default=False, description="Whether the separator is a regex to use for the file upload."),
         separators: list[str] = Form(default=[], description="The separators to use for the file upload. `separators` and `preset_separators`parameters cannot by empty at the same time."),
         preset_separators: PresetSeparators = Form(default=PresetSeparators.MARKDOWN, description="If provided, override separators by the preset specific separators. See [implemented details](https://github.com/langchain-ai/langchain/blob/eb122945832eae9b9df7c70ccd8d51fcd7a1899b/libs/text-splitters/langchain_text_splitters/character.py#L164). `separators` and `preset_separators`parameters cannot by empty at the same time."),
-        metadata: str | None = Form(default="", description="Additional metadata to add to each chunk. Provide a stringified JSON object matching the Metadata schema.", examples=['{"source_date": "2026-01-05", "source_tags": ["tag1", "tag2"]}']),
+        metadata: Annotated[str, StringConstraints(strip_whitespace=True)] = Form(default="", description="Optional additional metadata to add to each chunk. Provide a stringified JSON object matching the Metadata schema.", examples=['{"source_date": "2026-01-05", "source_tags": ["tag1", "tag2"]}']),
     ) -> "CreateDocumentForm":
         try:
             return cls(
