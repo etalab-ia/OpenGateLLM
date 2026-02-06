@@ -72,19 +72,15 @@
 <p>Fixed support for the <code>language</code> parameter for audio transcription models with vLLM and Albert API so it can be empty.</p>
 </li>
 <li>
-<p><code>collection_id</code> and <code>document_id</code> have been moved to the chunk level. Previously, they were part of the chunk's metadata field, which could have led users to believe these values were editable.</p>
-</li>
-<li>
-<p>The <code>collections</code> parameter in the search endpoint now has a maximum length of 100 to avoid overwhelming the Elasticsearch index.</p>
-</li>
-<li>
-<p>The <code>collections</code> parameter in</p>
+<p>The <code>collections</code> parameter in the search endpoint is now correctly typed as <code>list[int]</code>.</p>
 </li>
 </ul>
 <h3 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="improvements">Improvements<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#improvements" class="hash-link" aria-label="Direct link to Improvements" title="Direct link to Improvements">​</a></h3>
 <ul>
 <li>Improved code readability for form data request declarations.</li>
 <li>Return of the <code>usage</code> key in stream responses from <code>/v1/chat/completions</code> even if the stream does not end with the <code>[DONE]</code> token.</li>
+<li>The <code>collections</code> parameter in the search endpoint now has a maximum length of 100 to avoid overwhelming the Elasticsearch index.</li>
+<li><code>collection_id</code> and <code>document_id</code> have been moved to the chunk level. Previously, they were part of the chunk's metadata field, which could have led users to believe these values were editable.</li>
 </ul>
 <h2 class="anchor anchorWithHideOnScrollNavbar_WYt5" id="migration-script">Migration Script<a href="https://docs.opengatellm.org/blog/0.4.0-release-note#migration-script" class="hash-link" aria-label="Direct link to Migration Script" title="Direct link to Migration Script">​</a></h2>
 <div class="theme-admonition theme-admonition-warning admonition_xJq3 alert alert--warning"><div class="admonitionHeading_Gvgb"><span class="admonitionIcon_Rf37"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>warning</div><div class="admonitionContent_BuS1"><p>The data migration will delete custom metadata from documents with there more than 8 fields.</p></div></div>
