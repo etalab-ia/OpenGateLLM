@@ -18,26 +18,15 @@ ChunkMetadata = Annotated[dict[MetadataStr, MetadataStr | MetadataInt | Metadata
 class Chunk(BaseModel):
     object: Annotated[Literal["chunk"], Field(default="chunk", description="The type of the object.")]
     id: Annotated[int, Field(ge=0, default=..., description="The ID of the chunk.")]
-    collection: Annotated[int, Field(ge=0, default=..., description="The ID of the collection the chunk belongs to.")]
-    document: Annotated[int, Field(ge=0, default=..., description="The ID of the document the chunk belongs to.")]
+    collection_id: Annotated[int, Field(ge=0, default=..., description="The ID of the collection the chunk belongs to.")]
+    document_id: Annotated[int, Field(ge=0, default=..., description="The ID of the document the chunk belongs to.")]
     content: Annotated[str, Field(min_length=1, default=..., description="The content of the chunk.")]
-    metadata: ChunkMetadata | None = Field(default=None, description="Metadata of the chunk")
+    metadata: Annotated[ChunkMetadata | None, Field(default=None, description="Metadata of the chunk")]
     created: Annotated[datetime, Field(default=datetime.now(), description="The date of the chunk creation.")]
 
     @field_serializer("created")
     def serialize_created(self, created: datetime) -> int:
         return int(created.timestamp())
-
-    @classmethod
-    def from_elasticsearch(cls, hit: dict) -> "Chunk":
-        return cls(
-            id=hit["_source"]["id"],
-            collection=hit["_source"]["collection_id"],
-            document=hit["_source"]["document_id"],
-            content=hit["_source"]["content"],
-            metadata=hit["_source"]["metadata"],
-            created=hit["_source"]["created"],
-        )
 
 
 class Chunks(BaseModel):

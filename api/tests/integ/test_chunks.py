@@ -46,7 +46,7 @@ class TestChunks:
         chunks = Chunks(**response.json())  # test output format
 
         assert len(chunks.data) > 0
-        assert chunks.data[0].document == DOCUMENT_ID
+        assert chunks.data[0].document_id == DOCUMENT_ID
 
     def test_get_chunk_by_id(self, client: TestClient, setup):
         COLLECTION_ID, DOCUMENT_ID = setup

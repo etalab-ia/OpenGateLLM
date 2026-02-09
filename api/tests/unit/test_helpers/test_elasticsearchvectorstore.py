@@ -58,9 +58,8 @@ def _make_chunk(chunk_id: int, document_id: int, collection_id: int = 1) -> Chun
     """Helper to create a Chunk instance for tests."""
     return Chunk(
         id=chunk_id,
-        collection=collection_id,
-        document=document_id,
-        document_name="test.txt",
+        collection_id=collection_id,
+        document_id=document_id,
         content=f"chunk content {chunk_id}",
         metadata={"key": "value"},
     )
@@ -311,7 +310,7 @@ class TestHybridSearch:
 
     @pytest.mark.asyncio
     async def test_hybrid_search_chunk_id_uses_document_field(self):
-        """Test that chunk_id for deduplication uses chunk.document (not metadata)."""
+        """Test that chunk_id for deduplication uses chunk.document_id (not metadata)."""
         store = ElasticsearchVectorStore(index_name="test-index")
         mock_client = AsyncMock()
 

@@ -135,7 +135,7 @@ class TestChat:
 
         response_json = response.json()
         ChatCompletion(**response_json)  # test output format
-        assert response_json["search_results"][0]["chunk"]["document"] in DOCUMENT_IDS
+        assert response_json["search_results"][0]["chunk"]["document_id"] in DOCUMENT_IDS
 
     def test_chat_completions_search_streamed_response(self, client: TestClient, setup):
         """Test the GET /chat/completions search streamed response."""
@@ -163,7 +163,7 @@ class TestChat:
                     chunks.append(chunk)
                     continue
                 # check that the last chunk has a search result
-                assert chunks[i - 1].search_results[0].chunk.document in DOCUMENT_IDS
+                assert chunks[i - 1].search_results[0].chunk.document_id in DOCUMENT_IDS
                 break
 
     def test_chat_completions_search_no_args(self, client: TestClient, setup):

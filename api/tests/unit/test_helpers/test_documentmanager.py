@@ -611,8 +611,8 @@ async def test_get_chunks_success():
 
     # Mock chunks returned from Elasticsearch
     mock_chunks = [
-        Chunk(id=1, collection=123, document=456, document_name="test.txt", metadata={"my_tags": ["tag1", "tag2"]}, content="chunk 1"),
-        Chunk(id=2, collection=123, document=456, document_name="test.txt", metadata={"my_tags": ["tag1", "tag2"]}, content="chunk 2"),
+        Chunk(id=1, collection_id=123, document_id=456, metadata={"my_tags": ["tag1", "tag2"]}, content="chunk 1"),
+        Chunk(id=2, collection_id=123, document_id=456, metadata={"my_tags": ["tag1", "tag2"]}, content="chunk 2"),
     ]
     mock_elasticsearch_vector_store.get_chunks = AsyncMock(return_value=mock_chunks)
 

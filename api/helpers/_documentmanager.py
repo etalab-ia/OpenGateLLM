@@ -434,7 +434,7 @@ class DocumentManager:
         separators: list[str] | None = None,
         is_separator_regex: bool | None = None,
         preset_separators: Language | None = None,
-    ) -> list[Chunk]:
+    ) -> list[str]:
         if chunker == Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER:
             chunker = RecursiveCharacterTextSplitter(
                 chunk_size=chunk_size,

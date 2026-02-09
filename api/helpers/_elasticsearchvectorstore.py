@@ -136,7 +136,7 @@ class ElasticsearchVectorStore:
             body["query"]["bool"]["must"].append({"term": {"id": chunk_id}})
 
         results = await client.search(index=self.index_name, body=body, from_=offset, size=limit)
-        chunks = [Chunk.from_elasticsearch(hit) for hit in results["hits"]["hits"]]
+        chunks = [Chunk(**hit["_source"]) for hit in results["hits"]["hits"]]
         chunks = sorted(chunks, key=lambda chunk: chunk.id)
 
         return chunks
@@ -229,7 +229,7 @@ class ElasticsearchVectorStore:
             Search(
                 method=SearchMethod.LEXICAL.value,
                 score=hit["_score"],
-                chunk=Chunk.from_elasticsearch(hit),
+                chunk=Chunk(**hit["_source"]),
             )
             for hit in results["hits"]["hits"]
         ]
@@ -265,7 +265,7 @@ class ElasticsearchVectorStore:
             Search(
                 method=SearchMethod.SEMANTIC.value,
                 score=hit["_score"],
-                chunk=Chunk.from_elasticsearch(hit),
+                chunk=Chunk(**hit["_source"]),
             )
             for hit in results["hits"]["hits"]
         ]
@@ -320,7 +320,7 @@ class ElasticsearchVectorStore:
         search_map = {}
         for searches in [lexical_searches, semantic_searches]:
             for rank, search in enumerate(searches):
-                chunk_id = search.chunk.document + search.chunk.id
+                chunk_id = search.chunk.document_id + search.chunk.id
                 if chunk_id not in combined_scores:
                     combined_scores[chunk_id] = 0
                     search_map[chunk_id] = search
