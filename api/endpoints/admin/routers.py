@@ -1,17 +1,16 @@
 from typing import Literal
 
-from fastapi import APIRouter, Body, Depends, Path, Query, Request, Security
+from fastapi import Body, Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
 from api.schemas.admin.roles import PermissionType
 from api.schemas.admin.routers import Router, Routers, UpdateRouter
 from api.utils.dependencies import get_model_registry, get_postgres_session
-from api.utils.variables import EndpointRoute, RouterName
-
-router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
+from api.utils.variables import EndpointRoute
 
 
 @router.delete(

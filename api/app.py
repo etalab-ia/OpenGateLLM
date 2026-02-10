@@ -7,7 +7,6 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
 
 from api.endpoints.monitoring import setup_prometheus
-from api.routers.registry import ROUTER_DEFINITIONS
 from api.schemas.core.context import RequestContext
 from api.schemas.usage import Usage
 from api.utils.configuration import Configuration, get_configuration
@@ -66,14 +65,20 @@ def _setup_middleware(app: FastAPI, configuration: Configuration) -> None:
 def _register_routers(app: FastAPI, configuration: Configuration) -> None:
     disabled_routers = set(configuration.settings.disabled_routers)
     hidden_routers = set(configuration.settings.hidden_routers)
-    enabled_routers = (router_definition for router_definition in ROUTER_DEFINITIONS if router_definition.name not in disabled_routers)
-    for router_def in enabled_routers:
-        module = import_module(router_def.module_path)
+    enabled_router = (router for router in RouterName if router not in disabled_routers and router.module_path is not None)
+    for router in enabled_router:
+        include_in_schema = router not in hidden_routers
+        module = import_module(router.module_path)
         router = getattr(module, "router", None)
         if router is None:
-            raise AttributeError(f"Module {router_def.module_path} has no 'router' attribute")
-        include_in_schema = router_def.name not in hidden_routers
+            raise AttributeError(f"Module {router.module_path} has no 'router' attribute")
         app.include_router(router=router, include_in_schema=include_in_schema)
+
+    # @TODO: legacy import before total clean archi migration
+    # @TODO: create admin folder in infrastructure.fastapi.endpoints with router declaration in __init__.py
+    if RouterName.ADMIN not in disabled_routers:
+        module = import_module("api.infrastructure.fastapi.endpoints.admin_router")
+        app.include_router(router=module.router, include_in_schema=RouterName.ADMIN not in hidden_routers)
 
 
 def _setup_monitoring(app: FastAPI, configuration: Configuration) -> None:

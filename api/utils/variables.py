@@ -11,22 +11,29 @@ REDIS__TIMESERIE_RETENTION_SECONDS = 120
 
 
 class RouterName(StrEnum):
-    ADMIN = "admin"
-    AUDIO = "audio"
-    AUTH = "auth"
-    CHAT = "chat"
-    CHUNKS = "chunks"
-    COLLECTIONS = "collections"
-    DOCUMENTS = "documents"
-    EMBEDDINGS = "embeddings"
-    FILES = "files"  # Inutile
-    MODELS = "models"
-    MONITORING = "monitoring"
-    OCR = "ocr"
-    PARSE = "parse"
-    RERANK = "rerank"
-    SEARCH = "search"
-    ME = "me"
+    ADMIN = ("admin", "api.endpoints.admin")
+    AUDIO = ("audio", "api.endpoints.audio")
+    AUTH = ("auth", "api.endpoints.auth")
+    CHAT = ("chat", "api.endpoints.chat")
+    CHUNKS = ("chunks", "api.endpoints.chunks")
+    COLLECTIONS = ("collections", "api.endpoints.collections")
+    DOCUMENTS = ("documents", "api.endpoints.documents")
+    EMBEDDINGS = ("embeddings", "api.endpoints.embeddings")
+    FILES = ("files", "api.endpoints.files")
+    MODELS = ("models", "api.infrastructure.fastapi.endpoints.models")
+    MONITORING = ("monitoring", None)
+    OCR = ("ocr", "api.endpoints.ocr")
+    PARSE = ("parse", "api.endpoints.parse")
+    RERANK = ("rerank", "api.endpoints.rerank")
+    SEARCH = ("search", "api.endpoints.search")
+    ME = ("me", "api.endpoints.me")
+
+    def __new__(cls, value: str, module_path: str):
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        obj.module_path = module_path
+
+        return obj
 
 
 class EndpointRoute(StrEnum):

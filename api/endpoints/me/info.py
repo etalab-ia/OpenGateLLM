@@ -1,14 +1,13 @@
-from fastapi import APIRouter, Body, Depends, Request, Response, Security
+from fastapi import Body, Depends, Request, Response, Security
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.endpoints.me import router
 from api.helpers._accesscontroller import AccessController
 from api.schemas.me.info import UpdateUserInfo, UserInfo
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import EndpointRoute, RouterName
-
-router = APIRouter(prefix="/v1", tags=[RouterName.ME.title()])
+from api.utils.variables import EndpointRoute
 
 
 @router.get(path=EndpointRoute.ME_INFO, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=UserInfo)

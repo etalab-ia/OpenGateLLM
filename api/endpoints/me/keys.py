@@ -1,16 +1,15 @@
 from typing import Literal
 
-from fastapi import APIRouter, Body, Depends, Path, Query, Request, Response, Security
+from fastapi import Body, Depends, Path, Query, Request, Response, Security
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.endpoints.me import router
 from api.helpers._accesscontroller import AccessController
 from api.schemas.me.keys import CreateKey, CreateKeyResponse, Key, Keys
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import EndpointRoute, RouterName
-
-router = APIRouter(prefix="/v1", tags=[RouterName.ME.title()])
+from api.utils.variables import EndpointRoute
 
 
 @router.post(path=EndpointRoute.ME_KEYS, dependencies=[Security(dependency=AccessController())], status_code=201, response_model=CreateKeyResponse)

@@ -14,10 +14,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RouterAlreadyExistsHTTPException,
 )
 from api.infrastructure.fastapi.schemas.routers import CreateRouter, CreateRouterResponse
-from api.use_cases.admin import (
-    CreateRouterUseCase,
-    CreateRouterUseCaseSuccess,
-)
+from api.use_cases.admin import CreateRouterUseCase, CreateRouterUseCaseSuccess
 from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)

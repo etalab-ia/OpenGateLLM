@@ -18,9 +18,7 @@ class ElasticsearchIndexLanguage(StrEnum):
     SPANISH = ("spanish", "_spanish_", "light_spanish")
     SWEDISH = ("swedish", "_swedish_", "light_swedish")
 
-    def __new__(cls, value, stopwords, stemmer):
-        if not isinstance(value, str):
-            raise TypeError(f"Enum values must be strings (got {type(value).__name__})")
+    def __new__(cls, value: str, stopwords: str, stemmer: str):
         obj = str.__new__(cls, value)
         obj._value_ = value
         obj.stopwords = stopwords
