@@ -26,9 +26,9 @@ from api.utils.dependencies import (
 )
 from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, WrongModelTypeException
 from api.utils.hooks_decorator import hooks
-from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ROUTER__CHAT
+from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.CHAT.title()])
 
 
 @router.post(

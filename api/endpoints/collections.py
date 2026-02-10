@@ -9,9 +9,9 @@ from api.schemas.collections import Collection, CollectionRequest, Collections, 
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_elasticsearch_client, get_elasticsearch_vector_store, get_postgres_session
 from api.utils.exceptions import CollectionNotFoundException
-from api.utils.variables import ENDPOINT__COLLECTIONS, ROUTER__COLLECTIONS
+from api.utils.variables import ENDPOINT__COLLECTIONS, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__COLLECTIONS.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.COLLECTIONS.title()])
 
 
 @router.post(path=ENDPOINT__COLLECTIONS, dependencies=[Security(dependency=AccessController())], status_code=201)

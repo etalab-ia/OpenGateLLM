@@ -9,9 +9,9 @@ from api.helpers.models import ModelRegistry
 from api.schemas.admin.roles import PermissionType
 from api.schemas.admin.routers import Router, Routers, UpdateRouter
 from api.utils.dependencies import get_model_registry, get_postgres_session
-from api.utils.variables import ENDPOINT__ADMIN_ROUTERS, ROUTER__ADMIN
+from api.utils.variables import ENDPOINT__ADMIN_ROUTERS, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 
 
 @router.delete(

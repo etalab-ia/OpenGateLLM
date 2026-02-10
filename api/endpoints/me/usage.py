@@ -7,9 +7,9 @@ from api.helpers._usagemanager import UsageManager
 from api.schemas.me.usage import EndpointUsage, Usages
 from api.utils.context import request_context
 from api.utils.dependencies import get_postgres_session, get_usage_manager
-from api.utils.variables import ENDPOINT__ME_USAGE, ROUTER__ME
+from api.utils.variables import ENDPOINT__ME_USAGE, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__ME.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.ME.title()])
 
 
 @router.get(path=ENDPOINT__ME_USAGE, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Usages)

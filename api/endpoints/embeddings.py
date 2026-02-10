@@ -10,9 +10,9 @@ from api.schemas.embeddings import Embeddings, EmbeddingsRequest
 from api.utils.context import request_context
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client
 from api.utils.hooks_decorator import hooks
-from api.utils.variables import ENDPOINT__EMBEDDINGS, ROUTER__EMBEDDINGS
+from api.utils.variables import ENDPOINT__EMBEDDINGS, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__EMBEDDINGS.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.EMBEDDINGS.title()])
 
 
 @router.post(path=ENDPOINT__EMBEDDINGS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Embeddings)

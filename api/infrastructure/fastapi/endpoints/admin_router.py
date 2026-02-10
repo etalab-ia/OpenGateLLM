@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Body, Depends, Security
 
 from api.dependencies import create_router_use_case, get_request_context
@@ -12,14 +14,14 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RouterAlreadyExistsHTTPException,
 )
 from api.infrastructure.fastapi.schemas.routers import CreateRouter, CreateRouterResponse
-from api.main import logger
 from api.use_cases.admin import (
     CreateRouterUseCase,
     CreateRouterUseCaseSuccess,
 )
-from api.utils.variables import ENDPOINT__ADMIN_ROUTERS, ROUTER__ADMIN
+from api.utils.variables import ENDPOINT__ADMIN_ROUTERS, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 
 
 @router.post(path=ENDPOINT__ADMIN_ROUTERS, dependencies=[Security(dependency=get_current_key)], status_code=201)

@@ -14,10 +14,6 @@ class RouterRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_aliases(self, filtered_names: list[str]) -> list[str]:
-        pass
-
-    @abstractmethod
     async def create_router(
         self,
         name: str,

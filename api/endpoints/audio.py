@@ -12,9 +12,9 @@ from api.schemas.audio import AudioTranscription, CreateAudioTranscription
 from api.schemas.core.context import RequestContext
 from api.schemas.core.models import RequestContent
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
-from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS, ROUTER__AUDIO
+from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__AUDIO.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.AUDIO.title()])
 
 
 @router.post(

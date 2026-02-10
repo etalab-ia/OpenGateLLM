@@ -8,9 +8,9 @@ from api.helpers._accesscontroller import AccessController
 from api.schemas.me.keys import CreateKey, CreateKeyResponse, Key, Keys
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import ENDPOINT__ME_KEYS, ROUTER__ME
+from api.utils.variables import ENDPOINT__ME_KEYS, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__ME.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.ME.title()])
 
 
 @router.post(path=ENDPOINT__ME_KEYS, dependencies=[Security(dependency=AccessController())], status_code=201, response_model=CreateKeyResponse)

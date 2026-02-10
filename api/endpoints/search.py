@@ -22,9 +22,9 @@ from api.utils.dependencies import (
 )
 from api.utils.exceptions import CollectionNotFoundException
 from api.utils.hooks_decorator import hooks
-from api.utils.variables import ENDPOINT__SEARCH, ROUTER__SEARCH
+from api.utils.variables import ENDPOINT__SEARCH, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__SEARCH.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.SEARCH.title()])
 
 
 @router.post(path=ENDPOINT__SEARCH, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Searches)

@@ -23,9 +23,9 @@ from api.utils.dependencies import (
     get_request_context,
 )
 from api.utils.exceptions import CollectionNotFoundException, DocumentNotFoundException
-from api.utils.variables import ENDPOINT__DOCUMENTS, ROUTER__DOCUMENTS
+from api.utils.variables import ENDPOINT__DOCUMENTS, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__DOCUMENTS.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.DOCUMENTS.title()])
 
 
 @router.post(path=ENDPOINT__DOCUMENTS, status_code=201, dependencies=[Security(dependency=AccessController())], response_model=DocumentResponse)

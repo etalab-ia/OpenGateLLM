@@ -9,9 +9,9 @@ from api.schemas.exception import HTTPExceptionModel
 from api.use_cases.models import GetModelsUseCase
 from api.use_cases.models._getmodelsusecase import ModelNotFound, Success
 from api.utils.exceptions import ModelNotFoundException
-from api.utils.variables import ENDPOINT__MODELS, ROUTER__MODELS
+from api.utils.variables import ENDPOINT__MODELS, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__MODELS.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.MODELS.title()])
 
 
 @router.get(

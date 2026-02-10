@@ -15,9 +15,9 @@ from api.schemas.admin.organizations import (
 from api.schemas.admin.roles import PermissionType
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import ENDPOINT__ADMIN_ORGANIZATIONS, ROUTER__ADMIN
+from api.utils.variables import ENDPOINT__ADMIN_ORGANIZATIONS, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 
 
 @router.post(

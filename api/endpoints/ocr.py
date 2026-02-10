@@ -25,9 +25,9 @@ from api.utils.exceptions import (
     WrongModelTypeException,
 )
 from api.utils.hooks_decorator import hooks
-from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__OCR, ENDPOINT__OCR_BETA, ROUTER__OCR
+from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__OCR, ENDPOINT__OCR_BETA, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__OCR.upper()])
+router = APIRouter(prefix="/v1", tags=[RouterName.OCR.upper()])
 
 
 @hooks

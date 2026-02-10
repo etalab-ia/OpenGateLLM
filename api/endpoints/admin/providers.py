@@ -16,9 +16,9 @@ from api.schemas.admin.providers import (
 from api.schemas.admin.roles import PermissionType
 from api.utils.context import request_context
 from api.utils.dependencies import get_model_registry, get_postgres_session
-from api.utils.variables import ENDPOINT__ADMIN_PROVIDERS, ROUTER__ADMIN
+from api.utils.variables import ENDPOINT__ADMIN_PROVIDERS, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 
 
 @router.post(

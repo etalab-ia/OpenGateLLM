@@ -6,9 +6,9 @@ from api.helpers._accesscontroller import AccessController
 from api.schemas.me.info import UpdateUserInfo, UserInfo
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import ENDPOINT__ME_INFO, ROUTER__ME
+from api.utils.variables import ENDPOINT__ME_INFO, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__ME.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.ME.title()])
 
 
 @router.get(path=ENDPOINT__ME_INFO, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=UserInfo)

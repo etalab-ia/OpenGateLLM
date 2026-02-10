@@ -1,3 +1,5 @@
+from enum import StrEnum
+
 DEFAULT_APP_NAME = "OpenGateLLM"
 DEFAULT_TIMEOUT = 300
 
@@ -36,25 +38,25 @@ ENDPOINT__USAGE = "/usage"
 ENDPOINTS = [value for name, value in locals().items() if name.startswith("ENDPOINT__")]
 
 
-ROUTER__ADMIN = "admin"
-ROUTER__AUDIO = "audio"
-ROUTER__AUTH = "auth"
-ROUTER__CHAT = "chat"
-ROUTER__CHUNKS = "chunks"
-ROUTER__COLLECTIONS = "collections"
-ROUTER__DOCUMENTS = "documents"
-ROUTER__EMBEDDINGS = "embeddings"
-ROUTER__FILES = "files"
-ROUTER__MODELS = "models"
-ROUTER__MONITORING = "monitoring"
-ROUTER__OCR = "ocr"
-ROUTER__PARSE = "parse"
-ROUTER__RERANK = "rerank"
-ROUTER__SEARCH = "search"
-ROUTER__USAGE = "usage"
-ROUTER__ME = "me"
+class RouterName(StrEnum):
+    ADMIN = "admin"
+    AUDIO = "audio"
+    AUTH = "auth"
+    CHAT = "chat"
+    CHUNKS = "chunks"
+    COLLECTIONS = "collections"
+    DOCUMENTS = "documents"
+    EMBEDDINGS = "embeddings"
+    FILES = "files"  # Inutile
+    MODELS = "models"
+    MONITORING = "monitoring"
+    OCR = "ocr"
+    PARSE = "parse"
+    RERANK = "rerank"
+    SEARCH = "search"
+    USAGE = "usage"  # Inutile
+    ME = "me"
 
-ROUTERS = [value for name, value in locals().items() if name.startswith("ROUTER__")]
 
 # Supported language from https://github.com/huggingface/transformers/blob/main/src/transformers/models/whisper/tokenization_whisper.py
 SUPPORTED_LANGUAGES = {

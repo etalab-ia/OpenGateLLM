@@ -22,7 +22,7 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
         default = convert_field_to_string_if_dict(
             properties[property].get(
                 "default",
-                properties[property].get("extra_json_schema", {}).get("default", "**required**"),
+                properties[property].get("default", "**required**"),
             )
         )
         examples = convert_field_to_string_if_dict(properties[property].get("examples", [""])[0])

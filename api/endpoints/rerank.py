@@ -12,9 +12,9 @@ from api.schemas.core.models import RequestContent
 from api.schemas.rerank import CreateRerank, Reranks
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
 from api.utils.hooks_decorator import hooks
-from api.utils.variables import ENDPOINT__RERANK, ROUTER__RERANK
+from api.utils.variables import ENDPOINT__RERANK, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__RERANK.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.RERANK.title()])
 
 
 @router.post(path=ENDPOINT__RERANK, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Reranks)
