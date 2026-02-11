@@ -326,7 +326,6 @@ class TestAuth:
 
         # Test the budget
         prompt = "Hello, how are you?"
-        prompt_tokens = len(tokenizer.encode(prompt))
 
         response = client.post(
             url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
@@ -335,7 +334,9 @@ class TestAuth:
         )
         assert response.status_code == 200, response.text
 
-        completion_tokens = len(tokenizer.encode(response.json()["choices"][0]["message"]["content"]))
+        completion_tokens = response.json()["usage"]["completion_tokens"]
+        prompt_tokens = response.json()["usage"]["prompt_tokens"]
+
         cost = round(
             prompt_tokens / 1000000 * text_generation_router.cost_prompt_tokens
             + completion_tokens / 1000000 * text_generation_router.cost_completion_tokens,
@@ -359,8 +360,6 @@ class TestAuth:
 
         # Test the budget
         prompt = "Hello, how are you?"
-        prompt_tokens = len(tokenizer.encode(prompt))
-
         response = client.post(
             url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
             headers={"Authorization": f"Bearer {token}"},

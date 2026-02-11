@@ -34,7 +34,9 @@ class TestModels:
         model = configuration.models[0]
 
         response = client.get_without_permissions(url=f"/v1{ENDPOINT__MODELS}/{model.name}")
+        assert response.status_code == 200, response.text
         assert response.json()["aliases"] == model.aliases
 
         response = client.get_without_permissions(url=f"/v1{ENDPOINT__MODELS}/{model.aliases[0]}")
+        assert response.status_code == 200, response.text
         assert response.json()["id"] == model.name

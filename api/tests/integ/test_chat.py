@@ -259,11 +259,11 @@ class TestChat:
     def test_chat_completions_usage(self, client: TestClient, setup, tokenizer):
         """Test the GET /chat/completions usage."""
         MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
-        prompt = "Hi, write a story."
+        prompt = "Hi, write a story about a cat."
         params = {
             "model": MODEL_ID,
             "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 10,
+            "max_tokens": 100,
         }
 
         prompt_tokens = len(tokenizer.encode(prompt))
@@ -278,8 +278,8 @@ class TestChat:
 
         assert response_json["usage"].get("completion_tokens") is not None, response.text
 
-        contents = [choice.get("message", {}).get("content", "") for choice in response_json.get("choices", [])]
-        completion_tokens = sum([len(tokenizer.encode(content)) for content in contents])
+        content = ChatCompletion.extract_response_content(response=response_json)
+        completion_tokens = len(tokenizer.encode(content))
         assert response_json["usage"]["completion_tokens"] == completion_tokens
 
         assert response_json["usage"].get("total_tokens") is not None, response.text
