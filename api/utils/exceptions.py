@@ -271,4 +271,4 @@ class ResponseFormatFailedException(HTTPException):
 # 503
 class ModelIsTooBusyException(HTTPException):
     def __init__(self, detail: str = "Model is too busy, please try again later.") -> None:
-        super().__init__(status_code=503, detail=detail)
+        super().__init__(status_code=503, detail=detail, headers={"Retry-After": "10"})

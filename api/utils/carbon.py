@@ -9,7 +9,7 @@ def get_carbon_footprint(
     total_params: int,
     model_zone: ProviderCarbonFootprintZone,
     token_count: int,
-    request_latency: float,
+    request_latency: int | None = None,
 ) -> CarbonFootprintUsage:
     """Calculate carbon impact of a model inference using direct parameters.
 
@@ -18,7 +18,7 @@ def get_carbon_footprint(
         total_params(int): Total number of parameters (in millions or billions, must match compute_llm_impacts expectations)
         model_zone(CountryCodes): Electricity mix zone (Alpha-3 of the country code)
         token_count(int): Number of output tokens
-        request_latency(float): Latency of the inference (in milliseconds)
+        request_latency(int | None): Latency of the inference (in milliseconds)
 
     Returns:
         CarbonFootprintUsage: Computed carbon footprint
