@@ -108,9 +108,9 @@ class ChatCompletion(ChatCompletion):
         result = ""
         for choice in choices:
             choice = choices[0]
-            delta = choice.get("message") or {}
-            content = delta.get("content") or ""
-            reasoning_content = delta.get("reasoning_content") or ""
+            message = choice.get("message") or {}
+            content = message.get("content") or ""
+            reasoning_content = message.get("reasoning_content") or ""
 
             result += f"{content.strip()}\n" if content else ""
             result += f"{reasoning_content.strip()}\n" if reasoning_content else ""
