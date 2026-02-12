@@ -9,13 +9,13 @@ from api.schemas.admin.roles import PermissionType
 from api.schemas.admin.users import CreateUser, Users, UsersResponse, UserUpdateRequest
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import ENDPOINT__ADMIN_USERS, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 
 
 @router.post(
-    path=ENDPOINT__ADMIN_USERS,
+    path=EndpointRoute.ADMIN_USERS,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=201,
     response_model=UsersResponse,
@@ -45,7 +45,7 @@ async def create_user(
 
 
 @router.delete(
-    path=ENDPOINT__ADMIN_USERS + "/{user:path}",
+    path=EndpointRoute.ADMIN_USERS + "/{user:path}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -63,7 +63,7 @@ async def delete_user(
 
 
 @router.patch(
-    path=ENDPOINT__ADMIN_USERS + "/{user:path}",
+    path=EndpointRoute.ADMIN_USERS + "/{user:path}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -94,7 +94,7 @@ async def update_user(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_USERS + "/{user:path}",
+    path=EndpointRoute.ADMIN_USERS + "/{user:path}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
 )
@@ -113,7 +113,7 @@ async def get_user(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_USERS,
+    path=EndpointRoute.ADMIN_USERS,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
 )

@@ -19,7 +19,7 @@ from api.tests.integ.utils import (
     run_openmockllm,
 )
 from api.utils.configuration import configuration
-from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS
+from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture(scope="module")
@@ -68,7 +68,7 @@ class TestMistralImageTextToText:
             "n": 1,
             "max_tokens": 10,
         }
-        response = client.post(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params, headers={"Authorization": f"Bearer {key}"})
+        response = client.post(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params, headers={"Authorization": f"Bearer {key}"})
         assert response.status_code == 200, response.text
         ChatCompletion(**response.json())  # test output format
 
@@ -78,7 +78,7 @@ class TestMistralImageTextToText:
 
         params = {"model": model_name, "messages": [{"role": "user", "content": "Hello, how are you?"}], "stream": True, "n": 1, "max_tokens": 10}
 
-        response = client.post(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params, headers={"Authorization": f"Bearer {key}"})
+        response = client.post(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params, headers={"Authorization": f"Bearer {key}"})
         assert response.status_code == 200, response.text
 
         for line in response.iter_lines():
@@ -100,7 +100,7 @@ class TestMistralImageTextToText:
             "max_tokens": 10,
             "min_tokens": 3,  # unknown param in CreateChatCompletion schema
         }
-        response = client.post(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params, headers={"Authorization": f"Bearer {key}"})
+        response = client.post(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params, headers={"Authorization": f"Bearer {key}"})
 
         assert response.status_code == 200, response.text
 
@@ -111,7 +111,7 @@ class TestMistralImageTextToText:
         params = {"model": model_name, "messages": [{"role": "user", "content": prompt}], "max_tokens": 10}
 
         prompt_tokens = len(tokenizer.encode(prompt))
-        response = client.post(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
+        response = client.post(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
         assert response.status_code == 200, response.text
 
         response_json = response.json()

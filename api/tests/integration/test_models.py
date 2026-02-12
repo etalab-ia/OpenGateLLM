@@ -12,7 +12,7 @@ from api.tests.integration.factories import (
     RouterSQLFactory,
     UserSQLFactory,
 )
-from api.utils.variables import ENDPOINT__MODELS
+from api.utils.variables import EndpointRoute
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -52,7 +52,7 @@ class TestModels:
         LimitSQLFactory(role=user_with_routers.role, router=router_2)
 
         user_1_token = await create_token(db_session, name="my_token", user=user_with_routers)
-        response = await client.get(url=f"/v1{ENDPOINT__MODELS}", headers={"Authorization": f"Bearer {user_1_token.token}"})
+        response = await client.get(url=f"/v1{EndpointRoute.MODELS}", headers={"Authorization": f"Bearer {user_1_token.token}"})
         await db_session.flush()
         assert response.status_code == 200, f"error: retrieve models ({response.status_code})"
         models = Models(data=[Model(**model) for model in response.json()["data"]])
@@ -111,7 +111,7 @@ class TestModels:
 
         # Act
         await db_session.flush()
-        response = await client.get(url=f"/v1{ENDPOINT__MODELS}/{router_1.name}", headers={"Authorization": f"Bearer {token.token}"})
+        response = await client.get(url=f"/v1{EndpointRoute.MODELS}/{router_1.name}", headers={"Authorization": f"Bearer {token.token}"})
         # Assert
         actual_data = response.json()
         assert actual_data["id"] == "router_name_1"
@@ -124,7 +124,7 @@ class TestModels:
 
         # Act & Assert
         await db_session.flush()
-        response = await client.get(url=f"/v1{ENDPOINT__MODELS}/{non_existent_model}", headers={"Authorization": f"Bearer {token.token}"})
+        response = await client.get(url=f"/v1{EndpointRoute.MODELS}/{non_existent_model}", headers={"Authorization": f"Bearer {token.token}"})
         # Assert
         actual_data = response.json()
         assert response.status_code == 404

@@ -9,13 +9,13 @@ from api.schemas.admin.roles import PermissionType
 from api.schemas.admin.tokens import CreateToken, Token, Tokens, TokensResponse
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import ENDPOINT__ADMIN_TOKENS, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 
 
 @router.post(
-    path=ENDPOINT__ADMIN_TOKENS,
+    path=EndpointRoute.ADMIN_TOKENS,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=201,
     response_model=TokensResponse,
@@ -40,7 +40,7 @@ async def create_token(
 
 
 @router.delete(
-    path=ENDPOINT__ADMIN_TOKENS + "/{token:path}",
+    path=EndpointRoute.ADMIN_TOKENS + "/{token:path}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -60,7 +60,7 @@ async def delete_token(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_TOKENS + "/{token:path}",
+    path=EndpointRoute.ADMIN_TOKENS + "/{token:path}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Token,
@@ -80,7 +80,7 @@ async def get_token(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_TOKENS,
+    path=EndpointRoute.ADMIN_TOKENS,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Tokens,

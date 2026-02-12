@@ -7,13 +7,13 @@ import pytest
 
 from api.schemas.collections import CollectionVisibility
 from api.schemas.documents import Document, Documents
-from api.utils.variables import ENDPOINT__COLLECTIONS, ENDPOINT__DOCUMENTS
+from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture(scope="module")
 def collection(client):
     response = client.post_without_permissions(
-        url=f"/v1{ENDPOINT__COLLECTIONS}",
+        url=f"/v1{EndpointRoute.COLLECTIONS}",
         json={"name": f"test_collection_{str(uuid4())}", "visibility": CollectionVisibility.PRIVATE},
     )
     assert response.status_code == 201, response.text
@@ -43,7 +43,7 @@ class TestDocuments:
 
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "application/pdf")}
-            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data, files=files)
             file.close()
 
         assert response.status_code == 201, response.text
@@ -66,7 +66,7 @@ class TestDocuments:
 
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "application/pdf")}
-            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data, files=files)
             file.close()
 
         assert response.status_code == 201, response.text
@@ -75,7 +75,7 @@ class TestDocuments:
 
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "application/pdf")}
-            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data, files=files)
             file.close()
 
         assert response.status_code == 201, response.text
@@ -84,7 +84,7 @@ class TestDocuments:
 
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "application/pdf")}
-            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data, files=files)
             file.close()
 
         assert response.status_code == 201, response.text
@@ -93,7 +93,7 @@ class TestDocuments:
 
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "application/pdf")}
-            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data, files=files)
             file.close()
 
         assert response.status_code == 422, response.text
@@ -117,7 +117,7 @@ class TestDocuments:
 
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "application/pdf")}
-            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data, files=files)
             file.close()
 
         assert response.status_code == 422, response.text
@@ -141,7 +141,7 @@ class TestDocuments:
 
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "application/pdf")}
-            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data, files=files)
             file.close()
 
         assert response.status_code == 422, response.text
@@ -166,25 +166,25 @@ class TestDocuments:
 
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "application/pdf")}
-            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data, files=files)
             file.close()
 
         assert response.status_code == 201, response.text
         document_id = response.json()["id"]
 
-        response = client.get_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}")
+        response = client.get_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}")
         assert response.status_code == 200, response.text
 
         documents = response.json()
         Documents(**documents)  # test output format
 
-        response = client.get_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", params={"collection": collection})
+        response = client.get_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", params={"collection": collection})
         assert response.status_code == 200, response.text
 
         documents = response.json()
         Documents(**documents)  # test output format
 
-        response = client.get_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}/{document_id}")
+        response = client.get_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}/{document_id}")
         assert response.status_code == 200, response.text
 
         document = response.json()
@@ -210,14 +210,14 @@ class TestDocuments:
 
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "application/pdf")}
-            response = client.post_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", data=data, files=files)
+            response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data, files=files)
             file.close()
 
         assert response.status_code == 201, response.text
         document_id = response.json()["id"]
 
-        response = client.delete_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}/{document_id}")
+        response = client.delete_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}/{document_id}")
         assert response.status_code == 204, response.text
 
-        response = client.get_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}/{document_id}")
+        response = client.get_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}/{document_id}")
         assert response.status_code == 404, response.text

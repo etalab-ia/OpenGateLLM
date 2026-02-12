@@ -16,7 +16,7 @@ from api.tests.integ.utils import (
     kill_openmockllm,
     run_openmockllm,
 )
-from api.utils.variables import ENDPOINT__RERANK
+from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture(scope="module")
@@ -51,7 +51,7 @@ class TestTeiTextClassification:
         key, model_name = setup_tei_test_classification
 
         response = client.post(
-            url=f"/v1{ENDPOINT__RERANK}",
+            url=f"/v1{EndpointRoute.RERANK}",
             json={
                 "model": model_name,
                 "query": "The sun is shining.",
@@ -68,7 +68,7 @@ class TestTeiTextClassification:
         key, model_name = setup_tei_test_classification
 
         response = client.post(
-            url=f"/v1{ENDPOINT__RERANK}",
+            url=f"/v1{EndpointRoute.RERANK}",
             json={
                 "model": model_name,
                 "prompt": "The sun is shining.",
@@ -84,7 +84,7 @@ class TestTeiTextClassification:
         key, model_name = setup_tei_test_classification
 
         response = client.post(
-            url=f"/v1{ENDPOINT__RERANK}",
+            url=f"/v1{EndpointRoute.RERANK}",
             json={
                 "model": "unknown",
                 "query": "The sun is shining.",
@@ -99,7 +99,7 @@ class TestTeiTextClassification:
         key, model_name = setup_tei_test_classification
 
         response = client.post(
-            url=f"/v1{ENDPOINT__RERANK}",
+            url=f"/v1{EndpointRoute.RERANK}",
             json={
                 "model": model_name,
                 "query": "The sun is shining.",
@@ -116,7 +116,7 @@ class TestTeiTextClassification:
         key, model_name = setup_tei_test_classification
 
         response = client.post(
-            url=f"/v1{ENDPOINT__RERANK}",
+            url=f"/v1{EndpointRoute.RERANK}",
             json={
                 "model": model_name,
                 "prompt": "The sun is shining.",
@@ -133,7 +133,7 @@ class TestTeiTextClassification:
         key, model_name = setup_tei_test_classification
 
         response = client.post(
-            url=f"/v1{ENDPOINT__RERANK}",
+            url=f"/v1{EndpointRoute.RERANK}",
             json={
                 "model": model_name,
                 "prompt": "The sun is shining.",
@@ -150,7 +150,7 @@ class TestTeiTextClassification:
         key, model_name = setup_tei_test_classification
 
         response = client.post(
-            url=f"/v1{ENDPOINT__RERANK}",
+            url=f"/v1{EndpointRoute.RERANK}",
             json={
                 "model": model_name,
                 "query": "The sun is shining.",
@@ -167,7 +167,7 @@ class TestTeiTextClassification:
         key, model_name = setup_tei_test_classification
 
         response = client.post(
-            url=f"/v1{ENDPOINT__RERANK}",
+            url=f"/v1{EndpointRoute.RERANK}",
             json={
                 "model": model_name,
                 "query": "The sun is shining.",
@@ -186,7 +186,7 @@ class TestTeiTextClassification:
         key, model_name = setup_tei_test_classification
 
         response = client.post(
-            url=f"/v1{ENDPOINT__RERANK}",
+            url=f"/v1{EndpointRoute.RERANK}",
             json={
                 "model": model_name,
                 "query": "The sun is shining.",

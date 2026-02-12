@@ -6,7 +6,7 @@ import pytest
 from api.schemas.admin.providers import CreateProvider, ProviderCarbonFootprintZone, ProviderType
 from api.schemas.models import ModelType
 from api.tests.integ.utils import create_router, generate_test_id, kill_openmockllm, run_openmockllm
-from api.utils.variables import ENDPOINT__ADMIN_PROVIDERS
+from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class TestAdminProviders:
             qos_limit=None,
         )
 
-        response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_PROVIDERS}", json=payload.model_dump())
+        response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_PROVIDERS}", json=payload.model_dump())
         assert response.status_code == 201, response.text
 
     def test_create_router_with_text_embeddings_inference_model(self, client: TestClient, setup_text_embeddings_inference_router: tuple[int, str]):
@@ -79,5 +79,5 @@ class TestAdminProviders:
             qos_limit=None,
         )
 
-        response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_PROVIDERS}", json=payload.model_dump())
+        response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_PROVIDERS}", json=payload.model_dump())
         assert response.status_code == 201, response.text

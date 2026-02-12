@@ -9,13 +9,13 @@ from api.helpers.models import ModelRegistry
 from api.schemas.admin.roles import PermissionType
 from api.schemas.admin.routers import Router, Routers, UpdateRouter
 from api.utils.dependencies import get_model_registry, get_postgres_session
-from api.utils.variables import ENDPOINT__ADMIN_ROUTERS, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 
 
 @router.delete(
-    path=ENDPOINT__ADMIN_ROUTERS + "/{router}",
+    path=EndpointRoute.ADMIN_ROUTERS + "/{router}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -34,7 +34,7 @@ async def delete_router(
 
 
 @router.patch(
-    path=ENDPOINT__ADMIN_ROUTERS + "/{router}",
+    path=EndpointRoute.ADMIN_ROUTERS + "/{router}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType]))],
     status_code=204,
 )
@@ -63,7 +63,7 @@ async def update_router(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_ROUTERS + "/{router}",
+    path=EndpointRoute.ADMIN_ROUTERS + "/{router}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
     status_code=200,
     response_model=Router,
@@ -83,7 +83,7 @@ async def get_router(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_ROUTERS,
+    path=EndpointRoute.ADMIN_ROUTERS,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
     status_code=200,
     response_model=Routers,

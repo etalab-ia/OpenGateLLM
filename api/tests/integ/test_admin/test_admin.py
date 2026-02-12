@@ -10,16 +10,7 @@ from api.helpers._usagetokenizer import UsageTokenizer
 from api.schemas.admin.roles import LimitType
 from api.schemas.admin.routers import Router
 from api.utils.configuration import configuration
-from api.utils.variables import (
-    ENDPOINT__ADMIN_ROLES,
-    ENDPOINT__ADMIN_ROUTERS,
-    ENDPOINT__ADMIN_TOKENS,
-    ENDPOINT__ADMIN_USERS,
-    ENDPOINT__CHAT_COMPLETIONS,
-    ENDPOINT__COLLECTIONS,
-    ENDPOINT__ME_INFO,
-    ENDPOINT__ME_KEYS,
-)
+from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture(scope="module")
@@ -42,7 +33,7 @@ def tokenizer():
 
 @pytest.fixture(scope="module")
 def text_generation_router(client: TestClient) -> Router:
-    response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}")
+    response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_ROUTERS}")
     assert response.status_code == 200, response.text
     router = [router for router in response.json()["data"] if router["type"] == "text-generation"][0]
     router = Router(**router)
@@ -57,7 +48,7 @@ class TestAuth:
 
         # Create a test user with no expiration
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_USERS}",
+            url=f"/v1{EndpointRoute.ADMIN_USERS}",
             json={
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
@@ -69,7 +60,7 @@ class TestAuth:
         user_no_expiration_id = response.json()["id"]
 
         # Get user with no expiration
-        response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_no_expiration_id}")
+        response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_no_expiration_id}")
         assert response.status_code == 200, response.text
         user_data = response.json()
         assert user_data["expires"] is None, response.text
@@ -77,7 +68,7 @@ class TestAuth:
         # Try to create user with expiration set to 5 minutes in the past (should fail)
         past_expiration = int((datetime.now() - timedelta(minutes=5)).timestamp())
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_USERS}",
+            url=f"/v1{EndpointRoute.ADMIN_USERS}",
             json={
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
@@ -91,7 +82,7 @@ class TestAuth:
         # Create user with expiration set to 5 minutes in the future
         future_expiration = int((time.time()) + 5 * 60)
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_USERS}",
+            url=f"/v1{EndpointRoute.ADMIN_USERS}",
             json={
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
@@ -104,25 +95,25 @@ class TestAuth:
         user_with_expiration_id = response.json()["id"]
 
         # Get user and check expiration
-        response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_with_expiration_id}")
+        response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}")
         assert response.status_code == 200, response.text
         user_data = response.json()
         assert user_data["expires"] == future_expiration, "User should have correct expiration time"
 
         # Update expiration to now
         future_current = int((datetime.now() + timedelta(seconds=10)).timestamp())
-        response = client.patch_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_with_expiration_id}", json={"expires": future_current})
+        response = client.patch_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}", json={"expires": future_current})
         assert response.status_code == 204, response.text
 
         # Check updated expiration
-        response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_with_expiration_id}")
+        response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}")
         assert response.status_code == 200, response.text
         user_data = response.json()
         assert user_data["expires"] == future_current, "User should have updated expiration time"
 
         # Try to update expiration to past time (should fail)
         past_expiration = int((datetime.now() - timedelta(minutes=5)).timestamp())
-        response = client.patch_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_with_expiration_id}", json={"expires": past_expiration})
+        response = client.patch_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}", json={"expires": past_expiration})
         assert response.status_code == 422, "Should reject update with past expiration time"
 
     def test_user_account_expiration_access(self, client: TestClient, roles: tuple[dict, dict]):
@@ -133,7 +124,7 @@ class TestAuth:
 
         # Create user
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_USERS}",
+            url=f"/v1{EndpointRoute.ADMIN_USERS}",
             json={
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
@@ -147,7 +138,7 @@ class TestAuth:
 
         # Create token for this user
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
+            url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
             json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires": future_expiration + 60},
         )
         assert response.status_code == 201, response.text
@@ -155,22 +146,22 @@ class TestAuth:
 
         # Test API access with token before expiration
         headers = {"Authorization": f"Bearer {token}"}
-        response = client.get(url=f"/v1{ENDPOINT__ME_KEYS}", headers=headers)
+        response = client.get(url=f"/v1{EndpointRoute.ME_KEYS}", headers=headers)
         assert response.status_code == 200, "User should have access before expiration"
 
         # Wait for user to expire
         time.sleep(2)
 
         # Test API access after expiration
-        response = client.get(url=f"/v1{ENDPOINT__ME_KEYS}", headers=headers)
+        response = client.get(url=f"/v1{EndpointRoute.ME_KEYS}", headers=headers)
         assert response.status_code == 403, response.text
 
         # Verify user info endpoints still work with admin token
-        response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_id}")
+        response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_id}")
         assert response.status_code == 200, response.text
 
         # Check that /me/info endpoint return 200 for expired user
-        response = client.get(url=f"/v1{ENDPOINT__ME_INFO}", headers=headers)
+        response = client.get(url=f"/v1{EndpointRoute.ME_INFO}", headers=headers)
         assert response.status_code == 200, response.text
 
     def test_create_token_after_key_max_expiration_days(self, client: TestClient, roles: tuple[dict, dict]):
@@ -178,7 +169,7 @@ class TestAuth:
 
         # Create a user with no expiration
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_USERS}",
+            url=f"/v1{EndpointRoute.ADMIN_USERS}",
             json={
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
@@ -191,7 +182,7 @@ class TestAuth:
 
         # Create a token for this user
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
+            url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
             json={
                 "name": f"test_token_{str(uuid4())}",
                 "user": user_id,
@@ -203,7 +194,7 @@ class TestAuth:
     def test_token_rate_limits(self, client: TestClient, tokenizer, text_generation_router: Router):
         # Create a role with token limits
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_ROLES}",
+            url=f"/v1{EndpointRoute.ADMIN_ROLES}",
             json={
                 "name": f"test_role_{str(uuid4())}",
                 "limits": [
@@ -219,7 +210,7 @@ class TestAuth:
 
         # Create a user for this role
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_USERS}",
+            url=f"/v1{EndpointRoute.ADMIN_USERS}",
             json={
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
@@ -232,7 +223,7 @@ class TestAuth:
 
         # Create a token for this user
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
+            url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
             json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires": int((time.time()) + 60 * 10), "password": "test-password"},
         )
         assert response.status_code == 201, response.text
@@ -252,14 +243,14 @@ class TestAuth:
 
         headers = {"Authorization": f"Bearer {token}"}
         response = client.post(
-            url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
+            url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}",
             headers=headers,
             json={"model": text_generation_router.name, "messages": [{"role": "user", "content": content_len_5}], "max_tokens": 1},
         )
         assert response.status_code == 200, response.text
 
         response = client.post(
-            url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
+            url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}",
             headers=headers,
             json={"model": text_generation_router.name, "messages": [{"role": "user", "content": content_len_10}], "max_tokens": 1},
         )
@@ -268,7 +259,7 @@ class TestAuth:
 
         # Increase the limit
         response = client.patch_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_ROLES}/{role_id}",
+            url=f"/v1{EndpointRoute.ADMIN_ROLES}/{role_id}",
             json={
                 "name": f"test_role_{str(uuid4())}",
                 "limits": [
@@ -282,7 +273,7 @@ class TestAuth:
         assert response.status_code == 204, response.text
 
         response = client.post(
-            url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
+            url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}",
             headers=headers,
             json={"model": text_generation_router.name, "messages": [{"role": "user", "content": content_len_10}], "max_tokens": 1},
         )
@@ -290,7 +281,7 @@ class TestAuth:
 
         # Test the limit in multiple messages (fail because of the cost is 50 and the window remaining is 40)
         response = client.post(
-            url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
+            url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}",
             headers=headers,
             json={
                 "model": text_generation_router.name,
@@ -304,7 +295,7 @@ class TestAuth:
         # Create a user
         initial_budget = 10
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_USERS}",
+            url=f"/v1{EndpointRoute.ADMIN_USERS}",
             json={
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
@@ -318,7 +309,7 @@ class TestAuth:
 
         # Create a token for this user
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
+            url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
             json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires": int((time.time()) + 60 * 10)},
         )
         assert response.status_code == 201, response.text
@@ -328,7 +319,7 @@ class TestAuth:
         prompt = "Hello, how are you?"
 
         response = client.post(
-            url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
+            url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}",
             headers={"Authorization": f"Bearer {token}"},
             json={"model": text_generation_router.name, "messages": [{"role": "user", "content": prompt}], "max_tokens": 100},
         )
@@ -347,21 +338,21 @@ class TestAuth:
 
         # Check that the budget is updated
         time.sleep(1)
-        response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_id}")
+        response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_id}")
         assert response.json()["budget"] < initial_budget, response.text
 
         # Update the budget
-        response = client.patch_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_id}", json={"budget": 0})
+        response = client.patch_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_id}", json={"budget": 0})
         assert response.status_code == 204, response.text
 
         # Check that the budget is updated
-        response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_id}")
+        response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_id}")
         assert response.json()["budget"] == 0, response.text
 
         # Test the budget
         prompt = "Hello, how are you?"
         response = client.post(
-            url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
+            url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}",
             headers={"Authorization": f"Bearer {token}"},
             json={"model": text_generation_router.name, "messages": [{"role": "user", "content": prompt}], "max_tokens": 100},
         )
@@ -374,7 +365,7 @@ class TestAuth:
 
         # Create first user
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_USERS}",
+            url=f"/v1{EndpointRoute.ADMIN_USERS}",
             json={
                 "email": f"user1_{str(uuid4())}@example.com",
                 "name": f"user1_{str(uuid4())}",
@@ -387,7 +378,7 @@ class TestAuth:
 
         # Create token for first user using admin credentials
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
+            url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
             json={"name": token_name, "user": user1_id},
         )
         assert response.status_code == 201, response.text
@@ -397,7 +388,7 @@ class TestAuth:
         # Get first user's token
         headers1 = {"Authorization": f"Bearer {user1_token}"}
         response = client.get(
-            url=f"/v1{ENDPOINT__ME_KEYS}/{user1_token_id}",
+            url=f"/v1{EndpointRoute.ME_KEYS}/{user1_token_id}",
             headers=headers1,
         )
         assert response.status_code == 200, response.text
@@ -405,7 +396,7 @@ class TestAuth:
 
         # Create a collection using first user's token
         response = client.post(
-            url=f"/v1{ENDPOINT__COLLECTIONS}",
+            url=f"/v1{EndpointRoute.COLLECTIONS}",
             headers=headers1,
             json={"name": f"collection_user1_{str(uuid4())}", "visibility": "private"},
         )
@@ -414,7 +405,7 @@ class TestAuth:
 
         # Create second user
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_USERS}",
+            url=f"/v1{EndpointRoute.ADMIN_USERS}",
             json={
                 "email": f"user2_{str(uuid4())}@example.com",
                 "name": f"user2_{str(uuid4())}",
@@ -427,7 +418,7 @@ class TestAuth:
 
         # Create token for second user with the same name using admin credentials
         response = client.post_with_permissions(
-            url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
+            url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
             json={"name": token_name, "user": user2_id, "expires": int((time.time()) + 300)},
         )
         assert response.status_code == 201, response.text
@@ -436,7 +427,7 @@ class TestAuth:
 
         # Get second user's token
         headers2 = {"Authorization": f"Bearer {user2_token}"}
-        response = client.get(url=f"/v1{ENDPOINT__ME_KEYS}/{user2_token_id}", headers=headers2)
+        response = client.get(url=f"/v1{EndpointRoute.ME_KEYS}/{user2_token_id}", headers=headers2)
         assert response.status_code == 200, response.text
         user2_token_data = response.json()
 
@@ -446,26 +437,26 @@ class TestAuth:
         # Do it again to expose collision when creating a token with the same name
         # Get first user's token again to check it was not affected
         headers1 = {"Authorization": f"Bearer {user1_token}"}
-        response = client.get(url=f"/v1{ENDPOINT__ME_KEYS}/{user1_token_id}", headers=headers1)
+        response = client.get(url=f"/v1{EndpointRoute.ME_KEYS}/{user1_token_id}", headers=headers1)
         assert response.status_code == 200, response.text
         user1_token_data = response.json()
 
         # Try to access collection created by first user with first user's token
         response = client.get(
-            url=f"/v1{ENDPOINT__COLLECTIONS}/{collection_id}",
+            url=f"/v1{EndpointRoute.COLLECTIONS}/{collection_id}",
             headers=headers1,
         )
         assert response.status_code == 200, "Second user should not have access to first user's private collection"
         # Try to access collection created by first user with second user's token
         response = client.get(
-            url=f"/v1{ENDPOINT__COLLECTIONS}/{collection_id}",
+            url=f"/v1{EndpointRoute.COLLECTIONS}/{collection_id}",
             headers=headers2,
         )
         assert response.status_code == 404, "Second user should not have access to first user's private collection"
 
         # Verify first user can still access their collection
         response = client.get(
-            url=f"/v1{ENDPOINT__COLLECTIONS}/{collection_id}",
+            url=f"/v1{EndpointRoute.COLLECTIONS}/{collection_id}",
             headers=headers1,
         )
         assert response.status_code == 200, "First user should still have access to their collection"

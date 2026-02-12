@@ -23,12 +23,12 @@ from api.utils.dependencies import (
     get_request_context,
 )
 from api.utils.exceptions import CollectionNotFoundException, DocumentNotFoundException
-from api.utils.variables import ENDPOINT__DOCUMENTS, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.DOCUMENTS.title()])
 
 
-@router.post(path=ENDPOINT__DOCUMENTS, status_code=201, dependencies=[Security(dependency=AccessController())], response_model=DocumentResponse)
+@router.post(path=EndpointRoute.DOCUMENTS, status_code=201, dependencies=[Security(dependency=AccessController())], response_model=DocumentResponse)
 async def create_document(
     request: Request,
     data: Annotated[CreateDocumentForm, Depends(CreateDocumentForm.as_form)],
@@ -68,7 +68,7 @@ async def create_document(
 
 
 @router.get(
-    path=ENDPOINT__DOCUMENTS + "/{document}",
+    path=EndpointRoute.DOCUMENTS + "/{document}",
     dependencies=[Security(dependency=AccessController())],
     status_code=200,
     response_model=Document,
@@ -98,7 +98,7 @@ async def get_document(
     return JSONResponse(content=documents[0].model_dump(), status_code=200)
 
 
-@router.get(path=ENDPOINT__DOCUMENTS, dependencies=[Security(dependency=AccessController())], status_code=200)
+@router.get(path=EndpointRoute.DOCUMENTS, dependencies=[Security(dependency=AccessController())], status_code=200)
 async def get_documents(
     request: Request,
     name: str | None = Query(default=None, description="Filter documents by name."),
@@ -134,7 +134,7 @@ async def get_documents(
     return JSONResponse(content=Documents(data=data).model_dump(), status_code=200)
 
 
-@router.delete(path=ENDPOINT__DOCUMENTS + "/{document}", dependencies=[Security(dependency=AccessController())], status_code=204)
+@router.delete(path=EndpointRoute.DOCUMENTS + "/{document}", dependencies=[Security(dependency=AccessController())], status_code=204)
 async def delete_document(
     request: Request,
     document: int = Path(description="The document ID"),

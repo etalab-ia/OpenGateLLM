@@ -7,12 +7,12 @@ from api.helpers._usagemanager import UsageManager
 from api.schemas.me.usage import EndpointUsage, Usages
 from api.utils.context import request_context
 from api.utils.dependencies import get_postgres_session, get_usage_manager
-from api.utils.variables import ENDPOINT__ME_USAGE, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.ME.title()])
 
 
-@router.get(path=ENDPOINT__ME_USAGE, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Usages)
+@router.get(path=EndpointRoute.ME_USAGE, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Usages)
 async def get_usage(
     request: Request,
     offset: int = Query(default=0, ge=0, description="The offset of the usages to get."),

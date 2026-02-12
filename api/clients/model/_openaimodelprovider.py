@@ -4,14 +4,7 @@ from urllib.parse import urljoin
 import httpx
 
 from api.schemas.admin.providers import ProviderType
-from api.utils.variables import (
-    ENDPOINT__AUDIO_TRANSCRIPTIONS,
-    ENDPOINT__CHAT_COMPLETIONS,
-    ENDPOINT__EMBEDDINGS,
-    ENDPOINT__MODELS,
-    ENDPOINT__OCR,
-    ENDPOINT__RERANK,
-)
+from api.utils.variables import ModelEndpoint
 
 from ._basemodelprovider import BaseModelProvider
 
@@ -20,12 +13,12 @@ logger = logging.getLogger(__name__)
 
 class OpenaiModelProvider(BaseModelProvider):
     ENDPOINT_TABLE = {
-        ENDPOINT__AUDIO_TRANSCRIPTIONS: "/v1/audio/transcriptions",
-        ENDPOINT__CHAT_COMPLETIONS: "/v1/chat/completions",
-        ENDPOINT__EMBEDDINGS: "/v1/embeddings",
-        ENDPOINT__MODELS: "/v1/models",
-        ENDPOINT__OCR: "/v1/chat/completions",
-        ENDPOINT__RERANK: None,
+        ModelEndpoint.AUDIO_TRANSCRIPTIONS: "/v1/audio/transcriptions",
+        ModelEndpoint.CHAT_COMPLETIONS: "/v1/chat/completions",
+        ModelEndpoint.EMBEDDINGS: "/v1/embeddings",
+        ModelEndpoint.MODELS: "/v1/models",
+        ModelEndpoint.OCR: "/v1/chat/completions",
+        ModelEndpoint.RERANK: None,
     }
 
     def __init__(
@@ -53,7 +46,7 @@ class OpenaiModelProvider(BaseModelProvider):
         self.type = ProviderType.OPENAI
 
     async def get_max_context_length(self) -> int | None:
-        url = urljoin(base=str(self.url), url=self.ENDPOINT_TABLE[ENDPOINT__MODELS].lstrip("/"))
+        url = urljoin(base=str(self.url), url=self.ENDPOINT_TABLE[ModelEndpoint.MODELS].lstrip("/"))
 
         try:
             async with httpx.AsyncClient() as client:

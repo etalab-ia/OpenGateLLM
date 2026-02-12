@@ -4,14 +4,7 @@ from urllib.parse import urljoin
 import httpx
 
 from api.schemas.admin.providers import ProviderType
-from api.utils.variables import (
-    ENDPOINT__AUDIO_TRANSCRIPTIONS,
-    ENDPOINT__CHAT_COMPLETIONS,
-    ENDPOINT__EMBEDDINGS,
-    ENDPOINT__MODELS,
-    ENDPOINT__OCR,
-    ENDPOINT__RERANK,
-)
+from api.utils.variables import ModelEndpoint
 
 from ._basemodelprovider import BaseModelProvider
 
@@ -20,12 +13,12 @@ logger = logging.getLogger(__name__)
 
 class TeiModelProvider(BaseModelProvider):
     ENDPOINT_TABLE = {
-        ENDPOINT__AUDIO_TRANSCRIPTIONS: None,
-        ENDPOINT__CHAT_COMPLETIONS: None,
-        ENDPOINT__EMBEDDINGS: "/v1/embeddings",
-        ENDPOINT__MODELS: "/info",
-        ENDPOINT__OCR: None,
-        ENDPOINT__RERANK: "/rerank",
+        ModelEndpoint.AUDIO_TRANSCRIPTIONS: None,
+        ModelEndpoint.CHAT_COMPLETIONS: None,
+        ModelEndpoint.EMBEDDINGS: "/v1/embeddings",
+        ModelEndpoint.MODELS: "/info",
+        ModelEndpoint.OCR: None,
+        ModelEndpoint.RERANK: "/rerank",
     }
 
     def __init__(
@@ -53,7 +46,7 @@ class TeiModelProvider(BaseModelProvider):
         self.type = ProviderType.TEI
 
     async def get_max_context_length(self) -> int | None:
-        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[ENDPOINT__MODELS].lstrip("/"))
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[ModelEndpoint.MODELS].lstrip("/"))
 
         try:
             async with httpx.AsyncClient() as client:

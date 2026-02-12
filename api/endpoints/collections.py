@@ -9,12 +9,12 @@ from api.schemas.collections import Collection, CollectionRequest, Collections, 
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_elasticsearch_client, get_elasticsearch_vector_store, get_postgres_session
 from api.utils.exceptions import CollectionNotFoundException
-from api.utils.variables import ENDPOINT__COLLECTIONS, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.COLLECTIONS.title()])
 
 
-@router.post(path=ENDPOINT__COLLECTIONS, dependencies=[Security(dependency=AccessController())], status_code=201)
+@router.post(path=EndpointRoute.COLLECTIONS, dependencies=[Security(dependency=AccessController())], status_code=201)
 async def create_collection(
     request: Request,
     body: CollectionRequest,
@@ -38,7 +38,7 @@ async def create_collection(
 
 
 @router.get(
-    path=ENDPOINT__COLLECTIONS + "/{collection}",
+    path=EndpointRoute.COLLECTIONS + "/{collection}",
     dependencies=[Security(dependency=AccessController())],
     status_code=200,
     response_model=Collection,
@@ -63,7 +63,7 @@ async def get_collection(
     return JSONResponse(status_code=200, content=collections[0].model_dump())
 
 
-@router.get(path=ENDPOINT__COLLECTIONS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Collections)
+@router.get(path=EndpointRoute.COLLECTIONS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Collections)
 async def get_collections(
     request: Request,
     name: str = Query(default=None, description="Filter by collection name."),
@@ -90,7 +90,7 @@ async def get_collections(
     return JSONResponse(status_code=200, content=Collections(data=data).model_dump())
 
 
-@router.delete(path=ENDPOINT__COLLECTIONS + "/{collection}", dependencies=[Security(dependency=AccessController())], status_code=204)
+@router.delete(path=EndpointRoute.COLLECTIONS + "/{collection}", dependencies=[Security(dependency=AccessController())], status_code=204)
 async def delete_collection(
     request: Request,
     collection: int = Path(..., description="The collection ID"),
@@ -115,7 +115,7 @@ async def delete_collection(
     return Response(status_code=204)
 
 
-@router.patch(path=ENDPOINT__COLLECTIONS + "/{collection}", dependencies=[Security(dependency=AccessController())], status_code=204)
+@router.patch(path=EndpointRoute.COLLECTIONS + "/{collection}", dependencies=[Security(dependency=AccessController())], status_code=204)
 async def update_collection(
     request: Request,
     collection: int = Path(..., description="The collection ID"),

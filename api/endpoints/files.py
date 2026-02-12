@@ -27,12 +27,12 @@ from api.utils.dependencies import (
     get_request_context,
 )
 from api.utils.exceptions import CollectionNotFoundException, FileSizeLimitExceededException, InvalidJSONFormatException
-from api.utils.variables import ENDPOINT__FILES
+from api.utils.variables import EndpointRoute
 
 router = APIRouter(prefix="/v1", tags=["Legacy"])
 
 
-@router.post(path=ENDPOINT__FILES, status_code=201, response_model=FileResponse, dependencies=[Security(dependency=AccessController())])
+@router.post(path=EndpointRoute.FILES, status_code=201, response_model=FileResponse, dependencies=[Security(dependency=AccessController())])
 async def upload_file(
     file: UploadFile = File(...),
     request: FilesRequest = Body(...),

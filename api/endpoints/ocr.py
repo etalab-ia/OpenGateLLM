@@ -25,14 +25,14 @@ from api.utils.exceptions import (
     WrongModelTypeException,
 )
 from api.utils.hooks_decorator import hooks
-from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__OCR, ENDPOINT__OCR_BETA, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.OCR.upper()])
 
 
 @hooks
 @router.post(
-    path=ENDPOINT__OCR,
+    path=EndpointRoute.OCR,
     dependencies=[Security(dependency=AccessController())],
     status_code=200,
     responses={
@@ -55,20 +55,20 @@ async def ocr(
     """
     model_provider = await model_registry.get_model_provider(
         model=body.model,
-        endpoint=ENDPOINT__OCR,
+        endpoint=EndpointRoute.OCR,
         postgres_session=postgres_session,
         redis_client=redis_client,
         request_context=request_context,
     )
     response = await model_provider.forward_request(
-        request_content=RequestContent(method="POST", endpoint=ENDPOINT__OCR, json=body.model_dump(), model=body.model),
+        request_content=RequestContent(method="POST", endpoint=EndpointRoute.OCR, json=body.model_dump(), model=body.model),
         redis_client=redis_client,
     )
 
     return JSONResponse(content=OCR(**response.json()).model_dump(), status_code=response.status_code)
 
 
-@router.post(path=ENDPOINT__OCR_BETA, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=ParsedDocument)
+@router.post(path=EndpointRoute.OCR_BETA, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=ParsedDocument)
 @hooks
 async def ocr_beta(
     request: Request,
@@ -114,14 +114,14 @@ async def ocr_beta(
 
         model_provider = await model_registry.get_model_provider(
             model=model,
-            endpoint=ENDPOINT__OCR_BETA,
+            endpoint=EndpointRoute.OCR_BETA,
             postgres_session=postgres_session,
             redis_client=redis_client,
             request_context=request_context,
         )
 
         response = await model_provider.forward_request(
-            request_content=RequestContent(method="POST", endpoint=ENDPOINT__CHAT_COMPLETIONS, json=payload, model=model),
+            request_content=RequestContent(method="POST", endpoint=EndpointRoute.CHAT_COMPLETIONS, json=payload, model=model),
             redis_client=redis_client,
         )
         status = response.status_code

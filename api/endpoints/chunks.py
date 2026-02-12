@@ -10,12 +10,12 @@ from api.schemas.chunks import Chunk, Chunks
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_elasticsearch_client, get_elasticsearch_vector_store, get_postgres_session
 from api.utils.exceptions import ChunkNotFoundException
-from api.utils.variables import ENDPOINT__CHUNKS, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.CHUNKS.title()])
 
 
-@router.get(path=ENDPOINT__CHUNKS + "/{document:path}/{chunk:path}", dependencies=[Security(dependency=AccessController())], status_code=200)
+@router.get(path=EndpointRoute.CHUNKS + "/{document:path}/{chunk:path}", dependencies=[Security(dependency=AccessController())], status_code=200)
 async def get_chunk(
     request: Request,
     document: int = Path(description="The document ID"),
@@ -42,7 +42,7 @@ async def get_chunk(
     return chunks[0]
 
 
-@router.get(path=ENDPOINT__CHUNKS + "/{document}", dependencies=[Security(dependency=AccessController())], status_code=200)
+@router.get(path=EndpointRoute.CHUNKS + "/{document}", dependencies=[Security(dependency=AccessController())], status_code=200)
 async def get_chunks(
     request: Request,
     document: int = Path(description="The document ID"),

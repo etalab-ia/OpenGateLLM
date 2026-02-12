@@ -26,13 +26,13 @@ from api.utils.dependencies import (
 )
 from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, WrongModelTypeException
 from api.utils.hooks_decorator import hooks
-from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.CHAT.title()])
 
 
 @router.post(
-    path=ENDPOINT__CHAT_COMPLETIONS,
+    path=EndpointRoute.CHAT_COMPLETIONS,
     status_code=200,
     dependencies=[Security(dependency=AccessController())],
     response_model=ChatCompletion | ChatCompletionChunk,
@@ -115,7 +115,7 @@ async def chat_completions(
     additional_data = {"search_results": results} if results else {}
     model_provider = await model_registry.get_model_provider(
         model=body["model"],
-        endpoint=ENDPOINT__CHAT_COMPLETIONS,
+        endpoint=EndpointRoute.CHAT_COMPLETIONS,
         postgres_session=postgres_session,
         redis_client=redis_client,
         request_context=request_context,
@@ -123,7 +123,7 @@ async def chat_completions(
 
     request_content = RequestContent(
         method="POST",
-        endpoint=ENDPOINT__CHAT_COMPLETIONS,
+        endpoint=EndpointRoute.CHAT_COMPLETIONS,
         json=body,
         model=body["model"],
         additional_data=additional_data,

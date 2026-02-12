@@ -33,7 +33,7 @@ from api.utils.exceptions import (
     ParsingDocumentFailedException,
     VectorizationFailedException,
 )
-from api.utils.variables import ENDPOINT__EMBEDDINGS
+from api.utils.variables import EndpointRoute
 
 from ._parsermanager import ParserManager
 
@@ -400,7 +400,7 @@ class DocumentManager:
 
         provider = await model_registry.get_model_provider(
             model=self.vector_store_model,
-            endpoint=ENDPOINT__EMBEDDINGS,
+            endpoint=EndpointRoute.EMBEDDINGS,
             postgres_session=postgres_session,
             redis_client=redis_client,
             request_context=request_context,
@@ -458,7 +458,7 @@ class DocumentManager:
         response = await provider.forward_request(
             request_content=RequestContent(
                 method="POST",
-                endpoint=ENDPOINT__EMBEDDINGS,
+                endpoint=EndpointRoute.EMBEDDINGS,
                 json={"input": input_texts, "model": self.vector_store_model, "encoding_format": "float"},
                 model=self.vector_store_model,
             ),
@@ -481,7 +481,7 @@ class DocumentManager:
     ) -> None:
         provider = await model_registry.get_model_provider(
             model=self.vector_store_model,
-            endpoint=ENDPOINT__EMBEDDINGS,
+            endpoint=EndpointRoute.EMBEDDINGS,
             postgres_session=postgres_session,
             request_context=request_context,
             redis_client=redis_client,

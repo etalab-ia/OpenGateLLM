@@ -9,34 +9,6 @@ PREFIX__REDIS_METRIC_TIMESERIE = "ogl_ts"
 PREFIX__REDIS_RATE_LIMIT = "ogl_rt"
 REDIS__TIMESERIE_RETENTION_SECONDS = 120
 
-ENDPOINT__ADMIN_ORGANIZATIONS = "/admin/organizations"
-ENDPOINT__ADMIN_PROVIDERS = "/admin/providers"
-ENDPOINT__ADMIN_ROLES = "/admin/roles"
-ENDPOINT__ADMIN_ROUTERS = "/admin/routers"
-ENDPOINT__ADMIN_TOKENS = "/admin/tokens"
-ENDPOINT__ADMIN_USERS = "/admin/users"
-ENDPOINT__AUDIO_TRANSCRIPTIONS = "/audio/transcriptions"
-ENDPOINT__AUTH_LOGIN = "/auth/login"
-ENDPOINT__CHAT_COMPLETIONS = "/chat/completions"
-ENDPOINT__CHUNKS = "/chunks"
-ENDPOINT__COLLECTIONS = "/collections"
-ENDPOINT__DOCUMENTS = "/documents"
-ENDPOINT__EMBEDDINGS = "/embeddings"
-ENDPOINT__FILES = "/files"
-ENDPOINT__ME_KEYS = "/me/keys"
-ENDPOINT__ME_INFO = "/me/info"
-ENDPOINT__ME_USAGE = "/me/usage"
-ENDPOINT__MODELS = "/models"
-ENDPOINT__MODELS_ALIAS = "/models/alias"
-ENDPOINT__OCR = "/ocr"
-ENDPOINT__OCR_BETA = "/ocr-beta"
-ENDPOINT__PARSE = "/parse-beta"
-ENDPOINT__RERANK = "/rerank"
-ENDPOINT__SEARCH = "/search"
-ENDPOINT__USAGE = "/usage"
-
-ENDPOINTS = [value for name, value in locals().items() if name.startswith("ENDPOINT__")]
-
 
 class RouterName(StrEnum):
     ADMIN = "admin"
@@ -54,8 +26,44 @@ class RouterName(StrEnum):
     PARSE = "parse"
     RERANK = "rerank"
     SEARCH = "search"
-    USAGE = "usage"  # Inutile
     ME = "me"
+
+
+class EndpointRoute(StrEnum):
+    ADMIN_ORGANIZATIONS = f"/{RouterName.ADMIN}/organizations"
+    ADMIN_PROVIDERS = f"/{RouterName.ADMIN}/providers"
+    ADMIN_ROLES = f"/{RouterName.ADMIN}/roles"
+    ADMIN_ROUTERS = f"/{RouterName.ADMIN}/routers"
+    ADMIN_TOKENS = f"/{RouterName.ADMIN}/tokens"
+    ADMIN_USERS = f"/{RouterName.ADMIN}/users"
+    AUDIO_TRANSCRIPTIONS = f"/{RouterName.AUDIO}/transcriptions"
+    AUTH_LOGIN = f"/{RouterName.AUTH}/login"
+    AUTH_LOGOUT = f"/{RouterName.AUTH}/logout"
+    CHAT_COMPLETIONS = f"/{RouterName.CHAT}/completions"
+    CHUNKS = f"/{RouterName.CHUNKS}"
+    COLLECTIONS = f"/{RouterName.COLLECTIONS}"
+    DOCUMENTS = f"/{RouterName.DOCUMENTS}"
+    EMBEDDINGS = f"/{RouterName.EMBEDDINGS}"
+    FILES = f"/{RouterName.FILES}"
+    ME_KEYS = f"/{RouterName.ME}/keys"
+    ME_INFO = f"/{RouterName.ME}/info"
+    ME_USAGE = f"/{RouterName.ME}/usage"
+    MODELS = f"/{RouterName.MODELS}"
+    OCR = f"/{RouterName.OCR}"
+    OCR_BETA = f"/{RouterName.OCR}-beta"
+    PARSE = f"/{RouterName.PARSE}-beta"
+    RERANK = f"/{RouterName.RERANK}"
+    SEARCH = f"/{RouterName.SEARCH}"
+
+
+class ModelEndpoint(StrEnum):
+    AUDIO_TRANSCRIPTIONS = EndpointRoute.AUDIO_TRANSCRIPTIONS
+    CHAT_COMPLETIONS = EndpointRoute.CHAT_COMPLETIONS
+    EMBEDDINGS = EndpointRoute.EMBEDDINGS
+    MODELS = EndpointRoute.MODELS
+    OCR = EndpointRoute.OCR
+    OCR_BETA = EndpointRoute.OCR_BETA
+    RERANK = EndpointRoute.RERANK
 
 
 # Supported language from https://github.com/huggingface/transformers/blob/main/src/transformers/models/whisper/tokenization_whisper.py

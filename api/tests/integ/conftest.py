@@ -13,7 +13,7 @@ from api.main import app
 from api.schemas.admin.roles import LimitType, PermissionType
 from api.sql.models import Base
 from api.utils.configuration import configuration
-from api.utils.variables import ENDPOINT__ADMIN_ROLES, ENDPOINT__ADMIN_ROUTERS, ENDPOINT__ADMIN_TOKENS, ENDPOINT__ADMIN_USERS
+from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture(scope="session")
@@ -61,7 +61,7 @@ def roles(test_client: TestClient) -> tuple[dict, dict]:
     """Create roles for tests, one with permissions and one without permissions."""
 
     # Use master key for authentication
-    response = test_client.get(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}")
+    response = test_client.get(url=f"/v1{EndpointRoute.ADMIN_ROUTERS}")
 
     logging.debug(msg=f"get models: {response.text}")
     response.raise_for_status()
@@ -76,7 +76,7 @@ def roles(test_client: TestClient) -> tuple[dict, dict]:
 
     # create role admin
     response = test_client.post(
-        url=f"/v1{ENDPOINT__ADMIN_ROLES}",
+        url=f"/v1{EndpointRoute.ADMIN_ROLES}",
         json={"name": "test-role-admin", "default": False, "permissions": [permission.value for permission in PermissionType], "limits": limits},
     )
     logging.debug(msg=f"create role test-role-admin: {response.text}")
@@ -86,19 +86,19 @@ def roles(test_client: TestClient) -> tuple[dict, dict]:
 
     # create role user
     response = test_client.post(
-        url=f"/v1{ENDPOINT__ADMIN_ROLES}",
+        url=f"/v1{EndpointRoute.ADMIN_ROLES}",
         json={"name": "test-role-user", "default": False, "permissions": [], "limits": limits},
     )
     logging.debug(msg=f"create role test-role-user: {response.text}")
     response.raise_for_status()
     role_id_without_permissions = response.json()["id"]
 
-    response = test_client.get(url=f"/v1{ENDPOINT__ADMIN_ROLES}/{role_id_with_permissions}")
+    response = test_client.get(url=f"/v1{EndpointRoute.ADMIN_ROLES}/{role_id_with_permissions}")
     logging.debug(msg=f"get role test-role-with-permissions: {response.text}")
     response.raise_for_status()
     role_with_permissions = response.json()
 
-    response = test_client.get(url=f"/v1{ENDPOINT__ADMIN_ROLES}/{role_id_without_permissions}")
+    response = test_client.get(url=f"/v1{EndpointRoute.ADMIN_ROLES}/{role_id_without_permissions}")
     logging.debug(msg=f"get role test-role-without-permissions: {response.text}")
     response.raise_for_status()
     role_without_permissions = response.json()
@@ -117,28 +117,28 @@ def users(test_client: TestClient, roles: tuple[dict, dict]) -> tuple[dict, dict
 
     # create user admin
     response = test_client.post(
-        url=f"/v1{ENDPOINT__ADMIN_USERS}",
+        url=f"/v1{EndpointRoute.ADMIN_USERS}",
         json={"email": "test-user-admin@example.com", "name": "test-user-admin", "password": "test-password", "role": role_with_permissions["id"]},
         headers=headers,
     )
     response.raise_for_status()
     user_id_with_permissions = response.json()["id"]
 
-    response = test_client.get(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_id_with_permissions}", headers=headers)
+    response = test_client.get(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_id_with_permissions}", headers=headers)
     logging.debug(msg=f"get user test-user-with-permissions: {response.text}")
     response.raise_for_status()
     user_with_permissions = response.json()
 
     # create user user
     response = test_client.post(
-        url=f"/v1{ENDPOINT__ADMIN_USERS}",
+        url=f"/v1{EndpointRoute.ADMIN_USERS}",
         json={"email": "test-user-user@example.com", "name": "test-user-user", "password": "test-password", "role": role_without_permissions["id"]},
         headers=headers,
     )
     response.raise_for_status()
     user_id_user = response.json()["id"]
 
-    response = test_client.get(url=f"/v1{ENDPOINT__ADMIN_USERS}/{user_id_user}", headers=headers)
+    response = test_client.get(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_id_user}", headers=headers)
     logging.debug(msg=f"get user test-user-without-permissions: {response.text}")
     response.raise_for_status()
     user_without_permissions = response.json()
@@ -157,7 +157,7 @@ def tokens(test_client: TestClient, users: tuple[dict, dict]) -> tuple[dict, dic
 
     # create token admin
     response = test_client.post(
-        url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
+        url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
         json={"user": user_with_permissions["id"], "name": "test-token-admin", "expires": int(time.time()) + 300},
         headers=headers,
     )
@@ -166,7 +166,7 @@ def tokens(test_client: TestClient, users: tuple[dict, dict]) -> tuple[dict, dic
 
     # create token user
     response = test_client.post(
-        url=f"/v1{ENDPOINT__ADMIN_TOKENS}",
+        url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
         json={"user": user_without_permissions["id"], "name": "test-token-user", "expires": int(time.time()) + 300},
         headers=headers,
     )

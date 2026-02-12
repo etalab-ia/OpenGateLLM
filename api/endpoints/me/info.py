@@ -6,12 +6,12 @@ from api.helpers._accesscontroller import AccessController
 from api.schemas.me.info import UpdateUserInfo, UserInfo
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import ENDPOINT__ME_INFO, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.ME.title()])
 
 
-@router.get(path=ENDPOINT__ME_INFO, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=UserInfo)
+@router.get(path=EndpointRoute.ME_INFO, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=UserInfo)
 async def get_user(request: Request, postgres_session: AsyncSession = Depends(get_postgres_session)) -> JSONResponse:
     """
     Get information about the current user.
@@ -24,7 +24,7 @@ async def get_user(request: Request, postgres_session: AsyncSession = Depends(ge
     return JSONResponse(content=user_info.model_dump(), status_code=200)
 
 
-@router.patch(path=ENDPOINT__ME_INFO, dependencies=[Security(dependency=AccessController())], status_code=204)
+@router.patch(path=EndpointRoute.ME_INFO, dependencies=[Security(dependency=AccessController())], status_code=204)
 async def update_user(
     request: Request,
     body: UpdateUserInfo = Body(description="The user update request."),

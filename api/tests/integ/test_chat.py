@@ -10,13 +10,13 @@ from api.helpers._usagetokenizer import UsageTokenizer
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk
 from api.schemas.models import ModelType
 from api.utils.configuration import configuration
-from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__COLLECTIONS, ENDPOINT__DOCUMENTS, ENDPOINT__FILES, ENDPOINT__MODELS
+from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture(scope="module")
 def setup(client: TestClient):
     # Get a language model
-    response = client.get_without_permissions(url=f"/v1{ENDPOINT__MODELS}")
+    response = client.get_without_permissions(url=f"/v1{EndpointRoute.MODELS}")
     assert response.status_code == 200, response.text
     response_json = response.json()
 
@@ -26,7 +26,7 @@ def setup(client: TestClient):
     logging.info(msg=f"test model ID: {MODEL_ID}")
 
     # Create a collection
-    response = client.post_without_permissions(url=f"/v1{ENDPOINT__COLLECTIONS}", json={"name": f"test_collection_{uuid4()}"})
+    response = client.post_without_permissions(url=f"/v1{EndpointRoute.COLLECTIONS}", json={"name": f"test_collection_{uuid4()}"})
     assert response.status_code == 201, response.text
     COLLECTION_ID = response.json()["id"]
 
@@ -35,12 +35,12 @@ def setup(client: TestClient):
     with open(file_path, "rb") as file:
         files = {"file": (os.path.basename(file_path), file, "application/json")}
         data = {"request": '{"collection": "%s", "chunker": {"args": {"chunk_size": 1000}}}' % COLLECTION_ID}
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__FILES}", data=data, files=files)
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.FILES}", data=data, files=files)
         file.close()
     assert response.status_code == 201, response.text
 
     # Get document IDS
-    response = client.get_without_permissions(url=f"/v1{ENDPOINT__DOCUMENTS}", params={"collection": COLLECTION_ID})
+    response = client.get_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", params={"collection": COLLECTION_ID})
     DOCUMENT_IDS = [row["id"] for row in response.json()["data"]]
 
     yield MODEL_ID, DOCUMENT_IDS, COLLECTION_ID
@@ -62,7 +62,7 @@ class TestChat:
         MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
 
         params = {"model": MODEL_ID, "messages": [{"role": "user", "content": "Hello, how are you?"}], "stream": False, "n": 1, "max_tokens": 10}
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
         assert response.status_code == 200, response.text
 
         ChatCompletion(**response.json())  # test output format
@@ -74,7 +74,7 @@ class TestChat:
 
         params = {"model": MODEL_ID, "messages": [{"role": "user", "content": "Hello, how are you?"}], "stream": True, "n": 1, "max_tokens": 10}
 
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
         assert response.status_code == 200, response.text
 
         for line in response.iter_lines():
@@ -96,7 +96,7 @@ class TestChat:
             "max_tokens": 10,
             "min_tokens": 3,  # unknown param in CreateChatCompletion schema
         }
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
 
         assert response.status_code == 200, response.text
 
@@ -112,7 +112,7 @@ class TestChat:
             "n": 1,
             "max_tokens": 10,
         }
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
 
         assert response.status_code == 400, response.text
 
@@ -129,7 +129,7 @@ class TestChat:
             "search": True,
             "search_args": {"collections": [COLLECTION_ID], "k": 3, "method": "semantic"},
         }
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
 
         assert response.status_code == 200, response.text
 
@@ -149,7 +149,7 @@ class TestChat:
             "search": True,
             "search_args": {"collections": [COLLECTION_ID], "k": 3, "method": "semantic"},
         }
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
         assert response.status_code == 200, response.text
 
         i = 0
@@ -177,7 +177,7 @@ class TestChat:
             "max_tokens": 10,
             "search": True,
         }
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
         assert response.status_code == 422, response.text
 
     def test_chat_completions_search_no_collections(self, client: TestClient, setup):
@@ -196,7 +196,7 @@ class TestChat:
                 "rff_k": 1,
             },
         }
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
         assert response.status_code == 422, response.text
 
     def test_chat_completions_search_template(self, client: TestClient, setup):
@@ -218,7 +218,7 @@ class TestChat:
             },
         }
 
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
         assert response.status_code == 200, response.text
 
     def test_chat_completions_search_template_missing_placeholders(self, client: TestClient, setup):
@@ -238,7 +238,7 @@ class TestChat:
                 "template": "Ne réponds pas à la question {prompt}.",
             },
         }
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
         assert response.status_code == 422, response.text
 
     def test_chat_completions_search_wrong_collection(self, client: TestClient, setup):
@@ -253,7 +253,7 @@ class TestChat:
             "search": True,
             "search_args": {"collections": [120], "k": 3, "method": "semantic"},
         }
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
         assert response.status_code == 404, response.text
 
     def test_chat_completions_usage(self, client: TestClient, setup, tokenizer):
@@ -267,7 +267,7 @@ class TestChat:
         }
 
         prompt_tokens = len(tokenizer.encode(prompt))
-        response = client.post_without_permissions(url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}", json=params)
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
         assert response.status_code == 200, response.text
 
         response_json = response.json()

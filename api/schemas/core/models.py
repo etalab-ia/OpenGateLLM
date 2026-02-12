@@ -4,6 +4,7 @@ from http import HTTPMethod
 from pydantic import BaseModel, Field
 
 from api.utils import variables
+from api.utils.variables import EndpointRoute, ModelEndpoint
 
 Endpoint = Enum("Endpoint", {name.upper(): value for name, value in vars(variables).items() if name.startswith("ENDPOINT__")}, type=str)
 
@@ -11,7 +12,7 @@ Endpoint = Enum("Endpoint", {name.upper(): value for name, value in vars(variabl
 class RequestContent(BaseModel):
     method: HTTPMethod
     model: str = Field(description="The called model name.")
-    endpoint: Endpoint = Field(description="The source endpoint (at the user side) of the request.")
+    endpoint: EndpointRoute | ModelEndpoint = Field(description="The source endpoint (at the user side) of the request.")
     json: dict = Field(default={}, description="The JSON body to use for the request.")
     form: dict = Field(default={}, description="The form-encoded data to use for the request.")
     files: dict = Field(default={}, description="The files to use for the request.")

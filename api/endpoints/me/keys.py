@@ -8,12 +8,12 @@ from api.helpers._accesscontroller import AccessController
 from api.schemas.me.keys import CreateKey, CreateKeyResponse, Key, Keys
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import ENDPOINT__ME_KEYS, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.ME.title()])
 
 
-@router.post(path=ENDPOINT__ME_KEYS, dependencies=[Security(dependency=AccessController())], status_code=201, response_model=CreateKeyResponse)
+@router.post(path=EndpointRoute.ME_KEYS, dependencies=[Security(dependency=AccessController())], status_code=201, response_model=CreateKeyResponse)
 async def create_key(
     request: Request,
     body: CreateKey = Body(description="The token creation request."),
@@ -33,7 +33,7 @@ async def create_key(
     return JSONResponse(status_code=201, content={"id": token_id, "key": token})
 
 
-@router.delete(path=ENDPOINT__ME_KEYS + "/{key:path}", dependencies=[Security(dependency=AccessController())], status_code=204)
+@router.delete(path=EndpointRoute.ME_KEYS + "/{key:path}", dependencies=[Security(dependency=AccessController())], status_code=204)
 async def delete_key(
     request: Request,
     key: int = Path(description="The key ID of the key to delete."),
@@ -50,7 +50,7 @@ async def delete_key(
     return Response(status_code=204)
 
 
-@router.get(path=ENDPOINT__ME_KEYS + "/{key:path}", dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Key)
+@router.get(path=EndpointRoute.ME_KEYS + "/{key:path}", dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Key)
 async def get_key(
     request: Request,
     key: int = Path(description="The key ID of the key to get."),
@@ -69,7 +69,7 @@ async def get_key(
     return JSONResponse(content=key.model_dump(), status_code=200)
 
 
-@router.get(path=ENDPOINT__ME_KEYS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Keys)
+@router.get(path=EndpointRoute.ME_KEYS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Keys)
 async def get_keys(
     request: Request,
     offset: int = Query(default=0, ge=0, description="The offset of the tokens to get."),

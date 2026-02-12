@@ -16,7 +16,7 @@ from api.schemas.admin.users import User
 from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import ENDPOINT__AUTH_CALLBACK, ENDPOINT__AUTH_LOGOUT, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 from .token import perform_proconnect_logout
 from .user import create_user, retrieve_user_info
@@ -100,7 +100,7 @@ async def oauth2_login(request: Request, oauth2_client=Depends(get_oauth2_client
         raise HTTPException(status_code=400, detail=f"OAuth2 login failed: {str(e)}")
 
 
-@router.get(path=ENDPOINT__AUTH_CALLBACK)
+@router.get(path=EndpointRoute.AUTH_CALLBACK)
 async def oauth2_callback(request: Request, postgres_session: AsyncSession = Depends(get_postgres_session), oauth2_client=Depends(get_oauth2_client)):
     """
     Handle OAuth2 callback from ProConnect
@@ -167,7 +167,7 @@ async def oauth2_callback(request: Request, postgres_session: AsyncSession = Dep
         raise HTTPException(status_code=400, detail=f"OAuth2 callback failed: {str(e)}")
 
 
-@router.post(path=ENDPOINT__AUTH_LOGOUT, dependencies=[Security(dependency=AccessController())], status_code=200)
+@router.post(path=EndpointRoute.AUTH_LOGOUT, dependencies=[Security(dependency=AccessController())], status_code=200)
 async def logout(
     request: Request,
     logout_request: OAuth2LogoutRequest,

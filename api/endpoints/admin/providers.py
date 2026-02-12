@@ -16,13 +16,13 @@ from api.schemas.admin.providers import (
 from api.schemas.admin.roles import PermissionType
 from api.utils.context import request_context
 from api.utils.dependencies import get_model_registry, get_postgres_session
-from api.utils.variables import ENDPOINT__ADMIN_PROVIDERS, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 
 
 @router.post(
-    path=ENDPOINT__ADMIN_PROVIDERS,
+    path=EndpointRoute.ADMIN_PROVIDERS,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
     status_code=201,
 )
@@ -54,7 +54,7 @@ async def create_provider(
 
 
 @router.delete(
-    path=ENDPOINT__ADMIN_PROVIDERS + "/{provider}",
+    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
     status_code=204,
 )
@@ -73,7 +73,7 @@ async def delete_provider(
 
 
 @router.patch(
-    path=ENDPOINT__ADMIN_PROVIDERS + "/{provider}",
+    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
     status_code=204,
 )
@@ -103,7 +103,7 @@ async def update_provider(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_PROVIDERS + "/{provider}",
+    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.PROVIDE_MODELS]))],
     status_code=200,
     response_model=Provider,
@@ -124,7 +124,7 @@ async def get_provider(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_PROVIDERS,
+    path=EndpointRoute.ADMIN_PROVIDERS,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
     status_code=200,
     response_model=Providers,

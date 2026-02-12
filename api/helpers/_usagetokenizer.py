@@ -4,13 +4,13 @@ import tiktoken
 
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk
 from api.schemas.core.configuration import Tokenizer
-from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__EMBEDDINGS, ENDPOINT__OCR, ENDPOINT__RERANK, ENDPOINT__SEARCH
+from api.utils.variables import EndpointRoute, ModelEndpoint
 
 logger = logging.getLogger(__name__)
 
 
 class UsageTokenizer:
-    USAGE_ENDPOINTS = [ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__EMBEDDINGS, ENDPOINT__OCR, ENDPOINT__RERANK, ENDPOINT__SEARCH]
+    USAGE_ENDPOINTS = [EndpointRoute.CHAT_COMPLETIONS, EndpointRoute.EMBEDDINGS, EndpointRoute.OCR, EndpointRoute.RERANK, EndpointRoute.SEARCH]
 
     def __init__(self, tokenizer: Tokenizer):
         if tokenizer == Tokenizer.TIKTOKEN_O200K_BASE:
@@ -28,20 +28,20 @@ class UsageTokenizer:
 
     def get_prompt_tokens(self, endpoint: str, body: dict) -> int:
         try:
-            if endpoint == ENDPOINT__CHAT_COMPLETIONS:
+            if endpoint == EndpointRoute.CHAT_COMPLETIONS:
                 contents = [message.get("content") for message in body["messages"] if message.get("content")]
                 prompt_tokens = sum([len(self.tokenizer.encode(content)) for content in contents])
 
-            elif endpoint == ENDPOINT__EMBEDDINGS:
+            elif endpoint == EndpointRoute.EMBEDDINGS:
                 prompt_tokens = sum([len(self.tokenizer.encode(str(input))) for input in body.get("input", [])])
 
-            elif endpoint == ENDPOINT__RERANK:
+            elif endpoint == EndpointRoute.RERANK:
                 prompt_tokens = sum([len(self.tokenizer.encode(str(input))) for input in body.get("input", [])])
 
-            elif endpoint == ENDPOINT__SEARCH:
+            elif endpoint == EndpointRoute.SEARCH:
                 prompt_tokens = len(self.tokenizer.encode(str(body.get("prompt", ""))))
 
-            elif endpoint == ENDPOINT__OCR:
+            elif endpoint == EndpointRoute.OCR:
                 prompt_tokens = len(self.tokenizer.encode(str(body.get("prompt", ""))))
             else:
                 prompt_tokens = 0
@@ -60,7 +60,7 @@ class UsageTokenizer:
             response_data (dict | list[dict]): The response data of the request (must be a ChatCompletion or a list of ChatCompletionChunk).
         """
         completion_tokens = 0
-        if endpoint == ENDPOINT__CHAT_COMPLETIONS:
+        if endpoint == ModelEndpoint.CHAT_COMPLETIONS:
             if isinstance(response_data, list):
                 completion_tokens = sum([len(self.tokenizer.encode(ChatCompletionChunk.extract_chunk_content(chunk=chunk))) for chunk in response_data])  # fmt: off
             else:

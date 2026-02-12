@@ -3,14 +3,14 @@ import pytest
 
 from api.schemas.models import Model, Models
 from api.utils.configuration import configuration
-from api.utils.variables import ENDPOINT__MODELS
+from api.utils.variables import EndpointRoute
 
 
 @pytest.mark.usefixtures("client")
 class TestModels:
     def test_get_models_response_status_code(self, client: TestClient):
         """Test the GET /models response status code."""
-        response = client.get_without_permissions(url=f"/v1{ENDPOINT__MODELS}")
+        response = client.get_without_permissions(url=f"/v1{EndpointRoute.MODELS}")
         assert response.status_code == 200, f"error: retrieve models ({response.status_code})"
 
         models = Models(data=[Model(**model) for model in response.json()["data"]])
@@ -18,7 +18,7 @@ class TestModels:
         assert all(isinstance(model, Model) for model in models.data)
 
         model = models.data[0].id
-        response = client.get_without_permissions(url=f"/v1{ENDPOINT__MODELS}/{model}")
+        response = client.get_without_permissions(url=f"/v1{EndpointRoute.MODELS}/{model}")
         assert response.status_code == 200, f"error: retrieve model ({response.status_code})"
 
         model = Model(**response.json())
@@ -26,17 +26,17 @@ class TestModels:
 
     def test_get_models_non_existing_model(self, client: TestClient):
         """Test the GET /models response status code for a non-existing model."""
-        response = client.get_without_permissions(url=f"/v1{ENDPOINT__MODELS}/non-existing-model")
+        response = client.get_without_permissions(url=f"/v1{EndpointRoute.MODELS}/non-existing-model")
         assert response.status_code == 404, f"error: retrieve non-existing model ({response.status_code})"
 
     def test_get_models_aliases(self, client: TestClient):
         """Test the GET /models response status code for a non-existing model."""
         model = configuration.models[0]
 
-        response = client.get_without_permissions(url=f"/v1{ENDPOINT__MODELS}/{model.name}")
+        response = client.get_without_permissions(url=f"/v1{EndpointRoute.MODELS}/{model.name}")
         assert response.status_code == 200, response.text
         assert response.json()["aliases"] == model.aliases
 
-        response = client.get_without_permissions(url=f"/v1{ENDPOINT__MODELS}/{model.aliases[0]}")
+        response = client.get_without_permissions(url=f"/v1{EndpointRoute.MODELS}/{model.aliases[0]}")
         assert response.status_code == 200, response.text
         assert response.json()["id"] == model.name

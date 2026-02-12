@@ -2,12 +2,12 @@ from fastapi.testclient import TestClient
 import pytest
 
 from api.schemas.admin.roles import PermissionType
-from api.utils.variables import ENDPOINT__ADMIN_ROLES, ENDPOINT__ADMIN_ROUTERS
+from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture(scope="module")
 def router_id(client: TestClient) -> int:
-    response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}")
+    response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_ROUTERS}")
     assert response.status_code == 200, response.text
     models = response.json()["data"]
     return models[0]["id"]
@@ -29,7 +29,7 @@ class TestIdentityAccessManager:
         }
 
         # Create role via API
-        response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROLES}", json=role_data)
+        response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_ROLES}", json=role_data)
         assert response.status_code == 201, response.text
         role_id = response.json()["id"]
 
@@ -43,11 +43,11 @@ class TestIdentityAccessManager:
         }
 
         # Update role via API
-        response = client.patch_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROLES}/{role_id}", json=updated_role_data)
+        response = client.patch_with_permissions(url=f"/v1{EndpointRoute.ADMIN_ROLES}/{role_id}", json=updated_role_data)
         assert response.status_code == 204, response.text
 
         # Fetch the updated role
-        response = client.get_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROLES}/{role_id}")
+        response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_ROLES}/{role_id}")
         assert response.status_code == 200, response.text
         updated_role = response.json()
 

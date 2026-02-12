@@ -21,29 +21,19 @@ from api.utils.carbon import get_carbon_footprint
 from api.utils.context import generate_request_id, global_context, request_context
 from api.utils.exceptions import ModelIsTooBusyException, RequestFormatFailedException, ResponseFormatFailedException
 from api.utils.redis import redis_retry, safe_redis_reset
-from api.utils.variables import (
-    ENDPOINT__AUDIO_TRANSCRIPTIONS,
-    ENDPOINT__CHAT_COMPLETIONS,
-    ENDPOINT__EMBEDDINGS,
-    ENDPOINT__MODELS,
-    ENDPOINT__OCR,
-    ENDPOINT__RERANK,
-    PREFIX__REDIS_METRIC_GAUGE,
-    PREFIX__REDIS_METRIC_TIMESERIE,
-    REDIS__TIMESERIE_RETENTION_SECONDS,
-)
+from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE, PREFIX__REDIS_METRIC_TIMESERIE, REDIS__TIMESERIE_RETENTION_SECONDS, ModelEndpoint
 
 logger = logging.getLogger(__name__)
 
 
 class BaseModelProvider(ABC):
-    ENDPOINT_TABLE = {
-        ENDPOINT__AUDIO_TRANSCRIPTIONS: None,
-        ENDPOINT__CHAT_COMPLETIONS: None,
-        ENDPOINT__EMBEDDINGS: None,
-        ENDPOINT__MODELS: None,
-        ENDPOINT__OCR: None,
-        ENDPOINT__RERANK: None,
+    ENDPOINT_TABLE: dict[ModelEndpoint, str | None] = {
+        ModelEndpoint.AUDIO_TRANSCRIPTIONS: None,
+        ModelEndpoint.CHAT_COMPLETIONS: None,
+        ModelEndpoint.EMBEDDINGS: None,
+        ModelEndpoint.MODELS: None,
+        ModelEndpoint.OCR: None,
+        ModelEndpoint.RERANK: None,
     }
 
     def __init__(
@@ -96,10 +86,10 @@ class BaseModelProvider(ABC):
         pass
 
     async def get_vector_size(self) -> int | None:
-        if self.ENDPOINT_TABLE[ENDPOINT__EMBEDDINGS] is None:
+        if self.ENDPOINT_TABLE[ModelEndpoint.EMBEDDINGS] is None:
             return None
 
-        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[ENDPOINT__EMBEDDINGS].lstrip("/"))
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[ModelEndpoint.EMBEDDINGS].lstrip("/"))
 
         async with httpx.AsyncClient() as client:
             response = await client.post(url=url, headers=self.headers, json={"model": self.model_name, "input": "hello world"}, timeout=self.timeout)
@@ -177,13 +167,13 @@ class BaseModelProvider(ABC):
         if "model" in request_content.form:
             request_content.form["model"] = self.model_name
         try:
-            if request_content.endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
+            if request_content.endpoint == ModelEndpoint.AUDIO_TRANSCRIPTIONS:
                 request_content = CreateAudioTranscription.format_request(provider_type=self.type, request_content=request_content)
 
-            if request_content.endpoint == ENDPOINT__CHAT_COMPLETIONS:
+            if request_content.endpoint == ModelEndpoint.CHAT_COMPLETIONS:
                 request_content = CreateChatCompletion.format_request(provider_type=self.type, request_content=request_content)
 
-            if request_content.endpoint == ENDPOINT__RERANK:
+            if request_content.endpoint == ModelEndpoint.RERANK:
                 request_content = CreateRerank.format_request(provider_type=self.type, request_content=request_content)
 
         except Exception as e:
@@ -213,14 +203,14 @@ class BaseModelProvider(ABC):
             additional_data.update({"model": request_content.model, "id": request_context.get().id, "usage": usage.model_dump()})
 
             try:
-                if request_content.endpoint == ENDPOINT__AUDIO_TRANSCRIPTIONS:
+                if request_content.endpoint == ModelEndpoint.AUDIO_TRANSCRIPTIONS:
                     response_data = AudioTranscription.build_from(
                         provider_type=self.type,
                         request_content=request_content,
                         response_data=response_data,
                     ).model_dump()
 
-                elif request_content.endpoint == ENDPOINT__RERANK:
+                elif request_content.endpoint == ModelEndpoint.RERANK:
                     response_data = Reranks.build_from(
                         provider_type=self.type,
                         request_content=request_content,
@@ -369,7 +359,7 @@ class BaseModelProvider(ABC):
         Returns:
             dict | None: The extra chunk.
         """
-        if request_content.endpoint != ENDPOINT__CHAT_COMPLETIONS:
+        if request_content.endpoint != ModelEndpoint.CHAT_COMPLETIONS:
             return
 
         if len(buffer) == 0:

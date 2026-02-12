@@ -36,15 +36,7 @@ from api.utils.exceptions import (
     WrongModelTypeException,
 )
 from api.utils.routing import apply_routing_with_queuing, apply_routing_without_queuing
-from api.utils.variables import (
-    ENDPOINT__AUDIO_TRANSCRIPTIONS,
-    ENDPOINT__CHAT_COMPLETIONS,
-    ENDPOINT__EMBEDDINGS,
-    ENDPOINT__OCR,
-    ENDPOINT__OCR_BETA,
-    ENDPOINT__RERANK,
-    PREFIX__CELERY_QUEUE_ROUTING,
-)
+from api.utils.variables import PREFIX__CELERY_QUEUE_ROUTING, EndpointRoute
 
 logger = logging.getLogger(__name__)
 
@@ -84,12 +76,12 @@ class ModelRegistry:
         ],
     }
     ENDPOINT_MODEL_TYPE_TABLE = {
-        ENDPOINT__AUDIO_TRANSCRIPTIONS: [ModelType.AUTOMATIC_SPEECH_RECOGNITION],
-        ENDPOINT__CHAT_COMPLETIONS: [ModelType.TEXT_GENERATION, ModelType.IMAGE_TEXT_TO_TEXT],
-        ENDPOINT__EMBEDDINGS: [ModelType.TEXT_EMBEDDINGS_INFERENCE],
-        ENDPOINT__OCR: [ModelType.IMAGE_TO_TEXT],
-        ENDPOINT__OCR_BETA: [ModelType.IMAGE_TEXT_TO_TEXT],
-        ENDPOINT__RERANK: [ModelType.TEXT_CLASSIFICATION],
+        EndpointRoute.AUDIO_TRANSCRIPTIONS: [ModelType.AUTOMATIC_SPEECH_RECOGNITION],
+        EndpointRoute.CHAT_COMPLETIONS: [ModelType.TEXT_GENERATION, ModelType.IMAGE_TEXT_TO_TEXT],
+        EndpointRoute.EMBEDDINGS: [ModelType.TEXT_EMBEDDINGS_INFERENCE],
+        EndpointRoute.OCR: [ModelType.IMAGE_TO_TEXT],
+        EndpointRoute.OCR_BETA: [ModelType.IMAGE_TEXT_TO_TEXT],
+        EndpointRoute.RERANK: [ModelType.TEXT_CLASSIFICATION],
     }
 
     def __init__(

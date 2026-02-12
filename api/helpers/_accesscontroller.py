@@ -18,17 +18,7 @@ from api.utils.exceptions import (
     InvalidAPIKeyException,
     InvalidAuthenticationSchemeException,
 )
-from api.utils.variables import (
-    ENDPOINT__AUDIO_TRANSCRIPTIONS,
-    ENDPOINT__CHAT_COMPLETIONS,
-    ENDPOINT__COLLECTIONS,
-    ENDPOINT__EMBEDDINGS,
-    ENDPOINT__FILES,
-    ENDPOINT__ME_INFO,
-    ENDPOINT__OCR,
-    ENDPOINT__RERANK,
-    ENDPOINT__SEARCH,
-)
+from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
 
@@ -62,28 +52,28 @@ class AccessController:
         context.key_id = key_id
         context.key_name = key_name
 
-        if request.url.path.endswith(ENDPOINT__AUDIO_TRANSCRIPTIONS) and request.method in ["POST"]:
+        if request.url.path.endswith(EndpointRoute.AUDIO_TRANSCRIPTIONS) and request.method in ["POST"]:
             await self._check_audio_transcription(body=body, user_info=user_info, postgres_session=postgres_session)
 
-        if request.url.path.endswith(ENDPOINT__CHAT_COMPLETIONS) and request.method in ["POST", "PATCH"]:
+        if request.url.path.endswith(EndpointRoute.CHAT_COMPLETIONS) and request.method in ["POST", "PATCH"]:
             await self._check_chat_completions(body=body, user_info=user_info, postgres_session=postgres_session)
 
-        if request.url.path.endswith(ENDPOINT__COLLECTIONS) and request.method in ["POST", "PATCH"]:
+        if request.url.path.endswith(EndpointRoute.COLLECTIONS) and request.method in ["POST", "PATCH"]:
             await self._check_collections(body=body, user_info=user_info, postgres_session=postgres_session)
 
-        if request.url.path.endswith(ENDPOINT__EMBEDDINGS) and request.method in ["POST"]:
+        if request.url.path.endswith(EndpointRoute.EMBEDDINGS) and request.method in ["POST"]:
             await self._check_embeddings(body=body, user_info=user_info, postgres_session=postgres_session)
 
-        if request.url.path.endswith(ENDPOINT__FILES) and request.method in ["POST"]:
+        if request.url.path.endswith(EndpointRoute.FILES) and request.method in ["POST"]:
             await self._check_files(user_info=user_info, postgres_session=postgres_session)
 
-        if request.url.path.endswith(ENDPOINT__OCR) and request.method in ["POST"]:
+        if request.url.path.endswith(EndpointRoute.OCR) and request.method in ["POST"]:
             await self._check_ocr(body=body, user_info=user_info, postgres_session=postgres_session)
 
-        if request.url.path.endswith(ENDPOINT__RERANK) and request.method in ["POST"]:
+        if request.url.path.endswith(EndpointRoute.RERANK) and request.method in ["POST"]:
             await self._check_rerank(body=body, user_info=user_info, postgres_session=postgres_session)
 
-        if request.url.path.endswith(ENDPOINT__SEARCH) and request.method in ["POST"]:
+        if request.url.path.endswith(EndpointRoute.SEARCH) and request.method in ["POST"]:
             await self._check_search(body=body, user_info=user_info, postgres_session=postgres_session)
 
         return user_info
@@ -123,7 +113,7 @@ class AccessController:
             user_info = await global_context.identity_access_manager.get_user_info(postgres_session=postgres_session, user_id=user_id)
 
             # invalid token if user is expired, except for /me and /me/role endpoints
-            if user_info.expires and user_info.expires < time.time() and not request.url.path.endswith(ENDPOINT__ME_INFO):
+            if user_info.expires and user_info.expires < time.time() and not request.url.path.endswith(EndpointRoute.ME_INFO):
                 raise InvalidAPIKeyException()
 
         return user_info, key_id, key_name
@@ -146,7 +136,7 @@ class AccessController:
         if router_id is None:
             return
 
-        prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__CHAT_COMPLETIONS, body=body)
+        prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=EndpointRoute.CHAT_COMPLETIONS, body=body)
 
         if body.get("search", False):  # count the search request as one request to the search model (embeddings)
             search_router_id = await global_context.model_registry.get_router_id_from_model_name(
@@ -167,7 +157,7 @@ class AccessController:
         router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), postgres_session=postgres_session)
         if router_id is None:
             return
-        prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__EMBEDDINGS, body=body)
+        prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=EndpointRoute.EMBEDDINGS, body=body)
         await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
     @staticmethod
@@ -185,7 +175,7 @@ class AccessController:
         router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), postgres_session=postgres_session)
         if router_id is None:
             return
-        prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__OCR, body=body)
+        prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=EndpointRoute.OCR, body=body)
         await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
     @staticmethod
@@ -193,7 +183,7 @@ class AccessController:
         router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), postgres_session=postgres_session)
         if router_id is None:
             return
-        prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__RERANK, body=body)
+        prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=EndpointRoute.RERANK, body=body)
         await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
     @staticmethod
@@ -204,7 +194,7 @@ class AccessController:
         )
         if router_id is None:
             return
-        prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=ENDPOINT__SEARCH, body=body)
+        prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=EndpointRoute.SEARCH, body=body)
         await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
     @staticmethod

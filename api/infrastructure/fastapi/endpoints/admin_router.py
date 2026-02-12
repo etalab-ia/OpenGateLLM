@@ -18,13 +18,13 @@ from api.use_cases.admin import (
     CreateRouterUseCase,
     CreateRouterUseCaseSuccess,
 )
-from api.utils.variables import ENDPOINT__ADMIN_ROUTERS, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 
 
-@router.post(path=ENDPOINT__ADMIN_ROUTERS, dependencies=[Security(dependency=get_current_key)], status_code=201)
+@router.post(path=EndpointRoute.ADMIN_ROUTERS, dependencies=[Security(dependency=get_current_key)], status_code=201)
 async def create_router(
     body: CreateRouter = Body(description="The router creation request."),
     create_router_use_case: CreateRouterUseCase = Depends(create_router_use_case),

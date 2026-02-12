@@ -8,13 +8,13 @@ from api.helpers._accesscontroller import AccessController
 from api.schemas.admin.roles import CreateRole, PermissionType, Role, Roles, RolesResponse, RoleUpdateRequest
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import ENDPOINT__ADMIN_ROLES, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 
 
 @router.post(
-    path=ENDPOINT__ADMIN_ROLES,
+    path=EndpointRoute.ADMIN_ROLES,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=201,
     response_model=RolesResponse,
@@ -36,7 +36,7 @@ async def create_role(
 
 
 @router.delete(
-    path=ENDPOINT__ADMIN_ROLES + "/{role}",
+    path=EndpointRoute.ADMIN_ROLES + "/{role}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -55,7 +55,7 @@ async def delete_role(
 
 
 @router.patch(
-    path=ENDPOINT__ADMIN_ROLES + "/{role:path}",
+    path=EndpointRoute.ADMIN_ROLES + "/{role:path}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -81,7 +81,7 @@ async def update_role(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_ROLES + "/{role:path}",
+    path=EndpointRoute.ADMIN_ROLES + "/{role:path}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Role,
@@ -101,7 +101,7 @@ async def get_role(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_ROLES,
+    path=EndpointRoute.ADMIN_ROLES,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Roles,

@@ -8,7 +8,7 @@ from api.tests.integration.factories import (
     RouterSQLFactory,
     UserSQLFactory,
 )
-from api.utils.variables import ENDPOINT__ADMIN_ROUTERS
+from api.utils.variables import EndpointRoute
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -31,7 +31,7 @@ class TestAdminCreateRouter:
 
         # Act
         response = await client.post(
-            url=f"/v1{ENDPOINT__ADMIN_ROUTERS}",
+            url=f"/v1{EndpointRoute.ADMIN_ROUTERS}",
             headers={"Authorization": f"Bearer {token.token}"},
             json=router_data,
         )
@@ -58,7 +58,7 @@ class TestAdminCreateRouter:
 
         # Act
         response = await client.post(
-            url=f"/v1{ENDPOINT__ADMIN_ROUTERS}",
+            url=f"/v1{EndpointRoute.ADMIN_ROUTERS}",
             headers={"Authorization": f"Bearer {token.token}"},
             json=router_data,
         )
@@ -92,7 +92,7 @@ class TestAdminCreateRouter:
 
         # Act
         response = await client.post(
-            url=f"/v1{ENDPOINT__ADMIN_ROUTERS}",
+            url=f"/v1{EndpointRoute.ADMIN_ROUTERS}",
             headers={"Authorization": f"Bearer {token.token}"},
             json=router_data,
         )
@@ -121,7 +121,7 @@ class TestAdminCreateRouter:
 
         # Act
         response = await client.post(
-            url=f"/v1{ENDPOINT__ADMIN_ROUTERS}",
+            url=f"/v1{EndpointRoute.ADMIN_ROUTERS}",
             headers={"Authorization": f"Bearer {token.token}"},
             json=router_data,
         )

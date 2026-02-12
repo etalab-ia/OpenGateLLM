@@ -9,13 +9,13 @@ from api.schemas.exception import HTTPExceptionModel
 from api.use_cases.models import GetModelsUseCase
 from api.use_cases.models._getmodelsusecase import ModelNotFound, Success
 from api.utils.exceptions import ModelNotFoundException
-from api.utils.variables import ENDPOINT__MODELS, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.MODELS.title()])
 
 
 @router.get(
-    path=ENDPOINT__MODELS + "/{model:path}",
+    path=EndpointRoute.MODELS + "/{model:path}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
     response_model=Model,
@@ -41,7 +41,7 @@ async def get_model(
 
 
 @router.get(
-    path=ENDPOINT__MODELS,
+    path=EndpointRoute.MODELS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
     response_model=Models,

@@ -12,13 +12,16 @@ from api.schemas.audio import AudioTranscription, CreateAudioTranscription
 from api.schemas.core.context import RequestContext
 from api.schemas.core.models import RequestContent
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
-from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS, RouterName
+from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.AUDIO.title()])
 
 
 @router.post(
-    path=ENDPOINT__AUDIO_TRANSCRIPTIONS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=AudioTranscription
+    path=EndpointRoute.AUDIO_TRANSCRIPTIONS,
+    dependencies=[Security(dependency=AccessController())],
+    status_code=200,
+    response_model=AudioTranscription,
 )
 async def audio_transcriptions(
     request: Request,
@@ -33,7 +36,7 @@ async def audio_transcriptions(
     """
     model_provider = await model_registry.get_model_provider(
         model=data.model,
-        endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS,
+        endpoint=EndpointRoute.AUDIO_TRANSCRIPTIONS,
         postgres_session=postgres_session,
         redis_client=redis_client,
         request_context=request_context,
@@ -45,7 +48,7 @@ async def audio_transcriptions(
         request_content=RequestContent(
             method="POST",
             model=data.model,
-            endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS,
+            endpoint=EndpointRoute.AUDIO_TRANSCRIPTIONS,
             files={"file": (data.file.filename, file_content, data.file.content_type)},
             form=data.model_dump(mode="json", exclude="file"),
         ),
