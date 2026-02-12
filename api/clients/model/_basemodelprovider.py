@@ -319,7 +319,6 @@ class BaseModelProvider(ABC):
                         files=request_content.files,
                         data=request_content.form,
                     )
-                    end_time = time.perf_counter()
                 except (
                     httpx.TimeoutException,
                     httpx.ReadTimeout,

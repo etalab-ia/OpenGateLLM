@@ -85,7 +85,7 @@ async def ocr_beta(
     Extracts text from PDF files using OCR.
     """
     # check if file is a pdf (raises UnsupportedFileTypeException if not a PDF)
-    global_context.document_manager.parser_manager._detect_file_type(file=file, type=FileType.PDF)
+    global_context.document_manager.parser_manager.check_file_type(file=file, type=FileType.PDF)
 
     # check file size
     if file.size > FileSizeLimitExceededException.MAX_CONTENT_SIZE:
