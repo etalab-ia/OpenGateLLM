@@ -207,7 +207,7 @@ class TestSearch:
         store = ElasticsearchVectorStore(index_name="test-index")
         mock_client = AsyncMock()
 
-        with pytest.raises(AssertionError, match="RFF k must not be None"):
+        with pytest.raises(AssertionError, match="rff_k must not be None for hybrid search method"):
             await store.search(
                 client=mock_client,
                 method=SearchMethod.HYBRID,
