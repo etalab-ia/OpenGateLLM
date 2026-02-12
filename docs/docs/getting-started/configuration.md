@@ -62,6 +62,7 @@ dependencies:
   redis: # required
     url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
     max_connections: 200
+    socket_keepalive: True
     socket_connect_timeout: 5
     retry_on_timeout: True
     health_check_interval: 30
@@ -72,7 +73,6 @@ dependencies:
   #   index_name: opengatellm
   #   index_language: english
   #   number_of_shards: 1
-  #   index_name: "opengatellm"
   #   number_of_replicas: 0
   #   hosts: "http://localhost:9200"
   #   basic_auth:

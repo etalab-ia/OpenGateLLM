@@ -46,7 +46,9 @@ help:
 .start-api:
 	@bash -c 'set -a; . $(env); \
 	trap "trap - SIGTERM && kill -- -$$$$" SIGINT SIGTERM EXIT; \
-	python -m alembic -c api/alembic.ini upgrade head \
+	export REDIS_HOST=localhost \
+	&& export POSTGRES_HOST=localhost \
+	&& python -m alembic -c api/alembic.ini upgrade head \
 	&& uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug & \
 	sleep 10; \
 	open http://localhost:8000/docs 2>/dev/null || xdg-open http://localhost:8000/docs 2>/dev/null || true; \
@@ -57,6 +59,7 @@ help:
 	@bash -c 'set -a; . $(env); \
 	trap "trap - SIGTERM && kill -- -$$$$" SIGINT SIGTERM EXIT; \
 	cd ./playground \
+	&& export OPENGATELLM_URL="http://localhost:8000" \
 	&& CONFIG_FILE=../$${CONFIG_FILE} API_URL="http://localhost:8500" reflex run --env dev --loglevel debug & \
 	sleep 10; \
 	open http://localhost:8501 2>/dev/null || xdg-open http://localhost:8501 2>/dev/null || true; \
@@ -125,7 +128,7 @@ dev:
 	fi
 
 	@if [ "$(service)" = "api" ]; then \
-		SERVER=uvicorn $(MAKE) .start-api; \
+		$(MAKE) .start-api; \
 		wait; \
 	elif [ "$(service)" = "playground" ]; then \
 		$(MAKE) .start-playground; \

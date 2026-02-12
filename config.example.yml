@@ -38,6 +38,8 @@ dependencies:
     socket_keepalive: True
   
   # elasticsearch:
+  #   index_name: opengatellm
+  #   index_language: english
   #   number_of_shards: 1
   #   index_name: "opengatellm"
   #   number_of_replicas: 0
@@ -53,6 +55,7 @@ dependencies:
 settings:
   # session_secret_key: ${SESSION_SECRET_KEY}
   # disabled_routers: ["admin", "audio"]
+  # hidden_routers: ["auth"]
   # usage_tokenizer: tiktoken_gpt2
   # app_title: My OpenGateLLM API
 

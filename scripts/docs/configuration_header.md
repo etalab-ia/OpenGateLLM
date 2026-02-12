@@ -6,12 +6,6 @@ By default, the configuration file must be `./config.yml` file.
 
 You can change the configuration file by setting the `CONFIG_FILE` environment variable.
 
-The configuration file has 3 sections:
-
-- `models`: models configuration.
-- `dependencies`: dependencies configuration.
-- `settings`: settings configuration.
-
 ## Secrets
 
 You can pass environment variables in configuration file with pattern `${ENV_VARIABLE_NAME}`. All environment variables will be loaded in the configuration file.

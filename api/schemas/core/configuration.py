@@ -4,7 +4,7 @@ import logging
 import os
 from pathlib import Path
 import re
-from typing import Any, Literal
+from typing import Any, Literal, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field, constr, field_validator, model_validator
 from pydantic import ValidationError as PydanticValidationError
@@ -30,25 +30,50 @@ def custom_validation_error(url: str | None = None):
     """
 
     class ValidationError(Exception):
-        def __init__(self, exc: PydanticValidationError, cls: BaseModel, url: str):
+        def __init__(
+            self, exc: PydanticValidationError, cls: BaseModel, base_url: str = "https://docs.opengatellm.org/docs/getting-started/configuration_file"
+        ):
             super().__init__()
-            error_count = exc.error_count()
             error_content = exc.errors()
-            message = f"{error_count} validation error for {cls.__name__}\n"
 
+            def resolve_model_for_error(model: type[BaseModel], loc: tuple[Any, ...]):
+                current_model = model
+                documentation_url = base_url
+
+                for idx, part in enumerate(loc):
+                    if not isinstance(part, str):
+                        continue
+                    if part not in current_model.__pydantic_fields__:
+                        break
+
+                    field_info = current_model.__pydantic_fields__[part]
+
+                    annotation = field_info.annotation
+                    next_model = None
+                    origin = get_origin(annotation)
+                    args = get_args(annotation)
+                    candidates = args if origin is not None else (annotation,)
+
+                    for candidate in candidates:
+                        if isinstance(candidate, type) and issubclass(candidate, BaseModel):
+                            next_model = candidate
+                            break
+
+                    if next_model is None:
+                        break
+
+                    current_model = next_model
+                    documentation_url = f"{base_url}#{current_model.__name__.lower()}"
+
+                return documentation_url
+
+            message = str(exc)
             for error in error_content:
-                url = url or error["url"]
-                if error["type"] == "assertion_error":
-                    message += f"{error["msg"]}\n"
-                else:
-                    if len(error["loc"]) > 0:
-                        message += f"{error["loc"][0]}\n"
-                    message += f"  {error["msg"]} [type={error["type"]}, input_value={error.get("input", "")}, input_type={type(error.get("input")).__name__}]\n"  # fmt: off
-                    if len(error["loc"]) > 0:
-                        description = cls.__pydantic_fields__[error["loc"][0]].description
-                        if description:
-                            message += f"\n  {description}\n"
-                message += f"    For further information visit {url}\n\n"
+                loc = tuple(error.get("loc", ()))
+                documentation_url = resolve_model_for_error(cls, loc)
+                original_line = f"    For further information visit {error["url"]}"
+                replacement_line = f"    For further information visit {documentation_url}"
+                message = message.replace(original_line, replacement_line, 1)
 
             self.message = message
 
@@ -63,7 +88,7 @@ def custom_validation_error(url: str | None = None):
             try:
                 original_init(self, **data)
             except PydanticValidationError as e:
-                raise ValidationError(exc=e, cls=cls, url=url) from None  # hide previous traceback
+                raise ValidationError(exc=e, cls=cls) from None  # hide previous traceback
 
         cls.__init__ = new_init
         return cls
@@ -78,7 +103,7 @@ class ConfigBaseModel(BaseModel):
 # models ---------------------------------------------------------------------------------------------------------------------------------------------
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#modelprovider")
+@custom_validation_error()
 class ModelProvider(ConfigBaseModel):
     type: ProviderType = Field(..., description="Model provider type.", examples=["openai"])  # fmt: off
     url: constr(strip_whitespace=True, min_length=1, to_lower=True) | None = Field(default=None, description="Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI).", examples=["https://api.openai.com"])  # fmt: off
@@ -112,7 +137,7 @@ class ModelProvider(ConfigBaseModel):
         return self
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#model")
+@custom_validation_error()
 class Model(ConfigBaseModel):
     """
     In the models section, you define a list of models. Each model is a set of API providers for that model. Users will access the models specified in
@@ -126,7 +151,7 @@ class Model(ConfigBaseModel):
 
     name: constr(strip_whitespace=True, min_length=1, max_length=64) = Field(..., description="Unique name exposed to clients when selecting the model.", examples=["gpt-4o"])  # fmt: off
     type: ModelType = Field(..., description="Type of the model. It will be used to identify the model type.", examples=["text-generation"])  # fmt: off
-    aliases: list[constr(strip_whitespace=True, min_length=1, max_length=64)] = Field(default_factory=list, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]])  # fmt: off
+    aliases: list[constr(strip_whitespace=True, min_length=1, max_length=64)] = Field(default_factory=list, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]], extra_json_schema={"default": []})  # fmt: off
     load_balancing_strategy: RouterLoadBalancingStrategy = Field(default=RouterLoadBalancingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model.", examples=["least_busy"])  # fmt: off
     cost_prompt_tokens: float = Field(default=0.0, ge=0.0, description="Model costs prompt tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
     cost_completion_tokens: float = Field(default=0.0, ge=0.0, description="Model costs completion tokens for user budget computation. The cost is by 1M tokens. Set to `0.0` to disable budget computation for this model.", examples=[0.1])  # fmt: off
@@ -151,41 +176,62 @@ class DependencyType(str, Enum):
     SENTRY = "sentry"
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#albert")
+@custom_validation_error()
 class AlbertDependency(ConfigBaseModel):
+    """
+    **[DEPRECATED]**
+    """
+
     url: constr(strip_whitespace=True, min_length=1) = Field(default="https://albert.api.etalab.gouv.fr", description="Albert API url.")  # fmt: off
-    headers: dict[str, str] = Field(default_factory=dict, description="Albert API request headers.", examples=[{"Authorization": "Bearer my-api-key"}])  # fmt: off
+    headers: dict[str, str] = Field(default_factory=dict, description="Albert API request headers.", examples=[{"Authorization": "Bearer my-api-key"}], extra_json_schema={"default": {}})  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Albert API requests.", examples=[10])  # fmt: off
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#celery")
+@custom_validation_error()
 class CeleryDependency(ConfigBaseModel):
+    """
+    **[DEPRECATED]**
+    """
+
     broker_url: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Celery broker url like Redis (redis://) or RabbitMQ (amqp://). If not provided, use redis dependency as broker.")  # fmt: off
     result_backend: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Celery result backend url. If not provided, use redis dependency as result backend.")  # fmt: off
     timezone: str = Field(default="UTC", description="Timezone.", examples=["UTC"])  # fmt: off
     enable_utc: bool = Field(default=True, description="Enable UTC.", examples=[True])  # fmt: off
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#elasticsearchdependency")
+@custom_validation_error()
 class ElasticsearchDependency(ConfigBaseModel):
-    # All args of pydantic elastic client is allowed
-    index_name: constr(strip_whitespace=True, min_length=1) = Field(..., description="Name of the Elasticsearch index.", examples=["opengatellm"])  # fmt: off
+    """
+    Elasticsearch is an optional dependency of OpenGateLLM. Elasticsearch is used as a vector store. If this dependency is provided, all documents endpoint are enabled.
+    Pass all arguments of `elasticsearch.Elasticsearch` class, see https://elasticsearch-py.readthedocs.io/en/latest/api/elasticsearch.html for more information.
+    Other arguments declared below are used to configure the Elasticsearch index.
+    """
+
+    index_name: constr(strip_whitespace=True, min_length=1) = Field(default="opengatellm", description="Name of the Elasticsearch index.", examples=["my_index"])  # fmt: off
     index_language: ElasticsearchIndexLanguage = Field(default=ElasticsearchIndexLanguage.ENGLISH, description="Language of the Elasticsearch index.", examples=[ElasticsearchIndexLanguage.ENGLISH.value])  # fmt: off
     number_of_shards: int = Field(default=24, ge=1, description="Number of shards for the Elasticsearch index.", examples=[1])  # fmt: off
     number_of_replicas: int = Field(default=1, ge=0, description="Number of replicas for the Elasticsearch index.", examples=[1])  # fmt: off
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#markerdependency")
+@custom_validation_error()
 class MarkerDependency(ConfigBaseModel):
+    """
+    **[DEPRECATED]**
+    """
+
     url: constr(strip_whitespace=True, min_length=1) = Field(..., description="Marker API url.")  # fmt: off
-    headers: dict[str, str] = Field(default_factory=dict, description="Marker API request headers.", examples=[{"Authorization": "Bearer my-api-key"}])  # fmt: off
+    headers: dict[str, str] = Field(default_factory=dict, description="Marker API request headers.", examples=[{"Authorization": "Bearer my-api-key"}], extra_json_schema={"default": {}})  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Marker API requests.", examples=[10])  # fmt: off
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#postgresdependency")
+@custom_validation_error()
 class PostgresDependency(ConfigBaseModel):
-    # All args of pydantic postgres client is allowed
-    url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^postgresql", description="PostgreSQL connection url.", examples=["postgresql://postgres:changeme@localhost:5432/postgres"])  # fmt: off
+    """
+    Postgres is a required dependency of OpenGateLLM. In this section, you can pass all postgres python SDK arguments, see https://github.com/etalab-ia/opengatellm/blob/main/docs/dependencies/postgres.md for more information.
+    Only the `url` argument is required. The connection URL must use the asynchronous scheme, `postgresql+asyncpg://`. If you provide a standard `postgresql://` URL, it will be automatically converted to use asyncpg.
+    """
+
+    url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^postgresql", description="PostgreSQL connection url.", examples=["postgresql+asyncpg://postgres:changeme@localhost:5432/postgres"])  # fmt: off
 
     @field_validator("url", mode="after")
     def force_async(cls, url):
@@ -196,18 +242,32 @@ class PostgresDependency(ConfigBaseModel):
         return url
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#sentrydependency")
+@custom_validation_error()
 class SentryDependency(ConfigBaseModel):
+    """
+    Sentry is an optional dependency of OpenGateLLM. Sentry helps you identify, diagnose, and fix errors in real-time.
+    In this section, you can pass all sentry python SDK arguments, see https://docs.sentry.io/platforms/python/configuration/options/ for more information.
+    """
+
     pass
     # All args of pydantic sentry client is allowed
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#redisdependency")
+@custom_validation_error()
 class RedisDependency(ConfigBaseModel):
+    """
+    Redis is a required dependency of OpenGateLLM. Redis is used to store rate limiting counters and performance metrics.
+    Pass all `from_url()` method arguments of `redis.asyncio.connection.ConnectionPool` class, see https://redis.readthedocs.io/en/stable/connections.html#redis.asyncio.connection.ConnectionPool.from_url for more information.
+    """
+
     url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
 
 
 class ProConnect(ConfigBaseModel):
+    """
+    **[DEPRECATED]**
+    """
+
     client_id: str = Field(default="", description="Client identifier provided by ProConnect when you register your application in their dashboard. This value is public (it's fine to embed in clients) but must match the value configured in ProConnect.")  # fmt: off
     client_secret: str = Field(default="", description="Client secret provided by ProConnect at application registration. This value must be kept confidential — it's used by the server to authenticate with ProConnect during token exchange (do not expose it to browsers or mobile apps).")  # fmt: off
     server_metadata_url: str = Field(default="https://identite-sandbox.proconnect.gouv.fr/.well-known/openid-configuration", description="OpenID Connect discovery endpoint for ProConnect (server metadata). The SDK/flow uses this to discover authorization, token, and JWKS endpoints. Change to the production discovery URL when switching from sandbox to production.")  # fmt: off
@@ -221,16 +281,16 @@ class EmptyDepencency(ConfigBaseModel):
     pass
 
 
-@custom_validation_error(url="https://github.com/etalab-ia/albert-api/blob/main/docs/configuration.md#dependencies")
+@custom_validation_error()
 class Dependencies(ConfigBaseModel):
-    albert: AlbertDependency | None = Field(default=None, description="If provided, Albert API is used to parse pdf documents. Cannot be used with Marker dependency concurrently. Pass arguments to call Albert API in this section.")  # fmt: off
-    celery: CeleryDependency | None = Field(default=None, description="If provided, Celery is used to run tasks asynchronously with queues. Pass arguments to call Celery in this section.")  # fmt: off
-    elasticsearch: ElasticsearchDependency | None = Field(default=None, description="Pass all elastic python SDK arguments, see https://elasticsearch-py.readthedocs.io/en/v9.0.2/api/elasticsearch.html#elasticsearch.Elasticsearch for more information. Some others arguments are available to configure the Elasticsearch index. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency).")  # fmt: off
-    marker: MarkerDependency | None = Field(default=None, description="If provided, Marker API is used to parse pdf documents. Cannot be used with Albert dependency concurrently. Pass arguments to call Marker API in this section.")  # fmt: off
-    postgres: PostgresDependency = Field(..., description="Pass all postgres python SDK arguments, see https://github.com/etalab-ia/opengatellm/blob/main/docs/dependencies/postgres.md for more information.")  # fmt: off
-    redis: RedisDependency  = Field(..., description="Pass all `from_url()` method arguments of `redis.asyncio.connection.ConnectionPool` class, see https://redis.readthedocs.io/en/stable/connections.html#redis.asyncio.connection.ConnectionPool.from_url for more information.")  # fmt: off
-    sentry: SentryDependency | None = Field(default=None, description="Pass all sentry python SDK arguments, see https://docs.sentry.io/platforms/python/configuration/options/ for more information.")  # fmt: off
-    proconnect: ProConnect | None = Field(default=None, description="ProConnect configuration for the API. See https://github.com/etalab-ia/albert-api/blob/main/docs/oauth2_encryption.md for more information.")  # fmt: off
+    albert: AlbertDependency | None = Field(default=None, description="**[DEPRECATED]** See the [AlbertDependency section](#albertdependency) for more information.")  # fmt: off
+    celery: CeleryDependency | None = Field(default=None, description="**[DEPRECATED]** See the [CeleryDependency section](#celerydependency) for more information.")  # fmt: off
+    elasticsearch: ElasticsearchDependency | None = Field(default=None, description="See the [ElasticsearchDependency section](#elasticsearchdependency) for more information.")  # fmt: off
+    marker: MarkerDependency | None = Field(default=None, description="**[DEPRECATED]** See the [MarkerDependency section](#markerdependency) for more information.")  # fmt: off
+    postgres: PostgresDependency = Field(..., description="See the [PostgresDependency section](#postgresdependency) for more information.")  # fmt: off
+    redis: RedisDependency  = Field(..., description="See the [RedisDependency section](#redisdependency) for more information.")  # fmt: off
+    sentry: SentryDependency | None = Field(default=None, description="See the [SentryDependency section](#sentrydependency) for more information.")  # fmt: off
+    proconnect: ProConnect | None = Field(default=None, description="**[DEPRECATED]** See the [ProConnect section](#proconnect) for more information.")  # fmt: off
 
     @model_validator(mode="after")
     def complete_celery(self):
@@ -307,10 +367,14 @@ class Tokenizer(str, Enum):
 
 @custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#settings")
 class Settings(ConfigBaseModel):
+    """
+    General settings configuration fields.
+    """
+
     # general
-    disabled_routers: list[Routers] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["embeddings"]])  # fmt: off
-    hidden_routers: list[Routers] = Field(default_factory=list, description="Routers are enabled but hidden in the swagger and the documentation of the API.", examples=[["admin"]])  # fmt: off
-    app_title: str | None = Field(default=DEFAULT_APP_NAME, description="Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["My API"])  # fmt: off
+    disabled_routers: list[Routers] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["embeddings"]], extra_json_schema={"default": []})  # fmt: off
+    hidden_routers: list[Routers] = Field(default_factory=list, description="Routers are enabled but hidden in the swagger and the documentation of the API.", examples=[["admin"]], extra_json_schema={"default": []})  # fmt: off
+    app_title: str = Field(default=DEFAULT_APP_NAME, description="Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["My API"])  # fmt: off
 
     # routing
     routing_max_retries: int = Field(default=3, ge=1, description="Maximum number of retries for routing tasks.")  # fmt: off
@@ -325,16 +389,16 @@ class Settings(ConfigBaseModel):
     log_format: str | None = Field(default="[%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s", description="Logging format of the API.")  # fmt: off
 
     # swagger
-    swagger_summary: str | None = Field(default="OpenGateLLM connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title.", description="Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["My API description."])  # fmt: off
-    swagger_version: str | None = Field(default="latest", description="Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["2.5.0"])  # fmt: off
-    swagger_description: str | None = Field(default="[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)", description="Display description of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)"])  # fmt: off
+    swagger_summary: str = Field(default="OpenGateLLM connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title.", description="Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["My API description."])  # fmt: off
+    swagger_version: str = Field(default="latest", description="Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["2.5.0"])  # fmt: off
+    swagger_description: str = Field(default="[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)", description="Display description of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)"])  # fmt: off
     swagger_contact: dict | None = Field(default=None, description="Contact informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
-    swagger_license_info: dict | None = Field(default={"name": "MIT Licence", "identifier": "MIT", "url": "https://raw.githubusercontent.com/etalab-ia/opengatellm/refs/heads/main/LICENSE"}, description="Licence informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
+    swagger_license_info: dict = Field(default={"name": "MIT Licence", "identifier": "MIT", "url": "https://raw.githubusercontent.com/etalab-ia/opengatellm/refs/heads/main/LICENSE"}, description="Licence informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
     swagger_terms_of_service: str | None = Field(default=None, description="A URL to the Terms of Service for the API in swagger UI. If provided, this has to be a URL.", examples=["https://example.com/terms-of-service"])  # fmt: off
-    swagger_openapi_tags: list[dict[str, Any]] = Field(default_factory=list, description="OpenAPI tags of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
-    swagger_openapi_url: str | None = Field(default="/openapi.json", pattern=r"^/", description="OpenAPI URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
-    swagger_docs_url: str | None = Field(default="/docs", pattern=r"^/", description="Docs URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
-    swagger_redoc_url: str | None = Field(default="/redoc", pattern=r"^/", description="Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
+    swagger_openapi_tags: list[dict[str, str | dict[str, str]]] = Field(default_factory=list, description="OpenAPI tags of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", extra_json_schema={"default": []})  # fmt: off
+    swagger_openapi_url: str = Field(default="/openapi.json", pattern=r"^/", description="OpenAPI URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
+    swagger_docs_url: str = Field(default="/docs", pattern=r"^/", description="Docs URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
+    swagger_redoc_url: str = Field(default="/redoc", pattern=r"^/", description="Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
 
     # auth
     auth_master_key: constr(strip_whitespace=True, min_length=1) = Field(default="changeme", description="Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys.")  # fmt: off
@@ -348,13 +412,13 @@ class Settings(ConfigBaseModel):
     monitoring_postgres_enabled: bool = Field(default=True, description="If true, the log usage will be written in the PostgreSQL database.")  # fmt: off
     monitoring_prometheus_enabled: bool = Field(default=True, description="If true, Prometheus metrics will be exposed in the `/metrics` endpoint.")  # fmt: off
 
-    # vector store
+    # vector_store
     vector_store_model: str | None = Field(default=None, description="Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch). This model must be defined in the `models` section and have type `text-embeddings-inference`.")  # fmt: off
 
-    # document parsing
+    # document_parsing
     document_parsing_max_concurrent: int = Field(default=10, ge=1, description="Maximum number of concurrent document parsing tasks per worker.")  # fmt: off
 
-    # postgres_session
+    # session
     session_secret_key: str | None = Field(default=None, description='Secret key for postgres_session middleware. If not provided, the master key will be used.', examples=["knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM"])  # fmt: off
 
     front_url: str = Field(default="http://localhost:8501", description="Front-end URL for the application.")
@@ -378,8 +442,19 @@ class Settings(ConfigBaseModel):
 
 
 # load config ----------------------------------------------------------------------------------------------------------------------------------------
-@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#all-configuration")
+@custom_validation_error()
 class ConfigFile(ConfigBaseModel):
+    """
+    Configuration file is composed of 3 sections, models:
+    - `models`: to declare models API exposed to the API.
+    - `dependencies`: to declare both required plugins for the API (e.g. PostgreSQL, Redis) and optional ones (e.g. Elasticsearch).
+    - `settings`: to configure the API.
+
+    :::warnings
+    We don't recommend to use the configuration file to declare models, prefer to use the API to declare models, by endpoints or on the Playground UI (see [Models configuration](../models/models_configuration.md)).
+    :::
+    """
+
     models: list[Model] = Field(default_factory=list, description="Models used by the API.")  # fmt: off
     dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the API.")  # fmt: off
     settings: Settings = Field(default_factory=Settings, description="General settings configuration fields.")  # fmt: off
@@ -404,11 +479,6 @@ class ConfigFile(ConfigBaseModel):
         # build the complete list of all models
         for model_type in ModelType:
             models["all"].extend(models[model_type.value])
-
-        # check for duplicated name in models and aliases
-        duplicated_models = [model for model in models["all"] if models["all"].count(model) > 1]
-        if duplicated_models:
-            raise ValueError(f"Duplicated model or alias names found: {", ".join(set(duplicated_models))}")
 
         # check for interdependencies
         if self.dependencies.elasticsearch:
