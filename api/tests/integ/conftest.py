@@ -1,8 +1,10 @@
+import asyncio
 from collections.abc import Generator
 from functools import partial
 import logging
 import time
 
+from elasticsearch import AsyncElasticsearch
 from fastapi.testclient import TestClient
 import pytest
 from sqlalchemy import create_engine
@@ -25,7 +27,29 @@ def setup_database() -> None:
 
 
 @pytest.fixture(scope="session")
-def test_client(setup_database) -> Generator[TestClient, None, None]:
+def setup_elasticsearch_index() -> None:
+    """Delete Elasticsearch index before running integration tests."""
+    if configuration.dependencies.elasticsearch is None:
+        return
+
+    async def _delete_index() -> None:
+        kwargs = configuration.dependencies.elasticsearch.model_dump()
+        index_name = kwargs.pop("index_name")
+        kwargs.pop("index_language")
+        kwargs.pop("number_of_shards")
+        kwargs.pop("number_of_replicas")
+        client = AsyncElasticsearch(**kwargs)
+        try:
+            if await client.indices.exists(index=index_name):
+                await client.indices.delete(index=index_name)
+        finally:
+            await client.close()
+
+    asyncio.run(_delete_index())
+
+
+@pytest.fixture(scope="session")
+def test_client(setup_database, setup_elasticsearch_index) -> Generator[TestClient, None, None]:
     """Create test client with database already set up."""
     with TestClient(app=app) as client:
         client.headers = {"Authorization": f"Bearer {configuration.settings.auth_master_key}"}
