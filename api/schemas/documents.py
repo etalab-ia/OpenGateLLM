@@ -71,11 +71,11 @@ class CreateDocumentForm(BaseModel):
 
     @model_validator(mode="after")
     def validate_separators(self) -> "CreateDocumentForm":
-        if self.preset_separators == PresetSeparators.EMPTY:
-            self.preset_separators = None
-
         if self.preset_separators == PresetSeparators.EMPTY and self.separators == []:
             raise ValueError("separators and preset_separators cannot by empty at the same time")
+
+        if self.preset_separators == PresetSeparators.EMPTY:
+            self.preset_separators = None
 
         return self
 

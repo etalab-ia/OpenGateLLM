@@ -1,7 +1,7 @@
 from contextvars import ContextVar
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, Request, Security
+from fastapi import APIRouter, Depends, Request, Security
 from fastapi.responses import JSONResponse, PlainTextResponse
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +22,7 @@ router = APIRouter(prefix="/v1", tags=[ROUTER__AUDIO.title()])
 )
 async def audio_transcriptions(
     request: Request,
-    data: Annotated[CreateAudioTranscription, Form()],
+    data: Annotated[CreateAudioTranscription, Depends(CreateAudioTranscription.as_form)],
     model_registry: ModelRegistry = Depends(get_model_registry),
     redis_client: AsyncRedis = Depends(get_redis_client),
     postgres_session: AsyncSession = Depends(get_postgres_session),
@@ -40,8 +40,6 @@ async def audio_transcriptions(
     )
 
     file_content = await data.file.read()
-    form = data.model_dump()
-    form.pop("file")
 
     response = await model_provider.forward_request(
         request_content=RequestContent(
@@ -49,7 +47,7 @@ async def audio_transcriptions(
             model=data.model,
             endpoint=ENDPOINT__AUDIO_TRANSCRIPTIONS,
             files={"file": (data.file.filename, file_content, data.file.content_type)},
-            form=form,
+            form=data.model_dump(mode="json", exclude="file"),
         ),
         redis_client=redis_client,
     )
