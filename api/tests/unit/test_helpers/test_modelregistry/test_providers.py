@@ -760,7 +760,7 @@ async def test_update_provider_change_router_invalid_type(postgres_session: Asyn
     )
 
     # Mock get_providers to return provider (will be called with router_id=None, provider_id=1)
-    # Note: get_providers creates Provider with type from DB (string), which Pydantic converts to enum
+    # Note: get_providers creates provider with type from DB (string), which Pydantic converts to enum
     provider_result = _Result()
     provider_result.mappings = lambda: _MappingsResult(
         [

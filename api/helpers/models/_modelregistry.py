@@ -150,16 +150,16 @@ class ModelRegistry:
                         postgres_session=postgres_session,
                     )
                 except ProviderAlreadyExistsException:
-                    logger.warning(f"Provider {provider.model_name} already exists for router {model.name} (skipping)")
+                    logger.warning(f"provider {provider.model_name} already exists for router {model.name} (skipping)")
                     continue
                 except ProviderNotReachableException:
-                    logger.warning(f"Provider {provider.model_name} is not reachable for router {model.name} (skipping)")
+                    logger.warning(f"provider {provider.model_name} is not reachable for router {model.name} (skipping)")
                     continue
                 except Exception as e:
                     await postgres_session.rollback()
-                    logger.error(f"Provider {provider.model_name} failed to be created for router {model.name} ({e})")
+                    logger.error(f"provider {provider.model_name} failed to be created for router {model.name} ({e})")
                     raise e
-                logging.info(f"Provider {provider.model_name} successfully created for router {model.name} (id: {provider_id})")
+                logging.info(f"provider {provider.model_name} successfully created for router {model.name} (id: {provider_id})")
 
             if self.queuing_enabled:
                 routers = await self.get_routers(router_id=None, name=None, postgres_session=postgres_session)
@@ -459,9 +459,9 @@ class ModelRegistry:
         Args:
             router_id(int): The model router ID
             user_id(int): The user ID of owner of the provider
-            type(ProviderType): Provider type
-            url(str): Provider URL
-            key(str | None): Provider API key
+            type(ProviderType): provider type
+            url(str): provider URL
+            key(str | None): provider API key
             timeout(int): Request timeout
             model_name(str): Model name
             model_hosting_zone(ProviderCarbonFootprintZone): ProviderCarbonFootprintZone
@@ -498,7 +498,7 @@ class ModelRegistry:
                 vector_size = None
 
         except AssertionError as e:
-            logger.debug(f"Provider {provider.model_name} not reachable: {e}", exc_info=True)
+            logger.debug(f"provider {provider.model_name} not reachable: {e}", exc_info=True)
             raise ProviderNotReachableException()
 
         # consistency check
@@ -724,7 +724,7 @@ class ModelRegistry:
                 await postgres_session.commit()
             except IntegrityError:
                 await postgres_session.rollback()
-                raise ProviderAlreadyExistsException("Provider already exists for the new router.")
+                raise ProviderAlreadyExistsException("provider already exists for the new router.")
 
     async def get_models(self, name: str | None, user_info: UserInfo, postgres_session: AsyncSession) -> list[Model]:
         """

@@ -5,22 +5,17 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.key import KeyRepository
-from api.infrastructure.postgres import PostgresKeyRepository, PostgresRouterRepository, PostgresUserInfoRepository
+from api.infrastructure.model import ModelProviderGateway
+from api.infrastructure.postgres import PostgresKeyRepository, PostgresProviderRepository, PostgresRouterRepository, PostgresUserInfoRepository
 from api.schemas.core.context import RequestContext
 from api.use_cases.admin import CreateRouterUseCase
+from api.use_cases.admin.providers import CreateProviderUseCase
 from api.use_cases.models import GetModelsUseCase
 from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context
 
 
 async def get_postgres_session() -> AsyncGenerator[AsyncSession]:
-    """
-    Get a PostgreSQL postgres_session from the global context.
-
-    Returns:
-        AsyncSession: A PostgreSQL postgres_session instance.
-    """
-
     session_factory = global_context.postgres_session_factory
     async with session_factory() as postgres_session:
         try:
@@ -34,13 +29,6 @@ async def get_postgres_session() -> AsyncGenerator[AsyncSession]:
 
 
 def get_request_context() -> ContextVar[RequestContext]:
-    """
-    Get the RequestContext ContextVar from the global context.
-
-    Returns:
-        ContextVar[RequestContext]: The RequestContext ContextVar instance.
-    """
-
     return request_context
 
 
@@ -52,6 +40,18 @@ def get_models_use_case(
         router_repository=PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title),
         user_id=request_context.get().user_id,
         user_info_repository=PostgresUserInfoRepository(postgres_session=postgres_session),
+    )
+
+
+def create_provider_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    request_context: RequestContext = Depends(get_request_context),
+) -> CreateProviderUseCase:
+    return CreateProviderUseCase(
+        router_repository=PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title),
+        user_info_repository=PostgresUserInfoRepository(postgres_session=postgres_session),
+        provider_repository=PostgresProviderRepository(postgres_session=postgres_session),
+        provider_gateway=ModelProviderGateway(),
     )
 
 

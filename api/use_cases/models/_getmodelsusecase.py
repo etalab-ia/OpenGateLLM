@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
+from api.domain.model import Model, ModelCosts
 from api.domain.router import RouterRepository
-from api.domain.router.entities import Model, ModelCosts
 from api.domain.userinfo import UserInfoRepository
 
 

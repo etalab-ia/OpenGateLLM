@@ -8,48 +8,13 @@ from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
 from api.schemas.admin.providers import (
-    CreateProvider,
-    CreateProviderResponse,
     Provider,
     Providers,
     UpdateProvider,
 )
 from api.schemas.admin.roles import PermissionType
-from api.utils.context import request_context
 from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import EndpointRoute
-
-
-@router.post(
-    path=EndpointRoute.ADMIN_PROVIDERS,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
-    status_code=201,
-)
-async def create_provider(
-    request: Request,
-    body: CreateProvider,
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-    model_registry: ModelRegistry = Depends(get_model_registry),
-) -> CreateProviderResponse:
-    """
-    Create a model provider.
-    """
-    provider_id = await model_registry.create_provider(
-        router_id=body.router,
-        user_id=request_context.get().user_info.id,
-        type=body.type,
-        url=body.url,
-        key=body.key,
-        timeout=body.timeout,
-        model_name=body.model_name,
-        model_hosting_zone=body.model_hosting_zone,
-        model_total_params=body.model_total_params,
-        model_active_params=body.model_active_params,
-        qos_metric=body.qos_metric,
-        qos_limit=body.qos_limit,
-        postgres_session=postgres_session,
-    )
-    return JSONResponse(status_code=201, content=CreateProviderResponse(id=provider_id).model_dump())
 
 
 @router.delete(

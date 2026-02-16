@@ -14,6 +14,14 @@ class RouterRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_router_by_id(self, router_id: int) -> Router | None:
+        pass
+
+    @abstractmethod
+    async def get_aliases_by_router_id(self, router_id: int) -> Router | None:
+        pass
+
+    @abstractmethod
     async def create_router(
         self,
         name: str,

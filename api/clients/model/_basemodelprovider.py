@@ -76,7 +76,7 @@ class BaseModelProvider(ABC):
         return getattr(module, f"{type.capitalize()}ModelProvider")
 
     @staticmethod
-    async def get_max_context_length(self) -> int | None:
+    async def get_max_context_length() -> int | None:
         """
         Get the max context length of the model provider to store in the database. Useful
         to check provider consistency.

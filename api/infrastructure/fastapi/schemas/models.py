@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from api.domain.router.entities import Model as ModelEntity
+from api.domain.model import Model as ModelEntity
 from api.schemas import BaseModel
 
 

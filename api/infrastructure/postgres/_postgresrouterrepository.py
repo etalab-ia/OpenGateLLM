@@ -14,6 +14,57 @@ from api.sql.models import User as UserTable
 
 
 class PostgresRouterRepository(RouterRepository):
+    async def get_aliases_by_router_id(self, router_id: int) -> list[str]:
+        query = select(RouterAliasTable.value).where(RouterAliasTable.router_id == router_id)
+        result = await self.postgres_session.execute(query)
+        return [row[0] for row in result.all()]
+
+    async def get_router_by_id(self, router_id: int) -> Router | None:
+        provider_count_subquery = (
+            select(func.count(ProviderTable.id)).where(ProviderTable.router_id == RouterTable.id).correlate(RouterTable).scalar_subquery()
+        )
+        query = (
+            select(
+                RouterTable.id,
+                RouterTable.name,
+                RouterTable.user_id,
+                RouterTable.type,
+                RouterTable.load_balancing_strategy,
+                RouterTable.cost_prompt_tokens,
+                RouterTable.cost_completion_tokens,
+                ProviderTable.max_context_length,
+                ProviderTable.vector_size,
+                provider_count_subquery.label("providers"),
+                cast(func.extract("epoch", RouterTable.created), Integer).label("created"),
+                cast(func.extract("epoch", RouterTable.updated), Integer).label("updated"),
+            )
+            .where(RouterTable.id == router_id)
+            .join(ProviderTable, ProviderTable.router_id == RouterTable.id, isouter=True)
+            .limit(1)
+        )
+
+        result = await self.postgres_session.execute(query)
+        row = result.one_or_none()
+        if row is None:
+            return None
+        user_id = MASTER_USER_ID if row.user_id is None else row.user_id
+        aliases = await self.get_aliases_by_router_id(router_id)
+        return Router(
+            id=row.id,
+            name=row.name,
+            user_id=user_id,
+            type=ModelType(row.type),
+            aliases=aliases,
+            load_balancing_strategy=RouterLoadBalancingStrategy(row.load_balancing_strategy),
+            vector_size=row.vector_size,
+            max_context_length=row.max_context_length,
+            cost_prompt_tokens=row.cost_prompt_tokens or 0.0,
+            cost_completion_tokens=row.cost_completion_tokens or 0.0,
+            providers=row.providers,
+            created=row.created,
+            updated=row.updated,
+        )
+
     def __init__(self, postgres_session: AsyncSession, app_title: str):
         self.postgres_session = postgres_session
         self.app_title = app_title
@@ -56,7 +107,7 @@ class PostgresRouterRepository(RouterRepository):
         result = await self.postgres_session.execute(query)
         router_results = [row._asdict() for row in result.all()]
 
-        aliases = await self.get_aliases_by_router_id()
+        aliases = await self.get_all_aliases_grouped_by_router()
 
         for row in router_results:
             user_id = MASTER_USER_ID if row["user_id"] is None else row["user_id"]
@@ -79,7 +130,7 @@ class PostgresRouterRepository(RouterRepository):
             )
         return routers
 
-    async def get_aliases_by_router_id(self) -> dict[str, list[str]]:
+    async def get_all_aliases_grouped_by_router(self) -> dict[str, list[str]]:
         aliases_query = select(RouterAliasTable.router_id.label("router_id"), RouterAliasTable.value)
         aliases_result = await self.postgres_session.execute(aliases_query)
         aliases = {}

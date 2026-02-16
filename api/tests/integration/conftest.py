@@ -5,13 +5,18 @@ import asyncpg
 from httpx import ASGITransport, AsyncClient
 import pytest
 import pytest_asyncio
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from api.app import create_app
 from api.dependencies import get_postgres_session
+from api.helpers.models import ModelRegistry
+from api.main import app
 from api.sql.models import Base
 from api.tests.integration import factories
+from api.utils.dependencies import get_model_registry
+from api.utils.dependencies import get_postgres_session as get_postgres_session_utils
 
 TEST_DATABASE_URL = "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db"
 
@@ -69,23 +74,53 @@ async def test_session_factory(test_engine):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def db_session(test_session_factory) -> AsyncGenerator[AsyncSession]:
-    async with test_session_factory() as session:
+async def db_session(test_engine) -> AsyncGenerator[AsyncSession]:
+    """Provide a transactional scope for each test.
+
+    Uses the recommended SQLAlchemy pattern: an outer transaction that is never
+    committed, with SAVEPOINTs for the test code. When code under test calls
+    session.commit() or session.rollback(), the SAVEPOINT is released/rolled back
+    and automatically restarted, so the outer transaction stays open and can be
+    rolled back at the end to undo everything.
+    """
+    async with test_engine.connect() as connection:
+        transaction = await connection.begin()
+
+        session = AsyncSession(bind=connection, expire_on_commit=False)
+        await session.begin_nested()
+
         all_sql_factories = factories.BaseSQLFactory.__subclasses__()
-        session.expire_on_commit = False
+        for factory in all_sql_factories:
+            factory._meta.sqlalchemy_session = session
+
+        # Restart a SAVEPOINT whenever code under test commits or rolls back,
+        # so the outer transaction is never affected.
+        @event.listens_for(session.sync_session, "after_transaction_end")
+        def restart_savepoint(sess, trans):
+            if trans.nested and not trans._parent.nested:
+                sess.begin_nested()
+
         try:
-            async with session.begin_nested():
-                for factory in all_sql_factories:
-                    factory._meta.sqlalchemy_session = session
-                yield session
+            yield session
         finally:
-            if session.in_transaction():
-                await session.rollback()
             await session.close()
+            await transaction.rollback()
+
+
+@pytest_asyncio.fixture(scope="session")
+def model_registry():
+    """Create a real ModelRegistry for integration tests."""
+    return ModelRegistry(
+        app_title="test",
+        queuing_enabled=False,
+        max_priority=0,
+        max_retries=0,
+        retry_countdown=0,
+    )
 
 
 @pytest_asyncio.fixture(scope="function")
-async def client(db_session, test_configuration) -> AsyncGenerator[AsyncClient, None]:
+async def client(db_session, model_registry, test_configuration) -> AsyncGenerator[AsyncClient, None]:
     app = create_app(test_configuration, skip_lifespan=True)
 
     async def override_get_postgres_session():
@@ -99,6 +134,8 @@ async def client(db_session, test_configuration) -> AsyncGenerator[AsyncClient, 
             raise
 
     app.dependency_overrides[get_postgres_session] = override_get_postgres_session
+    app.dependency_overrides[get_postgres_session_utils] = override_get_postgres_session
+    app.dependency_overrides[get_model_registry] = lambda: model_registry
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:

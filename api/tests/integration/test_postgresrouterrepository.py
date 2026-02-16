@@ -92,7 +92,7 @@ class TestGetAllAliases:
 
         # Act
         await db_session.flush()
-        aliases = await repository.get_aliases_by_router_id()
+        aliases = await repository.get_all_aliases_grouped_by_router()
         # Assert
         assert aliases == {
             router_1.id: ["alias1_m1", "alias2_m1"],
