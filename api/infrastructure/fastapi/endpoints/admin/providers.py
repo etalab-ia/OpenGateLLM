@@ -29,8 +29,7 @@ from api.infrastructure.fastapi.schemas.providers import (
     Providers,
     UpdateProvider,
 )
-from api.use_cases.admin.providers import CreateProviderUseCase
-from api.use_cases.admin.providers._createproviderusecase import CreateProviderUseCaseSuccess
+from api.use_cases.admin.providers import CreateProviderCommand, CreateProviderUseCase, CreateProviderUseCaseSuccess
 from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import ENDPOINT__ADMIN_PROVIDERS, ROUTER__ADMIN
 
@@ -50,7 +49,7 @@ async def create_provider(
     request_context: RequestContext = Depends(get_request_context),
 ) -> CreateProviderResponse:
     try:
-        result = await create_provider_use_case.execute(
+        command = CreateProviderCommand(
             router_id=body.router,
             user_id=request_context.get().user_id,
             provider_type=body.type,
@@ -64,6 +63,7 @@ async def create_provider(
             qos_metric=body.qos_metric,
             qos_limit=body.qos_limit,
         )
+        result = await create_provider_use_case.execute(command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing create_router use case",

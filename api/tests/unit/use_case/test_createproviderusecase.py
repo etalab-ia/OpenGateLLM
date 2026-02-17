@@ -9,7 +9,7 @@ from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlready
 from api.domain.router.entities import ModelType
 from api.domain.router.errors import RouterNotFoundError
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory
-from api.use_cases.admin.providers import CreateProviderUseCase, CreateProviderUseCaseSuccess
+from api.use_cases.admin.providers import CreateProviderCommand, CreateProviderUseCase, CreateProviderUseCaseSuccess
 
 
 @pytest.fixture
@@ -17,7 +17,6 @@ def use_case():
     return CreateProviderUseCase(
         router_repository=AsyncMock(),
         provider_repository=AsyncMock(),
-        user_info_repository=AsyncMock(),
         provider_gateway=AsyncMock(),
     )
 
@@ -69,8 +68,8 @@ def sample_provider():
 
 
 @pytest.fixture
-def default_execute_params():
-    return dict(
+def default_command():
+    return CreateProviderCommand(
         router_id=1,
         user_id=1,
         provider_type=ProviderType.VLLM,
@@ -86,18 +85,33 @@ def default_execute_params():
     )
 
 
+def with_provider_type(command: CreateProviderCommand, provider_type: ProviderType) -> CreateProviderCommand:
+    return CreateProviderCommand(
+        router_id=command.router_id,
+        user_id=command.user_id,
+        provider_type=provider_type,
+        url=command.url,
+        key=command.key,
+        timeout=command.timeout,
+        model_name=command.model_name,
+        model_hosting_zone=command.model_hosting_zone,
+        model_total_params=command.model_total_params,
+        model_active_params=command.model_active_params,
+        qos_metric=command.qos_metric,
+        qos_limit=command.qos_limit,
+    )
+
+
 class TestCreateProviderUseCase:
     @pytest.mark.asyncio
-    async def test_should_create_provider_when_router_exists_without_any_provider(
-        self, use_case, sample_router, sample_provider, default_execute_params
-    ):
+    async def test_should_create_provider_when_router_exists_without_any_provider(self, use_case, sample_router, sample_provider, default_command):
         # Arrange
         use_case.router_repository.get_router_by_id.return_value = sample_router
         use_case.provider_gateway.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
         use_case.provider_repository.create_provider.return_value = sample_provider
 
         # Act
-        result = await use_case.execute(**default_execute_params)
+        result = await use_case.execute(default_command)
 
         # Assert
         assert isinstance(result, CreateProviderUseCaseSuccess)
@@ -125,7 +139,7 @@ class TestCreateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_create_provider_when_router_has_a_different_provider(
-        self, use_case, sample_router_with_providers, sample_provider, default_execute_params
+        self, use_case, sample_router_with_providers, sample_provider, default_command
     ):
         # Arrange
         use_case.router_repository.get_router_by_id.return_value = sample_router_with_providers
@@ -133,7 +147,7 @@ class TestCreateProviderUseCase:
         use_case.provider_repository.create_provider.return_value = sample_provider
 
         # Act
-        result = await use_case.execute(**default_execute_params)
+        result = await use_case.execute(default_command)
 
         # Assert
         assert isinstance(result, CreateProviderUseCaseSuccess)
@@ -157,7 +171,7 @@ class TestCreateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_create_embedding_provider_when_vector_size_matches(
-        self, use_case, sample_embedding_router_with_providers, sample_provider, default_execute_params
+        self, use_case, sample_embedding_router_with_providers, sample_provider, default_command
     ):
         # Arrange
         use_case.router_repository.get_router_by_id.return_value = sample_embedding_router_with_providers
@@ -165,7 +179,7 @@ class TestCreateProviderUseCase:
         use_case.provider_repository.create_provider.return_value = sample_provider
 
         # Act
-        result = await use_case.execute(**{**default_execute_params, "provider_type": ProviderType.TEI})
+        result = await use_case.execute(with_provider_type(default_command, ProviderType.TEI))
 
         # Assert
         assert isinstance(result, CreateProviderUseCaseSuccess)
@@ -188,12 +202,12 @@ class TestCreateProviderUseCase:
         )
 
     @pytest.mark.asyncio
-    async def test_should_return_router_not_found_error_when_router_does_not_exist(self, use_case, default_execute_params):
+    async def test_should_return_router_not_found_error_when_router_does_not_exist(self, use_case, default_command):
         # Arrange
         use_case.router_repository.get_router_by_id.return_value = None
 
         # Act
-        result = await use_case.execute(**default_execute_params)
+        result = await use_case.execute(default_command)
 
         # Assert
         assert isinstance(result, RouterNotFoundError)
@@ -202,13 +216,13 @@ class TestCreateProviderUseCase:
         use_case.provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_invalid_provider_type_error_when_type_not_compatible(self, use_case, default_execute_params):
+    async def test_should_return_invalid_provider_type_error_when_type_not_compatible(self, use_case, default_command):
         # Arrange
         router = RouterFactory(id=1, name="tei-router", type=ModelType.TEXT_CLASSIFICATION)
         use_case.router_repository.get_router_by_id.return_value = router
 
         # Act
-        result = await use_case.execute(**default_execute_params)
+        result = await use_case.execute(default_command)
 
         # Assert
         assert isinstance(result, InvalidProviderTypeError)
@@ -218,13 +232,13 @@ class TestCreateProviderUseCase:
         use_case.provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_provider_not_reachable_error_when_gateway_fails(self, use_case, sample_router, default_execute_params):
+    async def test_should_return_provider_not_reachable_error_when_gateway_fails(self, use_case, sample_router, default_command):
         # Arrange
         use_case.router_repository.get_router_by_id.return_value = sample_router
         use_case.provider_gateway.get_capabilities.return_value = ProviderNotReachableError(model_name="my-model")
 
         # Act
-        result = await use_case.execute(**default_execute_params)
+        result = await use_case.execute(default_command)
 
         # Assert
         assert isinstance(result, ProviderNotReachableError)
@@ -232,15 +246,13 @@ class TestCreateProviderUseCase:
         use_case.provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_inconsistent_max_context_length_error_when_mismatch(
-        self, use_case, sample_router_with_providers, default_execute_params
-    ):
+    async def test_should_return_inconsistent_max_context_length_error_when_mismatch(self, use_case, sample_router_with_providers, default_command):
         # Arrange
         use_case.router_repository.get_router_by_id.return_value = sample_router_with_providers
         use_case.provider_gateway.get_capabilities.return_value = ProviderCapabilities(max_context_length=2048, vector_size=None)
 
         # Act
-        result = await use_case.execute(**default_execute_params)
+        result = await use_case.execute(default_command)
 
         # Assert
         assert isinstance(result, InconsistentModelMaxContextLengthError)
@@ -250,14 +262,14 @@ class TestCreateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_inconsistent_vector_size_error_when_mismatch(
-        self, use_case, sample_embedding_router_with_providers, default_execute_params
+        self, use_case, sample_embedding_router_with_providers, default_command
     ):
         # Arrange
         use_case.router_repository.get_router_by_id.return_value = sample_embedding_router_with_providers
         use_case.provider_gateway.get_capabilities.return_value = ProviderCapabilities(max_context_length=512, vector_size=384)
 
         # Act
-        result = await use_case.execute(**{**default_execute_params, "provider_type": ProviderType.TEI})
+        result = await use_case.execute(with_provider_type(default_command, ProviderType.TEI))
 
         # Assert
         assert isinstance(result, InconsistentModelVectorSizeError)
@@ -266,7 +278,7 @@ class TestCreateProviderUseCase:
         use_case.provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_provider_already_exists_error(self, use_case, sample_router, default_execute_params):
+    async def test_should_return_provider_already_exists_error(self, use_case, sample_router, default_command):
         # Arrange
         use_case.router_repository.get_router_by_id.return_value = sample_router
         use_case.provider_gateway.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
@@ -275,7 +287,7 @@ class TestCreateProviderUseCase:
         )
 
         # Act
-        result = await use_case.execute(**default_execute_params)
+        result = await use_case.execute(default_command)
 
         # Assert
         assert isinstance(result, ProviderAlreadyExistsError)

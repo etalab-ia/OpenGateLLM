@@ -4,6 +4,7 @@ from typing import Literal
 import pycountry
 from pydantic import Field, constr
 
+from api.domain.model.entities import ModelType
 from api.schemas import BaseModel
 from api.schemas.core.models import Metric
 
@@ -19,6 +20,41 @@ class ProviderType(str, Enum):
     MISTRAL = "mistral"
     TEI = "tei"
     VLLM = "vllm"
+
+
+COMPATIBLE_PROVIDER_TYPES: dict[ModelType, list[str]] = {
+    ModelType.AUTOMATIC_SPEECH_RECOGNITION: [
+        ProviderType.ALBERT.value,
+        ProviderType.MISTRAL.value,
+        ProviderType.OPENAI.value,
+        ProviderType.VLLM.value,
+    ],
+    ModelType.IMAGE_TEXT_TO_TEXT: [
+        ProviderType.ALBERT.value,
+        ProviderType.MISTRAL.value,
+        ProviderType.OPENAI.value,
+        ProviderType.VLLM.value,
+    ],
+    ModelType.TEXT_EMBEDDINGS_INFERENCE: [
+        ProviderType.ALBERT.value,
+        ProviderType.OPENAI.value,
+        ProviderType.TEI.value,
+        ProviderType.VLLM.value,
+    ],
+    ModelType.TEXT_GENERATION: [
+        ProviderType.ALBERT.value,
+        ProviderType.MISTRAL.value,
+        ProviderType.OPENAI.value,
+        ProviderType.VLLM.value,
+    ],
+    ModelType.TEXT_CLASSIFICATION: [
+        ProviderType.ALBERT.value,
+        ProviderType.TEI.value,
+    ],
+    ModelType.IMAGE_TO_TEXT: [
+        ProviderType.MISTRAL.value,
+    ],
+}
 
 
 class Provider(BaseModel):
