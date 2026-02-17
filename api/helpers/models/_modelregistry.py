@@ -80,7 +80,6 @@ class ModelRegistry:
         EndpointRoute.CHAT_COMPLETIONS: [ModelType.TEXT_GENERATION, ModelType.IMAGE_TEXT_TO_TEXT],
         EndpointRoute.EMBEDDINGS: [ModelType.TEXT_EMBEDDINGS_INFERENCE],
         EndpointRoute.OCR: [ModelType.IMAGE_TO_TEXT],
-        EndpointRoute.OCR_BETA: [ModelType.IMAGE_TEXT_TO_TEXT],
         EndpointRoute.RERANK: [ModelType.TEXT_CLASSIFICATION],
     }
 

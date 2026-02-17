@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -31,19 +32,32 @@ def setup(client: TestClient):
     COLLECTION_ID = response.json()["id"]
 
     # Upload the file to the collection
-    file_path = "api/tests/integ/assets/json.json"
+    data = {
+        "collection": str(COLLECTION_ID),
+        "output_format": "markdown",
+        "force_ocr": "false",
+        "chunk_size": "1000",
+        "chunk_overlap": "200",
+        "use_llm": "false",
+        "paginate_output": "false",
+        "chunker": "RecursiveCharacterTextSplitter",
+        "chunk_min_size": "0",
+        "is_separator_regex": "false",
+        "metadata": json.dumps({"source_title": "test", "source_tags": ["tag-1", "tag-2"]}),
+    }
+
+    file_path = "api/tests/integ/assets/pdf.pdf"
     with open(file_path, "rb") as file:
-        files = {"file": (os.path.basename(file_path), file, "application/json")}
-        data = {"request": '{"collection": "%s", "chunker": {"args": {"chunk_size": 1000}}}' % COLLECTION_ID}
-        response = client.post_without_permissions(url=f"/v1{EndpointRoute.FILES}", data=data, files=files)
+        files = {"file": (os.path.basename(file_path), file, "application/pdf")}
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data, files=files)
         file.close()
+
     assert response.status_code == 201, response.text
+    DOCUMENT_ID = response.json()["id"]
 
-    # Get document IDS
-    response = client.get_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", params={"collection": COLLECTION_ID})
-    DOCUMENT_IDS = [row["id"] for row in response.json()["data"]]
+    time.sleep(1)
 
-    yield MODEL_ID, DOCUMENT_IDS, COLLECTION_ID
+    yield MODEL_ID, DOCUMENT_ID, COLLECTION_ID
 
 
 @pytest.fixture(scope="module")
@@ -59,7 +73,7 @@ class TestChat:
     @pytest.mark.asyncio
     async def test_chat_completions_unstreamed_response(self, client: TestClient, setup):
         """Test the POST /chat/completions unstreamed response."""
-        MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
+        MODEL_ID, DOCUMENT_ID, COLLECTION_ID = setup
 
         params = {"model": MODEL_ID, "messages": [{"role": "user", "content": "Hello, how are you?"}], "stream": False, "n": 1, "max_tokens": 10}
         response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
@@ -70,7 +84,7 @@ class TestChat:
     @pytest.mark.asyncio
     async def test_chat_completions_streamed_response(self, client: TestClient, setup):
         """Test the POST /chat/completions streamed response."""
-        MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
+        MODEL_ID, DOCUMENT_ID, COLLECTION_ID = setup
 
         params = {"model": MODEL_ID, "messages": [{"role": "user", "content": "Hello, how are you?"}], "stream": True, "n": 1, "max_tokens": 10}
 
@@ -87,7 +101,7 @@ class TestChat:
 
     def test_chat_completions_unknown_params(self, client: TestClient, setup):
         """Test the POST /chat/completions unknown params."""
-        MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
+        MODEL_ID, DOCUMENT_ID, COLLECTION_ID = setup
         params = {
             "model": MODEL_ID,
             "messages": [{"role": "user", "content": "Hello, how are you?"}],
@@ -102,7 +116,7 @@ class TestChat:
 
     def test_chat_completions_forward_error(self, client: TestClient, setup):
         """Test the POST /chat/completions forward errors from the model backend. This test works only if the model backend is vLLM."""
-        MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
+        MODEL_ID, DOCUMENT_ID, COLLECTION_ID = setup
 
         params = {
             "model": MODEL_ID,
@@ -118,7 +132,7 @@ class TestChat:
 
     def test_chat_completions_search_unstreamed_response(self, client: TestClient, setup):
         """Test the GET /chat/completions search unstreamed response."""
-        MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
+        MODEL_ID, DOCUMENT_ID, COLLECTION_ID = setup
 
         params = {
             "model": MODEL_ID,
@@ -135,11 +149,11 @@ class TestChat:
 
         response_json = response.json()
         ChatCompletion(**response_json)  # test output format
-        assert response_json["search_results"][0]["chunk"]["document_id"] in DOCUMENT_IDS
+        assert response_json["search_results"][0]["chunk"]["document_id"] == DOCUMENT_ID
 
     def test_chat_completions_search_streamed_response(self, client: TestClient, setup):
         """Test the GET /chat/completions search streamed response."""
-        MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
+        MODEL_ID, DOCUMENT_ID, COLLECTION_ID = setup
         params = {
             "model": MODEL_ID,
             "messages": [{"role": "user", "content": "Qui est Albert ?"}],
@@ -163,12 +177,12 @@ class TestChat:
                     chunks.append(chunk)
                     continue
                 # check that the last chunk has a search result
-                assert chunks[i - 1].search_results[0].chunk.document_id in DOCUMENT_IDS
+                assert chunks[i - 1].search_results[0].chunk.document_id == DOCUMENT_ID
                 break
 
     def test_chat_completions_search_no_args(self, client: TestClient, setup):
         """Test the GET /chat/completions search template not found."""
-        MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
+        MODEL_ID, DOCUMENT_ID, COLLECTION_ID = setup
         params = {
             "model": MODEL_ID,
             "messages": [{"role": "user", "content": "Qui est Albert ?"}],
@@ -182,7 +196,7 @@ class TestChat:
 
     def test_chat_completions_search_no_collections(self, client: TestClient, setup):
         """Test the GET /chat/completions search no collections."""
-        MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
+        MODEL_ID, DOCUMENT_ID, COLLECTION_ID = setup
         params = {
             "model": MODEL_ID,
             "messages": [{"role": "user", "content": "Qui est Albert ?"}],
@@ -201,7 +215,7 @@ class TestChat:
 
     def test_chat_completions_search_template(self, client: TestClient, setup):
         """Test the GET /chat/completions search template."""
-        MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
+        MODEL_ID, DOCUMENT_ID, COLLECTION_ID = setup
         params = {
             "model": MODEL_ID,
             "messages": [{"role": "user", "content": "Qui est Albert ?"}],
@@ -223,7 +237,7 @@ class TestChat:
 
     def test_chat_completions_search_template_missing_placeholders(self, client: TestClient, setup):
         """Test the GET /chat/completions search template missing placeholders."""
-        MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
+        MODEL_ID, DOCUMENT_ID, COLLECTION_ID = setup
         params = {
             "model": MODEL_ID,
             "messages": [{"role": "user", "content": "Qui est Albert ?"}],
@@ -243,7 +257,7 @@ class TestChat:
 
     def test_chat_completions_search_wrong_collection(self, client: TestClient, setup):
         """Test the GET /chat/completions search wrong collection."""
-        MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
+        MODEL_ID, DOCUMENT_ID, COLLECTION_ID = setup
         params = {
             "model": MODEL_ID,
             "messages": [{"role": "user", "content": "Qui est Albert ?"}],
@@ -258,7 +272,7 @@ class TestChat:
 
     def test_chat_completions_usage(self, client: TestClient, setup, tokenizer):
         """Test the GET /chat/completions usage."""
-        MODEL_ID, DOCUMENT_IDS, COLLECTION_ID = setup
+        MODEL_ID, DOCUMENT_ID, COLLECTION_ID = setup
         prompt = "Hi, write a story about a cat."
         params = {
             "model": MODEL_ID,

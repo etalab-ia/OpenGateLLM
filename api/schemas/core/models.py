@@ -16,7 +16,6 @@ class ProviderEndpoints(BaseModel):
     embeddings: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True), Field(default=None)]
     models: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True), Field(default=None)]
     ocr: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True), Field(default=None)]
-    ocr_beta: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True), Field(default=None)]
     rerank: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True), Field(default=None)]
 
     def get_endpoint(self, endpoint: EndpointRoute) -> str | None:
@@ -30,8 +29,6 @@ class ProviderEndpoints(BaseModel):
             return self.models
         elif endpoint == EndpointRoute.OCR:
             return self.ocr
-        elif endpoint == EndpointRoute.OCR_BETA:
-            return self.ocr_beta
         elif endpoint == EndpointRoute.RERANK:
             return self.rerank
         else:

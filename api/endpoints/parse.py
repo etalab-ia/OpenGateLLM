@@ -12,7 +12,13 @@ from api.utils.variables import EndpointRoute, RouterName
 router = APIRouter(prefix="/v1", tags=[RouterName.PARSE.title()])
 
 
-@router.post(path=EndpointRoute.PARSE, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=ParsedDocument)
+@router.post(
+    path=EndpointRoute.PARSE,
+    dependencies=[Security(dependency=AccessController())],
+    status_code=200,
+    response_model=ParsedDocument,
+    deprecated=True,
+)
 async def parse(
     request: Request,
     data: Annotated[CreateParseForm, Depends(CreateParseForm.as_form)],

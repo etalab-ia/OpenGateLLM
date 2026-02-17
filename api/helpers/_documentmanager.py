@@ -200,6 +200,7 @@ class DocumentManager:
             content = await self.parser_manager.parse(file=file)
         except Exception as e:
             logger.exception(f"failed to parse {document_name} ({e}).")
+            print(e)
             raise ParsingDocumentFailedException()
 
         # split the content into chunks

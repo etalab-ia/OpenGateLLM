@@ -26,7 +26,6 @@ ROUTER_DEFINITIONS: tuple[RouterDefinition, ...] = (
     RouterDefinition(name=RouterName.COLLECTIONS, module_path="api.endpoints.collections"),
     RouterDefinition(name=RouterName.DOCUMENTS, module_path="api.endpoints.documents"),
     RouterDefinition(name=RouterName.EMBEDDINGS, module_path="api.endpoints.embeddings"),
-    RouterDefinition(name=RouterName.FILES, module_path="api.endpoints.files"),  # Inexistant ?
     RouterDefinition(name=RouterName.MODELS, module_path="api.infrastructure.fastapi.endpoints.models"),
     RouterDefinition(name=RouterName.OCR, module_path="api.endpoints.ocr"),
     RouterDefinition(name=RouterName.PARSE, module_path="api.endpoints.parse"),

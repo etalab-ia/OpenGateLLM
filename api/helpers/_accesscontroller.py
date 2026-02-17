@@ -64,9 +64,6 @@ class AccessController:
         if request.url.path.endswith(EndpointRoute.EMBEDDINGS) and request.method in ["POST"]:
             await self._check_embeddings(body=body, user_info=user_info, postgres_session=postgres_session)
 
-        if request.url.path.endswith(EndpointRoute.FILES) and request.method in ["POST"]:
-            await self._check_files(user_info=user_info, postgres_session=postgres_session)
-
         if request.url.path.endswith(EndpointRoute.OCR) and request.method in ["POST"]:
             await self._check_ocr(body=body, user_info=user_info, postgres_session=postgres_session)
 
@@ -159,16 +156,6 @@ class AccessController:
             return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=EndpointRoute.EMBEDDINGS, body=body)
         await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
-
-    @staticmethod
-    async def _check_files(user_info: UserInfo, postgres_session: AsyncSession) -> None:
-        router_id = await global_context.model_registry.get_router_id_from_model_name(
-            model_name=global_context.document_manager.vector_store_model,
-            postgres_session=postgres_session,
-        )
-        if router_id is None:
-            return
-        await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id)
 
     @staticmethod
     async def _check_ocr(body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:

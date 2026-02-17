@@ -1,4 +1,6 @@
+import json
 import os
+import time
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -19,19 +21,31 @@ def setup(client: TestClient):
     assert response.status_code == 201
     COLLECTION_ID = response.json()["id"]
 
-    # Upload a file
-    file_path = "api/tests/integ/assets/json.json"
-    with open(file_path, "rb") as file:
-        files = {"file": (os.path.basename(file_path), file, "application/json")}
-        data = {"request": '{"collection": "%s"}' % COLLECTION_ID}
-        response = client.post_without_permissions(url=f"/v1{EndpointRoute.FILES}", data=data, files=files)
-        file.close()
-    assert response.status_code == 201, response.text
+    # Upload the file to the collection
+    data = {
+        "collection": str(COLLECTION_ID),
+        "output_format": "markdown",
+        "force_ocr": "false",
+        "chunk_size": "1000",
+        "chunk_overlap": "200",
+        "use_llm": "false",
+        "paginate_output": "false",
+        "chunker": "RecursiveCharacterTextSplitter",
+        "chunk_min_size": "0",
+        "is_separator_regex": "false",
+        "metadata": json.dumps({"source_title": "test", "source_tags": ["tag-1", "tag-2"]}),
+    }
 
-    # Retrieve the document ID
-    response = client.get_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", params={"collection": COLLECTION_ID})
-    assert response.status_code == 200, response.text
-    DOCUMENT_ID = response.json()["data"][0]["id"]
+    file_path = "api/tests/integ/assets/pdf.pdf"
+    with open(file_path, "rb") as file:
+        files = {"file": (os.path.basename(file_path), file, "application/pdf")}
+        response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data, files=files)
+        file.close()
+
+    assert response.status_code == 201, response.text
+    DOCUMENT_ID = response.json()["id"]
+
+    time.sleep(1)
 
     yield COLLECTION_ID, DOCUMENT_ID
 
@@ -40,6 +54,7 @@ def setup(client: TestClient):
 class TestChunks:
     def test_get_chunks(self, client: TestClient, setup):
         COLLECTION_ID, DOCUMENT_ID = setup
+
         response = client.get_without_permissions(url=f"/v1{EndpointRoute.CHUNKS}/{DOCUMENT_ID}")
         assert response.status_code == 200, response.text
 
