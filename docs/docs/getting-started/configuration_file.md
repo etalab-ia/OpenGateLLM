@@ -172,7 +172,7 @@ General settings configuration fields.
 | swagger_description | string | Display description of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | [See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md) |  | [See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md) |
 | swagger_docs_url | string | Docs URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | /docs |  |  |
 | swagger_license_info | object | Licence informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `{'name': 'MIT Licence', 'identifier': 'MIT', 'url': 'https://raw.githubusercontent.com/etalab-ia/opengatellm/refs/heads/main/LICENSE'}` |  |  |
-| swagger_openapi_tags | array | OpenAPI tags of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | **required** |  |  |
+| swagger_openapi_tags | array | OpenAPI tags of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | [] |  |  |
 | swagger_openapi_url | string | OpenAPI URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | /openapi.json |  |  |
 | swagger_redoc_url | string | Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | /redoc |  |  |
 | swagger_summary | string | Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | OpenGateLLM connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title. |  | My API description. |
@@ -195,7 +195,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| aliases | array | Aliases of the model. It will be used to identify the model by users. | **required** |  | ['model-alias', 'model-alias-2'] |
+| aliases | array | Aliases of the model. It will be used to identify the model by users. | [] |  | ['model-alias', 'model-alias-2'] |
 | cost_completion_tokens | number | Model costs completion tokens for user budget computation. The cost is by 1M tokens. Set to `0.0` to disable budget computation for this model. | 0.0 |  | 0.1 |
 | cost_prompt_tokens | number | Model costs prompt tokens for user budget computation. The cost is by 1M tokens. | 0.0 |  | 0.1 |
 | load_balancing_strategy | string | Routing strategy for load balancing between providers of the model. | shuffle | • shuffle<br></br>• least_busy | least_busy |
@@ -310,7 +310,7 @@ Other arguments declared below are used to configure the Elasticsearch index.
 
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| headers | object | Albert API request headers. | **required** |  | `{'Authorization': 'Bearer my-api-key'}` |
+| headers | object | Albert API request headers. | `{}` |  | `{'Authorization': 'Bearer my-api-key'}` |
 | timeout | integer | Timeout for the Albert API requests. | 300 |  | 10 |
 | url | string | Albert API url. | https://albert.api.etalab.gouv.fr |  |  |
 
