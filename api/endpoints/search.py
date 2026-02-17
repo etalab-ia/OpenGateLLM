@@ -53,7 +53,7 @@ async def search(
         redis_client=redis_client,
         model_registry=model_registry,
         request_context=request_context,
-        collection_ids=body.collections,
+        collection_ids=body.collection_ids,
         prompt=body.prompt,
         method=body.method,
         limit=body.limit,

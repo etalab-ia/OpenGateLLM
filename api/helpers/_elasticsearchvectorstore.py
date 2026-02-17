@@ -258,6 +258,7 @@ class ElasticsearchVectorStore:
         }
 
         results = await client.search(index=self.index_name, body=body)
+
         searches = [
             Search(
                 method=SearchMethod.SEMANTIC.value,

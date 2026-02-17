@@ -76,13 +76,13 @@ async def chat_completions(
                 raise CollectionNotFoundException()
 
             results = await global_context.document_manager.search_chunks(
-                request_context=request_context,
+                request_context=inner_request_context,
                 elasticsearch_vector_store=inner_elasticsearch_vector_store,
                 elasticsearch_client=inner_elasticsearch_client,
                 postgres_session=inner_postgres_session,
                 redis_client=inner_redis_client,
                 model_registry=inner_model_registry,
-                collection_ids=initial_body.search_args.collections,
+                collection_ids=initial_body.search_args.collection_ids,
                 prompt=initial_body.messages[-1]["content"],
                 method=initial_body.search_args.method,
                 limit=initial_body.search_args.limit,

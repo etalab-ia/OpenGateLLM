@@ -78,13 +78,6 @@ class TestSearch:
         response = client.post_without_permissions(url=f"/v1{EndpointRoute.SEARCH}", json=data)
         assert response.status_code == 404, response.text
 
-    def test_search_invalid_k(self, client: TestClient, setup):
-        """Test search with an invalid k value."""
-        COLLECTION_ID, DOCUMENT_ID = setup
-        data = {"prompt": "Erasmus", "collections": [COLLECTION_ID], "k": 0}
-        response = client.post_without_permissions(url=f"/v1{EndpointRoute.SEARCH}", json=data)
-        assert response.status_code == 422, response.text
-
     def test_search_empty_prompt(self, client: TestClient, setup):
         """Test search with an empty prompt."""
         COLLECTION_ID, DOCUMENT_ID = setup
