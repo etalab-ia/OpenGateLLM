@@ -78,8 +78,8 @@ async def create_provider(
     match result:
         case CreateProviderUseCaseSuccess(created_provider):
             return CreateProviderResponse.model_validate(created_provider, from_attributes=True)
-        case InvalidProviderTypeError(provider_type):
-            raise InvalidProviderTypeHTTPException(provider_type)
+        case InvalidProviderTypeError(provider_type, router_type):
+            raise InvalidProviderTypeHTTPException(provider_type, router_type)
         case ProviderNotReachableError(name):
             raise ProviderNotReachableHTTPException(name)
         case ProviderAlreadyExistsError(model_name, url, router_id):

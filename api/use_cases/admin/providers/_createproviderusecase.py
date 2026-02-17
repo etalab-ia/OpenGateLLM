@@ -94,7 +94,7 @@ class CreateProviderUseCase:
             return RouterNotFoundError(router_id)
 
         if provider_type.value not in MODEL_TYPE_TO_MODEL_PROVIDER_TYPE_MAPPING[router.type]:
-            return InvalidProviderTypeError(provider_type.value)
+            return InvalidProviderTypeError(provider_type=provider_type.value, router_type=router.type)
 
         result = await self.provider_gateway.get_capabilities(provider_type=provider_type, url=url, key=key, timeout=timeout, model_name=model_name)
 

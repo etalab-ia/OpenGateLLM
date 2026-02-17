@@ -3,7 +3,8 @@ from dataclasses import dataclass
 
 @dataclass
 class InvalidProviderTypeError:
-    type: str
+    provider_type: str
+    router_type: str
 
 
 @dataclass

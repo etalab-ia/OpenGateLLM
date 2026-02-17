@@ -1,5 +1,3 @@
-from ._createproviderusecase import CreateProviderUseCase
+from ._createproviderusecase import CreateProviderUseCase, CreateProviderUseCaseSuccess
 
-__all__ = [
-    "CreateProviderUseCase",
-]
+__all__ = ["CreateProviderUseCase", "CreateProviderUseCaseSuccess"]

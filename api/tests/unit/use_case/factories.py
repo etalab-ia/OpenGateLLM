@@ -4,6 +4,7 @@ import random
 import factory
 from factory import fuzzy
 
+from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderType
 from api.domain.role.entities import Limit, LimitType, PermissionType, Role
 from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStrategy
 from api.domain.user.entities import User
@@ -68,6 +69,27 @@ class RouterFactory(factory.Factory):
         )
 
         with_providers = factory.Trait(providers=factory.Faker("random_int", min=1, max=5))
+
+
+class ProviderFactory(factory.Factory):
+    class Meta:
+        model = Provider
+
+    id = factory.Sequence(lambda n: n + 1)
+    router_id = factory.Faker("random_int", min=1, max=1000)
+    user_id = factory.Faker("random_int", min=1, max=1000)
+    type = factory.Faker("random_element", elements=list(ProviderType))
+    url = factory.Faker("url")
+    key = None
+    timeout = 30
+    model_name = factory.Faker("bothify", text="model-????")
+    model_hosting_zone = ProviderCarbonFootprintZone.WOR
+    model_total_params = 0
+    model_active_params = 0
+    qos_metric = None
+    qos_limit = None
+    created = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
+    updated = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
 
 
 class UserFactory(factory.Factory):
