@@ -229,7 +229,6 @@ For more information to configure model providers, see the [ModelProvider sectio
 | elasticsearch | object | See the [ElasticsearchDependency section](#elasticsearchdependency) for more information. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). | None |  |  |
 | marker | object | **[DEPRECATED]** See the [MarkerDependency section](#markerdependency) for more information. For details of configuration, see the [MarkerDependency section](#markerdependency). | None |  |  |
 | postgres | object | See the [PostgresDependency section](#postgresdependency) for more information. For details of configuration, see the [PostgresDependency section](#postgresdependency). | **required** |  |  |
-| proconnect | object | **[DEPRECATED]** See the [ProConnect section](#proconnect) for more information. For details of configuration, see the [ProConnect section](#proconnect). | None |  |  |
 | redis | object | See the [RedisDependency section](#redisdependency) for more information. For details of configuration, see the [RedisDependency section](#redisdependency). | **required** |  |  |
 | sentry | object | See the [SentryDependency section](#sentrydependency) for more information. For details of configuration, see the [SentryDependency section](#sentrydependency). | None |  |  |
 
@@ -251,22 +250,6 @@ Pass all `from_url()` method arguments of `redis.asyncio.connection.ConnectionPo
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
 | url | string | Redis connection url. | **required** |  | redis://:changeme@localhost:6379 |
-
-<br></br>
-
-#### ProConnect
-**[DEPRECATED]**
-<br></br>
-
-| Attribute | Type | Description | Default | Values | Examples |
-| --- | --- | --- | --- | --- | --- |
-| allowed_domains | string | Comma-separated list of domains allowed to sign in via ProConnect (e.g. 'gouv.fr,example.com'). Only fronted on the specified domains will be allowed to authenticate using proconnect. | localhost,gouv.fr |  |  |
-| client_id | string | Client identifier provided by ProConnect when you register your application in their dashboard. This value is public (it's fine to embed in clients) but must match the value configured in ProConnect. |  |  |  |
-| client_secret | string | Client secret provided by ProConnect at application registration. This value must be kept confidential — it's used by the server to authenticate with ProConnect during token exchange (do not expose it to browsers or mobile apps). |  |  |  |
-| default_role | string | Role automatically assigned to users created via ProConnect login on first sign-in. Set this to the role name you want new ProConnect users to receive (must exist in your roles configuration). | Freemium |  |  |
-| redirect_uri | string | Redirect URI where users are sent after successful ProConnect authentication. This URI must exactly match one of the redirect URIs configured in OpenGateLLM settings. It must be an HTTPS endpoint in production and is used to receive the authorization tokens from ProConnect. | https://albert.api.etalab.gouv.fr/v1/auth/callback |  |  |
-| scope | string | Space-separated OAuth2/OpenID Connect scopes requested from ProConnect (for example: 'openid email given_name'). Scopes determine the information returned about the authenticated user; reduce scopes to the minimum necessary for privacy. | openid email given_name usual_name siret organizational_unit belonging_population chorusdt |  |  |
-| server_metadata_url | string | OpenID Connect discovery endpoint for ProConnect (server metadata). The SDK/flow uses this to discover authorization, token, and JWKS endpoints. Change to the production discovery URL when switching from sandbox to production. | https://identite-sandbox.proconnect.gouv.fr/.well-known/openid-configuration |  |  |
 
 <br></br>
 

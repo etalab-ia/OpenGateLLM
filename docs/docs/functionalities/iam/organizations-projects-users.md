@@ -81,10 +81,6 @@ Users represent entities that can access the API. Each user must have an email, 
 - `budget`: Budget limit for the user (optional, see [Budget](../budget.md))
 - `expires`: Unix timestamp when the user account expires (optional)
 
-:::info
-Users also have `sub` and `iss` fields for OAuth2/ProConnect authentication. These are `null` when using email/password authentication.
-:::
-
 ### Managing users
 
 <Tabs>

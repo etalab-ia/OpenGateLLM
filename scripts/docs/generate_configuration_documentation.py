@@ -11,7 +11,7 @@ from api.schemas.core.configuration import ConfigFile as ApiConfigFile  # noqa: 
 from app.core.configuration import ConfigFile as PlaygroundConfigFile  # noqa: E402 # type: ignore
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--output", type=str, default=os.path.join("./docs/docs/getting-started/configuration.md"))
+parser.add_argument("--output", type=str, default=os.path.join("./docs/docs/getting-started/configuration_file.md"))
 
 
 def get_documentation_data(title: str, data: list, properties: dict, defs: dict, header: str = "", level: int = 1):

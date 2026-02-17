@@ -263,20 +263,6 @@ class RedisDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
 
 
-class ProConnect(ConfigBaseModel):
-    """
-    **[DEPRECATED]**
-    """
-
-    client_id: str = Field(default="", description="Client identifier provided by ProConnect when you register your application in their dashboard. This value is public (it's fine to embed in clients) but must match the value configured in ProConnect.")  # fmt: off
-    client_secret: str = Field(default="", description="Client secret provided by ProConnect at application registration. This value must be kept confidential — it's used by the server to authenticate with ProConnect during token exchange (do not expose it to browsers or mobile apps).")  # fmt: off
-    server_metadata_url: str = Field(default="https://identite-sandbox.proconnect.gouv.fr/.well-known/openid-configuration", description="OpenID Connect discovery endpoint for ProConnect (server metadata). The SDK/flow uses this to discover authorization, token, and JWKS endpoints. Change to the production discovery URL when switching from sandbox to production.")  # fmt: off
-    redirect_uri: str = Field(default="https://albert.api.etalab.gouv.fr/v1/auth/callback", description="Redirect URI where users are sent after successful ProConnect authentication. This URI must exactly match one of the redirect URIs configured in OpenGateLLM settings. It must be an HTTPS endpoint in production and is used to receive the authorization tokens from ProConnect.")  # fmt: off
-    scope: str = Field(default="openid email given_name usual_name siret organizational_unit belonging_population chorusdt", description="Space-separated OAuth2/OpenID Connect scopes requested from ProConnect (for example: 'openid email given_name'). Scopes determine the information returned about the authenticated user; reduce scopes to the minimum necessary for privacy.")  # fmt: off
-    allowed_domains: str = Field(default="localhost,gouv.fr", description="Comma-separated list of domains allowed to sign in via ProConnect (e.g. 'gouv.fr,example.com'). Only fronted on the specified domains will be allowed to authenticate using proconnect.")  # fmt: off
-    default_role: str = Field(default="Freemium", description="Role automatically assigned to users created via ProConnect login on first sign-in. Set this to the role name you want new ProConnect users to receive (must exist in your roles configuration).")  # fmt: off
-
-
 class EmptyDepencency(ConfigBaseModel):
     pass
 
@@ -290,7 +276,6 @@ class Dependencies(ConfigBaseModel):
     postgres: PostgresDependency = Field(..., description="See the [PostgresDependency section](#postgresdependency) for more information.")  # fmt: off
     redis: RedisDependency  = Field(..., description="See the [RedisDependency section](#redisdependency) for more information.")  # fmt: off
     sentry: SentryDependency | None = Field(default=None, description="See the [SentryDependency section](#sentrydependency) for more information.")  # fmt: off
-    proconnect: ProConnect | None = Field(default=None, description="**[DEPRECATED]** See the [ProConnect section](#proconnect) for more information.")  # fmt: off
 
     @model_validator(mode="after")
     def complete_celery(self):
