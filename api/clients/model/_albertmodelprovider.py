@@ -4,7 +4,8 @@ from urllib.parse import urljoin
 import httpx
 
 from api.schemas.admin.providers import ProviderType
-from api.utils.variables import ModelEndpoint
+from api.schemas.core.models import ProviderEndpoints
+from api.utils.variables import EndpointRoute
 
 from ._basemodelprovider import BaseModelProvider
 
@@ -12,14 +13,14 @@ logger = logging.getLogger(__name__)
 
 
 class AlbertModelProvider(BaseModelProvider):
-    ENDPOINT_TABLE = {
-        ModelEndpoint.AUDIO_TRANSCRIPTIONS: "/v1/audio/transcriptions",
-        ModelEndpoint.CHAT_COMPLETIONS: "/v1/chat/completions",
-        ModelEndpoint.EMBEDDINGS: "/v1/embeddings",
-        ModelEndpoint.MODELS: "/v1/models",
-        ModelEndpoint.OCR: "/v1/ocr",
-        ModelEndpoint.RERANK: "/v1/rerank",
-    }
+    ENDPOINT_TABLE = ProviderEndpoints(
+        audio_transcriptions="/v1/audio/transcriptions",
+        chat_completions="/v1/chat/completions",
+        embeddings="/v1/embeddings",
+        models="/v1/models",
+        ocr="/v1/ocr",
+        rerank="/v1/rerank",
+    )
 
     def __init__(
         self,
@@ -46,7 +47,7 @@ class AlbertModelProvider(BaseModelProvider):
         self.type = ProviderType.ALBERT
 
     async def get_max_context_length(self) -> int | None:
-        url = urljoin(base=str(self.url), url=self.ENDPOINT_TABLE[ModelEndpoint.MODELS].lstrip("/"))
+        url = urljoin(base=str(self.url), url=self.ENDPOINT_TABLE.get_endpoint(endpoint=EndpointRoute.MODELS).lstrip("/"))
 
         try:
             async with httpx.AsyncClient() as client:

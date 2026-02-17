@@ -4,7 +4,8 @@ from urllib.parse import urljoin
 import httpx
 
 from api.schemas.admin.providers import ProviderType
-from api.utils.variables import ModelEndpoint
+from api.schemas.core.models import ProviderEndpoints
+from api.utils.variables import EndpointRoute
 
 from ._basemodelprovider import BaseModelProvider
 
@@ -12,14 +13,14 @@ logger = logging.getLogger(__name__)
 
 
 class TeiModelProvider(BaseModelProvider):
-    ENDPOINT_TABLE = {
-        ModelEndpoint.AUDIO_TRANSCRIPTIONS: None,
-        ModelEndpoint.CHAT_COMPLETIONS: None,
-        ModelEndpoint.EMBEDDINGS: "/v1/embeddings",
-        ModelEndpoint.MODELS: "/info",
-        ModelEndpoint.OCR: None,
-        ModelEndpoint.RERANK: "/rerank",
-    }
+    ENDPOINT_TABLE = ProviderEndpoints(
+        audio_transcriptions=None,
+        chat_completions=None,
+        embeddings="/v1/embeddings",
+        models="/info",
+        ocr=None,
+        rerank="/rerank",
+    )
 
     def __init__(
         self,
@@ -46,7 +47,7 @@ class TeiModelProvider(BaseModelProvider):
         self.type = ProviderType.TEI
 
     async def get_max_context_length(self) -> int | None:
-        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[ModelEndpoint.MODELS].lstrip("/"))
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE.get_endpoint(endpoint=EndpointRoute.MODELS).lstrip("/"))
 
         try:
             async with httpx.AsyncClient() as client:

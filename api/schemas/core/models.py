@@ -1,18 +1,47 @@
 from enum import Enum
 from http import HTTPMethod
+from typing import Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 from api.utils import variables
-from api.utils.variables import EndpointRoute, ModelEndpoint
+from api.utils.variables import EndpointRoute
 
 Endpoint = Enum("Endpoint", {name.upper(): value for name, value in vars(variables).items() if name.startswith("ENDPOINT__")}, type=str)
+
+
+class ProviderEndpoints(BaseModel):
+    audio_transcriptions: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True), Field(default=None)]  # fmt: off
+    chat_completions: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True), Field(default=None)]
+    embeddings: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True), Field(default=None)]
+    models: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True), Field(default=None)]
+    ocr: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True), Field(default=None)]
+    ocr_beta: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True), Field(default=None)]
+    rerank: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True), Field(default=None)]
+
+    def get_endpoint(self, endpoint: EndpointRoute) -> str | None:
+        if endpoint == EndpointRoute.AUDIO_TRANSCRIPTIONS:
+            return self.audio_transcriptions
+        elif endpoint == EndpointRoute.CHAT_COMPLETIONS:
+            return self.chat_completions
+        elif endpoint == EndpointRoute.EMBEDDINGS:
+            return self.embeddings
+        elif endpoint == EndpointRoute.MODELS:
+            return self.models
+        elif endpoint == EndpointRoute.OCR:
+            return self.ocr
+        elif endpoint == EndpointRoute.OCR_BETA:
+            return self.ocr_beta
+        elif endpoint == EndpointRoute.RERANK:
+            return self.rerank
+        else:
+            return None
 
 
 class RequestContent(BaseModel):
     method: HTTPMethod
     model: str = Field(description="The called model name.")
-    endpoint: EndpointRoute | ModelEndpoint = Field(description="The source endpoint (at the user side) of the request.")
+    endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
     json: dict = Field(default={}, description="The JSON body to use for the request.")
     form: dict = Field(default={}, description="The form-encoded data to use for the request.")
     files: dict = Field(default={}, description="The files to use for the request.")

@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -31,6 +32,8 @@ def setup(client: TestClient):
     response = client.get_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", params={"collection": COLLECTION_ID})
     assert response.status_code == 200, response.text
     DOCUMENT_IDS = [document["id"] for document in response.json()["data"]]
+
+    time.sleep(1)
 
     yield COLLECTION_ID, DOCUMENT_IDS
 

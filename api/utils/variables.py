@@ -55,16 +55,6 @@ class EndpointRoute(StrEnum):
     SEARCH = f"/{RouterName.SEARCH}"
 
 
-class ModelEndpoint(StrEnum):
-    AUDIO_TRANSCRIPTIONS = EndpointRoute.AUDIO_TRANSCRIPTIONS
-    CHAT_COMPLETIONS = EndpointRoute.CHAT_COMPLETIONS
-    EMBEDDINGS = EndpointRoute.EMBEDDINGS
-    MODELS = EndpointRoute.MODELS
-    OCR = EndpointRoute.OCR
-    OCR_BETA = EndpointRoute.OCR_BETA
-    RERANK = EndpointRoute.RERANK
-
-
 # Supported language from https://github.com/huggingface/transformers/blob/main/src/transformers/models/whisper/tokenization_whisper.py
 SUPPORTED_LANGUAGES = {
     "afrikaans": "af",

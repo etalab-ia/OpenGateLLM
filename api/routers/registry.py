@@ -27,6 +27,7 @@ ROUTER_DEFINITIONS: tuple[RouterDefinition, ...] = (
     RouterDefinition(name=RouterName.DOCUMENTS, module_path="api.endpoints.documents"),
     RouterDefinition(name=RouterName.EMBEDDINGS, module_path="api.endpoints.embeddings"),
     RouterDefinition(name=RouterName.FILES, module_path="api.endpoints.files"),  # Inexistant ?
+    RouterDefinition(name=RouterName.MODELS, module_path="api.infrastructure.fastapi.endpoints.models"),
     RouterDefinition(name=RouterName.OCR, module_path="api.endpoints.ocr"),
     RouterDefinition(name=RouterName.PARSE, module_path="api.endpoints.parse"),
     RouterDefinition(name=RouterName.RERANK, module_path="api.endpoints.rerank"),
@@ -35,8 +36,4 @@ ROUTER_DEFINITIONS: tuple[RouterDefinition, ...] = (
     RouterDefinition(name=RouterName.ME, module_path="api.endpoints.me.info"),
     RouterDefinition(name=RouterName.ME, module_path="api.endpoints.me.keys"),
     RouterDefinition(name=RouterName.ME, module_path="api.endpoints.me.usage"),
-    # ProConnect auth router
-    RouterDefinition(name=RouterName.AUTH, module_path="api.endpoints.proconnect"),
-    # Models router (infrastructure)
-    RouterDefinition(name=RouterName.MODELS, module_path="api.infrastructure.fastapi.endpoints.models"),
 )

@@ -14,27 +14,25 @@ from redis.asyncio import Redis as AsyncRedis
 from api.schemas.admin.providers import ProviderType
 from api.schemas.audio import AudioTranscription, CreateAudioTranscription
 from api.schemas.chat import ChatCompletionChunk, CreateChatCompletion
-from api.schemas.core.models import Metric, RequestContent
+from api.schemas.core.models import Metric, ProviderEndpoints, RequestContent
 from api.schemas.rerank import CreateRerank, Reranks
 from api.schemas.usage import Usage
 from api.utils.carbon import get_carbon_footprint
 from api.utils.context import generate_request_id, global_context, request_context
 from api.utils.exceptions import ModelIsTooBusyException, RequestFormatFailedException, ResponseFormatFailedException
 from api.utils.redis import redis_retry, safe_redis_reset
-from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE, PREFIX__REDIS_METRIC_TIMESERIE, REDIS__TIMESERIE_RETENTION_SECONDS, ModelEndpoint
+from api.utils.variables import (
+    PREFIX__REDIS_METRIC_GAUGE,
+    PREFIX__REDIS_METRIC_TIMESERIE,
+    REDIS__TIMESERIE_RETENTION_SECONDS,
+    EndpointRoute,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class BaseModelProvider(ABC):
-    ENDPOINT_TABLE: dict[ModelEndpoint, str | None] = {
-        ModelEndpoint.AUDIO_TRANSCRIPTIONS: None,
-        ModelEndpoint.CHAT_COMPLETIONS: None,
-        ModelEndpoint.EMBEDDINGS: None,
-        ModelEndpoint.MODELS: None,
-        ModelEndpoint.OCR: None,
-        ModelEndpoint.RERANK: None,
-    }
+    ENDPOINT_TABLE: ProviderEndpoints = ProviderEndpoints()
 
     def __init__(
         self,
@@ -86,10 +84,10 @@ class BaseModelProvider(ABC):
         pass
 
     async def get_vector_size(self) -> int | None:
-        if self.ENDPOINT_TABLE[ModelEndpoint.EMBEDDINGS] is None:
+        if self.ENDPOINT_TABLE.embeddings is None:
             return None
 
-        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[ModelEndpoint.EMBEDDINGS].lstrip("/"))
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE.embeddings.lstrip("/"))
 
         async with httpx.AsyncClient() as client:
             response = await client.post(url=url, headers=self.headers, json={"model": self.model_name, "input": "hello world"}, timeout=self.timeout)
@@ -167,13 +165,13 @@ class BaseModelProvider(ABC):
         if "model" in request_content.form:
             request_content.form["model"] = self.model_name
         try:
-            if request_content.endpoint == ModelEndpoint.AUDIO_TRANSCRIPTIONS:
+            if request_content.endpoint == EndpointRoute.AUDIO_TRANSCRIPTIONS:
                 request_content = CreateAudioTranscription.format_request(provider_type=self.type, request_content=request_content)
 
-            if request_content.endpoint == ModelEndpoint.CHAT_COMPLETIONS:
+            if request_content.endpoint == EndpointRoute.CHAT_COMPLETIONS:
                 request_content = CreateChatCompletion.format_request(provider_type=self.type, request_content=request_content)
 
-            if request_content.endpoint == ModelEndpoint.RERANK:
+            if request_content.endpoint == EndpointRoute.RERANK:
                 request_content = CreateRerank.format_request(provider_type=self.type, request_content=request_content)
 
         except Exception as e:
@@ -203,14 +201,14 @@ class BaseModelProvider(ABC):
             additional_data.update({"model": request_content.model, "id": request_context.get().id, "usage": usage.model_dump()})
 
             try:
-                if request_content.endpoint == ModelEndpoint.AUDIO_TRANSCRIPTIONS:
+                if request_content.endpoint == EndpointRoute.AUDIO_TRANSCRIPTIONS:
                     response_data = AudioTranscription.build_from(
                         provider_type=self.type,
                         request_content=request_content,
                         response_data=response_data,
                     ).model_dump()
 
-                elif request_content.endpoint == ModelEndpoint.RERANK:
+                elif request_content.endpoint == EndpointRoute.RERANK:
                     response_data = Reranks.build_from(
                         provider_type=self.type,
                         request_content=request_content,
@@ -291,7 +289,7 @@ class BaseModelProvider(ABC):
             httpx.Response: The response from the API.
         """
 
-        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[request_content.endpoint].lstrip("/"))
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE.get_endpoint(endpoint=request_content.endpoint).lstrip("/"))
         request_content = self._format_request(request_content=request_content)
 
         inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
@@ -359,7 +357,7 @@ class BaseModelProvider(ABC):
         Returns:
             dict | None: The extra chunk.
         """
-        if request_content.endpoint != ModelEndpoint.CHAT_COMPLETIONS:
+        if request_content.endpoint != EndpointRoute.CHAT_COMPLETIONS:
             return
 
         if len(buffer) == 0:
@@ -388,7 +386,7 @@ class BaseModelProvider(ABC):
             redis_client(AsyncRedis): The redis client to use for the request.
             request_content(RequestContent): The request content to use for the request.
         """
-        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[request_content.endpoint].lstrip("/"))
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE.get_endpoint(endpoint=request_content.endpoint).lstrip("/"))
         request_content = self._format_request(request_content=request_content)
 
         inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"

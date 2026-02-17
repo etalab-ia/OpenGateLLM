@@ -4,7 +4,7 @@ import tiktoken
 
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk
 from api.schemas.core.configuration import Tokenizer
-from api.utils.variables import EndpointRoute, ModelEndpoint
+from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ class UsageTokenizer:
             response_data (dict | list[dict]): The response data of the request (must be a ChatCompletion or a list of ChatCompletionChunk).
         """
         completion_tokens = 0
-        if endpoint == ModelEndpoint.CHAT_COMPLETIONS:
+        if endpoint == EndpointRoute.CHAT_COMPLETIONS:
             if isinstance(response_data, list):
                 completion_tokens = sum([len(self.tokenizer.encode(ChatCompletionChunk.extract_chunk_content(chunk=chunk))) for chunk in response_data])  # fmt: off
             else:
