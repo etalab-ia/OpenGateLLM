@@ -19,14 +19,13 @@ class RouterName(StrEnum):
     COLLECTIONS = ("collections", "api.endpoints.collections")
     DOCUMENTS = ("documents", "api.endpoints.documents")
     EMBEDDINGS = ("embeddings", "api.endpoints.embeddings")
-    FILES = ("files", "api.endpoints.files")
+    ME = ("me", "api.endpoints.me")
     MODELS = ("models", "api.infrastructure.fastapi.endpoints.models")
     MONITORING = ("monitoring", None)
     OCR = ("ocr", "api.endpoints.ocr")
     PARSE = ("parse", "api.endpoints.parse")
     RERANK = ("rerank", "api.endpoints.rerank")
     SEARCH = ("search", "api.endpoints.search")
-    ME = ("me", "api.endpoints.me")
 
     def __new__(cls, value: str, module_path: str):
         obj = str.__new__(cls, value)
