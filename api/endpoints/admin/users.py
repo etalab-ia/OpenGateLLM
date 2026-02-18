@@ -44,7 +44,7 @@ async def create_user(
 
 
 @router.delete(
-    path=EndpointRoute.ADMIN_USERS + "/{user:path}",
+    path=EndpointRoute.ADMIN_USERS + "/{user}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -62,7 +62,7 @@ async def delete_user(
 
 
 @router.patch(
-    path=EndpointRoute.ADMIN_USERS + "/{user:path}",
+    path=EndpointRoute.ADMIN_USERS + "/{user}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -93,7 +93,7 @@ async def update_user(
 
 
 @router.get(
-    path=EndpointRoute.ADMIN_USERS + "/{user:path}",
+    path=EndpointRoute.ADMIN_USERS + "/{user}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
 )

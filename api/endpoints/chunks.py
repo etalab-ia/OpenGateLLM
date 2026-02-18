@@ -13,7 +13,7 @@ from api.utils.variables import EndpointRoute, RouterName
 router = APIRouter(prefix="/v1", tags=[RouterName.CHUNKS.title()])
 
 
-@router.get(path=EndpointRoute.CHUNKS + "/{document:path}/{chunk:path}", dependencies=[Security(dependency=AccessController())], status_code=200, deprecated=True)  # fmt: off
+@router.get(path=EndpointRoute.CHUNKS + "/{document}/{chunk}", dependencies=[Security(dependency=AccessController())], status_code=200, deprecated=True)  # fmt: off
 async def get_chunk(
     request: Request,
     document: int = Path(description="The document ID"),

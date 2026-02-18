@@ -371,6 +371,7 @@ class DocumentManager:
 
         last_chunk_id: int | None = await elasticsearch_vector_store.get_last_chunk_id(client=elasticsearch_client, document_id=document_id)
         start = 0 if last_chunk_id is None else last_chunk_id + 1
+
         chunks: list[Chunk] = [
             Chunk(
                 id=i,
@@ -574,7 +575,6 @@ class DocumentManager:
             request_context=request_context,
             redis_client=redis_client,
         )
-        i = 0
         batches = batched(iterable=chunks, n=self.BATCH_SIZE)
         for batch in batches:
             input_texts = [chunk.content for chunk in batch]
@@ -583,7 +583,7 @@ class DocumentManager:
             for chunk, embedding in zip(batch, embeddings):
                 batch_chunks.append(
                     ElasticsearchChunk(
-                        id=i,
+                        id=chunk.id,
                         collection_id=chunk.collection_id,
                         document_id=chunk.document_id,
                         content=chunk.content,
@@ -592,5 +592,4 @@ class DocumentManager:
                         created=datetime.now(),
                     )
                 )
-                i += 1
             await elasticsearch_vector_store.upsert(client=elasticsearch_client, chunks=batch_chunks)

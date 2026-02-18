@@ -54,7 +54,7 @@ async def delete_role(
 
 
 @router.patch(
-    path=EndpointRoute.ADMIN_ROLES + "/{role:path}",
+    path=EndpointRoute.ADMIN_ROLES + "/{role}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -80,7 +80,7 @@ async def update_role(
 
 
 @router.get(
-    path=EndpointRoute.ADMIN_ROLES + "/{role:path}",
+    path=EndpointRoute.ADMIN_ROLES + "/{role}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Role,

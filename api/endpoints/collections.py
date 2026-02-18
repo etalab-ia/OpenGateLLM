@@ -35,7 +35,7 @@ async def create_collection(
 
 
 @router.get(
-    path=EndpointRoute.COLLECTIONS + "/{collection_id:path}",
+    path=EndpointRoute.COLLECTIONS + "/{collection_id}",
     dependencies=[Security(dependency=AccessController())],
     status_code=200,
     response_model=Collection,
@@ -81,7 +81,7 @@ async def get_collections(
     return JSONResponse(status_code=200, content=Collections(data=data).model_dump())
 
 
-@router.delete(path=EndpointRoute.COLLECTIONS + "/{collection_id:path}", dependencies=[Security(dependency=AccessController())], status_code=204)
+@router.delete(path=EndpointRoute.COLLECTIONS + "/{collection_id}", dependencies=[Security(dependency=AccessController())], status_code=204)
 async def delete_collection(
     request: Request,
     collection_id: int = Path(..., description="The collection ID"),
@@ -106,7 +106,7 @@ async def delete_collection(
     return Response(status_code=204)
 
 
-@router.patch(path=EndpointRoute.COLLECTIONS + "/{collection_id:path}", dependencies=[Security(dependency=AccessController())], status_code=204)
+@router.patch(path=EndpointRoute.COLLECTIONS + "/{collection_id}", dependencies=[Security(dependency=AccessController())], status_code=204)
 async def update_collection(
     request: Request,
     collection_id: int = Path(..., description="The collection ID"),

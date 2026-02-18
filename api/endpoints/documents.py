@@ -65,7 +65,7 @@ async def create_document(
     return JSONResponse(content=DocumentResponse(id=document_id).model_dump(), status_code=201)
 
 
-@router.get(path=EndpointRoute.DOCUMENTS + "/{document_id:path}", dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Document)  # fmt: off
+@router.get(path=EndpointRoute.DOCUMENTS + "/{document_id}", dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Document)  # fmt: off
 async def get_document(
     request: Request,
     document_id: Annotated[int, Path(ge=0, description="The document ID")],
@@ -117,7 +117,7 @@ async def get_documents(
     return JSONResponse(content=Documents(data=data).model_dump(), status_code=200)
 
 
-@router.delete(path=EndpointRoute.DOCUMENTS + "/{document_id:path}", dependencies=[Security(dependency=AccessController())], status_code=204)  # fmt: off
+@router.delete(path=EndpointRoute.DOCUMENTS + "/{document_id}", dependencies=[Security(dependency=AccessController())], status_code=204)  # fmt: off
 async def delete_document(
     request: Request,
     document_id: Annotated[int, Path(gt=0, description="The document ID")],
@@ -140,7 +140,7 @@ async def delete_document(
     return Response(status_code=204)
 
 
-@router.post(path=EndpointRoute.DOCUMENTS + "/{document_id:path}/chunks", dependencies=[Security(dependency=AccessController())], status_code=201)  # fmt: off
+@router.post(path=EndpointRoute.DOCUMENTS + "/{document_id}/chunks", dependencies=[Security(dependency=AccessController())], status_code=201)  # fmt: off
 async def create_document_chunks(
     request: Request,
     document_id: Annotated[int, Path(gt=0, description="The document ID")],
@@ -170,7 +170,7 @@ async def create_document_chunks(
     return JSONResponse(content=ChunksResponse(document_id=document_id, ids=chunk_ids).model_dump(), status_code=201)
 
 
-@router.delete(path=EndpointRoute.DOCUMENTS + "/{document_id:path}/chunks/{chunk_id:path}", dependencies=[Security(dependency=AccessController())], status_code=204)  # fmt: off
+@router.delete(path=EndpointRoute.DOCUMENTS + "/{document_id}/chunks/{chunk_id}", dependencies=[Security(dependency=AccessController())], status_code=204)  # fmt: off
 async def delete_document_chunk(
     request: Request,
     document_id: Annotated[int, Path(gt=0, description="The document ID")],
@@ -194,7 +194,7 @@ async def delete_document_chunk(
     return Response(status_code=204)
 
 
-@router.get(path=EndpointRoute.DOCUMENTS + "/{document_id:path}/chunks", dependencies=[Security(dependency=AccessController())], status_code=200)  # fmt: off
+@router.get(path=EndpointRoute.DOCUMENTS + "/{document_id}/chunks", dependencies=[Security(dependency=AccessController())], status_code=200)  # fmt: off
 async def get_document_chunks(
     request: Request,
     document_id: Annotated[int, Path(gt=0, description="The document ID")],
@@ -221,7 +221,7 @@ async def get_document_chunks(
     return JSONResponse(content=Chunks(data=chunks).model_dump(), status_code=200)
 
 
-@router.get(path=EndpointRoute.DOCUMENTS + "/{document_id:path}/chunks/{chunk_id:path}", dependencies=[Security(dependency=AccessController())],status_code=200)  # fmt: off
+@router.get(path=EndpointRoute.DOCUMENTS + "/{document_id}/chunks/{chunk_id}", dependencies=[Security(dependency=AccessController())],status_code=200)  # fmt: off
 async def get_document_chunk(
     request: Request,
     document_id: Annotated[int, Path(gt=0, description="The document ID")],

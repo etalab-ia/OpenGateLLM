@@ -39,7 +39,7 @@ async def create_token(
 
 
 @router.delete(
-    path=EndpointRoute.ADMIN_TOKENS + "/{token:path}",
+    path=EndpointRoute.ADMIN_TOKENS + "/{token}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -59,7 +59,7 @@ async def delete_token(
 
 
 @router.get(
-    path=EndpointRoute.ADMIN_TOKENS + "/{token:path}",
+    path=EndpointRoute.ADMIN_TOKENS + "/{token}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Token,

@@ -35,7 +35,7 @@ async def create_organization(
 
 
 @router.delete(
-    path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization:path}",
+    path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -49,7 +49,7 @@ async def delete_organization(
 
 
 @router.patch(
-    path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization:path}",
+    path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -64,7 +64,7 @@ async def update_organization(
 
 
 @router.get(
-    path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization:path}",
+    path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Organization,
