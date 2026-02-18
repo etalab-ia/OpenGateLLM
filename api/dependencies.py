@@ -49,7 +49,6 @@ def create_provider_use_case_factory(
 ) -> CreateProviderUseCase:
     return CreateProviderUseCase(
         router_repository=PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title),
-        user_info_repository=PostgresUserInfoRepository(postgres_session=postgres_session),
         provider_repository=PostgresProviderRepository(postgres_session=postgres_session),
         provider_gateway=ModelProviderGateway(),
     )

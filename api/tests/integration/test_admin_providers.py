@@ -18,9 +18,9 @@ from api.tests.integration.factories import ProviderSQLFactory, RouterSQLFactory
 from api.utils.context import request_context
 from api.utils.dependencies import get_model_registry
 from api.utils.dependencies import get_postgres_session as get_postgres_session_utils
-from api.utils.variables import ENDPOINT__ADMIN_PROVIDERS
+from api.utils.variables import EndpointRoute
 
-URL = f"/v1{ENDPOINT__ADMIN_PROVIDERS}"
+URL = f"/v1{EndpointRoute.ADMIN_PROVIDERS}"
 
 
 def _valid_body(router_id=1, **overrides) -> dict:

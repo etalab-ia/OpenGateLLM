@@ -6,13 +6,12 @@ from httpx import ASGITransport, AsyncClient
 import pytest
 import pytest_asyncio
 from sqlalchemy import event
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from api.app import create_app
 from api.dependencies import get_postgres_session
 from api.helpers.models import ModelRegistry
-from api.main import app
 from api.sql.models import Base
 from api.tests.integration import factories
 from api.utils.dependencies import get_model_registry
@@ -68,33 +67,28 @@ async def test_engine():
     await engine.dispose()
 
 
-@pytest_asyncio.fixture(scope="session")
-async def test_session_factory(test_engine):
-    return async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+def _all_sql_factories():
+    result = []
+    stack = list(factories.BaseSQLFactory.__subclasses__())
+    while stack:
+        cls = stack.pop()
+        result.append(cls)
+        stack.extend(cls.__subclasses__())
+    return result
 
 
 @pytest_asyncio.fixture(scope="function")
 async def db_session(test_engine) -> AsyncGenerator[AsyncSession]:
-    """Provide a transactional scope for each test.
-
-    Uses the recommended SQLAlchemy pattern: an outer transaction that is never
-    committed, with SAVEPOINTs for the test code. When code under test calls
-    session.commit() or session.rollback(), the SAVEPOINT is released/rolled back
-    and automatically restarted, so the outer transaction stays open and can be
-    rolled back at the end to undo everything.
-    """
     async with test_engine.connect() as connection:
         transaction = await connection.begin()
 
         session = AsyncSession(bind=connection, expire_on_commit=False)
         await session.begin_nested()
 
-        all_sql_factories = factories.BaseSQLFactory.__subclasses__()
+        all_sql_factories = _all_sql_factories()
         for factory in all_sql_factories:
             factory._meta.sqlalchemy_session = session
 
-        # Restart a SAVEPOINT whenever code under test commits or rolls back,
-        # so the outer transaction is never affected.
         @event.listens_for(session.sync_session, "after_transaction_end")
         def restart_savepoint(sess, trans):
             if trans.nested and not trans._parent.nested:
@@ -103,13 +97,15 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession]:
         try:
             yield session
         finally:
+            event.remove(session.sync_session, "after_transaction_end", restart_savepoint)
+            for factory in all_sql_factories:
+                factory._meta.sqlalchemy_session = None
             await session.close()
             await transaction.rollback()
 
 
 @pytest_asyncio.fixture(scope="session")
 def model_registry():
-    """Create a real ModelRegistry for integration tests."""
     return ModelRegistry(
         app_title="test",
         queuing_enabled=False,

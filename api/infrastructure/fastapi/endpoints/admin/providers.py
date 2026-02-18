@@ -31,14 +31,14 @@ from api.infrastructure.fastapi.schemas.providers import (
 )
 from api.use_cases.admin.providers import CreateProviderCommand, CreateProviderUseCase, CreateProviderUseCaseSuccess
 from api.utils.dependencies import get_model_registry, get_postgres_session
-from api.utils.variables import ENDPOINT__ADMIN_PROVIDERS, ROUTER__ADMIN
+from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 
 
 @router.post(
-    path=ENDPOINT__ADMIN_PROVIDERS,
+    path=EndpointRoute.ADMIN_PROVIDERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
 )
@@ -95,7 +95,7 @@ async def create_provider(
 
 
 @router.delete(
-    path=ENDPOINT__ADMIN_PROVIDERS + "/{provider}",
+    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=204,
 )
@@ -111,7 +111,7 @@ async def delete_provider(
 
 
 @router.patch(
-    path=ENDPOINT__ADMIN_PROVIDERS + "/{provider}",
+    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=204,
 )
@@ -138,7 +138,7 @@ async def update_provider(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_PROVIDERS + "/{provider}",
+    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
     response_model=Provider,
@@ -156,7 +156,7 @@ async def get_provider(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_PROVIDERS,
+    path=EndpointRoute.ADMIN_PROVIDERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
     response_model=Providers,
