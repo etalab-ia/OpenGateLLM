@@ -59,12 +59,12 @@ class CreateChatCompletion(BaseModel):
     search_args: ChatSearchArgs | None = Field(default=None)  # fmt: off
 
     @model_validator(mode="after")
-    def validate_model(cls, values):
-        if values.search:
-            if not values.search_args:
+    def validate_model(self):
+        if self.search:
+            if not self.search_args:
                 raise ValueError("search_args is required when search is true")
 
-        return values
+        return self
 
     @staticmethod
     def format_request(provider_type: ProviderType, request_content: RequestContent):

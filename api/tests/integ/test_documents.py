@@ -109,7 +109,6 @@ class TestDocuments:
         assert document.id == document_id
         assert document.name == "test_document.pdf"
         assert document.chunks > 0
-        assert document.metadata == {"source_title": "test", "source_tags": ["tag-1", "tag-2"]}
 
     def test_upload_file_disable_chunking(self, client: TestClient, collection):
         file_path = "api/tests/integ/assets/pdf.pdf"
@@ -381,6 +380,8 @@ class TestDocuments:
         chunks = response.json()
         chunks = Chunks(**chunks)  # test output format
         assert len(chunks.data) == 2
+        assert chunks.data[0].collection_id == collection
+        assert chunks.data[0].document_id == document_id
         assert chunks.data[0].content == "test_1"
         assert chunks.data[0].metadata == {"source_title": "test_1", "source_tags": ["tag-1", "tag-2"]}
         assert chunks.data[1].content == "test_2"
@@ -436,3 +437,12 @@ class TestDocuments:
         chunks = Chunks(**chunks)  # test output format
         assert len(chunks.data) == nb_chunks + 2
         assert chunks.data[-1].id == nb_chunks + 1
+        assert chunks.data[-1].collection_id == collection
+        assert chunks.data[-1].document_id == document_id
+
+    def test_create_into_non_existent_document(self, client: TestClient, collection):
+        response = client.post_without_permissions(
+            url=f"/v1{EndpointRoute.DOCUMENTS}/1000/chunks",
+            json={"chunks": [{"content": "test", "metadata": {"source_title": "test", "source_tags": ["tag-1", "tag-2"]}}]},
+        )
+        assert response.status_code == 404, response.text

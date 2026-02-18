@@ -12,7 +12,6 @@ from api.helpers._documentmanager import DocumentManager
 from api.schemas.chunks import Chunk
 from api.schemas.collections import CollectionVisibility
 from api.schemas.core.context import RequestContext
-from api.schemas.documents import Chunker
 from api.schemas.me.info import UserInfo
 from api.schemas.usage import Usage
 from api.utils.exceptions import (
@@ -70,11 +69,13 @@ async def test_create_document_collection_no_longer_exists():
         await document_manager.create_document(
             collection_id=123,
             file=mock_file,
-            chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
+            name=None,
+            disable_chunking=False,
             chunk_size=1000,
             chunk_overlap=100,
             is_separator_regex=False,
             separators=["\n\n", "\n", " "],
+            preset_separators="markdown",
             chunk_min_size=50,
             metadata=mock_metadata,
             elasticsearch_vector_store=mock_elasticsearch_vector_store,
@@ -346,7 +347,7 @@ async def test_create_document_success(monkeypatch):
 
     chunks = ["chunk-1", "chunk-2"]
     document_manager._split = MagicMock(return_value=chunks)
-    document_manager._upsert = AsyncMock()
+    document_manager._upsert_document_chunks = AsyncMock()
 
     mock_file = create_upload_file("Test content", "test.txt", "text/plain")
     mock_metadata = {"source_tags": ["test"]}
@@ -374,15 +375,19 @@ async def test_create_document_success(monkeypatch):
         collection_id=123,
         file=mock_file,
         metadata=mock_metadata,
-        chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
         chunk_size=1000,
         chunk_overlap=100,
         chunk_min_size=50,
+        name=None,
+        disable_chunking=False,
+        separators=[],
+        preset_separators="markdown",
+        is_separator_regex=False,
     )
 
     assert document_id == 555
     document_manager._split.assert_called_once()
-    document_manager._upsert.assert_awaited_once()
+    document_manager._upsert_document_chunks.assert_awaited_once()
     mock_session.commit.assert_awaited_once()
 
 
@@ -559,7 +564,7 @@ async def test_delete_document_success():
 
     assert mock_session.execute.await_count == 2
     mock_session.commit.assert_awaited_once()
-    mock_elasticsearch_vector_store.delete_document.assert_awaited_once_with(client=mock_elasticsearch_client, collection_id=123, document_id=456)
+    mock_elasticsearch_vector_store.delete_document.assert_awaited_once_with(client=mock_elasticsearch_client, document_id=456)
 
 
 @pytest.mark.asyncio
@@ -618,7 +623,7 @@ async def test_get_chunks_success():
 
     document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
 
-    chunks = await document_manager.get_chunks(
+    chunks = await document_manager.get_document_chunks(
         postgres_session=mock_session,
         elasticsearch_vector_store=mock_elasticsearch_vector_store,
         elasticsearch_client=mock_elasticsearch_client,
@@ -632,7 +637,7 @@ async def test_get_chunks_success():
     assert chunks[0].id == 1
     assert chunks[1].id == 2
     mock_elasticsearch_vector_store.get_chunks.assert_awaited_once_with(
-        client=mock_elasticsearch_client, collection_id=123, document_id=456, offset=0, limit=10, chunk_id=None
+        client=mock_elasticsearch_client, document_id=456, offset=0, limit=10, chunk_id=None
     )
 
 
@@ -653,7 +658,7 @@ async def test_get_chunks_document_not_found():
     document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
 
     with pytest.raises(DocumentNotFoundException):
-        await document_manager.get_chunks(
+        await document_manager.get_document_chunks(
             postgres_session=mock_session,
             elasticsearch_vector_store=mock_elasticsearch_vector_store,
             elasticsearch_client=mock_elasticsearch_client,
@@ -902,10 +907,14 @@ async def test_create_document_parsing_fails():
             collection_id=123,
             file=mock_file,
             metadata=mock_metadata,
-            chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
             chunk_size=1000,
             chunk_overlap=100,
             chunk_min_size=50,
+            name=None,
+            disable_chunking=False,
+            separators=[],
+            preset_separators="markdown",
+            is_separator_regex=False,
         )
 
 
@@ -957,10 +966,14 @@ async def test_create_document_empty_chunks():
             collection_id=123,
             file=mock_file,
             metadata=mock_metadata,
-            chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
             chunk_size=1000,
             chunk_overlap=100,
             chunk_min_size=50,
+            name=None,
+            disable_chunking=False,
+            separators=[],
+            preset_separators="markdown",
+            is_separator_regex=False,
         )
 
     assert "No chunks were extracted" in str(exc_info.value.detail)
@@ -998,8 +1011,8 @@ async def test_create_document_vectorization_fails(monkeypatch):
     chunks = ["chunk-1", "chunk-2"]
     document_manager._split = MagicMock(return_value=chunks)
 
-    # Mock _upsert to fail
-    document_manager._upsert = AsyncMock(side_effect=Exception("Vectorization error"))
+    # Mock chunk upsert to fail
+    document_manager._upsert_document_chunks = AsyncMock(side_effect=Exception("Vectorization error"))
 
     mock_file = create_upload_file("Test content", "test.txt", "text/plain")
     mock_metadata = {"source_tags": ["test"]}
@@ -1027,16 +1040,20 @@ async def test_create_document_vectorization_fails(monkeypatch):
             collection_id=123,
             file=mock_file,
             metadata=mock_metadata,
-            chunker=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER,
             chunk_size=1000,
             chunk_overlap=100,
             chunk_min_size=50,
+            name=None,
+            disable_chunking=False,
+            separators=[],
+            preset_separators="markdown",
+            is_separator_regex=False,
         )
 
     assert "Vectorization failed" in str(exc_info.value.detail)
     # Verify document was attempted to be deleted from Postgres
     assert mock_session.execute.await_count == 4  # collection check, insert, delete check, delete
-    mock_elasticsearch_vector_store.delete_document.assert_awaited_once_with(client=mock_elasticsearch_client, collection_id=123, document_id=555)
+    mock_elasticsearch_vector_store.delete_document.assert_awaited_once_with(client=mock_elasticsearch_client, document_id=555)
 
 
 @pytest.mark.asyncio

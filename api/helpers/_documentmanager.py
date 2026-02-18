@@ -7,7 +7,7 @@ from elasticsearch import AsyncElasticsearch
 from fastapi import UploadFile
 from langchain_text_splitters import RecursiveCharacterTextSplitter as LangChainRecursiveCharacterTextSplitter
 from redis.asyncio import Redis as AsyncRedis
-from sqlalchemy import Integer, and_, cast, delete, distinct, func, insert, or_, select, update
+from sqlalchemy import Integer, cast, delete, distinct, func, insert, or_, select, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -349,25 +349,20 @@ class DocumentManager:
         elasticsearch_client: AsyncElasticsearch,
     ) -> list[int]:
         query = (
-            select(DocumentTable.id, CollectionTable.id)
+            select(CollectionTable.id)
             .select_from(DocumentTable)
-            .outerjoin(
+            .join(
                 CollectionTable,
-                and_(
-                    DocumentTable.collection_id == CollectionTable.id,
-                    CollectionTable.user_id == user_id,
-                ),
+                DocumentTable.collection_id == CollectionTable.id,
             )
             .where(DocumentTable.id == document_id)
+            .where(CollectionTable.user_id == user_id)
         )
         result = await postgres_session.execute(query)
-        row = result.one_or_none()
-        if row is None:
+        try:
+            collection_id = result.scalar_one()
+        except NoResultFound:
             raise DocumentNotFoundException()
-
-        document_id, collection_id = row
-        if collection_id is None:
-            raise CollectionNotFoundException()
 
         last_chunk_id: int | None = await elasticsearch_vector_store.get_last_chunk_id(client=elasticsearch_client, document_id=document_id)
         start = 0 if last_chunk_id is None else last_chunk_id + 1
