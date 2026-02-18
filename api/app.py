@@ -65,13 +65,13 @@ def _setup_middleware(app: FastAPI, configuration: Configuration) -> None:
 def _register_routers(app: FastAPI, configuration: Configuration) -> None:
     disabled_routers = set(configuration.settings.disabled_routers)
     hidden_routers = set(configuration.settings.hidden_routers)
-    enabled_router = (router for router in RouterName if router not in disabled_routers and router.module_path is not None)
-    for router in enabled_router:
-        include_in_schema = router not in hidden_routers
-        module = import_module(router.module_path)
+    enabled_routers = (router for router in RouterName if router not in disabled_routers and router.module_path is not None)
+    for enabled_router in enabled_routers:
+        module = import_module(enabled_router.module_path)
         router = getattr(module, "router", None)
         if router is None:
-            raise AttributeError(f"Module {router.module_path} has no 'router' attribute")
+            raise AttributeError(f"Module {enabled_router.module_path} has no 'router' attribute")
+        include_in_schema = enabled_router not in hidden_routers
         app.include_router(router=router, include_in_schema=include_in_schema)
 
     # @TODO: legacy import before total clean archi migration
