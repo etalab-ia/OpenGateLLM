@@ -12,7 +12,7 @@ class ModelProviderGateway(ProviderGateway):
                 max_context_length=max_context_length,
                 vector_size=vector_size,
             )
-        except Exception as e:
+        except AssertionError as e:
             return ProviderNotReachableError(model_name)
 
     def _build_client(self, provider_type, url, key, timeout, model_name):

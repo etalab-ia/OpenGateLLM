@@ -54,6 +54,7 @@ class AlbertModelProvider(BaseModelProvider):
                 response = await client.get(url=url, headers=self.headers, timeout=self.timeout)
                 response.raise_for_status()
         except Exception as e:
+            # TODO: remove exc_info=True and return error instead of exception
             logger.error(f"Error getting max context length for {self.model_name}: {e}", exc_info=True)
             raise AssertionError(f"Model is not reachable ({e}).")
 

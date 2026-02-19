@@ -4,9 +4,7 @@ from fastapi import HTTPException
 # 400
 class InvalidProviderTypeHTTPException(HTTPException):
     def __init__(self, incorrect_provider_type: str, router_type: str) -> None:
-        super().__init__(
-            status_code=400, detail=f"Invalid model provider type {incorrect_provider_type} for {router_type} router. Allowed types are: "
-        )
+        super().__init__(status_code=400, detail=f"Invalid model provider type {incorrect_provider_type} for {router_type} router.")
 
 
 # 401

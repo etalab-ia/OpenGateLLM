@@ -1,17 +1,16 @@
 from collections.abc import AsyncGenerator
-from types import SimpleNamespace
 
 import asyncpg
 from httpx import ASGITransport, AsyncClient
 import pytest
 import pytest_asyncio
-from sqlalchemy import event
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from api.app import create_app
 from api.dependencies import get_postgres_session
 from api.helpers.models import ModelRegistry
+from api.schemas.core.configuration import Configuration, Dependencies, Settings
 from api.sql.models import Base
 from api.tests.integration import factories
 from api.utils.dependencies import get_model_registry
@@ -22,8 +21,8 @@ TEST_DATABASE_URL = "postgresql+asyncpg://postgres:changeme@localhost:5432/test_
 
 @pytest.fixture
 def test_configuration():
-    return SimpleNamespace(
-        settings=SimpleNamespace(
+    configuration = Configuration.model_construct(
+        settings=Settings.model_construct(
             app_title="test",
             swagger_summary=None,
             swagger_version="0.0.0",
@@ -39,8 +38,9 @@ def test_configuration():
             hidden_routers=[],
             monitoring_prometheus_enabled=False,
         ),
-        dependencies=SimpleNamespace(sentry=None),
+        dependencies=Dependencies.model_construct(sentry=None),
     )
+    return configuration
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -67,6 +67,11 @@ async def test_engine():
     await engine.dispose()
 
 
+@pytest_asyncio.fixture(scope="session")
+async def test_session_factory(test_engine):
+    return async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+
+
 def _all_sql_factories():
     result = []
     stack = list(factories.BaseSQLFactory.__subclasses__())
@@ -78,30 +83,46 @@ def _all_sql_factories():
 
 
 @pytest_asyncio.fixture(scope="function")
-async def db_session(test_engine) -> AsyncGenerator[AsyncSession]:
-    async with test_engine.connect() as connection:
-        transaction = await connection.begin()
-
-        session = AsyncSession(bind=connection, expire_on_commit=False)
-        await session.begin_nested()
-
-        all_sql_factories = _all_sql_factories()
-        for factory in all_sql_factories:
-            factory._meta.sqlalchemy_session = session
-
-        @event.listens_for(session.sync_session, "after_transaction_end")
-        def restart_savepoint(sess, trans):
-            if trans.nested and not trans._parent.nested:
-                sess.begin_nested()
-
+async def db_session(test_session_factory) -> AsyncGenerator[AsyncSession]:
+    async with test_session_factory() as session:
+        all_sql_factories = factories.BaseSQLFactory.__subclasses__()
+        session.expire_on_commit = False
         try:
-            yield session
+            async with session.begin_nested():
+                for factory in all_sql_factories:
+                    factory._meta.sqlalchemy_session = session
+                yield session
         finally:
-            event.remove(session.sync_session, "after_transaction_end", restart_savepoint)
-            for factory in all_sql_factories:
-                factory._meta.sqlalchemy_session = None
+            if session.in_transaction():
+                await session.rollback()
             await session.close()
-            await transaction.rollback()
+
+
+# @pytest_asyncio.fixture(scope="function")
+# async def db_session(test_engine) -> AsyncGenerator[AsyncSession]:
+#     async with test_engine.connect() as connection:
+#         transaction = await connection.begin()
+#
+#         session = AsyncSession(bind=connection, expire_on_commit=False)
+#         await session.begin_nested()
+#
+#         all_sql_factories = _all_sql_factories()
+#         for factory in all_sql_factories:
+#             factory._meta.sqlalchemy_session = session
+#
+#         @event.listens_for(session.sync_session, "after_transaction_end")
+#         def restart_savepoint(sess, trans):
+#             if trans.nested and not trans._parent.nested:
+#                 sess.begin_nested()
+#
+#         try:
+#             yield session
+#         finally:
+#             event.remove(session.sync_session, "after_transaction_end", restart_savepoint)
+#             for factory in all_sql_factories:
+#                 factory._meta.sqlalchemy_session = None
+#             await session.close()
+#             await transaction.rollback()
 
 
 @pytest_asyncio.fixture(scope="session")

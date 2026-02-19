@@ -31,7 +31,6 @@ class PostgresProviderRepository(ProviderRepository):
         max_context_length: int,
     ) -> Provider | ProviderAlreadyExistsError:
         try:
-            user_id = None if user_id == 0 else user_id  # 0 corresponds to master user ID
             qos_metric = qos_metric.value if qos_metric is not None else None
             query = (
                 insert(ProviderTable)
@@ -53,8 +52,10 @@ class PostgresProviderRepository(ProviderRepository):
                 )
                 .returning(ProviderTable)
             )
-            result = await self.postgres_session.execute(query)
-            row = result.scalar_one()
+            async with self.postgres_session.begin_nested():
+                result = await self.postgres_session.execute(query)
+                row = result.scalar_one()
+
             return Provider(
                 router_id=row.router_id,
                 user_id=row.user_id,

@@ -12,7 +12,7 @@ class RouterDefinition:
 ROUTER_DEFINITIONS: tuple[RouterDefinition, ...] = (
     # Admin routers
     RouterDefinition(name=RouterName.ADMIN, module_path="api.endpoints.admin.organizations"),
-    RouterDefinition(name=RouterName.ADMIN, module_path="api.endpoints.admin.providers"),
+    RouterDefinition(name=RouterName.ADMIN, module_path="api.infrastructure.fastapi.endpoints.admin.providers"),
     RouterDefinition(name=RouterName.ADMIN, module_path="api.endpoints.admin.roles"),
     RouterDefinition(name=RouterName.ADMIN, module_path="api.endpoints.admin.routers"),
     RouterDefinition(name=RouterName.ADMIN, module_path="api.infrastructure.fastapi.endpoints.admin_router"),
