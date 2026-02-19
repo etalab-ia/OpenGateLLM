@@ -9,6 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers._metricsmiddleware import MetricsMiddleware
 from api.schemas.admin.roles import PermissionType
 from api.schemas.core.context import RequestContext
 from api.schemas.usage import Usage
@@ -85,6 +86,7 @@ for finder, name, ispkg in pkgutil.walk_packages(base_pkg.__path__, base_pkg.__n
 if ROUTER__MONITORING not in configuration.settings.disabled_routers:
     include_in_schema = ROUTER__MONITORING not in configuration.settings.hidden_routers
     if configuration.settings.monitoring_prometheus_enabled:
+        app.add_middleware(MetricsMiddleware)
         app.instrumentator = Instrumentator().instrument(app=app)
         app.instrumentator.expose(app=app, should_gzip=True, tags=[ROUTER__MONITORING.title()], dependencies=[Depends(dependency=AccessController(permissions=[PermissionType.READ_METRIC]))], include_in_schema=include_in_schema)  # fmt: off
 

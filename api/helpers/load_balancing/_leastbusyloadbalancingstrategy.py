@@ -20,7 +20,6 @@ class LeastBusyLoadBalancingStrategy(BaseLoadBalancingStrategy):
         Get a provider to handle the request based on the specified routing strategy.
 
         Args:
-            candidates (list[int]): The list of provider candidates (provider IDs) to choose from
             redis_client (AsyncRedis): Redis client instance, required for least busy strategy
             load_balancing_metric (Metric): The type of metric to use for performance evaluation
 
