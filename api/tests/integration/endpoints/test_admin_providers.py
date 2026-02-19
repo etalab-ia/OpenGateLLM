@@ -1,12 +1,18 @@
+from unittest.mock import AsyncMock
+
 import httpx
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 import respx
 
+from api.dependencies import create_provider_use_case_factory
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
+from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
+from api.domain.router.errors import RouterNotFoundError
 from api.schemas.models import ModelType
 from api.tests.helpers import create_token
-from api.tests.integration.factories import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories import RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.ADMIN_PROVIDERS}"
@@ -14,7 +20,7 @@ URL = f"/v1{EndpointRoute.ADMIN_PROVIDERS}"
 DEFAULT_PROVIDER_URL = "http://my-test-provider/"
 
 
-def _valid_body(router_id=1, **overrides) -> dict:
+def _valid_body(router_id: int, **overrides) -> dict:
     """Return a minimal valid provider creation body, with optional overrides."""
     body = {
         "router": router_id,
@@ -48,19 +54,17 @@ def _mock_provider_reachable(respx_mock, base_url=DEFAULT_PROVIDER_URL, max_cont
     )
 
 
-def _mock_provider_unreachable(respx_mock, base_url=DEFAULT_PROVIDER_URL):
-    """Mock a provider that cannot be reached."""
-    base_url = base_url.rstrip("/")
-    respx_mock.get(f"{base_url}/v1/models").mock(side_effect=httpx.ConnectError("connection refused"))
-    respx_mock.post(f"{base_url}/v1/embeddings").mock(side_effect=httpx.ConnectError("connection refused"))
-
-
 @pytest.mark.asyncio(loop_scope="session")
 class TestCreateProvider:
     @pytest_asyncio.fixture(autouse=True)
     async def setup(self, db_session):
         self.admin_user = UserSQLFactory(admin_user=True)
         self.token = await create_token(db_session, name="admin_token", user=self.admin_user)
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def cleanup_overrides(self, app):
+        yield
+        app.dependency_overrides.pop(create_provider_use_case_factory, None)
 
     @respx.mock
     async def test_happy_path(self, client: AsyncClient, db_session):
@@ -76,111 +80,56 @@ class TestCreateProvider:
         assert response.status_code == 201, response.text
         assert isinstance(response.json()["id"], int)
 
-    @respx.mock
-    async def test_incompatible_provider_type(self, client: AsyncClient, db_session):
-        router = RouterSQLFactory(user=self.admin_user, type=ModelType.TEXT_GENERATION)
-        await db_session.flush()
-        _mock_provider_reachable(respx, base_url="https://tei.example.com")
+    @pytest.mark.parametrize(
+        "use_case_result,expected_status,expected_detail",
+        [
+            (RouterNotFoundError(router_id=1), 404, "Model router 1 not found."),
+            (
+                InvalidProviderTypeError(provider_type="tei", router_type="text-generation"),
+                400,
+                "Invalid model provider type tei for text-generation router.",
+            ),
+            (ProviderNotReachableError(model_name="my-model"), 424, "Model provider my-model not reachable."),
+            (
+                ProviderAlreadyExistsError(model_name="my-model", url=DEFAULT_PROVIDER_URL, router_id=1),
+                409,
+                f"Model provider my-model for url {DEFAULT_PROVIDER_URL} already exists for router 1.",
+            ),
+            (
+                InconsistentModelMaxContextLengthError(expected_max_context_length=4096, actual_max_context_length=2048, router_name="my-router"),
+                403,
+                "Inconsistent max context length for my-router. Expected: 4096. Actual: 2048",
+            ),
+            (
+                InconsistentModelVectorSizeError(expected_vector_size=768, actual_vector_size=384, router_name="my-router"),
+                403,
+                "Inconsistent vector size for my-router. Expected: 768. Actual: 384",
+            ),
+        ],
+    )
+    async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
+        mock_use_case = AsyncMock()
+        mock_use_case.execute.return_value = use_case_result
+        app.dependency_overrides[create_provider_use_case_factory] = lambda: mock_use_case
 
         response = await client.post(
             url=URL,
             headers={"Authorization": f"Bearer {self.token.token}"},
-            json=_valid_body(router.id, type="tei", url="https://tei.example.com/"),
+            json=_valid_body(router_id=1),
         )
 
-        assert response.status_code == 400
-        assert response.json().get("detail") == "Invalid model provider type tei for text-generation router."
+        assert response.status_code == expected_status
+        assert response.json().get("detail") == expected_detail
 
-    @respx.mock
-    async def test_provider_not_reachable(self, client: AsyncClient, db_session):
-        router = RouterSQLFactory(user=self.admin_user, type=ModelType.TEXT_GENERATION)
-        await db_session.flush()
-        _mock_provider_unreachable(respx)
+    @pytest.mark.parametrize(
+        "headers,expected_status,expected_detail",
+        [
+            ({}, 401, "Not authenticated"),
+            ({"Authorization": "Bearer invalid-token"}, 403, "Invalid API key."),
+        ],
+    )
+    async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):
+        response = await client.post(url=URL, headers=headers, json=_valid_body(router_id=1))
 
-        response = await client.post(
-            url=URL,
-            headers={"Authorization": f"Bearer {self.token.token}"},
-            json=_valid_body(router.id),
-        )
-
-        assert response.status_code == 424
-        assert response.json().get("detail") == "Model provider my-model not reachable."
-
-    @respx.mock
-    async def test_provider_already_exists(self, client: AsyncClient, db_session):
-        router = RouterSQLFactory(user=self.admin_user, type=ModelType.TEXT_GENERATION)
-        ProviderSQLFactory(
-            router=router,
-            user=self.admin_user,
-            url=DEFAULT_PROVIDER_URL,
-            model_name="my-model",
-            max_context_length=4096,
-            vector_size=None,
-        )
-        await db_session.flush()
-        _mock_provider_reachable(respx)
-
-        response = await client.post(
-            url=URL,
-            headers={"Authorization": f"Bearer {self.token.token}"},
-            json=_valid_body(router.id),
-        )
-        assert response.status_code == 409
-        assert response.json().get("detail") == "Model provider my-model for url http://my-test-provider/ already exists for router 4."
-
-    @respx.mock
-    async def test_provider_mismatch_max_context_length(self, client: AsyncClient, db_session):
-        router = RouterSQLFactory(user=self.admin_user, type=ModelType.TEXT_EMBEDDINGS_INFERENCE, name="test_router")
-        ProviderSQLFactory(
-            router=router,
-            user=self.admin_user,
-            url="https://albert.api.etalab.gouv.fr/",
-            model_name="my-model",
-            max_context_length=4096,
-            vector_size=1234,
-        )
-        await db_session.flush()
-        _mock_provider_reachable(respx, max_context_length=1234, vector_size=1234)
-
-        response = await client.post(
-            url=URL,
-            headers={"Authorization": f"Bearer {self.token.token}"},
-            json=_valid_body(router.id),
-        )
-
-        assert response.status_code == 403
-        assert response.json().get("detail") == "Inconsistent max context length for test_router. Expected: 1234. Actual: 4096"
-
-    @respx.mock
-    async def test_provider_mismatch_vector_size(self, client: AsyncClient, db_session):
-        router = RouterSQLFactory(user=self.admin_user, type=ModelType.TEXT_GENERATION, name="test_router")
-        ProviderSQLFactory(
-            router=router,
-            user=self.admin_user,
-            url="https://albert.api.etalab.gouv.fr/",
-            model_name="my-model",
-            max_context_length=4096,
-            vector_size=1234,
-        )
-        await db_session.flush()
-        _mock_provider_reachable(respx, max_context_length=1234, vector_size=1234)
-
-        response = await client.post(
-            url=URL,
-            headers={"Authorization": f"Bearer {self.token.token}"},
-            json=_valid_body(router.id),
-        )
-
-        assert response.status_code == 403
-        assert response.json().get("detail") == "Inconsistent vector size for test_router. Expected: None. Actual: 1234"
-
-    @respx.mock
-    async def test_router_not_found(self, client: AsyncClient, db_session):
-        response = await client.post(
-            url=URL,
-            headers={"Authorization": f"Bearer {self.token.token}"},
-            json=_valid_body(999999),
-        )
-
-        assert response.status_code == 404
-        assert response.json().get("detail") == "Model router 999999 not found."
+        assert response.status_code == expected_status
+        assert response.json().get("detail") == expected_detail

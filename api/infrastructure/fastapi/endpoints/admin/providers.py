@@ -84,11 +84,11 @@ async def create_provider(
             raise ProviderNotReachableHTTPException(name)
         case ProviderAlreadyExistsError(model_name, url, router_id):
             raise ProviderAlreadyExistsHTTPException(model_name, url, router_id)
-        case InconsistentModelMaxContextLengthError(actual_max_context_length, expected_max_context_length, router_name):
+        case InconsistentModelMaxContextLengthError(expected_max_context_length, actual_max_context_length, router_name):
             raise InconsistentModelMaxContextLengthHTTPException(
                 input_max_context_length=actual_max_context_length, model_max_context_length=expected_max_context_length, model_name=router_name
             )
-        case InconsistentModelVectorSizeError(actual_vector_size, expected_vector_size, router_name):
+        case InconsistentModelVectorSizeError(expected_vector_size, actual_vector_size, router_name):
             raise InconsistentModelVectorSizeHTTPException(actual_vector_size, expected_vector_size, router_name)
         case RouterNotFoundError(router_id):
             raise RouterNotFoundHTTPException(router_id)

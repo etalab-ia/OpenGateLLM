@@ -52,10 +52,8 @@ class PostgresProviderRepository(ProviderRepository):
                 )
                 .returning(ProviderTable)
             )
-            async with self.postgres_session.begin_nested():
-                result = await self.postgres_session.execute(query)
-                row = result.scalar_one()
-
+            result = await self.postgres_session.execute(query)
+            row = result.scalar_one()
             return Provider(
                 router_id=row.router_id,
                 user_id=row.user_id,
