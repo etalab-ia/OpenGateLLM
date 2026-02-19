@@ -9,6 +9,7 @@ class AuthState(rx.State):
     """Authentication state."""
 
     # User information
+
     is_authenticated: bool = False
     user_id: int | None = None
     user_email: str | None = None
@@ -33,6 +34,16 @@ class AuthState(rx.State):
     # Form fields
     email_input: str = ""
     password_input: str = ""
+
+    @rx.event
+    def set_email_input(self, value: str):
+        """Set email input value."""
+        self.email_input = value
+
+    @rx.event
+    def set_password_input(self, value: str):
+        """Set password input value."""
+        self.password_input = value
 
     @rx.event
     async def login_direct(self):

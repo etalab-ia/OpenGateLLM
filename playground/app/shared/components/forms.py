@@ -9,12 +9,20 @@ from app.core.variables import HEADING_SIZE_FORM, ICON_SIZE_TINY, SIZE_MEDIUM, S
 def entity_form_select_field(
     label: str,
     items: rx.var,
-    value: str | None = None,
+    value: Any = None,
     on_change: Callable | None = None,
     disabled: bool = False,
     tooltip: str | None = None,
     **kwargs,
 ) -> rx.Component:
+    normalized_value: Any = ""
+    if value is None:
+        normalized_value = ""
+    elif hasattr(value, "to"):
+        normalized_value = rx.cond(value != None, value.to(str), "")  # noqa: E711
+    else:
+        normalized_value = value
+
     return rx.vstack(
         rx.cond(
             bool(tooltip),
@@ -31,7 +39,7 @@ def entity_form_select_field(
         ),
         rx.select(
             items=items,
-            value=value,
+            value=normalized_value,
             on_change=on_change,
             disabled=disabled,
             **kwargs,
@@ -44,11 +52,19 @@ def entity_form_select_field(
 
 def entity_form_input_field(
     label: str,
-    value: str,
+    value: Any,
     on_change: Callable | None = None,
     tooltip: str | None = None,
     **kwargs: Any,
 ) -> rx.Component:
+    normalized_value: Any = ""
+    if value is None:
+        normalized_value = ""
+    elif hasattr(value, "to"):
+        normalized_value = rx.cond(value != None, value.to(str), "")  # noqa: E711
+    else:
+        normalized_value = value
+
     return rx.vstack(
         rx.cond(
             bool(tooltip),
@@ -64,7 +80,7 @@ def entity_form_input_field(
             rx.text(label, size=TEXT_SIZE_LABEL, weight="bold"),
         ),
         rx.input(
-            value=value,
+            value=normalized_value,
             on_change=on_change,
             width="100%",
             **kwargs,
@@ -76,15 +92,23 @@ def entity_form_input_field(
 
 def entity_form_checkbox_field(
     label: str,
-    value: bool,
+    value: Any,
     description: str | None = None,
     on_change: Callable | None = None,
     tooltip: str | None = None,
     **kwargs: Any,
 ) -> rx.Component:
+    normalized_checked: Any = False
+    if value is None:
+        normalized_checked = False
+    elif hasattr(value, "to"):
+        normalized_checked = rx.cond(value != None, value.to(bool), False)  # noqa: E711
+    else:
+        normalized_checked = value
+
     return rx.hstack(
         rx.checkbox(
-            checked=value,
+            checked=normalized_checked,
             on_change=on_change,
             **kwargs,
         ),

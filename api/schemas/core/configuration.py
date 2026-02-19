@@ -406,17 +406,7 @@ class Settings(ConfigBaseModel):
     @model_validator(mode="after")
     def validate_model(self) -> Any:
         if self.session_secret_key is None:
-            logging.warning("Session secret key not provided, using master key.")  # fmt: off
             self.session_secret_key = self.auth_master_key
-
-        if len(self.auth_master_key) < 32:
-            logging.warning("Auth master key is too short for production, it should be at least 32 characters.")  # fmt: off
-
-        if any(router in self.hidden_routers for router in [RouterName.ADMIN, RouterName.AUTH]):
-            logging.warning("Admin router should be hidden in production.")  # fmt: off
-
-        if RouterName.AUTH not in self.hidden_routers:
-            logging.warning("Auth router should be hidden in production.")  # fmt: off
 
         return self
 

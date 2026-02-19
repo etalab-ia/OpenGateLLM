@@ -66,7 +66,7 @@ async def chat_completions(
         request_context=request_context,
     )
 
-    request_content = RequestContent(method=HTTPMethod.POST, endpoint=EndpointRoute.CHAT_COMPLETIONS, json=body.model_dump(), model=body.model)
+    request_content = RequestContent(method=HTTPMethod.POST, endpoint=EndpointRoute.CHAT_COMPLETIONS, body=body.model_dump(), model=body.model)
     request_content = await SearchTool.call(
         request_content=request_content,
         model_registry=model_registry,

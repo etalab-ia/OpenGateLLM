@@ -69,7 +69,7 @@ class CreateAudioTranscription(BaseModel):
             case ProviderType.MISTRAL:
                 text = request_content.form.get("prompt") or f"Transcribe this audio in this language : {request_content.form.get("language", "en")}"
                 input_audio = base64.b64encode(request_content.files["file"][1]).decode("utf-8")
-                request_content.json = ChatCompletionRequest(
+                request_content.body = ChatCompletionRequest(
                     model=request_content.form["model"],
                     messages=[
                         UserMessage(

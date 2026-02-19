@@ -21,8 +21,8 @@ class CreateRerank(BaseModel):
                 return request_content
 
             case ProviderType.TEI:
-                request_content.additional_data["top_n"] = request_content.json.get("top_n")
-                request_content.json = TEICreateRerank(query=request_content.json["query"], texts=request_content.json["documents"]).model_dump()
+                request_content.additional_data["top_n"] = request_content.body.get("top_n")
+                request_content.body = TEICreateRerank(query=request_content.body["query"], texts=request_content.body["documents"]).model_dump()
 
                 return request_content
 

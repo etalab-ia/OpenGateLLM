@@ -147,10 +147,11 @@ class KeysState(EntityState):
         return dt.datetime.now().strftime("%Y-%m-%d")
 
     @rx.var
-    def max_expiry_date(self) -> str | None:
+    def max_expiry_date(self) -> str:
         """Get the maximum expiry date."""
         if configuration.settings.auth_key_max_expiration_days is not None:
             return (dt.datetime.now() + dt.timedelta(days=configuration.settings.auth_key_max_expiration_days - 1)).strftime("%Y-%m-%d")
+        return ""
 
     @rx.event
     def set_new_entity_attribut(self, attribute: str, value: str | bool | None):

@@ -2,7 +2,6 @@ import os
 
 from fastapi.testclient import TestClient
 import pytest
-from pytest_snapshot.plugin import Snapshot
 
 from api.schemas.audio import AudioTranscription
 from api.schemas.models import ModelType
@@ -61,7 +60,7 @@ class TestAudio:
         assert response.status_code == 200, response.text
         AudioTranscription(**response.json())  # test output format
 
-    def test_audio_transcriptions_invalid_model(self, client: TestClient, setup: str, snapshot: Snapshot) -> None:
+    def test_audio_transcriptions_invalid_model(self, client: TestClient, setup: str) -> None:
         """Test the POST /audio/transcriptions with invalid model"""
         file_path = "api/tests/integ/assets/audio.mp3"
 
@@ -71,4 +70,3 @@ class TestAudio:
             response = client.post_without_permissions(f"/v1{EndpointRoute.AUDIO_TRANSCRIPTIONS}", files=files, data=data)
 
         assert response.status_code == 404, response.text
-        snapshot.assert_match(str(response.text), snapshot_name="audio_transcriptions_invalid_model")

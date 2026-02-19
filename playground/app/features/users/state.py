@@ -373,7 +373,7 @@ class UsersState(EntityState):
     order_direction_options: list[str] = ["asc", "desc"]
     order_direction_value: str = "asc"
     order_by_options: list[str] = ["id", "name", "created", "updated"]
-    search_email_value: str | None = None
+    search_email_value: str = ""
 
     @rx.event
     async def set_search_email(self, value: str):

@@ -81,7 +81,7 @@ class CreateChatCompletion(BaseModel):
                 return request_content
 
             case ProviderType.MISTRAL:
-                request_content.json = ChatCompletionRequest(**request_content.json).model_dump()
+                request_content.body = ChatCompletionRequest(**request_content.body).model_dump()
                 return request_content
 
             case ProviderType.OPENAI:

@@ -20,7 +20,7 @@ def account_info_card() -> rx.Component:
                 rx.vstack(
                     rx.text("Email", size=TEXT_SIZE_LABEL, weight="bold"),
                     rx.input(
-                        value=AccountState.user_email,
+                        value=rx.cond(AccountState.user_email != None, AccountState.user_email.to(str), ""),  # noqa: E711
                         read_only=True,
                         width="100%",
                     ),

@@ -121,9 +121,8 @@ class ModelRegistry:
                 )
                 logger.info(f"Router {model.name} are created (id: {router_id})")
             except RouterAlreadyExistsException:
-                logger.warning(f"Router {model.name} already exists, skipping.")
+                continue
             except RouterAliasAlreadyExistsException:
-                logger.warning(f"Router {model.name} aliases already exists, skipping.")
                 continue
             except Exception as e:
                 await postgres_session.rollback()
@@ -151,10 +150,8 @@ class ModelRegistry:
                         postgres_session=postgres_session,
                     )
                 except ProviderAlreadyExistsException:
-                    logger.warning(f"provider {provider.model_name} already exists for router {model.name} (skipping)")
                     continue
                 except ProviderNotReachableException:
-                    logger.warning(f"provider {provider.model_name} is not reachable for router {model.name} (skipping)")
                     continue
                 except Exception as e:
                     await postgres_session.rollback()

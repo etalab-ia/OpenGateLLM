@@ -39,7 +39,7 @@ class RequestContent(BaseModel):
     method: HTTPMethod
     model: str = Field(description="The called model name.")
     endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
-    json: dict = Field(default={}, description="The JSON body to use for the request.")
+    body: dict = Field(default={}, description="The JSON body to use for the request.")
     form: dict = Field(default={}, description="The form-encoded data to use for the request.")
     files: dict = Field(default={}, description="The files to use for the request.")
     additional_data: dict = Field(default={}, description="The additional data to add to the response.")

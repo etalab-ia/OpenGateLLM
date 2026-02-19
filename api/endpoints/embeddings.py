@@ -36,7 +36,7 @@ async def embeddings(
         request_context=request_context,
     )
     response = await model_provider.forward_request(
-        request_content=RequestContent(method="POST", endpoint=EndpointRoute.EMBEDDINGS, json=body.model_dump(), model=body.model),
+        request_content=RequestContent(method="POST", endpoint=EndpointRoute.EMBEDDINGS, body=body.model_dump(), model=body.model),
         redis_client=redis_client,
     )
 

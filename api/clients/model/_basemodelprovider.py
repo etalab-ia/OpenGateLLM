@@ -113,7 +113,7 @@ class BaseModelProvider(ABC):
         tokenizer = getattr(global_context, "tokenizer", None)
         if tokenizer and request_content.endpoint in tokenizer.USAGE_ENDPOINTS:
             try:
-                prompt_tokens = tokenizer.get_prompt_tokens(endpoint=request_content.endpoint, body=request_content.json)
+                prompt_tokens = tokenizer.get_prompt_tokens(endpoint=request_content.endpoint, body=request_content.body)
                 completion_tokens = tokenizer.get_completion_tokens(endpoint=request_content.endpoint, response_data=response_data)
                 total_tokens = prompt_tokens + completion_tokens
 
@@ -153,8 +153,8 @@ class BaseModelProvider(ABC):
         Returns:
             request_content(RequestContent): The formatted request content.
         """
-        if "model" in request_content.json:
-            request_content.json["model"] = self.model_name
+        if "model" in request_content.body:
+            request_content.body["model"] = self.model_name
 
         if "model" in request_content.form:
             request_content.form["model"] = self.model_name
@@ -298,7 +298,7 @@ class BaseModelProvider(ABC):
                         method=request_content.method,
                         url=url,
                         headers=self.headers,
-                        json=request_content.json,
+                        json=request_content.body,
                         files=request_content.files,
                         data=request_content.form,
                     )
@@ -399,7 +399,7 @@ class BaseModelProvider(ABC):
                     method=request_content.method,
                     url=url,
                     headers=self.headers,
-                    json=request_content.json,
+                    json=request_content.body,
                     files=request_content.files,
                     data=request_content.form,
                 ) as response:

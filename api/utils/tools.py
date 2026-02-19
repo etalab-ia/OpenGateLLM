@@ -48,7 +48,7 @@ Output Format:
         elasticsearch_vector_store: ElasticsearchVectorStore | None,
         elasticsearch_client: AsyncElasticsearch | None,
     ) -> RequestContent:
-        tools = request_content.json.get("tools", [])
+        tools = request_content.body.get("tools", [])
         if tools is None:
             return request_content
 
@@ -57,14 +57,14 @@ Output Format:
 
         for i, tool in enumerate(tools):
             if tool.get("type") == "search":
-                search_tool = request_content.json["tools"].pop(i)
+                search_tool = request_content.body["tools"].pop(i)
                 search_tool.pop("type")
                 break
 
         if not search_tool:
             return request_content
 
-        messages = request_content.json.get("messages", [])
+        messages = request_content.body.get("messages", [])
         if not messages:
             return request_content
         query = messages[-1].get("content")
@@ -72,7 +72,7 @@ Output Format:
             return request_content
 
         if elasticsearch_vector_store is None or elasticsearch_client is None:
-            raise FeatureNotEnabledException(detail="Search tool is not enabled because Elasticsearch is not configured.")
+            raise FeatureNotEnabledException(detail="Search build-in tool is not enabled, please contact an administrator.")
 
         metadata_filters = TypeAdapter(ComparisonFilter | CompoundFilter | None).validate_python(search_tool.get("metadata_filters"))
 
@@ -98,7 +98,7 @@ Output Format:
             return request_content
 
         chunks = "\n".join([result.chunk.content for result in results])
-        request_content.json["messages"][-1]["content"] = SearchTool.PROMPT_TEMPLATE.format(query=query, chunks=chunks)
+        request_content.body["messages"][-1]["content"] = SearchTool.PROMPT_TEMPLATE.format(query=query, chunks=chunks)
         request_content.additional_data["search_results"] = [result.model_dump(mode="json") for result in results]
 
         return request_content

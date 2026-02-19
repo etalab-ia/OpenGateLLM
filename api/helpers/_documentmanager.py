@@ -557,7 +557,7 @@ class DocumentManager:
             request_content=RequestContent(
                 method="POST",
                 endpoint=EndpointRoute.EMBEDDINGS,
-                json={"input": input_texts, "model": self.vector_store_model, "encoding_format": "float"},
+                body={"input": input_texts, "model": self.vector_store_model, "encoding_format": "float"},
                 model=self.vector_store_model,
             ),
             redis_client=redis_client,
