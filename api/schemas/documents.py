@@ -1,134 +1,103 @@
-from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 import json
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import File, Form, UploadFile
+from fastapi import File, Form, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from langchain_text_splitters import Language
-from pydantic import ConfigDict, Field, ValidationError, conint, conlist, constr, field_serializer, field_validator, model_validator
+from pydantic import Field, StringConstraints, TypeAdapter, ValidationError, field_validator, model_validator
 
 from api.schemas import BaseModel
+from api.schemas.chunks import ChunkMetadata
 from api.utils.exceptions import FileSizeLimitExceededException
 
-PresetSeparators = Enum("PresetSeparators", {**{m.name: m.value for m in Language}, **{"EMPTY": ""}}, type=str)
+PresetSeparators = StrEnum("PresetSeparators", {**{m.name: m.value for m in Language}})
 
 
 class Document(BaseModel):
-    object: Literal["document"] = "document"
-    id: int
-    name: str
-    collection_id: int
-    created: int
-    chunks: int | None = None
+    object: Annotated[Literal["document"], Field(default="document", description="The type of the object.")]
+    id: Annotated[int, Field(gt=0, default=..., description="The ID of the document.")]
+    name: Annotated[str, Field(min_length=1, default=..., description="The name of the document.")]
+    collection_id: Annotated[int, Field(gt=0, default=..., description="The ID of the collection the document belongs to.")]
+    created: Annotated[int, Field(default=..., description="The date of the document creation.")]
+    chunks: Annotated[int, Field(ge=0, default=0, description="The number of chunks the document has.")]
 
 
 class Documents(BaseModel):
-    object: Literal["list"] = "list"
-    data: list[Document]
-
-
-class DocumentResponse(BaseModel):
-    id: int = Field(default=..., description="The ID of the document created.")
-
-
-class Chunker(str, Enum):
-    RECURSIVE_CHARACTER_TEXT_SPLITTER = "RecursiveCharacterTextSplitter"
-    NO_SPLITTER = "NoSplitter"
-
-
-class InputChunkMetadata(BaseModel):
-    source_ref: constr(strip_whitespace=True, min_length=1, max_length=255) | None = Field(default=None, description="The reference to the source of the document. Use it to locate the chunk in the source document (ex: doc-1#page-1#section-1). If not provided, no reference will be stored.")  # fmt: off
-    source_url: constr(strip_whitespace=True, min_length=1, max_length=255) | None = Field(default=None, description="The URL of the source of the document. Use it to display the source document in the UI. If not provided, no URL will be stored.")  # fmt: off
-    source_type: constr(strip_whitespace=True, min_length=1, max_length=255) | None = Field(default=None, description="The type of the source of the document. Use it to display the source document in the UI. If not provided, no type will be stored.")  # fmt: off
-    source_page: conint(ge=0, le=9999) | None = Field(default=None, description="The page number of the source of the document. Use it to display the source document in the UI. If not provided, no page number will be stored.")  # fmt: off
-    source_format: constr(strip_whitespace=True, min_length=1, max_length=255) | None = Field(default=None, description="The format of the source of the document. If not provided, format will be inferred from the file type (`pdf`, `html`, `md` or `txt`).")  # fmt: off
-    source_title: constr(strip_whitespace=True, min_length=1, max_length=255) | None = Field(default=None, description="The title of the source of the document. Use it to display the source document in the UI. If not provided, no title will be stored.")  # fmt: off
-    source_format: constr(strip_whitespace=True, min_length=1, max_length=255) | None = Field(default=None, description="The format of the source of the document. If not provided, format will be inferred from the file type (`pdf`, `html`, `md` or `txt`).")  # fmt: off
-    source_author: constr(strip_whitespace=True, min_length=1, max_length=255) | None = Field(default=None, description="The author of the source of the document. If not provided, no author will be stored.")  # fmt: off
-    source_publisher: constr(strip_whitespace=True, min_length=1, max_length=255) | None = Field(default=None, description="The publisher of the source of the document. If not provided, no publisher will be stored.")  # fmt: off
-    source_priority: conint(ge=1, le=10) = Field(default=1, description="The priority of the source of the document.")  # fmt: off
-    source_tags: conlist(item_type=constr(strip_whitespace=True, min_length=1, max_length=255), min_length=0, max_length=10) = Field(default=[], description="The tags of the source of the document. Use it to categorize the source document. If not provided, no tags will be stored.")  # fmt: off
-    source_date: datetime | None = Field(default=None, description="The date of the source of the document. Use it to date the source document. If not provided, no date will be stored.")  # fmt: off
-
-    model_config = ConfigDict(extra="forbid")
-
-    @model_validator(mode="before")
-    @classmethod
-    def parse_metadata(cls, data: object) -> object:
-        if data is None:
-            return {}
-        if isinstance(data, str):
-            data = data.strip()
-            data = "{}" if data == "" else data
-            try:
-                return json.loads(data)
-            except json.JSONDecodeError:
-                raise ValueError("metadata must be a JSON object")
-        return data
-
-    @field_validator("source_tags")
-    def remove_duplicates_source_tags(cls, source_tags: list[str]) -> list[str]:
-        return list(set(source_tags))
-
-    @field_serializer("source_date")
-    def serialize_source_date(self, source_date: datetime | None) -> int | None:
-        if source_date is None:
-            return None
-        return int(source_date.timestamp())
+    object: Annotated[Literal["list"], Field(default="list", description="The type of the object.")]
+    data: Annotated[list[Document], Field(min_length=0, description="List of documents.")]
 
 
 class CreateDocumentForm(BaseModel):
-    file: UploadFile
-    chunker: Chunker
+    file: UploadFile | None
+    name: Annotated[str | None, StringConstraints(min_length=1, max_length=255, strip_whitespace=True)] | None
+    collection_id: int
+    disable_chunking: bool
+    chunk_size: int
     chunk_min_size: int
     chunk_overlap: int
-    chunk_size: int
-    collection: int
     is_separator_regex: bool
     separators: list[str]
     preset_separators: PresetSeparators
-    metadata: InputChunkMetadata
+    metadata: str
 
     @field_validator("file")
-    def validate_file(cls, file: UploadFile) -> UploadFile:
+    @classmethod
+    def validate_file(cls, file: UploadFile | None) -> UploadFile | None:
+        if file is None:
+            return file
         if file.size > FileSizeLimitExceededException.MAX_CONTENT_SIZE:
             raise FileSizeLimitExceededException()
         return file
 
-    @model_validator(mode="after")
-    def validate_separators(self) -> "CreateDocumentForm":
-        if self.preset_separators == PresetSeparators.EMPTY:
-            self.preset_separators = None
+    @field_validator("metadata", mode="after")
+    @classmethod
+    def parse_metadata(cls, metadata: str) -> dict | None:
+        if metadata == "":
+            return None
+        try:
+            metadata = json.loads(metadata)
+            return TypeAdapter(ChunkMetadata).validate_python(metadata)
+        except json.JSONDecodeError:
+            raise ValueError("metadata must be a JSON object")
+        except ValidationError as e:
+            raise e
 
-        if self.preset_separators == PresetSeparators.EMPTY and self.separators == []:
-            raise ValueError("separators and preset_separators cannot by empty at the same time")
+    @model_validator(mode="after")
+    def validate_form(self) -> "CreateDocumentForm":
+        if self.file is None and self.name is None:
+            raise ValueError("name is required when file is not provided")
 
         return self
 
     # fmt: off
     @classmethod
-    def as_form(
+    async def as_form(
         cls,
-        file: UploadFile = File(default=..., description="The file to create a document from."),
-        collection: int = Form(default=..., description="The collection ID to use for the file upload. The file will be vectorized with model defined by the collection."),
-        chunker: Chunker = Form(default=Chunker.RECURSIVE_CHARACTER_TEXT_SPLITTER, description="The name of the chunker to use for the file upload."),
-        chunk_min_size: int = Form(default=0, description="The minimum size in characters of the chunks to use for the file upload."),
-        chunk_overlap: int = Form(default=0, description="The overlap in characters of the chunks to use for the file upload."),
-        chunk_size: int = Form(default=2048, description="The size in characters of the chunks to use for the file upload."),
-        is_separator_regex: bool = Form(default=False, description="Whether the separator is a regex to use for the file upload."),
-        separators: list[str] = Form(default=[], description="The separators to use for the file upload."),
-        preset_separators: PresetSeparators = Form(default=PresetSeparators.MARKDOWN, description="If provided, override separators by the preset specific separators. See [implemented details](https://github.com/langchain-ai/langchain/blob/eb122945832eae9b9df7c70ccd8d51fcd7a1899b/libs/text-splitters/langchain_text_splitters/character.py#L164). If not provided, the language will be inferred from the file type."),
-        metadata: InputChunkMetadata = Form(default=InputChunkMetadata(), description="Additional metadata to add to each chunk. Provide a stringified JSON object matching the Metadata schema.", examples=['{"source_title": "Example title", "source_tags": ["tag-1", "tag-2"]}']),
+        request: Request,
+        file: UploadFile | None = File(default=None, description="The file to create a document from. If not provided, the document will be created without content, use POST `/v1/documents/{document_id}/chunks` to fill it."),
+        name: str | None = Form(default=None, description="Name of document if no file is provided or to override file name."),
+        collection_id: int | None = Form(ge=0, default=None, description="The collection ID to use for the file upload. The file will be vectorized with model defined by the collection."),
+        collection: int | None = Form(ge=0, default=None, include_in_schema=False, deprecated=True),
+        disable_chunking: bool = Form(default=False, description="Whether to disable `RecursiveCharacterTextSplitter` chunking for the upload file."),
+        chunk_size: int = Form(ge=0, default=2048, description="The size in characters of the chunks to use for the upload file. If not provided, the document will not be split into chunks."),
+        chunk_min_size: int = Form(ge=0, default=0, description="The minimum size in characters of the chunks to use for the upload file."),
+        chunk_overlap: int = Form(ge=0, default=0, description="The overlap in characters of the chunks to use for the upload file."),
+        is_separator_regex: bool = Form(default=False, description="Whether the separator is a regex to use for the upload file."),
+        separators: list[str] = Form(min_length=0, default=[], description="Delimiters used by RecursiveCharacterTextSplitter for further splitting. If provided, `preset_separators` is ignored."),
+        preset_separators: PresetSeparators = Form(default=PresetSeparators.MARKDOWN, description="Preset separators used by RecursiveCharacterTextSplitter for further splitting. See [implemented details](https://github.com/langchain-ai/langchain/blob/eb122945832eae9b9df7c70ccd8d51fcd7a1899b/libs/text-splitters/langchain_text_splitters/character.py#L164)."),
+        metadata: str = Form(default="", description="Optional additional metadata to add to each chunk if a file is provided. Provide a stringified JSON object matching the Metadata schema.", examples=['{"source_date": "2026-01-05", "source_tags": ["tag1", "tag2"]}']),
     ) -> "CreateDocumentForm":
+        collection_id = collection_id if collection_id is not None else collection
         try:
             return cls(
                 file=file,
-                chunker=chunker,
+                name=name,
+                collection_id=collection_id,
+                disable_chunking=disable_chunking,
                 chunk_min_size=chunk_min_size,
                 chunk_overlap=chunk_overlap,
                 chunk_size=chunk_size,
-                collection=collection,
                 is_separator_regex=is_separator_regex,
                 separators=separators,
                 preset_separators=preset_separators,
@@ -136,3 +105,7 @@ class CreateDocumentForm(BaseModel):
             )
         except ValidationError as exc:
             raise RequestValidationError(exc.errors())
+
+
+class DocumentResponse(BaseModel):
+    id: Annotated[int, Field(ge=0, default=..., description="The ID of the document created.")]

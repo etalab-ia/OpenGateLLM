@@ -7,12 +7,18 @@ from api.helpers._accesscontroller import AccessController
 from api.schemas.core.documents import FileType
 from api.schemas.parse import CreateParseForm, ParsedDocument
 from api.utils.context import global_context
-from api.utils.variables import ENDPOINT__PARSE, ROUTER__PARSE
+from api.utils.variables import EndpointRoute, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__PARSE.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.PARSE.title()])
 
 
-@router.post(path=ENDPOINT__PARSE, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=ParsedDocument)
+@router.post(
+    path=EndpointRoute.PARSE,
+    dependencies=[Security(dependency=AccessController())],
+    status_code=200,
+    response_model=ParsedDocument,
+    deprecated=True,
+)
 async def parse(
     request: Request,
     data: Annotated[CreateParseForm, Depends(CreateParseForm.as_form)],

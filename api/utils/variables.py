@@ -1,3 +1,5 @@
+from enum import StrEnum
+
 DEFAULT_APP_NAME = "OpenGateLLM"
 DEFAULT_TIMEOUT = 300
 
@@ -7,56 +9,55 @@ PREFIX__REDIS_METRIC_TIMESERIE = "ogl_ts"
 PREFIX__REDIS_RATE_LIMIT = "ogl_rt"
 REDIS__TIMESERIE_RETENTION_SECONDS = 120
 
-ENDPOINT__ADMIN_ORGANIZATIONS = "/admin/organizations"
-ENDPOINT__ADMIN_PROVIDERS = "/admin/providers"
-ENDPOINT__ADMIN_ROLES = "/admin/roles"
-ENDPOINT__ADMIN_ROUTERS = "/admin/routers"
-ENDPOINT__ADMIN_TOKENS = "/admin/tokens"
-ENDPOINT__ADMIN_USERS = "/admin/users"
-ENDPOINT__AUDIO_TRANSCRIPTIONS = "/audio/transcriptions"
-ENDPOINT__AUTH_CALLBACK = "/auth/callback"
-ENDPOINT__AUTH_LOGIN = "/auth/login"
-ENDPOINT__AUTH_LOGOUT = "/auth/logout"
-ENDPOINT__CHAT_COMPLETIONS = "/chat/completions"
-ENDPOINT__CHUNKS = "/chunks"
-ENDPOINT__COLLECTIONS = "/collections"
-ENDPOINT__DOCUMENTS = "/documents"
-ENDPOINT__EMBEDDINGS = "/embeddings"
-ENDPOINT__FILES = "/files"
-ENDPOINT__ME_KEYS = "/me/keys"
-ENDPOINT__ME_INFO = "/me/info"
-ENDPOINT__ME_USAGE = "/me/usage"
-ENDPOINT__MODELS = "/models"
-ENDPOINT__MODELS_ALIAS = "/models/alias"
-ENDPOINT__OCR = "/ocr"
-ENDPOINT__OCR_BETA = "/ocr-beta"
-ENDPOINT__PARSE = "/parse-beta"
-ENDPOINT__RERANK = "/rerank"
-ENDPOINT__SEARCH = "/search"
-ENDPOINT__USAGE = "/usage"
 
-ENDPOINTS = [value for name, value in locals().items() if name.startswith("ENDPOINT__")]
+class RouterName(StrEnum):
+    ADMIN = ("admin", "api.endpoints.admin")
+    AUDIO = ("audio", "api.endpoints.audio")
+    AUTH = ("auth", "api.endpoints.auth")
+    CHAT = ("chat", "api.endpoints.chat")
+    CHUNKS = ("chunks", "api.endpoints.chunks")
+    COLLECTIONS = ("collections", "api.endpoints.collections")
+    DOCUMENTS = ("documents", "api.endpoints.documents")
+    EMBEDDINGS = ("embeddings", "api.endpoints.embeddings")
+    ME = ("me", "api.endpoints.me")
+    MODELS = ("models", "api.infrastructure.fastapi.endpoints.models")
+    MONITORING = ("monitoring", None)
+    OCR = ("ocr", "api.endpoints.ocr")
+    PARSE = ("parse", "api.endpoints.parse")
+    RERANK = ("rerank", "api.endpoints.rerank")
+    SEARCH = ("search", "api.endpoints.search")
+
+    def __new__(cls, value: str, module_path: str):
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        obj.module_path = module_path
+
+        return obj
 
 
-ROUTER__ADMIN = "admin"
-ROUTER__AUDIO = "audio"
-ROUTER__AUTH = "auth"
-ROUTER__CHAT = "chat"
-ROUTER__CHUNKS = "chunks"
-ROUTER__COLLECTIONS = "collections"
-ROUTER__DOCUMENTS = "documents"
-ROUTER__EMBEDDINGS = "embeddings"
-ROUTER__FILES = "files"
-ROUTER__MODELS = "models"
-ROUTER__MONITORING = "monitoring"
-ROUTER__OCR = "ocr"
-ROUTER__PARSE = "parse"
-ROUTER__RERANK = "rerank"
-ROUTER__SEARCH = "search"
-ROUTER__USAGE = "usage"
-ROUTER__ME = "me"
+class EndpointRoute(StrEnum):
+    ADMIN_ORGANIZATIONS = f"/{RouterName.ADMIN}/organizations"
+    ADMIN_PROVIDERS = f"/{RouterName.ADMIN}/providers"
+    ADMIN_ROLES = f"/{RouterName.ADMIN}/roles"
+    ADMIN_ROUTERS = f"/{RouterName.ADMIN}/routers"
+    ADMIN_TOKENS = f"/{RouterName.ADMIN}/tokens"
+    ADMIN_USERS = f"/{RouterName.ADMIN}/users"
+    AUDIO_TRANSCRIPTIONS = f"/{RouterName.AUDIO}/transcriptions"
+    AUTH_LOGIN = f"/{RouterName.AUTH}/login"
+    CHAT_COMPLETIONS = f"/{RouterName.CHAT}/completions"
+    CHUNKS = f"/{RouterName.CHUNKS}"
+    COLLECTIONS = f"/{RouterName.COLLECTIONS}"
+    DOCUMENTS = f"/{RouterName.DOCUMENTS}"
+    EMBEDDINGS = f"/{RouterName.EMBEDDINGS}"
+    ME_INFO = f"/{RouterName.ME}/info"
+    ME_KEYS = f"/{RouterName.ME}/keys"
+    ME_USAGE = f"/{RouterName.ME}/usage"
+    MODELS = f"/{RouterName.MODELS}"
+    OCR = f"/{RouterName.OCR}"
+    PARSE = f"/{RouterName.PARSE}-beta"
+    RERANK = f"/{RouterName.RERANK}"
+    SEARCH = f"/{RouterName.SEARCH}"
 
-ROUTERS = [value for name, value in locals().items() if name.startswith("ROUTER__")]
 
 # Supported language from https://github.com/huggingface/transformers/blob/main/src/transformers/models/whisper/tokenization_whisper.py
 SUPPORTED_LANGUAGES = {

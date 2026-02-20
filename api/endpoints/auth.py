@@ -5,12 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.schemas.auth import Login, LoginResponse
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import ENDPOINT__AUTH_LOGIN, ROUTER__AUTH
+from api.utils.variables import EndpointRoute, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__AUTH.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.AUTH.title()])
 
 
-@router.post(path=ENDPOINT__AUTH_LOGIN)
+@router.post(path=EndpointRoute.AUTH_LOGIN)
 async def login(request: Request, body: Login, postgres_session: AsyncSession = Depends(get_postgres_session)) -> LoginResponse:
     """
     Receive encrypted token from playground encoded with shared key via POST body.

@@ -1,21 +1,20 @@
 from typing import Literal
 
-from fastapi import APIRouter, Body, Depends, Path, Query, Request, Security
+from fastapi import Body, Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
 from api.schemas.admin.roles import PermissionType
 from api.schemas.admin.users import CreateUser, Users, UsersResponse, UserUpdateRequest
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import ENDPOINT__ADMIN_USERS, ROUTER__ADMIN
-
-router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
+from api.utils.variables import EndpointRoute
 
 
 @router.post(
-    path=ENDPOINT__ADMIN_USERS,
+    path=EndpointRoute.ADMIN_USERS,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=201,
     response_model=UsersResponse,
@@ -45,7 +44,7 @@ async def create_user(
 
 
 @router.delete(
-    path=ENDPOINT__ADMIN_USERS + "/{user:path}",
+    path=EndpointRoute.ADMIN_USERS + "/{user}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -63,7 +62,7 @@ async def delete_user(
 
 
 @router.patch(
-    path=ENDPOINT__ADMIN_USERS + "/{user:path}",
+    path=EndpointRoute.ADMIN_USERS + "/{user}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -94,7 +93,7 @@ async def update_user(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_USERS + "/{user:path}",
+    path=EndpointRoute.ADMIN_USERS + "/{user}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
 )
@@ -113,7 +112,7 @@ async def get_user(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_USERS,
+    path=EndpointRoute.ADMIN_USERS,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
 )

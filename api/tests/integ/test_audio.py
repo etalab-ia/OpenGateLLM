@@ -6,12 +6,12 @@ from pytest_snapshot.plugin import Snapshot
 
 from api.schemas.audio import AudioTranscription
 from api.schemas.models import ModelType
-from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS, ENDPOINT__MODELS
+from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture(scope="module")
 def setup(client: TestClient):
-    response = client.get_without_permissions(url=f"/v1{ENDPOINT__MODELS}")
+    response = client.get_without_permissions(url=f"/v1{EndpointRoute.MODELS}")
     assert response.status_code == 200, f"error: retrieve models ({response.status_code})"
     response_json = response.json()
     model = [model for model in response_json["data"] if model["type"] == ModelType.AUTOMATIC_SPEECH_RECOGNITION][0]
@@ -30,7 +30,7 @@ class TestAudio:
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "audio/mpeg")}
             data = {"model": MODEL_ID, "language": "fr", "response_format": "json", "temperature": 0}
-            response = client.post_without_permissions(f"/v1{ENDPOINT__AUDIO_TRANSCRIPTIONS}", files=files, data=data)
+            response = client.post_without_permissions(f"/v1{EndpointRoute.AUDIO_TRANSCRIPTIONS}", files=files, data=data)
 
         assert response.status_code == 200, response.text
         AudioTranscription(**response.json())  # test output format
@@ -43,7 +43,7 @@ class TestAudio:
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "audio/mpeg")}
             data = {"model": MODEL_ID, "language": "fr", "response_format": "text"}
-            response = client.post_without_permissions(f"/v1{ENDPOINT__AUDIO_TRANSCRIPTIONS}", files=files, data=data)
+            response = client.post_without_permissions(f"/v1{EndpointRoute.AUDIO_TRANSCRIPTIONS}", files=files, data=data)
 
         assert response.status_code == 200, response.text
         assert isinstance(response.text, str)
@@ -56,7 +56,7 @@ class TestAudio:
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "audio/wav")}
             data = {"model": MODEL_ID, "language": "fr", "response_format": "json", "temperature": 0}
-            response = client.post_without_permissions(f"/v1{ENDPOINT__AUDIO_TRANSCRIPTIONS}", files=files, data=data)
+            response = client.post_without_permissions(f"/v1{EndpointRoute.AUDIO_TRANSCRIPTIONS}", files=files, data=data)
 
         assert response.status_code == 200, response.text
         AudioTranscription(**response.json())  # test output format
@@ -68,7 +68,7 @@ class TestAudio:
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "audio/mpeg")}
             data = {"model": "invalid-model", "language": "fr"}
-            response = client.post_without_permissions(f"/v1{ENDPOINT__AUDIO_TRANSCRIPTIONS}", files=files, data=data)
+            response = client.post_without_permissions(f"/v1{EndpointRoute.AUDIO_TRANSCRIPTIONS}", files=files, data=data)
 
         assert response.status_code == 404, response.text
         snapshot.assert_match(str(response.text), snapshot_name="audio_transcriptions_invalid_model")

@@ -1,4 +1,4 @@
-# ADR-001: Migration to Clean Architecture
+# ADR- 2026-01-07 - Migration to Clean Architecture
 
 **Status:** In Progress
 **Date:** 2026-01-07
@@ -211,24 +211,25 @@ async def test_should_return_all_models_the_user_has_access_to(
 ```python
 # tests/integration/test_postgresrouterrepository.py
 from api.tests.integration.factories import (
-    OrganizationFactory,
-    ProviderFactory,
-    RouterFactory,
-    UserFactory,
+    OrganizationSQLFactory,
+    ProviderSQLFactory,
+    RouterSQLFactory,
+    UserSQLFactory,
 )
+
 
 async def test_get_all_routers_should_return_all_routers(repository, db_session):
     # Arrange - Factories create and persist SQLAlchemy models with relationships
-    user_1 = UserFactory()
+    user_1 = UserSQLFactory()
 
-    router_1 = RouterFactory(
+    router_1 = RouterSQLFactory(
         user=user_1,
         name="router_1",
         type=ModelType.TEXT_GENERATION,
         cost_prompt_tokens=0.001,
     )
 
-    ProviderFactory(router=router_1, user=user_1, max_context_length=2048)
+    ProviderSQLFactory(router=router_1, user=user_1, max_context_length=2048)
 
     await db_session.flush()
 
@@ -309,6 +310,6 @@ pytest api/tests/integration --cov=api --cov-report=html --cov-report=term-missi
 
 ## Revision History
 
-| Date       | Author           | Changes                              |
-|------------|------------------|--------------------------------------|
-| 2025-01-07 | Development Team | Initial ADR based on GetModelsUseCase migration |
+| Date | Author | Changes |
+| --- | --- | --- |
+| 2026-01-07 | Development Team | Initial ADR based on GetModelsUseCase migration |

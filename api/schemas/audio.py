@@ -2,14 +2,16 @@ import base64
 from enum import Enum
 from typing import Literal
 
-from fastapi import File, UploadFile
+from fastapi import File, Form, UploadFile
+from fastapi.exceptions import RequestValidationError
 from mistralai.models import AudioChunk, ChatCompletionRequest, TextChunk, UserMessage
-from pydantic import Field, field_validator
+from pydantic import Field, ValidationError, field_validator
 
 from api.schemas import BaseModel
 from api.schemas.admin.providers import ProviderType
 from api.schemas.core.models import RequestContent
 from api.schemas.usage import Usage
+from api.utils.exceptions import FileSizeLimitExceededException
 from api.utils.variables import SUPPORTED_LANGUAGES
 
 SUPPORTED_LANGUAGES = list(SUPPORTED_LANGUAGES.keys()) + list(SUPPORTED_LANGUAGES.values())
@@ -20,16 +22,42 @@ AudioTranscriptionLanguage = Enum("AudioTranscriptionLanguage", SUPPORTED_LANGUA
 
 
 class CreateAudioTranscription(BaseModel):
-    file: UploadFile = File(description="The audio file object (not file name) to transcribe, in one of these formats: mp3 or wav.")  # fmt: off
-    model: str = Field(default=..., description="ID of the model to use. Call `/v1/models` endpoint to get the list of available models, only `automatic-speech-recognition` model type is supported.")  # fmt: off
-    language: AudioTranscriptionLanguage = Field(default=AudioTranscriptionLanguage.EMPTY, description="The language of the output audio. If the output language is different than the audio language, the audio language will be translated into the output language. Supplying the output language in ISO-639-1 (e.g. en, fr) format will improve accuracy and latency.")  # fmt: off
-    prompt: str | None = Field(default=None, description="An optional text to tell the model what to do with the input audio. Default is `Transcribe this audio in this language : {language}`")  # fmt: off
-    response_format: Literal["json", "text"] = Field(default="json", description="The format of the transcript output, in one of these formats: `json` or `text`.")  # fmt: off
-    temperature: float | None = Field(default=None, ge=0, le=1, description="The sampling temperature, between 0 and 1. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. If set to 0, the model will use log probability to automatically increase the temperature until certain thresholds are hit.")  # fmt: off
+    file: UploadFile
+    model: str
+    language: AudioTranscriptionLanguage
+    prompt: str
+    response_format: Literal["json", "text"]
+    temperature: float
 
-    @field_validator("language", mode="after")
-    def extract_value_language(cls, language: AudioTranscriptionLanguage) -> str:
-        return language.value
+    # fmt: off
+    @classmethod
+    def as_form(
+        cls,
+        file: UploadFile = File(default=..., description="The audio file object (not file name) to transcribe, in one of these formats: mp3 or wav."),
+        model: str = Form(default=..., description="ID of the model to use. Call `/v1/models` endpoint to get the list of available models, only `automatic-speech-recognition` model type is supported."),
+        language: AudioTranscriptionLanguage = Form(default=AudioTranscriptionLanguage.EMPTY, description="The language of the output audio. If the output language is different than the audio language, the audio language will be translated into the output language. Supplying the output language in ISO-639-1 (e.g. en, fr) format will improve accuracy and latency."),
+        prompt: str = Form(default="", description="An optional text to tell the model what to do with the input audio."),
+        response_format: Literal["json", "text"] = Form(default="json", description="The format of the transcript output, in one of these formats: `json` or `text`."),
+        temperature: float = Form(default=0.0, ge=0.0, le=1.0, description="The sampling temperature, between 0 and 1. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. If set to 0, the model will use log probability to automatically increase the temperature until certain thresholds are hit."),
+    ) -> "CreateAudioTranscription":
+        try:
+            return cls(
+                file=file,
+                model=model,
+                language=language,
+                prompt=prompt,
+                response_format=response_format,
+                temperature=temperature,
+            )
+        except ValidationError as exc:
+            raise RequestValidationError(exc.errors())
+
+    @field_validator("file", mode="after")
+    @classmethod
+    def validate_file(cls, file: UploadFile) -> UploadFile:
+        if file.size > FileSizeLimitExceededException.MAX_CONTENT_SIZE:
+            raise FileSizeLimitExceededException()
+        return file
 
     @staticmethod
     def format_request(provider_type: ProviderType, request_content: RequestContent):
@@ -57,8 +85,6 @@ class CreateAudioTranscription(BaseModel):
 
             case ProviderType.VLLM:
                 request_content.form["language"] = "en" if request_content.form["language"] == "" else request_content.form["language"]
-                request_content.form["temperature"] = 0 if request_content.form["temperature"] is None else request_content.form["temperature"]
-                request_content.form["prompt"] = "" if request_content.form["prompt"] is None else request_content.form["prompt"]
 
                 return request_content
 

@@ -16,7 +16,7 @@ from api.tests.integ.utils import (
     kill_openmockllm,
     run_openmockllm,
 )
-from api.utils.variables import ENDPOINT__EMBEDDINGS
+from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture(scope="module")
@@ -53,7 +53,7 @@ class TestTeiTextEmbeddingsInference:
         key, model_name = setup_tei_test_embeddings_inference
 
         response = client.post(
-            f"/v1{ENDPOINT__EMBEDDINGS}",
+            f"/v1{EndpointRoute.EMBEDDINGS}",
             json={
                 "model": model_name,
                 "input": "Hello, this is a test.",
@@ -68,7 +68,7 @@ class TestTeiTextEmbeddingsInference:
         key, model_name = setup_tei_test_embeddings_inference
 
         response = client.post(
-            url=f"/v1{ENDPOINT__EMBEDDINGS}",
+            url=f"/v1{EndpointRoute.EMBEDDINGS}",
             json={"model": model_name, "input": [1, 2, 3, 4, 5]},
             headers={"Authorization": f"Bearer {key}"},
         )
@@ -78,7 +78,7 @@ class TestTeiTextEmbeddingsInference:
         """Test the POST /embeddings endpoint with batch of token integers input."""
         key, model_name = setup_tei_test_embeddings_inference
         response = client.post(
-            url=f"/v1{ENDPOINT__EMBEDDINGS}",
+            url=f"/v1{EndpointRoute.EMBEDDINGS}",
             json={"model": model_name, "input": [[1, 2, 3], [4, 5, 6]]},
             headers={"Authorization": f"Bearer {key}"},
         )
@@ -89,7 +89,7 @@ class TestTeiTextEmbeddingsInference:
         """Test the POST /embeddings endpoint with invalid encoding format."""
         key, model_name = setup_tei_test_embeddings_inference
         response = client.post(
-            url=f"/v1{ENDPOINT__EMBEDDINGS}",
+            url=f"/v1{EndpointRoute.EMBEDDINGS}",
             json={"model": model_name, "input": "Test text", "encoding_format": "invalid_format"},
             headers={"Authorization": f"Bearer {key}"},
         )
@@ -99,7 +99,7 @@ class TestTeiTextEmbeddingsInference:
         """Test the POST /embeddings endpoint with batch input."""
         key, model_name = setup_tei_test_embeddings_inference
         response = client.post(
-            url=f"/v1{ENDPOINT__EMBEDDINGS}",
+            url=f"/v1{EndpointRoute.EMBEDDINGS}",
             json={"model": model_name, "input": ["Hello, this is a test.", "This is another test."]},
             headers={"Authorization": f"Bearer {key}"},
         )
@@ -111,7 +111,7 @@ class TestTeiTextEmbeddingsInference:
         """Test the POST /embeddings endpoint with empty input."""
         key, model_name = setup_tei_test_embeddings_inference
         response = client.post(
-            url=f"/v1{ENDPOINT__EMBEDDINGS}",
+            url=f"/v1{EndpointRoute.EMBEDDINGS}",
             json={"model": model_name, "input": ""},
             headers={"Authorization": f"Bearer {key}"},
         )
@@ -121,7 +121,7 @@ class TestTeiTextEmbeddingsInference:
         """Test the POST /embeddings endpoint with invalid model."""
         key, model_name = setup_tei_test_embeddings_inference
         response = client.post(
-            url=f"/v1{ENDPOINT__EMBEDDINGS}",
+            url=f"/v1{EndpointRoute.EMBEDDINGS}",
             json={"model": "invalid_model_id", "input": "Hello, this is a test."},
             headers={"Authorization": f"Bearer {key}"},
         )
@@ -131,7 +131,7 @@ class TestTeiTextEmbeddingsInference:
         """Test the POST /embeddings endpoint with missing input."""
         key, model_name = setup_tei_test_embeddings_inference
         response = client.post(
-            url=f"/v1{ENDPOINT__EMBEDDINGS}",
+            url=f"/v1{EndpointRoute.EMBEDDINGS}",
             json={"model": model_name},
             headers={"Authorization": f"Bearer {key}"},
         )

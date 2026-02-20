@@ -1,3 +1,4 @@
+from collections.abc import AsyncGenerator
 from contextvars import ContextVar
 
 from fastapi import Depends
@@ -6,12 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.domain.key import KeyRepository
 from api.infrastructure.postgres import PostgresKeyRepository, PostgresRouterRepository, PostgresUserInfoRepository
 from api.schemas.core.context import RequestContext
+from api.use_cases.admin import CreateRouterUseCase
 from api.use_cases.models import GetModelsUseCase
 from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context
 
 
-async def get_postgres_session() -> AsyncSession:
+async def get_postgres_session() -> AsyncGenerator[AsyncSession]:
     """
     Get a PostgreSQL postgres_session from the global context.
 
@@ -21,10 +23,14 @@ async def get_postgres_session() -> AsyncSession:
 
     session_factory = global_context.postgres_session_factory
     async with session_factory() as postgres_session:
-        yield postgres_session
-
-        if postgres_session.in_transaction():
-            await postgres_session.close()
+        try:
+            yield postgres_session
+            if postgres_session.in_transaction():
+                await postgres_session.commit()
+        except Exception:
+            if postgres_session.in_transaction():
+                await postgres_session.rollback()
+            raise
 
 
 def get_request_context() -> ContextVar[RequestContext]:
@@ -45,6 +51,13 @@ def get_models_use_case(
     return GetModelsUseCase(
         router_repository=PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title),
         user_id=request_context.get().user_id,
+        user_info_repository=PostgresUserInfoRepository(postgres_session=postgres_session),
+    )
+
+
+def create_router_use_case(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateRouterUseCase:
+    return CreateRouterUseCase(
+        router_repository=PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title),
         user_info_repository=PostgresUserInfoRepository(postgres_session=postgres_session),
     )
 

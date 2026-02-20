@@ -10,13 +10,14 @@ import time
 from typing import Any
 
 from elasticsearch import AsyncElasticsearch
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 from pydantic_settings import BaseSettings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
-from api.schemas.core.elasticsearch import ElasticsearchChunkFields, ElasticsearchIndexLanguage
+from api.schemas.chunks import ChunkMetadata
+from api.schemas.core.elasticsearch import ElasticsearchChunk, ElasticsearchIndexLanguage
 from api.sql.models import Collection as CollectionTable
 from api.sql.models import Document as DocumentTable
 
@@ -85,7 +86,9 @@ class ElasticSearchSource:
         self.username: str = username
         self.password: str = password
 
-        self.client = AsyncElasticsearch(hosts=url, basic_auth=(username, password), verify_certs=False, request_timeout=60, retry_on_timeout=True)
+        self.adapter = TypeAdapter(ChunkMetadata)
+
+        self.client = AsyncElasticsearch(hosts=url, basic_auth=(username, password), verify_certs=False, request_timeout=120, retry_on_timeout=True)
 
     async def get_collections(self) -> list[ElasticsearchCollectionInfo]:
         indices = await self.client.cat.indices(format="json")
@@ -107,18 +110,25 @@ class ElasticSearchSource:
         query = {"bool": {"must": [{"terms": {"metadata.document_id": [document_id]}}]}}
         chunks = []
         results = await self.client.search(index=str(collection_id), query=query, size=limit, from_=offset)
-        chunks = [
-            ElasticsearchChunkFields(
-                id=hit["_source"].get("id", 0),
-                collection_id=collection_id,
-                document_id=hit["_source"]["metadata"]["document_id"],
-                content=hit["_source"]["content"],
-                embedding=hit["_source"]["embedding"],
-                document_name=hit["_source"]["metadata"].get("document_name"),
-                created=hit["_source"]["metadata"].get("document_created", hit["_source"]["metadata"].get("document_created_at", int(time.time()))),
+        for hit in results["hits"]["hits"]:
+            try:
+                metadata = self.adapter.validate_python(hit["_source"]["metadata"])
+            except ValidationError:
+                metadata = None
+
+            created = hit["_source"]["metadata"].get("document_created", hit["_source"]["metadata"].get("document_created_at", int(time.time())))
+
+            chunks.append(
+                ElasticsearchChunk(
+                    id=hit["_source"].get("id", 0),
+                    collection_id=collection_id,
+                    document_id=hit["_source"]["metadata"]["document_id"],
+                    content=hit["_source"]["content"],
+                    embedding=hit["_source"]["embedding"],
+                    metadata=metadata,
+                    created=created,
+                )
             )
-            for hit in results["hits"]["hits"]
-        ]
 
         chunks = sorted(chunks, key=lambda chunk: chunk.id)
         return chunks
@@ -131,7 +141,7 @@ class ElasticSearchDestination:
         self.password: str = password
         self.index_name: str = index_name
 
-        self.client = AsyncElasticsearch(hosts=url, basic_auth=(username, password), verify_certs=False, request_timeout=60, retry_on_timeout=True)
+        self.client = AsyncElasticsearch(hosts=url, basic_auth=(username, password), verify_certs=False, request_timeout=120, retry_on_timeout=True)
 
     async def create_index(self, index_language: ElasticsearchIndexLanguage, number_of_shards: int, number_of_replicas: int, vector_size: int):
         _es = ElasticsearchVectorStore(index_name=self.index_name)
@@ -143,7 +153,7 @@ class ElasticSearchDestination:
             vector_size=vector_size,
         )
 
-    async def upsert_chunks(self, chunks: list[ElasticsearchChunkFields]):
+    async def upsert_chunks(self, chunks: list[ElasticsearchChunk]):
         _es = ElasticsearchVectorStore(index_name=self.index_name)
         await _es.upsert(client=self.client, chunks=chunks)
 
@@ -202,7 +212,7 @@ class ElasticSearchDestination:
             size=limit,
             from_=offset,
         )
-        chunks = [ElasticsearchChunkFields(**hit["_source"]) for hit in results["hits"]["hits"]]
+        chunks = [ElasticsearchChunk(**hit["_source"]) for hit in results["hits"]["hits"]]
 
         chunks = sorted(chunks, key=lambda chunk: chunk.id)
         return chunks
@@ -221,55 +231,72 @@ async def core_migration_logic(
     total_collections = len(collections)
 
     for i, collection in enumerate(collections):
-        collection_chunk_counter = 0
-        scroll_id = None
         try:
-            # Initialize scroll
-            results = await es_source.client.search(index=collection.index, size=10000, scroll="5m", body={"query": {"match_all": {}}})
-            scroll_id = results.get("_scroll_id")
+            collection_chunk_counter = 0
+
+            pit = await es_source.client.open_point_in_time(index=collection.index, keep_alive="5m")
+            pit_id = pit["id"]
+            search_after = None
 
             while True:
+                body = {
+                    "size": 10000,
+                    "query": {"match_all": {}},
+                    "pit": {"id": pit_id, "keep_alive": "1m"},
+                    "sort": ["_shard_doc"],
+                    "track_total_hits": False,
+                }
+                if search_after is not None:
+                    body["search_after"] = search_after
+
+                results = await es_source.client.search(body=body)
+                pit_id = results.get("pit_id", pit_id)
                 hits = results["hits"]["hits"]
-                collection_chunk_counter += len(hits)
+
                 if not hits:
                     logger.info(f"[{pid}][{i}/{total_collections}][{collection.id}]\tfetched {collection_chunk_counter} chunks from source collection.")  # fmt: off
                     break
 
-                chunks = [
-                    ElasticsearchChunkFields(
-                        id=hit["_source"].get("id", 0),
-                        collection_id=collection.id,
-                        document_id=hit["_source"]["metadata"]["document_id"],
-                        content=hit["_source"]["content"],
-                        embedding=hit["_source"]["embedding"],
-                        document_name=hit["_source"]["metadata"].get("document_name"),
-                        created=hit["_source"]["metadata"].get(
-                            "document_created", hit["_source"]["metadata"].get("document_created_at", int(time.time()))
-                        ),
+                chunks = []
+                for hit in hits:
+                    try:
+                        metadata = es_source.adapter.validate_python(hit["_source"]["metadata"])
+                    except ValidationError:
+                        metadata = None
+                    created = hit["_source"]["metadata"].get(
+                        "document_created", hit["_source"]["metadata"].get("document_created_at", int(time.time()))
                     )
-                    for hit in hits
-                ]
+                    chunks.append(
+                        ElasticsearchChunk(
+                            id=hit["_source"].get("id", 0),
+                            collection_id=hit["_source"]["metadata"]["collection_id"],
+                            document_id=hit["_source"]["metadata"]["document_id"],
+                            content=hit["_source"]["content"],
+                            embedding=hit["_source"]["embedding"],
+                            metadata=metadata,
+                            created=created,
+                        )
+                    )
+
                 collection_chunk_counter += len(chunks)
                 batch_chunks.extend(chunks)
-
                 if len(batch_chunks) > 10000:
                     logger.info(f"[{pid}]\t>>> upserting {len(batch_chunks)} chunks to destination collection...")
                     await es_destination.upsert_chunks(chunks=batch_chunks)
                     batch_chunks = []
 
-                # Get next batch
-                results = await es_source.client.scroll(scroll_id=scroll_id, scroll="5m")
-                scroll_id = results.get("_scroll_id")
+                search_after = hits[-1]["sort"]
+
+            await es_source.client.close_point_in_time(body={"id": pit_id})
 
         except Exception as e:
             logger.exception(f"[{pid}][{i}/{total_collections}][{collection.id}]\terror processing during migration: {e}")
         finally:
-            if scroll_id:
+            if pit_id:
                 try:
-                    await es_source.client.clear_scroll(scroll_id=scroll_id)
+                    await es_source.client.close_point_in_time(body={"id": pit_id})
                 except Exception:
                     pass
-
         gc.collect()
 
     if batch_chunks:
@@ -309,21 +336,30 @@ async def migrate(config: Config, es_source: ElasticSearchSource, es_destination
 
     destination_collections = await es_destination.get_collections()
     collections_to_migrate = []
-    collections_to_skip = 0
+    collections_to_skip_already_migrated = 0
+    collections_to_skip_empty = 0
+    collections_to_skip_partially_migrated = 0
+
     for source_collection in source_collections:
         migrated = False
         if source_collection.chunks == 0:
-            collections_to_skip += 1
+            collections_to_skip_empty += 1
             continue
         for destination_collection in destination_collections:
-            if source_collection.id == destination_collection.id and source_collection.chunks == destination_collection.chunks:
-                migrated = True
-                collections_to_skip += 1
-                break
+            if source_collection.id == destination_collection.id:
+                if source_collection.chunks == destination_collection.chunks:
+                    migrated = True
+                    collections_to_skip_already_migrated += 1
+                    break
+                else:
+                    collections_to_skip_partially_migrated += 1
+                    break
         if not migrated:
             collections_to_migrate.append(source_collection)
-    logger.info(f"{len(collections_to_migrate)} collections will be migrated")
-    logger.info(f"{collections_to_skip} collections will be skipped (already migrated)")
+    logger.info(f"{len(source_collections)} collections in source Elasticsearch.")
+    logger.info(f"{collections_to_skip_already_migrated} collections will be skipped (already migrated)")
+    logger.info(f"{collections_to_skip_empty} collections will be skipped (empty)")
+    logger.info(f"{len(collections_to_migrate)} collections will be migrated (with {collections_to_skip_partially_migrated} collections partially migrated)")  # fmt:off
 
     if not collections_to_migrate:
         return
@@ -390,8 +426,6 @@ async def sanity_check(psql: PostgreSQL, es_source: ElasticSearchSource, es_dest
                     logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same content)")  # fmt: off
                 if source_chunk.embedding != destination_chunk.embedding:
                     logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same embedding")  # fmt: off
-                if source_chunk.document_name != destination_chunk.document_name:
-                    logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same document name ({source_chunk.document_name} != {destination_chunk.document_name})")  # fmt: off
                 if source_chunk.created != destination_chunk.created:
                     logger.error(f"Chunk {source_chunk.id} of document {document_id} in collection {collection.id} has not same created ({source_chunk.created} != {destination_chunk.created})")  # fmt: off
 
@@ -399,7 +433,7 @@ async def sanity_check(psql: PostgreSQL, es_source: ElasticSearchSource, es_dest
 
 
 async def main():
-    logger.info(f"Script started at: {datetime.now().strftime("%Y-%m-%d %H:%M:%S %Z")}\n")
+    logger.info(f"Script started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S %Z')}\n")
 
     config = Config()
 

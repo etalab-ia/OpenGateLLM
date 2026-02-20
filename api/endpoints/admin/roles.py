@@ -1,20 +1,19 @@
 from typing import Literal
 
-from fastapi import APIRouter, Body, Depends, Path, Query, Request, Security
+from fastapi import Body, Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
 from api.schemas.admin.roles import CreateRole, PermissionType, Role, Roles, RolesResponse, RoleUpdateRequest
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import ENDPOINT__ADMIN_ROLES, ROUTER__ADMIN
-
-router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
+from api.utils.variables import EndpointRoute
 
 
 @router.post(
-    path=ENDPOINT__ADMIN_ROLES,
+    path=EndpointRoute.ADMIN_ROLES,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=201,
     response_model=RolesResponse,
@@ -36,7 +35,7 @@ async def create_role(
 
 
 @router.delete(
-    path=ENDPOINT__ADMIN_ROLES + "/{role}",
+    path=EndpointRoute.ADMIN_ROLES + "/{role}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -55,7 +54,7 @@ async def delete_role(
 
 
 @router.patch(
-    path=ENDPOINT__ADMIN_ROLES + "/{role:path}",
+    path=EndpointRoute.ADMIN_ROLES + "/{role}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -81,7 +80,7 @@ async def update_role(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_ROLES + "/{role:path}",
+    path=EndpointRoute.ADMIN_ROLES + "/{role}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Role,
@@ -101,7 +100,7 @@ async def get_role(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_ROLES,
+    path=EndpointRoute.ADMIN_ROLES,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Roles,

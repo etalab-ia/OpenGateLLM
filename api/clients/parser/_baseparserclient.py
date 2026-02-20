@@ -41,7 +41,7 @@ class BaseParserClient(ABC):
         return pages
 
     @abstractmethod
-    def check_health(self) -> bool:
+    async def check_health(self) -> bool:
         pass
 
     @abstractmethod

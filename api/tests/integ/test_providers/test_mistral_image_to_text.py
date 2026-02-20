@@ -16,7 +16,7 @@ from api.tests.integ.utils import (
     kill_openmockllm,
     run_openmockllm,
 )
-from api.utils.variables import ENDPOINT__OCR
+from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture(scope="module")
@@ -52,7 +52,7 @@ class TestMistralImageToText:
         key, model_name = setup_mistral_image_to_text
 
         response = client.post(
-            f"/v1{ENDPOINT__OCR}",
+            f"/v1{EndpointRoute.OCR}",
             json={"model": model_name, "document": {"type": "document_url", "document_url": "https://www.princexml.com/samples/magic6/magic.pdf"}},
             headers={"Authorization": f"Bearer {key}"},
         )

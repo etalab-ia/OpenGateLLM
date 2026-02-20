@@ -51,10 +51,12 @@ class IdentityAccessManager:
         self.key_max_expiration_days = key_max_expiration_days
         self.playground_session_duration = playground_session_duration
 
-    def _hash_password(self, password: str) -> str:
+    @staticmethod
+    def _hash_password(password: str) -> str:
         return bcrypt.hashpw(password=password.encode("utf-8"), salt=bcrypt.gensalt()).decode("utf-8")
 
-    def _check_password(self, password: str, hashed_password: str) -> bool:
+    @staticmethod
+    def _check_password(password: str, hashed_password: str) -> bool:
         return bcrypt.checkpw(password=password.encode("utf-8"), hashed_password=hashed_password.encode("utf-8"))
 
     def _decode_token(self, token: str) -> dict:
@@ -68,8 +70,8 @@ class IdentityAccessManager:
             algorithm="HS256",
         )
 
+    @staticmethod
     async def create_role(
-        self,
         postgres_session: AsyncSession,
         name: str,
         limits: list[Limit] = None,
@@ -101,7 +103,8 @@ class IdentityAccessManager:
 
         return role_id
 
-    async def delete_role(self, postgres_session: AsyncSession, role_id: int) -> None:
+    @staticmethod
+    async def delete_role(postgres_session: AsyncSession, role_id: int) -> None:
         # check if role exists
         result = await postgres_session.execute(statement=select(RoleTable).where(RoleTable.id == role_id))
         try:
@@ -117,8 +120,8 @@ class IdentityAccessManager:
 
         await postgres_session.commit()
 
+    @staticmethod
     async def update_role(
-        self,
         postgres_session: AsyncSession,
         role_id: int,
         name: str | None = None,
@@ -157,8 +160,8 @@ class IdentityAccessManager:
 
         await postgres_session.commit()
 
+    @staticmethod
     async def get_roles(
-        self,
         postgres_session: AsyncSession,
         role_id: int | None = None,
         offset: int = 0,
@@ -296,7 +299,8 @@ class IdentityAccessManager:
 
         return user_id
 
-    async def delete_user(self, postgres_session: AsyncSession, user_id: int) -> None:
+    @staticmethod
+    async def delete_user(postgres_session: AsyncSession, user_id: int) -> None:
         # check if user exists
         result = await postgres_session.execute(statement=select(UserTable.id).where(UserTable.id == user_id))
         try:
@@ -406,8 +410,8 @@ class IdentityAccessManager:
         )
         await postgres_session.commit()
 
+    @staticmethod
     async def get_users(
-        self,
         postgres_session: AsyncSession,
         email: str | None = None,
         user_id: int | None = None,
@@ -453,7 +457,8 @@ class IdentityAccessManager:
 
         return users
 
-    async def create_organization(self, postgres_session: AsyncSession, name: str) -> int:
+    @staticmethod
+    async def create_organization(postgres_session: AsyncSession, name: str) -> int:
         try:
             result = await postgres_session.execute(statement=insert(table=OrganizationTable).values(name=name).returning(OrganizationTable.id))
             organization_id = result.scalar_one()
@@ -462,7 +467,8 @@ class IdentityAccessManager:
         await postgres_session.commit()
         return organization_id
 
-    async def delete_organization(self, postgres_session: AsyncSession, organization_id: int) -> None:
+    @staticmethod
+    async def delete_organization(postgres_session: AsyncSession, organization_id: int) -> None:
         result = await postgres_session.execute(statement=select(OrganizationTable.id).where(OrganizationTable.id == organization_id))
         try:
             result.scalar_one()
@@ -476,7 +482,8 @@ class IdentityAccessManager:
 
         await postgres_session.commit()
 
-    async def update_organization(self, postgres_session: AsyncSession, organization_id: int, name: str | None = None) -> None:
+    @staticmethod
+    async def update_organization(postgres_session: AsyncSession, organization_id: int, name: str | None = None) -> None:
         result = await postgres_session.execute(
             statement=select(
                 OrganizationTable,
@@ -497,8 +504,8 @@ class IdentityAccessManager:
                 raise OrganizationNameAlreadyTakenException()
         await postgres_session.commit()
 
+    @staticmethod
     async def get_organizations(
-        self,
         postgres_session: AsyncSession,
         organization_id: int | None = None,
         offset: int = 0,
@@ -595,7 +602,8 @@ class IdentityAccessManager:
 
         return token_id, token
 
-    async def delete_token(self, postgres_session: AsyncSession, user_id: int, token_id: int) -> None:
+    @staticmethod
+    async def delete_token(postgres_session: AsyncSession, user_id: int, token_id: int) -> None:
         # check if token exists
         result = await postgres_session.execute(statement=select(TokenTable.id).where(TokenTable.id == token_id).where(TokenTable.user_id == user_id))
         try:
@@ -607,7 +615,8 @@ class IdentityAccessManager:
         await postgres_session.execute(statement=delete(table=TokenTable).where(TokenTable.id == token_id))
         await postgres_session.commit()
 
-    async def delete_tokens(self, postgres_session: AsyncSession, user_id: int, name: str):
+    @staticmethod
+    async def delete_tokens(postgres_session: AsyncSession, user_id: int, name: str):
         """
         Delete tokens for a specific user, optionally filtered by token name
 
@@ -621,8 +630,8 @@ class IdentityAccessManager:
         await postgres_session.execute(query)
         await postgres_session.commit()
 
+    @staticmethod
     async def get_tokens(
-        self,
         postgres_session: AsyncSession,
         user_id: int | None = None,
         token_id: int | None = None,
@@ -678,7 +687,8 @@ class IdentityAccessManager:
 
         return claims["user_id"], claims["token_id"], tokens[0].name
 
-    async def invalidate_token(self, postgres_session: AsyncSession, token_id: int, user_id: int) -> None:
+    @staticmethod
+    async def invalidate_token(postgres_session: AsyncSession, token_id: int, user_id: int) -> None:
         """
         Invalidate a token by setting its expires to the current timestamp
 
@@ -692,8 +702,8 @@ class IdentityAccessManager:
         )
         await postgres_session.commit()
 
+    @staticmethod
     async def get_user(
-        self,
         postgres_session: AsyncSession,
         user_id: int | None = None,
         sub: str | None = None,

@@ -1,8 +1,10 @@
+from collections.abc import AsyncGenerator
 from contextvars import ContextVar
+from typing import Any
 
 from elasticsearch import AsyncElasticsearch
 import redis.asyncio as redis
-from redis.asyncio import Redis as AsyncRedis
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
@@ -10,6 +12,7 @@ from api.helpers._usagemanager import UsageManager
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
 from api.utils.context import global_context, request_context
+from api.utils.exceptions import FeatureNotEnabledException
 
 
 def get_request_context() -> ContextVar[RequestContext]:
@@ -23,7 +26,7 @@ def get_request_context() -> ContextVar[RequestContext]:
     return request_context
 
 
-async def get_redis_client() -> AsyncRedis:
+async def get_redis_client() -> AsyncGenerator[Redis, Any]:
     """
     Get a Redis client built from the shared connection pool.
 
@@ -38,7 +41,7 @@ async def get_redis_client() -> AsyncRedis:
     await client.aclose()
 
 
-async def get_postgres_session() -> AsyncSession:
+async def get_postgres_session() -> AsyncGenerator[AsyncSession | Any, Any]:
     """
     Get a PostgreSQL postgres_session from the global context.
 
@@ -69,6 +72,9 @@ def get_elasticsearch_vector_store() -> ElasticsearchVectorStore:
     """
     Get the ElasticsearchVectorStore instance from the global context.
     """
+
+    if not global_context.elasticsearch_vector_store:
+        raise FeatureNotEnabledException()
 
     return global_context.elasticsearch_vector_store
 

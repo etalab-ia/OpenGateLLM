@@ -4,14 +4,8 @@ from urllib.parse import urljoin
 import httpx
 
 from api.schemas.admin.providers import ProviderType
-from api.utils.variables import (
-    ENDPOINT__AUDIO_TRANSCRIPTIONS,
-    ENDPOINT__CHAT_COMPLETIONS,
-    ENDPOINT__EMBEDDINGS,
-    ENDPOINT__MODELS,
-    ENDPOINT__OCR,
-    ENDPOINT__RERANK,
-)
+from api.schemas.core.models import ProviderEndpoints
+from api.utils.variables import EndpointRoute
 
 from ._basemodelprovider import BaseModelProvider
 
@@ -19,14 +13,14 @@ logger = logging.getLogger(__name__)
 
 
 class VllmModelProvider(BaseModelProvider):
-    ENDPOINT_TABLE = {
-        ENDPOINT__AUDIO_TRANSCRIPTIONS: "/v1/audio/transcriptions",
-        ENDPOINT__CHAT_COMPLETIONS: "/v1/chat/completions",
-        ENDPOINT__EMBEDDINGS: "/v1/embeddings",
-        ENDPOINT__MODELS: "/v1/models",
-        ENDPOINT__OCR: "/v1/chat/completions",
-        ENDPOINT__RERANK: None,
-    }
+    ENDPOINT_TABLE = ProviderEndpoints(
+        audio_transcriptions="/v1/audio/transcriptions",
+        chat_completions="/v1/chat/completions",
+        embeddings="/v1/embeddings",
+        models="/v1/models",
+        ocr="/v1/chat/completions",
+        rerank=None,
+    )
 
     def __init__(
         self,
@@ -53,7 +47,7 @@ class VllmModelProvider(BaseModelProvider):
         self.type = ProviderType.VLLM
 
     async def get_max_context_length(self) -> int | None:
-        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE[ENDPOINT__MODELS].lstrip("/"))
+        url = urljoin(base=self.url, url=self.ENDPOINT_TABLE.get_endpoint(endpoint=EndpointRoute.MODELS).lstrip("/"))
 
         try:
             async with httpx.AsyncClient() as client:

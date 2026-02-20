@@ -16,13 +16,7 @@ from api.schemas.admin.tokens import CreateToken
 from api.schemas.admin.users import CreateUser
 from api.schemas.core.configuration import Metric
 from api.schemas.models import ModelType
-from api.utils.variables import (
-    ENDPOINT__ADMIN_PROVIDERS,
-    ENDPOINT__ADMIN_ROLES,
-    ENDPOINT__ADMIN_ROUTERS,
-    ENDPOINT__ADMIN_TOKENS,
-    ENDPOINT__ADMIN_USERS,
-)
+from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +149,7 @@ def kill_openmockllm(process: subprocess.Popen) -> None:
 
 def create_router(model_name: str, model_type: ModelType, client: TestClient) -> int:
     payload = CreateRouter(name=model_name, type=model_type)
-    response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROUTERS}", json=payload.model_dump())
+    response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_ROUTERS}", json=payload.model_dump())
     assert response.status_code == 201, response.text
     router_id = response.json()["id"]
 
@@ -188,7 +182,7 @@ def create_provider(
         qos_metric=qos_metric,
         qos_limit=qos_limit,
     )
-    response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_PROVIDERS}", json=payload.model_dump())
+    response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_PROVIDERS}", json=payload.model_dump())
     assert response.status_code == 201, response.text
     provider_id = response.json()["id"]
 
@@ -206,7 +200,7 @@ def create_role(router_id: int, client: TestClient) -> int:
         ],
     )
 
-    response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_ROLES}", json=payload.model_dump())
+    response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_ROLES}", json=payload.model_dump())
     assert response.status_code == 201, response.text
     role_id = response.json()["id"]
 
@@ -220,7 +214,7 @@ def create_user(role_id: int, client: TestClient) -> int:
         role=role_id,
         password="test-password",
     )
-    response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_USERS}", json=payload.model_dump())
+    response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}", json=payload.model_dump())
     assert response.status_code == 201, response.text
     user_id = response.json()["id"]
 
@@ -234,7 +228,7 @@ def create_token(user_id: int, token_name: str, client: TestClient) -> str:
         expires=int((time.time()) + 60 * 10),
         password="test-password",
     )
-    response = client.post_with_permissions(url=f"/v1{ENDPOINT__ADMIN_TOKENS}", json=payload.model_dump())
+    response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_TOKENS}", json=payload.model_dump())
     assert response.status_code == 201, response.text
 
     key_id = response.json()["id"]

@@ -45,6 +45,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+coverage.json
 *.cover
 *.py,cover
 .hypothesis/
@@ -220,3 +221,6 @@ playground/.states
 playground/.gitignore
 playground/requirements.txt
 run.sh
+.claude
+
+bruno

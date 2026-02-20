@@ -10,12 +10,12 @@ from api.schemas.embeddings import Embeddings, EmbeddingsRequest
 from api.utils.context import request_context
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client
 from api.utils.hooks_decorator import hooks
-from api.utils.variables import ENDPOINT__EMBEDDINGS, ROUTER__EMBEDDINGS
+from api.utils.variables import EndpointRoute, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__EMBEDDINGS.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.EMBEDDINGS.title()])
 
 
-@router.post(path=ENDPOINT__EMBEDDINGS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Embeddings)
+@router.post(path=EndpointRoute.EMBEDDINGS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Embeddings)
 @hooks
 async def embeddings(
     request: Request,
@@ -30,13 +30,13 @@ async def embeddings(
 
     model_provider = await model_registry.get_model_provider(
         model=body.model,
-        endpoint=ENDPOINT__EMBEDDINGS,
+        endpoint=EndpointRoute.EMBEDDINGS,
         postgres_session=postgres_session,
         redis_client=redis_client,
         request_context=request_context,
     )
     response = await model_provider.forward_request(
-        request_content=RequestContent(method="POST", endpoint=ENDPOINT__EMBEDDINGS, json=body.model_dump(), model=body.model),
+        request_content=RequestContent(method="POST", endpoint=EndpointRoute.EMBEDDINGS, json=body.model_dump(), model=body.model),
         redis_client=redis_client,
     )
 

@@ -26,13 +26,13 @@ from api.utils.dependencies import (
 )
 from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, WrongModelTypeException
 from api.utils.hooks_decorator import hooks
-from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ROUTER__CHAT
+from api.utils.variables import EndpointRoute, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__CHAT.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.CHAT.title()])
 
 
 @router.post(
-    path=ENDPOINT__CHAT_COMPLETIONS,
+    path=EndpointRoute.CHAT_COMPLETIONS,
     status_code=200,
     dependencies=[Security(dependency=AccessController())],
     response_model=ChatCompletion | ChatCompletionChunk,
@@ -76,13 +76,13 @@ async def chat_completions(
                 raise CollectionNotFoundException()
 
             results = await global_context.document_manager.search_chunks(
-                request_context=request_context,
+                request_context=inner_request_context,
                 elasticsearch_vector_store=inner_elasticsearch_vector_store,
                 elasticsearch_client=inner_elasticsearch_client,
                 postgres_session=inner_postgres_session,
                 redis_client=inner_redis_client,
                 model_registry=inner_model_registry,
-                collection_ids=initial_body.search_args.collections,
+                collection_ids=initial_body.search_args.collection_ids,
                 prompt=initial_body.messages[-1]["content"],
                 method=initial_body.search_args.method,
                 limit=initial_body.search_args.limit,
@@ -115,7 +115,7 @@ async def chat_completions(
     additional_data = {"search_results": results} if results else {}
     model_provider = await model_registry.get_model_provider(
         model=body["model"],
-        endpoint=ENDPOINT__CHAT_COMPLETIONS,
+        endpoint=EndpointRoute.CHAT_COMPLETIONS,
         postgres_session=postgres_session,
         redis_client=redis_client,
         request_context=request_context,
@@ -123,7 +123,7 @@ async def chat_completions(
 
     request_content = RequestContent(
         method="POST",
-        endpoint=ENDPOINT__CHAT_COMPLETIONS,
+        endpoint=EndpointRoute.CHAT_COMPLETIONS,
         json=body,
         model=body["model"],
         additional_data=additional_data,

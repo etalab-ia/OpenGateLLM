@@ -3,10 +3,9 @@ import logging
 
 from elasticsearch import AsyncElasticsearch, helpers
 from elasticsearch.helpers import BulkIndexError
-from pydantic import conint
 
-from api.schemas.chunks import Chunk, ChunkMetadata
-from api.schemas.core.elasticsearch import ElasticsearchChunkFields, ElasticsearchIndexLanguage
+from api.schemas.chunks import Chunk
+from api.schemas.core.elasticsearch import ElasticsearchChunk, ElasticsearchIndexLanguage
 from api.schemas.search import Search, SearchMethod
 
 logger = logging.getLogger(__name__)
@@ -60,76 +59,46 @@ class ElasticsearchVectorStore:
                 "id": {"type": "integer"},
                 "collection_id": {"type": "integer"},
                 "document_id": {"type": "integer"},
-                "document_name": {"type": "keyword"},  # can be overridden by user
                 "embedding": {"type": "dense_vector", "dims": vector_size, "index": True, "similarity": "cosine"},
                 "content": {"type": "text", "analyzer": "content_analyzer"},
+                "metadata": {"type": "flattened"},
                 "created": {"type": "date"},
-                # document source properties
-                "source_ref": {"type": "keyword"},
-                "source_url": {"type": "keyword"},
-                "source_type": {"type": "keyword"},
-                "source_page": {"type": "integer"},
-                "source_format": {"type": "keyword"},
-                "source_title": {"type": "keyword"},
-                "source_author": {"type": "keyword"},
-                "source_publisher": {"type": "keyword"},
-                "source_priority": {"type": "integer"},
-                "source_tags": {"type": "keyword"},  # array of keywords
-                "source_date": {"type": "date"},
             },
         }
         if await client.indices.exists(index=self.index_name):
-            logger.info(f"Index {self.index_name} does not exist, creating index.")
+            logger.info(f"Index {self.index_name} already exists, skipping creation.")
             existing_mapping = await client.indices.get_mapping(index=self.index_name)
             existing_vector_size = existing_mapping[self.index_name]["mappings"]["properties"]["embedding"]["dims"]
             assert existing_vector_size == vector_size, f"Index has incorrect vector size for index {self.index_name} ({existing_vector_size} != {vector_size})"  # fmt: off
-            # @TODO: check index UUID in postgres after dynamic creation PR
-            # @TODO: check index language
+
             return
 
         await client.indices.create(index=self.index_name, mappings=mappings, settings=settings)
 
     async def delete_collection(self, client: AsyncElasticsearch, collection_id: int) -> None:
-        query = {
-            "bool": {
-                "must": [
-                    {"term": {"collection_id": collection_id}},
-                ]
-            }
-        }
+        query = {"bool": {"must": [{"term": {"collection_id": collection_id}}]}}
 
-        await client.delete_by_query(index=self.index_name, body={"query": query})
+        await client.delete_by_query(index=self.index_name, query=query)
 
-    async def get_chunk_count(self, client: AsyncElasticsearch, collection_id: int, document_id: int) -> int | None:
-        body = {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {"collection_id": collection_id}},
-                        {"term": {"document_id": document_id}},
-                    ]
-                }
-            }
-        }
-        result = await client.count(index=self.index_name, body=body)
+    async def delete_document(self, client: AsyncElasticsearch, document_id: int) -> None:
+        query = {"bool": {"must": [{"term": {"document_id": document_id}}]}}
+
+        await client.delete_by_query(index=self.index_name, query=query)
+
+    async def delete_chunk(self, client: AsyncElasticsearch, document_id: int, chunk_id: int) -> None:
+        query = {"bool": {"must": [{"term": {"document_id": document_id}}, {"term": {"id": chunk_id}}]}}
+
+        await client.delete_by_query(index=self.index_name, query=query)
+
+    async def get_chunk_count(self, client: AsyncElasticsearch, document_id: int) -> int | None:
+        query = {"bool": {"must": [{"term": {"document_id": document_id}}]}}
+        result = await client.count(index=self.index_name, query=query)
+
         return result["count"]
-
-    async def delete_document(self, client: AsyncElasticsearch, collection_id: int, document_id: int) -> None:
-        query = {
-            "bool": {
-                "must": [
-                    {"term": {"collection_id": collection_id}},
-                    {"term": {"document_id": document_id}},
-                ]
-            }
-        }
-
-        await client.delete_by_query(index=self.index_name, body={"query": query})
 
     async def get_chunks(
         self,
         client: AsyncElasticsearch,
-        collection_id: int,
         document_id: int,
         offset: int = 0,
         limit: int = 10,
@@ -139,7 +108,6 @@ class ElasticsearchVectorStore:
             "query": {
                 "bool": {
                     "must": [
-                        {"term": {"collection_id": collection_id}},
                         {"term": {"document_id": document_id}},
                     ]
                 },
@@ -150,46 +118,35 @@ class ElasticsearchVectorStore:
             body["query"]["bool"]["must"].append({"term": {"id": chunk_id}})
 
         results = await client.search(index=self.index_name, body=body, from_=offset, size=limit)
-        chunks = []
-        for hit in results["hits"]["hits"]:
-            chunks.append(
-                Chunk(
-                    id=hit["_source"]["id"],
-                    content=hit["_source"]["content"],
-                    metadata=ChunkMetadata.from_elasticsearch(hit),
-                )
-            )
+        chunks = [Chunk(**hit["_source"]) for hit in results["hits"]["hits"]]
+        chunks = sorted(chunks, key=lambda chunk: chunk.id)
+
         return chunks
 
-    async def upsert(
-        self,
-        client: AsyncElasticsearch,
-        chunks: list[ElasticsearchChunkFields],
-    ) -> None:
+    async def get_last_chunk_id(self, client: AsyncElasticsearch, document_id: int) -> int | None:
+        result = await client.search(
+            index=self.index_name,
+            size=0,
+            query={
+                "bool": {
+                    "must": [
+                        {"term": {"document_id": document_id}},
+                    ],
+                }
+            },
+            aggs={"id_max": {"max": {"field": "id"}}},
+        )
+        value = result["aggregations"]["id_max"]["value"]
+        value = int(value) if value is not None else value
+
+        return value
+
+    async def upsert(self, client: AsyncElasticsearch, chunks: list[ElasticsearchChunk]) -> None:
         actions = [
             {
                 "_index": self.index_name,
-                "_id": hashlib.sha256(f"{chunk.collection_id}|{chunk.document_id}|{chunk.id}".encode()).hexdigest(),
-                "_source": {
-                    "id": chunk.id,
-                    "collection_id": chunk.collection_id,
-                    "document_id": chunk.document_id,
-                    "document_name": chunk.document_name,
-                    "content": chunk.content,
-                    "embedding": chunk.embedding,
-                    "source_ref": chunk.source_ref,
-                    "source_url": chunk.source_url,
-                    "source_type": chunk.source_type,
-                    "source_page": chunk.source_page,
-                    "source_format": chunk.source_format,
-                    "source_title": chunk.source_title,
-                    "source_author": chunk.source_author,
-                    "source_publisher": chunk.source_publisher,
-                    "source_priority": chunk.source_priority,
-                    "source_tags": chunk.source_tags,
-                    "source_date": chunk.source_date,
-                    "created": chunk.created,
-                },
+                "_id": hashlib.sha256(f"{chunk.document_id}|{chunk.id}".encode()).hexdigest(),
+                "_source": chunk.model_dump(),
             }
             for chunk in chunks
         ]
@@ -212,7 +169,7 @@ class ElasticsearchVectorStore:
         score_threshold: float = 0.0,
     ) -> list[Search]:
         assert method is SearchMethod.LEXICAL or query_vector, "Query vector must not be None for semantic and hybrid search methods"
-        assert rff_k is not None or method is not SearchMethod.HYBRID, "RFF k must not be None for hybrid search method"
+        assert rff_k is not None or method is not SearchMethod.HYBRID, "rff_k must not be None for hybrid search method"
 
         if method == SearchMethod.SEMANTIC:
             searches = await self._semantic_search(
@@ -231,7 +188,6 @@ class ElasticsearchVectorStore:
                 collection_ids=collection_ids,
                 limit=limit,
                 offset=offset,
-                score_threshold=score_threshold,
             )
 
         else:  # method == SearchMethod.HYBRID
@@ -254,7 +210,6 @@ class ElasticsearchVectorStore:
         collection_ids: list[int],
         limit: int,
         offset: int,
-        score_threshold: float = 0.0,
     ) -> list[Search]:
         body = {
             "query": {
@@ -268,21 +223,14 @@ class ElasticsearchVectorStore:
             "_source": {"excludes": ["embedding"]},
         }
         results = await client.search(index=self.index_name, body=body)
-        hits = [hit for hit in results["hits"]["hits"] if hit]
         searches = [
             Search(
                 method=SearchMethod.LEXICAL.value,
                 score=hit["_score"],
-                chunk=Chunk(
-                    id=hit["_source"]["id"],
-                    content=hit["_source"]["content"],
-                    metadata=ChunkMetadata.from_elasticsearch(hit),
-                ),
+                chunk=Chunk(**hit["_source"]),
             )
-            for hit in hits
+            for hit in results["hits"]["hits"]
         ]
-
-        searches = [search for search in searches if search.score >= score_threshold]
         searches = sorted(searches, key=lambda x: x.score, reverse=True)[:limit]
 
         return searches
@@ -292,8 +240,8 @@ class ElasticsearchVectorStore:
         client: AsyncElasticsearch,
         query_vector: list[float],
         collection_ids: list[int],
-        limit: conint(gt=1, le=100),
-        offset: conint(ge=0),
+        limit: int,
+        offset: int,
         score_threshold: float = 0.0,
     ) -> list[Search]:
         body = {
@@ -310,20 +258,15 @@ class ElasticsearchVectorStore:
         }
 
         results = await client.search(index=self.index_name, body=body)
-        hits = [hit for hit in results["hits"]["hits"] if hit]
+
         searches = [
             Search(
                 method=SearchMethod.SEMANTIC.value,
                 score=hit["_score"],
-                chunk=Chunk(
-                    id=hit["_source"]["id"],
-                    content=hit["_source"]["content"],
-                    metadata=ChunkMetadata.from_elasticsearch(hit),
-                ),
+                chunk=Chunk(**hit["_source"]),
             )
-            for hit in hits
+            for hit in results["hits"]["hits"]
         ]
-
         searches = [search for search in searches if search.score >= score_threshold]
         searches = sorted(searches, key=lambda x: x.score, reverse=True)[:limit]
 
@@ -375,7 +318,7 @@ class ElasticsearchVectorStore:
         search_map = {}
         for searches in [lexical_searches, semantic_searches]:
             for rank, search in enumerate(searches):
-                chunk_id = search.chunk.metadata.get("document_id") + search.chunk.id
+                chunk_id = search.chunk.document_id + search.chunk.id
                 if chunk_id not in combined_scores:
                     combined_scores[chunk_id] = 0
                     search_map[chunk_id] = search
