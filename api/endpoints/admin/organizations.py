@@ -1,9 +1,10 @@
 from typing import Literal
 
-from fastapi import APIRouter, Body, Depends, Path, Query, Request, Security
+from fastapi import Body, Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
 from api.schemas.admin.organizations import (
     Organization,
@@ -15,13 +16,11 @@ from api.schemas.admin.organizations import (
 from api.schemas.admin.roles import PermissionType
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import ENDPOINT__ADMIN_ORGANIZATIONS, ROUTER__ADMIN
-
-router = APIRouter(prefix="/v1", tags=[ROUTER__ADMIN.title()])
+from api.utils.variables import EndpointRoute
 
 
 @router.post(
-    path=ENDPOINT__ADMIN_ORGANIZATIONS,
+    path=EndpointRoute.ADMIN_ORGANIZATIONS,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=201,
     response_model=OrganizationsResponse,
@@ -36,7 +35,7 @@ async def create_organization(
 
 
 @router.delete(
-    path=ENDPOINT__ADMIN_ORGANIZATIONS + "/{organization:path}",
+    path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -50,7 +49,7 @@ async def delete_organization(
 
 
 @router.patch(
-    path=ENDPOINT__ADMIN_ORGANIZATIONS + "/{organization:path}",
+    path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=204,
 )
@@ -65,7 +64,7 @@ async def update_organization(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_ORGANIZATIONS + "/{organization:path}",
+    path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Organization,
@@ -80,7 +79,7 @@ async def get_organization(
 
 
 @router.get(
-    path=ENDPOINT__ADMIN_ORGANIZATIONS,
+    path=EndpointRoute.ADMIN_ORGANIZATIONS,
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Organizations,

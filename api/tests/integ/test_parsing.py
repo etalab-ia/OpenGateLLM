@@ -7,7 +7,7 @@ import os
 from fastapi.testclient import TestClient
 import pytest
 
-from api.utils.variables import ENDPOINT__PARSE
+from api.utils.variables import EndpointRoute
 
 current_path = os.path.dirname(__file__)
 
@@ -20,6 +20,6 @@ class TestParsingEndpoint:
         file_path = os.path.join(current_path, "assets/pdf.pdf")
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "application/pdf")}
-            response = client.post_without_permissions(f"/v1{ENDPOINT__PARSE}", files=files)
+            response = client.post_without_permissions(f"/v1{EndpointRoute.PARSE}", files=files)
 
         assert response.status_code == 200, response.data[0].content

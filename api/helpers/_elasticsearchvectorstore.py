@@ -76,46 +76,29 @@ class ElasticsearchVectorStore:
         await client.indices.create(index=self.index_name, mappings=mappings, settings=settings)
 
     async def delete_collection(self, client: AsyncElasticsearch, collection_id: int) -> None:
-        query = {
-            "bool": {
-                "must": [
-                    {"term": {"collection_id": collection_id}},
-                ]
-            }
-        }
+        query = {"bool": {"must": [{"term": {"collection_id": collection_id}}]}}
 
-        await client.delete_by_query(index=self.index_name, body={"query": query})
+        await client.delete_by_query(index=self.index_name, query=query)
 
-    async def get_chunk_count(self, client: AsyncElasticsearch, collection_id: int, document_id: int) -> int | None:
-        body = {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {"collection_id": collection_id}},
-                        {"term": {"document_id": document_id}},
-                    ]
-                }
-            }
-        }
-        result = await client.count(index=self.index_name, body=body)
+    async def delete_document(self, client: AsyncElasticsearch, document_id: int) -> None:
+        query = {"bool": {"must": [{"term": {"document_id": document_id}}]}}
+
+        await client.delete_by_query(index=self.index_name, query=query)
+
+    async def delete_chunk(self, client: AsyncElasticsearch, document_id: int, chunk_id: int) -> None:
+        query = {"bool": {"must": [{"term": {"document_id": document_id}}, {"term": {"id": chunk_id}}]}}
+
+        await client.delete_by_query(index=self.index_name, query=query)
+
+    async def get_chunk_count(self, client: AsyncElasticsearch, document_id: int) -> int | None:
+        query = {"bool": {"must": [{"term": {"document_id": document_id}}]}}
+        result = await client.count(index=self.index_name, query=query)
+
         return result["count"]
-
-    async def delete_document(self, client: AsyncElasticsearch, collection_id: int, document_id: int) -> None:
-        query = {
-            "bool": {
-                "must": [
-                    {"term": {"collection_id": collection_id}},
-                    {"term": {"document_id": document_id}},
-                ]
-            }
-        }
-
-        await client.delete_by_query(index=self.index_name, body={"query": query})
 
     async def get_chunks(
         self,
         client: AsyncElasticsearch,
-        collection_id: int,
         document_id: int,
         offset: int = 0,
         limit: int = 10,
@@ -125,7 +108,6 @@ class ElasticsearchVectorStore:
             "query": {
                 "bool": {
                     "must": [
-                        {"term": {"collection_id": collection_id}},
                         {"term": {"document_id": document_id}},
                     ]
                 },
@@ -141,11 +123,29 @@ class ElasticsearchVectorStore:
 
         return chunks
 
+    async def get_last_chunk_id(self, client: AsyncElasticsearch, document_id: int) -> int | None:
+        result = await client.search(
+            index=self.index_name,
+            size=0,
+            query={
+                "bool": {
+                    "must": [
+                        {"term": {"document_id": document_id}},
+                    ],
+                }
+            },
+            aggs={"id_max": {"max": {"field": "id"}}},
+        )
+        value = result["aggregations"]["id_max"]["value"]
+        value = int(value) if value is not None else value
+
+        return value
+
     async def upsert(self, client: AsyncElasticsearch, chunks: list[ElasticsearchChunk]) -> None:
         actions = [
             {
                 "_index": self.index_name,
-                "_id": hashlib.sha256(f"{chunk.collection_id}|{chunk.document_id}|{chunk.id}".encode()).hexdigest(),
+                "_id": hashlib.sha256(f"{chunk.document_id}|{chunk.id}".encode()).hexdigest(),
                 "_source": chunk.model_dump(),
             }
             for chunk in chunks
@@ -169,7 +169,7 @@ class ElasticsearchVectorStore:
         score_threshold: float = 0.0,
     ) -> list[Search]:
         assert method is SearchMethod.LEXICAL or query_vector, "Query vector must not be None for semantic and hybrid search methods"
-        assert rff_k is not None or method is not SearchMethod.HYBRID, "RFF k must not be None for hybrid search method"
+        assert rff_k is not None or method is not SearchMethod.HYBRID, "rff_k must not be None for hybrid search method"
 
         if method == SearchMethod.SEMANTIC:
             searches = await self._semantic_search(
@@ -188,7 +188,6 @@ class ElasticsearchVectorStore:
                 collection_ids=collection_ids,
                 limit=limit,
                 offset=offset,
-                score_threshold=score_threshold,
             )
 
         else:  # method == SearchMethod.HYBRID
@@ -211,7 +210,6 @@ class ElasticsearchVectorStore:
         collection_ids: list[int],
         limit: int,
         offset: int,
-        score_threshold: float = 0.0,
     ) -> list[Search]:
         body = {
             "query": {
@@ -233,7 +231,6 @@ class ElasticsearchVectorStore:
             )
             for hit in results["hits"]["hits"]
         ]
-        searches = [search for search in searches if search.score >= score_threshold]
         searches = sorted(searches, key=lambda x: x.score, reverse=True)[:limit]
 
         return searches
@@ -261,6 +258,7 @@ class ElasticsearchVectorStore:
         }
 
         results = await client.search(index=self.index_name, body=body)
+
         searches = [
             Search(
                 method=SearchMethod.SEMANTIC.value,

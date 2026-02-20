@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from api.schemas.core.context import GlobalContext, RequestContext
 
-global_context: GlobalContext = GlobalContext()
+global_context: GlobalContext = GlobalContext.model_construct()
 request_context: ContextVar[RequestContext] = ContextVar("request_context", default=RequestContext())
 
 

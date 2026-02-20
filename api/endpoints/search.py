@@ -22,12 +22,12 @@ from api.utils.dependencies import (
 )
 from api.utils.exceptions import CollectionNotFoundException
 from api.utils.hooks_decorator import hooks
-from api.utils.variables import ENDPOINT__SEARCH, ROUTER__SEARCH
+from api.utils.variables import EndpointRoute, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__SEARCH.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.SEARCH.title()])
 
 
-@router.post(path=ENDPOINT__SEARCH, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Searches)
+@router.post(path=EndpointRoute.SEARCH, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Searches)
 @hooks
 async def search(
     request: Request,
@@ -53,12 +53,13 @@ async def search(
         redis_client=redis_client,
         model_registry=model_registry,
         request_context=request_context,
-        collection_ids=body.collections,
+        collection_ids=body.collection_ids,
         prompt=body.prompt,
         method=body.method,
         limit=body.limit,
         offset=body.offset,
         rff_k=body.rff_k,
+        score_threshold=body.score_threshold,
     )
     usage = request_context.get().usage
     content = Searches(data=data, usage=usage)

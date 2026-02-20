@@ -14,7 +14,7 @@ class CreateRerank(BaseModel):
     input: list[constr(min_length=1, strip_whitespace=True)] | None = Field(default=None, description="List of input texts to rerank by relevance to the prompt. `documents` and `input` cannot both be provided.", deprecated=True)  # fmt: off
     documents: list[constr(min_length=1, strip_whitespace=True)] | None = Field(default=None, description="A list of texts that will be compared to the query and ranked by relevance. `documents` and `input` cannot both be provided.")  # fmt: off
     model: constr(min_length=1, strip_whitespace=True) = Field(default=..., description="The model to use for the reranking, call `/v1/models` endpoint to get the list of available models, only `text-classification` model type is supported.")  # fmt: off
-    top_n: int | None = Field(default=None, ge=0, description="The number of top results to return. If set to 0, all results will be returned.")  # fmt: off
+    top_n: int | None = Field(default=None, ge=1, description="The number of top results to return. If set to None, all results will be returned.")  # fmt: off
 
     @model_validator(mode="after")
     def validate_model(self):
@@ -24,7 +24,7 @@ class CreateRerank(BaseModel):
             raise ValueError("query or prompt must be provided")
         if self.documents and self.input:
             raise ValueError("documents and input cannot both be provided")
-        if self.documents is None and self.input is None:
+        if not self.documents and not self.input:
             raise ValueError("documents or input must be provided")
 
         return self

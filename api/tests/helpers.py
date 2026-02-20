@@ -1,13 +1,13 @@
 from jose import jwt
 
-from api.tests.integration.factories import TokenFactory
+from api.tests.integration.factories import TokenSQLFactory
 from api.utils.configuration import configuration
 
 
 async def create_token(db_session, **kwargs):
     """Create a token with properly encoded string."""
 
-    token = TokenFactory(**kwargs)
+    token = TokenSQLFactory(**kwargs)
     await db_session.flush()
 
     token.token = "sk-" + jwt.encode(

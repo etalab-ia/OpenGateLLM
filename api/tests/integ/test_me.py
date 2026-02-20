@@ -18,7 +18,7 @@ from api.tests.integ.utils import (
     kill_openmockllm,
     run_openmockllm,
 )
-from api.utils.variables import ENDPOINT__CHAT_COMPLETIONS, ENDPOINT__ME_USAGE
+from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture(scope="module")
@@ -59,7 +59,7 @@ class TestUsage:
         # chat completion
         start_time = int(time.time())
         response = client.post(
-            url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
+            url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}",
             headers={"Authorization": f"Bearer {key}"},
             json={"model": model_name, "messages": [{"role": "user", "content": "Hello, how are you?"}], "stream": True},
         )
@@ -70,13 +70,13 @@ class TestUsage:
         await sleep(2)
 
         # get usage
-        response = client.get(url=f"/v1{ENDPOINT__ME_USAGE}", headers={"Authorization": f"Bearer {key}"}, params={"start_time": start_time})
+        response = client.get(url=f"/v1{EndpointRoute.ME_USAGE}", headers={"Authorization": f"Bearer {key}"}, params={"start_time": start_time})
         assert response.status_code == 200, response.text
         data = response.json()
         usages = Usages(**data)
 
         assert len(usages.data) == 1
-        assert usages.data[0].endpoint == f"/v1{ENDPOINT__CHAT_COMPLETIONS}"
+        assert usages.data[0].endpoint == f"/v1{EndpointRoute.CHAT_COMPLETIONS}"
         assert usages.data[0].model == model_name
         assert usages.data[0].usage.prompt_tokens is not None
         assert usages.data[0].usage.completion_tokens is not None
@@ -93,7 +93,7 @@ class TestUsage:
         # chat completion
         start_time = int(time.time())
         response = client.post(
-            url=f"/v1{ENDPOINT__CHAT_COMPLETIONS}",
+            url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}",
             headers={"Authorization": f"Bearer {key}"},
             json={"model": model_name, "messages": [{"role": "user", "content": "Hello, how are you?"}]},
         )
@@ -101,13 +101,13 @@ class TestUsage:
         response.json()
         await sleep(2)
 
-        response = client.get(url=f"/v1{ENDPOINT__ME_USAGE}", headers={"Authorization": f"Bearer {key}"}, params={"start_time": start_time})
+        response = client.get(url=f"/v1{EndpointRoute.ME_USAGE}", headers={"Authorization": f"Bearer {key}"}, params={"start_time": start_time})
         assert response.status_code == 200, response.text
         data = response.json()
         usages = Usages(**data)
 
         assert len(usages.data) == 1
-        assert usages.data[0].endpoint == f"/v1{ENDPOINT__CHAT_COMPLETIONS}"
+        assert usages.data[0].endpoint == f"/v1{EndpointRoute.CHAT_COMPLETIONS}"
         assert usages.data[0].model == model_name
         assert usages.data[0].usage.prompt_tokens is not None
         assert usages.data[0].usage.completion_tokens is not None

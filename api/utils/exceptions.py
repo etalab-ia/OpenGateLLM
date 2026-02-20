@@ -39,6 +39,13 @@ class InvalidPasswordException(HTTPException):
 
 
 # 403
+
+
+class FeatureNotEnabledException(HTTPException):
+    def __init__(self, detail: str = "Feature not enabled, please contact an administrator.") -> None:
+        super().__init__(status_code=403, detail=detail)
+
+
 class InvalidAuthenticationSchemeException(HTTPException):
     def __init__(self, detail: str = "Invalid authentication scheme.") -> None:
         super().__init__(status_code=403, detail=detail)
@@ -189,6 +196,13 @@ class FileSizeLimitExceededException(HTTPException):
         super().__init__(status_code=413, detail=detail)
 
 
+class ChunksContentSizeLimitExceededException(HTTPException):
+    MAX_CONTENT_SIZE = 20 * 1024 * 1024  # 20MB
+
+    def __init__(self, detail: str = f"Total chunks content size limit exceeded (max: {MAX_CONTENT_SIZE} bytes).") -> None:
+        super().__init__(status_code=413, detail=detail)
+
+
 # 422
 class ParsingDocumentFailedException(HTTPException):
     def __init__(self, detail: str = "Parsing document failed.") -> None:
@@ -271,4 +285,4 @@ class ResponseFormatFailedException(HTTPException):
 # 503
 class ModelIsTooBusyException(HTTPException):
     def __init__(self, detail: str = "Model is too busy, please try again later.") -> None:
-        super().__init__(status_code=503, detail=detail)
+        super().__init__(status_code=503, detail=detail, headers={"Retry-After": "10"})

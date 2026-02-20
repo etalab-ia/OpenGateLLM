@@ -18,7 +18,7 @@ from api.tests.integ.utils import (
     kill_openmockllm,
     run_openmockllm,
 )
-from api.utils.variables import ENDPOINT__AUDIO_TRANSCRIPTIONS
+from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture(scope="module")
@@ -56,7 +56,7 @@ class TestMistralAutomaticSpeechRecognition:
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "audio/mp3")}
             data = {"model": model_name, "language": "fr", "temperature": 0}
-            response = client.post(f"/v1{ENDPOINT__AUDIO_TRANSCRIPTIONS}", files=files, data=data, headers={"Authorization": f"Bearer {api_key}"})
+            response = client.post(f"/v1{EndpointRoute.AUDIO_TRANSCRIPTIONS}", files=files, data=data, headers={"Authorization": f"Bearer {api_key}"})
 
         assert response.status_code == 200, response.text
         response_data = response.json()
@@ -76,7 +76,7 @@ class TestMistralAutomaticSpeechRecognition:
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "audio/mp3")}
             data = {"model": model_name, "language": "fr", "response_format": "text"}
-            response = client.post(f"/v1{ENDPOINT__AUDIO_TRANSCRIPTIONS}", files=files, data=data, headers={"Authorization": f"Bearer {api_key}"})
+            response = client.post(f"/v1{EndpointRoute.AUDIO_TRANSCRIPTIONS}", files=files, data=data, headers={"Authorization": f"Bearer {api_key}"})
 
         assert response.status_code == 200, response.text
         try:
@@ -96,7 +96,7 @@ class TestMistralAutomaticSpeechRecognition:
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "audio/wav")}
             data = {"model": model_name, "language": "fr", "response_format": "json", "temperature": 0}
-            response = client.post(f"/v1{ENDPOINT__AUDIO_TRANSCRIPTIONS}", files=files, data=data, headers={"Authorization": f"Bearer {api_key}"})
+            response = client.post(f"/v1{EndpointRoute.AUDIO_TRANSCRIPTIONS}", files=files, data=data, headers={"Authorization": f"Bearer {api_key}"})
 
         assert response.status_code == 200, response.text
         response_data = response.json()
@@ -118,6 +118,6 @@ class TestMistralAutomaticSpeechRecognition:
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "audio/mp3")}
             data = {"model": model_name, "language": "fr", "response_format": "invalid_format"}
-            response = client.post(f"/v1{ENDPOINT__AUDIO_TRANSCRIPTIONS}", files=files, data=data, headers={"Authorization": f"Bearer {api_key}"})
+            response = client.post(f"/v1{EndpointRoute.AUDIO_TRANSCRIPTIONS}", files=files, data=data, headers={"Authorization": f"Bearer {api_key}"})
 
         assert response.status_code == 422

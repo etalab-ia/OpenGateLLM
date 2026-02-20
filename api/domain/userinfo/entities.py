@@ -15,3 +15,7 @@ class UserInfo(BaseModel):
     priority: int = Field(default=0,description="The user priority (higher = higher priority). This value influences scheduling/queue priority for non-streaming model invocations.")  # fmt: off
     created: int = Field(description="The user creation timestamp.")
     updated: int = Field(description="The user update timestamp.")
+
+    @property
+    def is_admin(self) -> bool:
+        return PermissionType.ADMIN in self.permissions

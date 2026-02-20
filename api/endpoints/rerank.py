@@ -12,12 +12,12 @@ from api.schemas.core.models import RequestContent
 from api.schemas.rerank import CreateRerank, Reranks
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
 from api.utils.hooks_decorator import hooks
-from api.utils.variables import ENDPOINT__RERANK, ROUTER__RERANK
+from api.utils.variables import EndpointRoute, RouterName
 
-router = APIRouter(prefix="/v1", tags=[ROUTER__RERANK.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.RERANK.title()])
 
 
-@router.post(path=ENDPOINT__RERANK, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Reranks)
+@router.post(path=EndpointRoute.RERANK, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Reranks)
 @hooks
 async def rerank(
     request: Request,
@@ -32,13 +32,13 @@ async def rerank(
     """
     model_provider = await model_registry.get_model_provider(
         model=body.model,
-        endpoint=ENDPOINT__RERANK,
+        endpoint=EndpointRoute.RERANK,
         postgres_session=postgres_session,
         redis_client=redis_client,
         request_context=request_context,
     )
     response = await model_provider.forward_request(
-        request_content=RequestContent(method="POST", endpoint=ENDPOINT__RERANK, json=body.model_dump(), model=body.model),
+        request_content=RequestContent(method="POST", endpoint=EndpointRoute.RERANK, json=body.model_dump(), model=body.model),
         redis_client=redis_client,
     )
 
