@@ -1,12 +1,13 @@
 import hashlib
 import logging
+import re
 
 from elasticsearch import AsyncElasticsearch, helpers
 from elasticsearch.helpers import BulkIndexError
 
 from api.schemas.chunks import Chunk
 from api.schemas.core.elasticsearch import ElasticsearchChunk, ElasticsearchIndexLanguage
-from api.schemas.search import Search, SearchMethod
+from api.schemas.search import ComparisonFilter, ComparisonFilterType, CompoundFilter, CompoundFilterOperator, Search, SearchMethod
 
 logger = logging.getLogger(__name__)
 
@@ -78,17 +79,17 @@ class ElasticsearchVectorStore:
     async def delete_collection(self, client: AsyncElasticsearch, collection_id: int) -> None:
         query = {"bool": {"must": [{"term": {"collection_id": collection_id}}]}}
 
-        await client.delete_by_query(index=self.index_name, query=query)
+        await client.delete_by_query(index=self.index_name, query=query, conflicts="proceed")
 
     async def delete_document(self, client: AsyncElasticsearch, document_id: int) -> None:
         query = {"bool": {"must": [{"term": {"document_id": document_id}}]}}
 
-        await client.delete_by_query(index=self.index_name, query=query)
+        await client.delete_by_query(index=self.index_name, query=query, conflicts="proceed")
 
     async def delete_chunk(self, client: AsyncElasticsearch, document_id: int, chunk_id: int) -> None:
         query = {"bool": {"must": [{"term": {"document_id": document_id}}, {"term": {"id": chunk_id}}]}}
 
-        await client.delete_by_query(index=self.index_name, query=query)
+        await client.delete_by_query(index=self.index_name, query=query, conflicts="proceed")
 
     async def get_chunk_count(self, client: AsyncElasticsearch, document_id: int) -> int | None:
         query = {"bool": {"must": [{"term": {"document_id": document_id}}]}}
@@ -113,11 +114,13 @@ class ElasticsearchVectorStore:
                 },
             },
             "_source": {"excludes": ["embedding"]},
+            "from": offset,
+            "size": limit,
         }
         if chunk_id is not None:
             body["query"]["bool"]["must"].append({"term": {"id": chunk_id}})
 
-        results = await client.search(index=self.index_name, body=body, from_=offset, size=limit)
+        results = await client.search(index=self.index_name, body=body)
         chunks = [Chunk(**hit["_source"]) for hit in results["hits"]["hits"]]
         chunks = sorted(chunks, key=lambda chunk: chunk.id)
 
@@ -127,13 +130,7 @@ class ElasticsearchVectorStore:
         result = await client.search(
             index=self.index_name,
             size=0,
-            query={
-                "bool": {
-                    "must": [
-                        {"term": {"document_id": document_id}},
-                    ],
-                }
-            },
+            query={"bool": {"must": [{"term": {"document_id": document_id}}]}},
             aggs={"id_max": {"max": {"field": "id"}}},
         )
         value = result["aggregations"]["id_max"]["value"]
@@ -156,11 +153,57 @@ class ElasticsearchVectorStore:
         except BulkIndexError:
             raise
 
+    @staticmethod
+    def _escape_query_string_value(value: str) -> str:
+        # Escape reserved Lucene query_string characters so user-provided text
+        # is treated as a literal token sequence in metadata filters.
+        return re.sub(r'([+\-=&|><!(){}\[\]^"~*?:\\/ ])', r"\\\1", value)
+
+    @staticmethod
+    def _build_comparison_filter(filter: ComparisonFilter) -> dict:
+        field = f"metadata.{filter.key}"
+        if filter.type == ComparisonFilterType.EQ:
+            return {"term": {field: filter.value}}
+        if filter.type == ComparisonFilterType.SW:
+            return {"prefix": {field: str(filter.value)}}
+        if filter.type == ComparisonFilterType.EW:
+            escaped_value = ElasticsearchVectorStore._escape_query_string_value(str(filter.value))
+            return {"query_string": {"default_field": field, "query": f"*{escaped_value}"}}
+        if filter.type == ComparisonFilterType.CO:
+            escaped_value = ElasticsearchVectorStore._escape_query_string_value(str(filter.value))
+            return {"query_string": {"default_field": field, "query": f"*{escaped_value}*"}}
+
+    def _build_filters(
+        self,
+        collection_ids: list[int],
+        document_ids: list[int],
+        metadata_filters: ComparisonFilter | CompoundFilter | None,
+    ) -> list[dict]:
+        filters = []
+
+        if collection_ids:
+            filters.append({"terms": {"collection_id": collection_ids}})
+        if document_ids:
+            filters.append({"terms": {"document_id": document_ids}})
+        if metadata_filters:
+            if isinstance(metadata_filters, ComparisonFilter):
+                filters.append(self._build_comparison_filter(metadata_filters))
+            elif isinstance(metadata_filters, CompoundFilter):
+                filter_values = [self._build_comparison_filter(filter) for filter in metadata_filters.filters]
+                if metadata_filters.operator == CompoundFilterOperator.AND:
+                    filters.extend(filter_values)
+                else:
+                    filters.append({"bool": {"should": filter_values, "minimum_should_match": 1}})
+
+        return filters
+
     async def search(
         self,
         client: AsyncElasticsearch,
         method: SearchMethod,
         collection_ids: list[int],
+        document_ids: list[int],
+        metadata_filters: ComparisonFilter | CompoundFilter | None,
         query_prompt: str,
         query_vector: list[float] | None,
         limit: int,
@@ -171,31 +214,26 @@ class ElasticsearchVectorStore:
         assert method is SearchMethod.LEXICAL or query_vector, "Query vector must not be None for semantic and hybrid search methods"
         assert rff_k is not None or method is not SearchMethod.HYBRID, "rff_k must not be None for hybrid search method"
 
+        filters = self._build_filters(collection_ids, document_ids, metadata_filters)
         if method == SearchMethod.SEMANTIC:
             searches = await self._semantic_search(
                 client=client,
                 query_vector=query_vector,
-                collection_ids=collection_ids,
+                filters=filters,
                 limit=limit,
                 offset=offset,
                 score_threshold=score_threshold,
             )
 
         elif method == SearchMethod.LEXICAL:
-            searches = await self._lexical_search(
-                client=client,
-                query_prompt=query_prompt,
-                collection_ids=collection_ids,
-                limit=limit,
-                offset=offset,
-            )
+            searches = await self._lexical_search(client=client, query_prompt=query_prompt, filters=filters, limit=limit, offset=offset)
 
-        else:  # method == SearchMethod.HYBRID
+        else:
             searches = await self._hybrid_search(
                 client=client,
                 query_prompt=query_prompt,
                 query_vector=query_vector,
-                collection_ids=collection_ids,
+                filters=filters,
                 limit=limit,
                 offset=offset,
                 rff_k=rff_k,
@@ -207,15 +245,15 @@ class ElasticsearchVectorStore:
         self,
         client: AsyncElasticsearch,
         query_prompt: str,
-        collection_ids: list[int],
+        filters: dict,
         limit: int,
         offset: int,
     ) -> list[Search]:
         body = {
             "query": {
                 "bool": {
-                    "must": {"multi_match": {"query": query_prompt, "fuzziness": "AUTO"}},
-                    "filter": {"terms": {"collection_id": collection_ids}},
+                    "must": [{"multi_match": {"query": query_prompt, "fuzziness": "AUTO"}}],
+                    "filter": filters,
                 }
             },
             "size": limit,
@@ -239,7 +277,7 @@ class ElasticsearchVectorStore:
         self,
         client: AsyncElasticsearch,
         query_vector: list[float],
-        collection_ids: list[int],
+        filters: list[dict],
         limit: int,
         offset: int,
         score_threshold: float = 0.0,
@@ -250,7 +288,7 @@ class ElasticsearchVectorStore:
                 "query_vector": query_vector,
                 "k": limit,
                 "num_candidates": max(limit * 10, 100),
-                "filter": {"terms": {"collection_id": collection_ids}},
+                "filter": filters,
             },
             "size": limit,
             "from": offset,
@@ -258,17 +296,9 @@ class ElasticsearchVectorStore:
         }
 
         results = await client.search(index=self.index_name, body=body)
-
-        searches = [
-            Search(
-                method=SearchMethod.SEMANTIC.value,
-                score=hit["_score"],
-                chunk=Chunk(**hit["_source"]),
-            )
-            for hit in results["hits"]["hits"]
-        ]
+        searches = [Search(method=SearchMethod.SEMANTIC.value, score=hit["_score"], chunk=Chunk(**hit["_source"])) for hit in results["hits"]["hits"]]
         searches = [search for search in searches if search.score >= score_threshold]
-        searches = sorted(searches, key=lambda x: x.score, reverse=True)[:limit]
+        searches = sorted(searches, key=lambda x: x.score, reverse=True)
 
         return searches
 
@@ -277,7 +307,7 @@ class ElasticsearchVectorStore:
         client: AsyncElasticsearch,
         query_prompt: str,
         query_vector: list[float],
-        collection_ids: list[int],
+        filters: dict,
         limit: int,
         offset: int,
         rff_k: int,
@@ -302,14 +332,14 @@ class ElasticsearchVectorStore:
         lexical_searches = await self._lexical_search(
             client=client,
             query_prompt=query_prompt,
-            collection_ids=collection_ids,
+            filters=filters,
             limit=int(limit * expansion_factor),
             offset=offset,
         )
         semantic_searches = await self._semantic_search(
             client=client,
             query_vector=query_vector,
-            collection_ids=collection_ids,
+            filters=filters,
             limit=int(limit * expansion_factor),
             offset=offset,
         )

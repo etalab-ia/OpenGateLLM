@@ -218,7 +218,7 @@ class ProvidersState(EntityState):
                 response.raise_for_status()
 
                 self.handle_delete_entity_dialog_change(is_open=False)
-                yield rx.toast.success("provider deleted successfully", position="bottom-right")
+                yield rx.toast.success("Provider deleted successfully", position="bottom-right")
                 async for _ in self.load_entities():
                     yield
 
@@ -289,7 +289,7 @@ class ProvidersState(EntityState):
                 )
                 response.raise_for_status()
 
-                yield rx.toast.success("provider created successfully", position="bottom-right")
+                yield rx.toast.success("Provider created successfully", position="bottom-right")
                 async for _ in self.load_entities():
                     yield
 
@@ -356,7 +356,7 @@ class ProvidersState(EntityState):
             response.raise_for_status()
 
             self.handle_settings_entity_dialog_change(is_open=False)
-            yield rx.toast.success("provider updated successfully", position="bottom-right")
+            yield rx.toast.success("Provider updated successfully", position="bottom-right")
 
             async for _ in self.load_entities():
                 yield

@@ -20,7 +20,7 @@ from api.schemas.core.context import RequestContext
 from api.schemas.core.elasticsearch import ElasticsearchChunk
 from api.schemas.core.models import RequestContent
 from api.schemas.documents import Document, PresetSeparators
-from api.schemas.search import Search, SearchMethod
+from api.schemas.search import ComparisonFilter, CompoundFilter, Search, SearchMethod
 from api.sql.models import Collection as CollectionTable
 from api.sql.models import Document as DocumentTable
 from api.sql.models import User as UserTable
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 class DocumentManager:
     BATCH_SIZE = 32
 
-    def __init__(self, vector_store_model: str, parser_manager: ParserManager) -> None:
+    def __init__(self, vector_store_model: str | None, parser_manager: ParserManager) -> None:
         self.vector_store_model = vector_store_model
         self.parser_manager = parser_manager
 
@@ -453,34 +453,38 @@ class DocumentManager:
 
     async def search_chunks(
         self,
+        collection_ids: list[int],
+        document_ids: list[int],
+        metadata_filters: ComparisonFilter | CompoundFilter | None,
+        query: str,
+        method: SearchMethod,
+        limit: int,
+        offset: int,
+        rff_k: int,
+        score_threshold: float,
         postgres_session: AsyncSession,
         elasticsearch_vector_store: ElasticsearchVectorStore,
         elasticsearch_client: AsyncElasticsearch,
         redis_client: AsyncRedis,
         model_registry: ModelRegistry,
         request_context: ContextVar[RequestContext],
-        collection_ids: list[int],
-        prompt: str,
-        method: SearchMethod,
-        limit: int,
-        offset: int,
-        rff_k: int,
-        score_threshold: float = 0.0,
     ) -> list[Search]:
-        # check if collections exist
-        for collection_id in collection_ids:
-            result = await postgres_session.execute(
-                statement=select(CollectionTable)
-                .where(CollectionTable.id == collection_id)
-                .where(or_(CollectionTable.user_id == request_context.get().user_info.id, CollectionTable.visibility == CollectionVisibility.PUBLIC))
+        # get collections ids
+        result = await postgres_session.execute(
+            statement=select(CollectionTable.id).where(
+                or_(
+                    CollectionTable.user_id == request_context.get().user_info.id,
+                    CollectionTable.visibility == CollectionVisibility.PUBLIC,
+                )
             )
-            try:
-                result.scalar_one()
-            except NoResultFound:
-                raise CollectionNotFoundException(detail=f"Collection {collection_id} not found.")
-
-        if not collection_ids:
-            return []
+        )
+        user_collections_ids = [row.id for row in result.all()]
+        if collection_ids:
+            for collection_id in collection_ids:
+                if collection_id not in user_collections_ids:
+                    raise CollectionNotFoundException(detail=f"Collection {collection_id} not found.")
+        else:
+            collection_ids = user_collections_ids
 
         provider = await model_registry.get_model_provider(
             model=self.vector_store_model,
@@ -489,18 +493,19 @@ class DocumentManager:
             redis_client=redis_client,
             request_context=request_context,
         )
-
         if method == SearchMethod.LEXICAL:
             query_vector = None
         else:
-            response = await self._create_embeddings(provider=provider, input_texts=[prompt], redis_client=redis_client)
+            response = await self._create_embeddings(provider=provider, input_texts=[query], redis_client=redis_client)
             query_vector = response[0]
 
         searches = await elasticsearch_vector_store.search(
             client=elasticsearch_client,
             method=method,
+            query_prompt=query,
             collection_ids=collection_ids,
-            query_prompt=prompt,
+            document_ids=document_ids,
+            metadata_filters=metadata_filters,
             query_vector=query_vector,
             limit=limit,
             offset=offset,

@@ -2,7 +2,7 @@ from app.shared.models.entities import Entity
 
 
 class Provider(Entity):
-    """provider model."""
+    """Provider model."""
 
     id: int | None = None
     router: str | None = None

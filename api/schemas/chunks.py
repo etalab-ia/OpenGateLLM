@@ -10,9 +10,7 @@ MIN_NUMBER, MAX_NUMBER = -9999999999999999, 9999999999999999
 MetadataStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
 MetadataInt = Annotated[int, Field(ge=MIN_NUMBER, le=MAX_NUMBER)]
 MetadataFloat = Annotated[float, Field(ge=MIN_NUMBER, le=MAX_NUMBER)]
-MetadataList = Annotated[list[MetadataStr | MetadataInt | MetadataFloat | bool | None], Field(max_length=8)]
-
-ChunkMetadata = Annotated[dict[MetadataStr, MetadataStr | MetadataInt | MetadataFloat | MetadataList | bool | None], Field(description="Extra metadata for the source", min_length=1, max_length=8)]  # fmt: off
+ChunkMetadata = Annotated[dict[MetadataStr, MetadataStr | MetadataInt | MetadataFloat | bool], Field(description="Extra metadata for the source", min_length=1, max_length=10)]  # fmt: off
 
 
 class InputChunk(BaseModel):

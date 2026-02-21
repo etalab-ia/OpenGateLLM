@@ -13,6 +13,7 @@ from api.schemas.chunks import Chunk
 from api.schemas.collections import CollectionVisibility
 from api.schemas.core.context import RequestContext
 from api.schemas.me.info import UserInfo
+from api.schemas.search import SearchMethod
 from api.schemas.usage import Usage
 from api.utils.exceptions import (
     ChunkingFailedException,
@@ -45,7 +46,7 @@ async def test_create_document_collection_no_longer_exists():
     mock_collection_result = MagicMock()
     mock_collection_result.scalar_one.side_effect = NoResultFound()
     mock_session.execute.return_value = mock_collection_result
-    mock_metadata = {"source_tags": ["test", "test2"], "source_title": "Test document"}
+    mock_metadata = {"source_tags": "test", "source_title": "Test document"}
     mock_file = create_upload_file("#Test document content", "sample.md", "text/markdown")
     mock_redis_client = AsyncMock()
     mock_model_registry = AsyncMock()
@@ -350,7 +351,7 @@ async def test_create_document_success(monkeypatch):
     document_manager._upsert_document_chunks = AsyncMock()
 
     mock_file = create_upload_file("Test content", "test.txt", "text/plain")
-    mock_metadata = {"source_tags": ["test"]}
+    mock_metadata = {"source_tags": "test"}
     mock_redis = AsyncMock()
     mock_model_registry = AsyncMock()
     mock_request_context_obj = RequestContext(
@@ -427,7 +428,7 @@ async def test_get_documents_populates_chunk_count():
 
 
 @pytest.mark.asyncio
-async def test_search_chunks_returns_empty_when_no_collections():
+async def test_search_chunks_with_empty_collection_ids_uses_user_collections():
     mock_vector_store = AsyncMock()
     mock_elasticsearch_vector_store = AsyncMock()
     mock_elasticsearch_vector_store.search = AsyncMock()
@@ -438,7 +439,11 @@ async def test_search_chunks_returns_empty_when_no_collections():
     mock_session = AsyncMock(spec=AsyncSession)
     mock_redis = AsyncMock()
     mock_model_registry = AsyncMock()
-    mock_model_registry.get_model_provider = AsyncMock()
+    mock_provider = AsyncMock()
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"data": [{"embedding": [0.1, 0.2, 0.3]}]}
+    mock_provider.forward_request = AsyncMock(return_value=mock_response)
+    mock_model_registry.get_model_provider = AsyncMock(return_value=mock_provider)
 
     mock_request_context_obj = RequestContext(
         id="123",
@@ -453,6 +458,17 @@ async def test_search_chunks_returns_empty_when_no_collections():
     mock_request_context = ContextVar("test_request_context", default=mock_request_context_obj)
     mock_request_context.set(mock_request_context_obj)
 
+    mock_collection_result = MagicMock()
+    row1 = MagicMock()
+    row1.id = 11
+    row2 = MagicMock()
+    row2.id = 22
+    mock_collection_result.all.return_value = [row1, row2]
+    mock_session.execute.return_value = mock_collection_result
+
+    mock_search_results = [MagicMock(id=1, content="result 1", score=0.9)]
+    mock_elasticsearch_vector_store.search = AsyncMock(return_value=mock_search_results)
+
     result = await document_manager.search_chunks(
         postgres_session=mock_session,
         elasticsearch_vector_store=mock_elasticsearch_vector_store,
@@ -461,16 +477,22 @@ async def test_search_chunks_returns_empty_when_no_collections():
         model_registry=mock_model_registry,
         request_context=mock_request_context,
         collection_ids=[],
-        prompt="hello",
-        method="similarity",
+        document_ids=[],
+        metadata_filters=None,
+        query="hello",
+        method=SearchMethod.SEMANTIC,
         limit=5,
         offset=0,
         rff_k=10,
+        score_threshold=0.0,
     )
 
-    assert result == []
-    mock_elasticsearch_vector_store.search.assert_not_called()
-    mock_model_registry.get_model_provider.assert_not_called()
+    assert len(result) == 1
+    mock_model_registry.get_model_provider.assert_awaited_once()
+    mock_provider.forward_request.assert_awaited_once()
+    mock_elasticsearch_vector_store.search.assert_awaited_once()
+    call_kwargs = mock_elasticsearch_vector_store.search.call_args.kwargs
+    assert call_kwargs["collection_ids"] == [11, 22]
 
 
 @pytest.mark.asyncio
@@ -616,8 +638,8 @@ async def test_get_chunks_success():
 
     # Mock chunks returned from Elasticsearch
     mock_chunks = [
-        Chunk(id=1, collection_id=123, document_id=456, metadata={"my_tags": ["tag1", "tag2"]}, content="chunk 1"),
-        Chunk(id=2, collection_id=123, document_id=456, metadata={"my_tags": ["tag1", "tag2"]}, content="chunk 2"),
+        Chunk(id=1, collection_id=123, document_id=456, metadata={"my_tags": "tag1"}, content="chunk 1"),
+        Chunk(id=2, collection_id=123, document_id=456, metadata={"my_tags": "tag2"}, content="chunk 2"),
     ]
     mock_elasticsearch_vector_store.get_chunks = AsyncMock(return_value=mock_chunks)
 
@@ -683,7 +705,9 @@ async def test_search_chunks_with_similarity():
 
     # Mock collection exists check
     collection_result = MagicMock()
-    collection_result.scalar_one.return_value = MagicMock()
+    collection_row = MagicMock()
+    collection_row.id = 123
+    collection_result.all.return_value = [collection_row]
     mock_session.execute.return_value = collection_result
 
     # Mock model provider and embeddings
@@ -717,11 +741,14 @@ async def test_search_chunks_with_similarity():
         model_registry=mock_model_registry,
         request_context=mock_request_context,
         collection_ids=[123],
-        prompt="test query",
-        method="similarity",
+        document_ids=[],
+        metadata_filters=None,
+        query="test query",
+        method=SearchMethod.SEMANTIC,
         limit=10,
         offset=0,
         rff_k=50,
+        score_threshold=0.0,
     )
 
     assert len(result) == 2
@@ -744,7 +771,9 @@ async def test_search_chunks_with_lexical():
 
     # Mock collection exists check
     collection_result = MagicMock()
-    collection_result.scalar_one.return_value = MagicMock()
+    collection_row = MagicMock()
+    collection_row.id = 123
+    collection_result.all.return_value = [collection_row]
     mock_session.execute.return_value = collection_result
 
     # Mock model provider (should not be called for lexical search)
@@ -775,11 +804,14 @@ async def test_search_chunks_with_lexical():
         model_registry=mock_model_registry,
         request_context=mock_request_context,
         collection_ids=[123],
-        prompt="test query",
-        method="lexical",
+        document_ids=[],
+        metadata_filters=None,
+        query="test query",
+        method=SearchMethod.LEXICAL,
         limit=10,
         offset=0,
         rff_k=50,
+        score_threshold=0.0,
     )
 
     assert len(result) == 2
@@ -830,11 +862,14 @@ async def test_search_chunks_collection_not_found():
             model_registry=mock_model_registry,
             request_context=mock_request_context,
             collection_ids=[999],
-            prompt="test query",
-            method="similarity",
+            document_ids=[],
+            metadata_filters=None,
+            query="test query",
+            method=SearchMethod.SEMANTIC,
             limit=10,
             offset=0,
             rff_k=50,
+            score_threshold=0.0,
         )
 
     mock_elasticsearch_vector_store.search.assert_not_called()
@@ -882,7 +917,7 @@ async def test_create_document_parsing_fails():
     document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
 
     mock_file = create_upload_file("Test content", "test.txt", "text/plain")
-    mock_metadata = {"source_tags": ["test"]}
+    mock_metadata = {"source_tags": "test"}
 
     mock_request_context_obj = RequestContext(
         id="123",
@@ -941,7 +976,7 @@ async def test_create_document_empty_chunks():
     document_manager._split = MagicMock(return_value=[])
 
     mock_file = create_upload_file("Test content", "test.txt", "text/plain")
-    mock_metadata = {"source_tags": ["test"]}
+    mock_metadata = {"source_tags": "test"}
 
     mock_request_context_obj = RequestContext(
         id="123",
@@ -1015,7 +1050,7 @@ async def test_create_document_vectorization_fails(monkeypatch):
     document_manager._upsert_document_chunks = AsyncMock(side_effect=Exception("Vectorization error"))
 
     mock_file = create_upload_file("Test content", "test.txt", "text/plain")
-    mock_metadata = {"source_tags": ["test"]}
+    mock_metadata = {"source_tags": "test"}
 
     mock_request_context_obj = RequestContext(
         id="123",

@@ -461,8 +461,7 @@ class ConfigFile(ConfigBaseModel):
             models["all"].extend(models[model_type.value])
 
         # check for interdependencies
-        if self.dependencies.elasticsearch:
-            assert self.settings.vector_store_model, "Vector store model must be defined in settings section."
+        if self.dependencies.elasticsearch and self.settings.vector_store_model:
             assert self.settings.vector_store_model in models["all"], "Vector store model must be defined in models section."
             assert self.settings.vector_store_model in models[ModelType.TEXT_EMBEDDINGS_INFERENCE.value], f"The vector store model must have type {ModelType.TEXT_EMBEDDINGS_INFERENCE}."  # fmt: off
 

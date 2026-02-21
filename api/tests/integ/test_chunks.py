@@ -33,7 +33,7 @@ def setup(client: TestClient):
         "chunker": "RecursiveCharacterTextSplitter",
         "chunk_min_size": "0",
         "is_separator_regex": "false",
-        "metadata": json.dumps({"source_title": "test", "source_tags": ["tag-1", "tag-2"]}),
+        "metadata": json.dumps({"source_title": "test", "source_tags": "tag-1,tag-2"}),
     }
 
     file_path = "api/tests/integ/assets/pdf.pdf"

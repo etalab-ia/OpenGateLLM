@@ -50,7 +50,7 @@ class TestDocuments:
             "chunk_overlap": "200",
             "chunk_min_size": "0",
             "is_separator_regex": "false",
-            "metadata": json.dumps({"source_title": "test", "source_tags": ["tag-1", "tag-2"]}),
+            "metadata": json.dumps({"source_title": "test", "source_tags": "tag-1,tag-2"}),
         }
 
         with open(file_path, "rb") as file:
@@ -79,7 +79,7 @@ class TestDocuments:
         assert chunks.data[0].collection_id == collection
         assert chunks.data[0].document_id == document_id
         assert chunks.data[0].content != ""
-        assert chunks.data[0].metadata == {"source_title": "test", "source_tags": ["tag-1", "tag-2"]}
+        assert chunks.data[0].metadata == {"source_title": "test", "source_tags": "tag-1,tag-2"}
 
     def test_upload_file_with_overwrite_name(self, client: TestClient, collection):
         file_path = "api/tests/integ/assets/pdf.pdf"
@@ -91,7 +91,7 @@ class TestDocuments:
             "chunk_overlap": "200",
             "chunk_min_size": "0",
             "is_separator_regex": "false",
-            "metadata": json.dumps({"source_title": "test", "source_tags": ["tag-1", "tag-2"]}),
+            "metadata": json.dumps({"source_title": "test", "source_tags": "tag-1,tag-2"}),
         }
 
         with open(file_path, "rb") as file:
@@ -116,7 +116,7 @@ class TestDocuments:
             "collection": str(collection),
             "disable_chunking": "true",
             "chunk_size": "10",
-            "metadata": json.dumps({"source_title": "test", "source_tags": ["tag-1", "tag-2"]}),
+            "metadata": json.dumps({"source_title": "test", "source_tags": "tag-1,tag-2"}),
         }
         with open(file_path, "rb") as file:
             files = {"file": (os.path.basename(file_path), file, "application/pdf")}
@@ -140,13 +140,13 @@ class TestDocuments:
         chunks = Chunks(**chunks)  # test output format
         assert len(chunks.data) == 1
         assert chunks.data[0].content != ""
-        assert chunks.data[0].metadata == {"source_title": "test", "source_tags": ["tag-1", "tag-2"]}
+        assert chunks.data[0].metadata == {"source_title": "test", "source_tags": "tag-1,tag-2"}
 
     def test_create_document_without_file(self, client: TestClient, collection):
         data = {
             "collection": str(collection),
             "name": "test_document.pdf",
-            "metadata": json.dumps({"source_title": "test", "source_tags": ["tag-1", "tag-2"]}),
+            "metadata": json.dumps({"source_title": "test", "source_tags": "tag-1,tag-2"}),
         }
         response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data)
         assert response.status_code == 201, response.text
@@ -162,7 +162,7 @@ class TestDocuments:
     def test_create_document_without_name_and_file(self, client: TestClient, collection):
         data = {
             "collection": str(collection),
-            "metadata": json.dumps({"source_title": "test", "source_tags": ["tag-1", "tag-2"]}),
+            "metadata": json.dumps({"source_title": "test", "source_tags": "tag-1,tag-2"}),
         }
         response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data)
         assert response.status_code == 422, response.text
@@ -345,7 +345,7 @@ class TestDocuments:
         data = {
             "collection": str(collection),
             "name": "test_document.pdf",
-            "metadata": json.dumps({"source_title": "test", "source_tags": ["tag-1", "tag-2"]}),
+            "metadata": json.dumps({"source_title": "test", "source_tags": "tag-1,tag-2"}),
         }
         response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data)
         assert response.status_code == 201, response.text
@@ -355,8 +355,8 @@ class TestDocuments:
             url=f"/v1{EndpointRoute.DOCUMENTS}/{document_id}/chunks",
             json={
                 "chunks": [
-                    {"content": "test_1", "metadata": {"source_title": "test_1", "source_tags": ["tag-1", "tag-2"]}},
-                    {"content": "test_2", "metadata": {"source_title": "test_2", "source_tags": ["tag-1", "tag-2"]}},
+                    {"content": "test_1", "metadata": {"source_title": "test_1", "source_tags": "tag-1,tag-2"}},
+                    {"content": "test_2", "metadata": {"source_title": "test_2", "source_tags": "tag-1,tag-2"}},
                 ]
             },
         )
@@ -383,9 +383,9 @@ class TestDocuments:
         assert chunks.data[0].collection_id == collection
         assert chunks.data[0].document_id == document_id
         assert chunks.data[0].content == "test_1"
-        assert chunks.data[0].metadata == {"source_title": "test_1", "source_tags": ["tag-1", "tag-2"]}
+        assert chunks.data[0].metadata == {"source_title": "test_1", "source_tags": "tag-1,tag-2"}
         assert chunks.data[1].content == "test_2"
-        assert chunks.data[1].metadata == {"source_title": "test_2", "source_tags": ["tag-1", "tag-2"]}
+        assert chunks.data[1].metadata == {"source_title": "test_2", "source_tags": "tag-1,tag-2"}
 
     def test_create_chunks_into_document_with_content(self, client: TestClient, collection):
         file_path = "api/tests/integ/assets/pdf.pdf"
@@ -414,8 +414,8 @@ class TestDocuments:
             url=f"/v1{EndpointRoute.DOCUMENTS}/{document_id}/chunks",
             json={
                 "chunks": [
-                    {"content": "test_1", "metadata": {"source_title": "test_1", "source_tags": ["tag-1", "tag-2"]}},
-                    {"content": "test_2", "metadata": {"source_title": "test_2", "source_tags": ["tag-1", "tag-2"]}},
+                    {"content": "test_1", "metadata": {"source_title": "test_1", "source_tags": "tag-1,tag-2"}},
+                    {"content": "test_2", "metadata": {"source_title": "test_2", "source_tags": "tag-1,tag-2"}},
                 ]
             },
         )
@@ -443,6 +443,6 @@ class TestDocuments:
     def test_create_into_non_existent_document(self, client: TestClient, collection):
         response = client.post_without_permissions(
             url=f"/v1{EndpointRoute.DOCUMENTS}/1000/chunks",
-            json={"chunks": [{"content": "test", "metadata": {"source_title": "test", "source_tags": ["tag-1", "tag-2"]}}]},
+            json={"chunks": [{"content": "test", "metadata": {"source_title": "test", "source_tags": "tag-1,tag-2"}}]},
         )
         assert response.status_code == 404, response.text

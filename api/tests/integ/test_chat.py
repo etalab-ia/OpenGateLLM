@@ -43,7 +43,7 @@ def setup(client: TestClient):
         "chunker": "RecursiveCharacterTextSplitter",
         "chunk_min_size": "0",
         "is_separator_regex": "false",
-        "metadata": json.dumps({"source_title": "test", "source_tags": ["tag-1", "tag-2"]}),
+        "metadata": json.dumps({"source_title": "test", "source_tags": "tag-1,tag-2"}),
     }
 
     file_path = "api/tests/integ/assets/pdf.pdf"
@@ -194,25 +194,6 @@ class TestChat:
         response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
         assert response.status_code == 422, response.text
 
-    def test_chat_completions_search_no_collections(self, client: TestClient, setup):
-        """Test the GET /chat/completions search no collections."""
-        MODEL_ID, DOCUMENT_ID, COLLECTION_ID = setup
-        params = {
-            "model": MODEL_ID,
-            "messages": [{"role": "user", "content": "Qui est Albert ?"}],
-            "stream": False,
-            "n": 1,
-            "max_tokens": 10,
-            "search": True,
-            "search_args": {
-                "k": 3,
-                "method": "semantic",
-                "rff_k": 1,
-            },
-        }
-        response = client.post_without_permissions(url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}", json=params)
-        assert response.status_code == 422, response.text
-
     def test_chat_completions_search_template(self, client: TestClient, setup):
         """Test the GET /chat/completions search template."""
         MODEL_ID, DOCUMENT_ID, COLLECTION_ID = setup
@@ -225,7 +206,7 @@ class TestChat:
             "search": True,
             "search_args": {
                 "collections": [COLLECTION_ID],
-                "k": 3,
+                "limit": 3,
                 "method": "semantic",
                 "rff_k": 1,
                 "template": "Ne réponds pas à la question {prompt} à l'aide des documents ci-dessous : {chunks}",

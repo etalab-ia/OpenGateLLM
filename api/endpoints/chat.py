@@ -83,11 +83,14 @@ async def chat_completions(
                 redis_client=inner_redis_client,
                 model_registry=inner_model_registry,
                 collection_ids=initial_body.search_args.collection_ids,
-                prompt=initial_body.messages[-1]["content"],
+                document_ids=initial_body.search_args.document_ids,
+                metadata_filters=initial_body.search_args.metadata_filters,
+                query=initial_body.messages[-1]["content"],
                 method=initial_body.search_args.method,
                 limit=initial_body.search_args.limit,
                 offset=initial_body.search_args.offset,
                 rff_k=initial_body.search_args.rff_k,
+                score_threshold=initial_body.search_args.score_threshold,
             )
             if results:
                 chunks = "\n".join([result.chunk.content for result in results])

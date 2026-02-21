@@ -31,12 +31,7 @@ async def lifespan(app: FastAPI):
     global_context.elasticsearch_client = await create_elasticsearch_client(configuration)
     global_context.postgres_engine, global_context.postgres_session_factory = create_postgres_session_factory(configuration)
     global_context.model_registry = await create_model_registry(configuration, global_context.postgres_session_factory)
-    global_context.elasticsearch_vector_store = await create_elasticsearch_vector_store(
-        configuration,
-        global_context.elasticsearch_client,
-        global_context.model_registry,
-        global_context.postgres_session_factory,
-    )
+    global_context.elasticsearch_vector_store = await create_elasticsearch_vector_store(configuration, global_context.elasticsearch_client, global_context.model_registry, global_context.postgres_session_factory)  # fmt: off
     global_context.usage_manager = create_usage_manager()
 
     global_context.identity_access_manager = create_identity_access_manager(configuration=configuration)
@@ -115,7 +110,7 @@ async def create_elasticsearch_vector_store(
     model_registry: ModelRegistry,
     session_factory: async_sessionmaker,
 ) -> ElasticsearchVectorStore | None:
-    if configuration.dependencies.elasticsearch is None:
+    if configuration.dependencies.elasticsearch is None or configuration.settings.vector_store_model is None:
         return None
 
     async with session_factory() as session:
@@ -176,7 +171,5 @@ async def create_parser(configuration: Configuration) -> ParserClient | None:
 
 
 def create_document_manager(configuration: Configuration, elasticsearch_vector_store: ElasticsearchVectorStore | None) -> DocumentManager | None:
-    if elasticsearch_vector_store is None:
-        return None
     parser_manager = ParserManager(max_concurrent=configuration.settings.document_parsing_max_concurrent)
     return DocumentManager(vector_store_model=configuration.settings.vector_store_model, parser_manager=parser_manager)
