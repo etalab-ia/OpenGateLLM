@@ -1,0 +1,34 @@
+# File generated from our OpenAPI spec by Stainless. See CONTRIBUTING.md for details.
+
+from __future__ import annotations
+
+from typing_extensions import Required, TypedDict
+
+from ..._types import SequenceNotStr
+from .model_type import ModelType
+from .router_load_balancing_strategy import RouterLoadBalancingStrategy
+
+__all__ = ["RouterCreateParams"]
+
+
+class RouterCreateParams(TypedDict, total=False):
+    name: Required[str]
+    """Name of the model router."""
+
+    type: Required[ModelType]
+    """Type of the model router. It will be used to identify the model router type."""
+
+    aliases: SequenceNotStr[str]
+    """Aliases of the model. It will be used to identify the model by users."""
+
+    cost_completion_tokens: float
+    """Cost of a million completion tokens (decrease user budget)"""
+
+    cost_prompt_tokens: float
+    """Cost of a million prompt tokens (decrease user budget)"""
+
+    load_balancing_strategy: RouterLoadBalancingStrategy
+    """Routing strategy for load balancing between providers of the model.
+
+    It will be used to identify the model type.
+    """

@@ -1,103 +1,424 @@
-[![Version](https://img.shields.io/github/v/release/etalab-ia/OpenGateLLM?color=blue&label=version)](https://github.com/etalab-ia/OpenGateLLM/releases)
-[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/etalab-ia/OpenGateLLM/refs/heads/main/.github/badges/coverage.json)](https://github.com/etalab-ia/OpenGateLLM)
-[![License](https://img.shields.io/github/license/etalab-ia/OpenGateLLM?color=green&label=license)](https://github.com/etalab-ia/OpenGateLLM/blob/main/LICENSE)
-[![Stars](https://img.shields.io/github/stars/etalab-ia/OpenGateLLM?color=yellow&label=stars)](https://github.com/etalab-ia/OpenGateLLM/stargazers)
+# Opengatellm Python API library
 
-<img src="./docs/static/img/logo.svg" alt="Logo" width="128" height="128">
+<!-- prettier-ignore -->
+[![PyPI version](https://img.shields.io/pypi/v/opengatellm.svg?label=pypi%20(stable))](https://pypi.org/project/opengatellm/)
 
-# OpenGateLLM
-### **[Documentation](https://docs.opengatellm.org) | [API Reference](https://albert.api.etalab.gouv.fr/reference)**
+The Opengatellm Python library provides convenient access to the Opengatellm REST API from any Python 3.9+
+application. The library includes type definitions for all request params and response fields,
+and offers both synchronous and asynchronous clients powered by [httpx](https://github.com/encode/httpx).
 
-> [!WARNING]
-> **The API is still under beta version, major breaking changes may occur.**
+It is generated with [Stainless](https://www.stainless.com/).
 
+## Documentation
 
-OpenGateLLM is an open-source, production-ready API gateway, optimized for self-hosted models. It's designed to centralize, secure, and manage Generative AI access in a sovereign and cost-effective way.
+The full API of this library can be found in [api.md](api.md).
 
-OpenGateLLM addresses three critical challenges for organizations:
-1. **Cost control** - Reduce expenses of commercial APIs and GPU infrastructure by using self-hosted models and build a mutualized infrastructure with your peers.
-2. **Data sovereignty** - Keep sensitive data under your control
-3. **Privacy & security** - No chat history storage, robust access control
+## Installation
 
-**Core principles**
+```sh
+# install from this staging repo
+pip install git+ssh://git@github.com/stainless-sdks/opengatellm-python.git
+```
 
-- Open source and free forever - All features available without commercial licensing
-- High code quality - Built with maintainability and reliability in mind
-- Lightweight architecture - Focused feature set for optimal performance
-- High compatibility - Seamlessly integrates with GenAI ecosystem frameworks by OpenAI-compatible API
-- Production-ready - Engineered to handle high loads with advanced QoS features
+> [!NOTE]
+> Once this package is [published to PyPI](https://www.stainless.com/docs/guides/publish), this will become: `pip install opengatellm`
 
-![OpenGateLLM architecture](docs/static/img/ogl_architecture.png)
+## Usage
 
-**OpenGateLLM is an alternative to...**
+The full API of this library can be found in [api.md](api.md).
 
-<table>
-    <thead>
-        <tr>
-            <th style={{width: '58%', textAlign: 'center', fontWeight: 'bold'}}>Key features</th>
-            <th style={{width: '14%', textAlign: 'center', fontWeight: 'bold'}}>OpenGateLLM</th>
-            <th style={{width: '14%', textAlign: 'center', fontWeight: 'bold'}}>LiteLLM</th>
-            <th style={{width: '14%', textAlign: 'center', fontWeight: 'bold'}}>TensorZero</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr><td>:electric_plug: OpenAI Compatibility</td><td>✅</td><td>✅</td><td>✅</td></tr>
-        <tr><td>:open_book: [Open-source](https://github.com/etalab-ia/OpenGateLLM)</td><td>✅</td><td>✅</td><td>✅</td></tr>
-        <tr><td>:computer: [Self-hostable](./getting-started/quickstart.md)</td><td>✅</td><td>✅</td><td>✅</td></tr>
-        <tr><td>:money_with_wings: <b>Free (all features)</b></td><td>✅</td><td>❌</td><td>✅</td></tr>
-        <tr><td>:factory: Support commercial and self-hosted models</td><td>✅</td><td>✅</td><td>✅</td></tr>
-        <!-- User management -->
-        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>Account management</b></td></tr>
-        <tr><td>:game_die: Playground UI</td><td>✅</td><td>✅</td><td>✅</td></tr>
-        <tr><td>:bust_in_silhouette: User management (API keys, budget...)</td><td>✅</td><td>✅</td><td>✅</td></tr>
-        <tr><td>:office: Organization management</td><td>🚧</td><td>✅</td><td>❌</td></tr>
-        <tr><td>:pencil2: Project management</td><td>🔜</td><td>✅</td><td>❌</td></tr>
-        <tr><td>:key: SSO support</td><td>🚧</td><td>✅</td><td>❌</td></tr>
-        <!-- High load optimization -->
-        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>High load features</b></td></tr>
-        <tr><td>:hourglass: Rate limiting</td><td>✅</td><td>❌</td><td>❌</td></tr>
-        <tr><td>:zap: Requests prioritization</td><td>✅</td><td>✅</td><td>❌</td></tr>
-        <tr><td>:chart_with_upwards_trend: Quality of service thresholds</td><td>✅</td><td>✅</td><td>❌</td></tr>
-        <tr><td>:twisted_rightwards_arrows: Model load balancing</td><td>✅</td><td>✅</td><td>❌</td></tr>
-        <tr><td>:arrows_counterclockwise: Model fallback</td><td>🔜</td><td>✅</td><td>❌</td></tr>
-        <!-- Monitoring & analytics -->
-        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>Monitoring & analytics</b></td></tr>
-        <tr><td>:bar_chart: Usage tracking</td><td>✅</td><td>❌</td><td>❌</td></tr>
-        <tr><td>:chart_with_upwards_trend: Carbon footprint</td><td>✅</td><td>❌</td><td>❌</td></tr>
-        <tr><td>:link: Prometheus integration</td><td>✅</td><td>❌</td><td>❌</td></tr>
-        <!-- Privacy & security -->
-        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>Privacy & security</b></td></tr>
-        <tr><td>:no_entry_sign: No chat history storage</td><td>✅</td><td>❌</td><td>❌</td></tr>
-        <tr><td>:lock: Role-based access control</td><td>✅</td><td>❌</td><td>❌</td></tr>
-    </tbody>
-</table>
+```python
+import os
+from opengatellm import Opengatellm
 
-Legend: *✅ supported* — *❌ not supported* — *🚧 work in progress* — *🔜 in roadmap*
+client = Opengatellm(
+    bearer_token=os.environ.get(
+        "OPENGATELLM_BEARER_TOKEN"
+    ),  # This is the default and can be omitted
+)
 
-### 🚀 Quickstart
-***
-Deploy and start using OpenGateLLM in minutes with our quickstart guide [here](https://docs.opengatellm.org/docs/getting-started/quickstart).
+organization = client.admin.organizations.create(
+    name="x",
+)
+print(organization.id)
+```
 
-### 🤝 Contribute
-***
+While you can provide a `bearer_token` keyword argument,
+we recommend using [python-dotenv](https://pypi.org/project/python-dotenv/)
+to add `OPENGATELLM_BEARER_TOKEN="My Bearer Token"` to your `.env` file
+so that your Bearer Token is not stored in source control.
 
-This project exists thanks to all the people who contribute. OpenGateLLM thrives on open-source contributions. Join our community! 
+## Async usage
 
-Check out our [Contribution Guide](https://docs.opengatellm.org/docs/contributing) to get started.
+Simply import `AsyncOpengatellm` instead of `Opengatellm` and use `await` with each API call:
 
-### 🗺️ Roadmap
-***
+```python
+import os
+import asyncio
+from opengatellm import AsyncOpengatellm
 
-OpenGateLLM is still under *beta version*, major breaking changes may occur. Check our current roadmap [here](https://github.com/etalab-ia/OpenGateLLM/discussions/425) to see what we are working on.
+client = AsyncOpengatellm(
+    bearer_token=os.environ.get(
+        "OPENGATELLM_BEARER_TOKEN"
+    ),  # This is the default and can be omitted
+)
 
 
-### 🎖️ Sponsors
-***
+async def main() -> None:
+    organization = await client.admin.organizations.create(
+        name="x",
+    )
+    print(organization.id)
 
-<div id="toc">
-  <ul align="center" style="list-style: none">
-<a href="https://www.numerique.gouv.fr/numerique-etat/dinum/" ><img src="./docs/static/img/dinum_logo.png" alt="DINUM logo" width="300" style="margin-right: 40px"></a>
-<a href="https://www.centralesupelec.fr"><img src="./docs/static/img/centralsupelec_logo.png" alt="CentraleSupélec logo" width="200" style="margin-right: 40px"></a>
-  </ul>
-</div>
 
+asyncio.run(main())
+```
+
+Functionality between the synchronous and asynchronous clients is otherwise identical.
+
+### With aiohttp
+
+By default, the async client uses `httpx` for HTTP requests. However, for improved concurrency performance you may also use `aiohttp` as the HTTP backend.
+
+You can enable this by installing `aiohttp`:
+
+```sh
+# install from this staging repo
+pip install 'opengatellm[aiohttp] @ git+ssh://git@github.com/stainless-sdks/opengatellm-python.git'
+```
+
+Then you can enable it by instantiating the client with `http_client=DefaultAioHttpClient()`:
+
+```python
+import os
+import asyncio
+from opengatellm import DefaultAioHttpClient
+from opengatellm import AsyncOpengatellm
+
+
+async def main() -> None:
+    async with AsyncOpengatellm(
+        bearer_token=os.environ.get(
+            "OPENGATELLM_BEARER_TOKEN"
+        ),  # This is the default and can be omitted
+        http_client=DefaultAioHttpClient(),
+    ) as client:
+        organization = await client.admin.organizations.create(
+            name="x",
+        )
+        print(organization.id)
+
+
+asyncio.run(main())
+```
+
+## Using types
+
+Nested request parameters are [TypedDicts](https://docs.python.org/3/library/typing.html#typing.TypedDict). Responses are [Pydantic models](https://docs.pydantic.dev) which also provide helper methods for things like:
+
+- Serializing back into JSON, `model.to_json()`
+- Converting to a dictionary, `model.to_dict()`
+
+Typed requests and responses provide autocomplete and documentation within your editor. If you would like to see type errors in VS Code to help catch bugs earlier, set `python.analysis.typeCheckingMode` to `basic`.
+
+## Nested params
+
+Nested parameters are dictionaries, typed using `TypedDict`, for example:
+
+```python
+from opengatellm import Opengatellm
+
+client = Opengatellm()
+
+response = client.chat.create_completion(
+    messages=[{}],
+    model="model",
+    search_args={"collections": [0]},
+)
+print(response.search_args)
+```
+
+## File uploads
+
+Request parameters that correspond to file uploads can be passed as `bytes`, or a [`PathLike`](https://docs.python.org/3/library/os.html#os.PathLike) instance or a tuple of `(filename, contents, media type)`.
+
+```python
+from pathlib import Path
+from opengatellm import Opengatellm
+
+client = Opengatellm()
+
+client.audio.transcribe(
+    file=Path("/path/to/file"),
+    model="model",
+)
+```
+
+The async client uses the exact same interface. If you pass a [`PathLike`](https://docs.python.org/3/library/os.html#os.PathLike) instance, the file contents will be read asynchronously automatically.
+
+## Handling errors
+
+When the library is unable to connect to the API (for example, due to network connection problems or a timeout), a subclass of `opengatellm.APIConnectionError` is raised.
+
+When the API returns a non-success status code (that is, 4xx or 5xx
+response), a subclass of `opengatellm.APIStatusError` is raised, containing `status_code` and `response` properties.
+
+All errors inherit from `opengatellm.APIError`.
+
+```python
+import opengatellm
+from opengatellm import Opengatellm
+
+client = Opengatellm()
+
+try:
+    client.admin.organizations.create(
+        name="x",
+    )
+except opengatellm.APIConnectionError as e:
+    print("The server could not be reached")
+    print(e.__cause__)  # an underlying Exception, likely raised within httpx.
+except opengatellm.RateLimitError as e:
+    print("A 429 status code was received; we should back off a bit.")
+except opengatellm.APIStatusError as e:
+    print("Another non-200-range status code was received")
+    print(e.status_code)
+    print(e.response)
+```
+
+Error codes are as follows:
+
+| Status Code | Error Type                 |
+| ----------- | -------------------------- |
+| 400         | `BadRequestError`          |
+| 401         | `AuthenticationError`      |
+| 403         | `PermissionDeniedError`    |
+| 404         | `NotFoundError`            |
+| 422         | `UnprocessableEntityError` |
+| 429         | `RateLimitError`           |
+| >=500       | `InternalServerError`      |
+| N/A         | `APIConnectionError`       |
+
+### Retries
+
+Certain errors are automatically retried 2 times by default, with a short exponential backoff.
+Connection errors (for example, due to a network connectivity problem), 408 Request Timeout, 409 Conflict,
+429 Rate Limit, and >=500 Internal errors are all retried by default.
+
+You can use the `max_retries` option to configure or disable retry settings:
+
+```python
+from opengatellm import Opengatellm
+
+# Configure the default for all requests:
+client = Opengatellm(
+    # default is 2
+    max_retries=0,
+)
+
+# Or, configure per-request:
+client.with_options(max_retries=5).admin.organizations.create(
+    name="x",
+)
+```
+
+### Timeouts
+
+By default requests time out after 1 minute. You can configure this with a `timeout` option,
+which accepts a float or an [`httpx.Timeout`](https://www.python-httpx.org/advanced/timeouts/#fine-tuning-the-configuration) object:
+
+```python
+from opengatellm import Opengatellm
+
+# Configure the default for all requests:
+client = Opengatellm(
+    # 20 seconds (default is 1 minute)
+    timeout=20.0,
+)
+
+# More granular control:
+client = Opengatellm(
+    timeout=httpx.Timeout(60.0, read=5.0, write=10.0, connect=2.0),
+)
+
+# Override per-request:
+client.with_options(timeout=5.0).admin.organizations.create(
+    name="x",
+)
+```
+
+On timeout, an `APITimeoutError` is thrown.
+
+Note that requests that time out are [retried twice by default](#retries).
+
+## Advanced
+
+### Logging
+
+We use the standard library [`logging`](https://docs.python.org/3/library/logging.html) module.
+
+You can enable logging by setting the environment variable `OPENGATELLM_LOG` to `info`.
+
+```shell
+$ export OPENGATELLM_LOG=info
+```
+
+Or to `debug` for more verbose logging.
+
+### How to tell whether `None` means `null` or missing
+
+In an API response, a field may be explicitly `null`, or missing entirely; in either case, its value is `None` in this library. You can differentiate the two cases with `.model_fields_set`:
+
+```py
+if response.my_field is None:
+  if 'my_field' not in response.model_fields_set:
+    print('Got json like {}, without a "my_field" key present at all.')
+  else:
+    print('Got json like {"my_field": null}.')
+```
+
+### Accessing raw response data (e.g. headers)
+
+The "raw" Response object can be accessed by prefixing `.with_raw_response.` to any HTTP method call, e.g.,
+
+```py
+from opengatellm import Opengatellm
+
+client = Opengatellm()
+response = client.admin.organizations.with_raw_response.create(
+    name="x",
+)
+print(response.headers.get('X-My-Header'))
+
+organization = response.parse()  # get the object that `admin.organizations.create()` would have returned
+print(organization.id)
+```
+
+These methods return an [`APIResponse`](https://github.com/stainless-sdks/opengatellm-python/tree/main/src/opengatellm/_response.py) object.
+
+The async client returns an [`AsyncAPIResponse`](https://github.com/stainless-sdks/opengatellm-python/tree/main/src/opengatellm/_response.py) with the same structure, the only difference being `await`able methods for reading the response content.
+
+#### `.with_streaming_response`
+
+The above interface eagerly reads the full response body when you make the request, which may not always be what you want.
+
+To stream the response body, use `.with_streaming_response` instead, which requires a context manager and only reads the response body once you call `.read()`, `.text()`, `.json()`, `.iter_bytes()`, `.iter_text()`, `.iter_lines()` or `.parse()`. In the async client, these are async methods.
+
+```python
+with client.admin.organizations.with_streaming_response.create(
+    name="x",
+) as response:
+    print(response.headers.get("X-My-Header"))
+
+    for line in response.iter_lines():
+        print(line)
+```
+
+The context manager is required so that the response will reliably be closed.
+
+### Making custom/undocumented requests
+
+This library is typed for convenient access to the documented API.
+
+If you need to access undocumented endpoints, params, or response properties, the library can still be used.
+
+#### Undocumented endpoints
+
+To make requests to undocumented endpoints, you can make requests using `client.get`, `client.post`, and other
+http verbs. Options on the client will be respected (such as retries) when making this request.
+
+```py
+import httpx
+
+response = client.post(
+    "/foo",
+    cast_to=httpx.Response,
+    body={"my_param": True},
+)
+
+print(response.headers.get("x-foo"))
+```
+
+#### Undocumented request params
+
+If you want to explicitly send an extra param, you can do so with the `extra_query`, `extra_body`, and `extra_headers` request
+options.
+
+#### Undocumented response properties
+
+To access undocumented response properties, you can access the extra fields like `response.unknown_prop`. You
+can also get all the extra fields on the Pydantic model as a dict with
+[`response.model_extra`](https://docs.pydantic.dev/latest/api/base_model/#pydantic.BaseModel.model_extra).
+
+### Configuring the HTTP client
+
+You can directly override the [httpx client](https://www.python-httpx.org/api/#client) to customize it for your use case, including:
+
+- Support for [proxies](https://www.python-httpx.org/advanced/proxies/)
+- Custom [transports](https://www.python-httpx.org/advanced/transports/)
+- Additional [advanced](https://www.python-httpx.org/advanced/clients/) functionality
+
+```python
+import httpx
+from opengatellm import Opengatellm, DefaultHttpxClient
+
+client = Opengatellm(
+    # Or use the `OPENGATELLM_BASE_URL` env var
+    base_url="http://my.test.server.example.com:8083",
+    http_client=DefaultHttpxClient(
+        proxy="http://my.test.proxy.example.com",
+        transport=httpx.HTTPTransport(local_address="0.0.0.0"),
+    ),
+)
+```
+
+You can also customize the client on a per-request basis by using `with_options()`:
+
+```python
+client.with_options(http_client=DefaultHttpxClient(...))
+```
+
+### Managing HTTP resources
+
+By default the library closes underlying HTTP connections whenever the client is [garbage collected](https://docs.python.org/3/reference/datamodel.html#object.__del__). You can manually close the client using the `.close()` method if desired, or with a context manager that closes when exiting.
+
+```py
+from opengatellm import Opengatellm
+
+with Opengatellm() as client:
+  # make requests here
+  ...
+
+# HTTP client is now closed
+```
+
+## Versioning
+
+This package generally follows [SemVer](https://semver.org/spec/v2.0.0.html) conventions, though certain backwards-incompatible changes may be released as minor versions:
+
+1. Changes that only affect static types, without breaking runtime behavior.
+2. Changes to library internals which are technically public but not intended or documented for external use. _(Please open a GitHub issue to let us know if you are relying on such internals.)_
+3. Changes that we do not expect to impact the vast majority of users in practice.
+
+We take backwards-compatibility seriously and work hard to ensure you can rely on a smooth upgrade experience.
+
+We are keen for your feedback; please open an [issue](https://www.github.com/stainless-sdks/opengatellm-python/issues) with questions, bugs, or suggestions.
+
+### Determining the installed version
+
+If you've upgraded to the latest version but aren't seeing any new features you were expecting then your python environment is likely still using an older version.
+
+You can determine the version that is being used at runtime with:
+
+```py
+import opengatellm
+print(opengatellm.__version__)
+```
+
+## Requirements
+
+Python 3.9 or higher.
+
+## Contributing
+
+See [the contributing documentation](./CONTRIBUTING.md).

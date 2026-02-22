@@ -1,136 +1,255 @@
 [project]
 name = "opengatellm"
-version = "0.4.0post1"
-description = "OpenGateLLM project"
-requires-python = ">=3.12"
-license = { text = "MIT" }
-dependencies = [
-    "requests==2.32.4",
-    "pydantic==2.12.5",
-    "pydantic-settings==2.12.0",
-    "httpx>=0.27.0",
-    "pyyaml==6.0.2",
-    "pycountry==24.6.1",
+version = "0.0.1"
+description = "The official Python library for the opengatellm API"
+dynamic = ["readme"]
+license = "MIT"
+authors = [
+{ name = "Opengatellm", email = "" },
 ]
+
+dependencies = [
+  "httpx>=0.23.0, <1",
+  "pydantic>=1.9.0, <3",
+  "typing-extensions>=4.10, <5",
+  "anyio>=3.5.0, <5",
+  "distro>=1.7.0, <2",
+  "sniffio",
+]
+
+requires-python = ">= 3.9"
+classifiers = [
+  "Typing :: Typed",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Operating System :: OS Independent",
+  "Operating System :: POSIX",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "License :: OSI Approved :: MIT License"
+]
+
+[project.urls]
+Homepage = "https://github.com/stainless-sdks/opengatellm-python"
+Repository = "https://github.com/stainless-sdks/opengatellm-python"
 
 [project.optional-dependencies]
-playground = [
-    "reflex==0.8.17",
-]
-api = [
-    # auth
-    "authlib>=1.6.0",
-    "python-jose==3.4.0",
-    "limits==5.6.0",
-    "tiktoken==0.9.0",
-    "ecologits==0.8.2",
-    "itsdangerous>=2.2.0",
-    "cryptography>=3.4.8",
-    "openai>=2.15.0",
-    "mistralai==1.10.0",
+aiohttp = ["aiohttp", "httpx_aiohttp>=0.1.9"]
 
-    # data
-    "langchain-text-splitters>=1.1.0",
-    "elasticsearch[async]==9.0.1",
-    "redis==5.2.1",
-    "beautifulsoup4==4.13.4",
-    "PyMuPDF==1.26.7",
-    "pymupdf4llm>=0.2.9",
-    "alembic>=1.15.2",
-    "psycopg2-binary==2.9.10",
-    "asyncpg==0.30.0",
-    "sqlalchemy[asyncio]==2.0.43",
-    "sqlalchemy-utils==0.41.2",
-    "sentry-sdk[fastapi]>=2.28.0",
-    "bcrypt==4.3.0",
-
-    
-    # app
-    "gunicorn==23.0.0",
-    "fastapi>=0.128.0",
-    "prometheus-fastapi-instrumentator==7.0.2",
-    "uvicorn==0.37.0",
-    "python-multipart==0.0.20",
-    "html-to-markdown==1.4.0",
-    "celery==5.5.3"
-
+[tool.uv]
+managed = true
+required-version = ">=0.9"
+conflicts = [
+    [
+      { group = "pydantic-v1" },
+      { group = "pydantic-v2" },
+    ],
 ]
-worker = [
-    "redis==5.2.1",
-    "pycountry==24.6.1",
-    "celery==5.5.3"
-]
+
+[dependency-groups]
+# version pins are in uv.lock
 dev = [
-    "nbconvert==7.16.6",
-    "uvicorn==0.37.0",
-    "ruff==0.6.5",
-    "pre-commit==4.1.0",
-    "jupyter==1.1.1",
+    "pyright==1.1.399",
+    "mypy==1.17",
+    "respx",
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+    "time-machine",
+    "dirty-equals>=0.6.0",
+    "importlib-metadata>=6.7.0",
+    "rich>=13.7.1",
+    "pytest-xdist>=3.6.1",
 ]
-test = [
-    "pytest==8.3.4",
-    "pytest-cov==6.0.0",
-    "pytest-snapshot==0.9.0",
-    "pytest-xdist==3.6.1",
-    "pytest-asyncio==1.0.0",
-    "pytest-mock==3.14.1",
-    "respx==0.22.0",
-    "responses==0.25.8",
-    "openmockllm @ git+https://github.com/etalab-ia/openmockllm.git@main",
-    "factory-boy==3.3.3",
-    "gevent==25.9.1"
-
+pydantic-v1 = [
+    "pydantic>=1.9.0,<2",
 ]
-
-[tool.setuptools]
-py-modules = []
-
-[tool.ruff]
-line-length = 150
-exclude = [
-    "**/alembic",
+pydantic-v2 = [
+    "pydantic~=2.0 ; python_full_version < '3.14'",
+    "pydantic~=2.12 ; python_full_version >= '3.14'",
 ]
 
-[tool.ruff.lint]
-select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "N",   # pep8-naming
-    "UP",  # pyupgrade
-]
-ignore = [
-    "F403",  # import * 
-    "F841",  # never used variables
-    "E501",  # line too long
-    "N806",  # force lowercase
-    "UP031", # format specifiers instead of percent format
-    "W291",  # trailing whitespace
-    "N805",  # first argument of a class method call is self
-    "N815",  # mixed case variable name
+[build-system]
+requires = ["hatchling==1.26.3", "hatch-fancy-pypi-readme"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+include = [
+  "src/*"
 ]
 
-[tool.ruff.lint.isort]
-force-sort-within-sections = true
-known-first-party = ["config", "utils", "api", "app"]
-forced-separate = ["tests"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/opengatellm"]
 
-[tool.ruff.lint.isort.sections]
-sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+[tool.hatch.build.targets.sdist]
+# Basically everything except hidden files/directories (such as .github, .devcontainers, .python-version, etc)
+include = [
+  "/*.toml",
+  "/*.json",
+  "/*.lock",
+  "/*.md",
+  "/mypy.ini",
+  "/noxfile.py",
+  "bin/*",
+  "examples/*",
+  "src/*",
+  "tests/*",
+]
+
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+# replace relative links with absolute links
+pattern = '\[(.+?)\]\(((?!https?://)\S+?)\)'
+replacement = '[\1](https://github.com/stainless-sdks/opengatellm-python/tree/main/\g<2>)'
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
 testpaths = ["tests"]
-log_cli = true
-log_cli_level = "INFO"
-log_cli_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+addopts = "--tb=short -n auto"
+xfail_strict = true
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 filterwarnings = [
-    # Ignore warnings from external libraries
-    "ignore:builtin type Swig.*:DeprecationWarning",
-    # factory_boy doesn't fully support async SQLAlchemy sessions
-    "ignore:coroutine 'AsyncSession.flush' was never awaited:RuntimeWarning",
+  "error"
 ]
+
+[tool.pyright]
+# this enables practically every flag given by pyright.
+# there are a couple of flags that are still disabled by
+# default in strict mode as they are experimental and niche.
+typeCheckingMode = "strict"
+pythonVersion = "3.9"
+
+exclude = [
+    "_dev",
+    ".venv",
+    ".nox",
+    ".git",
+]
+
+reportImplicitOverride = true
+reportOverlappingOverload = false
+
+reportImportCycles = false
+reportPrivateUsage = false
+
+[tool.mypy]
+pretty = true
+show_error_codes = true
+
+# Exclude _files.py because mypy isn't smart enough to apply
+# the correct type narrowing and as this is an internal module
+# it's fine to just use Pyright.
+#
+# We also exclude our `tests` as mypy doesn't always infer
+# types correctly and Pyright will still catch any type errors.
+exclude = ['src/opengatellm/_files.py', '_dev/.*.py', 'tests/.*']
+
+strict_equality = true
+implicit_reexport = true
+check_untyped_defs = true
+no_implicit_optional = true
+
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+
+# Turn these options off as it could cause conflicts
+# with the Pyright options.
+warn_unused_ignores = false
+warn_redundant_casts = false
+
+disallow_any_generics = true
+disallow_untyped_defs = true
+disallow_untyped_calls = true
+disallow_subclassing_any = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+cache_fine_grained = true
+
+# By default, mypy reports an error if you assign a value to the result
+# of a function call that doesn't return anything. We do this in our test
+# cases:
+# ```
+# result = ...
+# assert result is None
+# ```
+# Changing this codegen to make mypy happy would increase complexity
+# and would not be worth it.
+disable_error_code = "func-returns-value,overload-cannot-match"
+
+# https://github.com/python/mypy/issues/12162
+[[tool.mypy.overrides]]
+module = "black.files.*"
+ignore_errors = true
+ignore_missing_imports = true
+
+
+[tool.ruff]
+line-length = 120
+output-format = "grouped"
+target-version = "py38"
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = [
+  # isort
+  "I",
+  # bugbear rules
+  "B",
+  # remove unused imports
+  "F401",
+  # check for missing future annotations
+  "FA102",
+  # bare except statements
+  "E722",
+  # unused arguments
+  "ARG",
+  # print statements
+  "T201",
+  "T203",
+  # misuse of typing.TYPE_CHECKING
+  "TC004",
+  # import rules
+  "TID251",
+]
+ignore = [
+  # mutable defaults
+  "B006",
+]
+unfixable = [
+  # disable auto fix for print statements
+  "T201",
+  "T203",
+]
+
+extend-safe-fixes = ["FA102"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"functools.lru_cache".msg = "This function does not retain type information for the wrapped function's arguments; The `lru_cache` function from `_utils` should be used instead"
+
+[tool.ruff.lint.isort]
+length-sort = true
+length-sort-straight = true
+combine-as-imports = true
+extra-standard-library = ["typing_extensions"]
+known-first-party = ["opengatellm", "tests"]
+
+[tool.ruff.lint.per-file-ignores]
+"bin/**.py" = ["T201", "T203"]
+"scripts/**.py" = ["T201", "T203"]
+"tests/**.py" = ["T201", "T203"]
+"examples/**.py" = ["T201", "T203"]
