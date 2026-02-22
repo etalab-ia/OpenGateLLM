@@ -1,5 +1,0 @@
-[run]
-data_file = ./api/.coverage
-
-[xml]
-output = ./api/coverage.xml
