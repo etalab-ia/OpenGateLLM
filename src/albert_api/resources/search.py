@@ -8,11 +8,8 @@ from typing_extensions import Literal
 import httpx
 
 from ..types import search_execute_params
-from .._types import NOT_GIVEN, Body, Query, Headers, NotGiven
-from .._utils import (
-    maybe_transform,
-    async_maybe_transform,
-)
+from .._types import Body, Omit, Query, Headers, NotGiven, omit, not_given
+from .._utils import maybe_transform, async_maybe_transform
 from .._compat import cached_property
 from .._resource import SyncAPIResource, AsyncAPIResource
 from .._response import (
@@ -34,7 +31,7 @@ class SearchResource(SyncAPIResource):
         This property can be used as a prefix for any HTTP method call to return
         the raw response object instead of the parsed content.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#accessing-raw-response-data-eg-headers
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#accessing-raw-response-data-eg-headers
         """
         return SearchResourceWithRawResponse(self)
 
@@ -43,7 +40,7 @@ class SearchResource(SyncAPIResource):
         """
         An alternative to `.with_raw_response` that doesn't eagerly read the response body.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#with_streaming_response
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#with_streaming_response
         """
         return SearchResourceWithStreamingResponse(self)
 
@@ -53,13 +50,13 @@ class SearchResource(SyncAPIResource):
         collections: List[Union[str, Literal["internet"]]],
         k: int,
         prompt: str,
-        score_threshold: Optional[float] | NotGiven = NOT_GIVEN,
+        score_threshold: Optional[float] | Omit = omit,
         # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
         # The extra values given here take precedence over values defined on the client or passed to this method.
         extra_headers: Headers | None = None,
         extra_query: Query | None = None,
         extra_body: Body | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
     ) -> Searches:
         """
         Similarity search for chunks in the vector store or on the internet.
@@ -102,7 +99,7 @@ class AsyncSearchResource(AsyncAPIResource):
         This property can be used as a prefix for any HTTP method call to return
         the raw response object instead of the parsed content.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#accessing-raw-response-data-eg-headers
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#accessing-raw-response-data-eg-headers
         """
         return AsyncSearchResourceWithRawResponse(self)
 
@@ -111,7 +108,7 @@ class AsyncSearchResource(AsyncAPIResource):
         """
         An alternative to `.with_raw_response` that doesn't eagerly read the response body.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#with_streaming_response
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#with_streaming_response
         """
         return AsyncSearchResourceWithStreamingResponse(self)
 
@@ -121,13 +118,13 @@ class AsyncSearchResource(AsyncAPIResource):
         collections: List[Union[str, Literal["internet"]]],
         k: int,
         prompt: str,
-        score_threshold: Optional[float] | NotGiven = NOT_GIVEN,
+        score_threshold: Optional[float] | Omit = omit,
         # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
         # The extra values given here take precedence over values defined on the client or passed to this method.
         extra_headers: Headers | None = None,
         extra_query: Query | None = None,
         extra_body: Body | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
     ) -> Searches:
         """
         Similarity search for chunks in the vector store or on the internet.

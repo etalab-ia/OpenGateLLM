@@ -1,2 +1,4 @@
 configured_endpoints: 14
 openapi_spec_url: https://storage.googleapis.com/stainless-sdk-openapi-specs/dinum%2Falbert-api-64cb9eb7d84f410d53d2ed7416a1ba80c09f686b9d359b64e086ae50de667855.yml
+openapi_spec_hash: 56b605f12ab0ae61f59d2c79a57359fc
+config_hash: 27261dfb5de65fc20bf08dc6ca58e327

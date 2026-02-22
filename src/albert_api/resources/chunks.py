@@ -7,11 +7,8 @@ from typing import Optional
 import httpx
 
 from ..types import chunk_retrieve_params
-from .._types import NOT_GIVEN, Body, Query, Headers, NotGiven
-from .._utils import (
-    maybe_transform,
-    async_maybe_transform,
-)
+from .._types import Body, Omit, Query, Headers, NotGiven, omit, not_given
+from .._utils import maybe_transform, async_maybe_transform
 from .._compat import cached_property
 from .._resource import SyncAPIResource, AsyncAPIResource
 from .._response import (
@@ -33,7 +30,7 @@ class ChunksResource(SyncAPIResource):
         This property can be used as a prefix for any HTTP method call to return
         the raw response object instead of the parsed content.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#accessing-raw-response-data-eg-headers
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#accessing-raw-response-data-eg-headers
         """
         return ChunksResourceWithRawResponse(self)
 
@@ -42,7 +39,7 @@ class ChunksResource(SyncAPIResource):
         """
         An alternative to `.with_raw_response` that doesn't eagerly read the response body.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#with_streaming_response
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#with_streaming_response
         """
         return ChunksResourceWithStreamingResponse(self)
 
@@ -51,14 +48,14 @@ class ChunksResource(SyncAPIResource):
         document: str,
         *,
         collection: str,
-        limit: Optional[int] | NotGiven = NOT_GIVEN,
-        offset: Optional[str] | NotGiven = NOT_GIVEN,
+        limit: Optional[int] | Omit = omit,
+        offset: Optional[str] | Omit = omit,
         # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
         # The extra values given here take precedence over values defined on the client or passed to this method.
         extra_headers: Headers | None = None,
         extra_query: Query | None = None,
         extra_body: Body | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
     ) -> Chunks:
         """
         Get a single chunk.
@@ -102,7 +99,7 @@ class AsyncChunksResource(AsyncAPIResource):
         This property can be used as a prefix for any HTTP method call to return
         the raw response object instead of the parsed content.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#accessing-raw-response-data-eg-headers
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#accessing-raw-response-data-eg-headers
         """
         return AsyncChunksResourceWithRawResponse(self)
 
@@ -111,7 +108,7 @@ class AsyncChunksResource(AsyncAPIResource):
         """
         An alternative to `.with_raw_response` that doesn't eagerly read the response body.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#with_streaming_response
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#with_streaming_response
         """
         return AsyncChunksResourceWithStreamingResponse(self)
 
@@ -120,14 +117,14 @@ class AsyncChunksResource(AsyncAPIResource):
         document: str,
         *,
         collection: str,
-        limit: Optional[int] | NotGiven = NOT_GIVEN,
-        offset: Optional[str] | NotGiven = NOT_GIVEN,
+        limit: Optional[int] | Omit = omit,
+        offset: Optional[str] | Omit = omit,
         # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
         # The extra values given here take precedence over values defined on the client or passed to this method.
         extra_headers: Headers | None = None,
         extra_query: Query | None = None,
         extra_body: Body | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
     ) -> Chunks:
         """
         Get a single chunk.

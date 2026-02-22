@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import httpx
 
-from .._types import NOT_GIVEN, Body, Query, Headers, NotGiven
+from .._types import Body, Query, Headers, NotGiven, not_given
 from .._compat import cached_property
 from .._resource import SyncAPIResource, AsyncAPIResource
 from .._response import (
@@ -25,7 +25,7 @@ class HealthResource(SyncAPIResource):
         This property can be used as a prefix for any HTTP method call to return
         the raw response object instead of the parsed content.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#accessing-raw-response-data-eg-headers
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#accessing-raw-response-data-eg-headers
         """
         return HealthResourceWithRawResponse(self)
 
@@ -34,7 +34,7 @@ class HealthResource(SyncAPIResource):
         """
         An alternative to `.with_raw_response` that doesn't eagerly read the response body.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#with_streaming_response
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#with_streaming_response
         """
         return HealthResourceWithStreamingResponse(self)
 
@@ -46,7 +46,7 @@ class HealthResource(SyncAPIResource):
         extra_headers: Headers | None = None,
         extra_query: Query | None = None,
         extra_body: Body | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
     ) -> object:
         """Health check."""
         return self._get(
@@ -65,7 +65,7 @@ class AsyncHealthResource(AsyncAPIResource):
         This property can be used as a prefix for any HTTP method call to return
         the raw response object instead of the parsed content.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#accessing-raw-response-data-eg-headers
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#accessing-raw-response-data-eg-headers
         """
         return AsyncHealthResourceWithRawResponse(self)
 
@@ -74,7 +74,7 @@ class AsyncHealthResource(AsyncAPIResource):
         """
         An alternative to `.with_raw_response` that doesn't eagerly read the response body.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#with_streaming_response
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#with_streaming_response
         """
         return AsyncHealthResourceWithStreamingResponse(self)
 
@@ -86,7 +86,7 @@ class AsyncHealthResource(AsyncAPIResource):
         extra_headers: Headers | None = None,
         extra_query: Query | None = None,
         extra_body: Body | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
     ) -> object:
         """Health check."""
         return await self._get(

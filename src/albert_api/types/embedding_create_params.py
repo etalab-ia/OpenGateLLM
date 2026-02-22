@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from typing import List, Union, Iterable, Optional
+from typing import Union, Iterable, Optional
 from typing_extensions import Literal, Required, TypedDict
+
+from .._types import SequenceNotStr
 
 __all__ = ["EmbeddingCreateParams"]
 
 
 class EmbeddingCreateParams(TypedDict, total=False):
-    input: Required[Union[Iterable[int], Iterable[Iterable[int]], str, List[str]]]
+    input: Required[Union[Iterable[int], Iterable[Iterable[int]], str, SequenceNotStr[str]]]
 
     model: Required[str]
 

@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any, List, Union, Iterable, Optional, cast
+from typing import Any, Union, Iterable, Optional, cast
 from typing_extensions import Literal
 
 import httpx
 
 from ..types import chat_completion_create_params
-from .._types import NOT_GIVEN, Body, Query, Headers, NotGiven
-from .._utils import (
-    maybe_transform,
-    async_maybe_transform,
-)
+from .._types import Body, Omit, Query, Headers, NotGiven, SequenceNotStr, omit, not_given
+from .._utils import maybe_transform, async_maybe_transform
 from .._compat import cached_property
 from .._resource import SyncAPIResource, AsyncAPIResource
 from .._response import (
@@ -34,7 +31,7 @@ class ChatCompletionsResource(SyncAPIResource):
         This property can be used as a prefix for any HTTP method call to return
         the raw response object instead of the parsed content.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#accessing-raw-response-data-eg-headers
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#accessing-raw-response-data-eg-headers
         """
         return ChatCompletionsResourceWithRawResponse(self)
 
@@ -43,7 +40,7 @@ class ChatCompletionsResource(SyncAPIResource):
         """
         An alternative to `.with_raw_response` that doesn't eagerly read the response body.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#with_streaming_response
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#with_streaming_response
         """
         return ChatCompletionsResourceWithStreamingResponse(self)
 
@@ -52,27 +49,27 @@ class ChatCompletionsResource(SyncAPIResource):
         *,
         messages: Iterable[chat_completion_create_params.Message],
         model: str,
-        best_of: Optional[int] | NotGiven = NOT_GIVEN,
-        frequency_penalty: Optional[float] | NotGiven = NOT_GIVEN,
-        max_tokens: Optional[int] | NotGiven = NOT_GIVEN,
-        min_p: float | NotGiven = NOT_GIVEN,
-        n: Optional[int] | NotGiven = NOT_GIVEN,
-        presence_penalty: Optional[float] | NotGiven = NOT_GIVEN,
-        seed: Optional[int] | NotGiven = NOT_GIVEN,
-        stop: Union[str, List[str], None] | NotGiven = NOT_GIVEN,
-        stream: Optional[Literal[True, False]] | NotGiven = NOT_GIVEN,
-        temperature: Optional[float] | NotGiven = NOT_GIVEN,
-        tool_choice: Optional[chat_completion_create_params.ToolChoice] | NotGiven = NOT_GIVEN,
-        tools: Iterable[chat_completion_create_params.Tool] | NotGiven = NOT_GIVEN,
-        top_k: int | NotGiven = NOT_GIVEN,
-        top_p: Optional[float] | NotGiven = NOT_GIVEN,
-        user: Optional[str] | NotGiven = NOT_GIVEN,
+        best_of: Optional[int] | Omit = omit,
+        frequency_penalty: Optional[float] | Omit = omit,
+        max_tokens: Optional[int] | Omit = omit,
+        min_p: float | Omit = omit,
+        n: Optional[int] | Omit = omit,
+        presence_penalty: Optional[float] | Omit = omit,
+        seed: Optional[int] | Omit = omit,
+        stop: Union[str, SequenceNotStr[str], None] | Omit = omit,
+        stream: Optional[Literal[True, False]] | Omit = omit,
+        temperature: Optional[float] | Omit = omit,
+        tool_choice: Optional[chat_completion_create_params.ToolChoice] | Omit = omit,
+        tools: Iterable[chat_completion_create_params.Tool] | Omit = omit,
+        top_k: int | Omit = omit,
+        top_p: Optional[float] | Omit = omit,
+        user: Optional[str] | Omit = omit,
         # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
         # The extra values given here take precedence over values defined on the client or passed to this method.
         extra_headers: Headers | None = None,
         extra_query: Query | None = None,
         extra_body: Body | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
     ) -> ChatCompletionCreateResponse:
         """Completion API similar to OpenAI's API.
 
@@ -132,7 +129,7 @@ class AsyncChatCompletionsResource(AsyncAPIResource):
         This property can be used as a prefix for any HTTP method call to return
         the raw response object instead of the parsed content.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#accessing-raw-response-data-eg-headers
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#accessing-raw-response-data-eg-headers
         """
         return AsyncChatCompletionsResourceWithRawResponse(self)
 
@@ -141,7 +138,7 @@ class AsyncChatCompletionsResource(AsyncAPIResource):
         """
         An alternative to `.with_raw_response` that doesn't eagerly read the response body.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#with_streaming_response
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#with_streaming_response
         """
         return AsyncChatCompletionsResourceWithStreamingResponse(self)
 
@@ -150,27 +147,27 @@ class AsyncChatCompletionsResource(AsyncAPIResource):
         *,
         messages: Iterable[chat_completion_create_params.Message],
         model: str,
-        best_of: Optional[int] | NotGiven = NOT_GIVEN,
-        frequency_penalty: Optional[float] | NotGiven = NOT_GIVEN,
-        max_tokens: Optional[int] | NotGiven = NOT_GIVEN,
-        min_p: float | NotGiven = NOT_GIVEN,
-        n: Optional[int] | NotGiven = NOT_GIVEN,
-        presence_penalty: Optional[float] | NotGiven = NOT_GIVEN,
-        seed: Optional[int] | NotGiven = NOT_GIVEN,
-        stop: Union[str, List[str], None] | NotGiven = NOT_GIVEN,
-        stream: Optional[Literal[True, False]] | NotGiven = NOT_GIVEN,
-        temperature: Optional[float] | NotGiven = NOT_GIVEN,
-        tool_choice: Optional[chat_completion_create_params.ToolChoice] | NotGiven = NOT_GIVEN,
-        tools: Iterable[chat_completion_create_params.Tool] | NotGiven = NOT_GIVEN,
-        top_k: int | NotGiven = NOT_GIVEN,
-        top_p: Optional[float] | NotGiven = NOT_GIVEN,
-        user: Optional[str] | NotGiven = NOT_GIVEN,
+        best_of: Optional[int] | Omit = omit,
+        frequency_penalty: Optional[float] | Omit = omit,
+        max_tokens: Optional[int] | Omit = omit,
+        min_p: float | Omit = omit,
+        n: Optional[int] | Omit = omit,
+        presence_penalty: Optional[float] | Omit = omit,
+        seed: Optional[int] | Omit = omit,
+        stop: Union[str, SequenceNotStr[str], None] | Omit = omit,
+        stream: Optional[Literal[True, False]] | Omit = omit,
+        temperature: Optional[float] | Omit = omit,
+        tool_choice: Optional[chat_completion_create_params.ToolChoice] | Omit = omit,
+        tools: Iterable[chat_completion_create_params.Tool] | Omit = omit,
+        top_k: int | Omit = omit,
+        top_p: Optional[float] | Omit = omit,
+        user: Optional[str] | Omit = omit,
         # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
         # The extra values given here take precedence over values defined on the client or passed to this method.
         extra_headers: Headers | None = None,
         extra_query: Query | None = None,
         extra_body: Body | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
     ) -> ChatCompletionCreateResponse:
         """Completion API similar to OpenAI's API.
 

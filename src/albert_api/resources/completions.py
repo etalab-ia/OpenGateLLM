@@ -2,16 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Union, Iterable, Optional
+from typing import Dict, Union, Iterable, Optional
 
 import httpx
 
 from ..types import completion_create_params
-from .._types import NOT_GIVEN, Body, Query, Headers, NotGiven
-from .._utils import (
-    maybe_transform,
-    async_maybe_transform,
-)
+from .._types import Body, Omit, Query, Headers, NotGiven, SequenceNotStr, omit, not_given
+from .._utils import maybe_transform, async_maybe_transform
 from .._compat import cached_property
 from .._resource import SyncAPIResource, AsyncAPIResource
 from .._response import (
@@ -33,7 +30,7 @@ class CompletionsResource(SyncAPIResource):
         This property can be used as a prefix for any HTTP method call to return
         the raw response object instead of the parsed content.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#accessing-raw-response-data-eg-headers
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#accessing-raw-response-data-eg-headers
         """
         return CompletionsResourceWithRawResponse(self)
 
@@ -42,7 +39,7 @@ class CompletionsResource(SyncAPIResource):
         """
         An alternative to `.with_raw_response` that doesn't eagerly read the response body.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#with_streaming_response
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#with_streaming_response
         """
         return CompletionsResourceWithStreamingResponse(self)
 
@@ -50,28 +47,28 @@ class CompletionsResource(SyncAPIResource):
         self,
         *,
         model: str,
-        prompt: Union[str, List[str], Iterable[int], Iterable[Iterable[int]]],
-        best_of: Optional[int] | NotGiven = NOT_GIVEN,
-        echo: Optional[bool] | NotGiven = NOT_GIVEN,
-        frequency_penalty: Optional[float] | NotGiven = NOT_GIVEN,
-        logit_bias: Optional[Dict[str, float]] | NotGiven = NOT_GIVEN,
-        logprobs: Optional[int] | NotGiven = NOT_GIVEN,
-        max_tokens: Optional[int] | NotGiven = NOT_GIVEN,
-        n: Optional[int] | NotGiven = NOT_GIVEN,
-        presence_penalty: Optional[float] | NotGiven = NOT_GIVEN,
-        seed: Optional[int] | NotGiven = NOT_GIVEN,
-        stop: Union[str, List[str], None] | NotGiven = NOT_GIVEN,
-        stream: Optional[bool] | NotGiven = NOT_GIVEN,
-        suffix: Optional[str] | NotGiven = NOT_GIVEN,
-        temperature: Optional[float] | NotGiven = NOT_GIVEN,
-        top_p: Optional[float] | NotGiven = NOT_GIVEN,
-        user: Optional[str] | NotGiven = NOT_GIVEN,
+        prompt: Union[str, SequenceNotStr[str], Iterable[int], Iterable[Iterable[int]]],
+        best_of: Optional[int] | Omit = omit,
+        echo: Optional[bool] | Omit = omit,
+        frequency_penalty: Optional[float] | Omit = omit,
+        logit_bias: Optional[Dict[str, float]] | Omit = omit,
+        logprobs: Optional[int] | Omit = omit,
+        max_tokens: Optional[int] | Omit = omit,
+        n: Optional[int] | Omit = omit,
+        presence_penalty: Optional[float] | Omit = omit,
+        seed: Optional[int] | Omit = omit,
+        stop: Union[str, SequenceNotStr[str], None] | Omit = omit,
+        stream: Optional[bool] | Omit = omit,
+        suffix: Optional[str] | Omit = omit,
+        temperature: Optional[float] | Omit = omit,
+        top_p: Optional[float] | Omit = omit,
+        user: Optional[str] | Omit = omit,
         # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
         # The extra values given here take precedence over values defined on the client or passed to this method.
         extra_headers: Headers | None = None,
         extra_query: Query | None = None,
         extra_body: Body | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
     ) -> Completions:
         """Completion API similar to OpenAI's API.
 
@@ -126,7 +123,7 @@ class AsyncCompletionsResource(AsyncAPIResource):
         This property can be used as a prefix for any HTTP method call to return
         the raw response object instead of the parsed content.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#accessing-raw-response-data-eg-headers
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#accessing-raw-response-data-eg-headers
         """
         return AsyncCompletionsResourceWithRawResponse(self)
 
@@ -135,7 +132,7 @@ class AsyncCompletionsResource(AsyncAPIResource):
         """
         An alternative to `.with_raw_response` that doesn't eagerly read the response body.
 
-        For more information, see https://www.github.com/stainless-sdks/albert-api-python#with_streaming_response
+        For more information, see https://www.github.com/etalab-ia/OpenGateLLM#with_streaming_response
         """
         return AsyncCompletionsResourceWithStreamingResponse(self)
 
@@ -143,28 +140,28 @@ class AsyncCompletionsResource(AsyncAPIResource):
         self,
         *,
         model: str,
-        prompt: Union[str, List[str], Iterable[int], Iterable[Iterable[int]]],
-        best_of: Optional[int] | NotGiven = NOT_GIVEN,
-        echo: Optional[bool] | NotGiven = NOT_GIVEN,
-        frequency_penalty: Optional[float] | NotGiven = NOT_GIVEN,
-        logit_bias: Optional[Dict[str, float]] | NotGiven = NOT_GIVEN,
-        logprobs: Optional[int] | NotGiven = NOT_GIVEN,
-        max_tokens: Optional[int] | NotGiven = NOT_GIVEN,
-        n: Optional[int] | NotGiven = NOT_GIVEN,
-        presence_penalty: Optional[float] | NotGiven = NOT_GIVEN,
-        seed: Optional[int] | NotGiven = NOT_GIVEN,
-        stop: Union[str, List[str], None] | NotGiven = NOT_GIVEN,
-        stream: Optional[bool] | NotGiven = NOT_GIVEN,
-        suffix: Optional[str] | NotGiven = NOT_GIVEN,
-        temperature: Optional[float] | NotGiven = NOT_GIVEN,
-        top_p: Optional[float] | NotGiven = NOT_GIVEN,
-        user: Optional[str] | NotGiven = NOT_GIVEN,
+        prompt: Union[str, SequenceNotStr[str], Iterable[int], Iterable[Iterable[int]]],
+        best_of: Optional[int] | Omit = omit,
+        echo: Optional[bool] | Omit = omit,
+        frequency_penalty: Optional[float] | Omit = omit,
+        logit_bias: Optional[Dict[str, float]] | Omit = omit,
+        logprobs: Optional[int] | Omit = omit,
+        max_tokens: Optional[int] | Omit = omit,
+        n: Optional[int] | Omit = omit,
+        presence_penalty: Optional[float] | Omit = omit,
+        seed: Optional[int] | Omit = omit,
+        stop: Union[str, SequenceNotStr[str], None] | Omit = omit,
+        stream: Optional[bool] | Omit = omit,
+        suffix: Optional[str] | Omit = omit,
+        temperature: Optional[float] | Omit = omit,
+        top_p: Optional[float] | Omit = omit,
+        user: Optional[str] | Omit = omit,
         # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
         # The extra values given here take precedence over values defined on the client or passed to this method.
         extra_headers: Headers | None = None,
         extra_query: Query | None = None,
         extra_body: Body | None = None,
-        timeout: float | httpx.Timeout | None | NotGiven = NOT_GIVEN,
+        timeout: float | httpx.Timeout | None | NotGiven = not_given,
     ) -> Completions:
         """Completion API similar to OpenAI's API.
 

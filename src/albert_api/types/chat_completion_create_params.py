@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from typing import List, Union, Iterable, Optional
+from typing import Union, Iterable, Optional
 from typing_extensions import Literal, Required, TypeAlias, TypedDict
+
+from .._types import SequenceNotStr
 
 __all__ = [
     "ChatCompletionCreateParams",
@@ -52,7 +54,7 @@ class ChatCompletionCreateParams(TypedDict, total=False):
 
     seed: Optional[int]
 
-    stop: Union[str, List[str], None]
+    stop: Union[str, SequenceNotStr[str], None]
 
     stream: Optional[Literal[True, False]]
 
@@ -220,9 +222,7 @@ class ToolChoiceChatCompletionNamedToolChoiceParam(TypedDict, total=False):
     type: Required[Literal["function"]]
 
 
-ToolChoice: TypeAlias = Union[
-    Literal["none"], Literal["none", "auto", "required"], ToolChoiceChatCompletionNamedToolChoiceParam
-]
+ToolChoice: TypeAlias = Union[Literal["none", "auto", "required"], ToolChoiceChatCompletionNamedToolChoiceParam]
 
 
 class ToolFunction(TypedDict, total=False):

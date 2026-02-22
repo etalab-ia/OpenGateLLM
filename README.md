@@ -1,12 +1,13 @@
 # Albert API Python API library
 
-[![PyPI version](https://img.shields.io/pypi/v/albert-api.svg)](https://pypi.org/project/albert-api/)
+<!-- prettier-ignore -->
+[![PyPI version](https://img.shields.io/pypi/v/albert-api.svg?label=pypi%20(stable))](https://pypi.org/project/albert-api/)
 
-The Albert API Python library provides convenient access to the Albert API REST API from any Python 3.8+
+The Albert API Python library provides convenient access to the Albert API REST API from any Python 3.9+
 application. The library includes type definitions for all request params and response fields,
 and offers both synchronous and asynchronous clients powered by [httpx](https://github.com/encode/httpx).
 
-It is generated with [Stainless](https://www.stainlessapi.com/).
+It is generated with [Stainless](https://www.stainless.com/).
 
 ## Documentation
 
@@ -15,21 +16,21 @@ The REST API documentation can be found on [etalab.gouv.fr](https://etalab.gouv.
 ## Installation
 
 ```sh
-# install from this staging repo
-pip install git+ssh://git@github.com/stainless-sdks/albert-api-python.git
+# install from PyPI
+pip install '--pre albert-api'
 ```
-
-> [!NOTE]
-> Once this package is [published to PyPI](https://app.stainlessapi.com/docs/guides/publish), this will become: `pip install --pre albert-api`
 
 ## Usage
 
 The full API of this library can be found in [api.md](api.md).
 
 ```python
+import os
 from albert_api import AlbertAPI
 
-client = AlbertAPI()
+client = AlbertAPI(
+    api_key=os.environ.get("API_KEY"),  # This is the default and can be omitted
+)
 
 completions = client.completions.create(
     model="model",
@@ -48,10 +49,13 @@ so that your API Key is not stored in source control.
 Simply import `AsyncAlbertAPI` instead of `AlbertAPI` and use `await` with each API call:
 
 ```python
+import os
 import asyncio
 from albert_api import AsyncAlbertAPI
 
-client = AsyncAlbertAPI()
+client = AsyncAlbertAPI(
+    api_key=os.environ.get("API_KEY"),  # This is the default and can be omitted
+)
 
 
 async def main() -> None:
@@ -67,6 +71,41 @@ asyncio.run(main())
 
 Functionality between the synchronous and asynchronous clients is otherwise identical.
 
+### With aiohttp
+
+By default, the async client uses `httpx` for HTTP requests. However, for improved concurrency performance you may also use `aiohttp` as the HTTP backend.
+
+You can enable this by installing `aiohttp`:
+
+```sh
+# install from PyPI
+pip install '--pre albert-api[aiohttp]'
+```
+
+Then you can enable it by instantiating the client with `http_client=DefaultAioHttpClient()`:
+
+```python
+import os
+import asyncio
+from albert_api import DefaultAioHttpClient
+from albert_api import AsyncAlbertAPI
+
+
+async def main() -> None:
+    async with AsyncAlbertAPI(
+        api_key=os.environ.get("API_KEY"),  # This is the default and can be omitted
+        http_client=DefaultAioHttpClient(),
+    ) as client:
+        completions = await client.completions.create(
+            model="model",
+            prompt="string",
+        )
+        print(completions.id)
+
+
+asyncio.run(main())
+```
+
 ## Using types
 
 Nested request parameters are [TypedDicts](https://docs.python.org/3/library/typing.html#typing.TypedDict). Responses are [Pydantic models](https://docs.pydantic.dev) which also provide helper methods for things like:
@@ -75,6 +114,40 @@ Nested request parameters are [TypedDicts](https://docs.python.org/3/library/typ
 - Converting to a dictionary, `model.to_dict()`
 
 Typed requests and responses provide autocomplete and documentation within your editor. If you would like to see type errors in VS Code to help catch bugs earlier, set `python.analysis.typeCheckingMode` to `basic`.
+
+## Nested params
+
+Nested parameters are dictionaries, typed using `TypedDict`, for example:
+
+```python
+from albert_api import AlbertAPI
+
+client = AlbertAPI()
+
+file = client.files.create(
+    file=b"raw file contents",
+    request={"collection": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e"},
+)
+print(file.request)
+```
+
+## File uploads
+
+Request parameters that correspond to file uploads can be passed as `bytes`, or a [`PathLike`](https://docs.python.org/3/library/os.html#os.PathLike) instance or a tuple of `(filename, contents, media type)`.
+
+```python
+from pathlib import Path
+from albert_api import AlbertAPI
+
+client = AlbertAPI()
+
+client.files.create(
+    file=Path("/path/to/file"),
+    request={"collection": "182bd5e5-6e1a-4fe4-a799-aa6d9a6ab26e"},
+)
+```
+
+The async client uses the exact same interface. If you pass a [`PathLike`](https://docs.python.org/3/library/os.html#os.PathLike) instance, the file contents will be read asynchronously automatically.
 
 ## Handling errors
 
@@ -147,7 +220,7 @@ client.with_options(max_retries=5).completions.create(
 ### Timeouts
 
 By default requests time out after 1 minute. You can configure this with a `timeout` option,
-which accepts a float or an [`httpx.Timeout`](https://www.python-httpx.org/advanced/#fine-tuning-the-configuration) object:
+which accepts a float or an [`httpx.Timeout`](https://www.python-httpx.org/advanced/timeouts/#fine-tuning-the-configuration) object:
 
 ```python
 from albert_api import AlbertAPI
@@ -218,9 +291,9 @@ completion = response.parse()  # get the object that `completions.create()` woul
 print(completion.id)
 ```
 
-These methods return an [`APIResponse`](https://github.com/stainless-sdks/albert-api-python/tree/main/src/albert_api/_response.py) object.
+These methods return an [`APIResponse`](https://github.com/etalab-ia/OpenGateLLM/tree/main/src/albert_api/_response.py) object.
 
-The async client returns an [`AsyncAPIResponse`](https://github.com/stainless-sdks/albert-api-python/tree/main/src/albert_api/_response.py) with the same structure, the only difference being `await`able methods for reading the response content.
+The async client returns an [`AsyncAPIResponse`](https://github.com/etalab-ia/OpenGateLLM/tree/main/src/albert_api/_response.py) with the same structure, the only difference being `await`able methods for reading the response content.
 
 #### `.with_streaming_response`
 
@@ -327,7 +400,7 @@ This package generally follows [SemVer](https://semver.org/spec/v2.0.0.html) con
 
 We take backwards-compatibility seriously and work hard to ensure you can rely on a smooth upgrade experience.
 
-We are keen for your feedback; please open an [issue](https://www.github.com/stainless-sdks/albert-api-python/issues) with questions, bugs, or suggestions.
+We are keen for your feedback; please open an [issue](https://www.github.com/etalab-ia/OpenGateLLM/issues) with questions, bugs, or suggestions.
 
 ### Determining the installed version
 
@@ -342,7 +415,7 @@ print(albert_api.__version__)
 
 ## Requirements
 
-Python 3.8 or higher.
+Python 3.9 or higher.
 
 ## Contributing
 

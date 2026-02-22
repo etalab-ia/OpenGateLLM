@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Union, Iterable, Optional
+from typing import Dict, Union, Iterable, Optional
 from typing_extensions import Required, TypedDict
+
+from .._types import SequenceNotStr
 
 __all__ = ["CompletionCreateParams"]
 
@@ -11,7 +13,7 @@ __all__ = ["CompletionCreateParams"]
 class CompletionCreateParams(TypedDict, total=False):
     model: Required[str]
 
-    prompt: Required[Union[str, List[str], Iterable[int], Iterable[Iterable[int]]]]
+    prompt: Required[Union[str, SequenceNotStr[str], Iterable[int], Iterable[Iterable[int]]]]
 
     best_of: Optional[int]
 
@@ -31,7 +33,7 @@ class CompletionCreateParams(TypedDict, total=False):
 
     seed: Optional[int]
 
-    stop: Union[str, List[str], None]
+    stop: Union[str, SequenceNotStr[str], None]
 
     stream: Optional[bool]
 

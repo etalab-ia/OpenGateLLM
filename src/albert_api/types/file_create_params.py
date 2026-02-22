@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Optional
 from typing_extensions import Literal, Required, TypedDict
 
-from .._types import FileTypes
+from .._types import FileTypes, SequenceNotStr
 
 __all__ = ["FileCreateParams", "Request", "RequestChunker", "RequestChunkerArgs"]
 
@@ -27,7 +27,7 @@ class RequestChunkerArgs(TypedDict, total=False):
 
     length_function: Literal["len"]
 
-    separators: List[str]
+    separators: SequenceNotStr[str]
 
 
 class RequestChunker(TypedDict, total=False):

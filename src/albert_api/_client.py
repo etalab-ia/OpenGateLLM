@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Union, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 from typing_extensions import Self, override
 
 import httpx
@@ -11,31 +11,17 @@ import httpx
 from . import _exceptions
 from ._qs import Querystring
 from ._types import (
-    NOT_GIVEN,
     Omit,
     Timeout,
     NotGiven,
     Transport,
     ProxiesTypes,
     RequestOptions,
+    not_given,
 )
-from ._utils import (
-    is_given,
-    get_async_library,
-)
+from ._utils import is_given, get_async_library
+from ._compat import cached_property
 from ._version import __version__
-from .resources import (
-    files,
-    chunks,
-    health,
-    models,
-    search,
-    documents,
-    embeddings,
-    collections,
-    completions,
-    chat_completions,
-)
 from ._streaming import Stream as Stream, AsyncStream as AsyncStream
 from ._exceptions import AlbertAPIError, APIStatusError
 from ._base_client import (
@@ -43,6 +29,30 @@ from ._base_client import (
     SyncAPIClient,
     AsyncAPIClient,
 )
+
+if TYPE_CHECKING:
+    from .resources import (
+        files,
+        chunks,
+        health,
+        models,
+        search,
+        documents,
+        embeddings,
+        collections,
+        completions,
+        chat_completions,
+    )
+    from .resources.files import FilesResource, AsyncFilesResource
+    from .resources.chunks import ChunksResource, AsyncChunksResource
+    from .resources.health import HealthResource, AsyncHealthResource
+    from .resources.models import ModelsResource, AsyncModelsResource
+    from .resources.search import SearchResource, AsyncSearchResource
+    from .resources.documents import DocumentsResource, AsyncDocumentsResource
+    from .resources.embeddings import EmbeddingsResource, AsyncEmbeddingsResource
+    from .resources.collections import CollectionsResource, AsyncCollectionsResource
+    from .resources.completions import CompletionsResource, AsyncCompletionsResource
+    from .resources.chat_completions import ChatCompletionsResource, AsyncChatCompletionsResource
 
 __all__ = [
     "Timeout",
@@ -57,19 +67,6 @@ __all__ = [
 
 
 class AlbertAPI(SyncAPIClient):
-    health: health.HealthResource
-    models: models.ModelsResource
-    chat_completions: chat_completions.ChatCompletionsResource
-    completions: completions.CompletionsResource
-    embeddings: embeddings.EmbeddingsResource
-    search: search.SearchResource
-    collections: collections.CollectionsResource
-    files: files.FilesResource
-    documents: documents.DocumentsResource
-    chunks: chunks.ChunksResource
-    with_raw_response: AlbertAPIWithRawResponse
-    with_streaming_response: AlbertAPIWithStreamedResponse
-
     # client options
     api_key: str
 
@@ -78,7 +75,7 @@ class AlbertAPI(SyncAPIClient):
         *,
         api_key: str | None = None,
         base_url: str | httpx.URL | None = None,
-        timeout: Union[float, Timeout, None, NotGiven] = NOT_GIVEN,
+        timeout: float | Timeout | None | NotGiven = not_given,
         max_retries: int = DEFAULT_MAX_RETRIES,
         default_headers: Mapping[str, str] | None = None,
         default_query: Mapping[str, object] | None = None,
@@ -96,7 +93,7 @@ class AlbertAPI(SyncAPIClient):
         # part of our public interface in the future.
         _strict_response_validation: bool = False,
     ) -> None:
-        """Construct a new synchronous albert-api client instance.
+        """Construct a new synchronous AlbertAPI client instance.
 
         This automatically infers the `api_key` argument from the `API_KEY` environment variable if it is not provided.
         """
@@ -124,18 +121,73 @@ class AlbertAPI(SyncAPIClient):
             _strict_response_validation=_strict_response_validation,
         )
 
-        self.health = health.HealthResource(self)
-        self.models = models.ModelsResource(self)
-        self.chat_completions = chat_completions.ChatCompletionsResource(self)
-        self.completions = completions.CompletionsResource(self)
-        self.embeddings = embeddings.EmbeddingsResource(self)
-        self.search = search.SearchResource(self)
-        self.collections = collections.CollectionsResource(self)
-        self.files = files.FilesResource(self)
-        self.documents = documents.DocumentsResource(self)
-        self.chunks = chunks.ChunksResource(self)
-        self.with_raw_response = AlbertAPIWithRawResponse(self)
-        self.with_streaming_response = AlbertAPIWithStreamedResponse(self)
+    @cached_property
+    def health(self) -> HealthResource:
+        from .resources.health import HealthResource
+
+        return HealthResource(self)
+
+    @cached_property
+    def models(self) -> ModelsResource:
+        from .resources.models import ModelsResource
+
+        return ModelsResource(self)
+
+    @cached_property
+    def chat_completions(self) -> ChatCompletionsResource:
+        from .resources.chat_completions import ChatCompletionsResource
+
+        return ChatCompletionsResource(self)
+
+    @cached_property
+    def completions(self) -> CompletionsResource:
+        from .resources.completions import CompletionsResource
+
+        return CompletionsResource(self)
+
+    @cached_property
+    def embeddings(self) -> EmbeddingsResource:
+        from .resources.embeddings import EmbeddingsResource
+
+        return EmbeddingsResource(self)
+
+    @cached_property
+    def search(self) -> SearchResource:
+        from .resources.search import SearchResource
+
+        return SearchResource(self)
+
+    @cached_property
+    def collections(self) -> CollectionsResource:
+        from .resources.collections import CollectionsResource
+
+        return CollectionsResource(self)
+
+    @cached_property
+    def files(self) -> FilesResource:
+        from .resources.files import FilesResource
+
+        return FilesResource(self)
+
+    @cached_property
+    def documents(self) -> DocumentsResource:
+        from .resources.documents import DocumentsResource
+
+        return DocumentsResource(self)
+
+    @cached_property
+    def chunks(self) -> ChunksResource:
+        from .resources.chunks import ChunksResource
+
+        return ChunksResource(self)
+
+    @cached_property
+    def with_raw_response(self) -> AlbertAPIWithRawResponse:
+        return AlbertAPIWithRawResponse(self)
+
+    @cached_property
+    def with_streaming_response(self) -> AlbertAPIWithStreamedResponse:
+        return AlbertAPIWithStreamedResponse(self)
 
     @property
     @override
@@ -162,9 +214,9 @@ class AlbertAPI(SyncAPIClient):
         *,
         api_key: str | None = None,
         base_url: str | httpx.URL | None = None,
-        timeout: float | Timeout | None | NotGiven = NOT_GIVEN,
+        timeout: float | Timeout | None | NotGiven = not_given,
         http_client: httpx.Client | None = None,
-        max_retries: int | NotGiven = NOT_GIVEN,
+        max_retries: int | NotGiven = not_given,
         default_headers: Mapping[str, str] | None = None,
         set_default_headers: Mapping[str, str] | None = None,
         default_query: Mapping[str, object] | None = None,
@@ -243,19 +295,6 @@ class AlbertAPI(SyncAPIClient):
 
 
 class AsyncAlbertAPI(AsyncAPIClient):
-    health: health.AsyncHealthResource
-    models: models.AsyncModelsResource
-    chat_completions: chat_completions.AsyncChatCompletionsResource
-    completions: completions.AsyncCompletionsResource
-    embeddings: embeddings.AsyncEmbeddingsResource
-    search: search.AsyncSearchResource
-    collections: collections.AsyncCollectionsResource
-    files: files.AsyncFilesResource
-    documents: documents.AsyncDocumentsResource
-    chunks: chunks.AsyncChunksResource
-    with_raw_response: AsyncAlbertAPIWithRawResponse
-    with_streaming_response: AsyncAlbertAPIWithStreamedResponse
-
     # client options
     api_key: str
 
@@ -264,7 +303,7 @@ class AsyncAlbertAPI(AsyncAPIClient):
         *,
         api_key: str | None = None,
         base_url: str | httpx.URL | None = None,
-        timeout: Union[float, Timeout, None, NotGiven] = NOT_GIVEN,
+        timeout: float | Timeout | None | NotGiven = not_given,
         max_retries: int = DEFAULT_MAX_RETRIES,
         default_headers: Mapping[str, str] | None = None,
         default_query: Mapping[str, object] | None = None,
@@ -282,7 +321,7 @@ class AsyncAlbertAPI(AsyncAPIClient):
         # part of our public interface in the future.
         _strict_response_validation: bool = False,
     ) -> None:
-        """Construct a new async albert-api client instance.
+        """Construct a new async AsyncAlbertAPI client instance.
 
         This automatically infers the `api_key` argument from the `API_KEY` environment variable if it is not provided.
         """
@@ -310,18 +349,73 @@ class AsyncAlbertAPI(AsyncAPIClient):
             _strict_response_validation=_strict_response_validation,
         )
 
-        self.health = health.AsyncHealthResource(self)
-        self.models = models.AsyncModelsResource(self)
-        self.chat_completions = chat_completions.AsyncChatCompletionsResource(self)
-        self.completions = completions.AsyncCompletionsResource(self)
-        self.embeddings = embeddings.AsyncEmbeddingsResource(self)
-        self.search = search.AsyncSearchResource(self)
-        self.collections = collections.AsyncCollectionsResource(self)
-        self.files = files.AsyncFilesResource(self)
-        self.documents = documents.AsyncDocumentsResource(self)
-        self.chunks = chunks.AsyncChunksResource(self)
-        self.with_raw_response = AsyncAlbertAPIWithRawResponse(self)
-        self.with_streaming_response = AsyncAlbertAPIWithStreamedResponse(self)
+    @cached_property
+    def health(self) -> AsyncHealthResource:
+        from .resources.health import AsyncHealthResource
+
+        return AsyncHealthResource(self)
+
+    @cached_property
+    def models(self) -> AsyncModelsResource:
+        from .resources.models import AsyncModelsResource
+
+        return AsyncModelsResource(self)
+
+    @cached_property
+    def chat_completions(self) -> AsyncChatCompletionsResource:
+        from .resources.chat_completions import AsyncChatCompletionsResource
+
+        return AsyncChatCompletionsResource(self)
+
+    @cached_property
+    def completions(self) -> AsyncCompletionsResource:
+        from .resources.completions import AsyncCompletionsResource
+
+        return AsyncCompletionsResource(self)
+
+    @cached_property
+    def embeddings(self) -> AsyncEmbeddingsResource:
+        from .resources.embeddings import AsyncEmbeddingsResource
+
+        return AsyncEmbeddingsResource(self)
+
+    @cached_property
+    def search(self) -> AsyncSearchResource:
+        from .resources.search import AsyncSearchResource
+
+        return AsyncSearchResource(self)
+
+    @cached_property
+    def collections(self) -> AsyncCollectionsResource:
+        from .resources.collections import AsyncCollectionsResource
+
+        return AsyncCollectionsResource(self)
+
+    @cached_property
+    def files(self) -> AsyncFilesResource:
+        from .resources.files import AsyncFilesResource
+
+        return AsyncFilesResource(self)
+
+    @cached_property
+    def documents(self) -> AsyncDocumentsResource:
+        from .resources.documents import AsyncDocumentsResource
+
+        return AsyncDocumentsResource(self)
+
+    @cached_property
+    def chunks(self) -> AsyncChunksResource:
+        from .resources.chunks import AsyncChunksResource
+
+        return AsyncChunksResource(self)
+
+    @cached_property
+    def with_raw_response(self) -> AsyncAlbertAPIWithRawResponse:
+        return AsyncAlbertAPIWithRawResponse(self)
+
+    @cached_property
+    def with_streaming_response(self) -> AsyncAlbertAPIWithStreamedResponse:
+        return AsyncAlbertAPIWithStreamedResponse(self)
 
     @property
     @override
@@ -348,9 +442,9 @@ class AsyncAlbertAPI(AsyncAPIClient):
         *,
         api_key: str | None = None,
         base_url: str | httpx.URL | None = None,
-        timeout: float | Timeout | None | NotGiven = NOT_GIVEN,
+        timeout: float | Timeout | None | NotGiven = not_given,
         http_client: httpx.AsyncClient | None = None,
-        max_retries: int | NotGiven = NOT_GIVEN,
+        max_retries: int | NotGiven = not_given,
         default_headers: Mapping[str, str] | None = None,
         set_default_headers: Mapping[str, str] | None = None,
         default_query: Mapping[str, object] | None = None,
@@ -429,61 +523,271 @@ class AsyncAlbertAPI(AsyncAPIClient):
 
 
 class AlbertAPIWithRawResponse:
+    _client: AlbertAPI
+
     def __init__(self, client: AlbertAPI) -> None:
-        self.health = health.HealthResourceWithRawResponse(client.health)
-        self.models = models.ModelsResourceWithRawResponse(client.models)
-        self.chat_completions = chat_completions.ChatCompletionsResourceWithRawResponse(client.chat_completions)
-        self.completions = completions.CompletionsResourceWithRawResponse(client.completions)
-        self.embeddings = embeddings.EmbeddingsResourceWithRawResponse(client.embeddings)
-        self.search = search.SearchResourceWithRawResponse(client.search)
-        self.collections = collections.CollectionsResourceWithRawResponse(client.collections)
-        self.files = files.FilesResourceWithRawResponse(client.files)
-        self.documents = documents.DocumentsResourceWithRawResponse(client.documents)
-        self.chunks = chunks.ChunksResourceWithRawResponse(client.chunks)
+        self._client = client
+
+    @cached_property
+    def health(self) -> health.HealthResourceWithRawResponse:
+        from .resources.health import HealthResourceWithRawResponse
+
+        return HealthResourceWithRawResponse(self._client.health)
+
+    @cached_property
+    def models(self) -> models.ModelsResourceWithRawResponse:
+        from .resources.models import ModelsResourceWithRawResponse
+
+        return ModelsResourceWithRawResponse(self._client.models)
+
+    @cached_property
+    def chat_completions(self) -> chat_completions.ChatCompletionsResourceWithRawResponse:
+        from .resources.chat_completions import ChatCompletionsResourceWithRawResponse
+
+        return ChatCompletionsResourceWithRawResponse(self._client.chat_completions)
+
+    @cached_property
+    def completions(self) -> completions.CompletionsResourceWithRawResponse:
+        from .resources.completions import CompletionsResourceWithRawResponse
+
+        return CompletionsResourceWithRawResponse(self._client.completions)
+
+    @cached_property
+    def embeddings(self) -> embeddings.EmbeddingsResourceWithRawResponse:
+        from .resources.embeddings import EmbeddingsResourceWithRawResponse
+
+        return EmbeddingsResourceWithRawResponse(self._client.embeddings)
+
+    @cached_property
+    def search(self) -> search.SearchResourceWithRawResponse:
+        from .resources.search import SearchResourceWithRawResponse
+
+        return SearchResourceWithRawResponse(self._client.search)
+
+    @cached_property
+    def collections(self) -> collections.CollectionsResourceWithRawResponse:
+        from .resources.collections import CollectionsResourceWithRawResponse
+
+        return CollectionsResourceWithRawResponse(self._client.collections)
+
+    @cached_property
+    def files(self) -> files.FilesResourceWithRawResponse:
+        from .resources.files import FilesResourceWithRawResponse
+
+        return FilesResourceWithRawResponse(self._client.files)
+
+    @cached_property
+    def documents(self) -> documents.DocumentsResourceWithRawResponse:
+        from .resources.documents import DocumentsResourceWithRawResponse
+
+        return DocumentsResourceWithRawResponse(self._client.documents)
+
+    @cached_property
+    def chunks(self) -> chunks.ChunksResourceWithRawResponse:
+        from .resources.chunks import ChunksResourceWithRawResponse
+
+        return ChunksResourceWithRawResponse(self._client.chunks)
 
 
 class AsyncAlbertAPIWithRawResponse:
+    _client: AsyncAlbertAPI
+
     def __init__(self, client: AsyncAlbertAPI) -> None:
-        self.health = health.AsyncHealthResourceWithRawResponse(client.health)
-        self.models = models.AsyncModelsResourceWithRawResponse(client.models)
-        self.chat_completions = chat_completions.AsyncChatCompletionsResourceWithRawResponse(client.chat_completions)
-        self.completions = completions.AsyncCompletionsResourceWithRawResponse(client.completions)
-        self.embeddings = embeddings.AsyncEmbeddingsResourceWithRawResponse(client.embeddings)
-        self.search = search.AsyncSearchResourceWithRawResponse(client.search)
-        self.collections = collections.AsyncCollectionsResourceWithRawResponse(client.collections)
-        self.files = files.AsyncFilesResourceWithRawResponse(client.files)
-        self.documents = documents.AsyncDocumentsResourceWithRawResponse(client.documents)
-        self.chunks = chunks.AsyncChunksResourceWithRawResponse(client.chunks)
+        self._client = client
+
+    @cached_property
+    def health(self) -> health.AsyncHealthResourceWithRawResponse:
+        from .resources.health import AsyncHealthResourceWithRawResponse
+
+        return AsyncHealthResourceWithRawResponse(self._client.health)
+
+    @cached_property
+    def models(self) -> models.AsyncModelsResourceWithRawResponse:
+        from .resources.models import AsyncModelsResourceWithRawResponse
+
+        return AsyncModelsResourceWithRawResponse(self._client.models)
+
+    @cached_property
+    def chat_completions(self) -> chat_completions.AsyncChatCompletionsResourceWithRawResponse:
+        from .resources.chat_completions import AsyncChatCompletionsResourceWithRawResponse
+
+        return AsyncChatCompletionsResourceWithRawResponse(self._client.chat_completions)
+
+    @cached_property
+    def completions(self) -> completions.AsyncCompletionsResourceWithRawResponse:
+        from .resources.completions import AsyncCompletionsResourceWithRawResponse
+
+        return AsyncCompletionsResourceWithRawResponse(self._client.completions)
+
+    @cached_property
+    def embeddings(self) -> embeddings.AsyncEmbeddingsResourceWithRawResponse:
+        from .resources.embeddings import AsyncEmbeddingsResourceWithRawResponse
+
+        return AsyncEmbeddingsResourceWithRawResponse(self._client.embeddings)
+
+    @cached_property
+    def search(self) -> search.AsyncSearchResourceWithRawResponse:
+        from .resources.search import AsyncSearchResourceWithRawResponse
+
+        return AsyncSearchResourceWithRawResponse(self._client.search)
+
+    @cached_property
+    def collections(self) -> collections.AsyncCollectionsResourceWithRawResponse:
+        from .resources.collections import AsyncCollectionsResourceWithRawResponse
+
+        return AsyncCollectionsResourceWithRawResponse(self._client.collections)
+
+    @cached_property
+    def files(self) -> files.AsyncFilesResourceWithRawResponse:
+        from .resources.files import AsyncFilesResourceWithRawResponse
+
+        return AsyncFilesResourceWithRawResponse(self._client.files)
+
+    @cached_property
+    def documents(self) -> documents.AsyncDocumentsResourceWithRawResponse:
+        from .resources.documents import AsyncDocumentsResourceWithRawResponse
+
+        return AsyncDocumentsResourceWithRawResponse(self._client.documents)
+
+    @cached_property
+    def chunks(self) -> chunks.AsyncChunksResourceWithRawResponse:
+        from .resources.chunks import AsyncChunksResourceWithRawResponse
+
+        return AsyncChunksResourceWithRawResponse(self._client.chunks)
 
 
 class AlbertAPIWithStreamedResponse:
+    _client: AlbertAPI
+
     def __init__(self, client: AlbertAPI) -> None:
-        self.health = health.HealthResourceWithStreamingResponse(client.health)
-        self.models = models.ModelsResourceWithStreamingResponse(client.models)
-        self.chat_completions = chat_completions.ChatCompletionsResourceWithStreamingResponse(client.chat_completions)
-        self.completions = completions.CompletionsResourceWithStreamingResponse(client.completions)
-        self.embeddings = embeddings.EmbeddingsResourceWithStreamingResponse(client.embeddings)
-        self.search = search.SearchResourceWithStreamingResponse(client.search)
-        self.collections = collections.CollectionsResourceWithStreamingResponse(client.collections)
-        self.files = files.FilesResourceWithStreamingResponse(client.files)
-        self.documents = documents.DocumentsResourceWithStreamingResponse(client.documents)
-        self.chunks = chunks.ChunksResourceWithStreamingResponse(client.chunks)
+        self._client = client
+
+    @cached_property
+    def health(self) -> health.HealthResourceWithStreamingResponse:
+        from .resources.health import HealthResourceWithStreamingResponse
+
+        return HealthResourceWithStreamingResponse(self._client.health)
+
+    @cached_property
+    def models(self) -> models.ModelsResourceWithStreamingResponse:
+        from .resources.models import ModelsResourceWithStreamingResponse
+
+        return ModelsResourceWithStreamingResponse(self._client.models)
+
+    @cached_property
+    def chat_completions(self) -> chat_completions.ChatCompletionsResourceWithStreamingResponse:
+        from .resources.chat_completions import ChatCompletionsResourceWithStreamingResponse
+
+        return ChatCompletionsResourceWithStreamingResponse(self._client.chat_completions)
+
+    @cached_property
+    def completions(self) -> completions.CompletionsResourceWithStreamingResponse:
+        from .resources.completions import CompletionsResourceWithStreamingResponse
+
+        return CompletionsResourceWithStreamingResponse(self._client.completions)
+
+    @cached_property
+    def embeddings(self) -> embeddings.EmbeddingsResourceWithStreamingResponse:
+        from .resources.embeddings import EmbeddingsResourceWithStreamingResponse
+
+        return EmbeddingsResourceWithStreamingResponse(self._client.embeddings)
+
+    @cached_property
+    def search(self) -> search.SearchResourceWithStreamingResponse:
+        from .resources.search import SearchResourceWithStreamingResponse
+
+        return SearchResourceWithStreamingResponse(self._client.search)
+
+    @cached_property
+    def collections(self) -> collections.CollectionsResourceWithStreamingResponse:
+        from .resources.collections import CollectionsResourceWithStreamingResponse
+
+        return CollectionsResourceWithStreamingResponse(self._client.collections)
+
+    @cached_property
+    def files(self) -> files.FilesResourceWithStreamingResponse:
+        from .resources.files import FilesResourceWithStreamingResponse
+
+        return FilesResourceWithStreamingResponse(self._client.files)
+
+    @cached_property
+    def documents(self) -> documents.DocumentsResourceWithStreamingResponse:
+        from .resources.documents import DocumentsResourceWithStreamingResponse
+
+        return DocumentsResourceWithStreamingResponse(self._client.documents)
+
+    @cached_property
+    def chunks(self) -> chunks.ChunksResourceWithStreamingResponse:
+        from .resources.chunks import ChunksResourceWithStreamingResponse
+
+        return ChunksResourceWithStreamingResponse(self._client.chunks)
 
 
 class AsyncAlbertAPIWithStreamedResponse:
+    _client: AsyncAlbertAPI
+
     def __init__(self, client: AsyncAlbertAPI) -> None:
-        self.health = health.AsyncHealthResourceWithStreamingResponse(client.health)
-        self.models = models.AsyncModelsResourceWithStreamingResponse(client.models)
-        self.chat_completions = chat_completions.AsyncChatCompletionsResourceWithStreamingResponse(
-            client.chat_completions
-        )
-        self.completions = completions.AsyncCompletionsResourceWithStreamingResponse(client.completions)
-        self.embeddings = embeddings.AsyncEmbeddingsResourceWithStreamingResponse(client.embeddings)
-        self.search = search.AsyncSearchResourceWithStreamingResponse(client.search)
-        self.collections = collections.AsyncCollectionsResourceWithStreamingResponse(client.collections)
-        self.files = files.AsyncFilesResourceWithStreamingResponse(client.files)
-        self.documents = documents.AsyncDocumentsResourceWithStreamingResponse(client.documents)
-        self.chunks = chunks.AsyncChunksResourceWithStreamingResponse(client.chunks)
+        self._client = client
+
+    @cached_property
+    def health(self) -> health.AsyncHealthResourceWithStreamingResponse:
+        from .resources.health import AsyncHealthResourceWithStreamingResponse
+
+        return AsyncHealthResourceWithStreamingResponse(self._client.health)
+
+    @cached_property
+    def models(self) -> models.AsyncModelsResourceWithStreamingResponse:
+        from .resources.models import AsyncModelsResourceWithStreamingResponse
+
+        return AsyncModelsResourceWithStreamingResponse(self._client.models)
+
+    @cached_property
+    def chat_completions(self) -> chat_completions.AsyncChatCompletionsResourceWithStreamingResponse:
+        from .resources.chat_completions import AsyncChatCompletionsResourceWithStreamingResponse
+
+        return AsyncChatCompletionsResourceWithStreamingResponse(self._client.chat_completions)
+
+    @cached_property
+    def completions(self) -> completions.AsyncCompletionsResourceWithStreamingResponse:
+        from .resources.completions import AsyncCompletionsResourceWithStreamingResponse
+
+        return AsyncCompletionsResourceWithStreamingResponse(self._client.completions)
+
+    @cached_property
+    def embeddings(self) -> embeddings.AsyncEmbeddingsResourceWithStreamingResponse:
+        from .resources.embeddings import AsyncEmbeddingsResourceWithStreamingResponse
+
+        return AsyncEmbeddingsResourceWithStreamingResponse(self._client.embeddings)
+
+    @cached_property
+    def search(self) -> search.AsyncSearchResourceWithStreamingResponse:
+        from .resources.search import AsyncSearchResourceWithStreamingResponse
+
+        return AsyncSearchResourceWithStreamingResponse(self._client.search)
+
+    @cached_property
+    def collections(self) -> collections.AsyncCollectionsResourceWithStreamingResponse:
+        from .resources.collections import AsyncCollectionsResourceWithStreamingResponse
+
+        return AsyncCollectionsResourceWithStreamingResponse(self._client.collections)
+
+    @cached_property
+    def files(self) -> files.AsyncFilesResourceWithStreamingResponse:
+        from .resources.files import AsyncFilesResourceWithStreamingResponse
+
+        return AsyncFilesResourceWithStreamingResponse(self._client.files)
+
+    @cached_property
+    def documents(self) -> documents.AsyncDocumentsResourceWithStreamingResponse:
+        from .resources.documents import AsyncDocumentsResourceWithStreamingResponse
+
+        return AsyncDocumentsResourceWithStreamingResponse(self._client.documents)
+
+    @cached_property
+    def chunks(self) -> chunks.AsyncChunksResourceWithStreamingResponse:
+        from .resources.chunks import AsyncChunksResourceWithStreamingResponse
+
+        return AsyncChunksResourceWithStreamingResponse(self._client.chunks)
 
 
 Client = AlbertAPI

@@ -1,14 +1,8 @@
 # Health
 
-Types:
-
-```python
-from albert_api.types import HealthCheckResponse
-```
-
 Methods:
 
-- <code title="get /health">client.health.<a href="./src/albert_api/resources/health.py">check</a>() -> <a href="./src/albert_api/types/health_check_response.py">object</a></code>
+- <code title="get /health">client.health.<a href="./src/albert_api/resources/health.py">check</a>() -> object</code>
 
 # Models
 
@@ -76,45 +70,33 @@ Methods:
 Types:
 
 ```python
-from albert_api.types import (
-    Collection,
-    Collections,
-    CollectionCreateResponse,
-    CollectionListResponse,
-    CollectionDeleteResponse,
-)
+from albert_api.types import Collection, Collections, CollectionListResponse
 ```
 
 Methods:
 
-- <code title="post /v1/collections">client.collections.<a href="./src/albert_api/resources/collections.py">create</a>(\*\*<a href="src/albert_api/types/collection_create_params.py">params</a>) -> <a href="./src/albert_api/types/collection_create_response.py">object</a></code>
+- <code title="post /v1/collections">client.collections.<a href="./src/albert_api/resources/collections.py">create</a>(\*\*<a href="src/albert_api/types/collection_create_params.py">params</a>) -> object</code>
 - <code title="get /v1/collections">client.collections.<a href="./src/albert_api/resources/collections.py">list</a>() -> <a href="./src/albert_api/types/collection_list_response.py">CollectionListResponse</a></code>
-- <code title="delete /v1/collections/{collection}">client.collections.<a href="./src/albert_api/resources/collections.py">delete</a>(collection) -> <a href="./src/albert_api/types/collection_delete_response.py">object</a></code>
+- <code title="delete /v1/collections/{collection}">client.collections.<a href="./src/albert_api/resources/collections.py">delete</a>(collection) -> object</code>
 
 # Files
 
-Types:
-
-```python
-from albert_api.types import FileCreateResponse
-```
-
 Methods:
 
-- <code title="post /v1/files">client.files.<a href="./src/albert_api/resources/files.py">create</a>(\*\*<a href="src/albert_api/types/file_create_params.py">params</a>) -> <a href="./src/albert_api/types/file_create_response.py">object</a></code>
+- <code title="post /v1/files">client.files.<a href="./src/albert_api/resources/files.py">create</a>(\*\*<a href="src/albert_api/types/file_create_params.py">params</a>) -> object</code>
 
 # Documents
 
 Types:
 
 ```python
-from albert_api.types import Documents, DocumentDeleteResponse
+from albert_api.types import Documents
 ```
 
 Methods:
 
 - <code title="get /v1/documents/{collection}">client.documents.<a href="./src/albert_api/resources/documents.py">list</a>(collection, \*\*<a href="src/albert_api/types/document_list_params.py">params</a>) -> <a href="./src/albert_api/types/documents.py">Documents</a></code>
-- <code title="delete /v1/documents/{collection}/{document}">client.documents.<a href="./src/albert_api/resources/documents.py">delete</a>(document, \*, collection) -> <a href="./src/albert_api/types/document_delete_response.py">object</a></code>
+- <code title="delete /v1/documents/{collection}/{document}">client.documents.<a href="./src/albert_api/resources/documents.py">delete</a>(document, \*, collection) -> object</code>
 
 # Chunks
 
