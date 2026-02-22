@@ -37,8 +37,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/stainless-sdks/opengatellm-python"
-Repository = "https://github.com/stainless-sdks/opengatellm-python"
+Homepage = "https://github.com/etalab-ia/OpenGateLLM"
+Repository = "https://github.com/etalab-ia/OpenGateLLM"
 
 [project.optional-dependencies]
 aiohttp = ["aiohttp", "httpx_aiohttp>=0.1.9"]
@@ -112,7 +112,7 @@ path = "README.md"
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
 # replace relative links with absolute links
 pattern = '\[(.+?)\]\(((?!https?://)\S+?)\)'
-replacement = '[\1](https://github.com/stainless-sdks/opengatellm-python/tree/main/\g<2>)'
+replacement = '[\1](https://github.com/etalab-ia/OpenGateLLM/tree/main/\g<2>)'
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
