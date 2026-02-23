@@ -1,12 +1,13 @@
 import logging
 
-from fastapi import APIRouter, Body, Depends, Security
+from fastapi import Body, Depends, Security
 
 from api.dependencies import create_router_use_case, get_request_context
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.domain.userinfo.errors import InsufficientPermissionError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
+from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InsufficientPermissionHTTPException,
     InternalServerHTTPException,
@@ -16,10 +17,9 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
 from api.infrastructure.fastapi.schemas.routers import CreateRouter, CreateRouterResponse
 from api.infrastructure.fastapi.utils import get_documentation_responses
 from api.use_cases.admin import CreateRouterCommand, CreateRouterUseCase, CreateRouterUseCaseSuccess
-from api.utils.variables import EndpointRoute, RouterName
+from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 
 
 @router.post(

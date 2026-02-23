@@ -74,14 +74,13 @@ def _register_routers(app: FastAPI, configuration: Configuration) -> None:
         include_in_schema = enabled_router not in hidden_routers
         app.include_router(router=router, include_in_schema=include_in_schema)
 
-    # @TODO: legacy import before total clean archi migration
-    # @TODO: create admin folder in infrastructure.fastapi.endpoints with router declaration in __init__.py
+    # @TODO: legacy import, remove after total clean archi migration
     if RouterName.ADMIN not in disabled_routers:
-        module = import_module("api.infrastructure.fastapi.endpoints.admin_router")
+        module = import_module("api.endpoints.admin.routers")
         app.include_router(router=module.router, include_in_schema=RouterName.ADMIN not in hidden_routers)
 
     if RouterName.ADMIN not in disabled_routers:
-        module = import_module("api.infrastructure.fastapi.endpoints.admin.providers")
+        module = import_module("api.endpoints.admin.providers")
         app.include_router(router=module.router, include_in_schema=RouterName.ADMIN not in hidden_routers)
 
 

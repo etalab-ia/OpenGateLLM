@@ -11,7 +11,7 @@ REDIS__TIMESERIE_RETENTION_SECONDS = 120
 
 
 class RouterName(StrEnum):
-    ADMIN = ("admin", "api.endpoints.admin")
+    ADMIN = ("admin", "api.infrastructure.fastapi.endpoints.admin")
     AUDIO = ("audio", "api.endpoints.audio")
     AUTH = ("auth", "api.endpoints.auth")
     CHAT = ("chat", "api.endpoints.chat")

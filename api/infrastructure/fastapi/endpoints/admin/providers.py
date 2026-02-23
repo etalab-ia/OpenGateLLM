@@ -1,7 +1,7 @@
 import logging
 from typing import Literal
 
-from fastapi import APIRouter, Body, Depends, Path, Query, Request, Security
+from fastapi import Body, Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +14,7 @@ from api.domain.userinfo.errors import InsufficientPermissionError
 from api.helpers.models import ModelRegistry
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
+from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InconsistentModelMaxContextLengthHTTPException,
     InconsistentModelVectorSizeHTTPException,
@@ -28,10 +29,9 @@ from api.infrastructure.fastapi.schemas.providers import CreateProvider, CreateP
 from api.infrastructure.fastapi.utils import get_documentation_responses
 from api.use_cases.admin.providers import CreateProviderCommand, CreateProviderUseCase, CreateProviderUseCaseSuccess
 from api.utils.dependencies import get_model_registry, get_postgres_session
-from api.utils.variables import EndpointRoute, RouterName
+from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 
 
 @router.post(
