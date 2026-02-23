@@ -6,6 +6,8 @@ from api.domain.provider.entities import COMPATIBLE_PROVIDER_TYPES, Provider, Pr
 from api.domain.provider.errors import ProviderAlreadyExistsError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError
+from api.domain.userinfo import UserInfoRepository
+from api.domain.userinfo.errors import InsufficientPermissionError
 from api.schemas.core.models import Metric
 
 
@@ -38,6 +40,7 @@ type CreateProviderUseCaseResult = (
     | InconsistentModelVectorSizeError
     | RouterNotFoundError
     | ProviderAlreadyExistsError
+    | InsufficientPermissionError
 )
 
 
@@ -47,12 +50,19 @@ class CreateProviderUseCase:
         router_repository: RouterRepository,
         provider_repository: ProviderRepository,
         provider_gateway: ProviderGateway,
+        user_info_repository: UserInfoRepository,
     ):
         self.router_repository = router_repository
         self.provider_repository = provider_repository
         self.provider_gateway = provider_gateway
+        self.user_info_repository = user_info_repository
 
     async def execute(self, command: CreateProviderCommand) -> CreateProviderUseCaseResult:
+        user_info = await self.user_info_repository.get_user_info(user_id=command.user_id)
+
+        if not user_info.is_admin:
+            return InsufficientPermissionError()
+
         router = await self.router_repository.get_router_by_id(router_id=command.router_id)
         if router is None:
             return RouterNotFoundError(command.router_id)

@@ -9,6 +9,17 @@ from api.domain.userinfo.errors import InsufficientPermissionError
 
 
 @dataclass
+class CreateRouterCommand:
+    user_id: int
+    name: str
+    router_type: RouterType
+    aliases: list[str]
+    load_balancing_strategy: RouterLoadBalancingStrategy
+    cost_prompt_tokens: float
+    cost_completion_tokens: float
+
+
+@dataclass
 class CreateRouterUseCaseSuccess:
     router: Router
 
@@ -25,27 +36,21 @@ class CreateRouterUseCase:
 
     async def execute(
         self,
-        user_id: int,
-        name: str,
-        router_type: RouterType,
-        aliases: list[str],
-        load_balancing_strategy: RouterLoadBalancingStrategy,
-        cost_prompt_tokens: float,
-        cost_completion_tokens: float,
+        command: CreateRouterCommand,
     ) -> CreateRouterUseCaseResult:
-        user_info = await self.user_info_repository.get_user_info(user_id=user_id)
+        user_info = await self.user_info_repository.get_user_info(user_id=command.user_id)
 
         if not user_info.is_admin:
             return InsufficientPermissionError()
 
         result = await self.router_repository.create_router(
-            name=name,
-            router_type=router_type,
-            load_balancing_strategy=load_balancing_strategy,
-            cost_prompt_tokens=cost_prompt_tokens,
-            cost_completion_tokens=cost_completion_tokens,
-            user_id=user_id,
-            aliases=aliases,
+            name=command.name,
+            router_type=command.router_type,
+            load_balancing_strategy=command.load_balancing_strategy,
+            cost_prompt_tokens=command.cost_prompt_tokens,
+            cost_completion_tokens=command.cost_completion_tokens,
+            user_id=command.user_id,
+            aliases=command.aliases,
         )
 
         match result:

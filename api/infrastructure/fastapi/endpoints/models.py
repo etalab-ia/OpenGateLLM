@@ -5,10 +5,9 @@ from api.dependencies import get_models_use_case
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.endpoints.exceptions import ModelNotFoundHTTPException
 from api.infrastructure.fastapi.schemas.models import Model, Models
-from api.schemas.exception import HTTPExceptionModel
+from api.infrastructure.fastapi.utils import get_documentation_responses
 from api.use_cases.models import GetModelsUseCase
 from api.use_cases.models._getmodelsusecase import ModelNotFound, Success
-from api.utils.exceptions import ModelNotFoundException
 from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.MODELS.title()])
@@ -19,7 +18,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.MODELS.title()])
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
     response_model=Model,
-    responses={ModelNotFoundException().status_code: {"model": HTTPExceptionModel, "description": {ModelNotFoundException().detail}}},
+    responses=get_documentation_responses([ModelNotFoundHTTPException]),
 )
 async def get_model(
     request: Request,
@@ -45,7 +44,7 @@ async def get_model(
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
     response_model=Models,
-    responses={ModelNotFoundException().status_code: {"model": HTTPExceptionModel, "description": {ModelNotFoundException().detail}}},
+    responses=get_documentation_responses([ModelNotFoundHTTPException]),
 )
 async def get_models(
     request: Request,

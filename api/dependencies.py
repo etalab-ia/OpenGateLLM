@@ -45,12 +45,12 @@ def get_models_use_case(
 
 def create_provider_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
-    request_context: RequestContext = Depends(get_request_context),
 ) -> CreateProviderUseCase:
     return CreateProviderUseCase(
         router_repository=PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title),
         provider_repository=PostgresProviderRepository(postgres_session=postgres_session),
         provider_gateway=ModelProviderGateway(),
+        user_info_repository=PostgresUserInfoRepository(postgres_session=postgres_session),
     )
 
 

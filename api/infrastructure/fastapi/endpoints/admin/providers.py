@@ -10,25 +10,22 @@ from api.domain.model import InconsistentModelMaxContextLengthError, Inconsisten
 from api.domain.provider import InvalidProviderTypeError, ProviderNotReachableError
 from api.domain.provider.errors import ProviderAlreadyExistsError
 from api.domain.router.errors import RouterNotFoundError
+from api.domain.userinfo.errors import InsufficientPermissionError
 from api.helpers.models import ModelRegistry
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InconsistentModelMaxContextLengthHTTPException,
     InconsistentModelVectorSizeHTTPException,
+    InsufficientPermissionHTTPException,
     InternalServerHTTPException,
     InvalidProviderTypeHTTPException,
     ProviderAlreadyExistsHTTPException,
     ProviderNotReachableHTTPException,
     RouterNotFoundHTTPException,
 )
-from api.infrastructure.fastapi.schemas.providers import (
-    CreateProvider,
-    CreateProviderResponse,
-    Provider,
-    Providers,
-    UpdateProvider,
-)
+from api.infrastructure.fastapi.schemas.providers import CreateProvider, CreateProviderResponse, Provider, Providers, UpdateProvider
+from api.infrastructure.fastapi.utils import get_documentation_responses
 from api.use_cases.admin.providers import CreateProviderCommand, CreateProviderUseCase, CreateProviderUseCaseSuccess
 from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import EndpointRoute, RouterName
@@ -41,6 +38,15 @@ router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
     path=EndpointRoute.ADMIN_PROVIDERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
+    responses=get_documentation_responses([
+        InconsistentModelMaxContextLengthHTTPException,
+        InconsistentModelVectorSizeHTTPException,
+        InvalidProviderTypeHTTPException,
+        ProviderNotReachableHTTPException,
+        ProviderAlreadyExistsHTTPException,
+        RouterNotFoundHTTPException,
+        InsufficientPermissionHTTPException,
+    ]),
 )
 async def create_provider(
     request: Request,
@@ -66,10 +72,12 @@ async def create_provider(
         result = await create_provider_use_case.execute(command)
     except Exception as e:
         logger.exception(
-            "Unexpected error while executing create_router use case",
+            "Unexpected error while executing create_provider use case",
             extra={
                 "user_id": request_context.get().user_id,
-                "router_name": body.name,
+                "provider_router_id": body.router,
+                "provider_url": body.url,
+                "provider_model_name": body.model_name,
                 "error_type": type(e).__name__,
             },
         )
@@ -78,20 +86,21 @@ async def create_provider(
     match result:
         case CreateProviderUseCaseSuccess(created_provider):
             return CreateProviderResponse.model_validate(created_provider, from_attributes=True)
-        case InvalidProviderTypeError(provider_type, router_type):
-            raise InvalidProviderTypeHTTPException(provider_type, router_type)
-        case ProviderNotReachableError(name):
-            raise ProviderNotReachableHTTPException(name)
-        case ProviderAlreadyExistsError(model_name, url, router_id):
-            raise ProviderAlreadyExistsHTTPException(model_name, url, router_id)
-        case InconsistentModelMaxContextLengthError(expected_max_context_length, actual_max_context_length, router_name):
-            raise InconsistentModelMaxContextLengthHTTPException(
-                input_max_context_length=actual_max_context_length, model_max_context_length=expected_max_context_length, model_name=router_name
-            )
-        case InconsistentModelVectorSizeError(expected_vector_size, actual_vector_size, router_name):
-            raise InconsistentModelVectorSizeHTTPException(actual_vector_size, expected_vector_size, router_name)
-        case RouterNotFoundError(router_id):
-            raise RouterNotFoundHTTPException(router_id)
+
+        case InconsistentModelMaxContextLengthError(expected_max_context_length=expected_max_context_length, actual_max_context_length=actual_max_context_length, router_name=router_name):  # fmt: off
+            raise InconsistentModelMaxContextLengthHTTPException(input_max_context_length=actual_max_context_length, model_max_context_length=expected_max_context_length, model_name=router_name)  # fmt: off
+        case InconsistentModelVectorSizeError(expected_vector_size=expected_vector_size, actual_vector_size=actual_vector_size, router_name=router_name):  # fmt: off
+            raise InconsistentModelVectorSizeHTTPException(input_vector_size=actual_vector_size, model_vector_size=expected_vector_size, model_name=router_name)  # fmt: off
+        case InvalidProviderTypeError(provider_type=provider_type, router_type=router_type):
+            raise InvalidProviderTypeHTTPException(incorrect_provider_type=provider_type, router_type=router_type)
+        case ProviderNotReachableError(model_name=name):
+            raise ProviderNotReachableHTTPException(name=name)
+        case ProviderAlreadyExistsError(model_name=model_name, url=url, router_id=router_id):
+            raise ProviderAlreadyExistsHTTPException(model_name=model_name, url=url, router_id=router_id)
+        case RouterNotFoundError(router_id=router_id):
+            raise RouterNotFoundHTTPException(router_id=router_id)
+        case InsufficientPermissionError():
+            raise InsufficientPermissionHTTPException()
 
 
 @router.delete(

@@ -7,11 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
-from api.schemas.admin.providers import (
-    Provider,
-    Providers,
-    UpdateProvider,
-)
+from api.schemas.admin.providers import Provider, Providers, UpdateProvider
 from api.schemas.admin.roles import PermissionType
 from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import EndpointRoute

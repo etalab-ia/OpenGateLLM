@@ -14,14 +14,24 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RouterAlreadyExistsHTTPException,
 )
 from api.infrastructure.fastapi.schemas.routers import CreateRouter, CreateRouterResponse
-from api.use_cases.admin import CreateRouterUseCase, CreateRouterUseCaseSuccess
+from api.infrastructure.fastapi.utils import get_documentation_responses
+from api.use_cases.admin import CreateRouterCommand, CreateRouterUseCase, CreateRouterUseCaseSuccess
 from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=[RouterName.ADMIN.title()])
 
 
-@router.post(path=EndpointRoute.ADMIN_ROUTERS, dependencies=[Security(dependency=get_current_key)], status_code=201)
+@router.post(
+    path=EndpointRoute.ADMIN_ROUTERS,
+    dependencies=[Security(dependency=get_current_key)],
+    status_code=201,
+    responses=get_documentation_responses([
+        RouterAliasAlreadyExistsHTTPException,
+        RouterAlreadyExistsHTTPException,
+        InsufficientPermissionHTTPException,
+    ]),
+)
 async def create_router(
     body: CreateRouter = Body(description="The router creation request."),
     create_router_use_case: CreateRouterUseCase = Depends(create_router_use_case),
@@ -31,7 +41,7 @@ async def create_router(
     Create a router (without any providers).
     """
     try:
-        result = await create_router_use_case.execute(
+        command = CreateRouterCommand(
             user_id=request_context.get().user_id,
             name=body.name,
             router_type=body.type,
@@ -40,6 +50,7 @@ async def create_router(
             cost_prompt_tokens=body.cost_prompt_tokens,
             cost_completion_tokens=body.cost_completion_tokens,
         )
+        result = await create_router_use_case.execute(command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing create_router use case",

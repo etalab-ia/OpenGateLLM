@@ -2,12 +2,9 @@ from httpx import AsyncClient
 import pytest
 
 from api.domain.router.entities import RouterLoadBalancingStrategy
-from api.schemas.models import ModelType
+from api.schemas.models import ModelType as RouterType
 from api.tests.helpers import create_token
-from api.tests.integration.factories import (
-    RouterSQLFactory,
-    UserSQLFactory,
-)
+from api.tests.integration.factories import RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
 
@@ -75,7 +72,7 @@ class TestAdminCreateRouter:
         RouterSQLFactory(
             user=admin_user,
             name=duplicate_name,
-            type=ModelType.TEXT_GENERATION,
+            type=RouterType.TEXT_GENERATION,
         )
         await db_session.flush()
 
@@ -83,7 +80,7 @@ class TestAdminCreateRouter:
 
         router_data = {
             "name": duplicate_name,
-            "type": ModelType.TEXT_GENERATION,
+            "type": RouterType.TEXT_GENERATION,
             "aliases": [],
             "load_balancing_strategy": "shuffle",
             "cost_prompt_tokens": 0.001,
@@ -99,20 +96,20 @@ class TestAdminCreateRouter:
 
         # Assert
         assert response.status_code in [400, 409], f"Expected 400 or 409, got {response.status_code}"
-        assert response.json().get("detail") == f"Router '{duplicate_name}' already exists."
+        assert response.json().get("detail") == f"Router {duplicate_name} already exists."
 
     async def test_create_router_with_duplicate_alias(self, client: AsyncClient, db_session):
         # Arrange
         admin_user = UserSQLFactory(admin_user=True)
         duplicate_alias = "duplicate-alias"
-        RouterSQLFactory(user=admin_user, name="existing-router", type=ModelType.TEXT_GENERATION, alias=[duplicate_alias])
+        RouterSQLFactory(user=admin_user, name="existing-router", type=RouterType.TEXT_GENERATION, alias=[duplicate_alias])
         await db_session.flush()
 
         token = await create_token(db_session, name="admin_token", user=admin_user)
 
         router_data = {
             "name": "new-router",
-            "type": ModelType.TEXT_GENERATION.value,
+            "type": RouterType.TEXT_GENERATION.value,
             "aliases": [duplicate_alias],
             "load_balancing_strategy": RouterLoadBalancingStrategy.SHUFFLE.value,
             "cost_prompt_tokens": 0.001,
