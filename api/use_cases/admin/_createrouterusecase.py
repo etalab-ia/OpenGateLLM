@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
+from api.domain.model import ModelType as RouterType
 from api.domain.router import RouterRepository
-from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStrategy
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.domain.userinfo import UserInfoRepository
 from api.domain.userinfo.errors import InsufficientPermissionError
@@ -26,7 +27,7 @@ class CreateRouterUseCase:
         self,
         user_id: int,
         name: str,
-        router_type: ModelType,
+        router_type: RouterType,
         aliases: list[str],
         load_balancing_strategy: RouterLoadBalancingStrategy,
         cost_prompt_tokens: float,

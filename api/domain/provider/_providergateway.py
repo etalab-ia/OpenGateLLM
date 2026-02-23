@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from api.domain.model import ModelType as RouterType
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import ProviderNotReachableError
 
@@ -15,6 +16,7 @@ class ProviderGateway(ABC):
     @abstractmethod
     async def get_capabilities(
         self,
+        router_type: RouterType,
         provider_type: ProviderType,
         url: str,
         key: str | None,

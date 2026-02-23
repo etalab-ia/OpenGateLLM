@@ -80,6 +80,10 @@ def _register_routers(app: FastAPI, configuration: Configuration) -> None:
         module = import_module("api.infrastructure.fastapi.endpoints.admin_router")
         app.include_router(router=module.router, include_in_schema=RouterName.ADMIN not in hidden_routers)
 
+    if RouterName.ADMIN not in disabled_routers:
+        module = import_module("api.infrastructure.fastapi.endpoints.admin.providers")
+        app.include_router(router=module.router, include_in_schema=RouterName.ADMIN not in hidden_routers)
+
 
 def _setup_monitoring(app: FastAPI, configuration: Configuration) -> None:
     if RouterName.MONITORING in configuration.settings.disabled_routers:

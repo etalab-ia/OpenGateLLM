@@ -3,8 +3,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.key.entities import MASTER_USER_ID
+from api.domain.model import ModelType as RouterType
 from api.domain.router import RouterRepository
-from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStrategy
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Provider as ProviderTable
@@ -53,7 +54,7 @@ class PostgresRouterRepository(RouterRepository):
             id=row.id,
             name=row.name,
             user_id=user_id,
-            type=ModelType(row.type),
+            type=RouterType(row.type),
             aliases=aliases,
             load_balancing_strategy=RouterLoadBalancingStrategy(row.load_balancing_strategy),
             vector_size=row.vector_size,
@@ -116,7 +117,7 @@ class PostgresRouterRepository(RouterRepository):
                     id=row["id"],
                     name=row["name"],
                     user_id=user_id,
-                    type=ModelType(row["type"]),
+                    type=RouterType(row["type"]),
                     aliases=aliases.get(row["id"], []),
                     load_balancing_strategy=RouterLoadBalancingStrategy(row["load_balancing_strategy"]),
                     vector_size=row["vector_size"],
@@ -143,7 +144,7 @@ class PostgresRouterRepository(RouterRepository):
     async def create_router(
         self,
         name: str,
-        router_type: ModelType,
+        router_type: RouterType,
         load_balancing_strategy: RouterLoadBalancingStrategy,
         cost_prompt_tokens: float,
         cost_completion_tokens: float,
@@ -199,7 +200,7 @@ class PostgresRouterRepository(RouterRepository):
             id=row.id,
             name=row.name,
             user_id=user_id,
-            type=ModelType(row.type),
+            type=RouterType(row.type),
             aliases=aliases,
             load_balancing_strategy=RouterLoadBalancingStrategy(row.load_balancing_strategy),
             vector_size=None,

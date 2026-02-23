@@ -61,6 +61,7 @@ class CreateProviderUseCase:
             return InvalidProviderTypeError(provider_type=command.provider_type.value, router_type=router.type.value)
 
         result = await self.provider_gateway.get_capabilities(
+            router_type=router.type,
             provider_type=command.provider_type,
             url=command.url,
             key=command.key,
