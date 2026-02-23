@@ -3,9 +3,9 @@ from fastapi.responses import JSONResponse
 
 from api.dependencies import get_models_use_case
 from api.infrastructure.fastapi.access import get_current_key
+from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import ModelNotFoundHTTPException
 from api.infrastructure.fastapi.schemas.models import Model, Models
-from api.infrastructure.fastapi.utils import get_documentation_responses
 from api.use_cases.models import GetModelsUseCase
 from api.use_cases.models._getmodelsusecase import ModelNotFound, Success
 from api.utils.variables import EndpointRoute, RouterName

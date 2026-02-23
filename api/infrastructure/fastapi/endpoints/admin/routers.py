@@ -7,6 +7,7 @@ from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAl
 from api.domain.userinfo.errors import InsufficientPermissionError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
+from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InsufficientPermissionHTTPException,
@@ -15,7 +16,6 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RouterAlreadyExistsHTTPException,
 )
 from api.infrastructure.fastapi.schemas.routers import CreateRouter, CreateRouterResponse
-from api.infrastructure.fastapi.utils import get_documentation_responses
 from api.use_cases.admin import CreateRouterCommand, CreateRouterUseCase, CreateRouterUseCaseSuccess
 from api.utils.variables import EndpointRoute
 

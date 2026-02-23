@@ -10,6 +10,7 @@ from api.dependencies import create_provider_use_case_factory
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
+from api.domain.userinfo.errors import InsufficientPermissionError
 from api.schemas.models import ModelType
 from api.tests.helpers import create_token
 from api.tests.integration.factories import RouterSQLFactory, UserSQLFactory
@@ -83,13 +84,21 @@ class TestCreateProvider:
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
         [
-            (RouterNotFoundError(router_id=1), 404, "Model router 1 not found."),
+            (
+                RouterNotFoundError(router_id=1),
+                404,
+                "Model router 1 not found.",
+            ),
             (
                 InvalidProviderTypeError(provider_type="tei", router_type="text-generation"),
                 400,
                 "Invalid model provider type tei for text-generation router.",
             ),
-            (ProviderNotReachableError(model_name="my-model"), 424, "Model provider my-model not reachable."),
+            (
+                ProviderNotReachableError(model_name="my-model"),
+                424,
+                "Model provider my-model not reachable.",
+            ),
             (
                 ProviderAlreadyExistsError(model_name="my-model", url=DEFAULT_PROVIDER_URL, router_id=1),
                 409,
@@ -104,6 +113,11 @@ class TestCreateProvider:
                 InconsistentModelVectorSizeError(expected_vector_size=768, actual_vector_size=384, router_name="my-router"),
                 403,
                 "Inconsistent vector size for my-router. Expected: 768. Actual: 384",
+            ),
+            (
+                InsufficientPermissionError(),
+                403,
+                "Insufficient rights.",
             ),
         ],
     )

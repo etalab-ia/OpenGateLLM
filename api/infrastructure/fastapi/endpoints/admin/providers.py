@@ -14,6 +14,7 @@ from api.domain.userinfo.errors import InsufficientPermissionError
 from api.helpers.models import ModelRegistry
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
+from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InconsistentModelMaxContextLengthHTTPException,
@@ -26,7 +27,6 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RouterNotFoundHTTPException,
 )
 from api.infrastructure.fastapi.schemas.providers import CreateProvider, CreateProviderResponse, Provider, Providers, UpdateProvider
-from api.infrastructure.fastapi.utils import get_documentation_responses
 from api.use_cases.admin.providers import CreateProviderCommand, CreateProviderUseCase, CreateProviderUseCaseSuccess
 from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import EndpointRoute

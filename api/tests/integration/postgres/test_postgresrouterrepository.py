@@ -1,14 +1,11 @@
 import pytest
 
 from api.domain.key.entities import MASTER_USER_ID
-from api.domain.router.entities import ModelType, Router, RouterLoadBalancingStrategy
+from api.domain.model import ModelType as RouterType
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.infrastructure.postgres import PostgresRouterRepository
-from api.tests.integration.factories import (
-    OrganizationSQLFactory,
-    RouterSQLFactory,
-    UserSQLFactory,
-)
+from api.tests.integration.factories import OrganizationSQLFactory, RouterSQLFactory, UserSQLFactory
 
 
 @pytest.fixture
@@ -29,13 +26,13 @@ class TestGetAllRouters:
         user_2 = UserSQLFactory()
 
         router_1 = RouterSQLFactory(
-            user=user_1, name="router_1", type=ModelType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002, providers=2
+            user=user_1, name="router_1", type=RouterType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002, providers=2
         )
         router_2 = RouterSQLFactory(
-            user=user_1, name="router_2", type=ModelType.TEXT_EMBEDDINGS_INFERENCE, cost_prompt_tokens=0.0, cost_completion_tokens=0.0, providers=1
+            user=user_1, name="router_2", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, cost_prompt_tokens=0.0, cost_completion_tokens=0.0, providers=1
         )
         router_3 = RouterSQLFactory(
-            user=user_2, name="router_3", type=ModelType.TEXT_EMBEDDINGS_INFERENCE, cost_prompt_tokens=0.0, cost_completion_tokens=0.0, providers=1
+            user=user_2, name="router_3", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, cost_prompt_tokens=0.0, cost_completion_tokens=0.0, providers=1
         )
 
         # Act
@@ -48,7 +45,7 @@ class TestGetAllRouters:
         assert router_names == {router_1.name, router_2.name, router_3.name}
 
         result_router_1 = result_routers[0]
-        assert result_router_1.type == ModelType.TEXT_GENERATION
+        assert result_router_1.type == RouterType.TEXT_GENERATION
         assert result_router_1.providers == 2
         assert result_router_1.cost_prompt_tokens == 0.001
         assert result_router_1.cost_completion_tokens == 0.002
@@ -58,7 +55,7 @@ class TestGetAllRouters:
     async def test_get_all_routers_should_return_routers_with_master_id_user(self, repository, db_session):
         # Arrange
         RouterSQLFactory(
-            user=None, name="router_1", type=ModelType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002, providers=2
+            user=None, name="router_1", type=RouterType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002, providers=2
         )
 
         # Act
@@ -112,7 +109,7 @@ class TestCreateRouter:
         # Act
         result = await repository.create_router(
             name="test-router",
-            router_type=ModelType.TEXT_GENERATION,
+            router_type=RouterType.TEXT_GENERATION,
             load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             cost_prompt_tokens=0.001,
             cost_completion_tokens=0.002,
@@ -122,7 +119,7 @@ class TestCreateRouter:
         # Assert
         assert isinstance(result, Router)
         assert result.name == "test-router"
-        assert result.type == ModelType.TEXT_GENERATION
+        assert result.type == RouterType.TEXT_GENERATION
         assert result.load_balancing_strategy == RouterLoadBalancingStrategy.SHUFFLE
         assert result.cost_prompt_tokens == 0.001
         assert result.cost_completion_tokens == 0.002
@@ -142,7 +139,7 @@ class TestCreateRouter:
         # Act
         result = await repository.create_router(
             name="duplicate-router",
-            router_type=ModelType.TEXT_GENERATION,
+            router_type=RouterType.TEXT_GENERATION,
             load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             cost_prompt_tokens=0.0,
             cost_completion_tokens=0.0,
@@ -160,7 +157,7 @@ class TestCreateRouter:
         # Act
         result = await repository.create_router(
             name="master-router",
-            router_type=ModelType.TEXT_GENERATION,
+            router_type=RouterType.TEXT_GENERATION,
             load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             cost_prompt_tokens=0.0,
             cost_completion_tokens=0.0,
@@ -180,7 +177,7 @@ class TestCreateRouter:
         # Act
         result = await repository.create_router(
             name="router-with-aliases",
-            router_type=ModelType.TEXT_GENERATION,
+            router_type=RouterType.TEXT_GENERATION,
             load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             cost_prompt_tokens=0.0,
             cost_completion_tokens=0.0,
@@ -207,7 +204,7 @@ class TestCreateRouter:
         # Act
         result = await repository.create_router(
             name="router",
-            router_type=ModelType.TEXT_GENERATION,
+            router_type=RouterType.TEXT_GENERATION,
             aliases=[duplicate_alias],
             load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             cost_prompt_tokens=0.0,
@@ -229,7 +226,7 @@ class TestCreateRouter:
         # Act
         result = await repository.create_router(
             name="router",
-            router_type=ModelType.TEXT_GENERATION,
+            router_type=RouterType.TEXT_GENERATION,
             aliases=duplicate_aliases,
             load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
             cost_prompt_tokens=0.0,

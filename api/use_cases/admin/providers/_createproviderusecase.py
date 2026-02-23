@@ -78,6 +78,7 @@ class CreateProviderUseCase:
             timeout=command.timeout,
             model_name=command.model_name,
         )
+        # @ TODO: separate health check logic from get_capabilities
 
         match result:
             case ProviderNotReachableError() as error:

@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from api.domain.model import ModelType
 from api.domain.role.entities import LimitType
-from api.domain.router.entities import ModelType
 from api.domain.userinfo.entities import Limit
 from api.tests.unit.use_case.factories import RouterFactory, UserInfoFactory
 from api.use_cases.models import GetModelsUseCase
