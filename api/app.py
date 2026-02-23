@@ -4,7 +4,6 @@ import logging
 from fastapi import FastAPI, Request
 import sentry_sdk
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.responses import JSONResponse
 
 from api.endpoints.monitoring import setup_prometheus
 from api.schemas.core.context import RequestContext
@@ -89,7 +88,3 @@ def _setup_monitoring(app: FastAPI, configuration: Configuration) -> None:
 
     if configuration.settings.monitoring_prometheus_enabled:
         setup_prometheus(app, include_in_schema=include_in_schema)
-
-    @app.get(path="/health", tags=[RouterName.MONITORING.title()], include_in_schema=include_in_schema)
-    def health() -> JSONResponse:
-        return JSONResponse(content={"status": "ok"}, status_code=200)

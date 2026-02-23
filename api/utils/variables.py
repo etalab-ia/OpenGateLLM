@@ -19,6 +19,7 @@ class RouterName(StrEnum):
     COLLECTIONS = ("collections", "api.endpoints.collections")
     DOCUMENTS = ("documents", "api.endpoints.documents")
     EMBEDDINGS = ("embeddings", "api.endpoints.embeddings")
+    HEALTH = ("health", "api.endpoints.health")
     ME = ("me", "api.endpoints.me")
     MODELS = ("models", "api.infrastructure.fastapi.endpoints.models")
     MONITORING = ("monitoring", None)
