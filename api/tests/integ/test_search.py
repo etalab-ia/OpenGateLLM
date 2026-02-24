@@ -34,7 +34,7 @@ def document_id(client: TestClient, collection_id: int):
     assert response.status_code == 201, response.text
     document_id = response.json()["id"]
 
-    time.sleep(1)
+    time.sleep(1.5)
 
     yield document_id
 
