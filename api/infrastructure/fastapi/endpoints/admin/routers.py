@@ -86,12 +86,7 @@ async def create_router(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses(
-        [
-            RouterNotFoundHTTPException,
-            NotAdminUserHTTPException,
-        ]
-    ),
+    responses=get_documentation_responses([RouterNotFoundHTTPException, CannotReadRoutersHTTPException]),
 )
 async def get_router(
     router_id: int = Path(description="The router ID."),
