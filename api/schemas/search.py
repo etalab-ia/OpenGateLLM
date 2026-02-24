@@ -77,13 +77,13 @@ class SearchArgs(BaseModel):
     @model_validator(mode="after")
     def validate_score_threshold(self) -> "SearchArgs":
         if self.score_threshold > 0.0 and self.method != SearchMethod.SEMANTIC:
-            raise WrongSearchMethodException(detail="Score threshold is only available for semantic search method.")
+            raise WrongSearchMethodException(detail="Score threshold is only available for semantic search method")
 
         return self
 
 
 class CreateSearch(SearchArgs):
-    query: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, validation_alias=AliasChoices("query", "prompt"), serialization_alias="query", description="Query related to the search")]  # fmt: off
+    query: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, validation_alias=AliasChoices("query", "prompt"), serialization_alias="query", description="Query related to the search.")]  # fmt: off
     model_config = ConfigDict(populate_by_name=True)
 
     @model_validator(mode="after")
