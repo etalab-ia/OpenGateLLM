@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - 624-add-llm-oriented-metrics-to-grafana-dashboard
   release:
     types: 
       - published
