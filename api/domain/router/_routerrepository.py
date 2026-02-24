@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from api.domain.model import ModelType as RouterType
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage, RouterSortField, SortOrder
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 
 
@@ -12,6 +12,16 @@ class RouterRepository(ABC):
 
     @abstractmethod
     async def get_all_routers(self) -> list[Router]:
+        pass
+
+    @abstractmethod
+    async def get_routers_page(
+        self,
+        limit: int,
+        offset: int,
+        sort_by: RouterSortField = RouterSortField.ID,
+        sort_order: SortOrder = SortOrder.ASC,
+    ) -> RouterPage:
         pass
 
     @abstractmethod

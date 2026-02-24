@@ -1,11 +1,11 @@
-from sqlalchemy import Integer, cast, func, insert, select
+from sqlalchemy import Integer, Select, asc, cast, desc, func, insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model import ModelType as RouterType
 from api.domain.router import RouterRepository
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage, RouterSortField, SortOrder
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Provider as ProviderTable
@@ -15,41 +15,31 @@ from api.sql.models import User as UserTable
 
 
 class PostgresRouterRepository(RouterRepository):
-    async def get_aliases_by_router_id(self, router_id: int) -> list[str]:
-        query = select(RouterAliasTable.value).where(RouterAliasTable.router_id == router_id)
-        result = await self.postgres_session.execute(query)
-        return [row[0] for row in result.all()]
+    def __init__(self, postgres_session: AsyncSession, app_title: str):
+        self.postgres_session = postgres_session
+        self.app_title = app_title
 
-    async def get_router_by_id(self, router_id: int) -> Router | None:
-        provider_count_subquery = (
-            select(func.count(ProviderTable.id)).where(ProviderTable.router_id == RouterTable.id).correlate(RouterTable).scalar_subquery()
-        )
-        query = (
-            select(
-                RouterTable.id,
-                RouterTable.name,
-                RouterTable.user_id,
-                RouterTable.type,
-                RouterTable.load_balancing_strategy,
-                RouterTable.cost_prompt_tokens,
-                RouterTable.cost_completion_tokens,
-                ProviderTable.max_context_length,
-                ProviderTable.vector_size,
-                provider_count_subquery.label("providers"),
-                cast(func.extract("epoch", RouterTable.created), Integer).label("created"),
-                cast(func.extract("epoch", RouterTable.updated), Integer).label("updated"),
-            )
-            .where(RouterTable.id == router_id)
-            .join(ProviderTable, ProviderTable.router_id == RouterTable.id, isouter=True)
-            .limit(1)
-        )
+    @staticmethod
+    def _select_routers_with_provider_stats() -> Select:
+        provider_count = func.count(ProviderTable.id).over(partition_by=RouterTable.id).label("providers")
+        return select(
+            RouterTable.id,
+            RouterTable.name,
+            RouterTable.user_id,
+            RouterTable.type,
+            RouterTable.load_balancing_strategy,
+            RouterTable.cost_prompt_tokens,
+            RouterTable.cost_completion_tokens,
+            ProviderTable.max_context_length,
+            ProviderTable.vector_size,
+            provider_count,
+            cast(func.extract("epoch", RouterTable.created), Integer).label("created"),
+            cast(func.extract("epoch", RouterTable.updated), Integer).label("updated"),
+        ).join(ProviderTable, ProviderTable.router_id == RouterTable.id, isouter=True)
 
-        result = await self.postgres_session.execute(query)
-        row = result.one_or_none()
-        if row is None:
-            return None
+    @staticmethod
+    def _row_to_router_with_aliases(row, aliases: list[str]) -> Router:
         user_id = MASTER_USER_ID if row.user_id is None else row.user_id
-        aliases = await self.get_aliases_by_router_id(router_id)
         return Router(
             id=row.id,
             name=row.name,
@@ -66,9 +56,19 @@ class PostgresRouterRepository(RouterRepository):
             updated=row.updated,
         )
 
-    def __init__(self, postgres_session: AsyncSession, app_title: str):
-        self.postgres_session = postgres_session
-        self.app_title = app_title
+    async def get_aliases_by_router_id(self, router_id: int) -> list[str]:
+        query = select(RouterAliasTable.value).where(RouterAliasTable.router_id == router_id)
+        result = await self.postgres_session.execute(query)
+        return [row[0] for row in result.all()]
+
+    async def get_router_by_id(self, router_id: int) -> Router | None:
+        query = self._select_routers_with_provider_stats().where(RouterTable.id == router_id).limit(1)
+        result = await self.postgres_session.execute(query)
+        row = result.one_or_none()
+        if row is None:
+            return None
+        aliases = await self.get_aliases_by_router_id(router_id)
+        return self._row_to_router_with_aliases(row, aliases)
 
     async def get_organization_name(self, user_id) -> str:
         query = (
@@ -81,64 +81,42 @@ class PostgresRouterRepository(RouterRepository):
         return owned_by if owned_by else self.app_title
 
     async def get_all_routers(self) -> list[Router]:
-        routers = []
-        provider_count_subquery = (
-            select(func.count(ProviderTable.id)).where(ProviderTable.router_id == RouterTable.id).correlate(RouterTable).scalar_subquery()
-        )
-        query = (
-            select(
-                RouterTable.id,
-                RouterTable.name,
-                RouterTable.user_id,
-                RouterTable.type,
-                RouterTable.load_balancing_strategy,
-                RouterTable.cost_prompt_tokens,
-                RouterTable.cost_completion_tokens,
-                ProviderTable.max_context_length,
-                ProviderTable.vector_size,
-                provider_count_subquery.label("providers"),
-                cast(func.extract("epoch", RouterTable.created), Integer).label("created"),
-                cast(func.extract("epoch", RouterTable.updated), Integer).label("updated"),
-            )
-            .distinct(RouterTable.id)
-            .join(ProviderTable, ProviderTable.router_id == RouterTable.id, isouter=True)
-            .order_by(RouterTable.id, ProviderTable.id)
-        )
-
+        query = self._select_routers_with_provider_stats().distinct(RouterTable.id).order_by(RouterTable.id, ProviderTable.id)
         result = await self.postgres_session.execute(query)
-        router_results = [row._asdict() for row in result.all()]
+        aliases_by_router = await self.get_all_aliases_grouped_by_router()
+        return [self._row_to_router_with_aliases(row, aliases_by_router.get(row.id, [])) for row in result.all()]
 
-        aliases = await self.get_all_aliases_grouped_by_router()
+    async def get_routers_page(
+        self,
+        limit: int,
+        offset: int,
+        sort_by: RouterSortField = RouterSortField.ID,
+        sort_order: SortOrder = SortOrder.ASC,
+    ) -> RouterPage:
+        # DISTINCT ON requires ORDER BY to start with the DISTINCT column.
+        # A subquery lets us apply any sort order on top of deduplicated rows.
+        distinct_routers = (self._select_routers_with_provider_stats().distinct(RouterTable.id).order_by(RouterTable.id, ProviderTable.id)).subquery()
 
-        for row in router_results:
-            user_id = MASTER_USER_ID if row["user_id"] is None else row["user_id"]
-            routers.append(
-                Router(
-                    id=row["id"],
-                    name=row["name"],
-                    user_id=user_id,
-                    type=RouterType(row["type"]),
-                    aliases=aliases.get(row["id"], []),
-                    load_balancing_strategy=RouterLoadBalancingStrategy(row["load_balancing_strategy"]),
-                    vector_size=row["vector_size"],
-                    max_context_length=row["max_context_length"],
-                    cost_prompt_tokens=row["cost_prompt_tokens"] or 0.0,
-                    cost_completion_tokens=row["cost_completion_tokens"] or 0.0,
-                    providers=row["providers"],
-                    created=row["created"],
-                    updated=row["updated"],
-                )
-            )
-        return routers
+        sort_col = distinct_routers.c[sort_by.value]
+        order_expr = asc(sort_col) if sort_order == SortOrder.ASC else desc(sort_col)
 
-    async def get_all_aliases_grouped_by_router(self) -> dict[str, list[str]]:
-        aliases_query = select(RouterAliasTable.router_id.label("router_id"), RouterAliasTable.value)
-        aliases_result = await self.postgres_session.execute(aliases_query)
-        aliases = {}
-        for row in aliases_result.all():
-            if row.router_id not in aliases:
-                aliases[row.router_id] = []
-            aliases[row.router_id].append(row.value)
+        total_result = await self.postgres_session.execute(select(func.count()).select_from(RouterTable))
+        total = total_result.scalar()
+
+        data_query = select(distinct_routers).order_by(order_expr).limit(limit).offset(offset)
+        result = await self.postgres_session.execute(data_query)
+
+        aliases_by_router = await self.get_all_aliases_grouped_by_router()
+        data = [self._row_to_router_with_aliases(row, aliases_by_router.get(row.id, [])) for row in result.all()]
+
+        return RouterPage(total=total, data=data)
+
+    async def get_all_aliases_grouped_by_router(self) -> dict[int, list[str]]:
+        query = select(RouterAliasTable.router_id, RouterAliasTable.value)
+        result = await self.postgres_session.execute(query)
+        aliases: dict[int, list[str]] = {}
+        for row in result.all():
+            aliases.setdefault(row.router_id, []).append(row.value)
         return aliases
 
     async def create_router(

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum
 
 from pydantic import BaseModel, Field
@@ -8,6 +9,23 @@ from api.domain.model import ModelType as RouterType
 class RouterLoadBalancingStrategy(str, Enum):
     SHUFFLE = "shuffle"
     LEAST_BUSY = "least_busy"
+
+
+class RouterSortField(str, Enum):
+    ID = "id"
+    NAME = "name"
+    CREATED = "created"
+
+
+class SortOrder(str, Enum):
+    ASC = "asc"
+    DESC = "desc"
+
+
+@dataclass
+class RouterPage:
+    total: int
+    data: list["Router"]
 
 
 class Router(BaseModel):

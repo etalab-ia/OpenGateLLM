@@ -26,7 +26,13 @@ class TestGetAllRouters:
         user_2 = UserSQLFactory()
 
         router_1 = RouterSQLFactory(
-            user=user_1, name="router_1", type=RouterType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002, providers=2
+            user=user_1,
+            name="router_1",
+            type=RouterType.TEXT_GENERATION,
+            cost_prompt_tokens=0.001,
+            cost_completion_tokens=0.002,
+            providers=2,
+            alias=["alias1", "alias2"],
         )
         router_2 = RouterSQLFactory(
             user=user_1, name="router_2", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, cost_prompt_tokens=0.0, cost_completion_tokens=0.0, providers=1
@@ -45,12 +51,14 @@ class TestGetAllRouters:
         assert router_names == {router_1.name, router_2.name, router_3.name}
 
         result_router_1 = result_routers[0]
+        first_provider_router_1 = router_1.provider[0]
         assert result_router_1.type == RouterType.TEXT_GENERATION
         assert result_router_1.providers == 2
         assert result_router_1.cost_prompt_tokens == 0.001
         assert result_router_1.cost_completion_tokens == 0.002
-        assert result_router_1.max_context_length == router_1.provider[0].max_context_length
-        assert result_router_1.vector_size == router_1.provider[0].vector_size
+        assert result_router_1.max_context_length == first_provider_router_1.max_context_length
+        assert result_router_1.vector_size == first_provider_router_1.vector_size
+        assert result_router_1.aliases == ["alias1", "alias2"]
 
     async def test_get_all_routers_should_return_routers_with_master_id_user(self, repository, db_session):
         # Arrange
