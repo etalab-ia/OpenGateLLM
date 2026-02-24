@@ -31,23 +31,22 @@ class CreateRerank(BaseModel):
 
 
 class Rerank(BaseModel):
-    object: Literal["rerank"] = "rerank"
-    score: float
-    index: int
+    object: Annotated[Literal["rerank"], Field(default="rerank", description="The type of the object.")]
+    score: Annotated[float, Field(description="The score of the reranked text.")]
+    index: Annotated[int, Field(description="The index of the reranked text.")]
 
 
 class RerankResult(BaseModel):
-    relevance_score: float
-    index: int
+    relevance_score: Annotated[float, Field(description="The relevance score of the reranked text.")]
+    index: Annotated[int, Field(description="The index of the reranked text.")]
 
 
 class Reranks(BaseModel):
     object: Literal["list"] = "list"
-    id: str = Field(default=..., description="A unique identifier for the request.")
-    data: list[Rerank] = Field(default=..., description="The list of reranked texts.", deprecated=True)
-    results: list[RerankResult] = Field(default=..., description="The list of reranked texts.")
-    model: str = Field(default=..., description="The model used to generate the reranking.")
-    usage: Usage = Field(default_factory=Usage, description="Usage information for the request.")
+    id: Annotated[str, Field(default=..., description="A unique identifier for the request.")]
+    results: Annotated[list[RerankResult], Field(default=..., description="The list of reranked texts.")]
+    model: Annotated[str, Field(default=..., description="The model used to generate the reranking.")]
+    usage: Annotated[Usage, Field(default_factory=Usage, description="Usage information for the request.")]
 
     @classmethod
     def build_from(cls, provider_type: ProviderType, request_content: RequestContent, response_data: dict):
@@ -63,9 +62,8 @@ class Reranks(BaseModel):
                     response_data = sorted(response_data, key=lambda x: x["score"], reverse=True)[: request_content.additional_data.get("top_n")]
                     request_content.additional_data.pop("top_n")
                 for rank in response_data:
-                    data.append(Rerank(index=rank["index"], score=rank["score"]))
                     results.append(RerankResult(relevance_score=rank["score"], index=rank["index"]))
-                return cls(data=data, results=results, **request_content.additional_data)
+                return cls(results=results, **request_content.additional_data)
 
             case _:
                 raise NotImplementedError(f"Provider {provider_type} not implemented")

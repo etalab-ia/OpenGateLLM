@@ -63,22 +63,6 @@ class TestTeiTextClassification:
         assert len(response.json()["results"]) == 3
         Reranks(**response.json())  # validate format
 
-    def test_tei_rerank_legacy_format_successful(self, client: TestClient, setup_tei_test_classification: tuple[str, str]):
-        """Test the POST /rerank with the second version of the rerank model (query and documents)."""
-        key, model_name = setup_tei_test_classification
-
-        response = client.post(
-            url=f"/v1{EndpointRoute.RERANK}",
-            json={
-                "model": model_name,
-                "prompt": "The sun is shining.",
-                "input": ["The document is about the weather.", "The document is about the news.", "The document is about the sports."],
-            },
-            headers={"Authorization": f"Bearer {key}"},
-        )
-        assert response.status_code == 200, response.text
-        Reranks(**response.json())  # test output format
-
     def test_tei_rerank_with_unknown_model(self, client: TestClient, setup_tei_test_classification: tuple[str, str]):
         """Test the POST /rerank with an unknown model."""
         key, model_name = setup_tei_test_classification
@@ -93,74 +77,6 @@ class TestTeiTextClassification:
             headers={"Authorization": f"Bearer {key}"},
         )
         assert response.status_code == 404, response.text
-
-    def test_tei_rerank_with_hybrid_format_1(self, client: TestClient, setup_tei_test_classification: tuple[str, str]):
-        """Test the POST /rerank with hybrid format 1: query (new) and input (legacy)."""
-        key, model_name = setup_tei_test_classification
-
-        response = client.post(
-            url=f"/v1{EndpointRoute.RERANK}",
-            json={
-                "model": model_name,
-                "query": "The sun is shining.",
-                "input": ["The document is about the weather.", "The document is about the news.", "The document is about the sports."],
-            },
-            headers={"Authorization": f"Bearer {key}"},
-        )
-        assert response.status_code == 200, response.text
-
-        Reranks(**response.json())  # test output format
-
-    def test_tei_rerank_with_hybrid_format_2(self, client: TestClient, setup_tei_test_classification: tuple[str, str]):
-        """Test the POST /rerank with hybrid format 2: prompt (legacy) and documents (new)."""
-        key, model_name = setup_tei_test_classification
-
-        response = client.post(
-            url=f"/v1{EndpointRoute.RERANK}",
-            json={
-                "model": model_name,
-                "prompt": "The sun is shining.",
-                "documents": ["The document is about the weather.", "The document is about the news.", "The document is about the sports."],
-            },
-            headers={"Authorization": f"Bearer {key}"},
-        )
-        assert response.status_code == 200, response.text
-
-        Reranks(**response.json())  # test output format
-
-    def test_tei_rerank_with_query_and_prompt(self, client: TestClient, setup_tei_test_classification: tuple[str, str]):
-        """Test the POST /rerank with the second version of the rerank model (query and documents)."""
-        key, model_name = setup_tei_test_classification
-
-        response = client.post(
-            url=f"/v1{EndpointRoute.RERANK}",
-            json={
-                "model": model_name,
-                "prompt": "The sun is shining.",
-                "query": "The sun is shining.",
-                "documents": ["The document is about the weather.", "The document is about the news.", "The document is about the sports."],
-            },
-            headers={"Authorization": f"Bearer {key}"},
-        )
-        assert response.status_code == 422, response.text
-        assert response.json()["detail"][0]["msg"] == "Value error, query and prompt cannot both be provided"
-
-    def test_tei_rerank_with_documents_and_input(self, client: TestClient, setup_tei_test_classification: tuple[str, str]):
-        """Test the POST /rerank with documents (new) and input (legacy)."""
-        key, model_name = setup_tei_test_classification
-
-        response = client.post(
-            url=f"/v1{EndpointRoute.RERANK}",
-            json={
-                "model": model_name,
-                "query": "The sun is shining.",
-                "documents": ["The document is about the weather.", "The document is about the news.", "The document is about the sports."],
-                "input": ["The document is about the weather.", "The document is about the news.", "The document is about the sports."],
-            },
-            headers={"Authorization": f"Bearer {key}"},
-        )
-        assert response.status_code == 422, response.text
-        assert response.json()["detail"][0]["msg"] == "Value error, documents and input cannot both be provided"
 
     def test_rerank_with_rerank_model_with_top_n(self, client: TestClient, setup_tei_test_classification: tuple[str, str]):
         """Test the POST /rerank with the top_n parameter."""
