@@ -8,8 +8,8 @@ from api.domain.key import KeyRepository
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import PostgresKeyRepository, PostgresProviderRepository, PostgresRouterRepository, PostgresUserInfoRepository
 from api.schemas.core.context import RequestContext
-from api.use_cases.admin import CreateRouterUseCase
 from api.use_cases.admin.providers import CreateProviderUseCase
+from api.use_cases.admin.routers import CreateRouterUseCase, GetOneRouterUseCase
 from api.use_cases.models import GetModelsUseCase
 from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context
@@ -50,6 +50,15 @@ def create_provider_use_case_factory(
         router_repository=PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title),
         provider_repository=PostgresProviderRepository(postgres_session=postgres_session),
         provider_gateway=ModelProviderGateway(),
+        user_info_repository=PostgresUserInfoRepository(postgres_session=postgres_session),
+    )
+
+
+def get_one_router_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+) -> GetOneRouterUseCase:
+    return GetOneRouterUseCase(
+        router_repository=PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title),
         user_info_repository=PostgresUserInfoRepository(postgres_session=postgres_session),
     )
 

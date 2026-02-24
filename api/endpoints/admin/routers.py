@@ -8,7 +8,7 @@ from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
 from api.schemas.admin.roles import PermissionType
-from api.schemas.admin.routers import Router, Routers, UpdateRouter
+from api.schemas.admin.routers import Routers, UpdateRouter
 from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import EndpointRoute
 
@@ -59,26 +59,6 @@ async def update_router(
     )
 
     return Response(status_code=204)
-
-
-@router.get(
-    path=EndpointRoute.ADMIN_ROUTERS + "/{router}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
-    status_code=200,
-    response_model=Router,
-)
-async def get_router(
-    request: Request,
-    router: int = Path(description="The ID of the router to get (router ID, eg. 123)."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-    model_registry: ModelRegistry = Depends(get_model_registry),
-) -> JSONResponse:
-    """
-    Get a router by ID.
-    """
-    routers = await model_registry.get_routers(router_id=router, name=None, postgres_session=postgres_session)
-
-    return JSONResponse(status_code=200, content=routers[0].model_dump())
 
 
 @router.get(

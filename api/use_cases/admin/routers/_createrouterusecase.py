@@ -5,7 +5,7 @@ from api.domain.router import RouterRepository
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.domain.userinfo import UserInfoRepository
-from api.domain.userinfo.errors import InsufficientPermissionError
+from api.domain.userinfo.errors import UserIsNotAdminError
 
 
 @dataclass
@@ -24,9 +24,7 @@ class CreateRouterUseCaseSuccess:
     router: Router
 
 
-type CreateRouterUseCaseResult = (
-    CreateRouterUseCaseSuccess | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError | InsufficientPermissionError
-)
+type CreateRouterUseCaseResult = CreateRouterUseCaseSuccess | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError | UserIsNotAdminError
 
 
 class CreateRouterUseCase:
@@ -41,7 +39,7 @@ class CreateRouterUseCase:
         user_info = await self.user_info_repository.get_user_info(user_id=command.user_id)
 
         if not user_info.is_admin:
-            return InsufficientPermissionError()
+            return UserIsNotAdminError()
 
         result = await self.router_repository.create_router(
             name=command.name,

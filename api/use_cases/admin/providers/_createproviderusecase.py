@@ -7,7 +7,7 @@ from api.domain.provider.errors import ProviderAlreadyExistsError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.userinfo import UserInfoRepository
-from api.domain.userinfo.errors import InsufficientPermissionError
+from api.domain.userinfo.errors import UserIsNotAdminError
 from api.schemas.core.models import Metric
 
 
@@ -40,7 +40,7 @@ type CreateProviderUseCaseResult = (
     | InconsistentModelVectorSizeError
     | RouterNotFoundError
     | ProviderAlreadyExistsError
-    | InsufficientPermissionError
+    | UserIsNotAdminError
 )
 
 
@@ -61,7 +61,7 @@ class CreateProviderUseCase:
         user_info = await self.user_info_repository.get_user_info(user_id=command.user_id)
 
         if not user_info.is_admin:
-            return InsufficientPermissionError()
+            return UserIsNotAdminError()
 
         router = await self.router_repository.get_router_by_id(router_id=command.router_id)
         if router is None:

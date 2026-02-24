@@ -62,7 +62,7 @@ class TestAdminCreateRouter:
 
         # Assert
         assert response.status_code == 403, f"Expected 403, got {response.status_code}"
-        assert response.json().get("detail") == "Insufficient rights."
+        assert response.json().get("detail") == "User has no admin rights."
 
     async def test_create_router_with_duplicate_name(self, client: AsyncClient, db_session):
         # Arrange

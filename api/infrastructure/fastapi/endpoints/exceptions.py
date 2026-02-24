@@ -28,9 +28,17 @@ class InvalidAuthenticationSchemeException(HTTPException):
 
 
 # 403
-class InsufficientPermissionHTTPException(HTTPException):
+class NotAdminUserHTTPException(HTTPException):
     status_code = 403
-    detail = "Insufficient rights."
+    detail = "User has no admin rights."
+
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)
+
+
+class CannotReadRoutersHTTPException(HTTPException):
+    status_code = 403
+    detail = "User has no read rights on routers."
 
     def __init__(self) -> None:
         super().__init__(status_code=self.status_code, detail=self.detail)

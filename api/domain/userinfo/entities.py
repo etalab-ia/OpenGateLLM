@@ -19,3 +19,7 @@ class UserInfo(BaseModel):
     @property
     def is_admin(self) -> bool:
         return PermissionType.ADMIN in self.permissions
+
+    @property
+    def has_router_read_permission(self) -> bool:
+        return self.is_admin or PermissionType.PROVIDE_MODELS in self.permissions

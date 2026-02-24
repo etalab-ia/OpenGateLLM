@@ -1,8 +1,7 @@
 import pytest
 
-from api.domain.model.entities import Metric
+from api.domain.model.entities import Metric, ModelType
 from api.domain.provider import Provider, ProviderAlreadyExistsError, ProviderCarbonFootprintZone, ProviderType
-from api.domain.router.entities import ModelType
 from api.infrastructure.postgres import PostgresProviderRepository
 from api.tests.integration.factories import (
     ProviderSQLFactory,

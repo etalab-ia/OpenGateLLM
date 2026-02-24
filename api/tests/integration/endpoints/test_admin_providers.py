@@ -10,7 +10,7 @@ from api.dependencies import create_provider_use_case_factory
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.userinfo.errors import InsufficientPermissionError
+from api.domain.userinfo.errors import UserIsNotAdminError
 from api.schemas.models import ModelType
 from api.tests.helpers import create_token
 from api.tests.integration.factories import RouterSQLFactory, UserSQLFactory
@@ -115,9 +115,9 @@ class TestCreateProvider:
                 "Inconsistent vector size for my-router. Expected: 768. Actual: 384",
             ),
             (
-                InsufficientPermissionError(),
+                UserIsNotAdminError(),
                 403,
-                "Insufficient rights.",
+                "User has no admin rights.",
             ),
         ],
     )
