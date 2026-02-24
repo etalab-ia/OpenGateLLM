@@ -7,14 +7,25 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.responses import Response
 
 from api.helpers._accesscontroller import AccessController
-from api.helpers._metricsmiddleware import MetricsMiddleware
+from api.helpers._metricsmiddleware import (
+    inference_requests_duration_seconds,
+    inference_requests_total,
+    inference_tokens_total,
+    inference_ttft_milliseconds,
+)
 from api.schemas.admin.roles import PermissionType
 from api.utils.variables import RouterName
 
 
 def setup_prometheus(app: FastAPI, include_in_schema: bool = True) -> None:
-    app.add_middleware(MetricsMiddleware)
-    app.instrumentator = Instrumentator().instrument(app=app)
+    app.instrumentator = (
+        Instrumentator()
+        .instrument(app=app)
+        .add(inference_requests_total())
+        .add(inference_requests_duration_seconds())
+        .add(inference_ttft_milliseconds())
+        .add(inference_tokens_total())
+    )
 
     @app.get(
         path="/metrics",
