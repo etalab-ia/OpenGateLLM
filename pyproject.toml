@@ -1,6 +1,6 @@
 [project]
 name = "opengatellm"
-version = "0.0.1"
+version = "0.1.0"
 description = "The official Python library for the opengatellm API"
 dynamic = ["readme"]
 license = "MIT"
