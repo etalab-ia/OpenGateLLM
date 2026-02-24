@@ -1,6 +1,6 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field, constr, model_validator
+from pydantic import Field, StringConstraints
 
 from api.schemas import BaseModel
 from api.schemas.admin.providers import ProviderType
@@ -9,25 +9,10 @@ from api.schemas.usage import Usage
 
 
 class CreateRerank(BaseModel):
-    prompt: constr(min_length=1, strip_whitespace=True) | None = Field(default=None, description="The prompt to use for the reranking. `query` and `prompt` cannot both be provided.", deprecated=True)  # fmt: off
-    query: constr(min_length=1, strip_whitespace=True) | None = Field(default=None, description="The search query to use for the reranking. `query` and `prompt` cannot both be provided.")  # fmt: off
-    input: list[constr(min_length=1, strip_whitespace=True)] | None = Field(default=None, description="List of input texts to rerank by relevance to the prompt. `documents` and `input` cannot both be provided.", deprecated=True)  # fmt: off
-    documents: list[constr(min_length=1, strip_whitespace=True)] | None = Field(default=None, description="A list of texts that will be compared to the query and ranked by relevance. `documents` and `input` cannot both be provided.")  # fmt: off
-    model: constr(min_length=1, strip_whitespace=True) = Field(default=..., description="The model to use for the reranking, call `/v1/models` endpoint to get the list of available models, only `text-classification` model type is supported.")  # fmt: off
-    top_n: int | None = Field(default=None, ge=1, description="The number of top results to return. If set to None, all results will be returned.")  # fmt: off
-
-    @model_validator(mode="after")
-    def validate_model(self):
-        if self.query and self.prompt:
-            raise ValueError("query and prompt cannot both be provided")
-        if self.query is None and self.prompt is None:
-            raise ValueError("query or prompt must be provided")
-        if self.documents and self.input:
-            raise ValueError("documents and input cannot both be provided")
-        if not self.documents and not self.input:
-            raise ValueError("documents or input must be provided")
-
-        return self
+    query: Annotated[str, StringConstraints(min_length=1, strip_whitespace=True), Field(description="The search query to use for the reranking. `query` and `prompt` cannot both be provided.")]  # fmt: off
+    documents: list[Annotated[str, StringConstraints(min_length=1, strip_whitespace=True)], Field(description="A list of texts that will be compared to the query and ranked by relevance. `documents` and `input` cannot both be provided.")]  # fmt: off
+    model: Annotated[str, StringConstraints(min_length=1, strip_whitespace=True), Field(default=..., description="The model to use for the reranking, call `/v1/models` endpoint to get the list of available models, only `text-classification` model type is supported.")]  # fmt: off
+    top_n: Annotated[int | None, Field(default=None, ge=1, description="The number of top results to return. If set to None, all results will be returned.")]  # fmt: off
 
     @staticmethod
     def format_request(provider_type: ProviderType, request_content: RequestContent):
@@ -37,9 +22,7 @@ class CreateRerank(BaseModel):
 
             case ProviderType.TEI:
                 request_content.additional_data["top_n"] = request_content.json.get("top_n")
-                query = request_content.json.get("query") or request_content.json.get("prompt")
-                texts = request_content.json.get("input") or request_content.json.get("documents")
-                request_content.json = TEICreateRerank(query=query, texts=texts).model_dump()
+                request_content.json = TEICreateRerank(query=request_content.json["query"], texts=request_content.json["documents"]).model_dump()
 
                 return request_content
 
