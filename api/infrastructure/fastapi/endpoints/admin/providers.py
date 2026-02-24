@@ -1,3 +1,4 @@
+from contextvars import ContextVar
 import logging
 from typing import Literal
 
@@ -54,7 +55,7 @@ async def create_provider(
     request: Request,
     body: CreateProvider,
     create_provider_use_case: CreateProviderUseCase = Depends(create_provider_use_case_factory),
-    request_context: RequestContext = Depends(get_request_context),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> CreateProviderResponse:
     try:
         command = CreateProviderCommand(

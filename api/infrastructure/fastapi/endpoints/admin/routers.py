@@ -1,8 +1,9 @@
+from contextvars import ContextVar
 import logging
 
 from fastapi import Body, Depends, Path, Security
 
-from api.dependencies import create_router_use_case, get_one_router_use_case_factory, get_request_context
+from api.dependencies import create_router_use_case_factory, get_one_router_use_case_factory, get_request_context
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.domain.userinfo.errors import UserCanNotReadRoutersError, UserIsNotAdminError
 from api.infrastructure.fastapi.access import get_current_key
@@ -45,12 +46,9 @@ logger = logging.getLogger(__name__)
 )
 async def create_router(
     body: CreateRouter = Body(description="The router creation request."),
-    create_router_use_case: CreateRouterUseCase = Depends(create_router_use_case),
-    request_context: RequestContext = Depends(get_request_context),
+    create_router_use_case: CreateRouterUseCase = Depends(create_router_use_case_factory),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> CreateRouterResponse:
-    """
-    Create a router (without any providers).
-    """
     try:
         command = CreateRouterCommand(
             user_id=request_context.get().user_id,
@@ -98,18 +96,28 @@ async def create_router(
 async def get_router(
     router_id: int = Path(description="The router ID."),
     get_one_router_use_case: GetOneRouterUseCase = Depends(get_one_router_use_case_factory),
-    request_context: RequestContext = Depends(get_request_context),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> Router:
     command = GetOneRouterCommand(
         router_id=router_id,
         user_id=request_context.get().user_id,
     )
-    result = await get_one_router_use_case.execute(command)
-
+    try:
+        result = await get_one_router_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing get_router use case",
+            extra={
+                "user_id": command.user_id,
+                "router_id": command.router_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
     match result:
         case GetOneRouterUseCaseSuccess(returned_router):
             return Router.model_validate(returned_router, from_attributes=True)
-        case RouterNotFoundError(router_id):
-            raise RouterNotFoundHTTPException(router_id)
+        case RouterNotFoundError(router_id=not_found_id):
+            raise RouterNotFoundHTTPException(not_found_id)
         case UserCanNotReadRoutersError():
             raise CannotReadRoutersHTTPException()

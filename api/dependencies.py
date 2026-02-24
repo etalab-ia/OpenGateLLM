@@ -63,7 +63,7 @@ def get_one_router_use_case_factory(
     )
 
 
-def create_router_use_case(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateRouterUseCase:
+def create_router_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateRouterUseCase:
     return CreateRouterUseCase(
         router_repository=PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title),
         user_info_repository=PostgresUserInfoRepository(postgres_session=postgres_session),
