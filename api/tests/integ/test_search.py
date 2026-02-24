@@ -59,11 +59,6 @@ def chunks_ids(client: TestClient, document_id: int):
 
     yield chunk_ids
 
-    # # delete the chunks
-    # for chunk_id in chunk_ids:
-    #     response = client.delete_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}/{document_id}/chunks/{chunk_id}")
-    #     assert response.status_code == 204, response.text
-
 
 @pytest.mark.usefixtures("client", "collection_id", "document_id", "chunks_ids")
 class TestSearch:
