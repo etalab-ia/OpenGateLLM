@@ -68,7 +68,7 @@ class TestSearch:
         if chunks:
             response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}/{document_id}/chunks", json={"chunks": chunks})
             assert response.status_code == 201, response.text
-            sleep(1)
+            sleep(2)
 
         return document_id
 

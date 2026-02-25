@@ -43,7 +43,6 @@ def document_id(client: TestClient, collection_id: int):
     response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data)
     assert response.status_code == 201, response.text
     document_id = response.json()["id"]
-    sleep(2)
 
     yield document_id
 
