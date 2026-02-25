@@ -43,8 +43,7 @@ def document_id(client: TestClient, collection_id: int):
     response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}", data=data)
     assert response.status_code == 201, response.text
     document_id = response.json()["id"]
-
-    sleep(1.5)
+    sleep(2)
 
     yield document_id
 
@@ -65,7 +64,7 @@ def chunks_ids(client: TestClient, document_id: int):
     response = client.post_without_permissions(url=f"/v1{EndpointRoute.DOCUMENTS}/{document_id}/chunks", json=data)
     assert response.status_code == 201, response.text
     chunk_ids = response.json()["ids"]
-    sleep(1)
+    sleep(2)
 
     yield chunk_ids
 
