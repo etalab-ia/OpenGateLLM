@@ -67,4 +67,7 @@ class Router(BaseModel):
 
 class Routers(BaseModel):
     object: Literal["list"] = "list"
+    total: int
+    offset: int
+    limit: int
     data: list[Router]

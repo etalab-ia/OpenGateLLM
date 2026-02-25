@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from api.domain.router import RouterRepository
 from api.domain.router.entities import Router, RouterSortField, SortOrder
 from api.domain.userinfo import UserInfoRepository
-from api.domain.userinfo.errors import UserCanNotReadRoutersError
+from api.domain.userinfo.errors import UserIsNotAdminError
 
 
 @dataclass
@@ -21,7 +21,7 @@ class GetRoutersUseCaseSuccess:
     total: int
 
 
-type GetRoutersUseCaseResult = GetRoutersUseCaseSuccess | UserCanNotReadRoutersError
+type GetRoutersUseCaseResult = GetRoutersUseCaseSuccess | UserIsNotAdminError
 
 
 class GetRoutersUseCase:
@@ -35,8 +35,8 @@ class GetRoutersUseCase:
     ) -> GetRoutersUseCaseResult:
         user_info = await self.user_info_repository.get_user_info(user_id=command.user_id)
 
-        if not user_info.has_router_read_permission:
-            return UserCanNotReadRoutersError()
+        if not user_info.is_admin:
+            return UserIsNotAdminError()
 
         router_page = await self.router_repository.get_routers_page(
             limit=command.limit,

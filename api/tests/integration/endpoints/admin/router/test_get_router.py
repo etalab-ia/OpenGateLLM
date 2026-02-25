@@ -6,7 +6,7 @@ import pytest_asyncio
 
 from api.dependencies import get_one_router_use_case_factory
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.userinfo.errors import UserCanNotReadRoutersError
+from api.domain.userinfo.errors import UserIsNotAdminError
 from api.schemas.models import ModelType
 from api.tests.helpers import create_token
 from api.tests.integration.factories import RouterSQLFactory, UserSQLFactory
@@ -50,9 +50,9 @@ class TestGetRouter:
                 "Model router 1 not found.",
             ),
             (
-                UserCanNotReadRoutersError(),
+                UserIsNotAdminError(),
                 403,
-                "User has no read rights on routers.",
+                "User has no admin rights.",
             ),
         ],
     )

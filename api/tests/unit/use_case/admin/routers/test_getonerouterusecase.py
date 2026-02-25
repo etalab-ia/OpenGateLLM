@@ -4,7 +4,7 @@ import pytest
 
 from api.domain.role.entities import PermissionType
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.userinfo.errors import UserCanNotReadRoutersError
+from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.unit.use_case.factories import RouterFactory, UserInfoFactory
 from api.use_cases.admin.routers import GetOneRouterCommand, GetOneRouterUseCase, GetOneRouterUseCaseSuccess
 
@@ -61,19 +61,6 @@ class TestGetOneRouterUseCase:
         router_repository.get_router_by_id.assert_called_once_with(42)
 
     @pytest.mark.asyncio
-    async def test_should_return_router_when_user_has_provide_models_permission(self, use_case, provider_user_info, sample_router):
-        # Arrange
-        use_case.user_info_repository.get_user_info.return_value = provider_user_info
-        use_case.router_repository.get_router_by_id.return_value = sample_router
-
-        # Act
-        result = await use_case.execute(command=GetOneRouterCommand(user_id=provider_user_info.id, router_id=42))
-
-        # Assert
-        assert isinstance(result, GetOneRouterUseCaseSuccess)
-        assert result.router == sample_router
-
-    @pytest.mark.asyncio
     async def test_should_return_router_not_found_error_when_router_does_not_exist(self, router_repository, use_case, admin_user_info):
         # Arrange
         use_case.user_info_repository.get_user_info.return_value = admin_user_info
@@ -96,5 +83,5 @@ class TestGetOneRouterUseCase:
         result = await use_case.execute(command=GetOneRouterCommand(user_id=unauthorized_user_info.id, router_id=42))
 
         # Assert
-        assert isinstance(result, UserCanNotReadRoutersError)
+        assert isinstance(result, UserIsNotAdminError)
         router_repository.get_router_by_id.assert_not_called()

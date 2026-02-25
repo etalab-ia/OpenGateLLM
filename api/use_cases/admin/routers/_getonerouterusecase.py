@@ -4,7 +4,7 @@ from api.domain.router import RouterRepository
 from api.domain.router.entities import Router
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.userinfo import UserInfoRepository
-from api.domain.userinfo.errors import UserCanNotReadRoutersError
+from api.domain.userinfo.errors import UserIsNotAdminError
 
 
 @dataclass
@@ -18,7 +18,7 @@ class GetOneRouterUseCaseSuccess:
     router: Router
 
 
-type GetOneRouterUseCaseResult = GetOneRouterUseCaseSuccess | RouterNotFoundError | UserCanNotReadRoutersError
+type GetOneRouterUseCaseResult = GetOneRouterUseCaseSuccess | RouterNotFoundError | UserIsNotAdminError
 
 
 class GetOneRouterUseCase:
@@ -32,8 +32,8 @@ class GetOneRouterUseCase:
     ) -> GetOneRouterUseCaseResult:
         user_info = await self.user_info_repository.get_user_info(user_id=command.user_id)
 
-        if not user_info.has_router_read_permission:
-            return UserCanNotReadRoutersError()
+        if not user_info.is_admin:
+            return UserIsNotAdminError()
 
         router = await self.router_repository.get_router_by_id(command.router_id)
 

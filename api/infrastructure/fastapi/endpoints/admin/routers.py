@@ -1,11 +1,12 @@
 from contextvars import ContextVar
 import logging
 
-from fastapi import Body, Depends, Path, Security
+from fastapi import Body, Depends, Path, Query, Security
 
-from api.dependencies import create_router_use_case_factory, get_one_router_use_case_factory, get_request_context
+from api.dependencies import create_router_use_case_factory, get_one_router_use_case_factory, get_request_context, get_routers_use_case_factory
+from api.domain.router.entities import RouterSortField, SortOrder
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
-from api.domain.userinfo.errors import UserCanNotReadRoutersError, UserIsNotAdminError
+from api.domain.userinfo.errors import UserIsNotAdminError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
@@ -18,7 +19,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RouterAlreadyExistsHTTPException,
     RouterNotFoundHTTPException,
 )
-from api.infrastructure.fastapi.schemas.routers import CreateRouter, CreateRouterResponse, Router
+from api.infrastructure.fastapi.schemas.routers import CreateRouter, CreateRouterResponse, Router, Routers
 from api.use_cases.admin.routers import (
     CreateRouterCommand,
     CreateRouterUseCase,
@@ -26,6 +27,9 @@ from api.use_cases.admin.routers import (
     GetOneRouterCommand,
     GetOneRouterUseCase,
     GetOneRouterUseCaseSuccess,
+    GetRoutersCommand,
+    GetRoutersUseCase,
+    GetRoutersUseCaseSuccess,
 )
 from api.utils.variables import EndpointRoute
 
@@ -114,5 +118,49 @@ async def get_router(
             return Router.model_validate(returned_router, from_attributes=True)
         case RouterNotFoundError(router_id=not_found_id):
             raise RouterNotFoundHTTPException(not_found_id)
-        case UserCanNotReadRoutersError():
-            raise CannotReadRoutersHTTPException()
+        case UserIsNotAdminError():
+            raise NotAdminUserHTTPException()
+
+
+@router.get(
+    path=EndpointRoute.ADMIN_ROUTERS,
+    dependencies=[Security(dependency=get_current_key)],
+    status_code=200,
+    responses=get_documentation_responses([CannotReadRoutersHTTPException]),
+)
+async def get_routers(
+    offset: int = Query(default=0, ge=0, description="Number of routers to skip."),
+    limit: int = Query(default=10, ge=1, le=100, description="Maximum number of routers to return."),
+    sort_by: RouterSortField = Query(default=RouterSortField.ID, description="Field to sort by."),
+    sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
+    get_routers_use_case: GetRoutersUseCase = Depends(get_routers_use_case_factory),
+    request_context: RequestContext = Depends(get_request_context),
+) -> Routers:
+    command = GetRoutersCommand(
+        user_id=request_context.get().user_id,
+        offset=offset,
+        limit=limit,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
+    try:
+        result = await get_routers_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing get_routers use case",
+            extra={
+                "user_id": command.user_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
+    match result:
+        case GetRoutersUseCaseSuccess(routers, total):
+            return Routers(
+                total=total,
+                offset=offset,
+                limit=limit,
+                data=[Router.model_validate(r, from_attributes=True) for r in routers],
+            )
+        case UserIsNotAdminError():
+            raise NotAdminUserHTTPException()
