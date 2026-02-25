@@ -1,3 +1,5 @@
+from typing import Literal
+
 from elasticsearch import AsyncElasticsearch
 from fastapi import APIRouter, Body, Depends, Path, Query, Request, Response, Security
 from fastapi.responses import JSONResponse
@@ -64,6 +66,8 @@ async def get_collections(
     visibility: CollectionVisibility | None = Query(default=None, description="Filter by collection visibility."),
     offset: int = Query(default=0, ge=0, description="The offset of the collections to get."),
     limit: int = Query(default=10, ge=1, le=100, description="The limit of the collections to get."),
+    order_by: Literal["id", "name", "created", "updated"] = Query(default="id", description="The order by field to sort the collections by."),
+    order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the collections by."),
     postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
@@ -76,6 +80,8 @@ async def get_collections(
         visibility=visibility,
         offset=offset,
         limit=limit,
+        order_by=order_by,
+        order_direction=order_direction,
     )
 
     return JSONResponse(status_code=200, content=Collections(data=data).model_dump())

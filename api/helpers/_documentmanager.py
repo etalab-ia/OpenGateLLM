@@ -2,12 +2,13 @@ from contextvars import ContextVar
 from datetime import datetime
 from itertools import batched
 import logging
+from typing import Literal
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import UploadFile
 from langchain_text_splitters import RecursiveCharacterTextSplitter as LangChainRecursiveCharacterTextSplitter
 from redis.asyncio import Redis as AsyncRedis
-from sqlalchemy import Integer, cast, delete, distinct, func, insert, or_, select, update
+from sqlalchemy import Integer, cast, delete, distinct, func, insert, or_, select, text, update
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -120,6 +121,8 @@ class DocumentManager:
         visibility: CollectionVisibility | None = None,
         offset: int = 0,
         limit: int = 10,
+        order_by: Literal["id", "name", "created", "updated"] = "id",
+        order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[Collection]:
         # Query basic collection data
         statement = (
@@ -137,7 +140,7 @@ class DocumentManager:
             .outerjoin(UserTable, CollectionTable.user_id == UserTable.id)
             .group_by(CollectionTable.id, UserTable.name)
             .offset(offset=offset)
-            .order_by(CollectionTable.created.desc())
+            .order_by(text(f"{order_by} {order_direction}"))
             .limit(limit=limit)
         )
 
@@ -280,6 +283,8 @@ class DocumentManager:
         document_name: str | None = None,
         offset: int = 0,
         limit: int = 10,
+        order_by: Literal["id", "name", "created"] = "id",
+        order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[Document]:
         statement = (
             select(
@@ -292,6 +297,7 @@ class DocumentManager:
             .limit(limit=limit)
             .outerjoin(CollectionTable, DocumentTable.collection_id == CollectionTable.id)
             .where(or_(CollectionTable.user_id == user_id, CollectionTable.visibility == CollectionVisibility.PUBLIC))
+            .order_by(text(f"{order_by} {order_direction}"))
         )
         if collection_id:
             statement = statement.where(DocumentTable.collection_id == collection_id)

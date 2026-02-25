@@ -1,5 +1,5 @@
 from contextvars import ContextVar
-from typing import Annotated
+from typing import Annotated, Literal
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import APIRouter, Depends, Path, Query, Request, Response, Security
@@ -95,6 +95,8 @@ async def get_documents(
     collection_id: int | None = Query(gt=0, default=None, description="Filter documents by collection ID"),
     limit: int = Query(ge=1, le=100, default=10, description="The number of documents to return"),
     offset: int = Query(default=0, description="The offset of the first document to return"),
+    order_by: Literal["id", "name", "created"] = Query(default="id", description="The order by field to sort the documents by."),
+    order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the documents by."),
     postgres_session: AsyncSession = Depends(get_postgres_session),
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
@@ -111,6 +113,8 @@ async def get_documents(
         document_name=name,
         limit=limit,
         offset=offset,
+        order_by=order_by,
+        order_direction=order_direction,
         user_id=request_context.get().user_info.id,
     )
 
