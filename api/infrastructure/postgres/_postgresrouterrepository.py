@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, Select, asc, cast, desc, func, insert, select
+from sqlalchemy import Integer, Select, asc, cast, delete, desc, func, insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -196,3 +196,10 @@ class PostgresRouterRepository(RouterRepository):
             query = query.where(RouterAliasTable.value.in_(filtered_aliases))
         result = await self.postgres_session.execute(query)
         return [row[0] for row in result.all()]
+
+    async def delete_router(self, router_id: int) -> Router | None:
+        router = await self.get_router_by_id(router_id)
+        if router is None:
+            return None
+        await self.postgres_session.execute(delete(RouterTable).where(RouterTable.id == router_id))
+        return router

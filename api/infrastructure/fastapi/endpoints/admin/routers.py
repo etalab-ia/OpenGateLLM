@@ -3,7 +3,13 @@ import logging
 
 from fastapi import Body, Depends, Path, Query, Security
 
-from api.dependencies import create_router_use_case_factory, get_one_router_use_case_factory, get_request_context, get_routers_use_case_factory
+from api.dependencies import (
+    create_router_use_case_factory,
+    delete_router_use_case_factory,
+    get_one_router_use_case_factory,
+    get_request_context,
+    get_routers_use_case_factory,
+)
 from api.domain.router.entities import RouterSortField, SortOrder
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
@@ -23,6 +29,9 @@ from api.use_cases.admin.routers import (
     CreateRouterCommand,
     CreateRouterUseCase,
     CreateRouterUseCaseSuccess,
+    DeleteRouterCommand,
+    DeleteRouterUseCase,
+    DeleteRouterUseCaseSuccess,
     GetOneRouterCommand,
     GetOneRouterUseCase,
     GetOneRouterUseCaseSuccess,
@@ -161,5 +170,42 @@ async def get_routers(
                 limit=limit,
                 data=[Router.model_validate(r, from_attributes=True) for r in routers],
             )
+        case UserIsNotAdminError():
+            raise NotAdminUserHTTPException()
+
+
+@router.delete(
+    path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
+    dependencies=[Security(dependency=get_current_key)],
+    responses=get_documentation_responses([RouterNotFoundHTTPException, NotAdminUserHTTPException]),
+    status_code=200,
+)
+async def delete_router(
+    router_id: int = Path(description="The ID of the router to delete (router ID, eg. 123)."),
+    delete_router_use_case: DeleteRouterUseCase = Depends(delete_router_use_case_factory),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+) -> Router:
+    command = DeleteRouterCommand(
+        user_id=request_context.get().user_id,
+        router_id=router_id,
+    )
+    try:
+        result = await delete_router_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing delete_router use case",
+            extra={
+                "user_id": command.user_id,
+                "router_id": command.router_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
+
+    match result:
+        case DeleteRouterUseCaseSuccess(deleted_router):
+            return Router.model_validate(deleted_router, from_attributes=True)
+        case RouterNotFoundError(router_id=not_found_id):
+            raise RouterNotFoundHTTPException(not_found_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()

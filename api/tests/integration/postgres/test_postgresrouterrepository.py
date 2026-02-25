@@ -1,12 +1,14 @@
 from datetime import datetime, timedelta
 
 import pytest
+from sqlalchemy import select
 
 from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model import ModelType as RouterType
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterSortField, SortOrder
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.infrastructure.postgres import PostgresRouterRepository
+from api.sql.models import Provider as ProviderTable
 from api.tests.integration.factories import OrganizationSQLFactory, RouterSQLFactory, UserSQLFactory
 
 
@@ -384,6 +386,46 @@ class TestGetRoutersPage:
         # Assert
         returned_names = [r.name for r in result.data]
         assert returned_names == ["newest", "middle", "oldest"]
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestDeleteRouter:
+    async def test_delete_router_should_return_the_deleted_router_when_router_exists(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        router = RouterSQLFactory(user=user, name="router_to_delete", alias=["alias1"])
+        await db_session.flush()
+
+        # Act
+        result = await repository.delete_router(router.id)
+
+        # Assert
+        assert isinstance(result, Router)
+        assert result.id == router.id
+        assert result.name == "router_to_delete"
+        assert result.aliases == ["alias1"]
+
+    async def test_delete_router_should_return_none_when_router_does_not_exist(self, repository, db_session):
+        # Act
+        result = await repository.delete_router(router_id=999999)
+
+        # Assert
+        assert result is None
+
+    async def test_delete_router_should_delete_cascade_router_aliases_and_providers_from_database(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        router = RouterSQLFactory(user=user, name="router_to_delete", alias=["alias1"], providers=3)
+        await db_session.flush()
+
+        # Act
+        await repository.delete_router(router.id)
+
+        # Assert
+        assert await repository.get_router_by_id(router.id) is None
+        assert await repository.get_aliases_by_router_id(router.id) == []
+        providers = (await db_session.execute(select(ProviderTable).where(ProviderTable.router_id == router.id))).scalars().all()
+        assert providers == []
 
 
 if __name__ == "__main__":
