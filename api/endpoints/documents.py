@@ -9,13 +9,14 @@ from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers._documentmanager import DocumentManager
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers.models import ModelRegistry
 from api.schemas.chunks import Chunks, ChunksResponse, CreateChunks
 from api.schemas.core.context import RequestContext
 from api.schemas.documents import CreateDocumentForm, Document, DocumentResponse, Documents
-from api.utils.context import global_context
 from api.utils.dependencies import (
+    get_document_manager,
     get_elasticsearch_client,
     get_elasticsearch_vector_store,
     get_model_registry,
@@ -38,11 +39,12 @@ async def create_document(
     redis_client: AsyncRedis = Depends(get_redis_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> JSONResponse:
     """
     Upload a file, parse and split it into chunks, then create a document. If no file is provided, the document will be created without content, use POST `/v1/documents/{document_id}/chunks` to fill it.
     """
-    document_id = await global_context.document_manager.create_document(
+    document_id = await document_manager.create_document(
         file=data.file,
         name=data.name,
         collection_id=data.collection_id,
@@ -73,11 +75,12 @@ async def get_document(
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> JSONResponse:
     """
     Get a document by ID.
     """
-    documents = await global_context.document_manager.get_documents(
+    documents = await document_manager.get_documents(
         postgres_session=postgres_session,
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,
@@ -101,11 +104,12 @@ async def get_documents(
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> JSONResponse:
     """
     Get all documents ID from a collection.
     """
-    data = await global_context.document_manager.get_documents(
+    data = await document_manager.get_documents(
         postgres_session=postgres_session,
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,
@@ -129,11 +133,12 @@ async def delete_document(
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> Response:
     """
     Delete a document.
     """
-    await global_context.document_manager.delete_document(
+    await document_manager.delete_document(
         postgres_session=postgres_session,
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,
@@ -155,11 +160,12 @@ async def create_document_chunks(
     redis_client: AsyncRedis = Depends(get_redis_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> JSONResponse:
     """
     Fill document with chunks.
     """
-    chunk_ids = await global_context.document_manager.create_document_chunks(
+    chunk_ids = await document_manager.create_document_chunks(
         postgres_session=postgres_session,
         document_id=document_id,
         chunks=body.chunks,
@@ -183,11 +189,12 @@ async def delete_document_chunk(
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> Response:
     """
     Delete a chunk of a document.
     """
-    await global_context.document_manager.delete_document_chunk(
+    await document_manager.delete_document_chunk(
         postgres_session=postgres_session,
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,
@@ -208,11 +215,12 @@ async def get_document_chunks(
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> JSONResponse:
     """
     Get chunks of a document.
     """
-    chunks = await global_context.document_manager.get_document_chunks(
+    chunks = await document_manager.get_document_chunks(
         postgres_session=postgres_session,
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,
@@ -234,11 +242,12 @@ async def get_document_chunk(
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> JSONResponse:
     """
     Get a chunk of a document.
     """
-    chunks = await global_context.document_manager.get_document_chunk(
+    chunks = await document_manager.get_document_chunk(
         postgres_session=postgres_session,
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,

@@ -6,11 +6,11 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers._documentmanager import DocumentManager
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.schemas.collections import Collection, CollectionRequest, Collections, CollectionUpdateRequest, CollectionVisibility
-from api.utils.context import global_context, request_context
-from api.utils.dependencies import get_elasticsearch_client, get_elasticsearch_vector_store, get_postgres_session
-from api.utils.exceptions import CollectionNotFoundException
+from api.utils.context import request_context
+from api.utils.dependencies import get_document_manager, get_elasticsearch_client, get_elasticsearch_vector_store, get_postgres_session
 from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.COLLECTIONS.title()])
@@ -21,11 +21,12 @@ async def create_collection(
     request: Request,
     body: CollectionRequest,
     postgres_session: AsyncSession = Depends(get_postgres_session),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> JSONResponse:
     """
     Create a new collection.
     """
-    collection_id = await global_context.document_manager.create_collection(
+    collection_id = await document_manager.create_collection(
         postgres_session=postgres_session,
         name=body.name,
         visibility=body.visibility,
@@ -46,11 +47,12 @@ async def get_collection(
     request: Request,
     collection_id: int = Path(..., description="The collection ID"),
     postgres_session: AsyncSession = Depends(get_postgres_session),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> JSONResponse:
     """
     Get a collection by ID.
     """
-    collections = await global_context.document_manager.get_collections(
+    collections = await document_manager.get_collections(
         postgres_session=postgres_session,
         collection_id=collection_id,
         user_id=request_context.get().user_info.id,
@@ -69,11 +71,12 @@ async def get_collections(
     order_by: Literal["id", "name", "created", "updated"] = Query(default="id", description="The order by field to sort the collections by."),
     order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the collections by."),
     postgres_session: AsyncSession = Depends(get_postgres_session),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> JSONResponse:
     """
     Get list of collections.
     """
-    data = await global_context.document_manager.get_collections(
+    data = await document_manager.get_collections(
         postgres_session=postgres_session,
         user_id=request_context.get().user_info.id,
         collection_name=name,
@@ -94,14 +97,12 @@ async def delete_collection(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> Response:
     """
     Delete a collection.
     """
-    if not global_context.document_manager:  # no vector store available
-        raise CollectionNotFoundException()
-
-    await global_context.document_manager.delete_collection(
+    await document_manager.delete_collection(
         postgres_session=postgres_session,
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,
@@ -118,14 +119,12 @@ async def update_collection(
     collection_id: int = Path(..., description="The collection ID"),
     body: CollectionUpdateRequest = Body(..., description="The collection to update."),
     postgres_session: AsyncSession = Depends(get_postgres_session),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> Response:
     """
     Update a collection.
     """
-    if not global_context.document_manager:  # no vector store available
-        raise CollectionNotFoundException()
-
-    await global_context.document_manager.update_collection(
+    await document_manager.update_collection(
         postgres_session=postgres_session,
         user_id=request_context.get().user_info.id,
         collection_id=collection_id,

@@ -1,7 +1,7 @@
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import AliasChoices, ConfigDict, Field, GetJsonSchemaHandler, StringConstraints, model_validator
+from pydantic import AliasChoices, ConfigDict, Field, GetJsonSchemaHandler, PositiveInt, StringConstraints, model_validator
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema
 
@@ -44,10 +44,7 @@ class CompoundFilterOperator(StrEnum):
     def __get_pydantic_json_schema__(cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler) -> JsonSchemaValue:
         schema = handler(core_schema)
         schema["description"] = "Compound filter operator for metadata filters."
-        schema["x-enumDescriptions"] = {
-            "and": "AND operator",
-            "or": "OR operator",
-        }
+        schema["x-enumDescriptions"] = {"and": "AND operator", "or": "OR operator"}
         return schema
 
 
@@ -63,8 +60,8 @@ class CompoundFilter(BaseModel):
 
 
 class SearchArgs(BaseModel):
-    collection_ids: Annotated[list[int], Field(default=[], min_length=0, max_length=100, validation_alias=AliasChoices("collection_ids", "collections"), serialization_alias="collection_ids", description="List of collections ID.")]  # fmt: off
-    document_ids: Annotated[list[int], Field(default=[], min_length=0, max_length=100, description="List of document IDs")]
+    collection_ids: Annotated[list[PositiveInt], Field(default=[], min_length=0, max_length=100, validation_alias=AliasChoices("collection_ids", "collections"), serialization_alias="collection_ids", description="List of collections ID.")]  # fmt: off
+    document_ids: Annotated[list[PositiveInt], Field(default=[], min_length=0, max_length=100, description="List of document IDs")]
     metadata_filters: Annotated[ComparisonFilter | CompoundFilter | None, Field(default=None, description="Metadata filters to apply to the search.")]  # fmt: off
     limit: Annotated[int, Field(gt=0, le=100, default=10, description="Number of results to return.")]
     offset: Annotated[int, Field(ge=0, default=0, description="Offset for pagination, specifying how many results to skip from the beginning.")]

@@ -1,6 +1,6 @@
 import json
 from json import JSONDecodeError
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from mistralai.models import ChatCompletionRequest
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
@@ -12,22 +12,16 @@ from api.schemas.core.models import RequestContent
 from api.schemas.search import Search, SearchArgs
 from api.schemas.usage import Usage
 
-DEFAULT_RAG_TEMPLATE = "Réponds à la question suivante en te basant sur les documents ci-dessous : {prompt}\n\nDocuments :\n{chunks}"
 
+class SearchTool(SearchArgs):
+    """
+    Built-in search tool available in `tools`.
 
-class ChatSearchArgs(SearchArgs):
-    template: str = Field(description='Template to use for the RAG query. The template must contain "{chunks}" and "{prompt}" placeholders.',default=DEFAULT_RAG_TEMPLATE)  # fmt: off
-    k: int = Field(gt=0, le=100, default=10, deprecated=True, description="[DEPRECATED: use limit instead]Number of results to return. A large number of results will increase the model context size and hence the response time.")  # fmt: off
-    limit: int = Field(gt=0, le=100, default=10, description="Number of results to return")  # fmt: off
+    Use `type="search"` to trigger retrieval over indexed documents.
+    All additional parameters are inherited from `SearchArgs`.
+    """
 
-    @field_validator("template")
-    def validate_template(cls, value):
-        if "{chunks}" not in value:
-            raise ValueError('template must contain "{chunks}" placeholder')
-        if "{prompt}" not in value:
-            raise ValueError('template must contain "{prompt}" placeholder')
-
-        return value
+    type: Annotated[Literal["search"], Field(default="search", description="The type of tool to call.")]
 
 
 class CreateChatCompletion(BaseModel):
@@ -39,7 +33,6 @@ class CreateChatCompletion(BaseModel):
     logprobs: bool | None = Field(default=False, description="Whether to return log probabilities of the output tokens or not. If true, returns the log probabilities of each output token returned in the `content` of `message`.")  # fmt: off
     top_logprobs: int | None = Field(default=None, description="An integer between 0 and 20 specifying the number of most likely tokens to return at each token position, each with an associated log probability. `logprobs` must be set to `true` if this parameter is used.")  # fmt: off
     presence_penalty: float | None = Field(default=0.0, description="Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics.")  # fmt: off
-    max_tokens: int | None = Field(default=None, description="The maximum number of tokens that can be generated in the chat completion. This value can be used to control costs for text generated via API.", deprecated=True)  # fmt: off
     max_completion_tokens: int | None = Field(default=None, description="An upper bound for the number of tokens that can be generated for a completion.")  # fmt: off
     n: int | None = Field(default=1, description="How many chat completion choices to generate for each input message. Note that you will be charged based on the number of generated tokens across all of the choices. Keep `n` as `1` to minimize costs.")  # fmt: off
     response_format: Any | None = Field(default=None, description="Setting to `{ \"type\": \"json_schema\", \"json_schema\": {...} }` enables Structured Outputs which ensures the model will match your supplied JSON schema. Learn more in the Structured Outputs guide. Setting to `{ \"type\": \"json_object\" }` enables JSON mode, which ensures the message the model generates is valid JSON.<br>**Important**: when using JSON mode, you must also instruct the model to produce JSON yourself via a system or user message. Without this, the model may generate an unending stream of whitespace until the generation reaches the token limit, resulting in a long-running and seemingly \"stuck\" request. Also note that the message content may be partially cut off if `finish_reason=\"length\"`, which indicates the generation exceeded `max_tokens` or the conversation exceeded the max context length.")  # fmt: off
@@ -49,20 +42,35 @@ class CreateChatCompletion(BaseModel):
     stream_options: Any | None = Field(default=None, description="Options for streaming response. Only set this when you set `stream: true`.")  # fmt: off
     temperature: float | None = Field(default=0.7, description="What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. We generally recommend altering this or `top_p` but not both.")  # fmt: off
     top_p: float | None = Field(default=1, description="An alternative to sampling with temperature, called nucleus sampling, where the model considers the results of the tokens with top_p probability mass. So 0.1 means only the tokens comprising the top 10% probability mass are considered.<br>We generally recommend altering this or `temperature` but not both.")  # fmt: off
-    tools: list | None = Field(default=None, description="A list of tools the model may call. Currently, only functions are supported as a tool. Use this to provide a list of functions the model may generate JSON inputs for.")  # fmt: off
+    tools: Annotated[list[dict| SearchTool] | None, Field(description="A list of tools the model may call. Currently, only functions are supported as a tool. Support function calling and build-in tools (currently only SearchTool). Use this to provide a list of functions the model may generate JSON inputs for.")] | None = Field(default=None)  # fmt: off
     tool_choice: Any = Field(default="none", description="Controls which (if any) tool is called by the model. `none` means the model will not call any tool and instead generates a message. `auto` means the model can pick between generating a message or calling one or more tools. `required` means the model must call one or more tools. Specifying a particular tool via `{\"type\": \"function\", \"function\": {\"name\": \"my_function\"}}` forces the model to call that tool.<br>`none` is the default when no tools are present. `auto` is the default if tools are present.")  # fmt: off
     parallel_tool_calls: bool | None = Field(default=False, description="Whether to call tools in parallel or sequentially. If true, the model will call tools in parallel. If false, the model will call tools sequentially. If None, the model will call tools in parallel if the model supports it, otherwise it will call tools sequentially.")  # fmt: off
     user: str | None = Field(default=None, description="A unique identifier representing the user.")  # fmt: off
 
     # search additional fields
-    search: bool = Field(default=False)  # fmt: off
-    search_args: ChatSearchArgs | None = Field(default=None)  # fmt: off
+    search: bool = Field(default=False, deprecated=True)
+    search_args: SearchArgs | None = Field(default=None, deprecated=True)
+
+    @field_validator("tools", mode="after")
+    @classmethod
+    def validate_fields(cls, tools: list[dict | SearchTool] | None) -> list[dict | SearchTool] | None:
+        if tools is None:
+            return tools
+
+        for i, tool in enumerate(tools):
+            if tool.get("type") == "search":
+                tools[i] = SearchTool(**tool)
+        return tools
 
     @model_validator(mode="after")
-    def validate_model(self):
+    def convert_search_args_to_tool(self) -> "CreateChatCompletion":
         if self.search:
-            if not self.search_args:
-                raise ValueError("search_args is required when search is true")
+            if self.search_args is None:
+                raise ValueError("search_args is required when search is True")
+            self.tools = [] if self.tools is None else self.tools
+            self.tools.append(SearchTool(**self.search_args.model_dump(exclude_none=True)).model_dump())
+            self.search = False
+            self.search_args = None
 
         return self
 

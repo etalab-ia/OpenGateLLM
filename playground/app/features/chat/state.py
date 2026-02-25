@@ -101,9 +101,9 @@ class ChatState(AuthState):
         self.top_p = top_p
 
     @rx.event
-    def set_max_completion_tokens(self, max_tokens: int):
+    def set_max_completion_tokens(self, max_completion_tokens: int):
         """Set the max_completion_tokens."""
-        self.max_completion_tokens = int(max_tokens)
+        self.max_completion_tokens = int(max_completion_tokens)
 
     @rx.event
     def set_frequency_penalty(self, penalty: float):

@@ -1,4 +1,6 @@
 from contextvars import ContextVar
+from functools import partial
+from http import HTTPMethod
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import APIRouter, Depends, Request, Security
@@ -7,6 +9,7 @@ from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers._documentmanager import DocumentManager
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 from api.helpers.models import ModelRegistry
@@ -14,9 +17,8 @@ from api.schemas.chat import ChatCompletion, ChatCompletionChunk, CreateChatComp
 from api.schemas.core.context import RequestContext
 from api.schemas.core.models import RequestContent
 from api.schemas.exception import HTTPExceptionModel
-from api.schemas.search import Search
-from api.utils.context import global_context
 from api.utils.dependencies import (
+    get_document_manager,
     get_elasticsearch_client,
     get_elasticsearch_vector_store,
     get_model_registry,
@@ -26,6 +28,7 @@ from api.utils.dependencies import (
 )
 from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, WrongModelTypeException
 from api.utils.hooks_decorator import hooks
+from api.utils.tools import SearchTool
 from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.CHAT.title()])
@@ -47,93 +50,37 @@ async def chat_completions(
     request: Request,
     body: CreateChatCompletion,
     model_registry: ModelRegistry = Depends(get_model_registry),
+    document_manager: DocumentManager = Depends(get_document_manager),
     postgres_session: AsyncSession = Depends(get_postgres_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
-    elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
-    elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
+    elasticsearch_vector_store: ElasticsearchVectorStore | None = Depends(partial(get_elasticsearch_vector_store, required=False)),
+    elasticsearch_client: AsyncElasticsearch | None = Depends(get_elasticsearch_client),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse | StreamingResponseWithStatusCode:
-    """Creates a model response for the given chat conversation.
-
-    **Important**: any others parameters are authorized, depending on the model backend. For example, if model is support by vLLM backend, additional
-    fields are available (see https://github.com/vllm-project/vllm/blob/main/vllm/entrypoints/openai/protocol.py#L209). Similarly, some defined fields
-    may be ignored depending on the backend used and the model support.
-    """
-
-    # retrieval augmentation generation
-    async def retrieval_augmentation_generation(
-        initial_body: CreateChatCompletion,
-        inner_postgres_session: AsyncSession,
-        inner_redis_client: AsyncRedis,
-        inner_model_registry: ModelRegistry,
-        inner_request_context: ContextVar[RequestContext],
-        inner_elasticsearch_vector_store: ElasticsearchVectorStore,
-        inner_elasticsearch_client: AsyncElasticsearch,
-    ) -> tuple[CreateChatCompletion, list[Search]]:
-        results = []
-        if initial_body.search:
-            if not global_context.document_manager:
-                raise CollectionNotFoundException()
-
-            results = await global_context.document_manager.search_chunks(
-                request_context=inner_request_context,
-                elasticsearch_vector_store=inner_elasticsearch_vector_store,
-                elasticsearch_client=inner_elasticsearch_client,
-                postgres_session=inner_postgres_session,
-                redis_client=inner_redis_client,
-                model_registry=inner_model_registry,
-                collection_ids=initial_body.search_args.collection_ids,
-                document_ids=initial_body.search_args.document_ids,
-                metadata_filters=initial_body.search_args.metadata_filters,
-                query=initial_body.messages[-1]["content"],
-                method=initial_body.search_args.method,
-                limit=initial_body.search_args.limit,
-                offset=initial_body.search_args.offset,
-                rff_k=initial_body.search_args.rff_k,
-                score_threshold=initial_body.search_args.score_threshold,
-            )
-            if results:
-                chunks = "\n".join([result.chunk.content for result in results])
-                initial_body.messages[-1]["content"] = initial_body.search_args.template.format(
-                    prompt=initial_body.messages[-1]["content"], chunks=chunks
-                )
-
-        new_body = initial_body.model_dump()
-        new_body.pop("search", None)
-        new_body.pop("search_args", None)
-
-        results = [result.model_dump() for result in results]
-
-        return new_body, results
-
-    body, results = await retrieval_augmentation_generation(
-        initial_body=body,
-        inner_postgres_session=postgres_session,
-        inner_redis_client=redis_client,
-        inner_model_registry=model_registry,
-        inner_request_context=request_context,
-        inner_elasticsearch_vector_store=elasticsearch_vector_store,
-        inner_elasticsearch_client=elasticsearch_client,
-    )
-    additional_data = {"search_results": results} if results else {}
+    """Creates a model response for the given chat conversation."""
     model_provider = await model_registry.get_model_provider(
-        model=body["model"],
+        model=body.model,
         endpoint=EndpointRoute.CHAT_COMPLETIONS,
         postgres_session=postgres_session,
         redis_client=redis_client,
         request_context=request_context,
     )
 
-    request_content = RequestContent(
-        method="POST",
-        endpoint=EndpointRoute.CHAT_COMPLETIONS,
-        json=body,
-        model=body["model"],
-        additional_data=additional_data,
+    request_content = RequestContent(method=HTTPMethod.POST, endpoint=EndpointRoute.CHAT_COMPLETIONS, json=body.model_dump(), model=body.model)
+    request_content = await SearchTool.call(
+        request_content=request_content,
+        model_registry=model_registry,
+        postgres_session=postgres_session,
+        redis_client=redis_client,
+        request_context=request_context,
+        document_manager=document_manager,
+        elasticsearch_vector_store=elasticsearch_vector_store,
+        elasticsearch_client=elasticsearch_client,
     )
-    if not body.get("stream", False):
-        response = await model_provider.forward_request(request_content=request_content, redis_client=redis_client)
-        return JSONResponse(content=response.json(), status_code=response.status_code)
-    else:
+
+    if body.stream:
         stream_iter = model_provider.forward_stream(request_content=request_content, redis_client=redis_client)
         return StreamingResponseWithStatusCode(content=stream_iter, media_type="text/event-stream")
+
+    response = await model_provider.forward_request(request_content=request_content, redis_client=redis_client)
+    return JSONResponse(content=response.json(), status_code=response.status_code)

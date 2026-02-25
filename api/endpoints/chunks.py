@@ -3,11 +3,11 @@ from fastapi import APIRouter, Depends, Path, Query, Request, Security
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers._documentmanager import DocumentManager
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.schemas.chunks import Chunk, Chunks
-from api.utils.context import global_context, request_context
-from api.utils.dependencies import get_elasticsearch_client, get_elasticsearch_vector_store, get_postgres_session
-from api.utils.exceptions import ChunkNotFoundException
+from api.utils.context import request_context
+from api.utils.dependencies import get_document_manager, get_elasticsearch_client, get_elasticsearch_vector_store, get_postgres_session
 from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.CHUNKS.title()])
@@ -21,14 +21,12 @@ async def get_chunk(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> Chunk:
     """
     Get a chunk of a document.
     """
-    if not global_context.document_manager:  # no vector store available
-        raise ChunkNotFoundException()
-
-    chunks = await global_context.document_manager.get_document_chunks(
+    chunks = await document_manager.get_document_chunks(
         postgres_session=postgres_session,
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,
@@ -49,21 +47,19 @@ async def get_chunks(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     elasticsearch_vector_store: ElasticsearchVectorStore = Depends(get_elasticsearch_vector_store),
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> Chunks:
     """
     Get chunks of a document.
     """
-    if not global_context.document_manager:  # no vector store available
-        data = []
-    else:
-        data = await global_context.document_manager.get_document_chunks(
-            postgres_session=postgres_session,
-            elasticsearch_vector_store=elasticsearch_vector_store,
-            elasticsearch_client=elasticsearch_client,
-            document_id=document,
-            limit=limit,
-            offset=offset,
-            user_id=request_context.get().user_info.id,
-        )
+    data = await document_manager.get_document_chunks(
+        postgres_session=postgres_session,
+        elasticsearch_vector_store=elasticsearch_vector_store,
+        elasticsearch_client=elasticsearch_client,
+        document_id=document,
+        limit=limit,
+        offset=offset,
+        user_id=request_context.get().user_info.id,
+    )
 
     return Chunks(data=data)

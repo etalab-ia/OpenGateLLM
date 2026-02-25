@@ -7,12 +7,13 @@ from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers._documentmanager import DocumentManager
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
 from api.schemas.search import CreateSearch, Searches
-from api.utils.context import global_context
 from api.utils.dependencies import (
+    get_document_manager,
     get_elasticsearch_client,
     get_elasticsearch_vector_store,
     get_model_registry,
@@ -37,11 +38,12 @@ async def search(
     elasticsearch_client: AsyncElasticsearch = Depends(get_elasticsearch_client),
     model_registry: ModelRegistry = Depends(get_model_registry),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    document_manager: DocumentManager = Depends(get_document_manager),
 ) -> JSONResponse:
     """
     Get relevant chunks from the collections and a query.
     """
-    data = await global_context.document_manager.search_chunks(
+    data = await document_manager.search_chunks(
         postgres_session=postgres_session,
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,

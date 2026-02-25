@@ -7,6 +7,7 @@ import redis.asyncio as redis
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.helpers._documentmanager import DocumentManager
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers._usagemanager import UsageManager
 from api.helpers.models import ModelRegistry
@@ -68,12 +69,12 @@ def get_elasticsearch_client() -> AsyncElasticsearch:
     return global_context.elasticsearch_client
 
 
-def get_elasticsearch_vector_store() -> ElasticsearchVectorStore:
+def get_elasticsearch_vector_store(required: bool = True) -> ElasticsearchVectorStore:
     """
     Get the ElasticsearchVectorStore instance from the global context.
     """
 
-    if not global_context.elasticsearch_vector_store:
+    if required and not global_context.elasticsearch_vector_store:
         raise FeatureNotEnabledException()
 
     return global_context.elasticsearch_vector_store
@@ -99,3 +100,11 @@ async def get_usage_manager() -> UsageManager:
     """
 
     return global_context.usage_manager
+
+
+def get_document_manager() -> DocumentManager:
+    """
+    Get the DocumentManager instance from the global context.
+    """
+
+    return global_context.document_manager
