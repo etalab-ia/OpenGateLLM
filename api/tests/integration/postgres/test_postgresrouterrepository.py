@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 import pytest
 
 from api.domain.key.entities import MASTER_USER_ID
@@ -322,8 +324,8 @@ class TestGetRoutersPage:
         result = await repository.get_routers_page(limit=10, offset=0, sort_by=RouterSortField.NAME, sort_order=SortOrder.ASC)
 
         # Assert
-        names = [r.name for r in result.data]
-        assert names == sorted(names)
+        returned_names = [r.name for r in result.data]
+        assert returned_names == ["router_a", "router_b", "router_c"]
 
     async def test_sort_by_name_desc(self, repository, db_session):
         # Arrange
@@ -337,8 +339,9 @@ class TestGetRoutersPage:
         result = await repository.get_routers_page(limit=10, offset=0, sort_by=RouterSortField.NAME, sort_order=SortOrder.DESC)
 
         # Assert
-        names = [r.name for r in result.data]
-        assert names == sorted(names, reverse=True)
+        returned_names = [r.name for r in result.data]
+
+        assert returned_names == ["router_c", "router_b", "router_a"]
 
     async def test_returns_empty_page_when_offset_exceeds_total(self, repository, db_session):
         # Arrange
@@ -351,6 +354,36 @@ class TestGetRoutersPage:
 
         # Assert
         assert result.data == []
+
+    async def test_sort_by_id_asc(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        RouterSQLFactory(id=1235, user=user, name="router_a")
+        RouterSQLFactory(id=1233, user=user, name="router_b")
+        RouterSQLFactory(id=1234, user=user, name="router_c")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_routers_page(limit=10, offset=0, sort_by=RouterSortField.ID, sort_order=SortOrder.ASC)
+
+        # Assert
+        returned_ids = [r.id for r in result.data]
+        assert returned_ids == [1233, 1234, 1235]
+
+    async def test_sort_by_created_date_desc(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        RouterSQLFactory(id=1233, user=user, name="oldest", created=datetime.now() - timedelta(days=10))
+        RouterSQLFactory(id=1235, user=user, name="newest", created=datetime.now())
+        RouterSQLFactory(id=1234, user=user, name="middle", created=datetime.now() - timedelta(hours=1))
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_routers_page(limit=10, offset=0, sort_by=RouterSortField.CREATED, sort_order=SortOrder.DESC)
+
+        # Assert
+        returned_names = [r.name for r in result.data]
+        assert returned_names == ["newest", "middle", "oldest"]
 
 
 if __name__ == "__main__":
