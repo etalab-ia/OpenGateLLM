@@ -83,7 +83,7 @@ class PostgresRouterRepository(RouterRepository):
     async def get_all_routers(self) -> list[Router]:
         query = self._select_routers_with_provider_stats().distinct(RouterTable.id).order_by(RouterTable.id, ProviderTable.id)
         result = await self.postgres_session.execute(query)
-        aliases_by_router = await self.get_all_aliases_grouped_by_router()
+        aliases_by_router = await self.get_aliases_grouped_by_router()
         return [self._row_to_router_with_aliases(row, aliases_by_router.get(row.id, [])) for row in result.all()]
 
     async def get_routers_page(
@@ -93,26 +93,26 @@ class PostgresRouterRepository(RouterRepository):
         sort_by: RouterSortField = RouterSortField.ID,
         sort_order: SortOrder = SortOrder.ASC,
     ) -> RouterPage:
-        # DISTINCT ON requires ORDER BY to start with the DISTINCT column.
-        # A subquery lets us apply any sort order on top of deduplicated rows.
         distinct_routers = (self._select_routers_with_provider_stats().distinct(RouterTable.id).order_by(RouterTable.id, ProviderTable.id)).subquery()
 
-        sort_col = distinct_routers.c[sort_by.value]
-        order_expr = asc(sort_col) if sort_order == SortOrder.ASC else desc(sort_col)
+        sort_column = distinct_routers.c[sort_by.value]
+        sort_order_clause = asc(sort_column) if sort_order == SortOrder.ASC else desc(sort_column)
 
-        total_result = await self.postgres_session.execute(select(func.count()).select_from(RouterTable))
-        total = total_result.scalar()
+        routers_query = select(distinct_routers, func.count().over().label("total")).order_by(sort_order_clause).limit(limit).offset(offset)
+        result = await self.postgres_session.execute(routers_query)
 
-        data_query = select(distinct_routers).order_by(order_expr).limit(limit).offset(offset)
-        result = await self.postgres_session.execute(data_query)
+        rows = result.all()
+        total = rows[0].total if rows else 0
+        router_ids = [row.id for row in rows]
+        aliases_by_router = await self.get_aliases_grouped_by_router(router_ids)
+        routers = [self._row_to_router_with_aliases(row, aliases_by_router.get(row.id, [])) for row in rows]
 
-        aliases_by_router = await self.get_all_aliases_grouped_by_router()
-        data = [self._row_to_router_with_aliases(row, aliases_by_router.get(row.id, [])) for row in result.all()]
+        return RouterPage(total=total, data=routers)
 
-        return RouterPage(total=total, data=data)
-
-    async def get_all_aliases_grouped_by_router(self) -> dict[int, list[str]]:
+    async def get_aliases_grouped_by_router(self, router_ids: list[int] | None = None) -> dict[int, list[str]]:
         query = select(RouterAliasTable.router_id, RouterAliasTable.value)
+        if router_ids is not None:
+            query = query.where(RouterAliasTable.router_id.in_(router_ids))
         result = await self.postgres_session.execute(query)
         aliases: dict[int, list[str]] = {}
         for row in result.all():

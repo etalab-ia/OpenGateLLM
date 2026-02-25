@@ -2,7 +2,7 @@ import pytest
 
 from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model import ModelType as RouterType
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterSortField, SortOrder
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.infrastructure.postgres import PostgresRouterRepository
 from api.tests.integration.factories import OrganizationSQLFactory, RouterSQLFactory, UserSQLFactory
@@ -97,7 +97,7 @@ class TestGetAllAliases:
 
         # Act
         await db_session.flush()
-        aliases = await repository.get_all_aliases_grouped_by_router()
+        aliases = await repository.get_aliases_grouped_by_router()
         # Assert
         assert aliases == {
             router_1.id: ["alias1_m1", "alias2_m1"],
@@ -270,6 +270,87 @@ class TestGetOrganizationName:
         actual_organization_name = await repository.get_organization_name(user_id=user_without_organiztion.id)
         # Assert
         assert actual_organization_name == app_title
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestGetRoutersPage:
+    async def test_returns_correct_page_with_limit_and_offset(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        RouterSQLFactory(user=user, name="router_a")
+        RouterSQLFactory(user=user, name="router_b")
+        RouterSQLFactory(user=user, name="router_c")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_routers_page(limit=2, offset=0, sort_by=RouterSortField.NAME, sort_order=SortOrder.ASC)
+
+        # Assert
+        assert result.total == 3
+        assert len(result.data) == 2
+        assert result.data[0].name == "router_a"
+        assert result.data[1].name == "router_b"
+
+    async def test_total_is_consistent_across_pages(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        RouterSQLFactory(user=user, name="router_a")
+        RouterSQLFactory(user=user, name="router_b")
+        RouterSQLFactory(user=user, name="router_c")
+        RouterSQLFactory(user=user, name="router_d")
+        RouterSQLFactory(user=user, name="router_e")
+        RouterSQLFactory(user=user, name="router_f")
+        await db_session.flush()
+
+        # Act
+        first_page = await repository.get_routers_page(limit=4, offset=0)
+        second_page = await repository.get_routers_page(limit=4, offset=4)
+
+        # Assert
+        assert first_page.total == second_page.total
+        assert len(second_page.data) == 2
+
+    async def test_sort_by_name_asc(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        RouterSQLFactory(user=user, name="router_c")
+        RouterSQLFactory(user=user, name="router_a")
+        RouterSQLFactory(user=user, name="router_b")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_routers_page(limit=10, offset=0, sort_by=RouterSortField.NAME, sort_order=SortOrder.ASC)
+
+        # Assert
+        names = [r.name for r in result.data]
+        assert names == sorted(names)
+
+    async def test_sort_by_name_desc(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        RouterSQLFactory(user=user, name="router_c")
+        RouterSQLFactory(user=user, name="router_a")
+        RouterSQLFactory(user=user, name="router_b")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_routers_page(limit=10, offset=0, sort_by=RouterSortField.NAME, sort_order=SortOrder.DESC)
+
+        # Assert
+        names = [r.name for r in result.data]
+        assert names == sorted(names, reverse=True)
+
+    async def test_returns_empty_page_when_offset_exceeds_total(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        RouterSQLFactory(user=user, name="router_a")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_routers_page(limit=10, offset=100)
+
+        # Assert
+        assert result.data == []
 
 
 if __name__ == "__main__":
