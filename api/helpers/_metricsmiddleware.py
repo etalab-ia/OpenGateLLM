@@ -35,6 +35,7 @@ def inference_requests_duration_seconds() -> Callable[[Info], None]:
         "inference_requests_duration_seconds",
         "Duration of LLM requests in seconds.",
         labelnames=("endpoint", "model", "status_code"),
+        buckets=(0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 7.5, 10, 15, 20, 30, 45, 60, 90, 120),
     )
 
     def instrumentation(info: Info) -> None:
@@ -60,6 +61,7 @@ def inference_ttft_milliseconds() -> Callable[[Info], None]:
         "inference_ttft_milliseconds",
         "Time to first token for streaming LLM responses in milliseconds.",
         labelnames=("endpoint", "model", "status_code"),
+        buckets=(5, 10, 20, 30, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000),
     )
 
     def instrumentation(info: Info) -> None:
