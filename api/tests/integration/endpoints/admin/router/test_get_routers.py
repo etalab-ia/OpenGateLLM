@@ -48,7 +48,7 @@ class TestGetRouters:
         assert data["limit"] == 10
         assert len(data["data"]) == 7
 
-    async def test_pagination_params_with_params(self, client: AsyncClient, db_session):
+    async def test_happy_path_with_params(self, client: AsyncClient, db_session):
         RouterSQLFactory(user=self.admin_user, name="router_1")
         RouterSQLFactory(user=self.admin_user, name="router_2")
         RouterSQLFactory(user=self.admin_user, name="router_3")

@@ -2,7 +2,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.role.entities import PermissionType
 from api.domain.router.entities import RouterPage, RouterSortField, SortOrder
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.unit.use_case.factories import RouterFactory, UserInfoFactory
@@ -27,11 +26,6 @@ def use_case(router_repository, user_info_repository):
 @pytest.fixture
 def admin_user_info():
     return UserInfoFactory(id=1, admin=True)
-
-
-@pytest.fixture
-def provider_user_info():
-    return UserInfoFactory(id=2, permissions=[PermissionType.PROVIDE_MODELS], limits=[])
 
 
 @pytest.fixture
@@ -68,7 +62,7 @@ class TestGetRoutersUseCase:
         user_info_repository.get_user_info.assert_called_once_with(user_id=admin_user_info.id)
 
     @pytest.mark.asyncio
-    async def test_should_return_cannot_read_routers_error_when_user_has_no_permission(
+    async def test_should_return_cannot_read_routers_error_when_user_is_not_an_admin(
         self, use_case, router_repository, unauthorized_user_info, sample_command
     ):
         # Arrange

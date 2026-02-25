@@ -12,7 +12,6 @@ from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    CannotReadRoutersHTTPException,
     InternalServerHTTPException,
     NotAdminUserHTTPException,
     RouterAliasAlreadyExistsHTTPException,
@@ -90,7 +89,7 @@ async def create_router(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([RouterNotFoundHTTPException, CannotReadRoutersHTTPException]),
+    responses=get_documentation_responses([RouterNotFoundHTTPException, NotAdminUserHTTPException]),
 )
 async def get_router(
     router_id: int = Path(description="The router ID."),
@@ -126,7 +125,7 @@ async def get_router(
     path=EndpointRoute.ADMIN_ROUTERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([CannotReadRoutersHTTPException]),
+    responses=get_documentation_responses([NotAdminUserHTTPException]),
 )
 async def get_routers(
     offset: int = Query(default=0, ge=0, description="Number of routers to skip."),
@@ -134,7 +133,7 @@ async def get_routers(
     sort_by: RouterSortField = Query(default=RouterSortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_routers_use_case: GetRoutersUseCase = Depends(get_routers_use_case_factory),
-    request_context: RequestContext = Depends(get_request_context),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> Routers:
     command = GetRoutersCommand(
         user_id=request_context.get().user_id,

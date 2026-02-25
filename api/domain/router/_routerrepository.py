@@ -29,7 +29,7 @@ class RouterRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_aliases_by_router_id(self, router_id: int) -> Router | None:
+    async def get_aliases_by_router_id(self, router_id: int) -> list[str]:
         pass
 
     @abstractmethod
