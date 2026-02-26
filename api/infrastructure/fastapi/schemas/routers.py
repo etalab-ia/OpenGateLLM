@@ -41,7 +41,7 @@ class CreateRouterResponse(BaseModel):
 
 class UpdateRouter(BaseModel):
     name: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Name of the model router.", examples=["model-router-1"])  # fmt: off
-    type: ModelType | None = Field(default=None, description="Type of the model router. It will be used to identify the model router type.", examples=["text-generation"])  # fmt: off
+    router_type: ModelType | None = Field(default=None, description="Type of the model router. It will be used to identify the model router type.", examples=["text-generation"])  # fmt: off
     aliases: list[constr(strip_whitespace=True, min_length=1, max_length=64)] | None = Field(default=None, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]])  # fmt: off
     load_balancing_strategy: RouterLoadBalancingStrategy | None = Field(default=None, description="Routing strategy for load balancing between providers of the model. It will be used to identify the model type.", examples=["least_busy"])  # fmt: off
     cost_prompt_tokens: float | None = Field(default=None, ge=0.0, description="Cost of a million prompt tokens (decrease user budget)")

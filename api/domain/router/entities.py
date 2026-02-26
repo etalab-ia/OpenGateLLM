@@ -42,3 +42,18 @@ class Router(BaseModel):
     providers: int = Field(default=0, description="Number of providers in the router.")  # fmt: off
     created: int = Field(..., description="Time of creation, as Unix timestamp.")  # fmt: off
     updated: int = Field(..., description="Time of last update, as Unix timestamp.")  # fmt: off
+
+    def with_name(self, name: str) -> "Router":
+        return self.model_copy(update={"name": name})
+
+    def with_type(self, router_type: RouterType) -> "Router":
+        return self.model_copy(update={"type": router_type})
+
+    def with_load_balancing_strategy(self, strategy: RouterLoadBalancingStrategy) -> "Router":
+        return self.model_copy(update={"load_balancing_strategy": strategy})
+
+    def with_costs(self, prompt_tokens: float, completion_tokens: float) -> "Router":
+        return self.model_copy(update={"cost_prompt_tokens": prompt_tokens, "cost_completion_tokens": completion_tokens})
+
+    def with_aliases(self, aliases: list[str]) -> "Router":
+        return self.model_copy(update={"aliases": aliases})

@@ -48,3 +48,11 @@ class RouterRepository(ABC):
     @abstractmethod
     async def delete_router(self, router_id: int) -> Router | None:
         pass
+
+    @abstractmethod
+    async def get_aliases(self, filtered_aliases: list[str] | None = None) -> list[str]:
+        pass
+
+    @abstractmethod
+    async def update_router(self, router: Router) -> Router | RouterNameAlreadyExistsError:
+        pass

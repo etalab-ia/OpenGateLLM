@@ -14,6 +14,24 @@ from api.sql.models import RouterAlias as RouterAliasTable
 from api.tests.integration.factories import OrganizationSQLFactory, RouterSQLFactory, UserSQLFactory
 
 
+def to_router_domain(router_sql, aliases: list[str] | None = None) -> Router:
+    return Router(
+        id=router_sql.id,
+        name=router_sql.name,
+        user_id=MASTER_USER_ID if router_sql.user_id is None else router_sql.user_id,
+        type=RouterType(router_sql.type),
+        aliases=aliases or [],
+        load_balancing_strategy=RouterLoadBalancingStrategy(router_sql.load_balancing_strategy),
+        vector_size=None,
+        max_context_length=None,
+        cost_prompt_tokens=router_sql.cost_prompt_tokens or 0.0,
+        cost_completion_tokens=router_sql.cost_completion_tokens or 0.0,
+        providers=0,
+        created=int(router_sql.created.timestamp()),
+        updated=int(router_sql.updated.timestamp()),
+    )
+
+
 @pytest.fixture
 def app_title():
     return "Test App"
@@ -494,6 +512,107 @@ class TestDeleteRouter:
         assert router_after_delete is None
         assert aliases == []
         assert providers == []
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestUpdateRouter:
+    async def test_update_router_should_return_router_with_updated_name(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        router = RouterSQLFactory(user=user, name="original-name")
+        await db_session.flush()
+
+        # Act
+        result = await repository.update_router(to_router_domain(router).with_name("updated-name"))
+
+        # Assert
+        assert isinstance(result, Router)
+        assert result.name == "updated-name"
+        persisted = (await db_session.execute(select(RouterTable).where(RouterTable.id == router.id))).scalar_one()
+        assert persisted.name == "updated-name"
+
+    async def test_update_router_should_return_router_with_updated_type(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        router = RouterSQLFactory(user=user, name="router-type-update", type=RouterType.TEXT_GENERATION)
+        await db_session.flush()
+
+        # Act
+        result = await repository.update_router(to_router_domain(router).with_type(RouterType.TEXT_EMBEDDINGS_INFERENCE))
+
+        # Assert
+        assert isinstance(result, Router)
+        assert result.type == RouterType.TEXT_EMBEDDINGS_INFERENCE
+
+    async def test_update_router_should_return_router_with_updated_costs(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        router = RouterSQLFactory(user=user, name="router-costs-update", cost_prompt_tokens=0.001, cost_completion_tokens=0.002)
+        await db_session.flush()
+
+        # Act
+        result = await repository.update_router(to_router_domain(router).with_costs(0.010, 0.020))
+
+        # Assert
+        assert isinstance(result, Router)
+        assert result.cost_prompt_tokens == 0.010
+        assert result.cost_completion_tokens == 0.020
+
+    async def test_update_router_should_replace_aliases_in_database(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        router = RouterSQLFactory(user=user, name="router-aliases-update", alias=["old-alias"])
+        await db_session.flush()
+
+        # Act
+        await repository.update_router(to_router_domain(router, aliases=["old-alias"]).with_aliases(["new-alias-1", "new-alias-2"]))
+
+        # Assert
+        await db_session.flush()
+        aliases = (await db_session.execute(select(RouterAliasTable.value).where(RouterAliasTable.router_id == router.id))).scalars().all()
+        assert set(aliases) == {"new-alias-1", "new-alias-2"}
+
+    async def test_update_router_should_delete_all_aliases_when_given_empty_list(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        router = RouterSQLFactory(user=user, name="router-aliases-clear", alias=["alias-to-remove"])
+        await db_session.flush()
+
+        # Act
+        await repository.update_router(to_router_domain(router, aliases=["alias-to-remove"]).with_aliases([]))
+
+        # Assert
+        await db_session.flush()
+        aliases = (await db_session.execute(select(RouterAliasTable).where(RouterAliasTable.router_id == router.id))).scalars().all()
+        assert aliases == []
+
+    async def test_update_router_should_not_touch_aliases_when_aliases_is_none(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        router = RouterSQLFactory(user=user, name="router-aliases-untouched", alias=["kept-alias"])
+        await db_session.flush()
+
+        # Act
+        await repository.update_router(to_router_domain(router, aliases=["kept-alias"]).model_copy(update={"aliases": None}))
+
+        # Assert
+        await db_session.flush()
+        aliases = (await db_session.execute(select(RouterAliasTable.value).where(RouterAliasTable.router_id == router.id))).scalars().all()
+        assert aliases == ["kept-alias"]
+
+    async def test_update_router_should_return_router_name_already_exists_when_name_is_duplicate(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        RouterSQLFactory(user=user, name="taken-name")
+        router = RouterSQLFactory(user=user, name="router-to-rename")
+        await db_session.flush()
+
+        # Act
+        result = await repository.update_router(to_router_domain(router).with_name("taken-name"))
+
+        # Assert
+        assert isinstance(result, RouterNameAlreadyExistsError)
+        assert result.name == "taken-name"
 
 
 if __name__ == "__main__":

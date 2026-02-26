@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, Select, asc, cast, delete, desc, func, insert, select
+from sqlalchemy import Integer, Select, asc, cast, delete, desc, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -202,4 +202,35 @@ class PostgresRouterRepository(RouterRepository):
         if router is None:
             return None
         await self.postgres_session.execute(delete(RouterTable).where(RouterTable.id == router_id))
+        return router
+
+    async def update_router(self, router: Router) -> Router | RouterNameAlreadyExistsError:
+        db_user_id = None if router.user_id == MASTER_USER_ID else router.user_id
+
+        try:
+            await self.postgres_session.execute(
+                update(RouterTable)
+                .where(RouterTable.id == router.id)
+                .values(
+                    user_id=db_user_id,
+                    name=router.name,
+                    type=router.type.value,
+                    load_balancing_strategy=router.load_balancing_strategy.value,
+                    cost_prompt_tokens=router.cost_prompt_tokens,
+                    cost_completion_tokens=router.cost_completion_tokens,
+                )
+            )
+
+            if router.aliases is not None:
+                await self.postgres_session.execute(delete(RouterAliasTable).where(RouterAliasTable.router_id == router.id))
+                if router.aliases:
+                    await self.postgres_session.execute(
+                        insert(RouterAliasTable),
+                        [{"value": alias, "router_id": router.id} for alias in router.aliases],
+                    )
+        except IntegrityError as e:
+            if "router_name_key" in str(e.orig):
+                return RouterNameAlreadyExistsError(name=router.name)
+            raise
+
         return router

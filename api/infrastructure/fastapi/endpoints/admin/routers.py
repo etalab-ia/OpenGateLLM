@@ -9,6 +9,7 @@ from api.dependencies import (
     get_one_router_use_case_factory,
     get_request_context,
     get_routers_use_case_factory,
+    update_router_use_case_factory,
 )
 from api.domain.router.entities import RouterSortField, SortOrder
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
@@ -24,7 +25,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RouterAlreadyExistsHTTPException,
     RouterNotFoundHTTPException,
 )
-from api.infrastructure.fastapi.schemas.routers import CreateRouter, CreateRouterResponse, Router, Routers
+from api.infrastructure.fastapi.schemas.routers import CreateRouter, CreateRouterResponse, Router, Routers, UpdateRouter
 from api.use_cases.admin.routers import (
     CreateRouterCommand,
     CreateRouterUseCase,
@@ -39,6 +40,7 @@ from api.use_cases.admin.routers import (
     GetRoutersUseCase,
     GetRoutersUseCaseSuccess,
 )
+from api.use_cases.admin.routers._updaterouterusecase import UpdateRouterCommand, UpdateRouterUseCase, UpdateRouterUseCaseSuccess
 from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
@@ -209,3 +211,50 @@ async def delete_router(
             raise RouterNotFoundHTTPException(not_found_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+
+
+@router.patch(
+    path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
+    dependencies=[Security(dependency=get_current_key)],
+    responses=get_documentation_responses([RouterNotFoundHTTPException, NotAdminUserHTTPException]),
+    status_code=200,
+)
+async def update_router(
+    router_id: int = Path(description="The ID of the router to update (router ID, eg. 123)."),
+    update_router_use_case: UpdateRouterUseCase = Depends(update_router_use_case_factory),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    body: UpdateRouter = Body(description="The router update request."),
+) -> Router:
+    command = UpdateRouterCommand(
+        user_id=request_context.get().user_id,
+        router_id=router_id,
+        name=body.name,
+        router_type=body.router_type,
+        aliases=body.aliases,
+        load_balancing_strategy=body.load_balancing_strategy,
+        cost_prompt_tokens=body.cost_prompt_tokens,
+        cost_completion_tokens=body.cost_completion_tokens,
+    )
+    try:
+        result = await update_router_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing update_router use case",
+            extra={
+                "user_id": command.user_id,
+                "router_id": command.router_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
+    match result:
+        case UpdateRouterUseCaseSuccess(updated_router):
+            return Router.model_validate(updated_router, from_attributes=True)
+        case RouterNotFoundError(router_id=not_found_id):
+            raise RouterNotFoundHTTPException(not_found_id)
+        case UserIsNotAdminError():
+            raise NotAdminUserHTTPException()
+        case RouterAliasAlreadyExistsError(name):
+            raise RouterAliasAlreadyExistsHTTPException(name)
+        case RouterNameAlreadyExistsError(name):
+            raise RouterAlreadyExistsHTTPException(name)
