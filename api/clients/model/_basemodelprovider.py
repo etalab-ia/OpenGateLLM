@@ -130,10 +130,8 @@ class BaseModelProvider(ABC):
                 usage.completion_tokens += completion_tokens
                 usage.total_tokens += total_tokens
                 usage.cost += cost
-                usage.carbon.kgCO2eq.min += carbon_footprint.kgCO2eq.min
-                usage.carbon.kgCO2eq.max += carbon_footprint.kgCO2eq.max
-                usage.carbon.kWh.min += carbon_footprint.kWh.min
-                usage.carbon.kWh.max += carbon_footprint.kWh.max
+                usage.carbon.kgCO2eq += carbon_footprint.kgCO2eq
+                usage.carbon.kWh += carbon_footprint.kWh
                 usage.requests += 1
 
                 request_context.get().usage = usage

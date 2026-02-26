@@ -143,7 +143,7 @@ def run_docker_compose(console: Console, env: EnvFile, local_api: bool = False, 
             "--quiet-pull",
             "--wait",
         ]
-        console.print(f":whale: $ {" ".join(command)}", style="dim")
+        console.print(f":whale: $ {' '.join(command)}", style="dim")
         completed = subprocess.run(command, cwd=project_root, check=False)
         console.print()
         return completed.returncode
@@ -269,7 +269,7 @@ def run_local_api(console: Console, env: EnvFile) -> tuple[subprocess.Popen, str
         ),
     ]
 
-    console.print(f":sparkles: $ {command[-1].split("&& ")[-1]}", style="dim")
+    console.print(f":sparkles: $ {command[-1].split('&& ')[-1]}", style="dim")
     process = subprocess.Popen(
         command,
         cwd=project_root,
@@ -292,13 +292,14 @@ def run_local_playground(console: Console, env: EnvFile) -> tuple[subprocess.Pop
         (
             f"set -a; . {env._env_file}; "
             "cd ./playground; "
+            f"export REDIS_HOST=localhost; "
             f'export CONFIG_FILE="{config_file}"; '
             f"export OPENGATELLM_URL=http://localhost:{env.api_port}; "
             f"reflex run --env dev --loglevel {log_level}"
         ),
     ]
 
-    console.print(f":laptop_computer: $ {command[-1].split("; ")[-1]}", style="dim")
+    console.print(f":laptop_computer: $ {command[-1].split('; ')[-1]}", style="dim")
     process = subprocess.Popen(
         command,
         cwd=project_root,

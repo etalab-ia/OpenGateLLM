@@ -1,4 +1,4 @@
-from logging.config import dictConfig
+from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
@@ -9,31 +9,8 @@ from api.utils.configuration import configuration
 config = context.config
 config.set_main_option(name="sqlalchemy.url", value=configuration.dependencies.postgres.url.replace("+asyncpg", "").replace("+aiosqlite", ""))
 
-dictConfig(
-    {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "default": {
-                "()": "uvicorn.logging.DefaultFormatter",
-                "fmt": "%(levelprefix)s %(message)s",
-                "use_colors": True,
-            }
-        },
-        "handlers": {
-            "default": {
-                "class": "logging.StreamHandler",
-                "formatter": "default",
-                "stream": "ext://sys.stderr",
-            }
-        },
-        "root": {"handlers": ["default"], "level": "WARNING"},
-        "loggers": {
-            "alembic": {"handlers": ["default"], "level": "INFO", "propagate": False},
-            "sqlalchemy.engine": {"handlers": ["default"], "level": "WARNING", "propagate": False},
-        },
-    }
-)
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
 

@@ -16,11 +16,13 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
 
   playground:
     image: ghcr.io/etalab-ia/opengatellm/playground:latest
     environment:
-      - "OPENGATELLM_URL=${OPENGATELLM_URL:-http://api:${API_PORT:-8000}}"
+      - "OPENGATELLM_URL=${OPENGATELLM_URL:-http://api:8000}"
       - "REDIS_HOST=redis"
       - "REDIS_PORT=${REDIS_PORT:-6379}"
     ports:

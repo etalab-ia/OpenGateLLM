@@ -12,7 +12,7 @@ class AuthState(rx.State):
 
     is_authenticated: bool = False
     user_id: int | None = None
-    user_email: str | None = None
+    user_email: str
     user_name: str | None = None
     api_key: str | None = None
     api_key_id: int | None = None

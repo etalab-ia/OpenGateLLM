@@ -7,8 +7,6 @@ from sqlalchemy.future import select
 
 from api.schemas.me.usage import (
     CarbonFootprintUsage,
-    CarbonFootprintUsageKgCO2eq,
-    CarbonFootprintUsageKWh,
     EndpointUsage,
     MetricsUsage,
     Usage,
@@ -46,10 +44,8 @@ class UsageManager:
                 UsageTable.cost,
                 UsageTable.latency,
                 UsageTable.ttft,
-                UsageTable.kwh_min,
-                UsageTable.kwh_max,
-                UsageTable.kgco2eq_min,
-                UsageTable.kgco2eq_max,
+                UsageTable.kwh,
+                UsageTable.kgco2eq,
                 cast(func.extract("epoch", UsageTable.created), Integer).label("created"),
             )
             .where(
@@ -83,20 +79,8 @@ class UsageManager:
                         completion_tokens=row.completion_tokens,
                         total_tokens=row.total_tokens,
                         cost=row.cost,
-                        carbon=CarbonFootprintUsage(
-                            kWh=CarbonFootprintUsageKWh(
-                                min=row.kwh_min,
-                                max=row.kwh_max,
-                            ),
-                            kgCO2eq=CarbonFootprintUsageKgCO2eq(
-                                min=row.kgco2eq_min,
-                                max=row.kgco2eq_max,
-                            ),
-                        ),
-                        metrics=MetricsUsage(
-                            latency=row.latency,
-                            ttft=row.ttft,
-                        ),
+                        carbon=CarbonFootprintUsage(kWh=row.kwh, kgCO2eq=row.kgco2eq),
+                        metrics=MetricsUsage(latency=row.latency, ttft=row.ttft),
                     ),
                 )
             )

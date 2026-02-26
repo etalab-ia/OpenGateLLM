@@ -48,10 +48,8 @@ class Usage(Base):
     completion_tokens: Mapped[float | None]
     total_tokens: Mapped[int | None]
     cost: Mapped[float | None]
-    kwh_min: Mapped[float | None]
-    kwh_max: Mapped[float | None]
-    kgco2eq_min: Mapped[float | None]
-    kgco2eq_max: Mapped[float | None]
+    kwh: Mapped[float | None]
+    kgco2eq: Mapped[float | None]
 
     user: Mapped["User"] = relationship(back_populates="usage")
     token: Mapped[Optional["Token"]] = relationship(back_populates="usage")

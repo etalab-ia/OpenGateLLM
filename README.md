@@ -100,6 +100,3 @@ OpenGateLLM is still under *beta version*, major breaking changes may occur. Che
 <a href="https://www.centralesupelec.fr"><img src="./docs/static/img/centralsupelec_logo.png" alt="CentraleSupélec logo" width="200" style="margin-right: 40px"></a>
   </ul>
 </div>
-
-
-![OpenGateLLM CLI](demo.gif)

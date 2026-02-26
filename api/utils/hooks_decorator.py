@@ -81,10 +81,8 @@ def set_usage_from_context(usage: Usage):
     usage.completion_tokens = context.usage.completion_tokens
     usage.total_tokens = context.usage.total_tokens
     usage.cost = context.usage.cost
-    usage.kwh_min = context.usage.carbon.kWh.min
-    usage.kwh_max = context.usage.carbon.kWh.max
-    usage.kgco2eq_min = context.usage.carbon.kgCO2eq.min
-    usage.kgco2eq_max = context.usage.carbon.kgCO2eq.max
+    usage.kwh = context.usage.carbon.kWh
+    usage.kgco2eq = context.usage.carbon.kgCO2eq
     usage.ttft = context.ttft
     usage.latency = context.latency
 

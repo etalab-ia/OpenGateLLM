@@ -9,6 +9,5 @@ class Usage(Entity):
     completion_tokens: int | None = None
     total_tokens: int | None = None
     cost: float | None = None
-    kgco2eq_min: float | None = None
-    kgco2eq_max: float | None = None
+    kgco2eq: float | None = None
     created: str | None = None

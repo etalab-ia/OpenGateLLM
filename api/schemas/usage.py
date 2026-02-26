@@ -3,19 +3,9 @@ from pydantic import Field
 from api.schemas import BaseModel
 
 
-class CarbonFootprintUsageKWh(BaseModel):
-    min: float = Field(default=0.0, description="Minimum carbon footprint in kWh.")
-    max: float = Field(default=0.0, description="Maximum carbon footprint in kWh.")
-
-
-class CarbonFootprintUsageKgCO2eq(BaseModel):
-    min: float = Field(default=0.0, description="Minimum carbon footprint in kgCO2eq (global warming potential).")
-    max: float = Field(default=0.0, description="Maximum carbon footprint in kgCO2eq (global warming potential).")
-
-
 class CarbonFootprintUsage(BaseModel):
-    kWh: CarbonFootprintUsageKWh = Field(default_factory=CarbonFootprintUsageKWh)
-    kgCO2eq: CarbonFootprintUsageKgCO2eq = Field(default_factory=CarbonFootprintUsageKgCO2eq)
+    kWh: float = Field(default=0.0, description="Carbon footprint in kWh.")
+    kgCO2eq: float = Field(default=0.0, description="Carbon footprint in kgCO2eq (global warming potential).")
 
 
 class Usage(BaseModel):
