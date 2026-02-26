@@ -102,4 +102,4 @@ OpenGateLLM is still under *beta version*, major breaking changes may occur. Che
 </div>
 
 
-![OpenGateLLM CLI](docs/static/demo.gif)
+![OpenGateLLM CLI](demo.gif)
