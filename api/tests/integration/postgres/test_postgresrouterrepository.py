@@ -9,6 +9,8 @@ from api.domain.router.entities import Router, RouterLoadBalancingStrategy, Rout
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.infrastructure.postgres import PostgresRouterRepository
 from api.sql.models import Provider as ProviderTable
+from api.sql.models import Router as RouterTable
+from api.sql.models import RouterAlias as RouterAliasTable
 from api.tests.integration.factories import OrganizationSQLFactory, RouterSQLFactory, UserSQLFactory
 
 
@@ -389,6 +391,69 @@ class TestGetRoutersPage:
 
 
 @pytest.mark.asyncio(loop_scope="session")
+class TestGetRouterById:
+    async def test_get_router_by_id_should_return_router_when_it_exists(self, repository, db_session):
+        # Arrange
+        router = RouterSQLFactory(
+            name="router_by_id",
+            type=RouterType.TEXT_GENERATION,
+            cost_prompt_tokens=0.001,
+            cost_completion_tokens=0.002,
+            providers=2,
+            alias=["alias1", "alias2"],
+        )
+        first_provider = router.provider[0]
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_router_by_id(router.id)
+
+        # Assert
+        assert isinstance(result, Router)
+        assert result.id == router.id
+        assert result.name == "router_by_id"
+        assert result.type == RouterType.TEXT_GENERATION
+        assert result.cost_prompt_tokens == 0.001
+        assert result.cost_completion_tokens == 0.002
+        assert result.providers == 2
+        assert result.aliases == ["alias1", "alias2"]
+        assert result.max_context_length == first_provider.max_context_length
+        assert result.vector_size == first_provider.vector_size
+
+    async def test_get_router_by_id_should_return_none_when_router_does_not_exist(self, repository, db_session):
+        # Act
+        result = await repository.get_router_by_id(router_id=999999)
+
+        # Assert
+        assert result is None
+
+    async def test_get_router_by_id_should_return_router_without_aliases_when_none_set(self, repository, db_session):
+        # Arrange
+        router = RouterSQLFactory(name="router_no_alias", alias=[])
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_router_by_id(router.id)
+
+        # Assert
+        assert isinstance(result, Router)
+        assert result.id == router.id
+        assert result.aliases == []
+
+    async def test_get_router_by_id_should_map_null_user_id_to_master_user_id(self, repository, db_session):
+        # Arrange
+        router = RouterSQLFactory(user=None, name="master-router-by-id", type=RouterType.TEXT_GENERATION)
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_router_by_id(router.id)
+
+        # Assert
+        assert isinstance(result, Router)
+        assert result.user_id == MASTER_USER_ID
+
+
+@pytest.mark.asyncio(loop_scope="session")
 class TestDeleteRouter:
     async def test_delete_router_should_return_the_deleted_router_when_router_exists(self, repository, db_session):
         # Arrange
@@ -422,9 +487,12 @@ class TestDeleteRouter:
         await repository.delete_router(router.id)
 
         # Assert
-        assert await repository.get_router_by_id(router.id) is None
-        assert await repository.get_aliases_by_router_id(router.id) == []
+        await db_session.flush()
+        router_after_delete = (await db_session.execute(select(RouterTable).where(RouterTable.id == router.id))).scalar_one_or_none()
+        aliases = (await db_session.execute(select(RouterAliasTable).where(RouterAliasTable.router_id == router.id))).scalars().all()
         providers = (await db_session.execute(select(ProviderTable).where(ProviderTable.router_id == router.id))).scalars().all()
+        assert router_after_delete is None
+        assert aliases == []
         assert providers == []
 
 
