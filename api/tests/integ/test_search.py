@@ -155,7 +155,7 @@ class TestSearch:
 
         self._create_document_with_chunk(client=client, collection_id=second_collection_id, chunks=[{"content": "Test"}])
 
-        data = {"query": "Test", "limit": 10}
+        data = {"query": "Test", "limit": 100}
         response = client.post_without_permissions(url=f"/v1{EndpointRoute.SEARCH}", json=data)
         assert response.status_code == 200, response.text
         searches = Searches(**response.json())
