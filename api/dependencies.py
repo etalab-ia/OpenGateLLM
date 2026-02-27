@@ -9,8 +9,7 @@ from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import PostgresKeyRepository, PostgresProviderRepository, PostgresRouterRepository, PostgresUserInfoRepository
 from api.schemas.core.context import RequestContext
 from api.use_cases.admin.providers import CreateProviderUseCase, DeleteProviderUseCase
-from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase
-from api.use_cases.admin.routers._updaterouterusecase import UpdateRouterUseCase
+from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
 from api.use_cases.models import GetModelsUseCase
 from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context

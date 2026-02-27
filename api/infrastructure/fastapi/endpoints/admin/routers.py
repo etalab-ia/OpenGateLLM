@@ -39,8 +39,10 @@ from api.use_cases.admin.routers import (
     GetRoutersCommand,
     GetRoutersUseCase,
     GetRoutersUseCaseSuccess,
+    UpdateRouterCommand,
+    UpdateRouterUseCase,
+    UpdateRouterUseCaseSuccess,
 )
-from api.use_cases.admin.routers._updaterouterusecase import UpdateRouterCommand, UpdateRouterUseCase, UpdateRouterUseCaseSuccess
 from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
@@ -216,7 +218,9 @@ async def delete_router(
 @router.patch(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
     dependencies=[Security(dependency=get_current_key)],
-    responses=get_documentation_responses([RouterNotFoundHTTPException, NotAdminUserHTTPException]),
+    responses=get_documentation_responses(
+        [RouterNotFoundHTTPException, NotAdminUserHTTPException, RouterAliasAlreadyExistsHTTPException, RouterAlreadyExistsHTTPException]
+    ),
     status_code=200,
 )
 async def update_router(
@@ -248,13 +252,13 @@ async def update_router(
         )
         raise InternalServerHTTPException()
     match result:
-        case UpdateRouterUseCaseSuccess(updated_router):
+        case UpdateRouterUseCaseSuccess(router=updated_router):
             return Router.model_validate(updated_router, from_attributes=True)
         case RouterNotFoundError(router_id=not_found_id):
             raise RouterNotFoundHTTPException(not_found_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
-        case RouterAliasAlreadyExistsError(name):
-            raise RouterAliasAlreadyExistsHTTPException(name)
+        case RouterAliasAlreadyExistsError(aliases):
+            raise RouterAliasAlreadyExistsHTTPException(aliases)
         case RouterNameAlreadyExistsError(name):
             raise RouterAlreadyExistsHTTPException(name)

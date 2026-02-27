@@ -52,8 +52,11 @@ class Router(BaseModel):
     def with_load_balancing_strategy(self, strategy: RouterLoadBalancingStrategy) -> "Router":
         return self.model_copy(update={"load_balancing_strategy": strategy})
 
-    def with_costs(self, prompt_tokens: float, completion_tokens: float) -> "Router":
-        return self.model_copy(update={"cost_prompt_tokens": prompt_tokens, "cost_completion_tokens": completion_tokens})
+    def with_cost_prompt_tokens(self, prompt_tokens: float) -> "Router":
+        return self.model_copy(update={"cost_prompt_tokens": prompt_tokens})
+
+    def with_cost_completion_tokens(self, completion_tokens: float) -> "Router":
+        return self.model_copy(update={"cost_completion_tokens": completion_tokens})
 
     def with_aliases(self, aliases: list[str]) -> "Router":
         return self.model_copy(update={"aliases": aliases})

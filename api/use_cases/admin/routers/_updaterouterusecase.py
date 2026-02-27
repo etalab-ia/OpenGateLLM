@@ -50,26 +50,28 @@ class UpdateRouterUseCase:
 
         if command.aliases:
             existing_aliases = await self.router_repository.get_aliases()
-            conflicting_aliases = set(command.aliases) & (set(existing_aliases) - set(router.aliases))
+            conflicting_aliases = set(command.aliases) & (set(existing_aliases) - set(router.aliases or []))
             if conflicting_aliases:
                 return RouterAliasAlreadyExistsError(aliases=list(conflicting_aliases))
 
-        updated_router = router
+        router_to_persist = router
         if command.name is not None:
-            updated_router = updated_router.with_name(command.name)
+            router_to_persist = router_to_persist.with_name(command.name)
         if command.router_type is not None:
-            updated_router = updated_router.with_type(command.router_type)
+            router_to_persist = router_to_persist.with_type(command.router_type)
         if command.load_balancing_strategy is not None:
-            updated_router = updated_router.with_load_balancing_strategy(command.load_balancing_strategy)
+            router_to_persist = router_to_persist.with_load_balancing_strategy(command.load_balancing_strategy)
         if command.cost_prompt_tokens is not None:
-            updated_router = updated_router.with_costs(command.cost_prompt_tokens, command.cost_completion_tokens)
+            router_to_persist = router_to_persist.with_cost_prompt_tokens(command.cost_prompt_tokens)
+        if command.cost_completion_tokens is not None:
+            router_to_persist = router_to_persist.with_cost_completion_tokens(command.cost_completion_tokens)
         if command.aliases is not None:
-            updated_router = updated_router.with_aliases(command.aliases)
+            router_to_persist = router_to_persist.with_aliases(command.aliases)
 
-        if updated_router == router:
+        if router_to_persist == router:
             return UpdateRouterUseCaseSuccess(router=router)
 
-        result = await self.router_repository.update_router(router=updated_router)
+        result = await self.router_repository.update_router(router_to_update=router_to_persist)
 
         match result:
             case Router() as updated_router:

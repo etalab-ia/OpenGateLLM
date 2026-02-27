@@ -551,7 +551,7 @@ class TestUpdateRouter:
         await db_session.flush()
 
         # Act
-        result = await repository.update_router(to_router_domain(router).with_costs(0.010, 0.020))
+        result = await repository.update_router(to_router_domain(router).with_cost_prompt_tokens(0.010).with_cost_completion_tokens(0.020))
 
         # Assert
         assert isinstance(result, Router)

@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from api.domain.model import ModelType as RouterType
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy
+from api.domain.router.entities import RouterLoadBalancingStrategy
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.unit.use_case.factories import RouterFactory, UserInfoFactory
@@ -36,7 +36,7 @@ def unauthorized_user_info():
 
 
 @pytest.fixture
-def sample_router() -> Router:
+def sample_router():
     return RouterFactory(id=42, user_id=1, name="original-name", aliases=[])
 
 
@@ -50,7 +50,8 @@ class TestUpdateRouterUseCase:
             sample_router.with_name("new-name")
             .with_type(RouterType.TEXT_EMBEDDINGS_INFERENCE)
             .with_load_balancing_strategy(RouterLoadBalancingStrategy.LEAST_BUSY)
-            .with_costs(0.005, 0.010)
+            .with_cost_prompt_tokens(0.005)
+            .with_cost_completion_tokens(0.010)
             .with_aliases(["alias-a", "alias-b"])
         )
         use_case.user_info_repository.get_user_info.return_value = admin_user_info
@@ -77,7 +78,7 @@ class TestUpdateRouterUseCase:
         assert result.router == updated_router
         user_info_repository.get_user_info.assert_called_once_with(user_id=admin_user_info.id)
         router_repository.get_router_by_id.assert_called_once_with(router_id=42)
-        router_repository.update_router.assert_called_once_with(router=updated_router)
+        router_repository.update_router.assert_called_once_with(router_to_update=updated_router)
 
     @pytest.mark.asyncio
     async def test_should_return_user_is_not_admin_error_when_user_is_not_admin(self, use_case, router_repository, unauthorized_user_info):
@@ -138,7 +139,7 @@ class TestUpdateRouterUseCase:
 
         # Assert
         assert isinstance(result, UpdateRouterUseCaseSuccess)
-        router_repository.update_router.assert_called_once_with(router=router.with_aliases(["own-alias", "new-alias"]))
+        router_repository.update_router.assert_called_once_with(router_to_update=router.with_aliases(["own-alias", "new-alias"]))
 
     @pytest.mark.asyncio
     async def test_should_not_check_aliases_when_command_aliases_is_none(self, use_case, router_repository, admin_user_info, sample_router):
@@ -168,6 +169,23 @@ class TestUpdateRouterUseCase:
         # Assert
         assert isinstance(result, RouterNameAlreadyExistsError)
         assert result.name == "taken-name"
+
+    @pytest.mark.asyncio
+    async def test_should_add_aliases_when_router_has_no_aliases_and_command_updates_aliases(self, use_case, router_repository, admin_user_info):
+        # Arrange
+        router = RouterFactory(id=42, user_id=1, aliases=None)
+        updated_router = router.with_aliases(["new-alias"])
+        use_case.user_info_repository.get_user_info.return_value = admin_user_info
+        use_case.router_repository.get_router_by_id.return_value = router
+        use_case.router_repository.get_aliases.return_value = []
+        use_case.router_repository.update_router.return_value = updated_router
+
+        # Act
+        result = await use_case.execute(command=UpdateRouterCommand(user_id=admin_user_info.id, router_id=42, aliases=["new-alias"]))
+
+        # Assert
+        assert isinstance(result, UpdateRouterUseCaseSuccess)
+        router_repository.update_router.assert_called_once_with(router_to_update=router.with_aliases(["new-alias"]))
 
     @pytest.mark.asyncio
     async def test_should_not_call_update_router_when_router_should_not_be_updated(self, use_case, router_repository, admin_user_info, sample_router):

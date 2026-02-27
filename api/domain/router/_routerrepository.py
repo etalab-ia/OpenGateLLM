@@ -54,5 +54,5 @@ class RouterRepository(ABC):
         pass
 
     @abstractmethod
-    async def update_router(self, router: Router) -> Router | RouterNameAlreadyExistsError:
+    async def update_router(self, router_to_update: Router) -> Router | RouterNameAlreadyExistsError:
         pass

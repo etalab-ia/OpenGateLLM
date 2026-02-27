@@ -2,6 +2,7 @@ from ._createrouterusecase import CreateRouterCommand, CreateRouterUseCase, Crea
 from ._deleterouterusecase import DeleteRouterCommand, DeleteRouterUseCase, DeleteRouterUseCaseSuccess
 from ._getonerouterusecase import GetOneRouterCommand, GetOneRouterUseCase, GetOneRouterUseCaseSuccess
 from ._getroutersusecase import GetRoutersCommand, GetRoutersUseCase, GetRoutersUseCaseSuccess
+from ._updaterouterusecase import UpdateRouterCommand, UpdateRouterUseCase, UpdateRouterUseCaseSuccess
 
 __all__ = [
     "CreateRouterCommand",
@@ -16,4 +17,7 @@ __all__ = [
     "DeleteRouterCommand",
     "DeleteRouterUseCase",
     "DeleteRouterUseCaseSuccess",
+    "UpdateRouterCommand",
+    "UpdateRouterUseCase",
+    "UpdateRouterUseCaseSuccess",
 ]
