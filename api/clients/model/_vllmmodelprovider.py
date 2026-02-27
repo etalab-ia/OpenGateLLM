@@ -19,7 +19,7 @@ class VllmModelProvider(BaseModelProvider):
         embeddings="/v1/embeddings",
         models="/v1/models",
         ocr="/v1/chat/completions",
-        rerank=None,
+        rerank="/v2/rerank",
     )
 
     def __init__(

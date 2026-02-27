@@ -26,6 +26,9 @@ class CreateRerank(BaseModel):
 
                 return request_content
 
+            case ProviderType.VLLM:
+                return request_content
+
             case _:
                 raise NotImplementedError(f"Provider {provider_type} not implemented")
 
@@ -64,6 +67,10 @@ class Reranks(BaseModel):
                 for rank in response_data:
                     results.append(RerankResult(relevance_score=rank["score"], index=rank["index"]))
                 return cls(results=results, **request_content.additional_data)
+
+            case ProviderType.VLLM:
+                response_data.update(request_content.additional_data)
+                return cls(**response_data)
 
             case _:
                 raise NotImplementedError(f"Provider {provider_type} not implemented")

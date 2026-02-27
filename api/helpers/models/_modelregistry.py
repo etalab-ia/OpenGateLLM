@@ -70,6 +70,7 @@ class ModelRegistry:
         ModelType.TEXT_CLASSIFICATION: [
             ProviderType.ALBERT.value,
             ProviderType.TEI.value,
+            ProviderType.VLLM.value,
         ],
         ModelType.IMAGE_TO_TEXT: [
             ProviderType.MISTRAL.value,

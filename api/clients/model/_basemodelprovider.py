@@ -21,12 +21,7 @@ from api.utils.carbon import get_carbon_footprint
 from api.utils.context import generate_request_id, global_context, request_context
 from api.utils.exceptions import ModelIsTooBusyException, RequestFormatFailedException, ResponseFormatFailedException
 from api.utils.redis import redis_retry, safe_redis_reset
-from api.utils.variables import (
-    PREFIX__REDIS_METRIC_GAUGE,
-    PREFIX__REDIS_METRIC_TIMESERIE,
-    REDIS__TIMESERIE_RETENTION_SECONDS,
-    EndpointRoute,
-)
+from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE, PREFIX__REDIS_METRIC_TIMESERIE, REDIS__TIMESERIE_RETENTION_SECONDS, EndpointRoute
 
 logger = logging.getLogger(__name__)
 
