@@ -15,7 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 playground = [
-    "reflex==0.8.27",
+    "reflex>=0.8.27",
 ]
 api = [
     "alembic>=1.18.4",
