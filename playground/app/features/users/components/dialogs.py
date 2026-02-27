@@ -17,5 +17,5 @@ def user_delete_dialog() -> rx.Component:
     return entity_delete_dialog(
         state=UsersState,
         title="Delete user",
-        description="Are you sure you want to delete this role? This action cannot be undone.",
+        description="Are you sure you want to delete this user? This action cannot be undone.",
     )
