@@ -33,8 +33,11 @@ jobs:
           # Activate venv for the test run
           . .venv/bin/activate
           
-          # Run unit tests with coverage (Makefile target generates coverage.xml and htmlcov)
+          # Run unit tests with coverage
           make test-unit
+
+          # Export coverage data to XML for badge computation
+          python -m coverage xml -o coverage.xml
           
           # Build unit coverage badge JSON
           mkdir -p .github/badges
@@ -82,12 +85,7 @@ jobs:
         ls -la api/tests/integ
 
         # Run integration tests
-        make test-integ action=all
+        make test-integ
       env:
         CONFIG_FILE: ${{ matrix.config_file }}
         ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}
-    
-    - name: Tear down Docker Compose
-      if: always()
-      run: |
-        make test-integ action=down
