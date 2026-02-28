@@ -1,5 +1,3 @@
-import os
-
 from fastapi import Depends, FastAPI
 import prometheus_client
 from prometheus_client import CollectorRegistry, multiprocess
@@ -8,6 +6,7 @@ from starlette.responses import Response
 
 from api.helpers._accesscontroller import AccessController
 from api.schemas.admin.roles import PermissionType
+from api.utils.configuration import configuration
 from api.utils.monitoring import (
     inference_output_tokens_per_second,
     inference_requests_duration_seconds,
@@ -40,7 +39,7 @@ def setup_prometheus(app: FastAPI, metric_namespace: str = "ogl", include_in_sch
         include_in_schema=include_in_schema,
     )
     def get_metrics() -> Response:
-        if os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
+        if configuration.prometheus_multiproc_dir:
             registry = CollectorRegistry()
             multiprocess.MultiProcessCollector(registry)
         else:

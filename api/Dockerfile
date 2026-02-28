@@ -49,6 +49,7 @@ COPY --chown=opengatellm:opengatellm ./scripts/ /scripts
 ENV PATH="/.venv/bin:${PATH}"
 ENV PYTHONPATH="/api"
 ENV PROMETHEUS_MULTIPROC_DIR="/tmp/prometheus_multiproc"
+ENV CONFIG_FILE="/config.yml"
 
 # Final stage: uses BUILD_TARGET to select script and command
 FROM runtime AS final

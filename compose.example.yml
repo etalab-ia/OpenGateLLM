@@ -4,9 +4,7 @@ services:
   api:
     image: ghcr.io/etalab-ia/opengatellm/api:latest
     restart: always
-    env_file: "${APP_ENV_FILE:-./.env}"
-    environment:
-      - "CONFIG_FILE=/config.yml" # inside the container, do not change this line
+    env_file: .env
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
