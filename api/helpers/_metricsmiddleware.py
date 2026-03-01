@@ -35,7 +35,45 @@ def inference_requests_duration_seconds() -> Callable[[Info], None]:
         "inference_requests_duration_seconds",
         "Duration of LLM requests in seconds.",
         labelnames=("endpoint", "model", "status_code"),
-        buckets=(0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 7.5, 10, 15, 20, 30, 45, 60, 90, 120),
+        buckets=(
+            0.05,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.75,
+            1,
+            1.5,
+            2,
+            2.5,
+            3,
+            3.5,
+            4,
+            4.5,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            15,
+            20,
+            25,
+            30,
+            45,
+            60,
+            75,
+            90,
+            105,
+            120,
+            150,
+            180,
+            210,
+            240,
+            270,
+            300,
+        ),
     )
 
     def instrumentation(info: Info) -> None:
@@ -61,7 +99,45 @@ def inference_ttft_milliseconds() -> Callable[[Info], None]:
         "inference_ttft_milliseconds",
         "Time to first token for streaming LLM responses in milliseconds.",
         labelnames=("endpoint", "model", "status_code"),
-        buckets=(5, 10, 20, 30, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000),
+        buckets=(
+            5,
+            10,
+            20,
+            30,
+            50,
+            75,
+            100,
+            150,
+            200,
+            300,
+            500,
+            750,
+            1000,
+            1500,
+            2000,
+            3000,
+            5000,
+            7500,
+            10000,
+            15000,
+            20000,
+            25000,
+            30000,
+            45000,
+            60000,
+            75000,
+            90000,
+            105000,
+            120000,
+            135000,
+            150000,
+            165000,
+            180000,
+            210000,
+            240000,
+            270000,
+            300000,
+        ),
     )
 
     def instrumentation(info: Info) -> None:
@@ -76,6 +152,29 @@ def inference_ttft_milliseconds() -> Callable[[Info], None]:
                     model=model,
                     status_code=info.modified_status,
                 ).observe(ttft)
+        except Exception:
+            pass
+
+    return instrumentation
+
+
+def inference_output_tokens_per_second() -> Callable[[Info], None]:
+    metric = Histogram(
+        "inference_output_tokens_per_second",
+        "Output generation speed in tokens per second (completion tokens / request duration, TTFT included).",
+        labelnames=("endpoint", "model"),
+        buckets=(5, 10, 20, 30, 50, 75, 85, 90, 95, 100, 105, 110, 115, 125, 150, 175, 200, 250, 300, 400, 500, 750, 1000),
+    )
+
+    def instrumentation(info: Info) -> None:
+        try:
+            context = request_context.get()
+            model = context.router_name
+            endpoint = context.endpoint
+            usage = context.usage
+            latency = context.latency
+            if model and endpoint and usage and latency and usage.completion_tokens:
+                metric.labels(endpoint=endpoint, model=model).observe(usage.completion_tokens / (latency / 1000))
         except Exception:
             pass
 

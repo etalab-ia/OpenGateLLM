@@ -8,6 +8,7 @@ from starlette.responses import Response
 
 from api.helpers._accesscontroller import AccessController
 from api.helpers._metricsmiddleware import (
+    inference_output_tokens_per_second,
     inference_requests_duration_seconds,
     inference_requests_total,
     inference_tokens_total,
@@ -21,6 +22,7 @@ def setup_prometheus(app: FastAPI, include_in_schema: bool = True) -> None:
     app.instrumentator = (
         Instrumentator()
         .instrument(app=app)
+        .add(inference_output_tokens_per_second())
         .add(inference_requests_total())
         .add(inference_requests_duration_seconds())
         .add(inference_ttft_milliseconds())
