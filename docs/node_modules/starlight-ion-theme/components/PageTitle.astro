@@ -1,0 +1,31 @@
+---
+import { Icon } from "astro-icon/components";
+import { PAGE_TITLE_ID } from "starlight-ion-theme/constants";
+import { icons } from "ion:globals";
+
+const { entry } = Astro.locals.starlightRoute;
+---
+
+<h1 id={PAGE_TITLE_ID}>
+  {
+    icons && entry.data.title.includes("[") && (
+      <Icon
+        size="28"
+        name={entry.data.title.split("[").pop()?.split("]")[0] || ""}
+      />
+    )
+  }
+  <span>{entry.data.title.split("]").pop()?.trim()}</span>
+</h1>
+
+<style>
+  @layer starlight.core {
+    h1 {
+      margin-top: 1rem;
+      font-size: var(--sl-text-h1);
+      line-height: var(--sl-line-height-headings);
+      font-weight: 600;
+      color: var(--sl-color-white);
+    }
+  }
+</style>

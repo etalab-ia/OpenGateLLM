@@ -1,0 +1,73 @@
+---
+import MobileMenuFooter from "virtual:starlight/components/MobileMenuFooter";
+import SidebarSublist from "starlight-ion-theme/components/SidebarSublist.astro";
+
+const { sidebar } = Astro.locals.starlightRoute;
+---
+
+<SidebarSublist sublist={sidebar as any} nestedCount={0} />
+<div class="md:sl-hidden">
+  <MobileMenuFooter {...Astro.props} />
+</div>
+
+<style is:global>
+  /* Hide markers for summaries (should be hidden by default, but showed again when changing stuff) */
+  summary::marker,
+  summary::-webkit-details-marker {
+    display: none !important;
+    background-image: none !important;
+    -webkit-appearance: none !important;
+  }
+
+  summary.hidden {
+    display: none;
+  }
+
+  /* Make sure links only have the width they need in the sidebar */
+  .sidebar a {
+    width: fit-content;
+    transition: all 0.1s ease;
+  }
+
+  /* Make sure mobile links fill the entire space, not just fit the content */
+  nav[aria-labelledby="starlight__on-this-page--mobile"] a {
+    width: 100%;
+  }
+
+  /* 
+		This assumes that you will always have a top-level index file / file with the same name if there are subpaths, 
+		so it moves the upmost nested child to the left
+	*/
+  li.nested:first-of-type {
+    position: relative;
+    right: 1rem;
+  }
+
+  /* Hide all non-active nested children */
+  li.nested:not(:first-of-type):not(.active) {
+    display: none;
+  }
+
+  /* 
+		If a child is active, show all adjacent children (by checking if the upmost child has an adjacent active li element)
+	*/
+  li.nested:first-of-type:has(~ li.nested.active) ~ li.nested {
+    display: block;
+  }
+
+  /* Show all adjacent children if an element is active  */
+  li.nested.active ~ li.nested {
+    display: block;
+  }
+
+  li.nested.active.has-icon ~ li.nested {
+    /* Icon width */
+    left: 14px;
+    position: relative;
+  }
+
+  /* Make sure nesting works over multiple subpaths */
+  li.nested:first-of-type:has(~ li.nested li.nested.active) ~ li.nested {
+    display: block;
+  }
+</style>

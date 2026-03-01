@@ -1,0 +1,15 @@
+# Installation
+> `npm install --save @types/picomatch`
+
+# Summary
+This package contains type definitions for picomatch (https://github.com/micromatch/picomatch).
+
+# Details
+Files were exported from https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/picomatch.
+
+### Additional Details
+ * Last updated: Fri, 17 Jan 2025 07:32:10 GMT
+ * Dependencies: none
+
+# Credits
+These definitions were written by [Patrick](https://github.com/p-kuen), [Daniel Tschinder](https://github.com/danez), and [Piotr Błażejewicz](https://github.com/peterblazejewicz).

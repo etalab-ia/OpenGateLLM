@@ -1,0 +1,263 @@
+---
+import { Icon } from "astro-icon/components";
+import { type SidebarEntry } from "starlight-ion-theme/utils/navigation.js";
+import Badge from "./Badge.astro";
+import { icons } from "ion:globals";
+
+interface Props {
+  sublist: SidebarEntry[];
+  nested?: boolean;
+  nestedCount: number;
+}
+
+const { sublist, nested, nestedCount } = Astro.props;
+
+// export interface StarlightRouteData extends Route {
+// 	/** Title of the site. */
+// 	siteTitle: string;
+// 	/** URL or path used as the link when clicking on the site title. */
+// 	siteTitleHref: string;
+// 	/** Array of Markdown headings extracted from the current page. */
+// 	headings: MarkdownHeading[];
+// 	/** Site navigation sidebar entries for this page. */
+// 	sidebar: SidebarEntry[];
+// 	/** Whether or not the sidebar should be displayed on this page. */
+// 	hasSidebar: boolean;
+// 	/** Links to the previous and next page in the sidebar if enabled. */
+// 	pagination: PaginationLinks;
+// 	/** Table of contents for this page if enabled. */
+// 	toc: { minHeadingLevel: number; maxHeadingLevel: number; items: TocItem[] } | undefined;
+// 	/** JS Date object representing when this page was last updated if enabled. */
+// 	lastUpdated: Date | undefined;
+// 	/** URL object for the address where this page can be edited if enabled. */
+// 	editUrl: URL | undefined;
+// 	/** An Astro component to render the current page’s content if this route is a Markdown page. */
+// 	Content?: RenderResult['Content'];
+// }
+---
+
+<ul class:list={{ "top-level": !nested }}>
+  {
+    sublist.map((entry) => {
+      return (
+        <li
+          class:list={[
+            {
+              nested: nested && nestedCount > 1,
+              active: entry.type === "link" && entry.isCurrent,
+            },
+            entry.label.includes("[") && "has-icon",
+          ]}
+        >
+          {entry.type === "link" ? (
+            <a
+              href={entry.href}
+              aria-current={entry.isCurrent && "page"}
+              class:list={[
+                { individual: !nested },
+                entry.attrs.class,
+                "flex-link",
+              ]}
+              {...entry.attrs}
+            >
+              {icons && entry.label.includes("[") && (
+                <Icon
+                  name={entry.label.split("[").pop()?.split("]")[0] || ""}
+                />
+              )}
+              <span>{entry.label.split("]").pop()?.trim()}</span>
+              {entry.badge && (
+                <>
+                  {" "}
+                  <Badge
+                    text={entry.badge.text}
+                    variant={entry.isCurrent ? "outline" : entry.badge.variant}
+                  />
+                </>
+              )}
+            </a>
+          ) : (
+            <details open>
+              <summary
+                style="pointer-events: none;"
+                class={nested ? "hidden" : ""}
+              >
+                <div class="group-label">
+                  {icons && entry.label.includes("[") && (
+                    <Icon
+                      name={entry.label.split("[").pop()?.split("]")[0] || ""}
+                    />
+                  )}
+                  <span class="large">
+                    {entry.label.split("]").pop()?.trim()}
+                  </span>
+                  {entry.badge && (
+                    <>
+                      {" "}
+                      <Badge
+                        text={entry.badge.text}
+                        variant={entry.badge.variant}
+                      />
+                    </>
+                  )}
+                </div>
+              </summary>
+              <Astro.self
+                sublist={entry.entries}
+                nested
+                nestedCount={nestedCount + 1}
+              />
+            </details>
+          )}
+        </li>
+      );
+    })
+  }
+</ul>
+
+<style>
+  @layer starlight.core {
+    ul {
+      list-style: none;
+      padding: 0;
+      color: var(--sl-color-gray-2);
+    }
+
+    li {
+      overflow-wrap: anywhere;
+      margin-bottom: 0.25rem;
+    }
+
+    ul ul li {
+      margin-inline-start: var(--sl-sidebar-item-padding-inline);
+      /* border-inline-start: 1px solid var(--sl-color-hairline-light); */
+      padding-inline-start: var(--sl-sidebar-item-padding-inline);
+    }
+
+    .large {
+      font-size: var(--sl-text-lg);
+      font-weight: 600;
+      /* color: var(--sl-color-white); */
+      transition: all 0.1s ease;
+    }
+
+    .individual {
+      font-size: var(--sl-text-md);
+      font-weight: 400;
+      transition: all 0.1s ease;
+    }
+
+    ul:not(.top-level) > li > details {
+      margin-inline-start: 0.5rem;
+      padding-inline-start: 0.5rem;
+
+      > summary {
+        border-top: none;
+        padding-top: 0;
+      }
+    }
+
+    .top-level > li + li {
+      margin-top: 0.75rem;
+    }
+
+    summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.2em var(--sl-sidebar-item-padding-inline);
+      line-height: 1.4;
+      cursor: pointer;
+      user-select: none;
+      margin-bottom: 0.75rem;
+      margin-top: 1rem;
+      border-top: 1px solid var(--sl-color-hairline-light);
+      padding-top: 1rem;
+    }
+
+    summary span {
+      font-family: "Space Mono", monospace;
+      font-weight: 400 !important;
+    }
+
+    .top-level li:first-of-type > details > summary {
+      margin-top: 0;
+      border-top: none;
+      padding-top: 0;
+    }
+
+    summary::marker,
+    summary::-webkit-details-marker {
+      display: none !important;
+      background-image: none !important;
+      -webkit-appearance: none !important;
+    }
+
+    .caret {
+      transition: transform 0.2s ease-in-out;
+      flex-shrink: 0;
+    }
+    :global([dir="rtl"]) .caret {
+      transform: rotateZ(180deg);
+    }
+    [open] > summary .caret {
+      transform: rotateZ(90deg);
+    }
+
+    a {
+      display: block;
+      border-radius: 0.25rem;
+      text-decoration: none;
+      color: var(--sl-color-gray-2);
+      padding: 0.3em var(--sl-sidebar-item-padding-inline);
+      line-height: 1.4;
+    }
+
+    a:hover,
+    a:focus {
+      color: var(--sl-color-white);
+      transition: all 0.1s ease;
+    }
+
+    [aria-current="page"],
+    [aria-current="page"]:hover,
+    [aria-current="page"]:focus {
+      font-weight: 600;
+      color: var(--sl-color-accent) !important;
+
+      svg {
+        filter: drop-shadow(0 0 8px var(--sl-color-accent));
+      }
+
+      span {
+        color: var(--sl-color-white) !important;
+      }
+      /* background-color: var(--sl-color-text-accent); */
+    }
+
+    .group-label,
+    .flex-link {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    a > *:not(:last-child),
+    .group-label > *:not(:last-child) {
+      margin-inline-end: 0.25em;
+    }
+
+    @media (min-width: 50rem) {
+      .top-level > li + li {
+        margin-top: 0.5rem;
+      }
+      .large {
+        font-size: var(--sl-text-base);
+      }
+      a {
+        font-size: var(--sl-text-sm);
+      }
+    }
+  }
+</style>

@@ -1,0 +1,59 @@
+@layer ion {
+  /* Border radii adjustments & color changes for code blocks */
+  .expressive-code pre {
+    /* background: var(--sl-color-gray-6) !important; */
+    border-bottom-left-radius: 12px !important;
+    border-bottom-right-radius: 12px !important;
+    border-color: var(--sl-border) !important;
+  }
+
+  .expressive-code .header {
+    border-top-left-radius: 12px !important;
+    border-top-right-radius: 12px !important;
+  }
+
+  .expressive-code .has-title .header {
+    /* Override so border looks correct when displaying top left title for code */
+    border-top-left-radius: 14px !important;
+  }
+
+  .header:not(:has(span)) + pre {
+    border-radius: 12px !important;
+  }
+
+  /* Add a border to the header */
+  .expressive-code .header::before {
+    border-color: var(--sl-border) !important;
+  }
+
+  .expressive-code .frame {
+    border-radius: 16px !important;
+  }
+
+  figcaption.header span:not(.is-terminal span) {
+    border: none !important;
+    border-top-left-radius: 12px !important;
+    border-left: 1px solid var(--sl-border) !important;
+    border-top: 1px solid var(--sl-border) !important;
+  }
+
+  figcaption.header span::after {
+    content: none !important;
+  }
+
+  .expressive-code .copy button {
+    border-radius: 8px !important;
+  }
+
+  .expressive-code .copy button div {
+    display: none;
+  }
+
+  .frame.is-terminal .header {
+    border-color: var(--sl-border) !important;
+  }
+
+  .frame.is-terminal .header::after {
+    content: none !important;
+  }
+}

@@ -1,0 +1,38 @@
+---
+import type { AstroInstance } from "astro";
+
+const icons = import.meta.glob<AstroInstance>("./*.astro", { eager: true });
+
+type Props = {
+  icon: string;
+  class?: string;
+  size?: "sm" | "lg";
+};
+
+const { icon, size } = Astro.props;
+
+if (icon === "Provider") {
+  throw new Error(
+    `Invalid Icon "[${icon}]" passed to provider. This name is disabled by default.`
+  );
+}
+
+let IconComponent;
+
+for (const key of Object.keys(icons)) {
+  if (key.split("/").pop()?.split(".astro")[0] === icon) {
+    IconComponent = icons[key];
+    break;
+  }
+}
+
+if (!IconComponent) {
+  throw new Error(
+    `Invalid Icon "[${icon}]" passed to provider. Check your Starlight config.`
+  );
+}
+---
+
+<div class:list={["icon-container", size]}>
+  <IconComponent.default />
+</div>

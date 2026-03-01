@@ -1,0 +1,301 @@
+@layer ion {
+  /* Specify colors. NOTE: YOU CAN CUSTOMIZE THESE HOWEVER YOU WANT! */
+  :root {
+    /* Dark mode colors */
+    --sl-color-accent-low: #3c0017;
+    --sl-color-accent: #bd0249;
+    --sl-color-accent-high: #ff78ac;
+    --sl-color-white: #ffffff;
+    --sl-color-gray-1: #c2c2c2;
+    --sl-color-gray-2: #a3a3a3;
+    --sl-color-gray-3: #838383;
+    --sl-color-gray-4: #3f3f3f;
+    --sl-color-gray-5: #262626;
+    --sl-color-gray-6: #121212;
+    --sl-color-black: #070707;
+
+    --sl-color-red-low: #3c0017;
+    --sl-color-red: #bd0249;
+    --sl-color-red-high: #ff78ac;
+
+    --sl-color-purple-low: #33225b;
+    --sl-color-purple: #8a5cf5;
+    --sl-color-purple-high: #9975ee;
+
+    --sl-border: #262626;
+    --pagefind-ui-border: #262626;
+    --pagefind-ui-primary: var(--sl-color-accent);
+
+    --sl-icon-size: 1.25rem;
+
+    --sl-text-4xl: 2rem;
+    --sl-text-3xl: 1.75rem;
+    --sl-text-2xl: 1.5rem;
+  }
+
+  :root[data-theme="light"] {
+    --sl-color-accent-low: #ff78ac;
+    --sl-color-accent: #bd0249;
+    --sl-color-accent-high: #3c0017;
+    --sl-color-white: #17181c;
+    --sl-color-gray-1: #24272f;
+    --sl-color-gray-2: #353841;
+    --sl-color-gray-3: #545861;
+    --sl-color-gray-4: #888b96;
+    --sl-color-gray-5: #c0c2c7;
+    --sl-color-gray-6: #eceef2;
+    --sl-color-gray-7: #f5f6f8;
+    --sl-color-black: #ffffff;
+
+    --sl-color-red-low: #ff78ac;
+    --sl-color-red: #bd0249;
+    --sl-color-red-high: #3c0017;
+
+    --sl-color-purple-low: #edd1fa;
+    --sl-color-purple: #bb3df5;
+    --sl-color-purple-high: #660891;
+
+    --sl-border: #c0c2c7;
+    --pagefind-ui-border: #eceef2;
+    --pagefind-ui-primary: var(--sl-color-accent);
+  }
+
+  /* Change background color of sidebar & add border */
+  #starlight__sidebar {
+    background-color: var(--sl-color-black);
+    border-right: 1px solid var(--sl-border);
+  }
+
+  /* Change background of header & add border */
+  header.header {
+    background-color: var(--sl-color-black);
+    border-bottom: 1px solid var(--sl-border);
+  }
+
+  /* Remove the border for the theme selector since it is disabled */
+  .social-icons::after {
+    border: none;
+  }
+
+  /* Add a gap to the now split + flex site title */
+  .site-title {
+    gap: 1rem;
+  }
+
+  .site-title > span {
+    display: flex;
+    gap: 0.5rem;
+    color: var(--sl-color-white);
+  }
+
+  /* Change link color for icons from accent-light to white */
+  .social-icons a {
+    color: var(--sl-color-white);
+  }
+
+  /* Add border-radius to card, change padding, add transition */
+  .card,
+  .sl-link-card {
+    border-radius: 12px !important;
+    padding: 1.5rem !important;
+    transition: all 0.1s ease;
+  }
+
+  /* Change widths of content */
+  .main-pane {
+    width: calc(100% - (var(--sl-sidebar-width))) !important;
+  }
+
+  .right-sidebar-panel {
+    width: var(--sl-sidebar-width);
+  }
+
+  .sl-container {
+    margin-left: 0 !important;
+    max-width: none !important;
+  }
+
+  /* Add a border to the footer,  */
+  .page-footer {
+    border-top: 1px solid var(--sl-color-gray-6);
+    padding: 1.5rem var(--sl-content-pad-x);
+    font-size: var(--sl-text-sm);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+  }
+
+  /* Adjust padding on pages with hero component */
+  .hero ~ footer .page-footer {
+    padding: 2rem !important;
+  }
+
+  /* Add padding to meta */
+  .meta {
+    padding-inline-end: var(--sl-content-pad-x);
+  }
+
+  /* Adjust padding on pages with hero component */
+  .hero ~ footer .meta {
+    padding-inline-end: 2rem !important;
+  }
+
+  /* Add better spacing to footer */
+  .page-footer div {
+    display: flex;
+    flex-direction: row;
+    gap: 0.75rem;
+  }
+
+  /* Remove default padding... */
+  .content-panel:has(footer) {
+    padding: 0;
+  }
+
+  /* ... and instead add it to the content itself to allow for proper full-width borders */
+  .sl-markdown-content {
+    padding: 1.5rem var(--sl-content-pad-x);
+  }
+
+  /* Link styles */
+  a:not(.sidebar a):not(footer a) {
+    transition: color 0.1s ease;
+    width: fit-content;
+  }
+
+  /* Make sure mobile links fill the entire space, not just fit the content */
+  nav[aria-labelledby="starlight__on-this-page--mobile"] a {
+    width: 100% !important;
+  }
+
+  /* Adjust link color on footer */
+  .page-footer a {
+    color: var(--sl-color-gray-2);
+  }
+
+  a:hover,
+  a[aria-current="true"] {
+    color: var(--sl-color-white) !important;
+  }
+
+  /* Adjust font fot "On this page" header */
+  #starlight__on-this-page {
+    font-family: "Space Mono", monospace;
+    font-weight: 400;
+    font-size: var(--sl-text-md);
+  }
+
+  /* Adjust padding for TOC */
+  starlight-toc a {
+    padding-inline: calc(1rem * var(--depth)) var(--pad-inline) !important;
+  }
+
+  /* Change tab color */
+  a[role="tab"][aria-selected="true"] {
+    border-color: var(--sl-color-accent) !important;
+    font-weight: 400 !important;
+    color: var(--sl-color-accent) !important;
+  }
+
+  /* Adjust styles for search */
+  .pagefind-ui__search-clear::before {
+    background-color: var(--sl-color-accent) !important;
+  }
+
+  .pagefind-ui__result-inner * {
+    transition: all 0.1s ease;
+  }
+
+  .pagefind-ui__result-title,
+  .pagefind-ui__result-nested {
+    outline-color: var(--sl-color-accent) !important;
+  }
+
+  dialog {
+    background-color: var(--sl-color-black) !important;
+  }
+
+  /* Adjust padding for markdown content to match hero section if it exists */
+  .hero + .sl-markdown-content {
+    padding: 2rem;
+  }
+
+  /* Make sure the main page takes up all space if it's page with a hero because the sidebar won't exist */
+  .main-pane:has(.hero) {
+    width: 100% !important;
+  }
+
+  /* Any headers containing badges should be flex headers */
+  :is(h1, h2, h3):has(.sl-badge-lg) {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  /* Fix small misalignment in navbar links */
+  .flex-link svg + span {
+    position: relative;
+    top: 1px;
+  }
+
+  .flex-link .sl-badge {
+    position: relative;
+    top: 2px;
+  }
+
+  /* Remove default padding on main since we have a footer */
+  main:has(.page-footer) {
+    padding-bottom: 0 !important;
+  }
+
+  @media screen and (max-width: 1250px) {
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr !important;
+      --stagger-height: 0rem !important;
+    }
+  }
+
+  @media (max-width: 72rem) {
+    .main-pane {
+      width: 100% !important;
+    }
+  }
+
+  .icon-container {
+    display: inline-flex;
+  }
+
+  .icon-container svg {
+    height: 1em;
+    width: 1em;
+  }
+
+  #_top {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Adjust file tree color & border radius */
+  starlight-file-tree.not-content {
+    background-color: var(--sl-color-black);
+    border-radius: 12px;
+  }
+
+  .meta.sl-flex:not(:has(*)) {
+    display: none;
+  }
+
+  h1 > code,
+  h2 > code,
+  h3 > code,
+  h4 > code,
+  h5 > code,
+  h6 > code {
+    font-size: 0.925em !important;
+  }
+}
