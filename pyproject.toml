@@ -50,7 +50,6 @@ worker = [
     "redis>=7.2.1",
 ]
 dev = [
-    "jupyter>=1.1.1",
     "pre-commit>=4.5.1",
     "ruff>=0.15.2",
 ]
