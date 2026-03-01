@@ -14,14 +14,19 @@ import { Steps, FileTree, Aside } from '@astrojs/starlight/components';
 OpenGateLLM uses [Astro Starlight](https://starlight.astro.build/) to serve its documentation. Start the local development server with the following command:
 
 <Steps>
-
 1. Go to the documentation folder
 
    ```bash
    cd docs
    ```
 
-2. Run the development server
+2. Install the dependencies
+
+   ```bash
+   npm install
+   ```
+
+3. Run the development server
 
    ``` bash
    npm run dev
@@ -32,7 +37,7 @@ OpenGateLLM uses [Astro Starlight](https://starlight.astro.build/) to serve its 
    -   Launch a development server at **http://localhost:4321/**
    -   Hot-reload changes as you edit files
 
-3. Edit the documentation
+4. Edit the documentation
 
 
    <FileTree>
@@ -43,7 +48,6 @@ OpenGateLLM uses [Astro Starlight](https://starlight.astro.build/) to serve its 
      - content
        - **docs/** Documentation markdown files folder
    </FileTree>
-
 </Steps>
 
 <Aside type="danger" title="Automatic documentation generation">
