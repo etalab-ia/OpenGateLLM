@@ -203,10 +203,6 @@ terraform.rc
 .idea
 .vscode
 .json
-/docs/tutorials/*.json
-/docs/tutorials/*.pdf
-/docs/tutorials/*.wav
-/docs/tutorials/*.mp3
 uv.lock
 .envrc
 **/.env*
@@ -214,8 +210,6 @@ uv.lock
 !.github/.env.ci.example
 .direnv/
 compose.yml
-*.ipynb
-!docs/tutorials/*.ipynb
 playground/.web
 playground/.states
 playground/.gitignore
@@ -224,3 +218,6 @@ run.sh
 .claude
 bruno
 docs/.astro
+docs/node_modules 
+docs/.cache
+docs/package-lock.json
