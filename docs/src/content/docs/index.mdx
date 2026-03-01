@@ -1,0 +1,43 @@
+---
+title: Take back control of your Generative AI
+template: splash # Remove or comment out this line to display the site sidebar on this page.
+hero:
+  tagline: Open-source API gateway for Generative AI.
+  image:
+    file: ../../assets/logo.svg
+  actions:
+    - text: Getting started
+      link: /getting-started/quickstart/
+      icon: right-arrow
+    - text: Read the OpenGateLLM docs
+      link: /overview/presentation/
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+Powered by French Government, OpenGateLLM is an <b>open-source</b>, <b>production-ready</b> API gateway for Generative AI.<br></br>
+It centralizes, <b>secures</b>, and governs access to AI models across your organization, enabling teams to focus on building high-value AI applications instead of managing infrastructure complexity and data security risks.<br></br>
+Designed for organizations that require full control over their data and infrastructure, OpenGateLLM is optimized for self-hosted models. It provides a sovereign and cost-effective foundation to deploy, manage, and scale Generative AI securely — without vendor lock-in.
+
+## Key features
+
+<CardGrid stagger>
+	<Card title="Update content" icon="pencil">
+		Edit `src/content/docs/index.mdx` to see this page change.
+	</Card>
+	<Card title="Change page layout" icon="document">
+		Delete `template: splash` in `src/content/docs/index.mdx` to display a
+		sidebar on this page.
+	</Card>
+	<Card title="Add new content" icon="add-document">
+		Add Markdown or MDX files to `src/content/docs` to create new pages.
+	</Card>
+	<Card title="Configure your site" icon="setting">
+		Edit your `sidebar` and other config in `astro.config.mjs`.
+	</Card>
+	<Card title="Read the docs" icon="open-book">
+		Learn more in [the Starlight Docs](https://starlight.astro.build/).
+	</Card>
+</CardGrid>

@@ -1,0 +1,34 @@
+---
+title: Sentry
+sidebar:
+  label: "[sentry] Sentry"
+---
+import { Aside, LinkButton } from '@astrojs/starlight/components';
+
+<Aside type="note" title="Optional dependency">
+Sentry is an **optional dependency** for OpenGateLLM. The application works without it.
+</Aside>
+
+OpenGateLLM supports [Sentry](https://sentry.io/welcome/) for error tracking and performance monitoring. It helps you identify, diagnose, and fix errors in real-time.
+
+## Configuration
+
+To configure Sentry, add it to the `dependencies` section of your `config.yml` file.  
+Check the [Sentry section](/configuration/configuration_file/#sentrydependency) in the configuration file documentation for more details.
+
+Example:
+
+```yaml
+dependencies:
+    [...]
+    sentry:
+        dsn: ${SENTRY_DSN}
+        environment: ${SENTRY_ENVIRONMENT:-production}
+        traces_sample_rate: 1.0
+        profiles_sample_rate: 1.0
+        enable_tracing: true
+```
+
+The Sentry dependency accepts all parameters from the [Sentry Python SDK](https://docs.sentry.io/platforms/python/configuration/options/). Only the `dsn` parameter is typically required.
+
+<LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>

@@ -1,0 +1,43 @@
+---
+title: Usage control and monitoring
+sidebar:
+  label: "[lucide:crosshair] Usage control & tracking"
+---
+import { CardGrid } from '@astrojs/starlight/components';
+import IconLinkCard from "../../../../components/IconLinkCard.astro";
+
+This section presents how to manage usage controls in OpenGateLLM. You will find features that help you control costs and protect your APIs against abuse.
+
+## Usage controls
+
+<CardGrid>
+<IconLinkCard
+  title="User budget"
+  href="/features/usage/budget"
+  icon="lucide:piggy-bank"
+  description="Set and monitor per-user spending limits."
+/>
+<IconLinkCard
+  title="Rate limiting"
+  href="/features/usage/rate_limiting"
+  icon="lucide:gauge"
+  description="Restrict request throughput to protect service stability."
+/>
+</CardGrid>
+
+## Usage monitoring
+
+<CardGrid>
+<IconLinkCard
+  title="Inference monitoring"
+  href="/features/usage/inference_monitoring"
+  icon="lucide:chart-spline"
+  description="Monitor of API requests on models."
+/>
+<IconLinkCard
+  title="Environmental footprint"
+  href="/features/usage/environment_footprint"
+  icon="lucide:leaf"
+  description="Monitor the carbon footprint of API requests."
+/>
+</CardGrid>

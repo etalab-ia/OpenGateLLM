@@ -1,0 +1,63 @@
+
+---
+title: "Quickstart"
+sidebar:
+  label: "[lucide:zap] Quickstart"
+  order: 0
+---
+import { Aside, LinkButton, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Prerequisites" icon="approve-check-circle">
+- Docker and Docker Compose
+- An access to a LLM API, eg. OpenAI, vLLM, Ollama... ([see supported model API](/features/supported_models/))
+</Aside>
+
+<Steps>
+1. **Clone the repository**
+
+    ```bash
+    git clone https://github.com/etalab-ia/OpenGateLLM.git
+    ```
+
+2. **Make quickstart**
+
+    Run OpenGateLLM quickstart with the following command:
+
+    ```bash
+    make quickstart
+    ```
+
+    The services are running and available at the following URLs:
+    - **API – http://localhost:8000/docs**
+    - **Playground – http://localhost:8501**
+
+    <Aside type="note" title="Quickstart command">
+    This command will launch the OpenGateLLM API and Playground, and their required dependencies, Postgres and Redis, in Docker containers. 
+    Moreover, it will copy these three files if they don't already exist:
+    - *config.example.yml* → *config.yml*
+    - *env.example* → *.env*
+    - *compose.example.yml* → *compose.yml*
+    </Aside>
+
+3. **Create an admin role and your first admin user**
+
+    Run the following command to create the default admin role and admin user:
+
+    ```bash
+    make create-admin
+    ```
+
+    <Aside type="tip" title="Connect to the Playground">
+    Open the Playground at http://localhost:8501 and sign in with the default master account:
+    - email: `master`
+    - password: `changeme`
+    </Aside>
+
+    You can modify the created admin role and user on Playground UI or use the [API Reference](/reference/) for role and user management details (endpoints `/v1/admin/roles` and `/v1/admin/users`).
+
+4. Setup models
+
+    Now, you can setup your models to expose them to your users.
+
+    <LinkButton href="/getting-started/models" icon="right-caret">**Setup your models**</LinkButton>
+</Steps>

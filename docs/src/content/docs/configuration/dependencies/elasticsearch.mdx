@@ -1,0 +1,28 @@
+---
+title: Elasticsearch
+sidebar:
+  label: "[elasticsearch] Elasticsearch"
+---
+import { Aside, LinkButton } from '@astrojs/starlight/components';
+
+Elasticsearch is an optional dependency of OpenGateLLM. It can be used as a vector store to power Retrieval-Augmented Generation (RAG) workflows by indexing and searching document embeddings.
+
+## Configuration
+
+To configure Elasticsearch, add dependency settings in the `dependencies` section of your `config.yml` file.  
+Check [Elasticsearch section](/configuration/configuration_file/#elasticsearchdependency) in configuration file documentation for more information.
+
+Example:
+```yaml
+dependencies:
+    [...]
+    elasticsearch:
+        hosts: http://${ELASTICSEARCH_HOST:-elasticsearch}:${ELASTICSEARCH_PORT:-9200}
+        basic_auth:
+            - ${ELASTIC_USERNAME:-elasticsearch}
+            - ${ELASTIC_PASSWORD:-changeme}
+```
+
+The Elasticsearch dependency accepts parameters from the [`elasticsearch.Elasticsearch`](https://elasticsearch-py.readthedocs.io/en/latest/api/elasticsearch.html) client.
+
+<LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>

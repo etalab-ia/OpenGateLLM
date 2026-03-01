@@ -1,0 +1,35 @@
+---
+title: Redis
+sidebar:
+  label: "[redis] Redis"
+---
+import { Aside, LinkButton } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Required dependency">
+Redis is a **required dependency** for OpenGateLLM to function.
+</Aside>
+
+OpenGateLLM uses Redis as an in-memory data store. It has **two** main purposes:
+- **Rate limiting**: Tracks API usage limits (RPM, RPD, TPM, TPD)
+- **Performance metrics**: Stores time-series latency and TTFT metrics for dynamic routing and request prioritisation (work in progress, check our [roadmap](/overview/roadmap/) for more information)
+
+## Configuration
+
+To configure the Redis dependency, you need to add the connection information in the `dependencies` section of your `config.yml` file.  
+Check [Redis section](/configuration/configuration_file/#redisdependency) in configuration file documentation for more information.
+
+Example:
+```yaml
+dependencies:
+    [...]
+    redis:
+        url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
+```
+
+The Redis dependency accepts all parameters from the [`from_url()` method](https://redis.readthedocs.io/en/stable/connections.html#redis.asyncio.connection.ConnectionPool.from_url) of `redis.asyncio.connection.ConnectionPool` class. Only `url` parameter is required.
+
+<Aside type="caution" title="Redis Stack Server required">
+**Redis Stack Server** is required (not standard Redis) because OpenGateLLM uses the [RedisTimeSeries module](https://redis.io/docs/latest/develop/data-types/timeseries/) for performance metrics.
+</Aside>
+
+<LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>

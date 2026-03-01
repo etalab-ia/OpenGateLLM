@@ -1,0 +1,40 @@
+---
+title: Contributing guide
+sidebar:
+  label: "[lucide:book-open] Contributing guide"
+  order: 0
+---
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { ContributorList } from 'starlight-contributor-list';
+import IconLinkCard from "../../../components/IconLinkCard.astro";
+
+This guide will walk you through the process of contributing to OpenGateLLM. You can also find the project roadmap [here](/overview/roadmap/).
+
+<IconLinkCard 
+title="Development environment" href="/contributing/development_environment" icon="lucide:terminal" description="Start with setting up your development environment and run services locally." />
+<IconLinkCard title="Run tests" href="/contributing/tests" icon="lucide:check-circle" description="Run tests to ensure the quality of the code." />
+<IconLinkCard title="Edit SQL models" href="/contributing/sql" icon="lucide:database" description="Edit the SQL models to improve the project." />
+<IconLinkCard title="Edit documentation" href="/contributing/documentation" icon="lucide:book-plus" description="Edit the documentation to improve the project." />
+
+## Community
+
+Join the community and help us improve OpenGateLLM. Yours feedbacks and contributions are welcome!
+
+**Thanks to all contributors ❤️**
+
+<ContributorList githubRepo="etalab-ia/OpenGateLLM" />
+
+<CardGrid>
+<Card title="GitHub discussions" icon="comment">
+[Share your use cases and feedback](https://github.com/etalab-ia/OpenGateLLM/discussions)
+</Card>
+<Card title="Issue tracker" icon="error">
+[Report bugs and request features](https://github.com/etalab-ia/OpenGateLLM/issues)  
+</Card>
+<Card title="Pull requests" icon="pencil">
+[Submit your code contributions](https://github.com/etalab-ia/OpenGateLLM/pulls)
+</Card>
+<Card title="Tchap channel" icon="matrix">
+[Join the community on Tchap](https://tchap.gouv.fr/#/room/#albert:agent.dinum.tchap.gouv.fr) (reserved for French government employees)
+</Card>
+</CardGrid>

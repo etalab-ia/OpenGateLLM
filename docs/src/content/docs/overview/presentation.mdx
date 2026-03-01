@@ -1,0 +1,51 @@
+---
+title: Presentation
+sidebar:
+  label: "[lucide:sparkles] Presentation"
+  order: 0
+---
+import { Aside, Steps } from '@astrojs/starlight/components';
+import dinumLogo from '../../../assets/img/dinum_logo.png';
+import centraleSupelecLogo from '../../../assets/img/centralsupelec_logo.png';
+import { Icon } from '@astrojs/starlight/components';
+
+OpenGateLLM is an <b>open-source</b>, <b>production-ready</b> API gateway for Generative AI.
+
+> ***It centralizes, secures, and governs access to AI models across your organization, enabling teams to focus on building high-value AI applications instead of managing infrastructure complexity and data security risks.***
+
+Designed for organizations that require full control over their data and infrastructure, **OpenGateLLM is optimized for self-hosted models**. It provides a sovereign and cost-effective foundation to deploy, manage, and scale Generative AI securely — without vendor lock-in.
+
+<Aside type="tip" title="OpenGateLLM is an alternative to..." icon="magnifier">
+OpenGateLLM, as API gateway, is an alternative to LiteLLM, TensorZero, OpenRouter and others, dedicated to self-hosted IA infrastructure.
+</Aside>
+
+## Challenges
+
+![](/img/overview.svg)
+
+OpenGateLLM addresses three critical challenges for organizations:
+<Steps>
+1. **Accelerate AI adoption** – Remove barriers to integrating AI within your organization
+2. **Cost control** - Reduce expenses of commercial APIs and GPU infrastructure by using self-hosted models and build a mutualized infrastructure with your peers without vendor lock-in.
+3. **Data sovereignty** - Keep sensitive data under your control
+4. **Privacy & security** - No chat history storage, robust access control
+</Steps>
+
+## Core principles
+
+- **Open source and free forever** - All features available without commercial licensing
+- **High code quality** - Built with maintainability and reliability in mind
+- **Lightweight architecture** - Focused feature set for optimal performance
+- **High compatibility** - Seamlessly integrates with GenAI ecosystem frameworks by OpenAI-compatible API
+- **Production-ready** - Engineered to handle high loads with advanced QoS features
+
+## Sponsors
+***
+<div style="display: flex; justify-content: center; align-items: center; gap: 40px; flex-wrap: wrap;">
+  <a href="https://www.numerique.gouv.fr/numerique-etat/dinum/">
+    <img src={dinumLogo.src} alt="DINUM logo" width="300" />
+  </a>
+  <a href="https://www.centralesupelec.fr">
+    <img src={centraleSupelecLogo.src} alt="CentraleSupélec logo" width="200" />
+  </a>
+</div>

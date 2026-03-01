@@ -1,0 +1,232 @@
+---
+import { Icon as AstroIcon } from 'astro-icon/components';
+import { processPanels } from './rehype-tabs-custom';
+
+interface Props {
+	syncKey?: string;
+}
+
+const { syncKey } = Astro.props;
+const panelHtml = await Astro.slots.render('default');
+const { html, panels } = processPanels(panelHtml);
+
+const isSynced = syncKey !== undefined;
+const didRenderSyncedTabsRestoreScriptSymbol = Symbol.for('custom-tabs:did-render-synced-tabs-restore-script');
+// @ts-expect-error - Same pattern as Starlight.
+const shouldRenderSyncedTabsRestoreScript = isSynced && Astro.locals[didRenderSyncedTabsRestoreScriptSymbol] !== true;
+
+if (isSynced) {
+	// @ts-expect-error - Same pattern as Starlight.
+	Astro.locals[didRenderSyncedTabsRestoreScriptSymbol] = true;
+}
+---
+
+{/* Inlined to avoid a flash of invalid active tab. */}
+{shouldRenderSyncedTabsRestoreScript && <script is:inline>
+(() => {
+	class CustomTabsRestore extends HTMLElement {
+		connectedCallback() {
+			const tabs = this.closest('custom-tabs');
+			if (!(tabs instanceof HTMLElement) || typeof localStorage === 'undefined') return;
+			const syncKey = tabs.dataset.syncKey;
+			if (!syncKey) return;
+			const label = localStorage.getItem(`starlight-synced-tabs__${syncKey}`);
+			if (!label) return;
+			const tabElements = [...tabs?.querySelectorAll('[role="tab"]')];
+			const tabIndexToRestore = tabElements.findIndex(
+				(tab) => tab instanceof HTMLAnchorElement && tab.textContent?.trim() === label
+			);
+			const panels = tabs?.querySelectorAll(':scope > [role="tabpanel"]');
+			const newTab = tabElements[tabIndexToRestore];
+			const newPanel = panels[tabIndexToRestore];
+			if (tabIndexToRestore < 1 || !newTab || !newPanel) return;
+			tabElements[0]?.setAttribute('aria-selected', 'false');
+			tabElements[0]?.setAttribute('tabindex', '-1');
+			panels?.[0]?.setAttribute('hidden', 'true');
+			newTab.removeAttribute('tabindex');
+			newTab.setAttribute('aria-selected', 'true');
+			newPanel.removeAttribute('hidden');
+		}
+	}
+	customElements.define('custom-tabs-restore', CustomTabsRestore);
+})()
+</script>}
+
+<custom-tabs data-sync-key={syncKey}>
+	{
+		panels && (
+			<div class="tablist-wrapper not-content">
+				<ul role="tablist">
+					{panels.map(({ icon, label, panelId, tabId }, idx) => (
+						<li role="presentation" class="tab">
+							<a
+								role="tab"
+								href={'#' + panelId}
+								id={tabId}
+								aria-selected={idx === 0 ? 'true' : 'false'}
+								tabindex={idx !== 0 ? -1 : 0}
+							>
+								{icon && <AstroIcon name={icon} size="1em" />}
+								{label}
+							</a>
+						</li>
+					))}
+				</ul>
+			</div>
+		)
+	}
+	<Fragment set:html={html} />
+	{isSynced && <custom-tabs-restore />}
+</custom-tabs>
+
+<style>
+	@layer starlight.components {
+		custom-tabs {
+			display: block;
+		}
+
+		.tablist-wrapper {
+			overflow-x: auto;
+		}
+
+		[role='tablist'] {
+			display: flex;
+			list-style: none;
+			border-bottom: 2px solid var(--sl-color-gray-5);
+			padding: 0;
+		}
+
+		.tab {
+			margin-bottom: -2px;
+		}
+		.tab > [role='tab'] {
+			display: flex;
+			align-items: center;
+			gap: 0.5rem;
+			padding: 0 1.25rem;
+			text-decoration: none;
+			border-bottom: 2px solid var(--sl-color-gray-5);
+			color: var(--sl-color-gray-3);
+			outline-offset: var(--sl-outline-offset-inside);
+			overflow-wrap: initial;
+		}
+		.tab [role='tab'][aria-selected='true'] {
+			color: var(--sl-color-white);
+			border-color: var(--sl-color-text-accent);
+			font-weight: 600;
+		}
+
+		.tablist-wrapper ~ :global([role='tabpanel']) {
+			margin-top: 1rem;
+		}
+	}
+</style>
+
+<script>
+	class CustomTabs extends HTMLElement {
+		static #syncedTabs = new Map<string, CustomTabs[]>();
+
+		tabs: HTMLAnchorElement[];
+		panels: HTMLElement[];
+		#syncKey: string | undefined;
+		#storageKeyPrefix = 'starlight-synced-tabs__';
+
+		constructor() {
+			super();
+			const tablist = this.querySelector<HTMLUListElement>('[role="tablist"]')!;
+			this.tabs = [...tablist.querySelectorAll<HTMLAnchorElement>('[role="tab"]')];
+			this.panels = [...this.querySelectorAll<HTMLElement>(':scope > [role="tabpanel"]')];
+			this.#syncKey = this.dataset.syncKey;
+
+			if (this.#syncKey) {
+				const syncedTabs = CustomTabs.#syncedTabs.get(this.#syncKey) ?? [];
+				syncedTabs.push(this);
+				CustomTabs.#syncedTabs.set(this.#syncKey, syncedTabs);
+			}
+
+			this.tabs.forEach((tab, i) => {
+				tab.addEventListener('click', (e) => {
+					e.preventDefault();
+					const currentTab = tablist.querySelector('[aria-selected="true"]');
+					if (e.currentTarget !== currentTab) {
+						this.switchTab(e.currentTarget as HTMLAnchorElement, i);
+					}
+				});
+
+				tab.addEventListener('keydown', (e) => {
+					const index = this.tabs.indexOf(e.currentTarget as any);
+					const nextIndex =
+						e.key === 'ArrowLeft'
+							? index - 1
+							: e.key === 'ArrowRight'
+								? index + 1
+								: e.key === 'Home'
+									? 0
+									: e.key === 'End'
+										? this.tabs.length - 1
+										: null;
+					if (nextIndex === null) return;
+					if (this.tabs[nextIndex]) {
+						e.preventDefault();
+						this.switchTab(this.tabs[nextIndex], nextIndex);
+					}
+				});
+			});
+		}
+
+		switchTab(newTab: HTMLAnchorElement | null | undefined, index: number, shouldSync = true) {
+			if (!newTab) return;
+
+			const previousTabsOffset = shouldSync ? this.getBoundingClientRect().top : 0;
+
+			this.tabs.forEach((tab) => {
+				tab.setAttribute('aria-selected', 'false');
+				tab.setAttribute('tabindex', '-1');
+			});
+			this.panels.forEach((oldPanel) => {
+				oldPanel.hidden = true;
+			});
+
+			const newPanel = this.panels[index];
+			if (newPanel) newPanel.hidden = false;
+			newTab.removeAttribute('tabindex');
+			newTab.setAttribute('aria-selected', 'true');
+			if (shouldSync) {
+				newTab.focus();
+				CustomTabs.#syncTabs(this, newTab);
+				window.scrollTo({
+					top: window.scrollY + (this.getBoundingClientRect().top - previousTabsOffset),
+					behavior: 'instant',
+				});
+			}
+		}
+
+		#persistSyncedTabs(label: string) {
+			if (!this.#syncKey || typeof localStorage === 'undefined') return;
+			localStorage.setItem(this.#storageKeyPrefix + this.#syncKey, label);
+		}
+
+		static #syncTabs(emitter: CustomTabs, newTab: HTMLAnchorElement) {
+			const syncKey = emitter.#syncKey;
+			const label = CustomTabs.#getTabLabel(newTab);
+			if (!syncKey || !label) return;
+			const syncedTabs = CustomTabs.#syncedTabs.get(syncKey);
+			if (!syncedTabs) return;
+
+			for (const receiver of syncedTabs) {
+				if (receiver === emitter) continue;
+				const labelIndex = receiver.tabs.findIndex((tab) => CustomTabs.#getTabLabel(tab) === label);
+				if (labelIndex === -1) continue;
+				receiver.switchTab(receiver.tabs[labelIndex], labelIndex, false);
+			}
+
+			emitter.#persistSyncedTabs(label);
+		}
+
+		static #getTabLabel(tab: HTMLAnchorElement) {
+			return tab.textContent?.trim();
+		}
+	}
+
+	customElements.define('custom-tabs', CustomTabs);
+</script>

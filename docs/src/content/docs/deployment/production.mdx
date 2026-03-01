@@ -1,0 +1,31 @@
+---
+title: Production recommendations
+sidebar:
+  label: "[lucide:shield] Production recommendations"
+---
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution">
+🚧 This page is under construction. 🚧
+</Aside>
+
+## Dependencies
+
+## PostgreSQL
+
+For production deployments, consider implementing a data retention policy for the `usage` table to manage database size.
+
+
+## Elasticsearch
+
+* In configuration file, in ElasticsearchDependency section, change default value of `number_of_shards` and `number_of_replicas`
+* In ElasticsearchDependency section, change default value of `index_name` and `index_language`
+### Redis
+
+For production environments, we recommend securing your Redis instance:
+* Keep the version up-to-date
+* Enable protected mode
+* Deactivate default user and create specific users with limited permissions
+* Configure logging to specific log files
+* Disable syslog
+

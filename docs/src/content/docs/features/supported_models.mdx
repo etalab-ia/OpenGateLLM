@@ -1,0 +1,84 @@
+---
+title: Supported models
+sidebar:
+  label: "[lucide:cpu] Supported models"
+---
+import { Aside, LinkButton } from '@astrojs/starlight/components';
+import { Icon } from 'astro-icon/components';
+import TabsCustom from '../../../components/TabsCustom.astro';
+import TabItemCustom from '../../../components/TabItemCustom.astro';
+
+<Aside type="caution">
+🚧 This page is under construction. 🚧
+</Aside>
+
+## Endpoints enabled by model type
+
+When you create a model router, you need to specify the model type.
+The model type determines the capabilities of the model and enables a specific set of endpoints.
+
+| Model type | Endpoint enabled | Description |
+| --- | --- | --- |
+| `text-generation` | `/v1/chat/completions` | LLM models for text generation. |
+| `text-classification` | `/v1/rerank` | Reranking models for text classification. |
+| `text-embeddings-inference` | `/v1/embeddings` | Text embeddings models for text similarity and clustering. |
+| `image-to-text` | `/v1/ocr` | OCR models for image to text conversion (only Mistral On-Premise supported). |
+| `image-text-to-text` | `/v1/chat/completions` | Multi-modal models to chat and analyze images. |
+| `automatic-speech-recognition` | `/v1/audio/transcriptions` | Automatic speech recognition models for audio to text conversion. |
+
+## Supported self-hosted API providers
+
+<TabsCustom>
+  <TabItemCustom value="vllm" label="vLLM" icon="lobe:vllm-color">
+    vLLM is open-source production-grade LLM server. It supports a wide range of models and is a great choice for self-hosted models.
+
+    **Supported model types:**
+    | Model type | Example model |
+    | --- | --- |
+    | `text-generation` | [openai/gpt-oss-120b](https://huggingface.co/openai/gpt-oss-120b) |
+    | `image-text-to-text` | [mistralai/Mistral-Small-3.2-24B-Instruct-2506](https://huggingface.co/mistralai/Mistral-Small-3.2-24B-Instruct-2506) |
+    | `text-classification` | [BAAI/bge-reranker-v2-m3](https://huggingface.co/BAAI/bge-reranker-v2-m3) |
+    | `text-embeddings-inference` | [intfloat/e5-mistral-7b-instruct](https://huggingface.co/intfloat/e5-mistral-7b-instruct) |
+    | `automatic-speech-recognition` | [openai/whisper-large-v3](https://huggingface.co/openai/whisper-large-v3) |
+
+    <LinkButton href="https://docs.vllm.ai/" icon="external">vLLM documentation</LinkButton>
+  </TabItemCustom>
+
+  <TabItemCustom value="mistral" label="Mistral On-Prem" icon="lobe:mistral-color">
+    Mistral On-Prem is the solution of Mistral AI to self-hosted their commercial models.
+
+    **Supported model types:**
+    | Model type | Example model |
+    | --- | --- |
+    | `text-generation` | [mistral-medium-2508](https://docs.mistral.ai/models/mistral-medium-2508) |
+    | `image-text-to-text` | [mistral-medium-2508](https://docs.mistral.ai/models/mistral-medium-2508) |
+    | `image-to-text` | [ocr-3-25-12](https://docs.mistral.ai/models/ocr-3-25-12) |
+    | `text-embeddings-inference` | [mistral-embed-23-12](https://docs.mistral.ai/models/mistral-embed-23-12) |
+    | `automatic-speech-recognition` | [voxtral-mini-2507](https://docs.mistral.ai/models/voxtral-mini-2507) |
+    
+    <LinkButton href="https://docs.mistral.ai/" icon="external">Mistral documentation</LinkButton>
+  </TabItemCustom>
+
+  <TabItemCustom label="Text Embeddings Inference" icon="lobe:huggingface-color">
+    Hugging Face Text Embeddings Inference is an open-source API dedicated for embeddings and reranking. Is a great choice for self-hosted models.
+
+    **Supported model types:**
+    | Model type | Example model |
+    | --- | --- |
+    | `text-embeddings-inference` | [BAAI/bge-m3](https://huggingface.co/BAAI/bge-m3) |
+    | `text-classification` | [BAAI/bge-reranker-v2-m3](https://huggingface.co/BAAI/bge-reranker-v2-m3) |
+  
+  <LinkButton href="https://github.com/huggingface/text-embeddings-inference" icon="external">Text Embeddings Inference documentation</LinkButton>
+  </TabItemCustom>
+
+  <TabItemCustom label="Ollama" icon="lobe:ollama">
+    Ollama is a local-first model runtime for self-hosted models.
+
+    **Supported model types:**
+    | Model type | Example model |
+    | --- | --- |
+    | `text-generation` | [qwen3.5:14b](https://ollama.com/library/qwen3.5:14b) |
+
+    <LinkButton href="https://ollama.com/" icon="external">Ollama documentation</LinkButton>
+  </TabItemCustom>
+</TabsCustom>

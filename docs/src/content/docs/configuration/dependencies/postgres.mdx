@@ -1,0 +1,55 @@
+---
+title: Postgres
+sidebar:
+  label: "[postgres] Postgres"
+---
+import { Aside, FileTree, LinkButton } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Required dependency">
+PostgreSQL is a **required dependency** for OpenGateLLM to run.
+</Aside>
+
+OpenGateLLM uses PostgreSQL as its primary relational database. It has **two** main purposes:
+- **Ressources reference**: store and manage the application resources (roles, organizations, users, permissions, api keys, models, collections, documents)
+- **Usage monitoring**: track API requests with metrics (tokens, costs, duration, carbon footprint...)
+
+Check the schema of the database in the [`models.py`](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/sql/models.py) file.
+
+<FileTree>
+- api
+  - sql
+    - **models.py** SQLAlchemy models
+    - session.py
+</FileTree>
+
+## Configuration
+
+
+To configure the PostgreSQL dependency, you need to add the database connection information in the `dependencies` section of your `config.yml` file.  
+Check [Postgres section](/configuration/configuration_file/#postgresdependency) in configuration file documentation for more information.
+
+Example:
+```yaml
+dependencies:
+    [...]
+    postgres:
+        url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-localhost}:${POSTGRES_PORT:-5432}/postgres
+        echo: false
+        pool_size: 5
+        connect_args:
+        server_settings:
+            statement_timeout: "120s"
+        command_timeout: 60
+```
+
+
+The PostgreSQL dependency accepts all parameters from the [SQLAlchemy AsyncEngine](https://docs.sqlalchemy.org/en/20/core/engines.html#sqlalchemy.create_engine). Only `url` parameter is required.
+The connection URL must use the `postgresql+asyncpg://` driver. If you provide a standard `postgresql://` URL, it will be automatically converted to use asyncpg.
+
+<LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>
+
+## Database Migrations
+
+OpenGateLLM uses [Alembic](https://alembic.sqlalchemy.org/) for database migrations. The schema is automatically initialized and updated when the API starts by [`startup_api.sh` script](https://github.com/etalab-ia/OpenGateLLM/blob/main/scripts/startup_api.sh).
+
+For contributing to the database schema, you can follow the instructions in [SQL contributions guide](/contributing/sql/).

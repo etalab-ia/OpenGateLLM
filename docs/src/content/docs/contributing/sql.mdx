@@ -1,0 +1,41 @@
+---
+title: Edit SQL models
+sidebar:
+  label: "[lucide:database] Edit SQL models"
+  order: 3
+---
+import { Steps, FileTree } from '@astrojs/starlight/components';
+
+If you modify API database tables in [`api/sql/models.py`](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/sql/models.py), use Alembic to generate and apply a migration.
+
+<Steps>
+1. **Generate a migration**
+
+   ```bash
+   alembic -c api/alembic.ini revision --autogenerate -m "message"
+   ```
+
+   Feed change needs migrate data, edit the revision file. 
+
+   <FileTree>
+   - api/
+      - alembic/
+         - alembic.ini Alembic configuration file
+         - env.py
+         - script.py.mako
+         - **versions/** Generated migrations files
+   </FileTree>
+
+2. **Apply the migration**
+
+   ```bash
+   alembic -c api/alembic.ini upgrade head
+   ```
+
+3. **(Optional) Revert the last migration**
+
+   ```bash
+   alembic -c api/alembic.ini downgrade -1
+   ```
+</Steps>
+

@@ -1,0 +1,72 @@
+---
+title: Run tests
+sidebar:
+  label: "[lucide:check-circle] Run tests"
+  order: 2
+---
+import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Prerequisites" icon="approve-check-circle">
+- Python 3.12+
+- Docker and Docker Compose
+</Aside>
+
+OpenGateLLM uses a combination of unit and integration tests to ensure the quality of the code.
+
+<FileTree>
+- api/
+  - tests/
+    - unit/
+    - integration/
+</FileTree>
+
+## Unit tests
+
+Unit tests are located in the `tests/unit` folder. They are written using the `pytest` framework.
+
+<Steps>
+1. Create a Python virtual environment (recommended)
+
+2. Install the dependencies with the following command:
+
+    ```bash
+    pip install ".[api,test]"
+    ```
+
+3. To run the tests, you can use the following command:
+
+    ```bash
+      make test-unit
+    ```
+
+    <Aside type="note" title="Open the HTML coverage report">
+
+    To check the coverage report, open the HTML file in your browser:
+    ```bash
+    open htmlcov/index.html  # macOS
+    xdg-open htmlcov/index.html  # Linux
+    ```
+    </Aside>
+</Steps>
+
+## Integration tests
+
+Integration tests are located in the `tests/integration` folder. They are written using the `pytest` framework and Docker compose to run the API and its dependencies in Docker containers.
+
+<Steps>
+1. Create a Python virtual environment (recommended)
+
+2. Install the dependencies with the following command:
+
+    ```bash
+    pip install ".[api,test]"
+    ```
+
+3. To run the tests, you can use the following command:
+
+    ```bash
+    make test-integration
+    ```
+
+</Steps>
+

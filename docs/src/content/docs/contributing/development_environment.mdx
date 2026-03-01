@@ -1,0 +1,86 @@
+---
+title: Development environment
+sidebar:
+  label: "[lucide:terminal] Development environment"
+  order: 1
+---
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Prerequisites" icon="approve-check-circle">
+- Python 3.12+
+- Docker and Docker Compose
+</Aside>
+
+OpenGateLLM is composed of several services:
+- API ([FastAPI](https://fastapi.tiangolo.com/))
+- Playground ([Reflex](https://reflex.dev/))
+- Dependencies (see [dependencies](/configuration/dependencies/))
+
+To simplify development, we have created a make command that allows you to launch the services locally in development mode. Follow the steps below to setup your development environment.
+
+<Steps>
+1. **Create a Python virtual environment (recommended)**
+
+2. **Install the dependencies**
+
+    ```bash
+    pip install ".[api,playground,dev,test]"
+    ```
+
+3. **Install the pre-commit hooks**
+
+    ```bash
+    pre-commit install
+    ```
+
+4. **Launch services locally**
+
+    Start services locally with the following command:
+
+    ```bash
+    make dev
+    ```
+    The API will be available at http://localhost:8000 and the playground at http://localhost:8501. 
+
+5. **Create the first admin user**
+
+    Open another terminal and create the first admin user with the following command:
+
+    ```bash
+    make create-admin
+    ```
+
+    The default created user will be `admin` as email and its password `changeme`. The script create a role with `admin` permissions that allows to access to all models with no limits.
+
+6. **Setup your models**
+
+    To add your models, you can refer to the [documentation](/getting-started/models) to setup your models.
+
+</Steps>
+
+## Commit
+
+Please respect the following convention for your commits:
+
+```
+[doc|feat|fix](theme) commit object (in english)
+
+# example
+feat(collections): collection name retriever
+```
+
+## Linter
+
+The project linter is [Ruff](https://docs.astral.sh/ruff/). The specific project formatting rules are in the [pyproject.toml](https://github.com/etalab-ia/OpenGateLLM/blob/main/pyproject.toml) file.
+
+Please install the pre-commit hooks to run the linter at each commit:
+
+```bash
+pre-commit install
+```
+  
+To run the linter manually:
+
+```bash
+make lint
+```

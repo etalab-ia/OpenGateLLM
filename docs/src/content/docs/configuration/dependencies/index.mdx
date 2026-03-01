@@ -1,0 +1,36 @@
+---
+title: Dependencies
+sidebar:
+  label: "[lucide:package] Dependencies"
+---
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+import IconLinkCard from "../../../../components/IconLinkCard.astro";
+
+This section presents how to configure the dependencies used by the application. Below, you will find those required for the system to run, as well as optional ones depending on your needs.
+
+Optional dependencies are like plugins that can extend the functionality of OpenGateLLM. For example, enabling Elasticsearch activates endpoints related to RAG.
+
+## Required dependencies
+
+<CardGrid>
+<IconLinkCard title="Postgres" href="/configuration/dependencies/postgres" icon="postgres" />
+<IconLinkCard title="Redis" href="/configuration/dependencies/redis" icon="redis" />
+</CardGrid>
+
+## Optional dependencies
+
+<CardGrid> 
+<IconLinkCard 
+  title="Elasticsearch"
+  href="/configuration/dependencies/elasticsearch"
+  icon="elasticsearch" 
+  description="Enable <code>/v1/collections</code>, <code>/v1/documents</code> and <code>/v1/search</code> endpoints."
+/>
+<IconLinkCard 
+  title="Prometheus"
+  href="/configuration/dependencies/prometheus"
+  icon="prometheus"
+  description="Enable <code>/metrics</code> endpoint." 
+/>
+<IconLinkCard title="Sentry" href="/configuration/dependencies/sentry" icon="sentry" />
+</CardGrid>

@@ -1,0 +1,54 @@
+---
+title: Prometheus
+sidebar:
+  label: "[prometheus] Prometheus"
+---
+import { Aside, LinkButton } from '@astrojs/starlight/components';
+
+<Aside type="note" title="Optional dependency">
+Prometheus is an **optional dependency**. The application works without it.
+</Aside>
+
+OpenGateLLM can expose metrics in Prometheus format for monitoring and observability. This allows you to track API performance, usage patterns, and system health in real-time.
+
+When Prometheus monitoring is enabled, OpenGateLLM exposes metrics at the `/metrics` endpoint in Prometheus format. These metrics can be scraped by a Prometheus server for visualization in tools like Grafana.
+
+## Metrics
+
+Once enabled, you can access the metrics endpoint at:
+
+```
+http://localhost:8000/metrics
+```
+
+This endpoint returns metrics in Prometheus text-based exposition format, which can be scraped by your Prometheus server.
+
+## List of metrics
+
+All default metrics of *prometheus-fastapi-instrumentator* are available, see their [README](https://github.com/trallnag/prometheus-fastapi-instrumentator) for more information.
+These metrics are prefixed with `opengatellm_inference_`.
+
+In addition, the following metrics are available:
+| Metric | Description |
+| --- | --- |
+| *work in progress, check our [roadmap](/overview/roadmap/) for more information.* | ... |
+
+## Grafana dashboard
+
+*Work in progress, check our [roadmap](/overview/roadmap/) for more information.*
+
+## Configuration
+
+To enable Prometheus metrics exposure, you need to configure the monitoring setting in the `settings` section of your `config.yml` file.  
+Check [Settings section](/configuration/configuration_file/#settings) in configuration file documentation for more information.
+
+Example:
+```yaml
+settings:
+    [...]
+    monitoring_prometheus_enabled: true
+```
+
+By default, Prometheus monitoring is enabled. Set it to `false` to disable the `/metrics` endpoint.
+
+<LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>

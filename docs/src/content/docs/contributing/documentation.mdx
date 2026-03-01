@@ -1,0 +1,52 @@
+---
+title: Edit documentation
+sidebar:
+  label: "[lucide:book-plus] Edit documentation"
+  order: 4
+---
+import { Steps, FileTree, Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution" title="Prerequisites" icon="approve-check-circle">
+        - Node.js (version 18+ recommended)
+        - npm (or yarn/pnpm)
+</Aside>
+
+OpenGateLLM uses [Astro Starlight](https://starlight.astro.build/) to serve its documentation. Start the local development server with the following command:
+
+<Steps>
+
+1. Go to the documentation folder
+
+   ```bash
+   cd docs
+   ```
+
+2. Run the development server
+
+   ``` bash
+   npm run dev
+   ```
+
+   This will:
+   -   Install the dependencies
+   -   Launch a development server at **http://localhost:4321/**
+   -   Hot-reload changes as you edit files
+
+3. Edit the documentation
+
+
+   <FileTree>
+   - astro.config.mjs Astro configuration file
+   - src
+      - assets Assets folder
+        - icons/ Custom icons SVG folder
+     - content
+       - **docs/** Documentation markdown files folder
+   </FileTree>
+
+</Steps>
+
+<Aside type="danger" title="Automatic documentation generation">
+Some documentation is automatically generated from the codebase. Please do not edit the generated documentation files:
+- [Configuration file](/configuration/configuration_file/) (see [generation script](https://github.com/etalab-ia/OpenGateLLM/blob/main/scripts/docs/generate_configuration_documentation.py))
+</Aside>

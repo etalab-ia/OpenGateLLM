@@ -1,0 +1,34 @@
+---
+title: Inference monitoring
+sidebar:
+  label: "[lucide:chart-spline] Inference monitoring"
+---
+import { LinkButton } from '@astrojs/starlight/components';
+
+OpenGateLLM tracks inference activity by storing usage data for each API request. This monitoring helps you analyze model usage over time, identify consumption patterns, and support reporting needs. 
+Usage monitoring is backed by PostgreSQL and can be enabled through the configuration file. Once activated, requests are recorded in the `usage` table and can be explored from the Playground *Usage* page or queried directly from the database.
+
+The logs contain the following information:
+- user ID
+- router ID
+- provider ID
+- number of input tokens
+- number of output tokens
+- environmental footprint (see the dedicated documentation [here](/features/usage/environmental_footprint/))
+- cost (see the dedicated documentation [here](/features/usage/budget/))
+- duration
+- timestamp
+
+Sensitive information such as the prompt or response content is not included in the logs.
+
+## Configuration
+
+To logs requests for usage monitoring, set `monitoring_postgres_enabled` to `true` in settings (enabled by default).
+
+```yaml
+settings:
+    [...]
+    monitoring_postgres_enabled: true
+```
+
+<LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>

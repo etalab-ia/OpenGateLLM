@@ -1,0 +1,37 @@
+---
+title: Rate limiting
+sidebar:
+  label: "[lucide:gauge] Rate limiting"
+---
+import { Aside, LinkButton } from '@astrojs/starlight/components';
+
+The rate limiter uses Redis to store counters for:
+- **RPM (Requests Per Minute)**: Number of API requests per minute per user and model
+- **RPD (Requests Per Day)**: Number of API requests per day per user and model
+- **TPM (Tokens Per Minute)**: Number of tokens consumed per minute per user and model
+- **TPD (Tokens Per Day)**: Number of tokens consumed per day per user and model
+
+OpenGateLLM supports three rate limiting strategies (configurable in settings):
+- **Fixed Window**: Use when low memory usage and high performance are critical, and occasional bursts are acceptable or can be mitigated by additional fine-grained limits.
+- **Moving Window**: Use when exactly accurate rate limiting is required and extra memory overhead is acceptable.
+- **Sliding Window Counter**: Use when a balance between memory efficiency and accuracy is needed. This strategy smooths transitions between time periods with less overhead than a full moving window, though it may trade off some precision near bucket boundaries.
+
+For more information about how strategies are compute, see [Limits package documentation](https://limits.readthedocs.io/en/stable/strategies.html).
+
+## Configuration
+
+To configure the rate limiting strategy, set `rate_limiting_strategy` in the `settings` section of your `config.yml`:
+
+```yaml
+settings:
+    [...]
+    rate_limiting_strategy: fixed_window
+```
+
+<LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>
+
+## Setup router rate limits
+
+<Aside type="caution">
+🚧 This page is under construction. 🚧
+</Aside>

@@ -1,0 +1,167 @@
+---
+title: Environmental footprint
+sidebar:
+  label: "[lucide:leaf] Environmental footprint"
+---
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+OpenGateLLM tracks the environmental impact of AI model usage through the [EcoLogits](https://ecologits.ai) library, which provides a comprehensive view of the environmental footprint of generative AI models at inference.
+
+The environmental footprint is deduced from the number of parameters of the model and the country where the model is hosted. For each model provider, you can define these parameters that impact the environmental footprint. Either through the *Provider settings* page in the Playground UI, or via the *config.yml* file. For more details on model configuration, see the [model setup documentation](/getting-started/models).
+
+## Configuration
+
+There are three way to configure environmental impact tracking, by Playground, API or configuration file.
+
+<Tabs>
+  <TabItem value="playground" label="Playground UI" icon="laptop">
+  
+  To define model parameters in the Playground, go to the *Provider* page. Complete the form fields when you create or edit a model provider including:
+  - **`Total params of the model`**: Total number of parameters of the model in billions of parameters for environmental footprint computation.
+  - **`Active params of the model`**: Active number of parameters of the model in billions of parameters for environmental footprint computation.
+  - **`Hosting country of the model`**: Hosting country of the model in ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States).
+
+  <Aside type="note" title="Environmental footprint computation">
+  Environmental footprint computation requires at least one of `Total params of the model` or `Active params of the model` to be defined. If not provided, the environmental impact will not be computed for that model provider (display as 0 kWh and 0 kgCO2eq).
+
+  Environmental footprint is only supported for `text-generation` and `image-text-to-text` model types. For other model types, the environmental impact will not be computed (display as 0 kWh and 0 kgCO2eq).
+  </Aside>
+
+  </TabItem>
+
+  <TabItem value="config" label="API" icon="document">
+  * Create a new provider:
+  ```diff lang="bash"
+  curl -X POST "http://localhost:8000/v1/admin/provider?router_id=1" \
+   -H "Content-Type: application/json" \
+   -H "Authorization: Bearer changeme" \
+   -d '{
+        "type": "vllm",
+        "url": ${MODEL_API_URL},
+        "key": ${MODEL_API_KEY},
+        "model_name": "meta-llama/Llama-3.1-8B-Instruct",
+  +      "model_total_params": 8,
+  +      "model_active_params": 8,
+  +      "model_hosting_zone": "FRA"
+      }'
+  ```
+  
+  * Update an existing provider:
+  ```bash
+  curl -X PUT "http://localhost:8000/v1/admin/provider/{provider_id}" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer changeme" \
+  -d '{"model_total_params": 35, "model_active_params": 35, "model_hosting_zone": "WOR"}'
+  ```
+  </TabItem>
+
+  <TabItem value="config" label="Configuration file" icon="document">
+  <Aside type="caution">
+  We not recommend to use the configuration file to setup your models parameters, prefer to use the Playground UI or API endpoints.
+  </Aside>
+
+  To define model parameters in the configuration file, complete the following fields for environmental footprint computation for each model provider:
+  - **`model_total_params`**: Total number of parameters of the model in billions of parameters for environmental footprint computation.
+  - **`model_active_params`**: Active number of parameters of the model in billions of parameters for environmental footprint computation.
+  - **`model_hosting_zone`**: Hosting zone of the model in ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States).
+
+  For more information, see [configuration file documentation](/configuration/configuration_file/).
+
+  **Example:**
+
+  ```yaml
+  models:
+    [...]
+    - name: my-language-model
+      type: text-generation
+      providers:
+        - type: openai
+          url: https://api.openai.com
+          key: ${OPENAI_API_KEY}
+          model_name: gpt-4o-mini
+          model_total_params: 35
+          model_active_params: 35
+          model_hosting_zone: WOR
+  ```
+
+  <Aside type="note" title="Environmental footprint computation">
+  Environmental footprint computation requires at least one of `model_total_params` or `model_active_params` to be defined. If not provided, the environmental impact will not be computed for that model provider (display as 0 kWh and 0 kgCO2eq).
+
+  Environmental footprint is only supported for `text-generation` and `image-text-to-text` model types. For other model types, the environmental impact will not be computed (display as 0 kWh and 0 kgCO2eq).
+  </Aside>
+  </TabItem>
+</Tabs>
+
+## Environmental impact metrics
+
+For each call to a generative AI model, the API returns environmental impact metrics in the response, in the `usage.carbon` field. The metrics include minimum and maximum estimates to account for variability in model efficiency:
+
+- **kWh**: Energy consumption in kilowatt-hours (kWh), representing the final electricity consumption.
+- **kgCO2eq**: Global Warming Potential (GWP) in kilograms of CO2 equivalent (kgCO2eq), representing greenhouse gas emissions related to climate change.
+
+**Example response:**
+
+```json
+{
+  "id": "chatcmpl-123",
+  "object": "chat.completion",
+  "created": 1677652288,
+  "model": "my-language-model",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Hello! How can I help you today?"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 10,
+    "completion_tokens": 20,
+    "total_tokens": 30,
+    "cost": 0.000015,
+    "carbon": {
+      "kWh": {
+        "min": 0.0001234,
+        "max": 0.0001456
+      },
+      "kgCO2eq": {
+        "min": 0.0000567,
+        "max": 0.0000672
+      }
+    }
+  }
+}
+```
+
+After the request is processed, the carbon footprint of the request is store in *usage* table by the [hooks decorator](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/utils/hooks_decorator.py) attached to each endpoint. See [usage monitoring documentation](./usage.md) for more information. 
+
+You can also see the carbon footprint of the request in the *Usage* page of the Playground.
+
+![Usage page](../../../../assets/img/environmental_footprint_1.png)
+
+## How it works
+
+Environmental impact is calculated using the [EcoLogits](https://ecologits.ai) library through the `compute_llm_impacts` function. The computation takes into account:
+
+1. **Model parameters**: 
+   - Total number of parameters (`model_total_params`)
+   - Active number of parameters (`model_active_params`, defaults to total params if not specified)
+
+2. **Token usage**: The number of output/completion tokens generated by the model
+
+3. **Request latency**: The time taken for the inference request (in seconds)
+
+4. **Electricity mix**: The carbon intensity of electricity based on the hosting zone (`model_hosting_zone`). The electricity mix includes:
+   - ADPE (Abiotic Depletion Potential - elements)
+   - PE (Primary Energy)
+   - GWP (Global Warming Potential)
+
+For more information about methodology, see [EcoLogits documentation](https://ecologits.ai/methodology).
+
+:::note
+If `total_params` is not defined or `token_count` is zero, the carbon footprint will be returned as zero for both energy and emissions.
+:::
+
