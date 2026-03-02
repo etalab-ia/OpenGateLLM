@@ -83,6 +83,14 @@ class RouterNotFoundHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=f"Model router {router_id} not found.")
 
 
+class ProviderNotFoundHTTPException(HTTPException):
+    status_code = 404
+    detail = "Model provider {provider_id} not found."
+
+    def __init__(self, provider_id: int) -> None:
+        super().__init__(status_code=self.status_code, detail=f"Model provider {provider_id} not found.")
+
+
 # 409
 class RouterAliasAlreadyExistsHTTPException(HTTPException):
     status_code = 409

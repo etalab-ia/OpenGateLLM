@@ -25,3 +25,10 @@ class ProviderRepository(ABC):
         max_context_length: int,
     ) -> Provider | ProviderAlreadyExistsError:
         pass
+
+    @abstractmethod
+    async def delete_provider(
+        self,
+        provider_id: int,
+    ) -> Provider | None:
+        pass

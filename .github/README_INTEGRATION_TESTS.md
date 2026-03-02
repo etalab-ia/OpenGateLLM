@@ -72,7 +72,7 @@ To execute a specific test, you can use the following command:
 CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ/<path_to_test_file>::<TestClass>::<test_name> --config-file=pyproject.toml
 
 # Example
-CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ/test_admin/test_admin_providers.py::TestAdminProviders::test_create_provider_with_text_generation_model --config-file=pyproject.toml
+CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ/test_admin/test_create_provider.py::TestAdminProviders::test_create_provider_with_text_generation_model --config-file=pyproject.toml
 ```
 
 To run a group of tests, you can use the following command:
@@ -81,7 +81,7 @@ To run a group of tests, you can use the following command:
 CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ/<path_to_test_file> --config-file=pyproject.toml
 
 # Example
-CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ/test_admin/test_admin_providers.py --config-file=pyproject.toml
+CONFIG_FILE=api/tests/integ/config.test.yml PYTHONPATH=. pytest api/tests/integ/test_admin/test_create_provider.py --config-file=pyproject.toml
 ```
 
 ## Run with VSCode

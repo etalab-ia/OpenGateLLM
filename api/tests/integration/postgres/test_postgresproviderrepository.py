@@ -1,8 +1,10 @@
 import pytest
+from sqlalchemy import select
 
 from api.domain.model.entities import Metric, ModelType
 from api.domain.provider import Provider, ProviderAlreadyExistsError, ProviderCarbonFootprintZone, ProviderType
 from api.infrastructure.postgres import PostgresProviderRepository
+from api.sql.models import Provider as ProviderTable
 from api.tests.integration.factories import (
     ProviderSQLFactory,
     RouterSQLFactory,
@@ -83,3 +85,39 @@ class TestCreateProvider:
         assert result.router_id == router.id
         assert result.url == "http://test.com/"
         assert result.model_name == "duplicate-provider"
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestDeleteProvider:
+    async def test_delete_provider_should_return_the_deleted_provider_when_provider_exists(self, repository, db_session):
+        # Arrange
+        provider = ProviderSQLFactory(model_name="provider_to_delete")
+        await db_session.flush()
+
+        # Act
+        result = await repository.delete_provider(provider.id)
+
+        # Assert
+        assert isinstance(result, Provider)
+        assert result.id == provider.id
+        assert result.model_name == "provider_to_delete"
+
+    async def test_delete_provider_should_return_none_when_provider_does_not_exist(self, repository, db_session):
+        # Act
+        result = await repository.delete_provider(provider_id=999999)
+
+        # Assert
+        assert result is None
+
+    async def test_delete_provider_should_remove_provider_from_database(self, repository, db_session):
+        # Arrange
+        provider = ProviderSQLFactory(model_name="provider_to_remove")
+        await db_session.flush()
+
+        # Act
+        await repository.delete_provider(provider.id)
+
+        # Assert
+        await db_session.flush()
+        provider_after_delete = (await db_session.execute(select(ProviderTable).where(ProviderTable.id == provider.id))).scalar_one_or_none()
+        assert provider_after_delete is None

@@ -6,10 +6,10 @@ from fastapi import Body, Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies import create_provider_use_case_factory, get_request_context
+from api.dependencies import create_provider_use_case_factory, delete_provider_use_case_factory, get_request_context
 from api.domain.model import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider import InvalidProviderTypeError, ProviderNotReachableError
-from api.domain.provider.errors import ProviderAlreadyExistsError
+from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.helpers.models import ModelRegistry
@@ -24,11 +24,19 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     InvalidProviderTypeHTTPException,
     NotAdminUserHTTPException,
     ProviderAlreadyExistsHTTPException,
+    ProviderNotFoundHTTPException,
     ProviderNotReachableHTTPException,
     RouterNotFoundHTTPException,
 )
 from api.infrastructure.fastapi.schemas.providers import CreateProvider, CreateProviderResponse, Provider, Providers, UpdateProvider
-from api.use_cases.admin.providers import CreateProviderCommand, CreateProviderUseCase, CreateProviderUseCaseSuccess
+from api.use_cases.admin.providers import (
+    CreateProviderCommand,
+    CreateProviderUseCase,
+    CreateProviderUseCaseSuccess,
+    DeleteProviderCommand,
+    DeleteProviderUseCase,
+    DeleteProviderUseCaseSuccess,
+)
 from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import EndpointRoute
 
@@ -107,19 +115,39 @@ async def create_provider(
 
 
 @router.delete(
-    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider}",
+    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
     dependencies=[Security(dependency=get_current_key)],
-    status_code=204,
+    status_code=200,
 )
 async def delete_provider(
-    request: Request,
-    provider: int = Path(description="The ID of the provider to delete."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-    model_registry: ModelRegistry = Depends(get_model_registry),
-) -> Response:
-    await model_registry.delete_provider(provider_id=provider, postgres_session=postgres_session)
+    provider_id: int = Path(description="The ID of the provider to delete."),
+    delete_provider_use_case: DeleteProviderUseCase = Depends(delete_provider_use_case_factory),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+) -> Provider:
+    command = DeleteProviderCommand(
+        user_id=request_context.get().user_id,
+        provider_id=provider_id,
+    )
+    try:
+        result = await delete_provider_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing delete_provider use case",
+            extra={
+                "user_id": command.user_id,
+                "provider_id": command.provider_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
 
-    return Response(status_code=204)
+    match result:
+        case DeleteProviderUseCaseSuccess(deleted_router):
+            return Provider.model_validate(deleted_router, from_attributes=True)
+        case ProviderNotFoundError(provider_id=not_found_id):
+            raise ProviderNotFoundHTTPException(not_found_id)
+        case UserIsNotAdminError():
+            raise NotAdminUserHTTPException()
 
 
 @router.patch(

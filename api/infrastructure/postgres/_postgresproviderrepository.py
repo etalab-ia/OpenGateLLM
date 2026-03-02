@@ -1,4 +1,4 @@
-from sqlalchemy import insert
+from sqlalchemy import delete, insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +12,26 @@ from api.sql.models import Provider as ProviderTable
 class PostgresProviderRepository(ProviderRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
+
+    @staticmethod
+    def _row_to_provider(row) -> Provider:
+        return Provider(
+            router_id=row.router_id,
+            user_id=row.user_id,
+            type=row.type,
+            url=row.url,
+            key=row.key,
+            timeout=row.timeout,
+            model_name=row.model_name,
+            model_hosting_zone=row.model_hosting_zone,
+            model_total_params=row.model_total_params,
+            model_active_params=row.model_active_params,
+            qos_metric=row.qos_metric,
+            qos_limit=row.qos_limit,
+            max_context_length=row.max_context_length,
+            vector_size=row.vector_size,
+            id=row.id,
+        )
 
     async def create_provider(
         self,
@@ -75,3 +95,13 @@ class PostgresProviderRepository(ProviderRepository):
             if "unique_provider_router_id_url_model_name" in str(e.orig):
                 return ProviderAlreadyExistsError(model_name=model_name, url=url, router_id=router_id)
             raise
+
+    async def delete_provider(self, provider_id: int) -> Provider | None:
+        select_query = select(ProviderTable).where(ProviderTable.id == provider_id)
+        result = await self.postgres_session.execute(select_query)
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        delete_query = delete(ProviderTable).where(ProviderTable.id == provider_id)
+        await self.postgres_session.execute(delete_query)
+        return self._row_to_provider(row)

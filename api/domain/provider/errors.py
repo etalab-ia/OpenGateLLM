@@ -17,3 +17,8 @@ class ProviderAlreadyExistsError:
     model_name: str
     url: str
     router_id: int
+
+
+@dataclass
+class ProviderNotFoundError:
+    provider_id: int

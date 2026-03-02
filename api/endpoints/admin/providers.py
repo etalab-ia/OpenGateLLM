@@ -13,25 +13,6 @@ from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import EndpointRoute
 
 
-@router.delete(
-    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
-    status_code=204,
-)
-async def delete_provider(
-    request: Request,
-    provider: int = Path(description="The ID of the provider to delete."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-    model_registry: ModelRegistry = Depends(get_model_registry),
-) -> Response:
-    """
-    Delete a router provider.
-    """
-    await model_registry.delete_provider(provider_id=provider, postgres_session=postgres_session)
-
-    return Response(status_code=204)
-
-
 @router.patch(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN, PermissionType.PROVIDE_MODELS]))],
