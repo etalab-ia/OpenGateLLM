@@ -25,7 +25,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RouterAlreadyExistsHTTPException,
     RouterNotFoundHTTPException,
 )
-from api.infrastructure.fastapi.schemas.routers import CreateRouter, CreateRouterResponse, Router, Routers, UpdateRouter
+from api.infrastructure.fastapi.schemas.routers import CreateRouterBody, RouterResponse, Routers, UpdateRouterBody
 from api.use_cases.admin.routers import (
     CreateRouterCommand,
     CreateRouterUseCase,
@@ -61,10 +61,10 @@ logger = logging.getLogger(__name__)
     ),
 )
 async def create_router(
-    body: CreateRouter = Body(description="The router creation request."),
+    body: CreateRouterBody = Body(description="The router creation request."),
     create_router_use_case: CreateRouterUseCase = Depends(create_router_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
-) -> CreateRouterResponse:
+) -> RouterResponse:
     try:
         command = CreateRouterCommand(
             user_id=request_context.get().user_id,
@@ -89,7 +89,7 @@ async def create_router(
 
     match result:
         case CreateRouterUseCaseSuccess(created_router):
-            return CreateRouterResponse.model_validate(created_router, from_attributes=True)
+            return RouterResponse.model_validate(created_router, from_attributes=True)
         case RouterAliasAlreadyExistsError(name):
             raise RouterAliasAlreadyExistsHTTPException(name)
         case RouterNameAlreadyExistsError(name):
@@ -108,7 +108,7 @@ async def get_router(
     router_id: int = Path(description="The router ID."),
     get_one_router_use_case: GetOneRouterUseCase = Depends(get_one_router_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
-) -> Router:
+) -> RouterResponse:
     command = GetOneRouterCommand(
         router_id=router_id,
         user_id=request_context.get().user_id,
@@ -127,7 +127,7 @@ async def get_router(
         raise InternalServerHTTPException()
     match result:
         case GetOneRouterUseCaseSuccess(returned_router):
-            return Router.model_validate(returned_router, from_attributes=True)
+            return RouterResponse.model_validate(returned_router, from_attributes=True)
         case RouterNotFoundError(router_id=not_found_id):
             raise RouterNotFoundHTTPException(not_found_id)
         case UserIsNotAdminError():
@@ -172,7 +172,7 @@ async def get_routers(
                 total=total,
                 offset=offset,
                 limit=limit,
-                data=[Router.model_validate(r, from_attributes=True) for r in routers],
+                data=[RouterResponse.model_validate(r, from_attributes=True) for r in routers],
             )
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
@@ -188,7 +188,7 @@ async def delete_router(
     router_id: int = Path(description="The ID of the router to delete (router ID, eg. 123)."),
     delete_router_use_case: DeleteRouterUseCase = Depends(delete_router_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
-) -> Router:
+) -> RouterResponse:
     command = DeleteRouterCommand(
         user_id=request_context.get().user_id,
         router_id=router_id,
@@ -208,7 +208,7 @@ async def delete_router(
 
     match result:
         case DeleteRouterUseCaseSuccess(deleted_router):
-            return Router.model_validate(deleted_router, from_attributes=True)
+            return RouterResponse.model_validate(deleted_router, from_attributes=True)
         case RouterNotFoundError(router_id=not_found_id):
             raise RouterNotFoundHTTPException(not_found_id)
         case UserIsNotAdminError():
@@ -227,8 +227,8 @@ async def update_router(
     router_id: int = Path(description="The ID of the router to update (router ID, eg. 123)."),
     update_router_use_case: UpdateRouterUseCase = Depends(update_router_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
-    body: UpdateRouter = Body(description="The router update request."),
-) -> Router:
+    body: UpdateRouterBody = Body(description="The router update request."),
+) -> RouterResponse:
     command = UpdateRouterCommand(
         user_id=request_context.get().user_id,
         router_id=router_id,
@@ -253,7 +253,7 @@ async def update_router(
         raise InternalServerHTTPException()
     match result:
         case UpdateRouterUseCaseSuccess(router=updated_router):
-            return Router.model_validate(updated_router, from_attributes=True)
+            return RouterResponse.model_validate(updated_router, from_attributes=True)
         case RouterNotFoundError(router_id=not_found_id):
             raise RouterNotFoundHTTPException(not_found_id)
         case UserIsNotAdminError():
