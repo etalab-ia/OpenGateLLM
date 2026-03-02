@@ -1,4 +1,4 @@
-name: Build and deploy when pushing on main
+name: Build and deploy
 
 on:
   push:

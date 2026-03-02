@@ -14,7 +14,7 @@ The compute cost is calculated based on the number of tokens used and the budget
 cost = round((prompt_tokens / 1000000 * client.costs.prompt_tokens) + (completion_tokens / 1000000 * client.costs.completion_tokens), ndigits=6)
 ```
 
-The compute cost returned in the response, in the `usage.cost` field. After the request is processed, the budget amount of the user is updated by the [hooks decorator](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/utils/hooks_decorator.py) attached to each endpoint. The request cost is stored in the *usage* table, see [usage monitoring documentation](./usage.md) for more information. 
+The compute cost returned in the response, in the `usage.cost` field. After the request is processed, the budget amount of the user is updated by the [hooks decorator](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/utils/hooks_decorator.py) attached to each endpoint. The request cost is stored in the *usage* table, see [usage monitoring documentation](/features/usage/inference_monitoring/) for more information. 
 
 ## Configuration
 
@@ -87,7 +87,7 @@ The following parameters are used for cost computation:
 - `model_cost_prompt_tokens`
 - `model_cost_completion_tokens`
 
-For more information, see [Configuration](../getting-started/configuration.md) documentation.
+For more information, see [Configuration file documentation](/configuration/configuration_file/) documentation.
 
 **Example:**
 

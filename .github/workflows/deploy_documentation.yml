@@ -1,15 +1,16 @@
-name: Deploy Docusaurus to GitHub Pages
+name: Deploy documentation to GitHub Pages
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_call: # Add this to make the workflow reusable
-  workflow_dispatch: # Add this to allow manual triggering
+  workflow_run:
+    workflows: ["Release updates"]
+    types: [completed]
+  workflow_dispatch:
+  workflow_call:
+  workflow_dispatch:
 
 jobs:
   deploy:
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'release') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -26,15 +27,9 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./docs
-        run: npm ci
+        run: npm install
 
-      - name: Fetch contributors
-        working-directory: ./docs
-        run: npm run fetch-contributors
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build Docusaurus site
+      - name: Build documentation
         working-directory: ./docs
         run: npm run build
 

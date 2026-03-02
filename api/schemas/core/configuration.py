@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 from functools import wraps
 import logging
 import os
@@ -161,12 +161,12 @@ class Model(ConfigBaseModel):
 # dependencies ---------------------------------------------------------------------------------------------------------------------------------------
 
 
-class ParserType(str, Enum):
+class ParserType(StrEnum):
     ALBERT = "albert"
     MARKER = "marker"
 
 
-class DependencyType(str, Enum):
+class DependencyType(StrEnum):
     ALBERT = "albert"
     CELERY = "celery"
     ELASTICSEARCH = "elasticsearch"
@@ -297,7 +297,7 @@ class Dependencies(ConfigBaseModel):
         The parser dependency can be Albert or Marker, it is converted into a single attribute called "parser".
         """
 
-        def create_attribute(name: str, type: Enum, values: Any):
+        def create_attribute(name: str, type: StrEnum, values: Any):
             candidates = [item for item in type if getattr(values, item.value) is not None]
 
             # Ensure only one dependency of this family is defined
@@ -330,13 +330,13 @@ class Dependencies(ConfigBaseModel):
 
 
 # settings -------------------------------------------------------------------------------------------------------------------------------------------
-class LimitingStrategy(str, Enum):
+class LimitingStrategy(StrEnum):
     MOVING_WINDOW = "moving_window"
     FIXED_WINDOW = "fixed_window"
     SLIDING_WINDOW = "sliding_window"
 
 
-class Tokenizer(str, Enum):
+class Tokenizer(StrEnum):
     TIKTOKEN_GPT2 = "tiktoken_gpt2"
     TIKTOKEN_R50K_BASE = "tiktoken_r50k_base"
     TIKTOKEN_P50K_BASE = "tiktoken_p50k_base"
@@ -421,7 +421,7 @@ class ConfigFile(ConfigBaseModel):
     - `settings`: to configure the API.
 
     :::warnings
-    We don't recommend to use the configuration file to declare models, prefer to use the API to declare models, by endpoints or on the Playground UI (see [Models configuration](../models/models_configuration.md)).
+    We don't recommend to use the configuration file to declare models, prefer to use the API to declare models, by endpoints or on the Playground UI (see [Models configuration](/getting-started/models/)).
     :::
     """
 

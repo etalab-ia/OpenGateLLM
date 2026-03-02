@@ -30,10 +30,10 @@ def custom_validation_error(url: str | None = None):
             for error in error_content:
                 url = url or error["url"]
                 if error["type"] == "assertion_error":
-                    message += f"{error["msg"]}\n"
+                    message += f"{error['msg']}\n"
                 else:
                     if len(error["loc"]) > 0:
-                        message += f"{error["loc"][0]}\n"
+                        message += f"{error['loc'][0]}\n"
                     message += f"  {error["msg"]} [type={error["type"]}, input_value={error.get("input", "")}, input_type={type(error.get("input")).__name__}]\n"  # fmt: off
                     if len(error["loc"]) > 0:
                         description = cls.__pydantic_fields__[error["loc"][0]].description
@@ -104,7 +104,7 @@ class ConfigFile(ConfigBaseModel):
     identical and compatible. Some parameters are common to both the API and the Playground (for example, `app_title`).
 
     For Plagroud deployment, some environment variables are required to be set, like Reflex backend URL. See
-    [Environment variables](../getting-started/environment_variables.md#playground) for more information.
+    [Environment variables](/configuration/environment_variable/#playground) for more information.
     """
 
     dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the playground.")  # fmt: off

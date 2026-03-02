@@ -1,0 +1,73 @@
+name: Release updates
+
+on:
+  workflow_run:
+    workflows: ["Build and deploy"]
+    types: [completed]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release_updates:
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'release') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Configure Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[api,dev]"
+
+      - name: Update project version
+        run: |
+          git fetch --tags --force
+          latest_version="$(git tag --sort=-version:refname | head -n 1)"
+          if [ -z "$latest_version" ]; then
+            echo "No git tags found. Skipping project version update."
+            exit 0
+          fi
+          sed -i -E "s/^[[:space:]]*version[[:space:]]*=.*/version = \"${latest_version}\"/" pyproject.toml
+          sed -i -E "s|(image:[[:space:]]*ghcr.io/etalab-ia/opengatellm/api:).*|\\1${latest_version}|" compose.example.yml
+          sed -i -E "s|(image:[[:space:]]*ghcr.io/etalab-ia/opengatellm/playground:).*|\\1${latest_version}|" compose.example.yml
+          sed -i -E "s/(badge:[[:space:]]*)'[^']*'/\1'v${latest_version}'/" docs/astro.config.mjs
+
+      - name: Generate documentation
+        run: |
+          PYTHONPATH=. python ./scripts/docs/generate_configuration_documentation.py --output ./docs/docs/getting-started/configuration_file.md
+          make quickstart
+          curl http://localhost:8000/openapi.json -o ./docs/openapi.json
+          docker pull redocly/cli
+          docker run --rm -v ${{ github.workspace }}/docs:/spec redocly/cli build-docs /spec/openapi.json --output /spec/redoc-static.html
+
+      - name: Create pull request for release updates
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore(doc): update generated documentation and release versions"
+          title: "chore(doc): update generated documentation and release versions"
+          body: |
+            Automated documentation and release version update after `Build and deploy` release workflow completion.
+          branch: "ci/release-update-${{ github.event.workflow_run.id }}"
+          base: "main"
+          delete-branch: true
+          add-paths: |
+            docs/docs/getting-started/configuration_file.md
+            docs/openapi.json
+            docs/redoc-static.html
+            docs/astro.config.mjs
+            compose.example.yml
+            pyproject.toml

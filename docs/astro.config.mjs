@@ -57,7 +57,14 @@ export default defineConfig({
 					categoryId: 'DIC_kwDOMT6C-84CkkTP'
 				}),
 				starlightScrollToTop(),
-				starlightLinksValidator(),
+				starlightLinksValidator(
+					{
+						errorOnLocalLinks: false,
+						// `/reference/` is generated from `redoc-static.html` via a custom Astro route.
+						// Exclude it from link validation because this plugin cannot resolve that custom page.
+						exclude: ['/reference', '/reference/'],
+					},
+				),
 			],
 			sidebar: [
 				{ 
