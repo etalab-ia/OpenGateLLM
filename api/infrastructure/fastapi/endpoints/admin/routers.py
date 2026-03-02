@@ -52,13 +52,11 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_ROUTERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses(
-        [
-            RouterAliasAlreadyExistsHTTPException,
-            RouterAlreadyExistsHTTPException,
-            NotAdminUserHTTPException,
-        ]
-    ),
+    responses=get_documentation_responses([
+        RouterAliasAlreadyExistsHTTPException,
+        RouterAlreadyExistsHTTPException,
+        NotAdminUserHTTPException,
+    ]),
 )
 async def create_router(
     body: CreateRouterBody = Body(description="The router creation request."),
@@ -69,7 +67,7 @@ async def create_router(
         command = CreateRouterCommand(
             user_id=request_context.get().user_id,
             name=body.name,
-            router_type=body.type,
+            router_type=body.router_type,
             aliases=body.aliases,
             load_balancing_strategy=body.load_balancing_strategy,
             cost_prompt_tokens=body.cost_prompt_tokens,
@@ -218,9 +216,12 @@ async def delete_router(
 @router.patch(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
     dependencies=[Security(dependency=get_current_key)],
-    responses=get_documentation_responses(
-        [RouterNotFoundHTTPException, NotAdminUserHTTPException, RouterAliasAlreadyExistsHTTPException, RouterAlreadyExistsHTTPException]
-    ),
+    responses=get_documentation_responses([
+        RouterNotFoundHTTPException,
+        NotAdminUserHTTPException,
+        RouterAliasAlreadyExistsHTTPException,
+        RouterAlreadyExistsHTTPException,
+    ]),
     status_code=200,
 )
 async def update_router(
