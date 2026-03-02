@@ -1,10 +1,10 @@
 name: Testing
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
+    paths:
+      - "api/**"
   workflow_call: # Add this to make the workflow reusable
   workflow_dispatch: # Add this to allow manual triggering
 

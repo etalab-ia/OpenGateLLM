@@ -1,11 +1,13 @@
 name: Release updates
 
 on:
-  workflow_run:
-    workflows: ["Build and deploy"]
-    types: [completed]
-  workflow_dispatch:
-  workflow_call:
+  pull_request:
+    branches: [ main ] 
+  # workflow_run:
+  #   workflows: ["Build and deploy"]
+  #   types: [completed]
+  # workflow_dispatch:
+  # workflow_call:
 
 permissions:
   contents: write
@@ -20,7 +22,7 @@ jobs:
       - name: Checkout du code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: main
           fetch-depth: 0
 
       - name: Configure Python
@@ -31,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ".[api,dev]"
+          pip install ".[api,playground,dev]"
 
       - name: Update project version
         run: |
@@ -48,7 +50,7 @@ jobs:
 
       - name: Generate documentation
         run: |
-          PYTHONPATH=. python ./scripts/docs/generate_configuration_documentation.py --output ./docs/docs/getting-started/configuration_file.md
+          PYTHONPATH=. python ./scripts/docs/generate_configuration_documentation.py --output ./docs/src/content/docs/configuration/configuration_file.md
           make quickstart
           curl http://localhost:8000/openapi.json -o ./docs/openapi.json
           docker pull redocly/cli
@@ -65,7 +67,7 @@ jobs:
           base: "main"
           delete-branch: true
           add-paths: |
-            docs/docs/getting-started/configuration_file.md
+            docs/src/content/docs/configuration/configuration_file.md
             docs/openapi.json
             docs/redoc-static.html
             docs/astro.config.mjs
