@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkalbert_api_docs=self.webpackChunkalbert_api_docs||[]).push([[8121],{8070:a=>{a.exports=JSON.parse('{"tags":[{"label":"RAG","permalink":"/blog/tags/rag","count":1},{"label":"Elasticsearch","permalink":"/blog/tags/elasticsearch","count":1}]}')}}]);
