@@ -155,8 +155,7 @@ class ElasticsearchVectorStore:
 
     @staticmethod
     def _escape_query_string_value(value: str) -> str:
-        # Escape reserved Lucene query_string characters so user-provided text
-        # is treated as a literal token sequence in metadata filters.
+        # Escape reserved Lucene query_string characters so user-provided text is treated as a literal token sequence in metadata filters.
         return re.sub(r'([+\-=&|><!(){}\[\]^"~*?:\\/ ])', r"\\\1", value)
 
     @staticmethod
@@ -259,17 +258,10 @@ class ElasticsearchVectorStore:
             "size": limit,
             "from": offset,
             "_source": {"excludes": ["embedding"]},
+            "sort": [{"_score": {"order": "desc"}}],
         }
         results = await client.search(index=self.index_name, body=body)
-        searches = [
-            Search(
-                method=SearchMethod.LEXICAL.value,
-                score=hit["_score"],
-                chunk=Chunk(**hit["_source"]),
-            )
-            for hit in results["hits"]["hits"]
-        ]
-        searches = sorted(searches, key=lambda x: x.score, reverse=True)[:limit]
+        searches = [Search(method=SearchMethod.LEXICAL.value, score=hit["_score"], chunk=Chunk(**hit["_source"])) for hit in results["hits"]["hits"]]
 
         return searches
 

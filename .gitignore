@@ -223,3 +223,4 @@ playground/requirements.txt
 run.sh
 .claude
 bruno
+docs/.astro
