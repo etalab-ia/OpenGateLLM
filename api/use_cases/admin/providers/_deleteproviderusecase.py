@@ -15,7 +15,7 @@ class DeleteProviderCommand:
 
 @dataclass
 class DeleteProviderUseCaseSuccess:
-    provider: Provider
+    deleted_provider: Provider
 
 
 type DeleteProviderUseCaseResult = DeleteProviderUseCaseSuccess | ProviderNotFoundError | UserIsNotAdminError
@@ -40,4 +40,4 @@ class DeleteProviderUseCase:
 
         if provider is None:
             return ProviderNotFoundError(command.provider_id)
-        return DeleteProviderUseCaseSuccess(provider=provider)
+        return DeleteProviderUseCaseSuccess(deleted_provider=provider)

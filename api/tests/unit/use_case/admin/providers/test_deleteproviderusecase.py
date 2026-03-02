@@ -52,7 +52,7 @@ class TestDeleteProviderUseCase:
 
         # Assert
         assert isinstance(result, DeleteProviderUseCaseSuccess)
-        assert result.provider == sample_provider
+        assert result.deleted_provider == sample_provider
         user_info_repository.get_user_info.assert_called_once_with(user_id=admin_user_info.id)
         provider_repository.delete_provider.assert_called_once_with(42)
 

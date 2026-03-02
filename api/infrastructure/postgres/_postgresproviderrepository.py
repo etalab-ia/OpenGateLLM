@@ -74,23 +74,7 @@ class PostgresProviderRepository(ProviderRepository):
             )
             result = await self.postgres_session.execute(query)
             row = result.scalar_one()
-            return Provider(
-                router_id=row.router_id,
-                user_id=row.user_id,
-                type=row.type,
-                url=row.url,
-                key=row.key,
-                timeout=row.timeout,
-                model_name=row.model_name,
-                model_hosting_zone=row.model_hosting_zone,
-                model_total_params=row.model_total_params,
-                model_active_params=row.model_active_params,
-                qos_metric=row.qos_metric,
-                qos_limit=row.qos_limit,
-                max_context_length=row.max_context_length,
-                vector_size=row.vector_size,
-                id=row.id,
-            )
+            return self._row_to_provider(row)
         except IntegrityError as e:
             if "unique_provider_router_id_url_model_name" in str(e.orig):
                 return ProviderAlreadyExistsError(model_name=model_name, url=url, router_id=router_id)

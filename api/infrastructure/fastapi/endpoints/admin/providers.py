@@ -142,8 +142,8 @@ async def delete_provider(
         raise InternalServerHTTPException()
 
     match result:
-        case DeleteProviderUseCaseSuccess(deleted_router):
-            return Provider.model_validate(deleted_router, from_attributes=True)
+        case DeleteProviderUseCaseSuccess(deleted_provider):
+            return Provider.model_validate(deleted_provider, from_attributes=True)
         case ProviderNotFoundError(provider_id=not_found_id):
             raise ProviderNotFoundHTTPException(not_found_id)
         case UserIsNotAdminError():
