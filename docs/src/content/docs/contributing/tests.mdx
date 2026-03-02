@@ -67,6 +67,18 @@ Integration tests are located in the `tests/integration` folder. They are writte
     ```bash
     make test-integration
     ```
-
 </Steps>
 
+To run the tests with VSCode, you can create a `.vscode/settings.json` file with the following content:
+
+```json
+  {
+      "python.terminal.activateEnvironment": true,
+      "python.testing.pytestArgs": [
+          "api", "-s", "--config-file=pyproject.toml"
+      ],
+      "python.testing.unittestEnabled": false,
+      "python.testing.pytestEnabled": true,
+      "python.envFile": "${workspaceFolder}/.github/.env.ci"
+  }
+```

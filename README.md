@@ -11,88 +11,50 @@
 > [!WARNING]
 > **The API is still under beta version, major breaking changes may occur.**
 
+OpenGateLLM is an <b>open-source</b>, <b>production-ready</b> API gateway for Generative AI.
 
-OpenGateLLM is an open-source, production-ready API gateway, optimized for self-hosted models. It's designed to centralize, secure, and manage Generative AI access in a sovereign and cost-effective way.
+> It centralizes, secures, and governs access to AI models across your organization, enabling teams to focus on building high-value AI applications instead of managing infrastructure complexity and data security risks.
+
+Designed for organizations that require full control over their data and infrastructure, **OpenGateLLM is optimized for self-hosted models**. It provides a sovereign and cost-effective foundation to deploy, manage, and scale Generative AI securely — without vendor lock-in.
+
+> [!TIP]
+> **OpenGateLLM, as API gateway, is an alternative to LiteLLM, TensorZero, OpenRouter and others, dedicated to self-hosted IA infrastructure.**
+
+<span style="display: block; text-align: center;">
+<img src="./docs/src/assets/img/ogl_architecture.png" alt="OpenGateLLM architecture" width="60%">
+</span>
+
+## 🔥 Challenges
 
 OpenGateLLM addresses three critical challenges for organizations:
-1. **Cost control** - Reduce expenses of commercial APIs and GPU infrastructure by using self-hosted models and build a mutualized infrastructure with your peers.
-2. **Data sovereignty** - Keep sensitive data under your control
-3. **Privacy & security** - No chat history storage, robust access control
+1. **Accelerate AI adoption** – Remove barriers to integrating AI within your organization
+2. **Cost control** - Reduce expenses of commercial APIs and GPU infrastructure by using self-hosted models and build a mutualized infrastructure with your peers without vendor lock-in.
+3. **Data sovereignty** - Keep sensitive data under your control
+4. **Privacy & security** - No chat history storage, robust access control
 
-**Core principles**
+## ⚡️ Core principles
 
-- Open source and free forever - All features available without commercial licensing
-- High code quality - Built with maintainability and reliability in mind
-- Lightweight architecture - Focused feature set for optimal performance
-- High compatibility - Seamlessly integrates with GenAI ecosystem frameworks by OpenAI-compatible API
-- Production-ready - Engineered to handle high loads with advanced QoS features
+- **Open source and free forever** - All features available without commercial licensing
+- **High code quality** - Built with maintainability and reliability in mind
+- **Lightweight architecture** - Focused feature set for optimal performance
+- **High compatibility** - Seamlessly integrates with GenAI ecosystem frameworks by OpenAI-compatible API
+- **Production-ready** - Engineered to handle high loads with advanced QoS features
 
-![OpenGateLLM architecture](docs/static/img/ogl_architecture.png)
+## 🚀 Quickstart
 
-**OpenGateLLM is an alternative to...**
-
-<table>
-    <thead>
-        <tr>
-            <th style={{width: '58%', textAlign: 'center', fontWeight: 'bold'}}>Key features</th>
-            <th style={{width: '14%', textAlign: 'center', fontWeight: 'bold'}}>OpenGateLLM</th>
-            <th style={{width: '14%', textAlign: 'center', fontWeight: 'bold'}}>LiteLLM</th>
-            <th style={{width: '14%', textAlign: 'center', fontWeight: 'bold'}}>TensorZero</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr><td>:electric_plug: OpenAI Compatibility</td><td>✅</td><td>✅</td><td>✅</td></tr>
-        <tr><td>:open_book: [Open-source](https://github.com/etalab-ia/OpenGateLLM)</td><td>✅</td><td>✅</td><td>✅</td></tr>
-        <tr><td>:computer: [Self-hostable](./getting-started/quickstart.md)</td><td>✅</td><td>✅</td><td>✅</td></tr>
-        <tr><td>:money_with_wings: <b>Free (all features)</b></td><td>✅</td><td>❌</td><td>✅</td></tr>
-        <tr><td>:factory: Support commercial and self-hosted models</td><td>✅</td><td>✅</td><td>✅</td></tr>
-        <!-- User management -->
-        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>Account management</b></td></tr>
-        <tr><td>:game_die: Playground UI</td><td>✅</td><td>✅</td><td>✅</td></tr>
-        <tr><td>:bust_in_silhouette: User management (API keys, budget...)</td><td>✅</td><td>✅</td><td>✅</td></tr>
-        <tr><td>:office: Organization management</td><td>🚧</td><td>✅</td><td>❌</td></tr>
-        <tr><td>:pencil2: Project management</td><td>🔜</td><td>✅</td><td>❌</td></tr>
-        <tr><td>:key: SSO support</td><td>🚧</td><td>✅</td><td>❌</td></tr>
-        <!-- High load optimization -->
-        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>High load features</b></td></tr>
-        <tr><td>:hourglass: Rate limiting</td><td>✅</td><td>❌</td><td>❌</td></tr>
-        <tr><td>:zap: Requests prioritization</td><td>✅</td><td>✅</td><td>❌</td></tr>
-        <tr><td>:chart_with_upwards_trend: Quality of service thresholds</td><td>✅</td><td>✅</td><td>❌</td></tr>
-        <tr><td>:twisted_rightwards_arrows: Model load balancing</td><td>✅</td><td>✅</td><td>❌</td></tr>
-        <tr><td>:arrows_counterclockwise: Model fallback</td><td>🔜</td><td>✅</td><td>❌</td></tr>
-        <!-- Monitoring & analytics -->
-        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>Monitoring & analytics</b></td></tr>
-        <tr><td>:bar_chart: Usage tracking</td><td>✅</td><td>❌</td><td>❌</td></tr>
-        <tr><td>:chart_with_upwards_trend: Carbon footprint</td><td>✅</td><td>❌</td><td>❌</td></tr>
-        <tr><td>:link: Prometheus integration</td><td>✅</td><td>❌</td><td>❌</td></tr>
-        <!-- Privacy & security -->
-        <tr><td colSpan={4} style={{textAlign: 'center'}}><b>Privacy & security</b></td></tr>
-        <tr><td>:no_entry_sign: No chat history storage</td><td>✅</td><td>❌</td><td>❌</td></tr>
-        <tr><td>:lock: Role-based access control</td><td>✅</td><td>❌</td><td>❌</td></tr>
-    </tbody>
-</table>
-
-Legend: *✅ supported* — *❌ not supported* — *🚧 work in progress* — *🔜 in roadmap*
-
-### 🚀 Quickstart
-***
 Deploy and start using OpenGateLLM in minutes with our quickstart guide [here](https://docs.opengatellm.org/docs/getting-started/quickstart).
 
-### 🤝 Contribute
-***
+## 🤝 Contribute
 
 This project exists thanks to all the people who contribute. OpenGateLLM thrives on open-source contributions. Join our community! 
 
 Check out our [Contribution Guide](https://docs.opengatellm.org/docs/contributing) to get started.
 
-### 🗺️ Roadmap
-***
+## 🏔️ Roadmap
 
-OpenGateLLM is still under *beta version*, major breaking changes may occur. Check our current roadmap [here](https://github.com/etalab-ia/OpenGateLLM/discussions/425) to see what we are working on.
+OpenGateLLM is still under *beta version*, major breaking changes may occur. Check our current roadmap [here](https://github.com/etalab-ia/OpenGateLLM/milestone/4) to see what we are working on.
 
-
-### 🎖️ Sponsors
-***
+## 🎖️ Sponsors
 
 <div id="toc">
   <ul align="center" style="list-style: none">
