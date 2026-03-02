@@ -1,12 +1,13 @@
 name: Deploy documentation to GitHub Pages
 
 on:
-  workflow_run:
-    workflows: ["Release updates"]
-    types: [completed]
-  workflow_dispatch:
-  workflow_call:
-  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
+  # workflow_run:
+  #   workflows: ["Release updates"]
+  #   types: [completed]
+  # workflow_call:
+  # workflow_dispatch:
 
 jobs:
   deploy:

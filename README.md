@@ -96,7 +96,7 @@ OpenGateLLM is still under *beta version*, major breaking changes may occur. Che
 
 <div id="toc">
   <ul align="center" style="list-style: none">
-<a href="https://www.numerique.gouv.fr/numerique-etat/dinum/" ><img src="./docs/static/img/dinum_logo.png" alt="DINUM logo" width="300" style="margin-right: 40px"></a>
-<a href="https://www.centralesupelec.fr"><img src="./docs/static/img/centralsupelec_logo.png" alt="CentraleSupélec logo" width="200" style="margin-right: 40px"></a>
+<a href="https://www.numerique.gouv.fr/numerique-etat/dinum/" ><img src="./docs/src/assets/img/dinum_logo.png" alt="DINUM logo" width="300" style="margin-right: 40px"></a>
+<a href="https://www.centralesupelec.fr"><img src="./docs/src/assets/img/centralsupelec_logo.png" alt="CentraleSupélec logo" width="200" style="margin-right: 40px"></a>
   </ul>
 </div>
