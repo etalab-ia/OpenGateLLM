@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkalbert_api_docs=self.webpackChunkalbert_api_docs||[]).push([[1903],{1912:s=>{s.exports=JSON.parse('{"blogBasePath":"/blog","blogTitle":"Docusaurus blog!","authorsListPath":"/blog/authors"}')}}]);
