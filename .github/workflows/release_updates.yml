@@ -46,6 +46,7 @@ jobs:
           sed -i -E "s/^[[:space:]]*version[[:space:]]*=.*/version = \"${latest_version}\"/" pyproject.toml
           sed -i -E "s|(image:[[:space:]]*ghcr.io/etalab-ia/opengatellm/api:).*|\\1${latest_version}|" compose.example.yml
           sed -i -E "s|(image:[[:space:]]*ghcr.io/etalab-ia/opengatellm/playground:).*|\\1${latest_version}|" compose.example.yml
+          sed -i -E "s/^[[:space:]]*swagger_version:[[:space:]]*.*/  swagger_version: ${latest_version}/" config.example.yml
           sed -i -E "s/(badge:[[:space:]]*)'[^']*'/\1'v${latest_version}'/" docs/astro.config.mjs
 
       - name: Generate documentation
@@ -73,3 +74,4 @@ jobs:
             docs/astro.config.mjs
             compose.example.yml
             pyproject.toml
+            config.example.yml

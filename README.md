@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/github/license/etalab-ia/OpenGateLLM?color=green&label=license)](https://github.com/etalab-ia/OpenGateLLM/blob/main/LICENSE)
 [![Stars](https://img.shields.io/github/stars/etalab-ia/OpenGateLLM?color=yellow&label=stars)](https://github.com/etalab-ia/OpenGateLLM/stargazers)
 
-<img src="./docs/static/img/logo.svg" alt="Logo" width="128" height="128">
+<img src="./docs/src/assets/img/logo.svg" alt="Logo" width="128" height="128">
 
 # OpenGateLLM
 ### **[Documentation](https://docs.opengatellm.org) | [API Reference](https://albert.api.etalab.gouv.fr/reference)**
@@ -19,10 +19,6 @@ Designed for organizations that require full control over their data and infrast
 
 > [!TIP]
 > **OpenGateLLM, as API gateway, is an alternative to LiteLLM, TensorZero, OpenRouter and others, dedicated to self-hosted IA infrastructure.**
-
-<span style="display: block; text-align: center;">
-<img src="./docs/src/assets/img/ogl_architecture.png" alt="OpenGateLLM architecture" width="60%">
-</span>
 
 ## 🔥 Challenges
 
