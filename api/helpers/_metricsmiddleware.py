@@ -6,9 +6,14 @@ from prometheus_fastapi_instrumentator.metrics import Info
 from api.utils.context import request_context
 
 
-def inference_requests_total() -> Callable[[Info], None]:
+def _build_metric_name(namespace: str, name: str) -> str:
+    return f"{namespace}_{name}" if namespace else name
+
+
+def inference_requests_total(metric_namespace: str = "") -> Callable[[Info], None]:
+    metric_name = _build_metric_name(metric_namespace, "inference_requests_total")
     metric = Counter(
-        "inference_requests_total",
+        metric_name,
         "Total number of LLM requests.",
         labelnames=("endpoint", "model", "status_code"),
     )
@@ -30,9 +35,10 @@ def inference_requests_total() -> Callable[[Info], None]:
     return instrumentation
 
 
-def inference_requests_duration_seconds() -> Callable[[Info], None]:
+def inference_requests_duration_seconds(metric_namespace: str = "") -> Callable[[Info], None]:
+    metric_name = _build_metric_name(metric_namespace, "inference_requests_duration_seconds")
     metric = Histogram(
-        "inference_requests_duration_seconds",
+        metric_name,
         "Duration of LLM requests in seconds.",
         labelnames=("endpoint", "model", "status_code"),
         buckets=(
@@ -94,9 +100,10 @@ def inference_requests_duration_seconds() -> Callable[[Info], None]:
     return instrumentation
 
 
-def inference_ttft_milliseconds() -> Callable[[Info], None]:
+def inference_ttft_milliseconds(metric_namespace: str = "") -> Callable[[Info], None]:
+    metric_name = _build_metric_name(metric_namespace, "inference_ttft_milliseconds")
     metric = Histogram(
-        "inference_ttft_milliseconds",
+        metric_name,
         "Time to first token for streaming LLM responses in milliseconds.",
         labelnames=("endpoint", "model", "status_code"),
         buckets=(
@@ -158,9 +165,10 @@ def inference_ttft_milliseconds() -> Callable[[Info], None]:
     return instrumentation
 
 
-def inference_output_tokens_per_second() -> Callable[[Info], None]:
+def inference_output_tokens_per_second(metric_namespace: str = "") -> Callable[[Info], None]:
+    metric_name = _build_metric_name(metric_namespace, "inference_output_tokens_per_second")
     metric = Histogram(
-        "inference_output_tokens_per_second",
+        metric_name,
         "Output generation speed in tokens per second (completion tokens / request duration, TTFT included).",
         labelnames=("endpoint", "model"),
         buckets=(5, 10, 20, 30, 50, 75, 85, 90, 95, 100, 105, 110, 115, 125, 150, 175, 200, 250, 300, 400, 500, 750, 1000),
@@ -181,9 +189,10 @@ def inference_output_tokens_per_second() -> Callable[[Info], None]:
     return instrumentation
 
 
-def inference_tokens_total() -> Callable[[Info], None]:
+def inference_tokens_total(metric_namespace: str = "") -> Callable[[Info], None]:
+    metric_name = _build_metric_name(metric_namespace, "inference_tokens_total")
     metric = Counter(
-        "inference_tokens_total",
+        metric_name,
         "Total number of tokens consumed (prompt and completion).",
         labelnames=("endpoint", "model", "type"),
     )
