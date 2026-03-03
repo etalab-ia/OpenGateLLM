@@ -68,16 +68,16 @@ dependencies:
     decode_responses: False
     socket_keepalive: True
   
-  # elasticsearch:
-  #   index_name: opengatellm
-  #   index_language: english
-  #   number_of_shards: 1
-  #   index_name: "opengatellm"
-  #   number_of_replicas: 0
-  #   hosts: "http://localhost:9200"
-  #   basic_auth:
-  #     - "elastic"
-  #     - ${ELASTIC_PASSWORD}
+  elasticsearch: # optional
+    index_name: opengatellm
+    index_language: english
+    number_of_shards: 1
+    index_name: "opengatellm"
+    number_of_replicas: 0
+    hosts: "http://${ELASTICSEARCH_HOST:-localhost}:${ELASTICSEARCH_PORT:-9200}"
+    basic_auth:
+      - "elastic"
+      - ${ELASTICSEARCH_PASSWORD}
 
   # sentry:
   #   dsn: ${SENTRY_DSN}
