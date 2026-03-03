@@ -7,14 +7,14 @@ from prometheus_fastapi_instrumentator import Instrumentator, metrics
 from starlette.responses import Response
 
 from api.helpers._accesscontroller import AccessController
-from api.helpers._metricsmiddleware import (
+from api.schemas.admin.roles import PermissionType
+from api.utils.monitoring import (
     inference_output_tokens_per_second,
     inference_requests_duration_seconds,
     inference_requests_total,
     inference_tokens_total,
     inference_ttft_milliseconds,
 )
-from api.schemas.admin.roles import PermissionType
 from api.utils.variables import RouterName
 
 
@@ -25,9 +25,7 @@ def setup_prometheus(app: FastAPI, metric_namespace: str = "ogl", include_in_sch
             app=app,
         )
         .add(
-            metrics.default(
-                metric_namespace=metric_namespace,
-            ),
+            metrics.default(metric_namespace=metric_namespace),
             inference_output_tokens_per_second(metric_namespace=metric_namespace),
             inference_requests_total(metric_namespace=metric_namespace),
             inference_requests_duration_seconds(metric_namespace=metric_namespace),
