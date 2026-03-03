@@ -5,27 +5,170 @@ sidebar:
 ---
 import { Aside } from '@astrojs/starlight/components';
 
-<Aside type="caution">
-🚧 This page is under construction. 🚧
-</Aside>
+This guide provides practical defaults and hardening recommendations for running OpenGateLLM in production.
+
+## General recommendations
+
+- Use environment variables for sensitive data in configuration file, like: 
+
+  ```yaml
+  settings:
+    [...]
+    auth_master_key: ${AUTH_MASTER_KEY}
+    session_secret_key: ${SESSION_SECRET_KEY}
+  ```
+
+## Security and access control
+
+- Use the master key only for bootstrap operations: **creating the first admin role and user**.
+- Do not use the master identity for day-to-day model administration. When you create a router, the model is shown with an `owned_by` attribute set to the organization of the user who created it.
+- Set a strong `auth_master_key` (at least 32 characters, high entropy..
+
+  <Aside type="caution" title="Master key rotation impact">
+    The master key is used to encrypt user API keys. If you change it, you need to regenerate all user API keys.
+  </Aside>
+
+- Set a dedicated `session_secret_key` instead of reusing the master key.
+- Limit API key lifetime with `auth_key_max_expiration_days`.
+- Hide sensitive routes `admin` and `auth` from public API docs.
+
+**Example:**
+
+```yaml
+settings:
+  [...]
+  auth_master_key: "your-strong-master-key"
+  session_secret_key: "your-strong-session-secret-key"
+  auth_key_max_expiration_days: 365 # days
+  hidden_routers: ["admin", "auth"]
+```
+
+For more information, see [configuration file documentation](/configuration/configuration_file).
+
+## Model configuration and routing
+
+- Add stable aliases to models so applications do not depend on provider-specific names.
+- Tune provider timeouts according to workload (`timeout: 120` is a common production baseline for long generations).
+- If you run multiple providers for one model, choose a load-balancing strategy that matches your objective (`shuffle` for distribution, `least_busy` for latency under load).
+- **Do not use configuration file to declare models, prefer to use the API to declare models, by endpoints or on the Playground UI (see [Models configuration](/getting-started/models/)).**
+  
+  <Aside type="caution" title="Models declaration">
+    Models are persisted in the database. If a router or provider already exists in the database, the API uses the database value and ignores the configuration file value, even when both differ.
+  </Aside>
+
+## API metadata and versioning
+
+- Set a clear `app_title` for your deployment.
+- Align `swagger_version` with the deployed release tag to simplify incident and support workflows.
+
+**Example:**
+
+```yaml
+settings:
+  [...]
+  app_title: "Albert API"
+  swagger_version: "${RELEASE_TAG:-latest}"
+```
+
+For more information, see [configuration file documentation](/configuration/configuration_file).
+
+## Observability
+
+- Keep usage logging enabled with `monitoring_postgres_enabled` unless you explicitly accept losing usage history. 
+Consider implementing a data retention policy for the usage table to manage database size. 
+For more information, see [usage monitoring documentation](/features/usage/inference_monitoring/).
+- Keep Prometheus metrics enabled with `monitoring_prometheus_enabled`. 
+For more information, see [Prometheus documentation](/configuration/dependencies/prometheus/). 
+- For error monitoring, configure the optional `dependencies.sentry` section (there is no separate `monitoring_sentry_enabled` setting). 
+For more information, see [Sentry documentation](/configuration/dependencies/sentry/).
+
+**Example:**
+
+```yaml
+dependencies:
+  [...]
+  sentry:
+    dsn: ${SENTRY_DSN}
+    environment: production
+
+settings:
+  [...]
+  monitoring_postgres_enabled: true
+  monitoring_prometheus_enabled: true
+```
 
 ## Dependencies
 
-## PostgreSQL
+### PostgreSQL
 
-For production deployments, consider implementing a data retention policy for the `usage` table to manage database size.
+- Use `postgresql+asyncpg://` URLs.
+- Configure a connection pool (`pool_size`, `max_overflow`, `pool_pre_ping`) for stable throughput.
+- Set SQL statement timeout to avoid stalled requests.
+- Set application name to identify the application in PostgreSQL logs.
 
+```diff lang="yaml"
+dependencies:
+  [...]
+  postgres:
+    url: "postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DATABASE}"
+    echo: false
++    pool_size: 5
++    max_overflow: 10
++    pool_pre_ping: true
+    connect_args:
+      server_settings:
++        application_name: "OpenGateLLM production"
++        statement_timeout: "60s"
+```
 
-## Elasticsearch
-
-* In configuration file, in ElasticsearchDependency section, change default value of `number_of_shards` and `number_of_replicas`
-* In ElasticsearchDependency section, change default value of `index_name` and `index_language`
 ### Redis
 
-For production environments, we recommend securing your Redis instance:
-* Keep the version up-to-date
-* Enable protected mode
-* Deactivate default user and create specific users with limited permissions
-* Configure logging to specific log files
-* Disable syslog
+- Use authentication and network isolation.
+- Raise `max_connections` based on expected concurrency.
+- Enable timeout-related resilience parameters.
 
+```diff lang="yaml"
+dependencies:
+  [...]
+  redis:
+    url: "redis://${REDIS_USERNAME}:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}"
++    max_connections: 200
+    socket_connect_timeout: 5
++    retry_on_timeout: true
+    health_check_interval: 30
+    decode_responses: false
+    socket_keepalive: true
+```
+
+For the Redis server itself, also apply standard production hardening:
+- Keep Redis up to date.
+- Enable protected mode.
+- Disable default users and create least-privilege users.
+- Configure dedicated log files.
+
+### Elasticsearch (optional vector store)
+
+- Override index defaults (`index_name`, `index_language`, `number_of_shards`, `number_of_replicas`) for your workload.
+- Increase request timeout for large corpus search workloads.
+- Use an index name that reflects the embedding model.
+- If Elasticsearch is enabled, `settings.vector_store_model` must reference a configured model of type `text-embeddings-inference`.
+
+```diff lang="yaml"
+dependencies:
+
+  elasticsearch:
++    index_name: "bge-m3-1024"
++    index_language: french
++    number_of_shards: 24
++    number_of_replicas: 0
+    hosts: "http://${ELASTIC_HOST}:${ELASTIC_PORT}"
+    basic_auth:
+      - "${ELASTIC_USER}"
+      - "${ELASTIC_PASSWORD}"
++    request_timeout: 120
++    retry_on_timeout: true
+
+settings:
+  [...]
+  vector_store_model: "my-embeddings-model"
+```

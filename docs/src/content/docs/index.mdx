@@ -15,7 +15,8 @@ hero:
       variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { CardGrid } from '@astrojs/starlight/components';
+import Card from '../../components/CardWithIcon.astro';
 
 Powered by French Government, OpenGateLLM is an <b>open-source</b>, <b>production-ready</b> API gateway for Generative AI.<br></br>
 It centralizes, <b>secures</b>, and governs access to AI models across your organization, enabling teams to focus on building high-value AI applications instead of managing infrastructure complexity and data security risks.<br></br>
@@ -24,14 +25,19 @@ Designed for organizations that require full control over their data and infrast
 ## Key features
 
 <CardGrid stagger>
-	<Card title="Multiple model providers supported" icon="pencil">
-		OpenGateLLM supports multiple model providers, including OpenAI, vLLM, Mistral, Hugging Face Text Embeddings Inference, etc.
+	<Card title="Unified routing across model providers" icon="lucide:squares-unite">
+		Expose one OpenAI-compatible API while routing requests across OpenAI, vLLM, Mistral, Text Embeddings Inference, and more.
 	</Card>
-	<Card title="User management" icon="document">
-		Delete `template: splash` in `src/content/docs/index.mdx` to display a
-		sidebar on this page.
+	<Card title="Built-in access governance" icon="shield-user">
+		Structure your platform with roles, users, and organizations to enforce clear permissions and secure collaboration at scale.
 	</Card>
-	<Card title="Usage control and monitoring" icon="lucide:gauge">
-		OpenGateLLM supports usage control and monitoring, including user budget, rate limiting, inference monitoring, and environmental footprint.
+	<Card title="Usage control and observability" icon="lucide:gauge">
+		Control costs and reliability with user budgets, rate limiting, inference monitoring, and environmental footprint tracking.
+	</Card>
+	<Card title="OpenAI-compatible API" icon="lucide:plug">
+		Integrate quickly with existing GenAI tools and frameworks through standard OpenAI-compatible endpoints.
+	</Card>
+	<Card title="Sovereign self-hosted deployment" icon="lucide:shield-check">
+		Keep data and infrastructure under your control with a production-ready gateway designed for self-hosted AI.
 	</Card>
 </CardGrid>

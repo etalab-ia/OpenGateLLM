@@ -4,7 +4,9 @@ sidebar:
   label: "[lucide:cpu] Setup your models"
   order: 1
 ---
-import { Aside, Tabs, TabItem, Steps } from '@astrojs/starlight/components';
+import { Aside, LinkButton, Steps } from '@astrojs/starlight/components';
+import TabsCustom from '../../../components/TabsCustom.astro';
+import TabItemCustom from '../../../components/TabItemCustom.astro';
 
 To expose a model through OpenGateLLM, you configure:
 
@@ -37,8 +39,8 @@ flowchart LR
 3. (Optional) Apply a rate limiting policy to the router.
    See [rate limiting](/features/usage/rate_limiting/).
 
-<Tabs>
-  <TabItem value="playground" label="Playground UI" icon="laptop">
+<TabsCustom>
+  <TabItemCustom value="playground" label="Playground UI" icon="lucide:laptop">
   <Steps>
     <ol>
       <li>
@@ -63,26 +65,26 @@ flowchart LR
       </li>
     </ol>
   </Steps>
-  </TabItem>
+  </TabItemCustom>
 
-  <TabItem value="config" label="API" icon="seti:html">
+  <TabItemCustom value="config" label="API" icon="lucide:code">
   <Steps>
     <ol>
       <li>
         Create a router.
-        See <code>/v1/admin/routers</code> endpoint in <a href="/reference/">API Reference</a> for more details.
+        Use POST <code>/v1/admin/routers</code> endpoint.
       </li>
       <li>
-        Create a provider.
-        See <code>/v1/admin/providers</code> endpoint in <a href="/reference/">API Reference</a> for more details.
+        Create a provider with POST <code>/v1/admin/providers</code> endpoint.
       </li>
       <li>
         Verify configuration.
-        See <code>/v1/models</code> endpoint in <a href="/reference/">API Reference</a> for more details.
-        See <code>/v1/models/my-chat-model</code> endpoint in <a href="/reference/">API Reference</a> for more details.
+        Use GET <code>/v1/models</code> endpoint.
       </li>
+
+      <LinkButton href="/reference/" icon="external">See API Reference</LinkButton>
     </ol>
   </Steps>
-  </TabItem>
+  </TabItemCustom>
 
-</Tabs>
+</TabsCustom>
