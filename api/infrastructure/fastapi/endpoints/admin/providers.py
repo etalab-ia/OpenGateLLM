@@ -6,7 +6,12 @@ from fastapi import Body, Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies import create_provider_use_case_factory, delete_provider_use_case_factory, get_request_context
+from api.dependencies import (
+    create_provider_use_case_factory,
+    delete_provider_use_case_factory,
+    get_one_provider_use_case_factory,
+    get_request_context,
+)
 from api.domain.model import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider import InvalidProviderTypeError, ProviderNotReachableError
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
@@ -36,6 +41,9 @@ from api.use_cases.admin.providers import (
     DeleteProviderCommand,
     DeleteProviderUseCase,
     DeleteProviderUseCaseSuccess,
+    GetOneProviderCommand,
+    GetOneProviderUseCase,
+    GetOneProviderUseCaseSuccess,
 )
 from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import EndpointRoute
@@ -60,7 +68,6 @@ logger = logging.getLogger(__name__)
     ),
 )
 async def create_provider(
-    request: Request,
     body: CreateProvider,
     create_provider_use_case: CreateProviderUseCase = Depends(create_provider_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
@@ -118,6 +125,7 @@ async def create_provider(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
+    responses=get_documentation_responses([NotAdminUserHTTPException, ProviderNotFoundHTTPException]),
 )
 async def delete_provider(
     provider_id: int = Path(description="The ID of the provider to delete."),
@@ -178,21 +186,36 @@ async def update_provider(
 
 
 @router.get(
-    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider}",
+    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    response_model=Provider,
+    responses=get_documentation_responses([NotAdminUserHTTPException, ProviderNotFoundHTTPException]),
 )
 async def get_provider(
-    request: Request,
-    provider: int = Path(description="The ID of the provider to get."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-    model_registry: ModelRegistry = Depends(get_model_registry),
-) -> JSONResponse:
-    providers = await model_registry.get_providers(router_id=None, provider_id=provider, postgres_session=postgres_session)
-    provider = providers[0]
-
-    return JSONResponse(status_code=200, content=provider.model_dump())
+    provider_id: int = Path(description="The ID of the provider to get."),
+    get_one_provider_use_case: GetOneProviderUseCase = Depends(get_one_provider_use_case_factory),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+) -> Provider:
+    command = GetOneProviderCommand(user_id=request_context.get().user_id, provider_id=provider_id)
+    try:
+        result = await get_one_provider_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing get_one_provider use case",
+            extra={
+                "user_id": command.user_id,
+                "provider_id": command.provider_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
+    match result:
+        case GetOneProviderUseCaseSuccess(provider):
+            return Provider.model_validate(provider, from_attributes=True)
+        case ProviderNotFoundError(provider_id=not_found_id):
+            raise ProviderNotFoundHTTPException(not_found_id)
+        case UserIsNotAdminError():
+            raise NotAdminUserHTTPException()
 
 
 @router.get(

@@ -32,3 +32,10 @@ class ProviderRepository(ABC):
         provider_id: int,
     ) -> Provider | None:
         pass
+
+    @abstractmethod
+    async def get_one_provider(
+        self,
+        provider_id: int,
+    ) -> Provider | None:
+        pass

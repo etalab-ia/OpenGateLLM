@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy import select
 
+from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model.entities import Metric, ModelType
 from api.domain.provider import Provider, ProviderAlreadyExistsError, ProviderCarbonFootprintZone, ProviderType
 from api.infrastructure.postgres import PostgresProviderRepository
@@ -85,6 +86,48 @@ class TestCreateProvider:
         assert result.router_id == router.id
         assert result.url == "http://test.com/"
         assert result.model_name == "duplicate-provider"
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestGetOneProvider:
+    async def test_get_one_provider_should_return_provider_when_it_exists(self, repository, db_session):
+        # Arrange
+        provider = ProviderSQLFactory(type=ProviderType.ALBERT, url="http://test.com/", model_name="target-provider", qos_metric=None)
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_one_provider(provider.id)
+
+        # Assert
+        assert isinstance(result, Provider)
+        assert result.id == provider.id
+        assert result.router_id == provider.router_id
+        assert result.user_id == provider.user_id
+        assert result.type == ProviderType.ALBERT
+        assert result.url == "http://test.com/"
+        assert result.model_name == "target-provider"
+        assert result.max_context_length == provider.max_context_length
+        assert result.vector_size == provider.vector_size
+
+    async def test_get_one_provider_should_return_none_when_provider_does_not_exist(self, repository, db_session):
+        # Act
+        result = await repository.get_one_provider(provider_id=999999)
+
+        # Assert
+        assert result is None
+
+    async def test_get_one_provider_should_map_null_user_id_to_master_user_id(self, repository, db_session):
+        # Arrange
+        router = RouterSQLFactory(user=None)
+        provider = ProviderSQLFactory(router=router, user=None)
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_one_provider(provider.id)
+
+        # Assert
+        assert isinstance(result, Provider)
+        assert result.user_id == MASTER_USER_ID
 
 
 @pytest.mark.asyncio(loop_scope="session")

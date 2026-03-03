@@ -2,6 +2,7 @@ from sqlalchemy import delete, insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model.entities import Metric
 from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderType
@@ -13,11 +14,20 @@ class PostgresProviderRepository(ProviderRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
 
+    async def get_one_provider(self, provider_id: int) -> Provider | None:
+        select_query = select(ProviderTable).where(ProviderTable.id == provider_id)
+
+        result = await self.postgres_session.execute(select_query)
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return self._row_to_provider(row)
+
     @staticmethod
     def _row_to_provider(row) -> Provider:
         return Provider(
             router_id=row.router_id,
-            user_id=row.user_id,
+            user_id=MASTER_USER_ID if row.user_id is None else row.user_id,
             type=row.type,
             url=row.url,
             key=row.key,
