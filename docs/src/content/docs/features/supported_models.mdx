@@ -3,10 +3,8 @@ title: Supported models
 sidebar:
   label: "[lucide:cpu] Supported models"
 ---
-import { Aside, LinkButton } from '@astrojs/starlight/components';
+import { Aside, LinkButton, TabItem, Tabs } from '@astrojs/starlight/components';
 import { Icon } from 'astro-icon/components';
-import TabsCustom from '../../../components/TabsCustom.astro';
-import TabItemCustom from '../../../components/TabItemCustom.astro';
 
 <Aside type="caution">
 🚧 This page is under construction. 🚧
@@ -28,8 +26,8 @@ The model type determines the capabilities of the model and enables a specific s
 
 ## Supported self-hosted API providers
 
-<TabsCustom>
-  <TabItemCustom value="vllm" label="vLLM" icon="lobe:vllm-color">
+<Tabs>
+  <TabItem value="vllm" label="vLLM" icon="lobe:vllm-color">
     vLLM is open-source production-grade LLM server. It supports a wide range of models and is a great choice for self-hosted models.
 
     **Supported model types:**
@@ -42,9 +40,9 @@ The model type determines the capabilities of the model and enables a specific s
     | `automatic-speech-recognition` | [openai/whisper-large-v3](https://huggingface.co/openai/whisper-large-v3) |
 
     <LinkButton href="https://docs.vllm.ai/" icon="external">vLLM documentation</LinkButton>
-  </TabItemCustom>
+  </TabItem>
 
-  <TabItemCustom value="mistral" label="Mistral On-Prem" icon="lobe:mistral-color">
+  <TabItem value="mistral" label="Mistral On-Prem" icon="lobe:mistral-color">
     Mistral On-Prem is the solution of Mistral AI to self-hosted their commercial models.
 
     **Supported model types:**
@@ -57,9 +55,9 @@ The model type determines the capabilities of the model and enables a specific s
     | `automatic-speech-recognition` | [voxtral-mini-2507](https://docs.mistral.ai/models/voxtral-mini-2507) |
     
     <LinkButton href="https://docs.mistral.ai/" icon="external">Mistral documentation</LinkButton>
-  </TabItemCustom>
+  </TabItem>
 
-  <TabItemCustom label="Text Embeddings Inference" icon="lobe:huggingface-color">
+  <TabItem label="Text Embeddings Inference" icon="lobe:huggingface-color">
     Hugging Face Text Embeddings Inference is an open-source API dedicated for embeddings and reranking. Is a great choice for self-hosted models.
 
     **Supported model types:**
@@ -69,9 +67,9 @@ The model type determines the capabilities of the model and enables a specific s
     | `text-classification` | [BAAI/bge-reranker-v2-m3](https://huggingface.co/BAAI/bge-reranker-v2-m3) |
   
   <LinkButton href="https://github.com/huggingface/text-embeddings-inference" icon="external">Text Embeddings Inference documentation</LinkButton>
-  </TabItemCustom>
+  </TabItem>
 
-  <TabItemCustom label="Ollama" icon="lobe:ollama">
+  <TabItem label="Ollama" icon="lobe:ollama">
     Ollama is a local-first model runtime for self-hosted models.
 
     **Supported model types:**
@@ -80,5 +78,5 @@ The model type determines the capabilities of the model and enables a specific s
     | `text-generation` | [qwen3.5:14b](https://ollama.com/library/qwen3.5:14b) |
 
     <LinkButton href="https://ollama.com/" icon="external">Ollama documentation</LinkButton>
-  </TabItemCustom>
-</TabsCustom>
+  </TabItem>
+</Tabs>

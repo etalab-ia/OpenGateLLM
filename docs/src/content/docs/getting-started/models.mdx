@@ -4,9 +4,7 @@ sidebar:
   label: "[lucide:cpu] Setup your models"
   order: 1
 ---
-import { Aside, LinkButton, Steps } from '@astrojs/starlight/components';
-import TabsCustom from '../../../components/TabsCustom.astro';
-import TabItemCustom from '../../../components/TabItemCustom.astro';
+import { Aside, LinkButton, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
 To expose a model through OpenGateLLM, you configure:
 
@@ -39,8 +37,8 @@ flowchart LR
 3. (Optional) Apply a rate limiting policy to the router.
    See [rate limiting](/features/usage/rate_limiting/).
 
-<TabsCustom>
-  <TabItemCustom value="playground" label="Playground UI" icon="lucide:laptop">
+<Tabs>
+  <TabItem value="playground" label="Playground UI" icon="lucide:laptop">
   <Steps>
     <ol>
       <li>
@@ -65,9 +63,9 @@ flowchart LR
       </li>
     </ol>
   </Steps>
-  </TabItemCustom>
+  </TabItem>
 
-  <TabItemCustom value="config" label="API" icon="lucide:code">
+  <TabItem value="config" label="API" icon="lucide:code">
   <Steps>
     <ol>
       <li>
@@ -85,6 +83,6 @@ flowchart LR
       <LinkButton href="/reference/" icon="external">See API Reference</LinkButton>
     </ol>
   </Steps>
-  </TabItemCustom>
+  </TabItem>
 
-</TabsCustom>
+</Tabs>

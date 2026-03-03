@@ -1,0 +1,58 @@
+diff --git a/node_modules/@astrojs/starlight/user-components/Icon.astro b/node_modules/@astrojs/starlight/user-components/Icon.astro
+index 16b24de..808d2f7 100644
+--- a/node_modules/@astrojs/starlight/user-components/Icon.astro
++++ b/node_modules/@astrojs/starlight/user-components/Icon.astro
+@@ -1,8 +1,9 @@
+ ---
+ import { Icons, type StarlightIcon } from '../components/Icons';
++import { Icon as AstroIcon } from 'astro-icon/components';
+ 
+ interface Props {
+-	name: StarlightIcon;
++	name: string;
+ 	label?: string;
+ 	color?: string;
+ 	size?: string;
+@@ -11,6 +12,7 @@ interface Props {
+ 
+ const { name, label, size = '1em', color } = Astro.props;
+ const a11yAttrs = label ? ({ 'aria-label': label } as const) : ({ 'aria-hidden': 'true' } as const);
++const isLucideIcon = typeof name === 'string' && name.startsWith('lucide:');
+ 
+ /**
+  * The fragment around the element is used as a workaround to avoid a trailing whitespace in the output.
+@@ -18,17 +20,23 @@ const a11yAttrs = label ? ({ 'aria-label': label } as const) : ({ 'aria-hidden':
+  */
+ ---
+ 
+-<>
+-	<svg
+-		{...a11yAttrs}
+-		class={Astro.props.class}
+-		width="16"
+-		height="16"
+-		viewBox="0 0 24 24"
+-		fill="currentColor"
+-		set:html={Icons[name]}
+-	/>
+-</>
++{
++	isLucideIcon ? (
++		<AstroIcon {...a11yAttrs} name={name} class={Astro.props.class} size={size} />
++	) : (
++		<>
++			<svg
++				{...a11yAttrs}
++				class={Astro.props.class}
++				width="16"
++				height="16"
++				viewBox="0 0 24 24"
++				fill="currentColor"
++				set:html={Icons[name as StarlightIcon]}
++			/>
++		</>
++	)
++}
+ 
+ <style define:vars={{ 'sl-icon-color': color, 'sl-icon-size': size }}>
+ 	@layer starlight.components {

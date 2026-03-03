@@ -15,8 +15,7 @@ hero:
       variant: minimal
 ---
 
-import { CardGrid } from '@astrojs/starlight/components';
-import Card from '../../components/CardWithIcon.astro';
+import { Card, CardGrid } from '@astrojs/starlight/components';
 
 Powered by French Government, OpenGateLLM is an <b>open-source</b>, <b>production-ready</b> API gateway for Generative AI.<br></br>
 It centralizes, <b>secures</b>, and governs access to AI models across your organization, enabling teams to focus on building high-value AI applications instead of managing infrastructure complexity and data security risks.<br></br>
@@ -28,7 +27,7 @@ Designed for organizations that require full control over their data and infrast
 	<Card title="Unified routing across model providers" icon="lucide:squares-unite">
 		Expose one OpenAI-compatible API while routing requests across OpenAI, vLLM, Mistral, Text Embeddings Inference, and more.
 	</Card>
-	<Card title="Built-in access governance" icon="shield-user">
+	<Card title="Built-in access governance" icon="lucide:shield-user">
 		Structure your platform with roles, users, and organizations to enforce clear permissions and secure collaboration at scale.
 	</Card>
 	<Card title="Usage control and observability" icon="lucide:gauge">
