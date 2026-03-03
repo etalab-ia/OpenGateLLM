@@ -62,11 +62,6 @@ class TestCreateProvider:
         self.admin_user = UserSQLFactory(admin_user=True)
         self.token = await create_token(db_session, name="admin_token", user=self.admin_user)
 
-    @pytest_asyncio.fixture(autouse=True)
-    async def cleanup_overrides(self, app):
-        yield
-        app.dependency_overrides.pop(create_provider_use_case_factory, None)
-
     @respx.mock
     async def test_happy_path(self, client: AsyncClient, db_session):
         router = RouterSQLFactory(user=self.admin_user, type=ModelType.TEXT_GENERATION)

@@ -100,7 +100,7 @@ class UserSQLFactory(BaseSQLFactory):
         fake = Faker("fr_FR")
         domain = fake.free_email_domain()
         clean_name = name_ascii.lower().replace(" ", ".")
-        return f"{clean_name}@e{domain}"
+        return f"{clean_name}@{domain}"
 
     class Params:
         admin_user = factory.Trait(role=factory.SubFactory(RoleSQLFactory, admin=True), priority=10)
@@ -208,8 +208,6 @@ class LimitSQLFactory(BaseSQLFactory):
         sqlalchemy_session_persistence = "flush"
 
     id = None
-    role_id = factory.SelfAttribute("role.id")
-    router_id = factory.SelfAttribute("router.id")
     type = fuzzy.FuzzyChoice([LimitType.TPM, LimitType.TPD, LimitType.RPM, LimitType.RPD])
     value = fuzzy.FuzzyInteger(100, 10000)
     created = factory.LazyFunction(datetime.now)

@@ -20,11 +20,6 @@ class TestGetRouters:
         self.admin_user = UserSQLFactory(admin_user=True)
         self.token = await create_token(db_session, name="admin_token", user=self.admin_user)
 
-    @pytest_asyncio.fixture(autouse=True)
-    async def cleanup_overrides(self, app):
-        yield
-        app.dependency_overrides.pop(get_routers_use_case_factory, None)
-
     async def test_happy_path_without_params(self, client: AsyncClient, db_session):
         RouterSQLFactory(user=self.admin_user, name="router_1")
         RouterSQLFactory(user=self.admin_user, name="router_2")
@@ -56,6 +51,7 @@ class TestGetRouters:
         RouterSQLFactory(user=self.admin_user, name="router_5")
         RouterSQLFactory(user=self.admin_user, name="router_6")
         RouterSQLFactory(user=self.admin_user, name="router_7")
+        expected_routers_ordered_by_name = ["router_4", "router_5", "router_6"]
         await db_session.flush()
 
         response = await client.get(
@@ -71,7 +67,7 @@ class TestGetRouters:
         assert data["offset"] == 3
         assert data["limit"] == 3
         assert len(data["data"]) == 3
-        assert returned_names == ["router_4", "router_5", "router_6"]
+        assert returned_names == expected_routers_ordered_by_name
 
     async def test_pagination_limit_should_be_less_than_100(self, client: AsyncClient, db_session):
         response = await client.get(

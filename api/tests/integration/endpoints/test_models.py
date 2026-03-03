@@ -51,9 +51,9 @@ class TestModels:
         LimitSQLFactory(role=user_with_routers.role, router=router_1)
         LimitSQLFactory(role=user_with_routers.role, router=router_2)
 
+        await db_session.flush()
         user_1_token = await create_token(db_session, name="my_token", user=user_with_routers)
         response = await client.get(url=f"/v1{EndpointRoute.MODELS}", headers={"Authorization": f"Bearer {user_1_token.token}"})
-        await db_session.flush()
         assert response.status_code == 200, f"error: retrieve models ({response.status_code})"
         models = Models(data=[Model(**model) for model in response.json()["data"]])
         assert isinstance(models, Models)

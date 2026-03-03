@@ -73,8 +73,8 @@ class TestGetAllRouters:
         assert len(result_routers) == 3
         router_names = {r.name for r in result_routers}
         assert router_names == {router_1.name, router_2.name, router_3.name}
+        result_router_1 = next(r for r in result_routers if r.name == router_1.name)
 
-        result_router_1 = result_routers[0]
         first_provider_router_1 = router_1.provider[0]
         assert result_router_1.type == RouterType.TEXT_GENERATION
         assert result_router_1.providers == 2
@@ -332,6 +332,7 @@ class TestGetRoutersPage:
 
         # Assert
         assert first_page.total == second_page.total
+        assert first_page.total == 6
         assert len(second_page.data) == 2
 
     async def test_sort_by_name_asc(self, repository, db_session):
