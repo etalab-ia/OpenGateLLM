@@ -41,6 +41,8 @@ class PostgresProviderRepository(ProviderRepository):
             max_context_length=row.max_context_length,
             vector_size=row.vector_size,
             id=row.id,
+            created=int(row.created.timestamp()),
+            updated=int(row.updated.timestamp()),
         )
 
     async def create_provider(

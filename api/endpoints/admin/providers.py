@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
-from api.schemas.admin.providers import Provider, Providers, UpdateProvider
+from api.schemas.admin.providers import Providers, UpdateProvider
 from api.schemas.admin.roles import PermissionType
 from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import EndpointRoute
@@ -41,27 +41,6 @@ async def update_provider(
     )
 
     return Response(status_code=204)
-
-
-@router.get(
-    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.PROVIDE_MODELS]))],
-    status_code=200,
-    response_model=Provider,
-)
-async def get_provider(
-    request: Request,
-    provider: int = Path(description="The ID of the provider to get."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-    model_registry: ModelRegistry = Depends(get_model_registry),
-) -> JSONResponse:
-    """
-    Get a model provider by router and provider IDs.
-    """
-    providers = await model_registry.get_providers(router_id=router, provider_id=provider, postgres_session=postgres_session)
-    provider = providers[0]
-
-    return JSONResponse(status_code=200, content=provider.model_dump())
 
 
 @router.get(
