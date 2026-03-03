@@ -1,5 +1,5 @@
 diff --git a/node_modules/@astrojs/starlight/user-components/Icon.astro b/node_modules/@astrojs/starlight/user-components/Icon.astro
-index 16b24de..808d2f7 100644
+index 16b24de..579a4b1 100644
 --- a/node_modules/@astrojs/starlight/user-components/Icon.astro
 +++ b/node_modules/@astrojs/starlight/user-components/Icon.astro
 @@ -1,8 +1,9 @@
@@ -17,7 +17,7 @@ index 16b24de..808d2f7 100644
  
  const { name, label, size = '1em', color } = Astro.props;
  const a11yAttrs = label ? ({ 'aria-label': label } as const) : ({ 'aria-hidden': 'true' } as const);
-+const isLucideIcon = typeof name === 'string' && name.startsWith('lucide:');
++const isExternalIcon = typeof name === 'string' && name.includes(':');
  
  /**
   * The fragment around the element is used as a workaround to avoid a trailing whitespace in the output.
@@ -37,7 +37,7 @@ index 16b24de..808d2f7 100644
 -	/>
 -</>
 +{
-+	isLucideIcon ? (
++	isExternalIcon ? (
 +		<AstroIcon {...a11yAttrs} name={name} class={Astro.props.class} size={size} />
 +	) : (
 +		<>
