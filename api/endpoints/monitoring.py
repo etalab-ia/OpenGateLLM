@@ -21,9 +21,7 @@ from api.utils.variables import RouterName
 def setup_prometheus(app: FastAPI, metric_namespace: str = "ogl", include_in_schema: bool = True) -> None:
     app.instrumentator = (
         Instrumentator()
-        .instrument(
-            app=app,
-        )
+        .instrument(app=app)
         .add(
             metrics.default(metric_namespace=metric_namespace),
             inference_output_tokens_per_second(metric_namespace=metric_namespace),

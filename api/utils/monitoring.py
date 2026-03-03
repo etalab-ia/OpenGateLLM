@@ -24,11 +24,7 @@ def inference_requests_total(metric_namespace: str = "") -> Callable[[Info], Non
             model = context.router_name
             endpoint = context.endpoint
             if model and endpoint:
-                metric.labels(
-                    endpoint=endpoint,
-                    model=model,
-                    status_code=info.modified_status,
-                ).inc()
+                metric.labels(endpoint=endpoint, model=model, status_code=info.modified_status).inc()
         except Exception:
             pass
 
@@ -154,11 +150,7 @@ def inference_ttft_milliseconds(metric_namespace: str = "") -> Callable[[Info], 
             endpoint = context.endpoint
             ttft = context.ttft
             if model and endpoint and ttft is not None:
-                metric.labels(
-                    endpoint=endpoint,
-                    model=model,
-                    status_code=info.modified_status,
-                ).observe(ttft)
+                metric.labels(endpoint=endpoint, model=model, status_code=info.modified_status).observe(ttft)
         except Exception:
             pass
 
