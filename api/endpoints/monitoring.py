@@ -3,16 +3,39 @@ import os
 from fastapi import Depends, FastAPI
 import prometheus_client
 from prometheus_client import CollectorRegistry, multiprocess
-from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_fastapi_instrumentator import Instrumentator, metrics
 from starlette.responses import Response
 
 from api.helpers._accesscontroller import AccessController
+from api.helpers._metricsmiddleware import (
+    inference_output_tokens_per_second,
+    inference_requests_duration_seconds,
+    inference_requests_total,
+    inference_tokens_total,
+    inference_ttft_milliseconds,
+)
 from api.schemas.admin.roles import PermissionType
 from api.utils.variables import RouterName
 
 
-def setup_prometheus(app: FastAPI, include_in_schema: bool = True) -> None:
-    app.instrumentator = Instrumentator().instrument(app=app)
+def setup_prometheus(app: FastAPI, metric_namespace: str = "ogl", include_in_schema: bool = True) -> None:
+    app.instrumentator = (
+        Instrumentator()
+        .instrument(
+            app=app,
+        )
+        .add(
+            metrics.default(
+                metric_namespace=metric_namespace,
+            ),
+            inference_output_tokens_per_second(metric_namespace=metric_namespace),
+            inference_requests_total(metric_namespace=metric_namespace),
+            inference_requests_duration_seconds(metric_namespace=metric_namespace),
+            inference_ttft_milliseconds(metric_namespace=metric_namespace),
+            inference_tokens_total(metric_namespace=metric_namespace),
+        )
+        .expose(app)
+    )
 
     @app.get(
         path="/metrics",
@@ -20,7 +43,7 @@ def setup_prometheus(app: FastAPI, include_in_schema: bool = True) -> None:
         dependencies=[Depends(dependency=AccessController(permissions=[PermissionType.READ_METRIC]))],
         include_in_schema=include_in_schema,
     )
-    def metrics() -> Response:
+    def get_metrics() -> Response:
         if os.environ.get("PROMETHEUS_MULTIPROC_DIR"):
             registry = CollectorRegistry()
             multiprocess.MultiProcessCollector(registry)

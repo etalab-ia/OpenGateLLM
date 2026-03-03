@@ -113,7 +113,6 @@ class BaseModelProvider(ABC):
         tokenizer = getattr(global_context, "tokenizer", None)
         if tokenizer and request_content.endpoint in tokenizer.USAGE_ENDPOINTS:
             try:
-                completion_tokens = 0
                 prompt_tokens = tokenizer.get_prompt_tokens(endpoint=request_content.endpoint, body=request_content.json)
                 completion_tokens = tokenizer.get_completion_tokens(endpoint=request_content.endpoint, response_data=response_data)
                 total_tokens = prompt_tokens + completion_tokens
@@ -149,10 +148,10 @@ class BaseModelProvider(ABC):
         Format a request to a provider model. This method can be overridden by a subclass to add additional headers or parameters. This method format the requested endpoint thanks the ENDPOINT_TABLE attribute.
 
         Args:
-            content(RequestContent): The request content to format.
+            request_content(RequestContent): The request content to format.
 
         Returns:
-            content(RequestContent): The formatted request content.
+            request_content(RequestContent): The formatted request content.
         """
         if "model" in request_content.json:
             request_content.json["model"] = self.model_name
@@ -221,7 +220,8 @@ class BaseModelProvider(ABC):
 
         return response
 
-    async def _ensure_timeseries_exists(self, redis_client: AsyncRedis, key: str) -> None:
+    @staticmethod
+    async def _ensure_timeseries_exists(redis_client: AsyncRedis, key: str) -> None:
         """
         Ensure a time series exists with proper retention configuration.
 

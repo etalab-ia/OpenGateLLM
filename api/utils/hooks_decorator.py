@@ -189,7 +189,7 @@ async def update_budget(usage: Usage):
                 # Update the budget
                 update_stmt = update(User).where(User.id == user_id).values(budget=new_budget, updated=func.now()).returning(User.budget)
 
-                result = await postgres_session.execute(update_stmt)
+                await postgres_session.execute(update_stmt)
 
         except Exception as e:
             logger.exception(f"Failed to update budget for user {user_id}: {e}")
