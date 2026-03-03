@@ -11,7 +11,7 @@ from api.dependencies import (
     get_routers_use_case_factory,
     update_router_use_case_factory,
 )
-from api.domain.router.entities import RouterSortField, SortOrder
+from api.domain import SortField, SortOrder
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.infrastructure.fastapi.access import get_current_key
@@ -141,7 +141,7 @@ async def get_router(
 async def get_routers(
     offset: int = Query(default=0, ge=0, description="Number of routers to skip."),
     limit: int = Query(default=10, ge=1, le=100, description="Maximum number of routers to return."),
-    sort_by: RouterSortField = Query(default=RouterSortField.ID, description="Field to sort by."),
+    sort_by: SortField = Query(default=SortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_routers_use_case: GetRoutersUseCase = Depends(get_routers_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),

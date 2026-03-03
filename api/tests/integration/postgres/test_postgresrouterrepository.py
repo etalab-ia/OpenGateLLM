@@ -3,9 +3,10 @@ from datetime import datetime, timedelta
 import pytest
 from sqlalchemy import select
 
+from api.domain import SortField, SortOrder
 from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model import ModelType as RouterType
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterSortField, SortOrder
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.infrastructure.postgres import PostgresRouterRepository
 from api.sql.models import Provider as ProviderTable
@@ -307,7 +308,7 @@ class TestGetRoutersPage:
         await db_session.flush()
 
         # Act
-        result = await repository.get_routers_page(limit=2, offset=0, sort_by=RouterSortField.NAME, sort_order=SortOrder.ASC)
+        result = await repository.get_routers_page(limit=2, offset=0, sort_by=SortField.NAME, sort_order=SortOrder.ASC)
 
         # Assert
         assert result.total == 3
@@ -344,7 +345,7 @@ class TestGetRoutersPage:
         await db_session.flush()
 
         # Act
-        result = await repository.get_routers_page(limit=10, offset=0, sort_by=RouterSortField.NAME, sort_order=SortOrder.ASC)
+        result = await repository.get_routers_page(limit=10, offset=0, sort_by=SortField.NAME, sort_order=SortOrder.ASC)
 
         # Assert
         returned_names = [r.name for r in result.data]
@@ -359,7 +360,7 @@ class TestGetRoutersPage:
         await db_session.flush()
 
         # Act
-        result = await repository.get_routers_page(limit=10, offset=0, sort_by=RouterSortField.NAME, sort_order=SortOrder.DESC)
+        result = await repository.get_routers_page(limit=10, offset=0, sort_by=SortField.NAME, sort_order=SortOrder.DESC)
 
         # Assert
         returned_names = [r.name for r in result.data]
@@ -387,7 +388,7 @@ class TestGetRoutersPage:
         await db_session.flush()
 
         # Act
-        result = await repository.get_routers_page(limit=10, offset=0, sort_by=RouterSortField.ID, sort_order=SortOrder.ASC)
+        result = await repository.get_routers_page(limit=10, offset=0, sort_by=SortField.ID, sort_order=SortOrder.ASC)
 
         # Assert
         returned_ids = [r.id for r in result.data]
@@ -402,7 +403,7 @@ class TestGetRoutersPage:
         await db_session.flush()
 
         # Act
-        result = await repository.get_routers_page(limit=10, offset=0, sort_by=RouterSortField.CREATED, sort_order=SortOrder.DESC)
+        result = await repository.get_routers_page(limit=10, offset=0, sort_by=SortField.CREATED, sort_order=SortOrder.DESC)
 
         # Assert
         returned_names = [r.name for r in result.data]

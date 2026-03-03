@@ -1,9 +1,13 @@
+from datetime import datetime, timedelta
+
 import pytest
 from sqlalchemy import select
 
+from api.domain import SortOrder
 from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model.entities import Metric, ModelType
 from api.domain.provider import Provider, ProviderAlreadyExistsError, ProviderCarbonFootprintZone, ProviderType
+from api.domain.provider.entities import ProviderSortField
 from api.infrastructure.postgres import PostgresProviderRepository
 from api.sql.models import Provider as ProviderTable
 from api.tests.integration.factories import (
@@ -128,6 +132,117 @@ class TestGetOneProvider:
         # Assert
         assert isinstance(result, Provider)
         assert result.user_id == MASTER_USER_ID
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestGetProvidersPage:
+    async def test_returns_correct_page_with_limit_and_offset(self, repository, db_session):
+        # Arrange
+        router = RouterSQLFactory()
+        ProviderSQLFactory(router=router, model_name="provider_a")
+        ProviderSQLFactory(router=router, model_name="provider_b")
+        ProviderSQLFactory(router=router, model_name="provider_c")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_providers_page(router_id=None, limit=2, offset=0, sort_by=ProviderSortField.ID, sort_order=SortOrder.ASC)
+
+        # Assert
+        assert result.total == 3
+        assert len(result.data) == 2
+
+    async def test_total_is_consistent_across_pages(self, repository, db_session):
+        # Arrange
+        router = RouterSQLFactory()
+        for i in range(6):
+            ProviderSQLFactory(router=router, model_name=f"provider_{i}")
+        await db_session.flush()
+
+        # Act
+        first_page = await repository.get_providers_page(router_id=None, limit=4, offset=0)
+        second_page = await repository.get_providers_page(router_id=None, limit=4, offset=4)
+
+        # Assert
+        assert first_page.total == second_page.total
+        assert first_page.total == 6
+        assert len(second_page.data) == 2
+
+    async def test_sort_by_id_asc(self, repository, db_session):
+        # Arrange
+        router = RouterSQLFactory()
+        ProviderSQLFactory(id=4003, router=router, model_name="provider_c")
+        ProviderSQLFactory(id=4001, router=router, model_name="provider_a")
+        ProviderSQLFactory(id=4002, router=router, model_name="provider_b")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_providers_page(router_id=None, limit=10, offset=0, sort_by=ProviderSortField.ID, sort_order=SortOrder.ASC)
+
+        # Assert
+        returned_ids = [p.id for p in result.data]
+        assert returned_ids == [4001, 4002, 4003]
+
+    async def test_sort_by_model_name_asc(self, repository, db_session):
+        # Arrange
+        router = RouterSQLFactory()
+        ProviderSQLFactory(router=router, model_name="provider_c")
+        ProviderSQLFactory(router=router, model_name="provider_a")
+        ProviderSQLFactory(router=router, model_name="provider_b")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_providers_page(
+            router_id=None, limit=10, offset=0, sort_by=ProviderSortField.MODEL_NAME, sort_order=SortOrder.ASC
+        )
+
+        # Assert
+        returned_names = [p.model_name for p in result.data]
+        assert returned_names == ["provider_a", "provider_b", "provider_c"]
+
+    async def test_sort_by_created_date_desc(self, repository, db_session):
+        # Arrange
+        router = RouterSQLFactory()
+        ProviderSQLFactory(router=router, model_name="oldest", created=datetime.now() - timedelta(days=10))
+        ProviderSQLFactory(router=router, model_name="newest", created=datetime.now())
+        ProviderSQLFactory(router=router, model_name="middle", created=datetime.now() - timedelta(hours=1))
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_providers_page(router_id=None, limit=10, offset=0, sort_by=ProviderSortField.CREATED, sort_order=SortOrder.DESC)
+
+        # Assert
+        returned_names = [p.model_name for p in result.data]
+        assert returned_names == ["newest", "middle", "oldest"]
+
+    async def test_returns_empty_page_when_offset_exceeds_total(self, repository, db_session):
+        # Arrange
+        router = RouterSQLFactory()
+        ProviderSQLFactory(router=router)
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_providers_page(router_id=None, limit=10, offset=100)
+
+        # Assert
+        assert result.data == []
+        assert result.total == 1
+
+    async def test_filter_by_router_id_returns_only_providers_for_that_router(self, repository, db_session):
+        # Arrange
+        router_1 = RouterSQLFactory()
+        router_2 = RouterSQLFactory()
+        ProviderSQLFactory(router=router_1, model_name="provider_r1_1")
+        ProviderSQLFactory(router=router_1, model_name="provider_r1_2")
+        ProviderSQLFactory(router=router_2, model_name="provider_r2_1")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_providers_page(router_id=router_1.id, limit=10, offset=0)
+
+        # Assert
+        assert result.total == 2
+        assert len(result.data) == 2
+        assert all(provider.router_id == router_1.id for provider in result.data)
 
 
 @pytest.mark.asyncio(loop_scope="session")

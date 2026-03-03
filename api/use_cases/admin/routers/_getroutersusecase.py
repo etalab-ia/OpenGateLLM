@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
+from api.domain import SortField, SortOrder
 from api.domain.router import RouterRepository
-from api.domain.router.entities import Router, RouterSortField, SortOrder
+from api.domain.router.entities import Router
 from api.domain.userinfo import UserInfoRepository
 from api.domain.userinfo.errors import UserIsNotAdminError
 
@@ -11,7 +12,7 @@ class GetRoutersCommand:
     user_id: int
     offset: int
     limit: int
-    sort_by: RouterSortField
+    sort_by: SortField
     sort_order: SortOrder
 
 

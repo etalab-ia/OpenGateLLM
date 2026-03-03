@@ -2,10 +2,11 @@ from sqlalchemy import Integer, Select, asc, cast, delete, desc, func, insert, s
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain import SortField, SortOrder
 from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model import ModelType as RouterType
 from api.domain.router import RouterRepository
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage, RouterSortField, SortOrder
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Provider as ProviderTable
@@ -90,7 +91,7 @@ class PostgresRouterRepository(RouterRepository):
         self,
         limit: int,
         offset: int,
-        sort_by: RouterSortField = RouterSortField.ID,
+        sort_by: SortField = SortField.ID,
         sort_order: SortOrder = SortOrder.ASC,
     ) -> RouterPage:
         distinct_routers = (self._select_routers_with_provider_stats().distinct(RouterTable.id).order_by(RouterTable.id, ProviderTable.id)).subquery()

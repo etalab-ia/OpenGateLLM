@@ -112,4 +112,7 @@ class Provider(BaseModel):
 
 class Providers(BaseModel):
     object: Literal["list"] = "list"
+    total: int
+    offset: int
+    limit: int
     data: list[Provider]
