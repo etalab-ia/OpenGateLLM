@@ -58,6 +58,7 @@ async def chat_completions(
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse | StreamingResponseWithStatusCode:
     """Creates a model response for the given chat conversation."""
+
     model_provider = await model_registry.get_model_provider(
         model=body.model,
         endpoint=EndpointRoute.CHAT_COMPLETIONS,

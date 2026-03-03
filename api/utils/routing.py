@@ -4,7 +4,7 @@ import logging
 from celery.result import AsyncResult
 from redis.asyncio import Redis as AsyncRedis
 
-from api.schemas.admin.providers import Provider
+from api.domain.provider.entities import Provider
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.core.models import Metric
 from api.tasks import app, create_model_queue
@@ -124,7 +124,7 @@ async def apply_routing_with_queuing(
         logger.debug(f"Task {task.id}: Result={result}")
 
         if result["status_code"] != 200:
-            logger.error(f"Task {task.id}: Failed with status_code={result["status_code"]}, detail={result.get("body", {}).get("detail", "N/A")}")
+            logger.error(f"Task {task.id}: Failed with status_code={result['status_code']}, detail={result.get('body', {}).get('detail', 'N/A')}")
             raise TaskFailedException(status_code=result["status_code"], detail=result["body"]["detail"])
         provider_id = result["provider_id"]
         logger.info(f"Task {task.id}: Successfully returned provider_id={provider_id}")

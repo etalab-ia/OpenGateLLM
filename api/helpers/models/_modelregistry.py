@@ -3,12 +3,20 @@ import logging
 from typing import Literal
 
 from redis.asyncio import Redis as AsyncRedis
-from sqlalchemy import Integer, and_, cast, delete, func, insert, or_, select, text, update
+from sqlalchemy import Integer, and_, cast, delete, func, insert, or_, select, text
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.clients.model import BaseModelProvider as ModelProvider
-from api.schemas.admin.providers import Provider, ProviderCarbonFootprintZone, ProviderType
+from api.domain.provider import Provider
+from api.infrastructure.http.model import (
+    AlbertModelHttpClient,
+    MistralModelHttpClient,
+    ModelHttpClient,
+    OpenaiModelHttpClient,
+    TeiModelHttpClient,
+    VllmModelHttpClient,
+)
+from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import Router, RouterLoadBalancingStrategy
 from api.schemas.core.configuration import Model as ModelConfiguration
 from api.schemas.core.context import RequestContext
@@ -121,7 +129,7 @@ class ModelRegistry:
                 )
                 logger.info(f"Router {model.name} are created (id: {router_id})")
             except RouterAlreadyExistsException:
-                continue
+                pass
             except RouterAliasAlreadyExistsException:
                 continue
             except Exception as e:
@@ -137,7 +145,7 @@ class ModelRegistry:
                     provider_id = await self.create_provider(
                         router_id=router.id,
                         user_id=0,  # setup as master user
-                        type=provider.type,
+                        provider_type=provider.type,
                         url=provider.url,
                         key=provider.key,
                         timeout=provider.timeout,
@@ -234,91 +242,6 @@ class ModelRegistry:
             add_model_queue_to_running_worker(queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router_id}")
 
         return router_id
-
-    @staticmethod
-    async def delete_router(router_id: int, postgres_session: AsyncSession) -> None:
-        """
-        Delete a model router and all its providers.
-
-        Args:
-            router_id(int): The router ID
-            postgres_session(AsyncSession): Database postgres_session
-        """
-        # Check if router exists
-        query = select(RouterTable).where(RouterTable.id == router_id)
-        result = await postgres_session.execute(query)
-        try:
-            result.scalar_one()
-        except NoResultFound:
-            raise RouterNotFoundException()
-
-        # Delete will cascade to providers and aliases due to foreign key constraints
-        await postgres_session.execute(delete(RouterTable).where(RouterTable.id == router_id))
-        await postgres_session.commit()
-
-        # TODO: delete queue
-
-    async def update_router(
-        self,
-        router_id: int,
-        name: str | None,
-        type: ModelType | None,
-        aliases: list[str] | None,
-        load_balancing_strategy: RouterLoadBalancingStrategy | None,
-        cost_prompt_tokens: float | None,
-        cost_completion_tokens: float | None,
-        postgres_session: AsyncSession,
-    ) -> None:
-        """
-        Update a model router.
-
-        Args:
-            router_id(int): The router ID
-            name(Optional[str]): Optional new name
-            type(Optional[ModelType]): Optional new type
-            aliases(Optional[List[str]]): Optional new aliases list (replaces existing)
-            load_balancing_strategy(Optional[RouterLoadBalancingStrategy]): Optional new routing strategy
-            cost_prompt_tokens(Optional[float]): Optional new cost of a million prompt tokens
-            cost_completion_tokens(Optional[float]): Optional new cost of a million completion tokens
-            postgres_session(AsyncSession): Database postgres_session
-
-        """
-        # Check if model exists
-        routers = await self.get_routers(router_id=router_id, name=None, postgres_session=postgres_session)
-
-        # Check alias integrity in aliases of other routers
-        if aliases:
-            query = select(RouterAliasTable.router_id).where(RouterAliasTable.value.in_(aliases)).where(RouterAliasTable.router_id != router_id)
-            result = await postgres_session.execute(query)
-            conflicting_aliases = result.scalars().all()
-            if conflicting_aliases:
-                raise RouterAliasAlreadyExistsException()
-
-        # Update router properties
-        update_values = {}
-        if type is not None:
-            update_values["type"] = type.value
-        if load_balancing_strategy is not None:
-            update_values["load_balancing_strategy"] = load_balancing_strategy.value
-        if name is not None:
-            update_values["name"] = name
-        if cost_prompt_tokens is not None:
-            update_values["cost_prompt_tokens"] = cost_prompt_tokens
-        if cost_completion_tokens is not None:
-            update_values["cost_completion_tokens"] = cost_completion_tokens
-
-        if update_values:
-            await postgres_session.execute(update(RouterTable).where(RouterTable.id == router_id).values(**update_values))
-
-        # Update aliases if provided
-        if aliases is not None:
-            query = delete(RouterAliasTable).where(RouterAliasTable.router_id == router_id)
-            await postgres_session.execute(query)
-            if aliases:
-                query = insert(RouterAliasTable).values([{"value": alias, "router_id": router_id} for alias in aliases])
-                await postgres_session.execute(query)
-
-        await postgres_session.commit()
 
     @staticmethod
     async def get_routers(
@@ -439,7 +362,7 @@ class ModelRegistry:
         self,
         router_id: int,
         user_id: int,
-        type: ProviderType,
+        provider_type: ProviderType,
         url: str,
         key: str | None,
         timeout: int,
@@ -457,7 +380,7 @@ class ModelRegistry:
         Args:
             router_id(int): The model router ID
             user_id(int): The user ID of owner of the provider
-            type(ProviderType): provider type
+            provider_type(ProviderType): provider type
             url(str): provider URL
             key(str | None): provider API key
             timeout(int): Request timeout
@@ -475,21 +398,32 @@ class ModelRegistry:
         routers = await self.get_routers(router_id=router_id, name=None, postgres_session=postgres_session)
         router = routers[0]
 
-        if type.value not in self.MODEL_TYPE_TO_MODEL_PROVIDER_TYPE_MAPPING[router.type]:
+        if provider_type.value not in self.MODEL_TYPE_TO_MODEL_PROVIDER_TYPE_MAPPING[router.type]:
             raise InvalidProviderTypeException()
 
         # call model to get the vector size, max context length
         try:
-            provider = ModelProvider.import_module(type=type)(
+            provider_class: dict[ProviderType, type[ModelHttpClient]] = {
+                ProviderType.ALBERT: AlbertModelHttpClient,
+                ProviderType.MISTRAL: MistralModelHttpClient,
+                ProviderType.OPENAI: OpenaiModelHttpClient,
+                ProviderType.TEI: TeiModelHttpClient,
+                ProviderType.VLLM: VllmModelHttpClient,
+            }
+
+            provider = provider_class[provider_type](
                 url=url,
                 key=key,
                 timeout=timeout,
                 model_name=model_name,
-                model_hosting_zone=model_hosting_zone,
-                model_total_params=model_total_params,
                 model_active_params=model_active_params,
+                model_total_params=model_total_params,
+                model_hosting_zone=model_hosting_zone,
             )
-            max_context_length = await provider.get_max_context_length()
+            model_info = await provider.get_model_info()
+            if model_info is None:
+                raise Exception(f"Provider {provider_type.value} not reachable")
+            max_context_length = model_info.max_context_length
             if router.type == ModelType.TEXT_EMBEDDINGS_INFERENCE:
                 vector_size = await provider.get_vector_size()
             else:
@@ -515,7 +449,7 @@ class ModelRegistry:
                 .values(
                     router_id=router_id,
                     user_id=user_id,
-                    type=type.value,
+                    type=provider_type.value,
                     url=url,
                     key=key,
                     timeout=timeout,
@@ -650,80 +584,6 @@ class ModelRegistry:
 
         return providers
 
-    async def update_provider(
-        self,
-        provider_id: int,
-        router_id: int | None,
-        timeout: int | None,
-        model_hosting_zone: ProviderCarbonFootprintZone | None,
-        model_total_params: int | None,
-        model_active_params: int | None,
-        qos_metric: Metric | None,
-        qos_limit: float | None,
-        postgres_session: AsyncSession,
-    ) -> None:
-        """
-        Update a model provider by ID.
-
-        Args:
-            provider_id(int): The provider ID
-            router_id(int | None): The new router ID to assign to the provider
-            timeout(int | None): The new timeout for the provider requests
-            model_hosting_zone(ProviderCarbonFootprintZone | None): The new model carbon footprint zone
-            model_total_params(int | None): The new model carbon footprint total params
-            model_active_params(int | None): The new model carbon footprint active params
-            qos_metric(Metric | None): The new QoS metric
-            qos_limit(float | None): The new QoS limit
-            postgres_session(AsyncSession): Database postgres_session
-        """
-        # Check if provider exists
-        providers = await self.get_providers(provider_id=provider_id, router_id=None, postgres_session=postgres_session)
-        provider = providers[0]
-
-        routers = await self.get_routers(router_id=provider.router_id, name=None, postgres_session=postgres_session)
-        current_router = routers[0]
-
-        # Update provider
-        update_value = {}
-        if router_id is not None:
-            # check if new router exists
-            routers = await self.get_routers(router_id=router_id, name=None, postgres_session=postgres_session)
-            new_router = routers[0]
-
-            # provider.type is a ProviderType enum, mapping contains provider type strings
-            if provider.type.value not in self.MODEL_TYPE_TO_MODEL_PROVIDER_TYPE_MAPPING[new_router.type]:
-                raise InvalidProviderTypeException("New router type is not compatible with the provider type.")
-
-            # consistency check
-            if new_router.providers > 0:
-                if new_router.vector_size != current_router.vector_size:
-                    raise InconsistentModelVectorSizeException()
-                if new_router.max_context_length != current_router.max_context_length:
-                    raise InconsistentModelMaxContextLengthException()
-
-            update_value["router_id"] = router_id
-
-        if timeout is not None:
-            update_value["timeout"] = timeout
-        if model_hosting_zone is not None:
-            update_value["model_hosting_zone"] = model_hosting_zone
-        if model_total_params is not None:
-            update_value["model_total_params"] = model_total_params
-        if model_active_params is not None:
-            update_value["model_active_params"] = model_active_params
-        if qos_metric is not None:
-            update_value["qos_metric"] = qos_metric
-        if qos_limit is not None:
-            update_value["qos_limit"] = qos_limit
-
-        if update_value:
-            try:
-                await postgres_session.execute(update(ProviderTable).where(ProviderTable.id == provider_id).values(**update_value))
-                await postgres_session.commit()
-            except IntegrityError:
-                await postgres_session.rollback()
-                raise ProviderAlreadyExistsException("provider already exists for the new router.")
-
     async def get_models(self, name: str | None, user_info: UserInfo, postgres_session: AsyncSession) -> list[Model]:
         """
         Get models for a user.
@@ -808,7 +668,7 @@ class ModelRegistry:
         postgres_session: AsyncSession,
         redis_client: AsyncRedis,
         request_context: ContextVar[RequestContext],
-    ) -> ModelProvider:
+    ) -> ModelHttpClient:
         """
         Get a model provider for a given model, endpoint, user priority, postgres_session and redis client.
 
@@ -819,7 +679,7 @@ class ModelRegistry:
             redis_client(AsyncRedis): Redis client
             request_context(ContextVar[RequestContext]): Request context
         Returns:
-            ModelProvider: The chosen provider
+            ModelHttpClient: The chosen provider
         """
         try:
             routers = await self.get_routers(router_id=None, name=model, postgres_session=postgres_session)
@@ -867,7 +727,15 @@ class ModelRegistry:
         providers = await self.get_providers(router_id=router.id, provider_id=provider_id, postgres_session=postgres_session)
         provider = providers[0]
 
-        model_provider = ModelProvider.import_module(type=provider.type)(
+        provider_class: dict[ProviderType, type[ModelHttpClient]] = {
+            ProviderType.ALBERT: AlbertModelHttpClient,
+            ProviderType.MISTRAL: MistralModelHttpClient,
+            ProviderType.OPENAI: OpenaiModelHttpClient,
+            ProviderType.TEI: TeiModelHttpClient,
+            ProviderType.VLLM: VllmModelHttpClient,
+        }
+
+        model_provider = provider_class[provider.type](
             url=provider.url,
             key=provider.key,
             timeout=provider.timeout,

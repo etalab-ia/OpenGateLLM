@@ -12,7 +12,6 @@ from sqlalchemy import Integer, cast, delete, distinct, func, insert, or_, selec
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.clients.model import BaseModelProvider as ModelProvider
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers.models import ModelRegistry
 from api.schemas.chunks import Chunk, ChunkMetadata, InputChunk
@@ -35,6 +34,7 @@ from api.utils.exceptions import (
 )
 from api.utils.variables import EndpointRoute
 
+from ..infrastructure.http.model import ModelHttpClient
 from ._parsermanager import ParserManager
 
 logger = logging.getLogger(__name__)
@@ -552,7 +552,7 @@ class DocumentManager:
 
         return chunks
 
-    async def _create_embeddings(self, provider: ModelProvider, input_texts: list[str], redis_client: AsyncRedis) -> list[float]:
+    async def _create_embeddings(self, provider: ModelHttpClient, input_texts: list[str], redis_client: AsyncRedis) -> list[float]:
         response = await provider.forward_request(
             request_content=RequestContent(
                 method="POST",

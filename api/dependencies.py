@@ -2,6 +2,7 @@ from collections.abc import AsyncGenerator
 from contextvars import ContextVar
 
 from fastapi import Depends
+from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.key import KeyRepository
@@ -41,6 +42,14 @@ async def get_postgres_session() -> AsyncGenerator[AsyncSession]:
             if postgres_session.in_transaction():
                 await postgres_session.rollback()
             raise
+
+
+async def get_redis_client() -> AsyncGenerator[AsyncRedis]:
+    client = AsyncRedis(connection_pool=global_context.redis_pool)
+
+    yield client
+
+    await client.aclose()
 
 
 # repositories
