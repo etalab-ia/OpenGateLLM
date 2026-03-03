@@ -22,7 +22,7 @@ class CreateRouterBody(BaseModel):
             ...,
             description="Type of the model router. It will be used to identify the model router type.",
             examples=["text-generation"],
-            alias=["type"],
+            alias="type",
         ),
     ]
     aliases: Annotated[
@@ -56,7 +56,7 @@ class UpdateRouterBody(BaseModel):
             default=None,
             description="Type of the model router. It will be used to identify the model router type.",
             examples=["text-generation"],
-            alias=["type"],
+            alias="type",
         ),
     ]
     aliases: Annotated[
@@ -91,7 +91,7 @@ class RouterResponse(BaseModel):
         Field(
             ...,
             description="Type of the model router. It will be used to identify the model router type.",
-            alias=["type"],
+            alias="type",
             examples=["text-generation"],
         ),
     ]
