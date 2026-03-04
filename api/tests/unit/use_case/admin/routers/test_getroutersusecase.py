@@ -58,8 +58,8 @@ class TestGetRoutersUseCase:
 
         # Assert
         assert isinstance(result, GetRoutersUseCaseSuccess)
-        assert result.routers == sample_routers
-        assert result.total == 2
+        assert result.router_page.data == sample_routers
+        assert result.router_page.total == 2
         user_info_repository.get_user_info.assert_called_once_with(user_id=admin_user_info.id)
 
     @pytest.mark.asyncio

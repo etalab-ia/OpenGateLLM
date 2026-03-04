@@ -378,6 +378,7 @@ class TestGetRoutersPage:
 
         # Assert
         assert result.data == []
+        assert result.total == 1
 
     async def test_sort_by_id_asc(self, repository, db_session):
         # Arrange

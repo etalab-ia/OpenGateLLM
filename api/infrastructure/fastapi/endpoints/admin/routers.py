@@ -167,12 +167,12 @@ async def get_routers(
         )
         raise InternalServerHTTPException()
     match result:
-        case GetRoutersUseCaseSuccess(routers, total):
+        case GetRoutersUseCaseSuccess(router_page=router_page):
             return Routers(
-                total=total,
+                total=router_page.total,
                 offset=offset,
                 limit=limit,
-                data=[RouterResponse.model_validate(r, from_attributes=True) for r in routers],
+                data=[RouterResponse.model_validate(r, from_attributes=True) for r in router_page.data],
             )
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()

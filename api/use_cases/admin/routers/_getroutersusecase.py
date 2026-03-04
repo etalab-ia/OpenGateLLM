@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from api.domain import SortField, SortOrder
 from api.domain.router import RouterRepository
-from api.domain.router.entities import Router
+from api.domain.router.entities import RouterPage
 from api.domain.userinfo import UserInfoRepository
 from api.domain.userinfo.errors import UserIsNotAdminError
 
@@ -18,8 +18,7 @@ class GetRoutersCommand:
 
 @dataclass
 class GetRoutersUseCaseSuccess:
-    routers: list[Router]
-    total: int
+    router_page: RouterPage
 
 
 type GetRoutersUseCaseResult = GetRoutersUseCaseSuccess | UserIsNotAdminError
@@ -46,4 +45,4 @@ class GetRoutersUseCase:
             sort_order=command.sort_order,
         )
 
-        return GetRoutersUseCaseSuccess(routers=router_page.data, total=router_page.total)
+        return GetRoutersUseCaseSuccess(router_page=router_page)

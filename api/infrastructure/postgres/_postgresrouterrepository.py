@@ -96,6 +96,9 @@ class PostgresRouterRepository(RouterRepository):
     ) -> RouterPage:
         distinct_routers = (self._select_routers_with_provider_stats().distinct(RouterTable.id).order_by(RouterTable.id, ProviderTable.id)).subquery()
 
+        count_query = select(func.count()).select_from(distinct_routers)
+        total = (await self.postgres_session.execute(count_query)).scalar_one()
+
         sort_column = distinct_routers.c[sort_by.value]
         sort_order_clause = asc(sort_column) if sort_order == SortOrder.ASC else desc(sort_column)
 
@@ -103,7 +106,6 @@ class PostgresRouterRepository(RouterRepository):
         result = await self.postgres_session.execute(routers_query)
 
         rows = result.all()
-        total = rows[0].total if rows else 0
         router_ids = [row.id for row in rows]
         aliases_by_router = await self.get_aliases_grouped_by_router(router_ids)
         routers = [self._row_to_router_with_aliases(row, aliases_by_router.get(row.id, [])) for row in rows]
