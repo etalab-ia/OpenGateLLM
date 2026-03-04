@@ -2,7 +2,7 @@ name: Release updates
 
 on:
   pull_request:
-    branches: [ main ] 
+    branches: [ main ]
   # workflow_run:
   #   workflows: ["Build and deploy"]
   #   types: [completed]
