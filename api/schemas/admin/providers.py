@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Literal
 
 import pycountry
 from pydantic import Field, constr, model_validator
@@ -75,6 +74,3 @@ class UpdateProvider(BaseModel):
             raise ValueError("QoS value is required if QoS metric is provided.")
 
         return self
-
-
-from api.infrastructure.fastapi.schemas.providers import Provider, Providers

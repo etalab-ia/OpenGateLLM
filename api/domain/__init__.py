@@ -1,15 +1,15 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Generic, TypeVar
 
 
-class SortField(str, Enum):
+class SortField(StrEnum):
     ID = "id"
     NAME = "name"
     CREATED = "created"
 
 
-class SortOrder(str, Enum):
+class SortOrder(StrEnum):
     ASC = "asc"
     DESC = "desc"
 
