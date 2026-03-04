@@ -1,13 +1,11 @@
 name: Release updates
 
 on:
-  pull_request:
-    branches: [ main ]
-  # workflow_run:
-  #   workflows: ["Build and deploy"]
-  #   types: [completed]
-  # workflow_dispatch:
-  # workflow_call:
+  workflow_run:
+    workflows: ["Build and deploy"]
+    types: [completed]
+  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: write
