@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkalbert_api_docs=self.webpackChunkalbert_api_docs||[]).push([[7472],{5513:e=>{e.exports=JSON.parse('{"title":"All posts","items":[{"title":"0.4.0 - Release note","permalink":"/blog/0.4.0-release-note","unlisted":false,"date":"2026-01-29T00:00:00.000Z"}]}')}}]);
