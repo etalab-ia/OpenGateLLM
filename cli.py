@@ -61,7 +61,7 @@ def display_make_help(console: Console) -> None:
     commands.add_column("Description")
     commands.add_row("quickstart [env=.env]", "Start services in docker environment")
     commands.add_row("dev [env=.env]", "Start services in local development mode")
-    commands.add_row("create-user", "Create a first user")
+    commands.add_row("create-admin", "Create a first admin user")
     commands.add_row("lint", "Run linter")
     commands.add_row("test-unit", "Run unit tests")
     commands.add_row("test-integ", "Run integration tests")

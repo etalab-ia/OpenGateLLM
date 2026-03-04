@@ -8,9 +8,9 @@ help:
 quickstart:
 	@python cli.py --quickstart --env-file $(env)
 
-# create-user ----------------------------------------------------------------------------------------------------------------------------------------
-create-user:
-	@python scripts/create_first_user.py
+# create-admon ----------------------------------------------------------------------------------------------------------------------------------------
+create-admin:
+	@python scripts/create_admin.py
 
 # dev ------------------------------------------------------------------------------------------------------------------------------------------------
 dev:
@@ -36,4 +36,4 @@ test-integ:
 %:
 	@:
 
-.PHONY: help quickstart dev lint test-unit test-integ
+.PHONY: help quickstart dev lint test-unit test-integ create-admin
