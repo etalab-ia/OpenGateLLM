@@ -156,35 +156,35 @@ General settings configuration fields.
 
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| app_title | string | Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | OpenGateLLM |  | My API |
-| auth_key_max_expiration_days | integer | Maximum number of days for a new API key to be valid. | None |  |  |
-| auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. | changeme |  |  |
-| auth_playground_session_duration | integer | Duration of the playground postgres_session in seconds. | 3600 |  |  |
-| disabled_routers | array | Disabled routers to limits services of the API. | [] | • embeddings<br></br>• ... | ['embeddings'] |
-| document_parsing_max_concurrent | integer | Maximum number of concurrent document parsing tasks per worker. | 10 |  |  |
-| front_url | string | Front-end URL for the application. | http://localhost:8501 |  |  |
-| hidden_routers | array | Routers are enabled but hidden in the swagger and the documentation of the API. | [] | • admin<br></br>• ... | ['admin'] |
-| log_format | string | Logging format of the API. | [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s |  |  |
-| log_level | string | Logging level of the API. | INFO | • DEBUG<br></br>• INFO<br></br>• WARNING<br></br>• ERROR<br></br>• CRITICAL |  |
-| monitoring_postgres_enabled | boolean | If true, the log usage will be written in the PostgreSQL database. | True |  |  |
-| monitoring_prometheus_enabled | boolean | If true, Prometheus metrics will be exposed in the `/metrics` endpoint. | True |  |  |
-| rate_limiting_strategy | string | Rate limiting strategy for the API. | fixed_window | • moving_window<br></br>• fixed_window<br></br>• sliding_window |  |
-| routing_max_priority | integer | Maximum allowed priority in routing tasks. | 4 |  |  |
-| routing_max_retries | integer | Maximum number of retries for routing tasks. | 3 |  |  |
-| routing_retry_countdown | integer | Number of seconds before retrying a failed routing task. | 3 |  |  |
-| session_secret_key | string | Secret key for postgres_session middleware. If not provided, the master key will be used. | None |  | knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM |
-| swagger_contact | object | Contact informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | None |  |  |
-| swagger_description | string | Display description of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | [See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md) |  | [See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md) |
-| swagger_docs_url | string | Docs URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | /docs |  |  |
+| app_title | string | Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `OpenGateLLM` |  | `My API` |
+| auth_key_max_expiration_days | integer | Maximum number of days for a new API key to be valid. | `None` |  |  |
+| auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. | `changeme` |  |  |
+| auth_playground_session_duration | integer | Duration of the playground postgres_session in seconds. | `3600` |  |  |
+| disabled_routers | array | Disabled routers to limits services of the API. | `[]` | • `admin`<br></br>• `audio`<br></br>• `auth`<br></br>• `chat`<br></br>• `chunks`<br></br>• `collections`<br></br>• `documents`<br></br>• `embeddings`<br></br>• ... | `['embeddings']` |
+| document_parsing_max_concurrent | integer | Maximum number of concurrent document parsing tasks per worker. | `10` |  |  |
+| front_url | string | Front-end URL for the application. | `http://localhost:8501` |  |  |
+| hidden_routers | array | Routers are enabled but hidden in the swagger and the documentation of the API. | `[]` | • `admin`<br></br>• `audio`<br></br>• `auth`<br></br>• `chat`<br></br>• `chunks`<br></br>• `collections`<br></br>• `documents`<br></br>• `embeddings`<br></br>• ... | `['admin']` |
+| log_format | string | Logging format of the API. | `[%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s` |  |  |
+| log_level | string | Logging level of the API. | `INFO` | • `DEBUG`<br></br>• `INFO`<br></br>• `WARNING`<br></br>• `ERROR`<br></br>• `CRITICAL` |  |
+| monitoring_postgres_enabled | boolean | If true, the log usage will be written in the PostgreSQL database. | `True` |  |  |
+| monitoring_prometheus_enabled | boolean | If true, Prometheus metrics will be exposed in the `/metrics` endpoint. | `True` |  |  |
+| rate_limiting_strategy | string | Rate limiting strategy for the API. | `fixed_window` | • `moving_window`<br></br>• `fixed_window`<br></br>• `sliding_window` |  |
+| routing_max_priority | integer | Maximum allowed priority in routing tasks. | `4` |  |  |
+| routing_max_retries | integer | Maximum number of retries for routing tasks. | `3` |  |  |
+| routing_retry_countdown | integer | Number of seconds before retrying a failed routing task. | `3` |  |  |
+| session_secret_key | string | Secret key for postgres_session middleware. If not provided, the master key will be used. | `None` |  | `knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM` |
+| swagger_contact | object | Contact informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `None` |  |  |
+| swagger_description | string | Display description of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)` |  | `[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)` |
+| swagger_docs_url | string | Docs URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `/docs` |  |  |
 | swagger_license_info | object | Licence informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `{'name': 'MIT Licence', 'identifier': 'MIT', 'url': 'https://raw.githubusercontent.com/etalab-ia/opengatellm/refs/heads/main/LICENSE'}` |  |  |
-| swagger_openapi_tags | array | OpenAPI tags of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | [] |  |  |
-| swagger_openapi_url | string | OpenAPI URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | /openapi.json |  |  |
-| swagger_redoc_url | string | Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | /redoc |  |  |
-| swagger_summary | string | Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | OpenGateLLM connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title. |  | My API description. |
-| swagger_terms_of_service | string | A URL to the Terms of Service for the API in swagger UI. If provided, this has to be a URL. | None |  | https://example.com/terms-of-service |
-| swagger_version | string | Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | latest |  | 2.5.0 |
-| usage_tokenizer | string | Tokenizer used to compute usage of the API. | tiktoken_gpt2 | • tiktoken_gpt2<br></br>• tiktoken_r50k_base<br></br>• tiktoken_p50k_base<br></br>• tiktoken_p50k_edit<br></br>• tiktoken_cl100k_base<br></br>• tiktoken_o200k_base |  |
-| vector_store_model | string | Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch). This model must be defined in the `models` section and have type `text-embeddings-inference`. | None |  |  |
+| swagger_openapi_tags | array | OpenAPI tags of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `[]` |  |  |
+| swagger_openapi_url | string | OpenAPI URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `/openapi.json` |  |  |
+| swagger_redoc_url | string | Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `/redoc` |  |  |
+| swagger_summary | string | Display summary of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `OpenGateLLM connect to your models. You can configuration this swagger UI in the configuration file, like hide routes or change the title.` |  | `My API description.` |
+| swagger_terms_of_service | string | A URL to the Terms of Service for the API in swagger UI. If provided, this has to be a URL. | `None` |  | `https://example.com/terms-of-service` |
+| swagger_version | string | Display version of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `latest` |  | `2.5.0` |
+| usage_tokenizer | string | Tokenizer used to compute usage of the API. | `tiktoken_gpt2` | • `tiktoken_gpt2`<br></br>• `tiktoken_r50k_base`<br></br>• `tiktoken_p50k_base`<br></br>• `tiktoken_p50k_edit`<br></br>• `tiktoken_cl100k_base`<br></br>• `tiktoken_o200k_base` |  |
+| vector_store_model | string | Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch). This model must be defined in the `models` section and have type `text-embeddings-inference`. | `None` |  |  |
 
 <br></br>
 
@@ -200,42 +200,42 @@ For more information to configure model providers, see the [ModelProvider sectio
 
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| aliases | array | Aliases of the model. It will be used to identify the model by users. | [] |  | ['model-alias', 'model-alias-2'] |
-| cost_completion_tokens | number | Model costs completion tokens for user budget computation. The cost is by 1M tokens. Set to `0.0` to disable budget computation for this model. | 0.0 |  | 0.1 |
-| cost_prompt_tokens | number | Model costs prompt tokens for user budget computation. The cost is by 1M tokens. | 0.0 |  | 0.1 |
-| load_balancing_strategy | string | Routing strategy for load balancing between providers of the model. | shuffle | • shuffle<br></br>• least_busy | least_busy |
-| name | string | Unique name exposed to clients when selecting the model. | **required** |  | gpt-4o |
+| aliases | array | Aliases of the model. It will be used to identify the model by users. | `[]` |  | `['model-alias', 'model-alias-2']` |
+| cost_completion_tokens | number | Model costs completion tokens for user budget computation. The cost is by 1M tokens. Set to `0.0` to disable budget computation for this model. | `0.0` |  | `0.1` |
+| cost_prompt_tokens | number | Model costs prompt tokens for user budget computation. The cost is by 1M tokens. | `0.0` |  | `0.1` |
+| load_balancing_strategy | string | Routing strategy for load balancing between providers of the model. | `shuffle` | • `shuffle`<br></br>• `least_busy` | `least_busy` |
+| name | string | Unique name exposed to clients when selecting the model. | **required** |  | `gpt-4o` |
 | providers | array | API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type. For details of configuration, see the [ModelProvider section](#modelprovider). | **required** |  |  |
-| type | string | Type of the model. It will be used to identify the model type. | **required** | • automatic-speech-recognition<br></br>• image-text-to-text<br></br>• image-to-text<br></br>• text-embeddings-inference<br></br>• text-generation<br></br>• text-classification | text-generation |
+| type | string | Type of the model. It will be used to identify the model type. | **required** | • `automatic-speech-recognition`<br></br>• `image-text-to-text`<br></br>• `image-to-text`<br></br>• `text-embeddings-inference`<br></br>• `text-generation`<br></br>• `text-classification` | `text-generation` |
 
 <br></br>
 
 #### ModelProvider
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| key | string | Model provider API key. | None |  | sk-1234567890 |
-| model_active_params | integer | Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai | 0 |  | 8 |
-| model_hosting_zone | string | Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai | WOR | • W<br></br>• O<br></br>• R<br></br>• ... | WOR |
-| model_name | string | Model name from the model provider. | **required** |  | gpt-4o |
-| model_total_params | integer | Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai | 0 |  | 8 |
-| qos_limit | number | The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc. | None |  | 0.5 |
-| qos_metric | string | The metric to use for the quality of service. If not provided, no QoS policy is applied. | None | • ttft<br></br>• latency<br></br>• inflight<br></br>• performance | inflight |
-| timeout | integer | Timeout for the model provider requests, after user receive an 500 error (model is too busy). | 300 |  | 10 |
-| type | string | Model provider type. | **required** | • albert<br></br>• openai<br></br>• mistral<br></br>• tei<br></br>• vllm | openai |
-| url | string | Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI). | None |  | https://api.openai.com |
+| key | string | Model provider API key. | `None` |  | `sk-1234567890` |
+| model_active_params | integer | Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai | `0` |  | `8` |
+| model_hosting_zone | string | Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai | `WOR` | • `ABW`<br></br>• `AFG`<br></br>• `AGO`<br></br>• `AIA`<br></br>• `ALA`<br></br>• `ALB`<br></br>• `AND`<br></br>• `ARE`<br></br>• ... | `WOR` |
+| model_name | string | Model name from the model provider. | **required** |  | `gpt-4o` |
+| model_total_params | integer | Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai | `0` |  | `8` |
+| qos_limit | number | The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc. | `None` |  | `0.5` |
+| qos_metric | string | The metric to use for the quality of service. If not provided, no QoS policy is applied. | `None` | • `ttft`<br></br>• `latency`<br></br>• `inflight`<br></br>• `performance` | `inflight` |
+| timeout | integer | Timeout for the model provider requests, after user receive an 500 error (model is too busy). | `300` |  | `10` |
+| type | string | Model provider type. | **required** | • `albert`<br></br>• `openai`<br></br>• `mistral`<br></br>• `tei`<br></br>• `vllm` | `openai` |
+| url | string | Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI). | `None` |  | `https://api.openai.com` |
 
 <br></br>
 
 ### Dependencies
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| albert | object | **[DEPRECATED]** See the [AlbertDependency section](#albertdependency) for more information. For details of configuration, see the [AlbertDependency section](#albertdependency). | None |  |  |
-| celery | object | **[DEPRECATED]** See the [CeleryDependency section](#celerydependency) for more information. For details of configuration, see the [CeleryDependency section](#celerydependency). | None |  |  |
-| elasticsearch | object | See the [ElasticsearchDependency section](#elasticsearchdependency) for more information. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). | None |  |  |
-| marker | object | **[DEPRECATED]** See the [MarkerDependency section](#markerdependency) for more information. For details of configuration, see the [MarkerDependency section](#markerdependency). | None |  |  |
+| albert | object | **[DEPRECATED]** See the [AlbertDependency section](#albertdependency) for more information. For details of configuration, see the [AlbertDependency section](#albertdependency). | `None` |  |  |
+| celery | object | **[DEPRECATED]** See the [CeleryDependency section](#celerydependency) for more information. For details of configuration, see the [CeleryDependency section](#celerydependency). | `None` |  |  |
+| elasticsearch | object | See the [ElasticsearchDependency section](#elasticsearchdependency) for more information. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). | `None` |  |  |
+| marker | object | **[DEPRECATED]** See the [MarkerDependency section](#markerdependency) for more information. For details of configuration, see the [MarkerDependency section](#markerdependency). | `None` |  |  |
 | postgres | object | See the [PostgresDependency section](#postgresdependency) for more information. For details of configuration, see the [PostgresDependency section](#postgresdependency). | **required** |  |  |
 | redis | object | See the [RedisDependency section](#redisdependency) for more information. For details of configuration, see the [RedisDependency section](#redisdependency). | **required** |  |  |
-| sentry | object | See the [SentryDependency section](#sentrydependency) for more information. For details of configuration, see the [SentryDependency section](#sentrydependency). | None |  |  |
+| sentry | object | See the [SentryDependency section](#sentrydependency) for more information. For details of configuration, see the [SentryDependency section](#sentrydependency). | `None` |  |  |
 
 <br></br>
 
@@ -254,7 +254,7 @@ Pass all `from_url()` method arguments of `redis.asyncio.connection.ConnectionPo
 
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| url | string | Redis connection url. | **required** |  | redis://:changeme@localhost:6379 |
+| url | string | Redis connection url. | **required** |  | `redis://:changeme@localhost:6379` |
 
 <br></br>
 
@@ -265,7 +265,7 @@ Only the `url` argument is required. The connection URL must use the asynchronou
 
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| url | string | PostgreSQL connection url. | **required** |  | postgresql+asyncpg://postgres:changeme@localhost:5432/postgres |
+| url | string | PostgreSQL connection url. | **required** |  | `postgresql+asyncpg://postgres:changeme@localhost:5432/postgres` |
 
 <br></br>
 
@@ -275,8 +275,8 @@ Only the `url` argument is required. The connection URL must use the asynchronou
 
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| headers | object | Marker API request headers. | `{}` |  | `{'Authorization': 'Bearer my-api-key'}` |
-| timeout | integer | Timeout for the Marker API requests. | 300 |  | 10 |
+| headers | object | Marker API request headers. | `{}` |  | ``{'Authorization': 'Bearer my-api-key'}`` |
+| timeout | integer | Timeout for the Marker API requests. | `300` |  | `10` |
 | url | string | Marker API url. | **required** |  |  |
 
 <br></br>
@@ -289,10 +289,10 @@ Other arguments declared below are used to configure the Elasticsearch index.
 
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| index_language | string | Language of the Elasticsearch index. | english | • english<br></br>• french<br></br>• german<br></br>• italian<br></br>• portuguese<br></br>• spanish<br></br>• swedish | english |
-| index_name | string | Name of the Elasticsearch index. | opengatellm |  | my_index |
-| number_of_replicas | integer | Number of replicas for the Elasticsearch index. | 1 |  | 1 |
-| number_of_shards | integer | Number of shards for the Elasticsearch index. | 24 |  | 1 |
+| index_language | string | Language of the Elasticsearch index. | `english` | • `english`<br></br>• `french`<br></br>• `german`<br></br>• `italian`<br></br>• `portuguese`<br></br>• `spanish`<br></br>• `swedish` | `english` |
+| index_name | string | Name of the Elasticsearch index. | `opengatellm` |  | `my_index` |
+| number_of_replicas | integer | Number of replicas for the Elasticsearch index. | `1` |  | `1` |
+| number_of_shards | integer | Number of shards for the Elasticsearch index. | `24` |  | `1` |
 
 <br></br>
 
@@ -302,10 +302,10 @@ Other arguments declared below are used to configure the Elasticsearch index.
 
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| broker_url | string | Celery broker url like Redis (redis://) or RabbitMQ (amqp://). If not provided, use redis dependency as broker. | None |  |  |
-| enable_utc | boolean | Enable UTC. | True |  | True |
-| result_backend | string | Celery result backend url. If not provided, use redis dependency as result backend. | None |  |  |
-| timezone | string | Timezone. | UTC |  | UTC |
+| broker_url | string | Celery broker url like Redis (redis://) or RabbitMQ (amqp://). If not provided, use redis dependency as broker. | `None` |  |  |
+| enable_utc | boolean | Enable UTC. | `True` |  | `True` |
+| result_backend | string | Celery result backend url. If not provided, use redis dependency as result backend. | `None` |  |  |
+| timezone | string | Timezone. | `UTC` |  | `UTC` |
 
 <br></br>
 
@@ -315,9 +315,9 @@ Other arguments declared below are used to configure the Elasticsearch index.
 
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| headers | object | Albert API request headers. | `{}` |  | `{'Authorization': 'Bearer my-api-key'}` |
-| timeout | integer | Timeout for the Albert API requests. | 300 |  | 10 |
-| url | string | Albert API url. | https://albert.api.etalab.gouv.fr |  |  |
+| headers | object | Albert API request headers. | `{}` |  | ``{'Authorization': 'Bearer my-api-key'}`` |
+| timeout | integer | Timeout for the Albert API requests. | `300` |  | `10` |
+| url | string | Albert API url. | `https://albert.api.etalab.gouv.fr` |  |  |
 
 <br></br>
 
@@ -339,36 +339,36 @@ For Plagroud deployment, some environment variables are required to be set, like
 ### Settings
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| app_title | string | The title of the application. | OpenGateLLM |  |  |
-| auth_key_max_expiration_days | integer | Maximum number of days for a token to be valid. | None |  |  |
-| documentation_url | string | Documentation URL. If not provided, deactivated documentation link in the navigation bar. | https://docs.opengatellm.org/docs |  |  |
-| playground_default_model | string | The first model selected in chat page. | None |  |  |
-| playground_opengatellm_timeout | integer | The timeout in seconds for the OpenGateLLM API. | 60 |  |  |
-| playground_opengatellm_url | string | The URL of the OpenGateLLM API. | http://localhost:8000 |  |  |
-| playground_theme_accent_color | string | The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors. | purple |  |  |
-| playground_theme_appearance | string | The appearance of the theme. | light |  |  |
-| playground_theme_gray_color | string | The secondary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors. | gray |  |  |
-| playground_theme_has_background | boolean | Whether the theme has a background. | True |  |  |
-| playground_theme_panel_background | string | Whether panel backgrounds are translucent: 'solid' | 'translucent'. | solid |  |  |
-| playground_theme_radius | string | The radius of the theme. Can be 'small', 'medium', or 'large'. | medium |  |  |
-| playground_theme_scaling | string | The scaling of the theme. | 100% |  |  |
-| reference_url | string | Reference URL. If not provided, deactivated reference link in the navigation bar. | http://localhost:8000/redoc |  |  |
-| routing_max_priority | integer | Maximum allowed priority in routing tasks. | 10 |  |  |
-| swagger_url | string | Swagger URL. If not provided, deactivated swagger link in the navigation bar. | http://localhost:8000/docs |  |  |
+| app_title | string | The title of the application. | `OpenGateLLM` |  |  |
+| auth_key_max_expiration_days | integer | Maximum number of days for a token to be valid. | `None` |  |  |
+| documentation_url | string | Documentation URL. If not provided, deactivated documentation link in the navigation bar. | `https://docs.opengatellm.org` |  |  |
+| playground_default_model | string | The first model selected in chat page. | `None` |  |  |
+| playground_opengatellm_timeout | integer | The timeout in seconds for the OpenGateLLM API. | `60` |  |  |
+| playground_opengatellm_url | string | The URL of the OpenGateLLM API. | `http://localhost:8000` |  |  |
+| playground_theme_accent_color | string | The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors. | `purple` |  |  |
+| playground_theme_appearance | string | The appearance of the theme. | `light` |  |  |
+| playground_theme_gray_color | string | The secondary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors. | `gray` |  |  |
+| playground_theme_has_background | boolean | Whether the theme has a background. | `True` |  |  |
+| playground_theme_panel_background | string | Whether panel backgrounds are translucent: 'solid' \| 'translucent'. | `solid` |  |  |
+| playground_theme_radius | string | The radius of the theme. Can be 'small', 'medium', or 'large'. | `medium` |  |  |
+| playground_theme_scaling | string | The scaling of the theme. | `100%` |  |  |
+| reference_url | string | Reference URL. If not provided, deactivated reference link in the navigation bar. | `http://localhost:8000/redoc` |  |  |
+| routing_max_priority | integer | Maximum allowed priority in routing tasks. | `10` |  |  |
+| swagger_url | string | Swagger URL. If not provided, deactivated swagger link in the navigation bar. | `http://localhost:8000/docs` |  |  |
 
 <br></br>
 
 ### Dependencies
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| redis | object | Set the Redis connection url to use as stage manager. See https://reflex.dev/docs/api-reference/config/ for more information. For details of configuration, see the [RedisDependency section](#redisdependency). | None |  |  |
+| redis | object | Set the Redis connection url to use as stage manager. See https://reflex.dev/docs/api-reference/config/ for more information. For details of configuration, see the [RedisDependency section](#redisdependency). | `None` |  |  |
 
 <br></br>
 
 #### RedisDependency
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| url | string | Redis connection url. | **required** |  | redis://:changeme@localhost:6379 |
+| url | string | Redis connection url. | **required** |  | `redis://:changeme@localhost:6379` |
 
 <br></br>
 

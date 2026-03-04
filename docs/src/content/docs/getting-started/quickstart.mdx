@@ -6,6 +6,7 @@ sidebar:
   order: 0
 ---
 import { Aside, LinkButton, Steps } from '@astrojs/starlight/components';
+import makeQuickstartGif from '../../../assets/make_quickstart.gif';
 
 <Aside type="caution" title="Prerequisites" icon="approve-check-circle">
 - Docker and Docker Compose
@@ -26,7 +27,7 @@ import { Aside, LinkButton, Steps } from '@astrojs/starlight/components';
     ```bash
     make quickstart
     ```
-
+    <img src={makeQuickstartGif.src} alt="Quickstart command" width="100%"/>
     The services are running and available at the following URLs:
     - **API – http://localhost:8000/docs**
     - **Playground – http://localhost:8501**

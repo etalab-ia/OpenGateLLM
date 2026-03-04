@@ -14,18 +14,23 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--output", type=str, default=os.path.join("./docs/src/content/docs/configuration/configuration_file.md"))
 
 
+def convert_field_to_string_if_dict(field):
+    if isinstance(field, dict):
+        return "`" + str(field) + "`"
+    return field
+
+
 def get_documentation_data(title: str, data: list, properties: dict, defs: dict, header: str = "", level: int = 1):
     # attribute, type, description, required, default, values, examples
     table = list()
     for property in sorted(properties):
         description = properties[property].get("description", "")
-        default = convert_field_to_string_if_dict(
-            properties[property].get(
-                "default",
-                properties[property].get("default", "**required**"),
-            )
-        )
+        description = description.replace("|", "\\|")
+        default = properties[property].get("default", properties[property].get("default", "**required**"))
+        default = f"`{default}`" if default != "**required**" else "**required**"
+
         examples = convert_field_to_string_if_dict(properties[property].get("examples", [""])[0])
+        examples = f"`{examples}`" if examples != "" else ""
 
         if "anyOf" in properties[property]:
             properties[property].update(properties[property]["anyOf"][0])
@@ -70,6 +75,7 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
             else:
                 values = ref.get("enum", [])
 
+        values = [f"`{value}`" for value in values]
         table.append([property, type, description, default, values, examples])
 
     data.append({"title": title, "table": table, "level": level, "header": header})
@@ -92,12 +98,6 @@ The following is an example of configuration file:
     return data
 
 
-def convert_field_to_string_if_dict(field):
-    if isinstance(field, dict):
-        return "`" + str(field) + "`"
-    return field
-
-
 def convert_to_markdown(data: list):
     markdown = ""
     for item in reversed(data):
@@ -110,7 +110,7 @@ def convert_to_markdown(data: list):
             markdown += "| --- | --- | --- | --- | --- | --- |\n"
             for row in item["table"]:
                 if len(row[4]) > 10:
-                    row[4] = "• " + "<br></br>• ".join(row[5][:8]) + "<br></br>• ..."
+                    row[4] = "• " + "<br></br>• ".join(row[4][:8]) + "<br></br>• ..."
                 elif len(row[4]) > 0:
                     row[4] = "• " + "<br></br>• ".join(row[4])
                 else:

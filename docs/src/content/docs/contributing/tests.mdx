@@ -65,9 +65,15 @@ Integration tests are located in the `tests/integration` folder. They are writte
 3. To run the tests, you can use the following command:
 
     ```bash
-    make test-integration
+    make test-integ
     ```
 </Steps>
+
+To run a specific integration test, you can use the following command:
+
+```bash
+make test-integ test_chunk.py::TestChunks::test_get_chunks
+```
 
 To run the tests with VSCode, you can create a `.vscode/settings.json` file with the following content:
 

@@ -6,5 +6,5 @@ settings:
   playground_theme_accent_color: indigo
   swagger_url: https://albert.api.etalab.gouv.fr/swagger
   reference_url: https://albert.api.etalab.gouv.fr/reference
-  documentation_url: https://docs.opengatellm.org/docs
+  documentation_url: https://docs.opengatellm.org
   playground_opengatellm_timeout: 300

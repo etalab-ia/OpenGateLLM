@@ -54,3 +54,31 @@ OpenGateLLM uses [Astro Starlight](https://starlight.astro.build/) to serve its 
 Some documentation is automatically generated from the codebase. Please do not edit the generated documentation files:
 - [Configuration file](/configuration/configuration_file/) (see [generation script](https://github.com/etalab-ia/OpenGateLLM/blob/main/scripts/docs/generate_configuration_documentation.py))
 </Aside>
+
+## Create terminal GIF
+
+<Steps>
+1. Install asciinema ((see documentation)[https://docs.asciinema.org/getting-started/])
+
+2. Create a recording of the terminal command
+
+   ```bash
+   # example for make quickstart command
+   asciinema rec docs/src/assets/make_quickstart.cast \
+   --overwrite \
+   --command "make quickstart" \
+   --title "make quickstart" \
+   --window-size 120x24
+   ```
+
+3. Build asciinema gif generator (agg) image docker to convert the recording to a GIF (see [asciinema/agg](https://github.com/asciinema/agg))
+
+4. Convert the recording to a GIF
+
+   ```bash
+   docker run --rm -it -u $(id -u):$(id -g) \
+   -v $PWD:/data agg \
+   /data/docs/src/assets/make_quickstart.cast \
+   /data/docs/src/assets/make_quickstart.gif
+   ```
+</Steps>

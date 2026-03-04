@@ -38,13 +38,15 @@ OpenGateLLM addresses three critical challenges for organizations:
 
 ## 🚀 Quickstart
 
-Deploy and start using OpenGateLLM in minutes with our quickstart guide [here](https://docs.opengatellm.org/docs/getting-started/quickstart).
+Deploy and start using OpenGateLLM in minutes with our quickstart guide [here](https://docs.opengatellm.org/getting-started/quickstart).
+
+![Quickstart](./docs/src/assets/make_quickstart.gif)
 
 ## 🤝 Contribute
 
 This project exists thanks to all the people who contribute. OpenGateLLM thrives on open-source contributions. Join our community! 
 
-Check out our [Contribution Guide](https://docs.opengatellm.org/docs/contributing) to get started.
+Check out our [Contribution Guide](https://docs.opengatellm.org/contributing) to get started.
 
 ## 🏔️ Roadmap
 

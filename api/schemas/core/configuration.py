@@ -31,7 +31,7 @@ def custom_validation_error(url: str | None = None):
 
     class ValidationError(Exception):
         def __init__(
-            self, exc: PydanticValidationError, cls: BaseModel, base_url: str = "https://docs.opengatellm.org/docs/getting-started/configuration_file"
+            self, exc: PydanticValidationError, cls: BaseModel, base_url: str = "https://docs.opengatellm.org/configuration/configuration_file"
         ):
             super().__init__()
             error_content = exc.errors()
@@ -345,7 +345,7 @@ class Tokenizer(StrEnum):
     TIKTOKEN_O200K_BASE = "tiktoken_o200k_base"
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/docs/getting-started/configuration_file#settings")
+@custom_validation_error(url="https://docs.opengatellm.org/configuration/configuration_file#settings")
 class Settings(ConfigBaseModel):
     """
     General settings configuration fields.
