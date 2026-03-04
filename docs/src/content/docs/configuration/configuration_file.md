@@ -73,16 +73,16 @@ dependencies:
     decode_responses: False
     socket_keepalive: True
   
-  # elasticsearch:
-  #   index_name: opengatellm
-  #   index_language: english
-  #   number_of_shards: 1
-  #   index_name: "opengatellm"
-  #   number_of_replicas: 0
-  #   hosts: "http://localhost:9200"
-  #   basic_auth:
-  #     - "elastic"
-  #     - ${ELASTIC_PASSWORD}
+  elasticsearch: # optional
+    index_name: opengatellm
+    index_language: english
+    number_of_shards: 1
+    index_name: "opengatellm"
+    number_of_replicas: 0
+    hosts: "http://${ELASTICSEARCH_HOST:-localhost}:${ELASTICSEARCH_PORT:-9200}"
+    basic_auth:
+      - "elastic"
+      - ${ELASTICSEARCH_PASSWORD}
 
   # sentry:
   #   dsn: ${SENTRY_DSN}
@@ -98,7 +98,7 @@ settings:
   # log_level: INFO
   # log_format: [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s
 
-  # swagger_version: 1.0.0
+  swagger_version: 0.4.1
   # swagger_contact_url: https://github.com/etalab-ia/OpenGateLLM
   # swagger_contact_email: john.doe@example.com
   # swagger_docs_url: /docs
@@ -119,7 +119,7 @@ settings:
   # search_multi_agents_synthesis_model: my-model
   # search_multi_agents_reranker_model: my-model
 
-  playground_opengatellm_url: ${OPENGATELLM_URL:-http://localhost:8000}
+  playground_opengatellm_url: ${OPENGATELLM_URL}
   # playground_default_model: my-model
   # playground_theme_has_background: True
   # playground_theme_accent_color: purple
