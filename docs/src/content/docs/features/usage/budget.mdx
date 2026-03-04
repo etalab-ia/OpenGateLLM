@@ -3,15 +3,14 @@ title: User budget
 sidebar:
   label: "[lucide:piggy-bank] User budget"
 ---
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, LinkButton, Tabs, TabItem } from '@astrojs/starlight/components';
 
-
-OpenGateLLM allows you to define the costs for each model in the configuration file then attach a budget to each user to limit ...
-
+OpenGateLLM allows you to define the costs for each model router. For more information about model routers, see [setup your models documentation](/getting-started/models/).
+Then it attach a budget to each user to limit the usage of amount of requests made by the user.
 The compute cost is calculated based on the number of tokens used and the budget defined for the model based on the following formula:
 
 ```python
-cost = round((prompt_tokens / 1000000 * client.costs.prompt_tokens) + (completion_tokens / 1000000 * client.costs.completion_tokens), ndigits=6)
+cost = round((prompt_tokens / 1000000 * router.costs.prompt_tokens) + (completion_tokens / 1000000 * router.costs.completion_tokens), ndigits=6)
 ```
 
 The compute cost returned in the response, in the `usage.cost` field. After the request is processed, the budget amount of the user is updated by the [hooks decorator](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/utils/hooks_decorator.py) attached to each endpoint. The request cost is stored in the *usage* table, see [usage monitoring documentation](/features/usage/inference_monitoring/) for more information. 
@@ -21,47 +20,30 @@ The compute cost returned in the response, in the `usage.cost` field. After the 
 There are three ways to configure model pricing used for budget computation: Playground UI, API, or configuration file.
 
 <Tabs>
-  <TabItem value="playground" label="Playground UI" icon="laptop">
+  <TabItem value="playground" label="Playground UI" icon="lucide:laptop">
   
   To define pricing in the Playground, go to the *Provider* page and create or edit a provider with:
   - **`Prompt token cost`**: Cost per million input tokens.
   - **`Completion token cost`**: Cost per million output tokens.
+  </TabItem>
 
-  <Aside type="note" title="Cost calculation">
-  If one of these values is missing, the corresponding part of the request cost cannot be computed accurately.
+  <TabItem value="config" label="API" icon="lucide:code">
+
+  See POST and PUT /v1/admin/routers endpoints for defining `model_cost_prompt_tokens` and `model_cost_completion_tokens` of a router in API reference.
+  Prompt and completion token costs are expressed per million tokens.
+  
+  <LinkButton href="/reference/" icon="external">API Reference</LinkButton>
+  </TabItem>
+
+  <TabItem value="config" label="Configuration file" icon="lucide:file-text">
+  <Aside type="caution">
+  We not recommend to use the configuration file to setup your models parameters, prefer to use the Playground UI or API endpoints.
   </Aside>
 
-  </TabItem>
-  <TabItem value="config" label="API" icon="document">
-  * Create a new provider:
-  ```diff lang="bash"
-  curl -X POST "http://localhost:8000/v1/admin/provider?router_id=1" \
-   -H "Content-Type: application/json" \
-   -H "Authorization: Bearer changeme" \
-   -d '{
-        "type": "vllm",
-        "url": ${MODEL_API_URL},
-        "key": ${MODEL_API_KEY},
-        "model_name": "meta-llama/Llama-3.1-8B-Instruct",
-  +      "model_cost_prompt_tokens": 0.1,
-  +      "model_cost_completion_tokens": 0.3
-      }'
-  ```
-  
-  * Update an existing provider:
-  ```bash
-  curl -X PUT "http://localhost:8000/v1/admin/provider/{provider_id}" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer changeme" \
-  -d '{"model_cost_prompt_tokens": 0.1, "model_cost_completion_tokens": 0.3}'
-  ```
-  </TabItem>
-  <TabItem value="config" label="Configuration file" icon="document">
   To define model pricing in the configuration file, set the following fields for each provider:
   - **`model_cost_prompt_tokens`**: Cost per million prompt/input tokens.
   - **`model_cost_completion_tokens`**: Cost per million completion/output tokens.
 
-  For more information, see [configuration file documentation](/configuration/configuration_file/).
 
   **Example:**
 
@@ -78,69 +60,41 @@ There are three ways to configure model pricing used for budget computation: Pla
           model_cost_prompt_tokens: 0.1
           model_cost_completion_tokens: 0.3
   ```
+
+  <LinkButton href="/configuration/configuration_file/" icon="external">Configuration file documentation</LinkButton>
   </TabItem>
 </Tabs>
 
-For each model provider, you can define the costs of each model in the `config.yml` file for the prompt and completion tokens (per million tokens). 
-
-The following parameters are used for cost computation:
-- `model_cost_prompt_tokens`
-- `model_cost_completion_tokens`
-
-For more information, see [Configuration file documentation](/configuration/configuration_file/) documentation.
-
-**Example:**
-
-```yaml
-models:
-  [...]
-  - name: my-language-model
-    type: text-generation
-    providers:
-      - type: openai
-        url: https://api.openai.com
-        key: ${OPENAI_API_KEY}
-        model_name: gpt-4o-mini
-        model_cost_prompt_tokens: 0.1
-        model_cost_completion_tokens: 0.3
-```
+<Aside type="note" title="Cost calculation">
+By default, there value are set to 0, this means that the model requests are free of charge.
+</Aside>
 
 ## Assign budget to a user
 
 Each user has a budget defined by create user endpoint or update user endpoint. The budget is defined in the `budget` field. You need has `admin` permission to create or update a user.
 
-<Tabs>
-  <TabItem label="Create user" default>
-  ```diff lang="bash"
-    curl -X POST http://localhost:8000/v1/admin/users \
-    -H "Authorization: Bearer ${API_KEY}" \
-    -H "Content-Type: application/json" \
-    -d '{
-        "email": "john.doe@example.com",
-        "role": 1,
-  +     "budget": 100
-    }'
-    ```
-    <Aside type="note" title="Budget undefined">
-    If budget is not defined when user is create, the user has no limit on the number of requests.
-    </Aside>
+See POST and PATCH /v1/admin/users endpoints for more information on [API reference](/reference/).
 
-  </TabItem>
+## Budget monitoring
 
-  <TabItem label="Update user">
-  ```diff lang="bash"
-    curl -X PATCH http://localhost:8000/v1/admin/users/1 \
-    -H "Authorization: Bearer ${API_KEY}" \
-    -H "Content-Type: application/json" \
-    -d '{
-  +     "budget": 100
-    }'
-    ```
-    <Aside type="note" title="Budget undefined">
-    If budget is not defined when user is updated, the user budget is set to None and user has no limit on the number of requests.
-    </Aside>
+The user can see each request cost in the response of the API request. The cost is returned in the `usage.cost` field. 
+Moreover, *Usage* page in the Playground allows the user to see the history of the requests made by him and the cost of each.
 
-    </TabItem>
-</Tabs>
-
-
+```diff lang="json"
+{
+  "id": "chatcmpl-123",
+  "object": "chat.completion",
+  "created": 1677652288,
+  "model": "my-language-model",
+  "choices": [
+    ...
+  ],
+  "usage": {
+    "prompt_tokens": 10,
+    "completion_tokens": 20,
+    "total_tokens": 30,
++    "cost": 0.000015,
+    "carbon": {"kWh": 0.0001456, "kgCO2eq": 0.0000672 }
+  }
+}
+```

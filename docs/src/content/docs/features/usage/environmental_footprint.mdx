@@ -3,7 +3,7 @@ title: Environmental footprint
 sidebar:
   label: "[lucide:leaf] Environmental footprint"
 ---
-import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside, LinkButton, Tabs, TabItem } from '@astrojs/starlight/components';
 
 OpenGateLLM tracks the environmental impact of AI model usage through the [EcoLogits](https://ecologits.ai) library, which provides a comprehensive view of the environmental footprint of generative AI models at inference.
 
@@ -14,7 +14,7 @@ The environmental footprint is deduced from the number of parameters of the mode
 There are three way to configure environmental impact tracking, by Playground, API or configuration file.
 
 <Tabs>
-  <TabItem value="playground" label="Playground UI" icon="laptop">
+  <TabItem label="Playground UI" icon="lucide:laptop">
   
   To define model parameters in the Playground, go to the *Provider* page. Complete the form fields when you create or edit a model provider including:
   - **`Total params of the model`**: Total number of parameters of the model in billions of parameters for environmental footprint computation.
@@ -29,33 +29,13 @@ There are three way to configure environmental impact tracking, by Playground, A
 
   </TabItem>
 
-  <TabItem value="config" label="API" icon="document">
-  * Create a new provider:
-  ```diff lang="bash"
-  curl -X POST "http://localhost:8000/v1/admin/provider?router_id=1" \
-   -H "Content-Type: application/json" \
-   -H "Authorization: Bearer changeme" \
-   -d '{
-        "type": "vllm",
-        "url": ${MODEL_API_URL},
-        "key": ${MODEL_API_KEY},
-        "model_name": "meta-llama/Llama-3.1-8B-Instruct",
-  +      "model_total_params": 8,
-  +      "model_active_params": 8,
-  +      "model_hosting_zone": "FRA"
-      }'
-  ```
+  <TabItem label="API" icon="lucide:code">
+  See POST and PUT /v1/admin/providers endpoints for defining `model_total_params`, `model_active_params` and `model_hosting_zone` of a provider in API reference.
   
-  * Update an existing provider:
-  ```bash
-  curl -X PUT "http://localhost:8000/v1/admin/provider/{provider_id}" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer changeme" \
-  -d '{"model_total_params": 35, "model_active_params": 35, "model_hosting_zone": "WOR"}'
-  ```
+  <LinkButton href="/reference/" icon="external">API Reference</LinkButton>
   </TabItem>
 
-  <TabItem value="config" label="Configuration file" icon="document">
+  <TabItem value="config" label="Configuration file" icon="lucide:file-text">
   <Aside type="caution">
   We not recommend to use the configuration file to setup your models parameters, prefer to use the Playground UI or API endpoints.
   </Aside>
@@ -64,8 +44,6 @@ There are three way to configure environmental impact tracking, by Playground, A
   - **`model_total_params`**: Total number of parameters of the model in billions of parameters for environmental footprint computation.
   - **`model_active_params`**: Active number of parameters of the model in billions of parameters for environmental footprint computation.
   - **`model_hosting_zone`**: Hosting zone of the model in ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States).
-
-  For more information, see [configuration file documentation](/configuration/configuration_file/).
 
   **Example:**
 
@@ -84,6 +62,8 @@ There are three way to configure environmental impact tracking, by Playground, A
           model_hosting_zone: WOR
   ```
 
+  <LinkButton href="/configuration/configuration_file/" icon="external">Configuration file documentation</LinkButton>
+
   <Aside type="note" title="Environmental footprint computation">
   Environmental footprint computation requires at least one of `model_total_params` or `model_active_params` to be defined. If not provided, the environmental impact will not be computed for that model provider (display as 0 kWh and 0 kgCO2eq).
 
@@ -101,37 +81,21 @@ For each call to a generative AI model, the API returns environmental impact met
 
 **Example response:**
 
-```json
+```diff lang="json"
 {
   "id": "chatcmpl-123",
   "object": "chat.completion",
   "created": 1677652288,
   "model": "my-language-model",
   "choices": [
-    {
-      "index": 0,
-      "message": {
-        "role": "assistant",
-        "content": "Hello! How can I help you today?"
-      },
-      "finish_reason": "stop"
-    }
+    ...
   ],
   "usage": {
     "prompt_tokens": 10,
     "completion_tokens": 20,
     "total_tokens": 30,
     "cost": 0.000015,
-    "carbon": {
-      "kWh": {
-        "min": 0.0001234,
-        "max": 0.0001456
-      },
-      "kgCO2eq": {
-        "min": 0.0000567,
-        "max": 0.0000672
-      }
-    }
++    "carbon": {"kWh": 0.0001456, "kgCO2eq": 0.0000672 }
   }
 }
 ```

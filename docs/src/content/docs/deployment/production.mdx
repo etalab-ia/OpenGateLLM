@@ -18,11 +18,20 @@ This guide provides practical defaults and hardening recommendations for running
     session_secret_key: ${SESSION_SECRET_KEY}
   ```
 
+- Add `GUNICORN_CMD_ARGS` environment variable to the deployment configuration to configure the Gunicorn server.
+  We recommend to use the following configuration:
+  ```bash
+  GUNICORN_CMD_ARGS= --workers {{ workers }} --worker-connections 1000 --timeout 240 --keep-alive 75 --graceful-timeout 75
+  ```
+
+  Configure the number of workers based on the expected load, the number of CPU cores and max PostgreSQL connections.
+  See [Gunicorn documentation](https://docs.gunicorn.org/en/latest/design.html#how-many-workers) for more information.
+
 ## Security and access control
 
 - Use the master key only for bootstrap operations: **creating the first admin role and user**.
 - Do not use the master identity for day-to-day model administration. When you create a router, the model is shown with an `owned_by` attribute set to the organization of the user who created it.
-- Set a strong `auth_master_key` (at least 32 characters, high entropy..
+- Set a strong `auth_master_key` at least 32 characters, high entropy.
 
   <Aside type="caution" title="Master key rotation impact">
     The master key is used to encrypt user API keys. If you change it, you need to regenerate all user API keys.

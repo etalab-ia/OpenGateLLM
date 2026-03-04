@@ -6,28 +6,83 @@ sidebar:
 ---
 import { Aside, LinkButton, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-To expose a model through OpenGateLLM, you configure:
+## Concepts
 
+In OpenGateLLM, a model is divided into two parts:
 - **A router**: the model name visible to users (e.g. `my-chat-model`).
-- **One or more providers APIs**: the real inference backends behind this router (OpenAI, vLLM, Mistral, Hugging Face Text Embeddings Inference, etc.).
+- **One or more providers APIs**: the real inference backends behind this router (vLLM, Ollama, OpenAI, Mistral, Hugging Face Text Embeddings Inference, etc.).
+
+For a router, you define one or more providers APIs to serve the same model. 
+You declare for each API provider associated to the router the model name on the provider side to call when a user calls the router.
 
 When a user calls a router (`/v1/chat/completions`, `/v1/embeddings`, ...) with this name (e.g. `my-chat-model`), OpenGateLLM load-balances requests across its configured providers API.
+
+```mermaid
+---
+title: "Example: a router with two vLLM providers"
+config:
+  flowchart:
+    curve: linear
+---
+flowchart LR
+  user1@{ shape: "circle", label: "**User**" }
+  router1@{ shape: "diamond", label: "**Router**<br>my-chat-model" }
+  provider_vllm_1@{ shape: "rounded", label: "**vLLM provider 1**<br>meta-llama/Llama-3.1-8B-Instruct" }
+  provider_vllm_2@{ shape: "rounded", label: "**vLLM provider 2**<br>meta-llama/Llama-3.1-8B-Instruct" }
+  
+  user1 e0@--> router1
+  router1 e1@--> provider_vllm_1
+  router1 e2@--> provider_vllm_2
+
+  classDef animate stroke: #7c3aed,stroke-width: 4px,stroke-dasharray: 5,stroke-dashoffset: 900,animation: dash 25s linear infinite;
+  class e0,e1,e2 animate
+```
+
+The router name (model ID called by the user) can be the same or different from the model name (model name on the provider side).
+You can define additional names for the same router using the `aliases` field.
+
+In a same way, **all models of served by providers behind a router must be of the same**: same model name, same model type and same context length. 
+But they can have provide by different API (e.g. one router with a vLLM API and Ollama API to serve the same model).
+For example, you can have a router named `my-chat-model` with two providers, one using vLLM and the other using Ollama.
+
+**To expose a model through OpenGateLLM, you need to configure a router and one or more providers APIs for this router.**
 
 <Aside type="tip" title="Supported models">
 Check the list of supported model provider APIs [here](/features/supported_models/).
 </Aside>
 
-```mermaid
----
-title: "Example: a router with two vLLM providers"
----
-flowchart LR
-  router1@{ shape: "diamond", label: "**Router**<br>my-chat-model" }
+## Request flow
 
-  provider_vllm_1@{ shape: "rounded", label: "**vLLM provider**<br>meta-llama/Llama-3.1-8B-Instruct" }
-  provider_vllm_2@{ shape: "rounded", label: "**vLLM provider**<br>meta-llama/Llama-3.1-8B-Instruct" }
-  router1 ==> provider_vllm_1
-  router1 ==> provider_vllm_2
+```mermaid
+sequenceDiagram
+    actor user as User
+    participant ogl as OpenGateLLM
+    participant backend as Inference backend
+    
+    user ->> ogl: HTTP request
+    Note over user,ogl: Example: /v1/chat/completions<br>{'model': 'my-chat-model'}
+    ogl ->> ogl: Called model corresponds to an existing router ?
+    alt Router not found.
+        ogl -->> user: 404 Model not found
+    else Router found.
+        ogl ->> ogl: The router has a type compatible with the called endpoint (model type checking) ? 
+        Note over ogl: Example: /v1/chat/completions need a text-generation router.
+        alt Provider not found.
+            ogl -->> user: 400 Wrong model type
+        else Provider found.
+            opt
+              ogl ->> ogl: Format request if different from standard
+            end
+            ogl ->> backend: Forward request to a provider of the router (load balancing)
+            backend -->> ogl: Response
+            opt
+              ogl ->> ogl: Format response if different from standard
+            end
+            ogl ->> ogl: Add usage metadata to the response
+            ogl -->> user: Forward response
+            Note over user,ogl: {"message":"Hello", "usage": {...}}
+        end
+    end
 ```
 
 ## Configuration flow
