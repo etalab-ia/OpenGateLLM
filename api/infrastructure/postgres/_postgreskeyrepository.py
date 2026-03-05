@@ -15,7 +15,7 @@ class PostgresKeyRepository(KeyRepository):
 
         Args:
             user_id: The ID of the user.
-            token_id: The ID of the token.
+            key_id: The ID of the token / API key.
 
         Returns:
             True if the key exists, False otherwise.
