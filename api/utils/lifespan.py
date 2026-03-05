@@ -145,7 +145,7 @@ def create_usage_manager() -> UsageManager:
 
 def create_identity_access_manager(configuration: Configuration) -> IdentityAccessManager:
     return IdentityAccessManager(
-        master_key=configuration.settings.auth_master_key,
+        secret_key=configuration.settings.auth_secret_key,
         key_max_expiration_days=configuration.settings.auth_key_max_expiration_days,
         playground_session_duration=configuration.settings.auth_playground_session_duration,
     )

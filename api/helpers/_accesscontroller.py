@@ -84,7 +84,7 @@ class AccessController:
             raise InvalidAPIKeyException()
 
         # master user can do anything
-        if api_key.credentials == global_context.identity_access_manager.master_key:
+        if api_key.credentials == global_context.identity_access_manager.secret_key:
             user_info = UserInfo(
                 id=0,
                 email="master",

@@ -9,7 +9,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 import httpx
 
-from api.schemas.admin.providers import CreateProvider, ProviderCarbonFootprintZone, ProviderType
+from api.infrastructure.fastapi.schemas.providers import CreateProvider, ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.roles import CreateRole, Limit, LimitType
 from api.schemas.admin.routers import CreateRouter
 from api.schemas.admin.tokens import CreateToken

@@ -43,11 +43,11 @@ settings = configuration.settings
 
 
 class IdentityAccessManager:
-    TOKEN_PREFIX = "sk-"
-    PLAYGROUND_KEY_NAME = "playground"
+    TOKEN_PREFIX: str = "sk-"
+    PLAYGROUND_KEY_NAME: str = "playground"
 
-    def __init__(self, master_key: str, key_max_expiration_days: int | None = None, playground_session_duration: int = 3600):
-        self.master_key = master_key
+    def __init__(self, secret_key: str, key_max_expiration_days: int | None = None, playground_session_duration: int = 3600):
+        self.secret_key = secret_key
         self.key_max_expiration_days = key_max_expiration_days
         self.playground_session_duration = playground_session_duration
 
@@ -59,14 +59,15 @@ class IdentityAccessManager:
     def _check_password(password: str, hashed_password: str) -> bool:
         return bcrypt.checkpw(password=password.encode("utf-8"), hashed_password=hashed_password.encode("utf-8"))
 
+    # TODO: Duplicate with api/domain/key/entities.py via api/infrastructure/fastapi/access.py
     def _decode_token(self, token: str) -> dict:
         token = token.split(IdentityAccessManager.TOKEN_PREFIX)[1]
-        return jwt.decode(token=token, key=self.master_key, algorithms=["HS256"])
+        return jwt.decode(token=token, key=self.secret_key, algorithms=["HS256"])
 
     def _encode_token(self, user_id: int, token_id: int, expires: int | None = None) -> str:
         return IdentityAccessManager.TOKEN_PREFIX + jwt.encode(
             claims={"user_id": user_id, "token_id": token_id, "expires": expires},
-            key=self.master_key,
+            key=self.secret_key,
             algorithm="HS256",
         )
 
@@ -672,6 +673,7 @@ class IdentityAccessManager:
 
         return tokens
 
+    # TODO: Create a class to type the return value of this function instead of using a tuple with many optional values.
     async def check_token(self, postgres_session: AsyncSession, token: str) -> tuple[int | None, int | None, str | None]:
         try:
             claims = self._decode_token(token=token)
@@ -785,17 +787,18 @@ class IdentityAccessManager:
             Tuple containing the token ID and the token of the refreshed playground token.
         """
 
-        if email == "master" and password == self.master_key:
-            return 0, self.master_key
+        # TODO: Remove this authentication backdoor for the master user.
+        if email == "master" and password == self.secret_key:
+            return 0, self.secret_key
 
         user = await self.get_user_info(postgres_session=postgres_session, email=email)  # raise UserNotFoundException (404) if user not found
         result = await postgres_session.execute(statement=select(UserTable.password).where(UserTable.id == user.id))
-        user_password = result.scalar_one()
+        hashed_password = result.scalar_one()
 
-        if not user_password:
+        if not hashed_password:
             raise PasswordNotFoundException()
 
-        if not self._check_password(password=password, hashed_password=user_password):
+        if not self._check_password(password=password, hashed_password=hashed_password):
             raise InvalidCurrentPasswordException()
 
         token_id, token = await self.refresh_token(postgres_session, user_id=user.id, name=self.PLAYGROUND_KEY_NAME)

@@ -4,9 +4,9 @@ import logging
 import os
 from pathlib import Path
 import re
-from typing import Any, Literal, get_args, get_origin
+from typing import Annotated, Any, Literal, get_args, get_origin
 
-from pydantic import BaseModel, ConfigDict, Field, constr, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, constr, field_validator, model_validator
 from pydantic import ValidationError as PydanticValidationError
 from pydantic_settings import BaseSettings
 import yaml
@@ -263,7 +263,7 @@ class RedisDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
 
 
-class EmptyDepencency(ConfigBaseModel):
+class EmptyDependency(ConfigBaseModel):
     pass
 
 
@@ -381,7 +381,8 @@ class Settings(ConfigBaseModel):
     swagger_redoc_url: str = Field(default="/redoc", pattern=r"^/", description="Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
 
     # auth
-    auth_master_key: constr(strip_whitespace=True, min_length=1) = Field(default="changeme", description="Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys.")  # fmt: off
+    auth_master_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="changeme", description="[DEPRECATED] Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user.")  # fmt: off
+    auth_secret_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="Secret key for the API. It should be a random string with at least 32 characters. This key is used to encrypt user tokens, watch out if you modify the secret key, you'll need to update all user API keys. If not provided, the master key will be used.")  # fmt: off
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a new API key to be valid.")  # fmt: off
     auth_playground_session_duration: int = Field(default=3600, ge=1, description="Duration of the playground postgres_session in seconds.")  # fmt: off
 
@@ -398,15 +399,15 @@ class Settings(ConfigBaseModel):
     # document_parsing
     document_parsing_max_concurrent: int = Field(default=10, ge=1, description="Maximum number of concurrent document parsing tasks per worker.")  # fmt: off
 
-    # session
-    session_secret_key: str | None = Field(default=None, description='Secret key for postgres_session middleware. If not provided, the master key will be used.', examples=["knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM"])  # fmt: off
-
     front_url: str = Field(default="http://localhost:8501", description="Front-end URL for the application.")
 
     @model_validator(mode="after")
     def validate_model(self) -> Any:
-        if self.session_secret_key is None:
-            self.session_secret_key = self.auth_master_key
+        if self.auth_secret_key is None:
+            logging.warning("The 'auth_secret_key' setting is not set. Falling back to 'auth_master_key' for signing API keys.")  # fmt: off
+            logging.warning("Please set 'auth_secret_key' to a dedicated secret value in your 'config.yaml' file.")  # fmt: off
+            logging.warning("The 'auth_master_key' fallback will be removed in v1.0.0, where 'auth_secret_key' will become mandatory and 'auth_master_key' will no longer be used as a signing secret.")  # fmt: off
+            self.auth_secret_key = self.auth_master_key
 
         return self
 

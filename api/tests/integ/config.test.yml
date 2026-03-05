@@ -63,7 +63,6 @@ dependencies:
   redis:
     url: redis://:changeme@localhost:${REDIS_PORT:-6379}
     max_connections: 200
-    socket_keepalive: True
     socket_connect_timeout: 5
     retry_on_timeout: True
     health_check_interval: 30
@@ -85,7 +84,6 @@ dependencies:
 
 # ---------------------------------- settings -----------------------------------
 settings:
-  session_secret_key: -ftzKBct7qN22sgnkI9ApWD2ny_dHQVlPd2OPDSk5MM
   usage_tokenizer: tiktoken_gpt2
   log_level: DEBUG
   auth_key_max_expiration_days: 365

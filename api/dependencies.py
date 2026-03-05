@@ -25,8 +25,8 @@ def get_request_context() -> ContextVar[RequestContext]:
     return request_context
 
 
-def get_master_key() -> str:
-    return configuration.settings.auth_master_key
+def get_secret_key() -> str:
+    return configuration.settings.auth_secret_key
 
 
 # databases

@@ -23,7 +23,6 @@ def createapp_configuration() -> Configuration:
             swagger_openapi_tags=[],
             swagger_docs_url="/test-swagger",
             swagger_redoc_url="/test-redoc",
-            session_secret_key="test-secret-key",
             disabled_routers=[RouterName.ADMIN],
             hidden_routers=[RouterName.MODELS],
             monitoring_prometheus_enabled=False,
