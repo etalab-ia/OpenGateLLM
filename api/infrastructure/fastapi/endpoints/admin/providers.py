@@ -1,14 +1,21 @@
 from contextvars import ContextVar
 import logging
-from typing import Literal
 
 from fastapi import Body, Depends, Path, Query, Request, Security
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies import create_provider_use_case_factory, delete_provider_use_case_factory, get_request_context
+from api.dependencies import (
+    create_provider_use_case_factory,
+    delete_provider_use_case_factory,
+    get_one_provider_use_case_factory,
+    get_providers_use_case_factory,
+    get_request_context,
+)
+from api.domain import SortOrder
 from api.domain.model import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider import InvalidProviderTypeError, ProviderNotReachableError
+from api.domain.provider.entities import ProviderSortField
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
@@ -36,6 +43,12 @@ from api.use_cases.admin.providers import (
     DeleteProviderCommand,
     DeleteProviderUseCase,
     DeleteProviderUseCaseSuccess,
+    GetOneProviderCommand,
+    GetOneProviderUseCase,
+    GetOneProviderUseCaseSuccess,
+    GetProvidersCommand,
+    GetProvidersUseCase,
+    GetProvidersUseCaseSuccess,
 )
 from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import EndpointRoute
@@ -60,7 +73,6 @@ logger = logging.getLogger(__name__)
     ),
 )
 async def create_provider(
-    request: Request,
     body: CreateProvider,
     create_provider_use_case: CreateProviderUseCase = Depends(create_provider_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
@@ -98,10 +110,18 @@ async def create_provider(
         case CreateProviderUseCaseSuccess(created_provider):
             return CreateProviderResponse.model_validate(created_provider, from_attributes=True)
 
-        case InconsistentModelMaxContextLengthError(expected_max_context_length=expected_max_context_length, actual_max_context_length=actual_max_context_length, router_name=router_name):  # fmt: off
-            raise InconsistentModelMaxContextLengthHTTPException(input_max_context_length=actual_max_context_length, model_max_context_length=expected_max_context_length, model_name=router_name)  # fmt: off
-        case InconsistentModelVectorSizeError(expected_vector_size=expected_vector_size, actual_vector_size=actual_vector_size, router_name=router_name):  # fmt: off
-            raise InconsistentModelVectorSizeHTTPException(input_vector_size=actual_vector_size, model_vector_size=expected_vector_size, model_name=router_name)  # fmt: off
+        case InconsistentModelMaxContextLengthError(expected_max_context_length=expected_max_context_length,
+                                                    actual_max_context_length=actual_max_context_length,
+                                                    router_name=router_name):  # fmt: off
+            raise InconsistentModelMaxContextLengthHTTPException(input_max_context_length=actual_max_context_length,
+                                                                 model_max_context_length=expected_max_context_length,
+                                                                 model_name=router_name)  # fmt: off
+        case InconsistentModelVectorSizeError(expected_vector_size=expected_vector_size,
+                                              actual_vector_size=actual_vector_size,
+                                              router_name=router_name):  # fmt: off
+            raise InconsistentModelVectorSizeHTTPException(input_vector_size=actual_vector_size,
+                                                           model_vector_size=expected_vector_size,
+                                                           model_name=router_name)  # fmt: off
         case InvalidProviderTypeError(provider_type=provider_type, router_type=router_type):
             raise InvalidProviderTypeHTTPException(incorrect_provider_type=provider_type, router_type=router_type)
         case ProviderNotReachableError(model_name=name):
@@ -118,6 +138,7 @@ async def create_provider(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
+    responses=get_documentation_responses([NotAdminUserHTTPException, ProviderNotFoundHTTPException]),
 )
 async def delete_provider(
     provider_id: int = Path(description="The ID of the provider to delete."),
@@ -178,21 +199,36 @@ async def update_provider(
 
 
 @router.get(
-    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider}",
+    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    response_model=Provider,
+    responses=get_documentation_responses([NotAdminUserHTTPException, ProviderNotFoundHTTPException]),
 )
 async def get_provider(
-    request: Request,
-    provider: int = Path(description="The ID of the provider to get."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-    model_registry: ModelRegistry = Depends(get_model_registry),
-) -> JSONResponse:
-    providers = await model_registry.get_providers(router_id=None, provider_id=provider, postgres_session=postgres_session)
-    provider = providers[0]
-
-    return JSONResponse(status_code=200, content=provider.model_dump())
+    provider_id: int = Path(description="The ID of the provider to get."),
+    get_one_provider_use_case: GetOneProviderUseCase = Depends(get_one_provider_use_case_factory),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+) -> Provider:
+    command = GetOneProviderCommand(user_id=request_context.get().user_id, provider_id=provider_id)
+    try:
+        result = await get_one_provider_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing get_one_provider use case",
+            extra={
+                "user_id": command.user_id,
+                "provider_id": command.provider_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
+    match result:
+        case GetOneProviderUseCaseSuccess(provider):
+            return Provider.model_validate(provider, from_attributes=True)
+        case ProviderNotFoundError(provider_id=not_found_id):
+            raise ProviderNotFoundHTTPException(not_found_id)
+        case UserIsNotAdminError():
+            raise NotAdminUserHTTPException()
 
 
 @router.get(
@@ -200,25 +236,48 @@ async def get_provider(
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
     response_model=Providers,
+    responses=get_documentation_responses([NotAdminUserHTTPException]),
 )
 async def get_providers(
-    request: Request,
-    router: int | None = Query(default=None, description="Filter providers by router ID."),
-    offset: int = Query(default=0, ge=0, description="The offset of the tokens to get."),
-    limit: int = Query(default=10, ge=1, le=100, description="The limit of the tokens to get."),
-    order_by: Literal["id", "model_name", "created"] = Query(default="id", description="The field to order the tokens by."),
-    order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the tokens by."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-    model_registry: ModelRegistry = Depends(get_model_registry),
-) -> JSONResponse:
-    providers = await model_registry.get_providers(
-        router_id=router,
-        provider_id=None,
-        postgres_session=postgres_session,
+    router_id: int | None = Query(default=None, description="Filter providers by router ID."),
+    offset: int = Query(default=0, ge=0, description="Number of providers to skip."),
+    limit: int = Query(default=10, ge=1, le=100, description="Maximum number of providers to return."),
+    sort_by: ProviderSortField = Query(default=ProviderSortField.ID, description="Field to sort by."),
+    sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    get_providers_use_case: GetProvidersUseCase = Depends(get_providers_use_case_factory),
+) -> Providers:
+    command = GetProvidersCommand(
+        router_id=router_id,
+        user_id=request_context.get().user_id,
         offset=offset,
         limit=limit,
-        order_by=order_by,
-        order_direction=order_direction,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-
-    return JSONResponse(status_code=200, content=Providers(data=providers).model_dump())
+    try:
+        result = await get_providers_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing get_providers use case",
+            extra={
+                "user_id": command.user_id,
+                "router_id": router_id,
+                "offset": command.offset,
+                "limit": command.limit,
+                "sort_by": command.sort_by,
+                "sort_order": command.sort_order,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
+    match result:
+        case GetProvidersUseCaseSuccess(page=providers_page):
+            return Providers(
+                total=providers_page.total,
+                offset=offset,
+                limit=limit,
+                data=[Provider.model_validate(provider, from_attributes=True) for provider in providers_page.data],
+            )
+        case UserIsNotAdminError():
+            raise NotAdminUserHTTPException()

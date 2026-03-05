@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 
+from api.domain import SortOrder
 from api.domain.model.entities import Metric
-from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderType
+from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderPage, ProviderSortField, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError
 
 
@@ -31,4 +32,22 @@ class ProviderRepository(ABC):
         self,
         provider_id: int,
     ) -> Provider | None:
+        pass
+
+    @abstractmethod
+    async def get_one_provider(
+        self,
+        provider_id: int,
+    ) -> Provider | None:
+        pass
+
+    @abstractmethod
+    async def get_providers_page(
+        self,
+        router_id: int | None,
+        limit: int,
+        offset: int,
+        sort_by: ProviderSortField = ProviderSortField.ID,
+        sort_order: SortOrder = SortOrder.ASC,
+    ) -> ProviderPage:
         pass

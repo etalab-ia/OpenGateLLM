@@ -11,7 +11,7 @@ from api.dependencies import (
     get_routers_use_case_factory,
     update_router_use_case_factory,
 )
-from api.domain.router.entities import RouterSortField, SortOrder
+from api.domain import SortField, SortOrder
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.infrastructure.fastapi.access import get_current_key
@@ -52,11 +52,13 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_ROUTERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses([
-        RouterAliasAlreadyExistsHTTPException,
-        RouterAlreadyExistsHTTPException,
-        NotAdminUserHTTPException,
-    ]),
+    responses=get_documentation_responses(
+        [
+            RouterAliasAlreadyExistsHTTPException,
+            RouterAlreadyExistsHTTPException,
+            NotAdminUserHTTPException,
+        ]
+    ),
 )
 async def create_router(
     body: CreateRouterBody = Body(description="The router creation request."),
@@ -141,7 +143,7 @@ async def get_router(
 async def get_routers(
     offset: int = Query(default=0, ge=0, description="Number of routers to skip."),
     limit: int = Query(default=10, ge=1, le=100, description="Maximum number of routers to return."),
-    sort_by: RouterSortField = Query(default=RouterSortField.ID, description="Field to sort by."),
+    sort_by: SortField = Query(default=SortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_routers_use_case: GetRoutersUseCase = Depends(get_routers_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
@@ -165,12 +167,12 @@ async def get_routers(
         )
         raise InternalServerHTTPException()
     match result:
-        case GetRoutersUseCaseSuccess(routers, total):
+        case GetRoutersUseCaseSuccess(router_page=router_page):
             return Routers(
-                total=total,
+                total=router_page.total,
                 offset=offset,
                 limit=limit,
-                data=[RouterResponse.model_validate(r, from_attributes=True) for r in routers],
+                data=[RouterResponse.model_validate(r, from_attributes=True) for r in router_page.data],
             )
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
@@ -216,12 +218,14 @@ async def delete_router(
 @router.patch(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
     dependencies=[Security(dependency=get_current_key)],
-    responses=get_documentation_responses([
-        RouterNotFoundHTTPException,
-        NotAdminUserHTTPException,
-        RouterAliasAlreadyExistsHTTPException,
-        RouterAlreadyExistsHTTPException,
-    ]),
+    responses=get_documentation_responses(
+        [
+            RouterNotFoundHTTPException,
+            NotAdminUserHTTPException,
+            RouterAliasAlreadyExistsHTTPException,
+            RouterAlreadyExistsHTTPException,
+        ]
+    ),
     status_code=200,
 )
 async def update_router(

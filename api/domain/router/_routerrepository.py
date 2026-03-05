@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 
+from api.domain import SortField, SortOrder
 from api.domain.model import ModelType as RouterType
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage, RouterSortField, SortOrder
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 
 
@@ -19,7 +20,7 @@ class RouterRepository(ABC):
         self,
         limit: int,
         offset: int,
-        sort_by: RouterSortField = RouterSortField.ID,
+        sort_by: SortField = SortField.ID,
         sort_order: SortOrder = SortOrder.ASC,
     ) -> RouterPage:
         pass

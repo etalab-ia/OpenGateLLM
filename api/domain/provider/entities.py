@@ -4,6 +4,7 @@ from typing import Literal
 import pycountry
 from pydantic import Field, constr
 
+from api.domain import EntitiesPage
 from api.domain.model.entities import ModelType
 from api.schemas import BaseModel
 from api.schemas.core.models import Metric
@@ -55,6 +56,15 @@ COMPATIBLE_PROVIDER_TYPES: dict[ModelType, list[str]] = {
         ProviderType.MISTRAL.value,
     ],
 }
+
+
+class ProviderSortField(str, Enum):
+    ID = "id"
+    MODEL_NAME = "model_name"
+    CREATED = "created"
+
+
+ProviderPage = EntitiesPage["Provider"]
 
 
 class Provider(BaseModel):

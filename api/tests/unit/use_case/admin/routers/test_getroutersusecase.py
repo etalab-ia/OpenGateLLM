@@ -2,7 +2,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.router.entities import RouterPage, RouterSortField, SortOrder
+from api.domain import SortField, SortOrder
+from api.domain.router.entities import RouterPage
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.unit.use_case.factories import RouterFactory, UserInfoFactory
 from api.use_cases.admin.routers import GetRoutersCommand, GetRoutersUseCase, GetRoutersUseCaseSuccess
@@ -40,7 +41,7 @@ def sample_routers():
 
 @pytest.fixture
 def sample_command():
-    return GetRoutersCommand(user_id=1, offset=0, limit=10, sort_by=RouterSortField.ID, sort_order=SortOrder.ASC)
+    return GetRoutersCommand(user_id=1, offset=0, limit=10, sort_by=SortField.ID, sort_order=SortOrder.ASC)
 
 
 class TestGetRoutersUseCase:
@@ -57,8 +58,8 @@ class TestGetRoutersUseCase:
 
         # Assert
         assert isinstance(result, GetRoutersUseCaseSuccess)
-        assert result.routers == sample_routers
-        assert result.total == 2
+        assert result.router_page.data == sample_routers
+        assert result.router_page.total == 2
         user_info_repository.get_user_info.assert_called_once_with(user_id=admin_user_info.id)
 
     @pytest.mark.asyncio
@@ -70,7 +71,7 @@ class TestGetRoutersUseCase:
 
         # Act
         result = await use_case.execute(
-            command=GetRoutersCommand(user_id=unauthorized_user_info.id, offset=0, limit=10, sort_by=RouterSortField.ID, sort_order=SortOrder.ASC)
+            command=GetRoutersCommand(user_id=unauthorized_user_info.id, offset=0, limit=10, sort_by=SortField.ID, sort_order=SortOrder.ASC)
         )
 
         # Assert
@@ -82,7 +83,7 @@ class TestGetRoutersUseCase:
         # Arrange
         use_case.user_info_repository.get_user_info.return_value = admin_user_info
         use_case.router_repository.get_routers_page.return_value = RouterPage(total=2, data=sample_routers)
-        command = GetRoutersCommand(user_id=1, offset=5, limit=20, sort_by=RouterSortField.NAME, sort_order=SortOrder.DESC)
+        command = GetRoutersCommand(user_id=1, offset=5, limit=20, sort_by=SortField.NAME, sort_order=SortOrder.DESC)
 
         # Act
         await use_case.execute(command=command)
@@ -91,6 +92,6 @@ class TestGetRoutersUseCase:
         router_repository.get_routers_page.assert_called_once_with(
             limit=20,
             offset=5,
-            sort_by=RouterSortField.NAME,
+            sort_by=SortField.NAME,
             sort_order=SortOrder.DESC,
         )

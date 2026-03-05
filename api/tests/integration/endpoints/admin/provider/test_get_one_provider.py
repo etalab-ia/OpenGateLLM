@@ -4,7 +4,7 @@ from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import delete_provider_use_case_factory
+from api.dependencies import get_one_provider_use_case_factory
 from api.domain.provider.errors import ProviderNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.helpers import create_token
@@ -15,7 +15,7 @@ URL = f"/v1{EndpointRoute.ADMIN_PROVIDERS}"
 
 
 @pytest.mark.asyncio(loop_scope="session")
-class TestDeleteProvider:
+class TestGetProvider:
     @pytest_asyncio.fixture(autouse=True)
     async def setup(self, db_session):
         self.admin_user = UserSQLFactory(admin_user=True)
@@ -26,7 +26,7 @@ class TestDeleteProvider:
         provider = ProviderSQLFactory(router=router, user=self.admin_user)
         await db_session.flush()
 
-        response = await client.delete(
+        response = await client.get(
             url=f"{URL}/{provider.id}",
             headers={"Authorization": f"Bearer {self.token.token}"},
         )
@@ -54,9 +54,9 @@ class TestDeleteProvider:
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
         mock_use_case = AsyncMock()
         mock_use_case.execute.return_value = use_case_result
-        app.dependency_overrides[delete_provider_use_case_factory] = lambda: mock_use_case
+        app.dependency_overrides[get_one_provider_use_case_factory] = lambda: mock_use_case
 
-        response = await client.delete(
+        response = await client.get(
             url=f"{URL}/1",
             headers={"Authorization": f"Bearer {self.token.token}"},
         )
@@ -72,7 +72,7 @@ class TestDeleteProvider:
         ],
     )
     async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):
-        response = await client.delete(url=f"{URL}/1", headers=headers)
+        response = await client.get(url=f"{URL}/1", headers=headers)
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail

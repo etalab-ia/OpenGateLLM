@@ -47,10 +47,12 @@ class TestGetCarbonFootprint:
         mocked_electricity_mix = mocker.patch("api.utils.carbon.electricity_mixes.find_electricity_mix")
         mocked_electricity_mix.return_value = SimpleNamespace(adpe=1, pe=2, gwp=3, wue=4)
         mocked_compute_llm_impacts = mocker.patch("api.utils.carbon.compute_llm_impacts")
-        mocked_compute_llm_impacts.return_value = dict_to_namespace({
-            "energy": {"value": 1},
-            "gwp": {"value": 3},
-        })
+        mocked_compute_llm_impacts.return_value = dict_to_namespace(
+            {
+                "energy": {"value": 1},
+                "gwp": {"value": 3},
+            }
+        )
         active_params = 1
         total_params = 1
         model_zone = ProviderCarbonFootprintZone.WOR

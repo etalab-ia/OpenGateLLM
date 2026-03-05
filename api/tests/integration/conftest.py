@@ -138,7 +138,7 @@ async def db_session(test_engine, request) -> AsyncGenerator[AsyncSession]:
                 await transaction.rollback()
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest.fixture(scope="session")
 def model_registry():
     return ModelRegistry(
         app_title="test",

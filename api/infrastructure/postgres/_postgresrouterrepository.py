@@ -2,10 +2,11 @@ from sqlalchemy import Integer, Select, asc, cast, delete, desc, func, insert, s
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain import SortField, SortOrder
 from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model import ModelType as RouterType
 from api.domain.router import RouterRepository
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage, RouterSortField, SortOrder
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Provider as ProviderTable
@@ -90,10 +91,13 @@ class PostgresRouterRepository(RouterRepository):
         self,
         limit: int,
         offset: int,
-        sort_by: RouterSortField = RouterSortField.ID,
+        sort_by: SortField = SortField.ID,
         sort_order: SortOrder = SortOrder.ASC,
     ) -> RouterPage:
         distinct_routers = (self._select_routers_with_provider_stats().distinct(RouterTable.id).order_by(RouterTable.id, ProviderTable.id)).subquery()
+
+        count_query = select(func.count()).select_from(distinct_routers)
+        total = (await self.postgres_session.execute(count_query)).scalar_one()
 
         sort_column = distinct_routers.c[sort_by.value]
         sort_order_clause = asc(sort_column) if sort_order == SortOrder.ASC else desc(sort_column)
@@ -102,7 +106,6 @@ class PostgresRouterRepository(RouterRepository):
         result = await self.postgres_session.execute(routers_query)
 
         rows = result.all()
-        total = rows[0].total if rows else 0
         router_ids = [row.id for row in rows]
         aliases_by_router = await self.get_aliases_grouped_by_router(router_ids)
         routers = [self._row_to_router_with_aliases(row, aliases_by_router.get(row.id, [])) for row in rows]
@@ -133,35 +136,34 @@ class PostgresRouterRepository(RouterRepository):
         aliases = aliases or []
 
         try:
-            async with self.postgres_session.begin_nested():
-                insert_router_query = (
-                    insert(RouterTable)
-                    .values(
-                        user_id=db_user_id,
-                        name=name,
-                        type=router_type.value,
-                        load_balancing_strategy=load_balancing_strategy.value,
-                        cost_prompt_tokens=cost_prompt_tokens,
-                        cost_completion_tokens=cost_completion_tokens,
-                    )
-                    .returning(
-                        RouterTable.id,
-                        RouterTable.name,
-                        RouterTable.user_id,
-                        RouterTable.type,
-                        RouterTable.load_balancing_strategy,
-                        RouterTable.cost_prompt_tokens,
-                        RouterTable.cost_completion_tokens,
-                        cast(func.extract("epoch", RouterTable.created), Integer).label("created"),
-                        cast(func.extract("epoch", RouterTable.updated), Integer).label("updated"),
-                    )
+            insert_router_query = (
+                insert(RouterTable)
+                .values(
+                    user_id=db_user_id,
+                    name=name,
+                    type=router_type.value,
+                    load_balancing_strategy=load_balancing_strategy.value,
+                    cost_prompt_tokens=cost_prompt_tokens,
+                    cost_completion_tokens=cost_completion_tokens,
                 )
-                result = await self.postgres_session.execute(insert_router_query)
-                row = result.one()
+                .returning(
+                    RouterTable.id,
+                    RouterTable.name,
+                    RouterTable.user_id,
+                    RouterTable.type,
+                    RouterTable.load_balancing_strategy,
+                    RouterTable.cost_prompt_tokens,
+                    RouterTable.cost_completion_tokens,
+                    cast(func.extract("epoch", RouterTable.created), Integer).label("created"),
+                    cast(func.extract("epoch", RouterTable.updated), Integer).label("updated"),
+                )
+            )
+            result = await self.postgres_session.execute(insert_router_query)
+            row = result.one()
 
-                if aliases:
-                    aliases_to_insert = [{"value": alias, "router_id": row.id} for alias in aliases]
-                    await self.postgres_session.execute(insert(RouterAliasTable), aliases_to_insert)
+            if aliases:
+                aliases_to_insert = [{"value": alias, "router_id": row.id} for alias in aliases]
+                await self.postgres_session.execute(insert(RouterAliasTable), aliases_to_insert)
 
         except IntegrityError as e:
             if "router_name_key" in str(e.orig):

@@ -3,9 +3,10 @@ from datetime import datetime, timedelta
 import pytest
 from sqlalchemy import select
 
+from api.domain import SortField, SortOrder
 from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model import ModelType as RouterType
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterSortField, SortOrder
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.infrastructure.postgres import PostgresRouterRepository
 from api.sql.models import Provider as ProviderTable
@@ -73,8 +74,8 @@ class TestGetAllRouters:
         assert len(result_routers) == 3
         router_names = {r.name for r in result_routers}
         assert router_names == {router_1.name, router_2.name, router_3.name}
+        result_router_1 = next(r for r in result_routers if r.name == router_1.name)
 
-        result_router_1 = result_routers[0]
         first_provider_router_1 = router_1.provider[0]
         assert result_router_1.type == RouterType.TEXT_GENERATION
         assert result_router_1.providers == 2
@@ -307,7 +308,7 @@ class TestGetRoutersPage:
         await db_session.flush()
 
         # Act
-        result = await repository.get_routers_page(limit=2, offset=0, sort_by=RouterSortField.NAME, sort_order=SortOrder.ASC)
+        result = await repository.get_routers_page(limit=2, offset=0, sort_by=SortField.NAME, sort_order=SortOrder.ASC)
 
         # Assert
         assert result.total == 3
@@ -332,6 +333,7 @@ class TestGetRoutersPage:
 
         # Assert
         assert first_page.total == second_page.total
+        assert first_page.total == 6
         assert len(second_page.data) == 2
 
     async def test_sort_by_name_asc(self, repository, db_session):
@@ -343,7 +345,7 @@ class TestGetRoutersPage:
         await db_session.flush()
 
         # Act
-        result = await repository.get_routers_page(limit=10, offset=0, sort_by=RouterSortField.NAME, sort_order=SortOrder.ASC)
+        result = await repository.get_routers_page(limit=10, offset=0, sort_by=SortField.NAME, sort_order=SortOrder.ASC)
 
         # Assert
         returned_names = [r.name for r in result.data]
@@ -358,7 +360,7 @@ class TestGetRoutersPage:
         await db_session.flush()
 
         # Act
-        result = await repository.get_routers_page(limit=10, offset=0, sort_by=RouterSortField.NAME, sort_order=SortOrder.DESC)
+        result = await repository.get_routers_page(limit=10, offset=0, sort_by=SortField.NAME, sort_order=SortOrder.DESC)
 
         # Assert
         returned_names = [r.name for r in result.data]
@@ -376,6 +378,7 @@ class TestGetRoutersPage:
 
         # Assert
         assert result.data == []
+        assert result.total == 1
 
     async def test_sort_by_id_asc(self, repository, db_session):
         # Arrange
@@ -386,7 +389,7 @@ class TestGetRoutersPage:
         await db_session.flush()
 
         # Act
-        result = await repository.get_routers_page(limit=10, offset=0, sort_by=RouterSortField.ID, sort_order=SortOrder.ASC)
+        result = await repository.get_routers_page(limit=10, offset=0, sort_by=SortField.ID, sort_order=SortOrder.ASC)
 
         # Assert
         returned_ids = [r.id for r in result.data]
@@ -401,7 +404,7 @@ class TestGetRoutersPage:
         await db_session.flush()
 
         # Act
-        result = await repository.get_routers_page(limit=10, offset=0, sort_by=RouterSortField.CREATED, sort_order=SortOrder.DESC)
+        result = await repository.get_routers_page(limit=10, offset=0, sort_by=SortField.CREATED, sort_order=SortOrder.DESC)
 
         # Assert
         returned_names = [r.name for r in result.data]

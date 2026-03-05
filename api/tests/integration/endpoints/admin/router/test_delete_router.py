@@ -21,11 +21,6 @@ class TestDeleteRouter:
         self.admin_user = UserSQLFactory(admin_user=True)
         self.token = await create_token(db_session, name="admin_token", user=self.admin_user)
 
-    @pytest_asyncio.fixture(autouse=True)
-    async def cleanup_overrides(self, app):
-        yield
-        app.dependency_overrides.pop(delete_router_use_case_factory, None)
-
     async def test_happy_path(self, client: AsyncClient, db_session):
         router = RouterSQLFactory(user=self.admin_user)
         await db_session.flush()

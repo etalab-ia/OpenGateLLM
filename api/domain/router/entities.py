@@ -1,8 +1,8 @@
-from dataclasses import dataclass
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from api.domain import EntitiesPage
 from api.domain.model import ModelType as RouterType
 
 
@@ -11,21 +11,7 @@ class RouterLoadBalancingStrategy(StrEnum):
     LEAST_BUSY = "least_busy"
 
 
-class RouterSortField(StrEnum):
-    ID = "id"
-    NAME = "name"
-    CREATED = "created"
-
-
-class SortOrder(StrEnum):
-    ASC = "asc"
-    DESC = "desc"
-
-
-@dataclass
-class RouterPage:
-    total: int
-    data: list["Router"]
+RouterPage = EntitiesPage["Router"]
 
 
 class Router(BaseModel):
