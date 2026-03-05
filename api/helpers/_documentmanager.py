@@ -129,7 +129,7 @@ class DocumentManager:
             select(
                 CollectionTable.id,
                 CollectionTable.name,
-                UserTable.name.label("owner"),
+                UserTable.email.label("owner"),
                 CollectionTable.visibility,
                 CollectionTable.description,
                 func.count(distinct(DocumentTable.id)).label("documents"),
@@ -138,7 +138,7 @@ class DocumentManager:
             )
             .outerjoin(DocumentTable, CollectionTable.id == DocumentTable.collection_id)
             .outerjoin(UserTable, CollectionTable.user_id == UserTable.id)
-            .group_by(CollectionTable.id, UserTable.name)
+            .group_by(CollectionTable.id, UserTable.email)
             .offset(offset=offset)
             .order_by(text(f"{order_by} {order_direction}"))
             .limit(limit=limit)

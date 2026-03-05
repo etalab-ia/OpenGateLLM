@@ -81,7 +81,31 @@ class CreateChatCompletion(BaseModel):
                 return request_content
 
             case ProviderType.MISTRAL:
-                request_content.json = ChatCompletionRequest(**request_content.json).model_dump()
+                try:
+                    request_content.json = ChatCompletionRequest(**request_content.json).model_dump(by_alias=True)
+                except Exception:
+                    # apply a minimal formatting and ignore error to let the provider raise the correct 422 error
+                    # see https://docs.mistral.ai/api#operation-chat_completion_v1_chat_completions_post
+                    request_content.json = {
+                        "frequency_penalty": request_content.json.get("frequency_penalty") or 0.0,
+                        "max_tokens": request_content.json.get("max_tokens"),
+                        "messages": request_content.json.get("messages"),
+                        "model": request_content.json.get("model"),
+                        "n": request_content.json.get("n"),
+                        "parallel_tool_calls": request_content.json.get("parallel_tool_calls") or False,
+                        "prediction": request_content.json.get("prediction") or {},
+                        "presence_penalty": request_content.json.get("presence_penalty") or 0.0,
+                        "prompt_mode": request_content.json.get("prompt_mode"),
+                        "random_seed": request_content.json.get("random_seed") or request_content.json.get("seed"),
+                        "response_format": request_content.json.get("response_format") or {"type": "text"},
+                        "safe_prompt": request_content.json.get("safe_prompt") or False,
+                        "stop": request_content.json.get("stop") or [],
+                        "stream": request_content.json.get("stream") or False,
+                        "temperature": request_content.json.get("temperature"),
+                        "tool_choice": request_content.json.get("tool_choice"),
+                        "tools": request_content.json.get("tools"),
+                        "top_p": request_content.json.get("top_p") or 1.0,
+                    }
                 return request_content
 
             case ProviderType.OPENAI:
