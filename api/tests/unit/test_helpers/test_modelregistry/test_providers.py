@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import api.helpers.models._modelregistry as modelregistry_module
 from api.helpers.models._modelregistry import ModelRegistry
-from api.schemas.admin.providers import Provider, ProviderCarbonFootprintZone, ProviderType
+from api.infrastructure.fastapi.schemas.providers import Provider, ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import Router, RouterLoadBalancingStrategy
 from api.schemas.core.models import Metric
 from api.schemas.models import ModelType

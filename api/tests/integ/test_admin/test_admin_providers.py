@@ -3,7 +3,7 @@ import logging
 from fastapi.testclient import TestClient
 import pytest
 
-from api.schemas.admin.providers import CreateProvider, ProviderCarbonFootprintZone, ProviderType
+from api.infrastructure.fastapi.schemas.providers import CreateProvider, ProviderCarbonFootprintZone, ProviderType
 from api.schemas.models import ModelType
 from api.tests.integ.utils import create_router, generate_test_id, kill_openmockllm, run_openmockllm
 from api.utils.variables import EndpointRoute

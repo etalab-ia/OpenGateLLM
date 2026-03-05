@@ -36,7 +36,6 @@ def test_configuration():
             swagger_openapi_tags=[],
             swagger_docs_url=None,
             swagger_redoc_url=None,
-            session_secret_key="test-secret-key",
             disabled_routers=[],
             hidden_routers=[],
             monitoring_prometheus_enabled=False,
