@@ -27,7 +27,7 @@ async def parse(
     document_manager: DocumentManager = Depends(get_document_manager),
 ) -> JSONResponse:
     """
-    Parse a PDF file into markdown.
+    Parse a PDF file into Markdown.
     """
 
     document_manager.parser_manager.check_file_type(file=data.file, type=FileType.PDF)
