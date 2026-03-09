@@ -2,11 +2,6 @@ from fastapi import HTTPException
 
 
 # 400
-class MasterNotAllowedException(HTTPException):
-    def __init__(self, detail: str = "Master is not allowed to process this action.") -> None:
-        super().__init__(status_code=400, detail=detail)
-
-
 class WrongSearchMethodException(HTTPException):
     def __init__(self, detail: str = "Wrong search method.") -> None:
         super().__init__(status_code=400, detail=detail)
@@ -39,8 +34,6 @@ class InvalidPasswordException(HTTPException):
 
 
 # 403
-
-
 class FeatureNotEnabledException(HTTPException):
     def __init__(self, detail: str = "Feature not enabled, please contact an administrator.") -> None:
         super().__init__(status_code=403, detail=detail)

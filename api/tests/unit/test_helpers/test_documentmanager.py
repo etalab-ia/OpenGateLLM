@@ -19,7 +19,6 @@ from api.utils.exceptions import (
     ChunkingFailedException,
     CollectionNotFoundException,
     DocumentNotFoundException,
-    MasterNotAllowedException,
     ParsingDocumentFailedException,
     VectorizationFailedException,
 )
@@ -873,28 +872,6 @@ async def test_search_chunks_collection_not_found():
         )
 
     mock_elasticsearch_vector_store.search.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_create_collection_master_user_forbidden():
-    """Test that user_id=0 (master user) cannot create collections."""
-    mock_parser = AsyncMock()
-    mock_session = AsyncMock(spec=AsyncSession)
-
-    document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
-
-    with pytest.raises(MasterNotAllowedException) as exc_info:
-        await document_manager.create_collection(
-            postgres_session=mock_session,
-            user_id=0,
-            name="Test Collection",
-            visibility=CollectionVisibility.PRIVATE,
-            description="This should not work",
-        )
-
-    assert "Master user is not allowed" in str(exc_info.value.detail)
-    mock_session.execute.assert_not_called()
-    mock_session.commit.assert_not_called()
 
 
 @pytest.mark.asyncio
