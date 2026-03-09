@@ -6,6 +6,7 @@ import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from api.clients.parser import BaseParserClient as ParserClient
+from api.domain.key.entities import MASTER_ID
 from api.helpers._documentmanager import DocumentManager
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers._identityaccessmanager import IdentityAccessManager
@@ -97,8 +98,9 @@ async def setup_master(configuration: Configuration) -> None:
     async with session_factory() as postgres_session:
         try:
             print("[DEBUG] ================================ ROLE ================================")
-            role_id = await global_context.identity_access_manager.create_role(
+            await global_context.identity_access_manager.create_role(
                 postgres_session=postgres_session,
+                role_id=MASTER_ID,
                 name=configuration.settings.auth_master_username,
                 permissions=list(PermissionType),
             )
@@ -106,15 +108,14 @@ async def setup_master(configuration: Configuration) -> None:
         except RoleAlreadyExistsException:
             await postgres_session.rollback()
             print("Master role already exists.")
-            roles = await global_context.identity_access_manager.get_roles(postgres_session=postgres_session, role_id=None)
-            role_id = next(r.id for r in roles if r.name == configuration.settings.auth_master_username)
 
         try:
             print("[DEBUG] ================================ USER ================================")
             await global_context.identity_access_manager.create_user(
                 postgres_session=postgres_session,
+                user_id=MASTER_ID,
                 email=configuration.settings.auth_master_username,
-                role_id=role_id,
+                role_id=MASTER_ID,
                 name=configuration.settings.auth_master_username,
                 password=configuration.settings.auth_master_password,
                 check_master_email=False,

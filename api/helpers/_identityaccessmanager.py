@@ -74,6 +74,7 @@ class IdentityAccessManager:
     async def create_role(
         postgres_session: AsyncSession,
         name: str,
+        role_id: int | None = None,
         limits: list[Limit] = None,
         permissions: list[PermissionType] = None,
     ) -> int:
@@ -85,7 +86,10 @@ class IdentityAccessManager:
 
         # create the role
         try:
-            result = await postgres_session.execute(statement=insert(table=RoleTable).values(name=name).returning(RoleTable.id))
+            if role_id is not None:
+                result = await postgres_session.execute(statement=insert(table=RoleTable).values(id=role_id, name=name).returning(RoleTable.id))
+            else:
+                result = await postgres_session.execute(statement=insert(table=RoleTable).values(name=name).returning(RoleTable.id))
             role_id = result.scalar_one()
             await postgres_session.commit()
         except IntegrityError:
@@ -128,6 +132,9 @@ class IdentityAccessManager:
         limits: list[Limit] | None = None,
         permissions: list[PermissionType] | None = None,
     ) -> None:
+        # if role_id == MASTER_ID:
+        #     raise # TODO: Create a specific exception for this case and handle it properly in the API layer instead of raising a generic exception that will be returned as a 500 error instead of a 400 error.
+
         # check if role exists
         result = await postgres_session.execute(statement=select(RoleTable).where(RoleTable.id == role_id))
         try:
@@ -250,6 +257,7 @@ class IdentityAccessManager:
         budget: float | None = None,
         expires: int | None = None,
         priority: int = 0,
+        user_id: int | None = None,
         check_master_email: bool = True,
     ) -> int:
         if check_master_email and email == configuration.settings.auth_master_username:
@@ -274,24 +282,40 @@ class IdentityAccessManager:
 
         password = self._hash_password(password=password) if password is not None else None
 
+        statement = insert(table=UserTable)
+
+        # TODO: Clean the following statement
+        if user_id is not None:
+            statement = statement.values(
+                id=user_id,
+                email=email,
+                name=name,
+                password=password,
+                sub=sub,
+                iss=iss,
+                role_id=role_id,
+                organization_id=organization_id,
+                budget=budget,
+                expires=expires,
+                priority=priority,
+            ).returning(UserTable.id)
+        else:
+            statement = statement.values(
+                email=email,
+                name=name,
+                password=password,
+                sub=sub,
+                iss=iss,
+                role_id=role_id,
+                organization_id=organization_id,
+                budget=budget,
+                expires=expires,
+                priority=priority,
+            ).returning(UserTable.id)
+
         # create the user
         try:
-            result = await postgres_session.execute(
-                statement=insert(table=UserTable)
-                .values(
-                    email=email,
-                    name=name,
-                    password=password,
-                    sub=sub,
-                    iss=iss,
-                    role_id=role_id,
-                    organization_id=organization_id,
-                    budget=budget,
-                    expires=expires,
-                    priority=priority,
-                )
-                .returning(UserTable.id)
-            )
+            result = await postgres_session.execute(statement=statement)
             user_id = result.scalar_one()
         except IntegrityError:
             raise UserAlreadyExistsException()
@@ -302,6 +326,9 @@ class IdentityAccessManager:
 
     @staticmethod
     async def delete_user(postgres_session: AsyncSession, user_id: int) -> None:
+        # if user_id == MASTER_ID:
+        #     raise # TODO: Create a specific exception for this case.
+
         # check if user exists
         result = await postgres_session.execute(statement=select(UserTable.id).where(UserTable.id == user_id))
         try:
@@ -329,6 +356,11 @@ class IdentityAccessManager:
         expires: int | None = None,
         priority: int | None = None,
     ) -> None:
+        # if user_id == MASTER_ID:
+        #     raise # TODO: Create a specific exception for this case.
+        # if role_id == MASTER_ID:
+        #     raise # TODO: Create a specific exception for this case.
+
         # check if user exists
         result = await postgres_session.execute(
             statement=select(
@@ -588,7 +620,7 @@ class IdentityAccessManager:
 
         Args:
             postgres_session(AsyncSession): Database postgres_session
-            user_id(int): ID of the user
+            user_id(int): ID of the user who owns the token to refresh
             name(str): Name of the token to refresh
 
         Returns:
@@ -719,6 +751,7 @@ class IdentityAccessManager:
     ) -> User | None:
         # Build conditions list only for non-None values
         conditions = []
+
         if user_id is not None:
             conditions.append(UserTable.id == user_id)
         if sub is not None:
@@ -776,19 +809,9 @@ class IdentityAccessManager:
         Returns:
             Tuple containing the token ID and the token of the refreshed playground token.
         """
-
-        print("======= LOGIN ATTEMPT =======")
-        print(f"Email: {email}")
-        print(f"Password: {password}")
-
         user = await self.get_user_info(postgres_session=postgres_session, email=email)  # raise UserNotFoundException (404) if user not found
         result = await postgres_session.execute(statement=select(UserTable.password).where(UserTable.id == user.id))
         hashed_password = result.scalar_one()
-
-        print("-- USER FOUND --")
-        print(f"User: {user}")
-        print(f"Result: {result}")
-        print(f"Hashed password: {hashed_password}")
 
         if not hashed_password:
             raise PasswordNotFoundException()
@@ -797,8 +820,4 @@ class IdentityAccessManager:
             raise InvalidCurrentPasswordException()
 
         token_id, token = await self.refresh_token(postgres_session, user_id=user.id, name=self.PLAYGROUND_KEY_NAME)
-
-        print("-- LOGIN SUCCESSFUL --")
-        print(f"Token ID: {token_id}")
-        print(f"Token: {token}")
         return token_id, token
