@@ -14,10 +14,11 @@ from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
+from api.schemas.admin.roles import PermissionType
 from api.schemas.core.configuration import Configuration
 from api.utils.configuration import get_configuration
 from api.utils.context import global_context
-from api.utils.exceptions import RouterNotFoundException
+from api.utils.exceptions import RoleAlreadyExistsException, RouterNotFoundException, UserAlreadyExistsException
 from api.utils.logging import init_logger
 
 logger = init_logger(name=__name__)
@@ -35,6 +36,9 @@ async def lifespan(app: FastAPI):
     global_context.usage_manager = create_usage_manager()
 
     global_context.identity_access_manager = create_identity_access_manager(configuration=configuration)
+
+    await setup_master(configuration=configuration)
+
     global_context.limiter = create_limiter(configuration=configuration, redis_pool=global_context.redis_pool)
     global_context.tokenizer = create_tokenizer(configuration=configuration)
     global_context.parser = await create_parser(configuration=configuration)
@@ -85,6 +89,40 @@ def create_postgres_session_factory(configuration: Configuration) -> tuple[Async
     engine = create_async_engine(**configuration.dependencies.postgres.model_dump())
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     return engine, session_factory
+
+
+# TODO: Set this in a specific use case when refactoring with the clean architecture, not in the lifespan of the app.
+async def setup_master(configuration: Configuration) -> None:
+    session_factory = global_context.postgres_session_factory
+    async with session_factory() as postgres_session:
+        try:
+            print("[DEBUG] ================================ ROLE ================================")
+            role_id = await global_context.identity_access_manager.create_role(
+                postgres_session=postgres_session,
+                name=configuration.settings.auth_master_username,
+                permissions=list(PermissionType),
+            )
+            print("Master role created successfully.")
+        except RoleAlreadyExistsException:
+            await postgres_session.rollback()
+            print("Master role already exists.")
+            roles = await global_context.identity_access_manager.get_roles(postgres_session=postgres_session, role_id=None)
+            role_id = next(r.id for r in roles if r.name == configuration.settings.auth_master_username)
+
+        try:
+            print("[DEBUG] ================================ USER ================================")
+            await global_context.identity_access_manager.create_user(
+                postgres_session=postgres_session,
+                email=configuration.settings.auth_master_username,
+                role_id=role_id,
+                name=configuration.settings.auth_master_username,
+                password=configuration.settings.auth_master_password,
+                check_master_email=False,
+            )
+            print("Master user created successfully.")
+        except UserAlreadyExistsException:
+            await postgres_session.rollback()
+            print("Master user already exists.")
 
 
 async def create_model_registry(

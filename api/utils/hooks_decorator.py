@@ -7,6 +7,7 @@ from fastapi import HTTPException, Request, Response
 from sqlalchemy import func, select, update
 from starlette.responses import StreamingResponse
 
+from api.domain.key.entities import MASTER_ID
 from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 from api.sql.models import Usage, User
 from api.utils.configuration import configuration
@@ -33,7 +34,7 @@ def hooks(func):
         if context.user_info is None:
             logger.info(f"No user ID found in request, skipping usage logging ({context.endpoint}).")
             return await func(*args, **kwargs)
-        if context.user_info.id == 0:
+        if context.user_info.id == MASTER_ID:
             logger.info(f"Master user ID found in request, skipping usage logging ({context.endpoint}).")
             return await func(*args, **kwargs)
 

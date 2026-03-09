@@ -4,8 +4,7 @@ from pydantic import BaseModel, Field
 from api.helpers._identityaccessmanager import IdentityAccessManager
 from api.utils.exceptions import InvalidAPIKeyException
 
-MASTER_USER_ID = 0
-MASTER_KEY_ID = 0
+MASTER_ID: int = 0
 
 
 class KeyClaims(BaseModel):
@@ -19,10 +18,6 @@ class Key(BaseModel):
     value: str = Field(..., description="The raw API key value")
 
     def decode(self, secret_key: str) -> KeyClaims:
-        # TODO: Remove this hardcoded master key logic
-        if self.value == secret_key:
-            return KeyClaims(user_id=MASTER_USER_ID, key_id=MASTER_KEY_ID)
-
         if not self.value.startswith(IdentityAccessManager.TOKEN_PREFIX):
             raise InvalidAPIKeyException()
 

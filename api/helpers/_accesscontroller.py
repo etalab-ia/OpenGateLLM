@@ -83,35 +83,17 @@ class AccessController:
         if not api_key.credentials:
             raise InvalidAPIKeyException()
 
-        # master user can do anything
-        if api_key.credentials == global_context.identity_access_manager.secret_key:
-            user_info = UserInfo(
-                id=0,
-                email="master",
-                name="master",
-                budget=None,
-                limits=[],
-                permissions=[permission for permission in PermissionType],
-                expires=None,
-                created=0,
-                updated=0,
-                organization_id=0,
-                priority=0,
-            )
-            key_id = 0
-            key_name = "master"
-        else:
-            user_id, key_id, key_name = await global_context.identity_access_manager.check_token(
-                postgres_session=postgres_session, token=api_key.credentials
-            )
-            if not user_id:
-                raise InvalidAPIKeyException()
+        user_id, key_id, key_name = await global_context.identity_access_manager.check_token(
+            postgres_session=postgres_session, token=api_key.credentials
+        )
+        if not user_id:
+            raise InvalidAPIKeyException()
 
-            user_info = await global_context.identity_access_manager.get_user_info(postgres_session=postgres_session, user_id=user_id)
+        user_info = await global_context.identity_access_manager.get_user_info(postgres_session=postgres_session, user_id=user_id)
 
-            # invalid token if user is expired, except for /me and /me/role endpoints
-            if user_info.expires and user_info.expires < time.time() and not request.url.path.endswith(EndpointRoute.ME_INFO):
-                raise InvalidAPIKeyException()
+        # invalid token if user is expired, except for /me and /me/role endpoints
+        if user_info.expires and user_info.expires < time.time() and not request.url.path.endswith(EndpointRoute.ME_INFO):
+            raise InvalidAPIKeyException()
 
         return user_info, key_id, key_name
 

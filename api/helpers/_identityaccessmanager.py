@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
 from api.schemas.admin.organizations import Organization
-from api.schemas.admin.roles import Limit, LimitType, PermissionType, Role
+from api.schemas.admin.roles import Limit, PermissionType, Role
 from api.schemas.admin.tokens import Token
 from api.schemas.admin.users import User
 from api.schemas.me.info import UserInfo
@@ -21,7 +21,6 @@ from api.sql.models import Role as RoleTable
 from api.sql.models import Token as TokenTable
 from api.sql.models import User as UserTable
 from api.utils.configuration import configuration
-from api.utils.context import global_context
 from api.utils.exceptions import (
     DeleteOrganizationWithUsersException,
     DeleteRoleWithUsersException,
@@ -251,8 +250,9 @@ class IdentityAccessManager:
         budget: float | None = None,
         expires: int | None = None,
         priority: int = 0,
+        check_master_email: bool = True,
     ) -> int:
-        if email == "master":
+        if check_master_email and email == configuration.settings.auth_master_username:
             raise ReservedEmailException()
 
         expires = func.to_timestamp(expires) if expires is not None else None
@@ -355,7 +355,7 @@ class IdentityAccessManager:
         # update the user
         email = email if email is not None else user.email
 
-        if email == "master":
+        if email == configuration.settings.auth_master_username and email != user.email:
             raise ReservedEmailException()
 
         name = name if name is not None else user.name
@@ -732,44 +732,28 @@ class IdentityAccessManager:
     async def get_user_info(self, postgres_session: AsyncSession, user_id: int | None = None, email: str | None = None) -> UserInfo:
         assert user_id is not None or email is not None, "user_id or email is required"
 
-        if user_id == 0:  # master user
-            routers = await global_context.model_registry.get_routers(router_id=None, name=None, postgres_session=postgres_session)
-            user = UserInfo(
-                id=0,
-                email="master",
-                name="master",
-                organization=0,
-                budget=None,
-                permissions=[permission for permission in PermissionType],
-                limits=[Limit(router=router.id, type=type, value=None) for router in routers for type in LimitType],
-                expires=None,
-                created=0,
-                updated=0,
-                priority=0,
-            )
-        else:
-            users = await self.get_users(postgres_session=postgres_session, user_id=user_id, email=email)
-            user = users[0]
+        users = await self.get_users(postgres_session=postgres_session, user_id=user_id, email=email)
+        user = users[0]
 
-            roles = await self.get_roles(postgres_session, role_id=user.role)
-            role = roles[0]
+        roles = await self.get_roles(postgres_session, role_id=user.role)
+        role = roles[0]
 
-            # user cannot see limits on models that are not accessible by the role
-            limits = [limit for limit in role.limits if limit.value is None or limit.value > 0]
+        # user cannot see limits on models that are not accessible by the role
+        limits = [limit for limit in role.limits if limit.value is None or limit.value > 0]
 
-            user = UserInfo(
-                id=user.id,
-                email=user.email,
-                name=user.name,
-                organization=user.organization,
-                budget=user.budget,
-                permissions=role.permissions,
-                limits=limits,
-                expires=user.expires,
-                created=user.created,
-                updated=user.updated,
-                priority=user.priority,
-            )
+        user = UserInfo(
+            id=user.id,
+            email=user.email,
+            name=user.name,
+            organization=user.organization,
+            budget=user.budget,
+            permissions=role.permissions,
+            limits=limits,
+            expires=user.expires,
+            created=user.created,
+            updated=user.updated,
+            priority=user.priority,
+        )
 
         return user
 
@@ -787,13 +771,18 @@ class IdentityAccessManager:
             Tuple containing the token ID and the token of the refreshed playground token.
         """
 
-        # TODO: Remove this authentication backdoor for the master user.
-        if email == "master" and password == self.secret_key:
-            return 0, self.secret_key
+        print("======= LOGIN ATTEMPT =======")
+        print(f"Email: {email}")
+        print(f"Password: {password}")
 
         user = await self.get_user_info(postgres_session=postgres_session, email=email)  # raise UserNotFoundException (404) if user not found
         result = await postgres_session.execute(statement=select(UserTable.password).where(UserTable.id == user.id))
         hashed_password = result.scalar_one()
+
+        print("-- USER FOUND --")
+        print(f"User: {user}")
+        print(f"Result: {result}")
+        print(f"Hashed password: {hashed_password}")
 
         if not hashed_password:
             raise PasswordNotFoundException()
@@ -803,4 +792,7 @@ class IdentityAccessManager:
 
         token_id, token = await self.refresh_token(postgres_session, user_id=user.id, name=self.PLAYGROUND_KEY_NAME)
 
+        print("-- LOGIN SUCCESSFUL --")
+        print(f"Token ID: {token_id}")
+        print(f"Token: {token}")
         return token_id, token

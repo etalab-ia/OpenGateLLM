@@ -2,6 +2,7 @@ from sqlalchemy import Integer, Select, asc, cast, delete, desc, func, insert, s
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain.key.entities import MASTER_ID
 from api.domain import SortField, SortOrder
 from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model import ModelType as RouterType
@@ -40,7 +41,7 @@ class PostgresRouterRepository(RouterRepository):
 
     @staticmethod
     def _row_to_router_with_aliases(row, aliases: list[str]) -> Router:
-        user_id = MASTER_USER_ID if row.user_id is None else row.user_id
+        user_id = MASTER_ID if row.user_id is None else row.user_id
         return Router(
             id=row.id,
             name=row.name,
@@ -132,7 +133,7 @@ class PostgresRouterRepository(RouterRepository):
         user_id: int,
         aliases: list[str] | None = None,
     ) -> Router | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError:
-        db_user_id = None if user_id == MASTER_USER_ID else user_id
+        db_user_id = None if user_id == MASTER_ID else user_id
         aliases = aliases or []
 
         try:
