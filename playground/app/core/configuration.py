@@ -103,7 +103,7 @@ class ConfigFile(ConfigBaseModel):
     The following parameters allow you to configure the Playground application. The configuration file can be shared with the API, as the sections are
     identical and compatible. Some parameters are common to both the API and the Playground (for example, `app_title`).
 
-    For Plagroud deployment, some environment variables are required to be set, like Reflex backend URL. See
+    For Playground deployment, some environment variables are required to be set, like Reflex backend URL. See
     [Environment variables](/configuration/environment_variable/#playground) for more information.
     """
 

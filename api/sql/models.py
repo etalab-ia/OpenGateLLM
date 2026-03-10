@@ -5,8 +5,8 @@ from typing import Optional
 from sqlalchemy import ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 
+from api.domain.role.entities import LimitType, PermissionType
 from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
-from api.schemas.admin.roles import LimitType, PermissionType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.collections import CollectionVisibility
 from api.schemas.core.models import Metric
