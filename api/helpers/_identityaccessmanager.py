@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import datetime as dt
 from datetime import datetime, timedelta
 from typing import Literal
@@ -39,6 +40,13 @@ from api.utils.exceptions import (
 )
 
 settings = configuration.settings
+
+
+@dataclass
+class CheckTokenResult:
+    user_id: int | None
+    token_id: int | None
+    token_name: str | None
 
 
 class IdentityAccessManager:
@@ -705,21 +713,20 @@ class IdentityAccessManager:
 
         return tokens
 
-    # TODO: Create a class to type the return value of this function instead of using a tuple with many optional values.
-    async def check_token(self, postgres_session: AsyncSession, token: str) -> tuple[int | None, int | None, str | None]:
+    async def check_token(self, postgres_session: AsyncSession, token: str) -> CheckTokenResult:
         try:
             claims = self._decode_token(token=token)
         except JWTError:
-            return None, None, None
+            return CheckTokenResult(user_id=None, token_id=None, token_name=None)
         except IndexError:  # malformed token (no token prefix)
-            return None, None, None
+            return CheckTokenResult(user_id=None, token_id=None, token_name=None)
 
         try:
             tokens = await self.get_tokens(postgres_session, user_id=claims["user_id"], token_id=claims["token_id"], exclude_expired=True, limit=1)
         except TokenNotFoundException:
-            return None, None, None
+            return CheckTokenResult(user_id=None, token_id=None, token_name=None)
 
-        return claims["user_id"], claims["token_id"], tokens[0].name
+        return CheckTokenResult(user_id=claims["user_id"], token_id=claims["token_id"], token_name=tokens[0].name)
 
     @staticmethod
     async def invalidate_token(postgres_session: AsyncSession, token_id: int, user_id: int) -> None:
