@@ -66,7 +66,7 @@ class IdentityAccessManager:
     def _check_password(password: str, hashed_password: str) -> bool:
         return bcrypt.checkpw(password=password.encode("utf-8"), hashed_password=hashed_password.encode("utf-8"))
 
-    # TODO: Duplicate with api/domain/key/entities.py via api/infrastructure/fastapi/access.py
+    # TODO: Remove this. It's a duplicate with api/domain/key/entities.py via api/infrastructure/fastapi/access.py
     def _decode_token(self, token: str) -> dict:
         token = token.split(IdentityAccessManager.TOKEN_PREFIX)[1]
         return jwt.decode(token=token, key=self.secret_key, algorithms=["HS256"])
@@ -290,36 +290,22 @@ class IdentityAccessManager:
 
         password = self._hash_password(password=password) if password is not None else None
 
-        statement = insert(table=UserTable)
-
-        # TODO: Clean the following statement
+        values = dict(
+            email=email,
+            name=name,
+            password=password,
+            sub=sub,
+            iss=iss,
+            role_id=role_id,
+            organization_id=organization_id,
+            budget=budget,
+            expires=expires,
+            priority=priority,
+        )
         if user_id is not None:
-            statement = statement.values(
-                id=user_id,
-                email=email,
-                name=name,
-                password=password,
-                sub=sub,
-                iss=iss,
-                role_id=role_id,
-                organization_id=organization_id,
-                budget=budget,
-                expires=expires,
-                priority=priority,
-            ).returning(UserTable.id)
-        else:
-            statement = statement.values(
-                email=email,
-                name=name,
-                password=password,
-                sub=sub,
-                iss=iss,
-                role_id=role_id,
-                organization_id=organization_id,
-                budget=budget,
-                expires=expires,
-                priority=priority,
-            ).returning(UserTable.id)
+            values["id"] = user_id
+
+        statement = insert(table=UserTable).values(**values).returning(UserTable.id)
 
         # create the user
         try:

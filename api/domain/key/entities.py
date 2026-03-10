@@ -22,7 +22,7 @@ class Key(BaseModel):
             raise InvalidAPIKeyException()
 
         try:
-            # TODO: Duplicate with api.helpers._identityaccessmanager.IdentityAccessManager._decode_token
+            # TODO: Refactor this. It's a duplicate with api.helpers._identityaccessmanager.IdentityAccessManager._decode_token
             jwt_token = self.value.split(IdentityAccessManager.TOKEN_PREFIX)[1]
             claims = jwt.decode(token=jwt_token, key=secret_key, algorithms=["HS256"])
             return KeyClaims(
