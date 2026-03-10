@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.helpers._identityaccessmanager import IdentityAccessManager
+from api.helpers._identityaccessmanager import CheckTokenResult, IdentityAccessManager
 from api.utils.exceptions import (
     InvalidTokenExpirationException,
     TokenNotFoundException,
@@ -176,30 +176,29 @@ async def test_check_token_ok(postgres_session: AsyncSession):
                 ]
             )
         )
-        user_id, token_id, token_name = await iam.check_token(postgres_session, token="sk-abcdef")
+        result = await iam.check_token(postgres_session, token="sk-abcdef")
 
-    assert (user_id, token_id, token_name) == (1, 2, "dev")
+    assert result == CheckTokenResult(user_id=1, token_id=2, token_name="dev")
 
 
 @pytest.mark.asyncio
 async def test_check_token_invalid_or_expired(postgres_session: AsyncSession):
     iam = IdentityAccessManager(secret_key="secret")
 
+    empty = CheckTokenResult(user_id=None, token_id=None, token_name=None)
+
     # invalid jwt
     with patch.object(iam, "_decode_token", side_effect=JWTError("bad")):
-        uid, tid, token_name = await iam.check_token(postgres_session, token="sk-xxx")
-        assert (uid, tid, token_name) == (None, None, None)
+        assert await iam.check_token(postgres_session, token="sk-xxx") == empty
 
     # missing prefix / malformed
     with patch.object(iam, "_decode_token", side_effect=IndexError()):
-        uid, tid, token_name = await iam.check_token(postgres_session, token="xxx")
-        assert (uid, tid, token_name) == (None, None, None)
+        assert await iam.check_token(postgres_session, token="xxx") == empty
 
     # decoded but not found in DB (expired)
     with patch.object(iam, "_decode_token", return_value={"user_id": 1, "token_id": 2}):
         postgres_session.execute = AsyncMock(return_value=_Result(all_rows=[]))
-        uid, tid, token_name = await iam.check_token(postgres_session, token="sk-abcdef")
-        assert (uid, tid, token_name) == (None, None, None)
+        assert await iam.check_token(postgres_session, token="sk-abcdef") == empty
 
 
 @pytest.mark.asyncio

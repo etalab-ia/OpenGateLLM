@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.role.entities import PermissionType
+from api.helpers._identityaccessmanager import CheckTokenResult
 from api.schemas.admin.users import User
 from api.schemas.collections import CollectionVisibility
 from api.schemas.me.info import UserInfo
@@ -83,19 +84,19 @@ class AccessController:
         if not api_key.credentials:
             raise InvalidAPIKeyException()
 
-        user_id, key_id, key_name = await global_context.identity_access_manager.check_token(
+        token_result: CheckTokenResult = await global_context.identity_access_manager.check_token(
             postgres_session=postgres_session, token=api_key.credentials
         )
-        if not user_id:
+        if not token_result.user_id:
             raise InvalidAPIKeyException()
 
-        user_info = await global_context.identity_access_manager.get_user_info(postgres_session=postgres_session, user_id=user_id)
+        user_info = await global_context.identity_access_manager.get_user_info(postgres_session=postgres_session, user_id=token_result.user_id)
 
         # invalid token if user is expired, except for /me and /me/role endpoints
         if user_info.expires and user_info.expires < time.time() and not request.url.path.endswith(EndpointRoute.ME_INFO):
             raise InvalidAPIKeyException()
 
-        return user_info, key_id, key_name
+        return user_info, token_result.token_id, token_result.token_name
 
     async def _check_permissions(self, permissions: list[PermissionType]) -> None:
         if PermissionType.MASTER in permissions:
