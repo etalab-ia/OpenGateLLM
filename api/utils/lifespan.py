@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from api.clients.parser import BaseParserClient as ParserClient
 from api.domain.key.entities import MASTER_ID
+from api.domain.role.entities import PermissionType
 from api.helpers._documentmanager import DocumentManager
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers._identityaccessmanager import IdentityAccessManager
@@ -15,7 +16,6 @@ from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
-from api.schemas.admin.roles import PermissionType
 from api.schemas.core.configuration import Configuration
 from api.utils.configuration import get_configuration
 from api.utils.context import global_context
@@ -102,7 +102,7 @@ async def setup_master(configuration: Configuration) -> None:
                 postgres_session=postgres_session,
                 role_id=MASTER_ID,
                 name=configuration.settings.auth_master_username,
-                permissions=list(PermissionType),
+                permissions=[PermissionType.MASTER],
             )
             print("Master role created successfully.")
         except RoleAlreadyExistsException:

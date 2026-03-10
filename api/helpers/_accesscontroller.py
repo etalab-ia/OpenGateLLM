@@ -7,7 +7,7 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas.admin.roles import PermissionType
+from api.domain.role.entities import PermissionType
 from api.schemas.admin.users import User
 from api.schemas.collections import CollectionVisibility
 from api.schemas.me.info import UserInfo
@@ -98,6 +98,8 @@ class AccessController:
         return user_info, key_id, key_name
 
     async def _check_permissions(self, permissions: list[PermissionType]) -> None:
+        if PermissionType.MASTER in permissions:
+            return
         if self.permissions and not set(permissions).intersection(set(self.permissions)):
             raise InsufficientPermissionException()
 
