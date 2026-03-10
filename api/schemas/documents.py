@@ -86,7 +86,7 @@ class CreateDocumentForm(BaseModel):
         is_separator_regex: bool = Form(default=False, description="Whether the separator is a regex to use for the upload file."),
         separators: list[str] = Form(min_length=0, default=[], description="Delimiters used by RecursiveCharacterTextSplitter for further splitting. If provided, `preset_separators` is ignored."),
         preset_separators: PresetSeparators = Form(default=PresetSeparators.MARKDOWN, description="Preset separators used by RecursiveCharacterTextSplitter for further splitting. See [implemented details](https://github.com/langchain-ai/langchain/blob/eb122945832eae9b9df7c70ccd8d51fcd7a1899b/libs/text-splitters/langchain_text_splitters/character.py#L164)."),
-        metadata: str = Form(default="", description="Optional additional metadata to add to each chunk if a file is provided. Provide a stringified JSON object matching the Metadata schema.", examples=['{"source_date": "2026-01-05", "source_tags": ["tag1", "tag2"]}']),
+        metadata: str = Form(default="", description="Optional additional metadata to add to each chunk if a file is provided. Provide a stringified JSON object matching the Metadata schema.", examples=['{"source_date": "2026-01-05"}']),
     ) -> "CreateDocumentForm":
         collection_id = collection_id if collection_id is not None else collection
         try:

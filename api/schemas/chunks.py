@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import Field, StringConstraints, field_serializer, model_validator
+from pydantic import Field, StringConstraints, field_serializer, field_validator, model_validator
 
 from api.schemas import BaseModel
 
@@ -42,6 +42,25 @@ class Chunk(BaseModel):
     content: Annotated[str, Field(min_length=1, default=..., description="The content of the chunk.")]
     metadata: Annotated[ChunkMetadata | None, Field(default=None, description="Metadata of the chunk")]
     created: Annotated[datetime, Field(default=datetime.now(), description="The date of the chunk creation.")]
+
+    @field_validator("metadata", mode="before")
+    @classmethod
+    def normalize_legacy_metadata(cls, metadata: dict | None) -> dict | None:
+        if metadata is None:
+            return None
+
+        normalized_metadata = {}
+        for key, value in metadata.items():
+            if value is None:
+                continue
+            if isinstance(value, list):
+                normalized_value = ",".join(str(item).strip() for item in value if str(item).strip())
+                if normalized_value:
+                    normalized_metadata[key] = normalized_value
+                continue
+            normalized_metadata[key] = value
+
+        return normalized_metadata
 
     @field_serializer("created")
     def serialize_created(self, created: datetime) -> int:

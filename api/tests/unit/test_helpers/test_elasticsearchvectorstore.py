@@ -122,6 +122,49 @@ class TestSearch:
         assert results[0].method == SearchMethod.SEMANTIC
 
     @pytest.mark.asyncio
+    async def test_search_semantic_normalizes_legacy_list_metadata(self):
+        """Legacy list metadata from Elasticsearch is normalized for Chunk validation."""
+        store = ElasticsearchVectorStore(index_name="test-index")
+        mock_client = AsyncMock()
+
+        mock_client.search = AsyncMock(
+            return_value={
+                "hits": {
+                    "hits": [
+                        {
+                            "_score": 0.95,
+                            "_source": {
+                                "id": 1,
+                                "collection_id": 1,
+                                "document_id": 10,
+                                "content": "chunk content 1",
+                                "metadata": {"source_tags": ["tag1", "tag2"]},
+                                "created": 1697000000,
+                            },
+                        }
+                    ]
+                }
+            }
+        )
+
+        results = await store.search(
+            client=mock_client,
+            method=SearchMethod.SEMANTIC,
+            collection_ids=[1],
+            document_ids=[],
+            metadata_filters=None,
+            query_prompt="test query",
+            query_vector=[0.1, 0.2, 0.3],
+            limit=10,
+            offset=0,
+            rff_k=60,
+            score_threshold=0.0,
+        )
+
+        assert len(results) == 1
+        assert results[0].chunk.metadata == {"source_tags": "tag1,tag2"}
+
+    @pytest.mark.asyncio
     async def test_search_lexical_dispatches_correctly(self):
         """Test that lexical search is dispatched with the right parameters."""
         store = ElasticsearchVectorStore(index_name="test-index")
