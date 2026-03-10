@@ -74,6 +74,11 @@ class InconsistentModelCostsException(HTTPException):
         super().__init__(status_code=403, detail=detail)
 
 
+class MasterUserDeletionException(HTTPException):
+    def __init__(self, detail: str = "Master user deletion is not allowed.") -> None:
+        super().__init__(status_code=403, detail=detail)
+
+
 # 404
 class CollectionNotFoundException(HTTPException):
     def __init__(self, detail: str = "Collection not found.") -> None:

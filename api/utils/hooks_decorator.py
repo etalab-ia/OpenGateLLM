@@ -7,12 +7,12 @@ from fastapi import HTTPException, Request, Response
 from sqlalchemy import func, select, update
 from starlette.responses import StreamingResponse
 
-from api.domain.key.entities import MASTER_ID
 from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 from api.sql.models import Usage, User
 from api.utils.configuration import configuration
 from api.utils.context import request_context
 from api.utils.dependencies import get_postgres_session
+from api.utils.variables import MASTER_ID
 
 logger = logging.getLogger(__name__)
 

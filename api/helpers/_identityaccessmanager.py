@@ -27,6 +27,7 @@ from api.utils.exceptions import (
     DeleteRoleWithUsersException,
     InvalidCurrentPasswordException,
     InvalidTokenExpirationException,
+    MasterUserDeletionException,
     OrganizationAlreadyExistsException,
     OrganizationNameAlreadyTakenException,
     OrganizationNotFoundException,
@@ -38,6 +39,7 @@ from api.utils.exceptions import (
     UserAlreadyExistsException,
     UserNotFoundException,
 )
+from api.utils.variables import MASTER_ID
 
 settings = configuration.settings
 
@@ -320,8 +322,8 @@ class IdentityAccessManager:
 
     @staticmethod
     async def delete_user(postgres_session: AsyncSession, user_id: int) -> None:
-        # if user_id == MASTER_ID:
-        #     raise # TODO: Create a specific exception for this case.
+        if user_id == MASTER_ID:
+            raise MasterUserDeletionException()
 
         # check if user exists
         result = await postgres_session.execute(statement=select(UserTable.id).where(UserTable.id == user_id))

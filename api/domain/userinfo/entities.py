@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 
-from api.domain.key.entities import MASTER_ID
 from api.domain.role.entities import Limit, PermissionType
+from api.utils.variables import MASTER_ID
 
 
 class UserInfo(BaseModel):

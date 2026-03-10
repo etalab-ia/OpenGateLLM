@@ -8,7 +8,6 @@ from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.clients.model import BaseModelProvider as ModelProvider
-from api.domain.key.entities import MASTER_ID
 from api.infrastructure.fastapi.schemas.providers import Provider, ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import Router, RouterLoadBalancingStrategy
 from api.schemas.core.configuration import Model as ModelConfiguration
@@ -37,7 +36,7 @@ from api.utils.exceptions import (
     WrongModelTypeException,
 )
 from api.utils.routing import apply_routing_with_queuing, apply_routing_without_queuing
-from api.utils.variables import PREFIX__CELERY_QUEUE_ROUTING, EndpointRoute
+from api.utils.variables import MASTER_ID, PREFIX__CELERY_QUEUE_ROUTING, EndpointRoute
 
 logger = logging.getLogger(__name__)
 
