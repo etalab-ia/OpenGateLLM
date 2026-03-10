@@ -6,7 +6,6 @@ import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from api.clients.parser import BaseParserClient as ParserClient
-from api.domain.key.entities import MASTER_ID
 from api.domain.role.entities import PermissionType
 from api.helpers._documentmanager import DocumentManager
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
@@ -21,6 +20,7 @@ from api.utils.configuration import get_configuration
 from api.utils.context import global_context
 from api.utils.exceptions import RoleAlreadyExistsException, RouterNotFoundException, UserAlreadyExistsException
 from api.utils.logging import init_logger
+from api.utils.variables import MASTER_ID
 
 logger = init_logger(name=__name__)
 

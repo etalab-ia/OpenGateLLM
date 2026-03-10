@@ -4,8 +4,6 @@ from pydantic import BaseModel, Field
 from api.helpers._identityaccessmanager import IdentityAccessManager
 from api.utils.exceptions import InvalidAPIKeyException
 
-MASTER_ID: int = 0
-
 
 class KeyClaims(BaseModel):
     user_id: int

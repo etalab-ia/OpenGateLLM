@@ -2,6 +2,7 @@ from enum import StrEnum
 
 DEFAULT_APP_NAME = "OpenGateLLM"
 DEFAULT_TIMEOUT = 300
+MASTER_ID: int = 0
 
 PREFIX__CELERY_QUEUE_ROUTING = "ogl_qr"
 PREFIX__REDIS_METRIC_GAUGE = "ogl_mg"

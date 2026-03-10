@@ -14,6 +14,7 @@ from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 from api.sql.models import User as UserTable
+from api.utils.variables import MASTER_ID
 
 
 class PostgresRouterRepository(RouterRepository):
