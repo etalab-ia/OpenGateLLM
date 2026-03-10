@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Literal
 
 import pycountry
@@ -6,6 +6,7 @@ from pydantic import Field, constr
 
 from api.domain import EntitiesPage
 from api.domain.model.entities import ModelType
+from api.domain.router.entities import Router
 from api.schemas import BaseModel
 from api.schemas.core.models import Metric
 
@@ -15,12 +16,15 @@ country_codes_dict = {str(code).upper(): str(code) for code in sorted(set(countr
 ProviderCarbonFootprintZone: type[Enum] = Enum("ProviderCarbonFootprintZone", country_codes_dict, type=str)
 
 
-class ProviderType(str, Enum):
+class ProviderType(StrEnum):
     ALBERT = "albert"
     OPENAI = "openai"
     MISTRAL = "mistral"
     TEI = "tei"
     VLLM = "vllm"
+
+    def is_compatible_with(self, router_type: ModelType) -> bool:
+        return self.value in COMPATIBLE_PROVIDER_TYPES[router_type]
 
 
 COMPATIBLE_PROVIDER_TYPES: dict[ModelType, list[str]] = {
@@ -58,7 +62,7 @@ COMPATIBLE_PROVIDER_TYPES: dict[ModelType, list[str]] = {
 }
 
 
-class ProviderSortField(str, Enum):
+class ProviderSortField(StrEnum):
     ID = "id"
     MODEL_NAME = "model_name"
     CREATED = "created"
@@ -84,3 +88,27 @@ class Provider(BaseModel):
     qos_limit: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")  # fmt: off
     created: int | None = Field(default=None, description="Time of creation, as Unix timestamp.")  # fmt: off
     updated: int | None = Field(default=None, description="Time of last update, as Unix timestamp.")  # fmt: off
+
+    def with_router_id(self, router_id: int) -> "Provider":
+        return self.model_copy(update={"router_id": router_id})
+
+    def with_timeout(self, timeout: int) -> "Provider":
+        return self.model_copy(update={"timeout": timeout})
+
+    def with_model_hosting_zone(self, model_hosting_zone: ProviderCarbonFootprintZone) -> "Provider":
+        return self.model_copy(update={"model_hosting_zone": model_hosting_zone})
+
+    def with_model_total_params(self, model_total_params: int) -> "Provider":
+        return self.model_copy(update={"model_total_params": model_total_params})
+
+    def with_model_active_params(self, model_active_params: int) -> "Provider":
+        return self.model_copy(update={"model_active_params": model_active_params})
+
+    def with_qos_metric(self, qos_metric: Metric | None) -> "Provider":
+        return self.model_copy(update={"qos_metric": qos_metric})
+
+    def with_qos_limit(self, qos_limit: float | None) -> "Provider":
+        return self.model_copy(update={"qos_limit": qos_limit})
+
+    def is_compatible_with(self, router: Router) -> bool:
+        return self.type.is_compatible_with(router.type)

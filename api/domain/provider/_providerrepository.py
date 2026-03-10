@@ -51,3 +51,7 @@ class ProviderRepository(ABC):
         sort_order: SortOrder = SortOrder.ASC,
     ) -> ProviderPage:
         pass
+
+    @abstractmethod
+    async def update_provider(self, provider_to_persist: Provider) -> Provider | ProviderAlreadyExistsError:
+        pass

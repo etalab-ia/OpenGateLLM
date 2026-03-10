@@ -4,6 +4,7 @@ from typing import Literal
 import pycountry
 from pydantic import Field, constr, model_validator
 
+from api.domain.provider.entities import ProviderType
 from api.schemas import BaseModel
 from api.schemas.core.models import Metric
 from api.utils.variables import DEFAULT_TIMEOUT
@@ -12,14 +13,6 @@ from api.utils.variables import DEFAULT_TIMEOUT
 country_codes = [country.alpha_3 for country in pycountry.countries] + ["WOR"]
 country_codes_dict = {str(code).upper(): str(code) for code in sorted(set(country_codes))}
 ProviderCarbonFootprintZone: type[Enum] = Enum("ProviderCarbonFootprintZone", country_codes_dict, type=str)
-
-
-class ProviderType(str, Enum):
-    ALBERT = "albert"
-    OPENAI = "openai"
-    MISTRAL = "mistral"
-    TEI = "tei"
-    VLLM = "vllm"
 
 
 class CreateProvider(BaseModel):

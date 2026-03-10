@@ -246,6 +246,76 @@ class TestGetProvidersPage:
 
 
 @pytest.mark.asyncio(loop_scope="session")
+class TestUpdateProvider:
+    async def test_update_provider_should_persist_all_updatable_fields(self, repository, db_session):
+        # Arrange
+        router_1 = RouterSQLFactory()
+        router_2 = RouterSQLFactory()
+        provider = ProviderSQLFactory(
+            router=router_1,
+            timeout=30,
+            model_hosting_zone=ProviderCarbonFootprintZone.FRA,
+            model_total_params=1_000_000,
+            model_active_params=500_000,
+            qos_metric=Metric.TTFT,
+            qos_limit=0.5,
+        )
+        await db_session.flush()
+        domain_provider = await repository.get_one_provider(provider.id)
+
+        # Act
+        result = await repository.update_provider(
+            domain_provider.with_router_id(router_2.id)
+            .with_timeout(120)
+            .with_model_hosting_zone(ProviderCarbonFootprintZone.USA)
+            .with_model_total_params(2_000_000)
+            .with_model_active_params(1_000_000)
+            .with_qos_metric(Metric.INFLIGHT)
+            .with_qos_limit(0.99)
+        )
+
+        # Assert
+        assert isinstance(result, Provider)
+        assert result.router_id == router_2.id
+        assert result.timeout == 120
+        assert result.model_hosting_zone == ProviderCarbonFootprintZone.USA
+        assert result.model_total_params == 2_000_000
+        assert result.model_active_params == 1_000_000
+        assert result.qos_metric == Metric.INFLIGHT
+        assert result.qos_limit == 0.99
+        persisted = (await db_session.execute(select(ProviderTable).where(ProviderTable.id == provider.id))).scalar_one()
+        assert persisted.router_id == router_2.id
+        assert persisted.timeout == 120
+        assert persisted.model_hosting_zone == ProviderCarbonFootprintZone.USA
+        assert persisted.model_total_params == 2_000_000
+        assert persisted.model_active_params == 1_000_000
+        assert persisted.qos_metric == Metric.INFLIGHT.value
+        assert persisted.qos_limit == 0.99
+
+    async def test_update_provider_should_return_provider_already_exists_when_moving_to_router_with_duplicate_url_and_model_name(
+        self, repository, db_session
+    ):
+        # Arrange
+        router_1 = RouterSQLFactory()
+        router_2 = RouterSQLFactory()
+        shared_url = "http://shared.example.com/"
+        shared_model_name = "shared-model"
+        ProviderSQLFactory(router=router_2, url=shared_url, model_name=shared_model_name)
+        provider = ProviderSQLFactory(router=router_1, url=shared_url, model_name=shared_model_name)
+        await db_session.flush()
+        domain_provider = await repository.get_one_provider(provider.id)
+
+        # Act
+        result = await repository.update_provider(domain_provider.with_router_id(router_2.id))
+
+        # Assert
+        assert isinstance(result, ProviderAlreadyExistsError)
+        assert result.router_id == router_2.id
+        assert result.url == shared_url
+        assert result.model_name == shared_model_name
+
+
+@pytest.mark.asyncio(loop_scope="session")
 class TestDeleteProvider:
     async def test_delete_provider_should_return_the_deleted_provider_when_provider_exists(self, repository, db_session):
         # Arrange

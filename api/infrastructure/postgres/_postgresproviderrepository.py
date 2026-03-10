@@ -1,4 +1,4 @@
-from sqlalchemy import asc, delete, desc, func, insert, select
+from sqlalchemy import asc, delete, desc, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +14,32 @@ from api.sql.models import Provider as ProviderTable
 class PostgresProviderRepository(ProviderRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
+
+    async def update_provider(self, provider_to_persist: Provider) -> Provider | ProviderAlreadyExistsError:
+        try:
+            update_query = (
+                update(ProviderTable)
+                .where(ProviderTable.id == provider_to_persist.id)
+                .values(
+                    router_id=provider_to_persist.router_id,
+                    timeout=provider_to_persist.timeout,
+                    model_hosting_zone=provider_to_persist.model_hosting_zone,
+                    model_total_params=provider_to_persist.model_total_params,
+                    model_active_params=provider_to_persist.model_active_params,
+                    qos_metric=provider_to_persist.qos_metric,
+                    qos_limit=provider_to_persist.qos_limit,
+                )
+                .returning(ProviderTable)
+            )
+            result = await self.postgres_session.execute(update_query)
+            row = result.scalar_one()
+            return self._row_to_provider(row)
+        except IntegrityError as e:
+            if "unique_provider_router_id_url_model_name" in str(e.orig):
+                return ProviderAlreadyExistsError(
+                    model_name=provider_to_persist.model_name, url=provider_to_persist.url, router_id=provider_to_persist.router_id
+                )
+            raise
 
     async def get_providers_page(
         self, router_id: int | None, limit: int, offset: int, sort_by: ProviderSortField = ProviderSortField.ID, sort_order: SortOrder = SortOrder.ASC
