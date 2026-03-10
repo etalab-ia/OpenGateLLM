@@ -97,20 +97,18 @@ async def setup_master(configuration: Configuration) -> None:
     session_factory = global_context.postgres_session_factory
     async with session_factory() as postgres_session:
         try:
-            print("[DEBUG] ================================ ROLE ================================")
             await global_context.identity_access_manager.create_role(
                 postgres_session=postgres_session,
                 role_id=MASTER_ID,
                 name=configuration.settings.auth_master_username,
                 permissions=[PermissionType.MASTER],
             )
-            print("Master role created successfully.")
+            logger.info("Master role created successfully.")
         except RoleAlreadyExistsException:
             await postgres_session.rollback()
-            print("Master role already exists.")
+            logger.info("Master role already exists.")
 
         try:
-            print("[DEBUG] ================================ USER ================================")
             await global_context.identity_access_manager.create_user(
                 postgres_session=postgres_session,
                 user_id=MASTER_ID,
@@ -120,10 +118,10 @@ async def setup_master(configuration: Configuration) -> None:
                 password=configuration.settings.auth_master_password,
                 check_master_email=False,
             )
-            print("Master user created successfully.")
+            logger.info("Master user created successfully.")
         except UserAlreadyExistsException:
             await postgres_session.rollback()
-            print("Master user already exists.")
+            logger.info("Master user already exists.")
 
 
 async def create_model_registry(
