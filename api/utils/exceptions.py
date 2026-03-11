@@ -79,6 +79,21 @@ class MasterUserDeletionException(HTTPException):
         super().__init__(status_code=403, detail=detail)
 
 
+class MasterRoleAttributionException(HTTPException):
+    def __init__(self, detail: str = "Master role attribution is not allowed.") -> None:
+        super().__init__(status_code=403, detail=detail)
+
+
+class MasterRoleDemotionException(HTTPException):
+    def __init__(self, detail: str = "Master user cannot be removed from the master role.") -> None:
+        super().__init__(status_code=403, detail=detail)
+
+
+class MasterRoleUpdateException(HTTPException):
+    def __init__(self, detail: str = "Permissions and limits of the master role cannot be updated.") -> None:
+        super().__init__(status_code=403, detail=detail)
+
+
 # 404
 class CollectionNotFoundException(HTTPException):
     def __init__(self, detail: str = "Collection not found.") -> None:

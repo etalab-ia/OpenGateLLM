@@ -102,6 +102,7 @@ async def setup_master(configuration: Configuration) -> None:
                 role_id=MASTER_ID,
                 name=configuration.settings.auth_master_username,
                 permissions=[PermissionType.MASTER],
+                check_master_email=False,
             )
             logger.info("Master role created successfully.")
         except RoleAlreadyExistsException:
