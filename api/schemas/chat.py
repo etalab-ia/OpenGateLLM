@@ -2,7 +2,7 @@ import json
 from json import JSONDecodeError
 from typing import Annotated, Any, Literal
 
-from mistralai.client.models import ChatCompletionRequest
+from mistralai.models import ChatCompletionRequest
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import Field, field_validator, model_validator
 

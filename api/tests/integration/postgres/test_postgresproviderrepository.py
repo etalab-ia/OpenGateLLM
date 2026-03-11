@@ -4,7 +4,6 @@ import pytest
 from sqlalchemy import select
 
 from api.domain import SortOrder
-from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model.entities import Metric, ModelType
 from api.domain.provider import Provider, ProviderAlreadyExistsError, ProviderCarbonFootprintZone, ProviderType
 from api.domain.provider.entities import ProviderSortField
@@ -15,6 +14,7 @@ from api.tests.integration.factories import (
     RouterSQLFactory,
     UserSQLFactory,
 )
+from api.utils.variables import MASTER_ID
 
 _EXCLUDE = {"id", "created", "updated"}
 
@@ -133,7 +133,7 @@ class TestGetOneProvider:
 
         # Assert
         assert isinstance(result, Provider)
-        assert result.user_id == MASTER_USER_ID
+        assert result.user_id == MASTER_ID
 
 
 @pytest.mark.asyncio(loop_scope="session")
