@@ -1,3 +1,4 @@
+from ecologits.electricity_mix_repository import ElectricityMix
 from ecologits.tracers.utils import compute_llm_impacts, electricity_mixes
 
 from api.schemas.admin.providers import ProviderCarbonFootprintZone
@@ -23,7 +24,7 @@ def get_carbon_footprint(
     Returns:
         CarbonFootprintUsage: Computed carbon footprint
     """
-    electricity_mix = electricity_mixes.find_electricity_mix(zone=model_zone.value)
+    electricity_mix: ElectricityMix = electricity_mixes.find_electricity_mix(zone=model_zone.value)
     if not electricity_mix:
         raise ValueError(f"Electricity zone {model_zone.value} not found")
 
