@@ -68,7 +68,6 @@ dependencies:
     retry_on_timeout: True
     health_check_interval: 30
     decode_responses: False
-    socket_keepalive: True
   
   elasticsearch:
     index_name: test_index

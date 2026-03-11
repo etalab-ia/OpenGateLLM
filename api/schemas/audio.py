@@ -4,7 +4,7 @@ from typing import Literal
 
 from fastapi import File, Form, UploadFile
 from fastapi.exceptions import RequestValidationError
-from mistralai.models import AudioChunk, ChatCompletionRequest, TextChunk, UserMessage
+from mistralai.client.models import AudioChunk, ChatCompletionRequest, TextChunk, UserMessage
 from pydantic import Field, ValidationError, field_validator
 
 from api.schemas import BaseModel

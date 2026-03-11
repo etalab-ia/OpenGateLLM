@@ -8,7 +8,13 @@ from api.domain.key import KeyRepository
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import PostgresKeyRepository, PostgresProviderRepository, PostgresRouterRepository, PostgresUserInfoRepository
 from api.schemas.core.context import RequestContext
-from api.use_cases.admin.providers import CreateProviderUseCase, DeleteProviderUseCase, GetOneProviderUseCase, GetProvidersUseCase
+from api.use_cases.admin.providers import (
+    CreateProviderUseCase,
+    DeleteProviderUseCase,
+    GetOneProviderUseCase,
+    GetProvidersUseCase,
+    UpdateProviderUseCase,
+)
 from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
 from api.use_cases.models import GetModelsUseCase
 from api.utils.configuration import configuration
@@ -89,6 +95,14 @@ def create_provider_use_case_factory(postgres_session: AsyncSession = Depends(ge
         router_repository=_router_repository(postgres_session),
         provider_repository=PostgresProviderRepository(postgres_session=postgres_session),
         provider_gateway=ModelProviderGateway(),
+        user_info_repository=_user_info_repository(postgres_session),
+    )
+
+
+def update_provider_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateProviderUseCase:
+    return UpdateProviderUseCase(
+        router_repository=_router_repository(postgres_session),
+        provider_repository=PostgresProviderRepository(postgres_session=postgres_session),
         user_info_repository=_user_info_repository(postgres_session),
     )
 

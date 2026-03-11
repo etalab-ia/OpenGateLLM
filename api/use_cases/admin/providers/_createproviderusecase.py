@@ -1,14 +1,14 @@
 from dataclasses import dataclass
 
 from api.domain.model import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelType
+from api.domain.model.entities import Metric
 from api.domain.provider import InvalidProviderTypeError, ProviderGateway, ProviderNotReachableError, ProviderRepository
-from api.domain.provider.entities import COMPATIBLE_PROVIDER_TYPES, Provider, ProviderCarbonFootprintZone, ProviderType
+from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.userinfo import UserInfoRepository
 from api.domain.userinfo.errors import UserIsNotAdminError
-from api.schemas.core.models import Metric
 
 
 @dataclass
@@ -67,7 +67,7 @@ class CreateProviderUseCase:
         if router is None:
             return RouterNotFoundError(command.router_id)
 
-        if command.provider_type.value not in COMPATIBLE_PROVIDER_TYPES[router.type]:
+        if not command.provider_type.is_compatible_with(router.type):
             return InvalidProviderTypeError(provider_type=command.provider_type.value, router_type=router.type.value)
 
         result = await self.provider_gateway.get_capabilities(

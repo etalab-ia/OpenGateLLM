@@ -1,9 +1,7 @@
 from contextvars import ContextVar
 import logging
 
-from fastapi import Body, Depends, Path, Query, Request, Security
-from fastapi.responses import Response
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Body, Depends, Path, Query, Security
 
 from api.dependencies import (
     create_provider_use_case_factory,
@@ -11,6 +9,7 @@ from api.dependencies import (
     get_one_provider_use_case_factory,
     get_providers_use_case_factory,
     get_request_context,
+    update_provider_use_case_factory,
 )
 from api.domain import SortOrder
 from api.domain.model import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
@@ -19,7 +18,6 @@ from api.domain.provider.entities import ProviderSortField
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
-from api.helpers.models import ModelRegistry
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
@@ -49,8 +47,10 @@ from api.use_cases.admin.providers import (
     GetProvidersCommand,
     GetProvidersUseCase,
     GetProvidersUseCaseSuccess,
+    UpdateProviderCommand,
+    UpdateProviderUseCase,
+    UpdateProviderUseCaseSuccess,
 )
-from api.utils.dependencies import get_model_registry, get_postgres_session
 from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
@@ -172,30 +172,69 @@ async def delete_provider(
 
 
 @router.patch(
-    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider}",
+    path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
     dependencies=[Security(dependency=get_current_key)],
-    status_code=204,
+    status_code=201,
+    responses=get_documentation_responses(
+        [
+            InconsistentModelMaxContextLengthHTTPException,
+            InconsistentModelVectorSizeHTTPException,
+            InvalidProviderTypeHTTPException,
+            ProviderAlreadyExistsHTTPException,
+            RouterNotFoundHTTPException,
+            ProviderNotFoundHTTPException,
+            NotAdminUserHTTPException,
+        ]
+    ),
 )
 async def update_provider(
-    request: Request,
-    provider: int = Path(description="The ID of the provider to update."),
+    provider_id: int = Path(description="The ID of the provider to update."),
     body: UpdateProvider = Body(description="The provider update request."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-    model_registry: ModelRegistry = Depends(get_model_registry),
-) -> Response:
-    await model_registry.update_provider(
-        provider_id=provider,
+    update_provider_use_case: UpdateProviderUseCase = Depends(update_provider_use_case_factory),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+) -> Provider:
+    command = UpdateProviderCommand(
+        provider_id=provider_id,
         router_id=body.router,
+        user_id=request_context.get().user_id,
         timeout=body.timeout,
         model_hosting_zone=body.model_hosting_zone,
         model_total_params=body.model_total_params,
         model_active_params=body.model_active_params,
         qos_metric=body.qos_metric,
         qos_limit=body.qos_limit,
-        postgres_session=postgres_session,
     )
+    try:
+        result = await update_provider_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing update_provider use case",
+            extra={
+                "user_id": request_context.get().user_id,
+                "provider_router_id": body.router,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
 
-    return Response(status_code=204)
+    match result:
+        case UpdateProviderUseCaseSuccess(updated_provider):
+            return Provider.model_validate(updated_provider, from_attributes=True)
+
+        case InconsistentModelMaxContextLengthError(expected_max_context_length=expected_max_context_length, actual_max_context_length=actual_max_context_length, router_name=router_name):  # fmt: off
+            raise InconsistentModelMaxContextLengthHTTPException(input_max_context_length=actual_max_context_length, model_max_context_length=expected_max_context_length, model_name=router_name)  # fmt: off
+        case InconsistentModelVectorSizeError(expected_vector_size=expected_vector_size, actual_vector_size=actual_vector_size, router_name=router_name):  # fmt: off
+            raise InconsistentModelVectorSizeHTTPException(input_vector_size=actual_vector_size, model_vector_size=expected_vector_size, model_name=router_name)  # fmt: off
+        case InvalidProviderTypeError(provider_type=provider_type, router_type=router_type):
+            raise InvalidProviderTypeHTTPException(incorrect_provider_type=provider_type, router_type=router_type)
+        case ProviderAlreadyExistsError(model_name=model_name, url=url, router_id=router_id):
+            raise ProviderAlreadyExistsHTTPException(model_name=model_name, url=url, router_id=router_id)
+        case RouterNotFoundError(router_id=router_id):
+            raise RouterNotFoundHTTPException(router_id=router_id)
+        case ProviderNotFoundError(provider_id=provider_id):
+            raise ProviderNotFoundHTTPException(provider_id=provider_id)
+        case UserIsNotAdminError():
+            raise NotAdminUserHTTPException()
 
 
 @router.get(
