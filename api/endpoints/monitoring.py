@@ -4,6 +4,7 @@ from prometheus_client import CollectorRegistry, multiprocess
 from prometheus_fastapi_instrumentator import Instrumentator, metrics
 from starlette.responses import Response
 
+from api.domain.role.entities import PermissionType
 from api.helpers._accesscontroller import AccessController
 from api.schemas.admin.roles import PermissionType
 from api.utils.configuration import configuration

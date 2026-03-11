@@ -80,21 +80,21 @@ async def update_role(
 
 
 @router.get(
-    path=EndpointRoute.ADMIN_ROLES + "/{role}",
+    path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
     status_code=200,
     response_model=Role,
 )
 async def get_role(
     request: Request,
-    role: int = Path(description="The ID of the role to get."),
+    role_id: int = Path(description="The ID of the role to get."),
     postgres_session: AsyncSession = Depends(get_postgres_session),
 ) -> JSONResponse:
     """
     Get a role by id.
     """
 
-    roles = await global_context.identity_access_manager.get_roles(postgres_session=postgres_session, role_id=role)
+    roles = await global_context.identity_access_manager.get_roles(postgres_session=postgres_session, role_id=role_id)
 
     return JSONResponse(content=roles[0].model_dump(), status_code=200)
 

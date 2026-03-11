@@ -4,9 +4,9 @@ from fastapi import Body, Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain.role.entities import PermissionType
 from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
-from api.schemas.admin.roles import PermissionType
 from api.schemas.admin.users import CreateUser, Users, UsersResponse, UserUpdateRequest
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
