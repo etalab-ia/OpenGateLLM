@@ -87,7 +87,7 @@ class AccessController:
         token_result: CheckTokenResult = await global_context.identity_access_manager.check_token(
             postgres_session=postgres_session, token=api_key.credentials
         )
-        if not token_result.user_id:
+        if token_result.user_id is None:
             raise InvalidAPIKeyException()
 
         user_info = await global_context.identity_access_manager.get_user_info(postgres_session=postgres_session, user_id=token_result.user_id)
