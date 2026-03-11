@@ -27,6 +27,9 @@ from api.utils.exceptions import (
     DeleteRoleWithUsersException,
     InvalidCurrentPasswordException,
     InvalidTokenExpirationException,
+    MasterRoleAttributionException,
+    MasterRoleDemotionException,
+    MasterRoleUpdateException,
     MasterUserDeletionException,
     OrganizationAlreadyExistsException,
     OrganizationNameAlreadyTakenException,
@@ -87,6 +90,7 @@ class IdentityAccessManager:
         role_id: int | None = None,
         limits: list[Limit] = None,
         permissions: list[PermissionType] = None,
+        check_master_email: bool = True,
     ) -> int:
         if limits is None:
             limits = []
@@ -97,6 +101,8 @@ class IdentityAccessManager:
         # create the role
         try:
             if role_id is not None:
+                if check_master_email and role_id == MASTER_ID:
+                    raise MasterRoleAttributionException()
                 result = await postgres_session.execute(statement=insert(table=RoleTable).values(id=role_id, name=name).returning(RoleTable.id))
             else:
                 result = await postgres_session.execute(statement=insert(table=RoleTable).values(name=name).returning(RoleTable.id))
@@ -142,8 +148,8 @@ class IdentityAccessManager:
         limits: list[Limit] | None = None,
         permissions: list[PermissionType] | None = None,
     ) -> None:
-        # if role_id == MASTER_ID:
-        #     raise # TODO: Create a specific exception for this case and handle it properly in the API layer instead of raising a generic exception that will be returned as a 500 error instead of a 400 error.
+        if role_id == MASTER_ID and (limits is not None or permissions is not None):
+            raise MasterRoleUpdateException()
 
         # check if role exists
         result = await postgres_session.execute(statement=select(RoleTable).where(RoleTable.id == role_id))
@@ -290,6 +296,7 @@ class IdentityAccessManager:
             except NoResultFound:
                 raise OrganizationNotFoundException()
 
+        # TODO: Check with Léo in which case a password can be None???
         password = self._hash_password(password=password) if password is not None else None
 
         values = dict(
@@ -352,11 +359,6 @@ class IdentityAccessManager:
         expires: int | None = None,
         priority: int | None = None,
     ) -> None:
-        # if user_id == MASTER_ID:
-        #     raise # TODO: Create a specific exception for this case.
-        # if role_id == MASTER_ID:
-        #     raise # TODO: Create a specific exception for this case.
-
         # check if user exists
         result = await postgres_session.execute(
             statement=select(
@@ -393,6 +395,14 @@ class IdentityAccessManager:
         new_priority = priority if priority is not None else user.priority
 
         if role_id is not None and role_id != user.role_id:
+            # prevent assigning the master role to any non-master user
+            if role_id == MASTER_ID and user_id != MASTER_ID:
+                raise MasterRoleAttributionException()
+
+            # prevent the master user from leaving the master role
+            if user_id == MASTER_ID and role_id != MASTER_ID:
+                raise MasterRoleDemotionException()
+
             # check if role exists
             result = await postgres_session.execute(statement=select(RoleTable.id).where(RoleTable.id == role_id))
             try:
