@@ -342,10 +342,10 @@ def run_local_services(console: Console, env: EnvFile, local_api: bool, local_pl
             }
 
         starters = []
-        if local_api:
-            starters.append(run_local_api)
         if local_playground:
             starters.append(run_local_playground)
+        if local_api:
+            starters.append(run_local_api)
 
         for starter in starters:
             process, service, url, started_at = starter(console, env)
@@ -437,6 +437,7 @@ def run_local_services(console: Console, env: EnvFile, local_api: bool, local_pl
                     live.update(_startup_renderable())
 
         if timed_out_services:
+            stop_local_processes(processes)
             for service, healthy in health_status.items():
                 if healthy:
                     display_local_service_start(
