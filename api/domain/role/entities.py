@@ -1,18 +1,17 @@
 import datetime as dt
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class PermissionType(str, Enum):
-    MASTER = "master"
+class PermissionType(StrEnum):
     ADMIN = "admin"
     CREATE_PUBLIC_COLLECTION = "create_public_collection"
     READ_METRIC = "read_metric"
     PROVIDE_MODELS = "provide_models"
 
 
-class LimitType(str, Enum):
+class LimitType(StrEnum):
     TPM = "tpm"
     TPD = "tpd"
     RPM = "rpm"
