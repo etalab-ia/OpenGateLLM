@@ -62,6 +62,7 @@ async def test_create_user_success(postgres_session: AsyncSession, iam: Identity
         budget=12.5,
         expires=int(dt.datetime.now(tz=dt.UTC).timestamp()) + 100,
         sub="sub123",
+        password="password",
     )
 
     assert uid == 10
