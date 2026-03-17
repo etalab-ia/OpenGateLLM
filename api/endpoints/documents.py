@@ -247,13 +247,13 @@ async def get_document_chunk(
     """
     Get a chunk of a document.
     """
-    chunks = await document_manager.get_document_chunk(
+    chunks = await document_manager.get_document_chunks(
         postgres_session=postgres_session,
         elasticsearch_vector_store=elasticsearch_vector_store,
         elasticsearch_client=elasticsearch_client,
+        user_id=request_context.get().user_info.id,
         document_id=document_id,
         chunk_id=chunk_id,
-        user_id=request_context.get().user_info.id,
     )
 
     return JSONResponse(content=chunks[0].model_dump(), status_code=200)
