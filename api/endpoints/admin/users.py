@@ -7,40 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.domain.role.entities import PermissionType
 from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
-from api.schemas.admin.users import CreateUser, Users, UsersResponse, UserUpdateRequest
+from api.schemas.admin.users import Users, UserUpdateRequest
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
 from api.utils.variables import EndpointRoute
-
-
-@router.post(
-    path=EndpointRoute.ADMIN_USERS,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
-    status_code=201,
-    response_model=UsersResponse,
-)
-async def create_user(
-    request: Request,
-    body: CreateUser = Body(description="The user creation request."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-) -> JSONResponse:
-    """
-    Create a new user.
-    """
-
-    user_id = await global_context.identity_access_manager.create_user(
-        postgres_session=postgres_session,
-        email=body.email,
-        password=body.password,
-        name=body.name,
-        role_id=body.role,
-        organization_id=body.organization,
-        budget=body.budget,
-        expires=body.expires,
-        priority=body.priority if body.priority is not None else 0,
-    )
-
-    return JSONResponse(status_code=201, content={"id": user_id})
 
 
 @router.delete(

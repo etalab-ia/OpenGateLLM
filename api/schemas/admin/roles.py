@@ -8,7 +8,6 @@ from api.schemas import BaseModel
 
 
 class PermissionType(str, Enum):
-    MASTER = "master"
     ADMIN = "admin"
     CREATE_PUBLIC_COLLECTION = "create_public_collection"
     READ_METRIC = "read_metric"

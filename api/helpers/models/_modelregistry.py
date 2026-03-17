@@ -108,6 +108,7 @@ class ModelRegistry:
             postgres_session(AsyncSession): The database postgres_session
         """
         for model in models:
+            # TODO: Check why MASTER_ID is useful here
             try:
                 router_id = await self.create_router(
                     name=model.name,
@@ -134,6 +135,7 @@ class ModelRegistry:
 
             for provider in model.providers:
                 try:
+                    # TODO: Check why MASTER_ID is useful here
                     provider_id = await self.create_provider(
                         router_id=router.id,
                         user_id=MASTER_ID,  # setup as master user

@@ -74,26 +74,6 @@ class InconsistentModelCostsException(HTTPException):
         super().__init__(status_code=403, detail=detail)
 
 
-class MasterUserDeletionException(HTTPException):
-    def __init__(self, detail: str = "Master user deletion is not allowed.") -> None:
-        super().__init__(status_code=403, detail=detail)
-
-
-class MasterRoleAttributionException(HTTPException):
-    def __init__(self, detail: str = "Master role attribution is not allowed.") -> None:
-        super().__init__(status_code=403, detail=detail)
-
-
-class MasterRoleDemotionException(HTTPException):
-    def __init__(self, detail: str = "Master user cannot be removed from the master role.") -> None:
-        super().__init__(status_code=403, detail=detail)
-
-
-class MasterRoleUpdateException(HTTPException):
-    def __init__(self, detail: str = "Permissions and limits of the master role cannot be updated.") -> None:
-        super().__init__(status_code=403, detail=detail)
-
-
 # 404
 class CollectionNotFoundException(HTTPException):
     def __init__(self, detail: str = "Collection not found.") -> None:
@@ -198,6 +178,26 @@ class DeleteRoleWithUsersException(HTTPException):
 
 class DeleteOrganizationWithUsersException(HTTPException):
     def __init__(self, detail: str = "Delete organization with users is not allowed.") -> None:
+        super().__init__(status_code=409, detail=detail)
+
+
+class DeleteLastAdminRoleException(HTTPException):
+    def __init__(self, detail: str = "Cannot delete the last admin role.") -> None:
+        super().__init__(status_code=409, detail=detail)
+
+
+class UpdateLastAdminRolePermissionsException(HTTPException):
+    def __init__(self, detail: str = "Cannot remove admin permission from the last admin role.") -> None:
+        super().__init__(status_code=409, detail=detail)
+
+
+class DeleteLastAdminUserException(HTTPException):
+    def __init__(self, detail: str = "Cannot delete the last admin user.") -> None:
+        super().__init__(status_code=409, detail=detail)
+
+
+class UpdateLastAdminUserRoleException(HTTPException):
+    def __init__(self, detail: str = "Cannot change the role of the last admin user.") -> None:
         super().__init__(status_code=409, detail=detail)
 
 
