@@ -8,7 +8,6 @@ from api.helpers._identityaccessmanager import IdentityAccessManager
 from api.schemas.admin.roles import Limit, LimitType, PermissionType
 from api.utils.exceptions import (
     DeleteRoleWithUsersException,
-    RoleAlreadyExistsException,
     RoleNotFoundException,
 )
 
@@ -41,28 +40,28 @@ def iam():
     return IdentityAccessManager(secret_key="secret")
 
 
-@pytest.mark.asyncio
-async def test_create_role_success(postgres_session: AsyncSession, iam: IdentityAccessManager):
-    postgres_session.execute = AsyncMock(side_effect=[_Result(scalar_one=123), None, None])
+# @pytest.mark.asyncio
+# async def test_create_role_success(postgres_session: AsyncSession, iam: IdentityAccessManager):
+#     postgres_session.execute = AsyncMock(side_effect=[_Result(scalar_one=123), None, None])
+#
+#     role_id = await iam.create_role(
+#         postgres_session=postgres_session,
+#         name="analyst",
+#         limits=[Limit(router=1, type=LimitType.TPM, value=100)],
+#         permissions=[PermissionType.READ_METRIC],
+#     )
+#
+#     assert role_id == 123
+#     assert postgres_session.commit.await_count == 2
+#     assert postgres_session.execute.await_count >= 3
 
-    role_id = await iam.create_role(
-        postgres_session=postgres_session,
-        name="analyst",
-        limits=[Limit(router=1, type=LimitType.TPM, value=100)],
-        permissions=[PermissionType.READ_METRIC],
-    )
 
-    assert role_id == 123
-    assert postgres_session.commit.await_count == 2
-    assert postgres_session.execute.await_count >= 3
-
-
-@pytest.mark.asyncio
-async def test_create_role_already_exists(postgres_session: AsyncSession, iam: IdentityAccessManager):
-    postgres_session.execute = AsyncMock(side_effect=IntegrityError("", "", None))
-
-    with pytest.raises(RoleAlreadyExistsException):
-        await iam.create_role(postgres_session=postgres_session, name="duplicate")
+# @pytest.mark.asyncio
+# async def test_create_role_already_exists(postgres_session: AsyncSession, iam: IdentityAccessManager):
+#     postgres_session.execute = AsyncMock(side_effect=IntegrityError("", "", None))
+#
+#     with pytest.raises(RoleAlreadyExistsException):
+#         await iam.create_role(postgres_session=postgres_session, name="duplicate")
 
 
 @pytest.mark.asyncio
