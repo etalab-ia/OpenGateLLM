@@ -47,7 +47,7 @@ def test_configuration():
 
 
 @pytest_asyncio.fixture(scope="session")
-async def test_engine():
+async def test_postgres_engine():
     conn = await asyncpg.connect("postgresql://postgres:changeme@localhost:5432/postgres")
     try:
         await conn.execute("CREATE DATABASE test_db")
@@ -111,9 +111,9 @@ def pytest_addoption(parser):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def db_session(test_engine, request) -> AsyncGenerator[AsyncSession]:
-    async with test_engine.connect() as connection:
-        transaction = await connection.begin()
+async def db_session(test_postgres_engine, request) -> AsyncGenerator[AsyncSession]:
+    async with test_postgres_engine.connect() as connection:
+        postgres_outer_transaction = await connection.begin()
 
         session = AsyncSession(bind=connection, expire_on_commit=False)
         await session.begin_nested()
@@ -137,9 +137,9 @@ async def db_session(test_engine, request) -> AsyncGenerator[AsyncSession]:
                 factory._meta.sqlalchemy_session = None
             await session.close()
             if request.config.getoption("--commit-db"):
-                await transaction.commit()
+                await postgres_outer_transaction.commit()
             else:
-                await transaction.rollback()
+                await postgres_outer_transaction.rollback()
 
 
 @pytest.fixture(scope="session")
