@@ -337,14 +337,12 @@ class IdentityAccessManager:
 
     @staticmethod
     async def delete_user(postgres_session: AsyncSession, user_id: int) -> None:
-        # check if user exists
         result = await postgres_session.execute(statement=select(UserTable.id).where(UserTable.id == user_id))
         try:
             result.scalar_one()
         except NoResultFound:
             raise UserNotFoundException()
 
-        # prevent deletion if this is the last admin user
         admin_users_count = await postgres_session.scalar(
             select(func.count(UserTable.id))
             .join(PermissionTable, UserTable.role_id == PermissionTable.role_id)
@@ -358,7 +356,6 @@ class IdentityAccessManager:
         if is_admin and admin_users_count <= 1:
             raise DeleteLastAdminUserException()
 
-        # delete the user
         await postgres_session.execute(statement=delete(table=UserTable).where(UserTable.id == user_id))
         await postgres_session.commit()
 

@@ -28,7 +28,7 @@ logger = init_logger(name=__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     configuration = get_configuration()
 
     global_context.redis_pool = await create_redis_pool(configuration)
