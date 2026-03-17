@@ -23,26 +23,24 @@ from api.sql.models import Token as TokenTable
 from api.sql.models import User as UserTable
 from api.utils.configuration import configuration
 from api.utils.exceptions import (
+    DeleteLastAdminRoleException,
+    DeleteLastAdminUserException,
     DeleteOrganizationWithUsersException,
     DeleteRoleWithUsersException,
     InvalidCurrentPasswordException,
     InvalidTokenExpirationException,
-    MasterRoleAttributionException,
-    MasterRoleDemotionException,
-    MasterRoleUpdateException,
-    MasterUserDeletionException,
     OrganizationAlreadyExistsException,
     OrganizationNameAlreadyTakenException,
     OrganizationNotFoundException,
     PasswordNotFoundException,
-    ReservedEmailException,
     RoleAlreadyExistsException,
     RoleNotFoundException,
     TokenNotFoundException,
+    UpdateLastAdminRolePermissionsException,
+    UpdateLastAdminUserRoleException,
     UserAlreadyExistsException,
     UserNotFoundException,
 )
-from api.utils.variables import MASTER_ID
 
 settings = configuration.settings
 
@@ -87,10 +85,8 @@ class IdentityAccessManager:
     async def create_role(
         postgres_session: AsyncSession,
         name: str,
-        role_id: int | None = None,
         limits: list[Limit] = None,
         permissions: list[PermissionType] = None,
-        check_master_email: bool = True,
     ) -> int:
         if limits is None:
             limits = []
@@ -100,12 +96,7 @@ class IdentityAccessManager:
 
         # create the role
         try:
-            if role_id is not None:
-                if check_master_email and role_id == MASTER_ID:
-                    raise MasterRoleAttributionException()
-                result = await postgres_session.execute(statement=insert(table=RoleTable).values(id=role_id, name=name).returning(RoleTable.id))
-            else:
-                result = await postgres_session.execute(statement=insert(table=RoleTable).values(name=name).returning(RoleTable.id))
+            result = await postgres_session.execute(statement=insert(table=RoleTable).values(name=name).returning(RoleTable.id))
             role_id = result.scalar_one()
             await postgres_session.commit()
         except IntegrityError:
@@ -132,6 +123,20 @@ class IdentityAccessManager:
         except NoResultFound:
             raise RoleNotFoundException()
 
+        # prevent deletion if this is the last admin role
+        admin_roles_count = await postgres_session.scalar(
+            select(func.count(RoleTable.id))
+            .join(PermissionTable, RoleTable.id == PermissionTable.role_id)
+            .where(PermissionTable.permission == PermissionType.ADMIN)
+        )
+        is_admin_role = await postgres_session.scalar(
+            select(func.count(RoleTable.id))
+            .join(PermissionTable, RoleTable.id == PermissionTable.role_id)
+            .where(RoleTable.id == role_id, PermissionTable.permission == PermissionType.ADMIN)
+        )
+        if is_admin_role and admin_roles_count <= 1:
+            raise DeleteLastAdminRoleException()
+
         # delete the role
         try:
             await postgres_session.execute(statement=delete(table=RoleTable).where(RoleTable.id == role_id))
@@ -148,9 +153,6 @@ class IdentityAccessManager:
         limits: list[Limit] | None = None,
         permissions: list[PermissionType] | None = None,
     ) -> None:
-        if role_id == MASTER_ID and (limits is not None or permissions is not None):
-            raise MasterRoleUpdateException()
-
         # check if role exists
         result = await postgres_session.execute(statement=select(RoleTable).where(RoleTable.id == role_id))
         try:
@@ -172,6 +174,20 @@ class IdentityAccessManager:
                 await postgres_session.execute(statement=insert(table=LimitTable).values(values))
 
         if permissions is not None:
+            if PermissionType.ADMIN not in permissions:
+                admin_roles_count = await postgres_session.scalar(
+                    select(func.count(RoleTable.id))
+                    .join(PermissionTable, RoleTable.id == PermissionTable.role_id)
+                    .where(PermissionTable.permission == PermissionType.ADMIN)
+                )
+                is_admin_role = await postgres_session.scalar(
+                    select(func.count(RoleTable.id))
+                    .join(PermissionTable, RoleTable.id == PermissionTable.role_id)
+                    .where(RoleTable.id == role_id, PermissionTable.permission == PermissionType.ADMIN)
+                )
+                if is_admin_role and admin_roles_count <= 1:
+                    raise UpdateLastAdminRolePermissionsException()
+
             # delete the existing permissions
             await postgres_session.execute(statement=delete(table=PermissionTable).where(PermissionTable.role_id == role.id))
 
@@ -265,20 +281,15 @@ class IdentityAccessManager:
         postgres_session: AsyncSession,
         email: str,
         role_id: int,
+        password: str,
         name: str | None = None,
-        password: str | None = None,
         sub: str | None = None,
         iss: str | None = None,
         organization_id: int | None = None,
         budget: float | None = None,
         expires: int | None = None,
         priority: int = 0,
-        user_id: int | None = None,
-        check_master_email: bool = True,
     ) -> int:
-        if check_master_email and email == configuration.settings.auth_master_username:
-            raise ReservedEmailException()
-
         expires = func.to_timestamp(expires) if expires is not None else None
 
         # check if role exists
@@ -296,29 +307,26 @@ class IdentityAccessManager:
             except NoResultFound:
                 raise OrganizationNotFoundException()
 
-        # TODO: Check with Léo in which case a password can be None???
-        password = self._hash_password(password=password) if password is not None else None
-
-        values = dict(
-            email=email,
-            name=name,
-            password=password,
-            sub=sub,
-            iss=iss,
-            role_id=role_id,
-            organization_id=organization_id,
-            budget=budget,
-            expires=expires,
-            priority=priority,
-        )
-        if user_id is not None:
-            values["id"] = user_id
-
-        statement = insert(table=UserTable).values(**values).returning(UserTable.id)
+        password = self._hash_password(password=password)
 
         # create the user
         try:
-            result = await postgres_session.execute(statement=statement)
+            result = await postgres_session.execute(
+                statement=insert(table=UserTable)
+                .values(
+                    email=email,
+                    name=name,
+                    password=password,
+                    sub=sub,
+                    iss=iss,
+                    role_id=role_id,
+                    organization_id=organization_id,
+                    budget=budget,
+                    expires=expires,
+                    priority=priority,
+                )
+                .returning(UserTable.id)
+            )
             user_id = result.scalar_one()
         except IntegrityError:
             raise UserAlreadyExistsException()
@@ -329,15 +337,26 @@ class IdentityAccessManager:
 
     @staticmethod
     async def delete_user(postgres_session: AsyncSession, user_id: int) -> None:
-        if user_id == MASTER_ID:
-            raise MasterUserDeletionException()
-
         # check if user exists
         result = await postgres_session.execute(statement=select(UserTable.id).where(UserTable.id == user_id))
         try:
             result.scalar_one()
         except NoResultFound:
             raise UserNotFoundException()
+
+        # prevent deletion if this is the last admin user
+        admin_users_count = await postgres_session.scalar(
+            select(func.count(UserTable.id))
+            .join(PermissionTable, UserTable.role_id == PermissionTable.role_id)
+            .where(PermissionTable.permission == PermissionType.ADMIN)
+        )
+        is_admin = await postgres_session.scalar(
+            select(func.count(UserTable.id))
+            .join(PermissionTable, UserTable.role_id == PermissionTable.role_id)
+            .where(UserTable.id == user_id, PermissionTable.permission == PermissionType.ADMIN)
+        )
+        if is_admin and admin_users_count <= 1:
+            raise DeleteLastAdminUserException()
 
         # delete the user
         await postgres_session.execute(statement=delete(table=UserTable).where(UserTable.id == user_id))
@@ -384,10 +403,6 @@ class IdentityAccessManager:
 
         # update the user
         email = email if email is not None else user.email
-
-        if email == configuration.settings.auth_master_username and email != user.email:
-            raise ReservedEmailException()
-
         name = name if name is not None else user.name
         iss = iss if iss is not None else user.iss
         sub = sub if sub is not None else user.sub
@@ -395,20 +410,27 @@ class IdentityAccessManager:
         new_priority = priority if priority is not None else user.priority
 
         if role_id is not None and role_id != user.role_id:
-            # prevent assigning the master role to any non-master user
-            if role_id == MASTER_ID and user_id != MASTER_ID:
-                raise MasterRoleAttributionException()
-
-            # prevent the master user from leaving the master role
-            if user_id == MASTER_ID and role_id != MASTER_ID:
-                raise MasterRoleDemotionException()
-
             # check if role exists
             result = await postgres_session.execute(statement=select(RoleTable.id).where(RoleTable.id == role_id))
             try:
                 result.scalar_one()
             except NoResultFound:
                 raise RoleNotFoundException()
+
+            # prevent role change if this user is the last admin
+            admin_users_count = await postgres_session.scalar(
+                select(func.count(UserTable.id))
+                .join(PermissionTable, UserTable.role_id == PermissionTable.role_id)
+                .where(PermissionTable.permission == PermissionType.ADMIN)
+            )
+            is_admin = await postgres_session.scalar(
+                select(func.count(UserTable.id))
+                .join(PermissionTable, UserTable.role_id == PermissionTable.role_id)
+                .where(UserTable.id == user_id, PermissionTable.permission == PermissionType.ADMIN)
+            )
+            if is_admin and admin_users_count <= 1:
+                raise UpdateLastAdminUserRoleException()
+
         role_id = role_id if role_id is not None else user.role_id
 
         if organization_id is not None:

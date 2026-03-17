@@ -99,7 +99,7 @@ class AccessController:
         return user_info, token_result.token_id, token_result.token_name
 
     async def _check_permissions(self, permissions: list[PermissionType]) -> None:
-        if PermissionType.MASTER in permissions:
+        if PermissionType.ADMIN in permissions:
             return
         if self.permissions and not set(permissions).intersection(set(self.permissions)):
             raise InsufficientPermissionException()

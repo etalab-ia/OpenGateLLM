@@ -75,6 +75,22 @@ class ModelNotFoundHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
+class RoleNotFoundHTTPException(HTTPException):
+    status_code = 404
+    detail = "Role {role_id} not found."
+
+    def __init__(self, role_id: int) -> None:
+        super().__init__(status_code=self.status_code, detail=f"Role {role_id} not found.")
+
+
+class OrganizationNotFoundHTTPException(HTTPException):
+    status_code = 404
+    detail = "Organization {organization_id} not found."
+
+    def __init__(self, organization_id: int) -> None:
+        super().__init__(status_code=self.status_code, detail=f"Organization {organization_id} not found.")
+
+
 class RouterNotFoundHTTPException(HTTPException):
     status_code = 404
     detail = "Model router {router_id} not found."
@@ -92,6 +108,22 @@ class ProviderNotFoundHTTPException(HTTPException):
 
 
 # 409
+class UserAlreadyExistsHTTPException(HTTPException):
+    status_code = 409
+    detail = "User {email} already exists."
+
+    def __init__(self, email: str):
+        super().__init__(status_code=self.status_code, detail=f"User {email} already exists.")
+
+
+class RoleAlreadyExistsHTTPException(HTTPException):
+    status_code = 409
+    detail = "Role {role_name} already exists."
+
+    def __init__(self, name: str):
+        super().__init__(status_code=self.status_code, detail=f"Role {name} already exists.")
+
+
 class RouterAliasAlreadyExistsHTTPException(HTTPException):
     status_code = 409
     detail = "Following aliases already exist: '{router_aliases}'"

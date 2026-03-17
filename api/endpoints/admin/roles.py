@@ -4,34 +4,13 @@ from fastapi import Body, Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain.role.entities import PermissionType, Role
 from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
-from api.schemas.admin.roles import CreateRole, PermissionType, Role, Roles, RolesResponse, RoleUpdateRequest
+from api.schemas.admin.roles import Roles, RoleUpdateRequest
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
 from api.utils.variables import EndpointRoute
-
-
-@router.post(
-    path=EndpointRoute.ADMIN_ROLES,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
-    status_code=201,
-    response_model=RolesResponse,
-)
-async def create_role(
-    request: Request,
-    body: CreateRole = Body(description="The role creation request."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-) -> JSONResponse:
-    """
-    Create a new role.
-    """
-
-    role_id = await global_context.identity_access_manager.create_role(
-        postgres_session=postgres_session, name=body.name, permissions=body.permissions, limits=body.limits
-    )
-
-    return JSONResponse(status_code=201, content={"id": role_id})
 
 
 @router.delete(

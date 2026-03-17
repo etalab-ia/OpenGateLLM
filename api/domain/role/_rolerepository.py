@@ -1,15 +1,16 @@
 from abc import ABC, abstractmethod
 
-from api.domain.role.entities import Role
+from api.domain.role.entities import Limit, PermissionType, Role
+from api.domain.role.errors import RoleAlreadyExistsError
 
 
 class RoleRepository(ABC):
     @abstractmethod
-    async def get_roles(self, role_id: str) -> list[Role]:
+    async def create_role(self, name: str, permissions: list[PermissionType], limits: list[Limit]) -> Role | RoleAlreadyExistsError:
         pass
 
     @abstractmethod
-    async def create_role(self, role: Role) -> Role:
+    async def get_roles(self, role_id: str) -> list[Role]:
         pass
 
     @abstractmethod

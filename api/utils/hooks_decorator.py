@@ -12,7 +12,6 @@ from api.sql.models import Usage, User
 from api.utils.configuration import configuration
 from api.utils.context import request_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.variables import MASTER_ID
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +32,6 @@ def hooks(func):
         context = request_context.get()
         if context.user_info is None:
             logger.info(f"No user ID found in request, skipping usage logging ({context.endpoint}).")
-            return await func(*args, **kwargs)
-        if context.user_info.id == MASTER_ID:
-            logger.info(f"Master user ID found in request, skipping usage logging ({context.endpoint}).")
             return await func(*args, **kwargs)
 
         # find the request object

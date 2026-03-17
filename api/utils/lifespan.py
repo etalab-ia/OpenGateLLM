@@ -15,12 +15,14 @@ from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
+from api.infrastructure.postgres import PostgresRolesRepository, PostgresUserRepository
 from api.schemas.core.configuration import Configuration
+from api.use_cases.admin.roles import BootstrapAdminRoleCommand, BootstrapAdminRoleUseCase, BootstrapAdminRoleUseCaseSuccess
+from api.use_cases.admin.users import BootstrapAdminUserCommand, BootstrapAdminUserUseCase, BootstrapAdminUserUseCaseSuccess, HasAdminUserUseCase
 from api.utils.configuration import get_configuration
 from api.utils.context import global_context
-from api.utils.exceptions import RoleAlreadyExistsException, RouterNotFoundException, UserAlreadyExistsException
+from api.utils.exceptions import RouterNotFoundException
 from api.utils.logging import init_logger
-from api.utils.variables import MASTER_ID
 
 logger = init_logger(name=__name__)
 
@@ -38,7 +40,7 @@ async def lifespan(app: FastAPI):
 
     global_context.identity_access_manager = create_identity_access_manager(configuration=configuration)
 
-    await setup_master(configuration=configuration)
+    await bootstrap_default_admin(configuration=configuration)
 
     global_context.limiter = create_limiter(configuration=configuration, redis_pool=global_context.redis_pool)
     global_context.tokenizer = create_tokenizer(configuration=configuration)
@@ -92,37 +94,43 @@ def create_postgres_session_factory(configuration: Configuration) -> tuple[Async
     return engine, session_factory
 
 
-# TODO: Set this in a specific use case when refactoring with the clean architecture, not in the lifespan of the app.
-async def setup_master(configuration: Configuration) -> None:
+# NOTE: Repositories are instantiated manually here because FastAPI's Depends() is only resolved during
+# request handling. Since this function is called in the lifespan context (outside any request),
+# FastAPI's dependency injection system is not available.
+async def bootstrap_default_admin(configuration: Configuration) -> None:
     session_factory = global_context.postgres_session_factory
     async with session_factory() as postgres_session:
-        try:
-            await global_context.identity_access_manager.create_role(
-                postgres_session=postgres_session,
-                role_id=MASTER_ID,
-                name=configuration.settings.auth_master_username,
-                permissions=[PermissionType.MASTER],
-                check_master_email=False,
-            )
-            logger.info("Master role created successfully.")
-        except RoleAlreadyExistsException:
-            await postgres_session.rollback()
-            logger.info("Master role already exists.")
+        user_repository = PostgresUserRepository(postgres_session=postgres_session)
+        role_repository = PostgresRolesRepository(postgres_session=postgres_session)
 
-        try:
-            await global_context.identity_access_manager.create_user(
-                postgres_session=postgres_session,
-                user_id=MASTER_ID,
-                email=configuration.settings.auth_master_username,
-                role_id=MASTER_ID,
-                name=configuration.settings.auth_master_username,
-                password=configuration.settings.auth_master_password,
-                check_master_email=False,
+        if await HasAdminUserUseCase(user_repository=user_repository).execute():
+            logger.info("Admin user already exists, skipping default admin user creation.")
+            return
+
+        match await BootstrapAdminRoleUseCase(role_repository=role_repository).execute(
+            BootstrapAdminRoleCommand(
+                name=configuration.settings.auth_default_username,
+                permissions=[PermissionType.ADMIN],
+                limits=[],
             )
-            logger.info("Master user created successfully.")
-        except UserAlreadyExistsException:
-            await postgres_session.rollback()
-            logger.info("Master user already exists.")
+        ):
+            case BootstrapAdminRoleUseCaseSuccess(role=role):
+                logger.info("Default admin role created.", extra={"role_id": role.id, "role_name": role.name})
+            case error:
+                raise RuntimeError(f"Failed to create default admin role: {error}")
+
+        match await BootstrapAdminUserUseCase(user_repository=user_repository).execute(
+            BootstrapAdminUserCommand(
+                email=configuration.settings.auth_default_username,
+                password=configuration.settings.auth_default_password,
+                role_id=role.id,
+                name=configuration.settings.auth_default_username,
+            )
+        ):
+            case BootstrapAdminUserUseCaseSuccess(user=user):
+                logger.info("Default admin user created.", extra={"user_id": user.id, "email": user.email})
+            case error:
+                raise RuntimeError(f"Failed to create default admin user: {error}")
 
 
 async def create_model_registry(

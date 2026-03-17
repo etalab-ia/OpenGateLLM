@@ -6,7 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.key import KeyRepository
 from api.infrastructure.model import ModelProviderGateway
-from api.infrastructure.postgres import PostgresKeyRepository, PostgresProviderRepository, PostgresRouterRepository, PostgresUserInfoRepository
+from api.infrastructure.postgres import (
+    PostgresKeyRepository,
+    PostgresProviderRepository,
+    PostgresRolesRepository,
+    PostgresRouterRepository,
+    PostgresUserInfoRepository,
+    PostgresUserRepository,
+)
 from api.schemas.core.context import RequestContext
 from api.use_cases.admin.providers import (
     CreateProviderUseCase,
@@ -15,7 +22,9 @@ from api.use_cases.admin.providers import (
     GetProvidersUseCase,
     UpdateProviderUseCase,
 )
+from api.use_cases.admin.roles import CreateRoleUseCase
 from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
+from api.use_cases.admin.users import CreateUserUseCase
 from api.use_cases.models import GetModelsUseCase
 from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context
@@ -44,6 +53,14 @@ async def get_postgres_session() -> AsyncGenerator[AsyncSession]:
 
 
 # repositories
+def _user_repository(session: AsyncSession) -> PostgresUserRepository:
+    return PostgresUserRepository(postgres_session=session)
+
+
+def _role_repository(session: AsyncSession) -> PostgresRolesRepository:
+    return PostgresRolesRepository(postgres_session=session)
+
+
 def _router_repository(session: AsyncSession) -> PostgresRouterRepository:
     return PostgresRouterRepository(postgres_session=session, app_title=configuration.settings.app_title)
 
@@ -66,6 +83,16 @@ def get_models_use_case(
         user_id=request_context.get().user_id,
         user_info_repository=_user_info_repository(postgres_session),
     )
+
+
+# users use cases
+def create_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateUserUseCase:
+    return CreateUserUseCase(user_repository=_user_repository(postgres_session), user_info_repository=_user_info_repository(postgres_session))
+
+
+# roles use cases
+def create_role_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateRoleUseCase:
+    return CreateRoleUseCase(role_repository=_role_repository(postgres_session), user_info_repository=_user_info_repository(postgres_session))
 
 
 # routers use cases

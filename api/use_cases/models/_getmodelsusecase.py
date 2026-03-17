@@ -40,7 +40,7 @@ class GetModelsUseCase:
             if router.providers > 0:
                 router_limit = next((limit for limit in user_info.limits if limit.router == router.id), None)
                 has_access = (router_limit is not None and (router_limit.value is None or router_limit.value > 0)) or (
-                    PermissionType.MASTER in user_info.permissions
+                    PermissionType.ADMIN in user_info.permissions
                 )
                 if has_access:
                     organization_name = await self.router_repository.get_organization_name(router.user_id)

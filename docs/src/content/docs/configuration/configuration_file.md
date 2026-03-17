@@ -106,8 +106,8 @@ settings:
   auth_master_key: changeme # DEPRECATED, use auth_secret_key instead
   auth_secret_key: changeme
 
-  auth_master_username: master
-  auth_master_password: changeme
+  auth_default_username: admin
+  auth_default_password: changeme
 
   # rate_limiting_strategy: fixed_window
 

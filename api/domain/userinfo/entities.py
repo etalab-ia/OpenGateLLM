@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 
 from api.domain.role.entities import Limit, PermissionType
-from api.utils.variables import MASTER_ID
 
 
 class UserInfo(BaseModel):
@@ -19,5 +18,4 @@ class UserInfo(BaseModel):
 
     @property
     def is_admin(self) -> bool:
-        # TODO: remove self.id == 0 when master user is refacto
-        return PermissionType.ADMIN in self.permissions or PermissionType.MASTER in self.permissions or self.id == MASTER_ID
+        return PermissionType.ADMIN in self.permissions
