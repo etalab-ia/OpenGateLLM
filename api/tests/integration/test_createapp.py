@@ -9,8 +9,8 @@ from api.schemas.core.configuration import Configuration, Dependencies, Settings
 from api.utils.variables import EndpointRoute, RouterName
 
 
-@pytest.fixture(scope="class")
-def test_configuration() -> Configuration:
+@pytest.fixture(scope="session")
+def createapp_configuration() -> Configuration:
     return Configuration.model_construct(
         settings=Settings.model_construct(
             app_title="test",
@@ -32,9 +32,9 @@ def test_configuration() -> Configuration:
     )
 
 
-@pytest_asyncio.fixture(scope="class")
-async def client(test_configuration) -> AsyncGenerator[AsyncClient, None]:
-    app = create_app(test_configuration, skip_lifespan=True)
+@pytest_asyncio.fixture(scope="session")
+async def createapp_client(createapp_configuration) -> AsyncGenerator[AsyncClient, None]:
+    app = create_app(createapp_configuration, skip_lifespan=True)
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -45,54 +45,56 @@ async def client(test_configuration) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestCreateApp:
-    async def test_reach_swagger_with_non_default_url_configuration_is_reachable(self, client: AsyncClient, test_configuration: Configuration):
+    async def test_reach_swagger_with_non_default_url_configuration_is_reachable(
+        self, createapp_client: AsyncClient, createapp_configuration: Configuration
+    ):
         # Act
-        response = await client.get(url=test_configuration.settings.swagger_docs_url)
+        response = await createapp_client.get(url=createapp_configuration.settings.swagger_docs_url)
 
         # Assert
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
 
-    async def test_redoc_with_non_default_url_configuration_is_reachable(self, client: AsyncClient, test_configuration: Configuration):
+    async def test_redoc_with_non_default_url_configuration_is_reachable(self, createapp_client: AsyncClient, createapp_configuration: Configuration):
         # Act
-        response = await client.get(url=test_configuration.settings.swagger_redoc_url)
+        response = await createapp_client.get(url=createapp_configuration.settings.swagger_redoc_url)
 
         # Assert
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
 
-    async def test_exposed_openapi_schema_is_reachable(self, client: AsyncClient):
+    async def test_exposed_openapi_schema_is_reachable(self, createapp_client: AsyncClient):
         # Act
-        response = await client.get(url="/openapi.json")
+        response = await createapp_client.get(url="/openapi.json")
 
         # Assert
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
 
-    async def test_enabled_router_is_reachable(self, client: AsyncClient, test_configuration: Configuration):
+    async def test_enabled_router_is_reachable(self, createapp_client: AsyncClient, createapp_configuration: Configuration):
         # Act
-        response = await client.get(url=f"/v1{EndpointRoute.ME_INFO}")
+        response = await createapp_client.get(url=f"/v1{EndpointRoute.ME_INFO}")
 
         # Assert
         assert response.status_code == 401, f"Expected 401, got {response.status_code}: {response.text}"
 
-    async def test_disabled_router_is_unreachable(self, client: AsyncClient, test_configuration: Configuration):
+    async def test_disabled_router_is_unreachable(self, createapp_client: AsyncClient, createapp_configuration: Configuration):
         # Act
-        response = await client.get(url=f"/v1/{test_configuration.settings.disabled_routers[0]}")
+        response = await createapp_client.get(url=f"/v1/{createapp_configuration.settings.disabled_routers[0]}")
 
         # Assert
         assert response.status_code == 404, f"Expected 404, got {response.status_code}: {response.text}"
 
-    async def test_hidden_router_is_reachable(self, client: AsyncClient, test_configuration: Configuration):
+    async def test_hidden_router_is_reachable(self, createapp_client: AsyncClient, createapp_configuration: Configuration):
         # Act
-        response = await client.get(url=f"/v1/{test_configuration.settings.hidden_routers[0]}")
+        response = await createapp_client.get(url=f"/v1/{createapp_configuration.settings.hidden_routers[0]}")
 
         # Assert
         assert response.status_code == 401, f"Expected 401, got {response.status_code}: {response.text}"
 
-    async def test_hidden_router_is_not_in_exposed_openapi_schema(self, client: AsyncClient, test_configuration: Configuration):
+    async def test_hidden_router_is_not_in_exposed_openapi_schema(self, createapp_client: AsyncClient, createapp_configuration: Configuration):
         # Act
-        response = await client.get(url="/openapi.json")
+        response = await createapp_client.get(url="/openapi.json")
 
         # Assert
-        hidden_router_path = f"/v1/{test_configuration.settings.hidden_routers[0]}"
+        hidden_router_path = f"/v1/{createapp_configuration.settings.hidden_routers[0]}"
         assert hidden_router_path not in response.json()["paths"], f"Hidden route {hidden_router_path} is exposed in OpenAPI schema"
 
 

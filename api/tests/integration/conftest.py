@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from contextvars import ContextVar
 
 import asyncpg
 from httpx import ASGITransport, AsyncClient
@@ -18,9 +19,10 @@ from api.utils.dependencies import get_model_registry
 from api.utils.dependencies import get_postgres_session as get_postgres_session_utils
 
 TEST_DATABASE_URL = "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db"
+_current_db_session: ContextVar[AsyncSession | None] = ContextVar("_current_db_session", default=None)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def test_configuration():
     configuration = Configuration.model_construct(
         settings=Settings.model_construct(
@@ -45,7 +47,7 @@ def test_configuration():
 
 
 @pytest_asyncio.fixture(scope="session")
-async def test_engine():
+async def test_postgres_engine():
     conn = await asyncpg.connect("postgresql://postgres:changeme@localhost:5432/postgres")
     try:
         await conn.execute("CREATE DATABASE test_db")
@@ -109,9 +111,9 @@ def pytest_addoption(parser):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def db_session(test_engine, request) -> AsyncGenerator[AsyncSession]:
-    async with test_engine.connect() as connection:
-        transaction = await connection.begin()
+async def db_session(test_postgres_engine, request) -> AsyncGenerator[AsyncSession]:
+    async with test_postgres_engine.connect() as connection:
+        postgres_outer_transaction = await connection.begin()
 
         session = AsyncSession(bind=connection, expire_on_commit=False)
         await session.begin_nested()
@@ -125,17 +127,19 @@ async def db_session(test_engine, request) -> AsyncGenerator[AsyncSession]:
             if trans.nested and not trans._parent.nested:
                 sess.begin_nested()
 
+        token = _current_db_session.set(session)
         try:
             yield session
         finally:
+            _current_db_session.reset(token)
             event.remove(session.sync_session, "after_transaction_end", restart_savepoint)
             for factory in all_sql_factories:
                 factory._meta.sqlalchemy_session = None
             await session.close()
             if request.config.getoption("--commit-db"):
-                await transaction.commit()
+                await postgres_outer_transaction.commit()
             else:
-                await transaction.rollback()
+                await postgres_outer_transaction.rollback()
 
 
 @pytest.fixture(scope="session")
@@ -149,18 +153,19 @@ def model_registry():
     )
 
 
-@pytest_asyncio.fixture(scope="function")
-async def app(db_session, model_registry, test_configuration):
+@pytest_asyncio.fixture(scope="session")
+async def app(model_registry, test_configuration):
     app = create_app(test_configuration, skip_lifespan=True)
 
     async def override_get_postgres_session():
+        session = _current_db_session.get()
         try:
-            yield db_session
-            if db_session.in_transaction():
-                await db_session.flush()
+            yield session
+            if session.in_transaction():
+                await session.flush()
         except Exception:
-            if db_session.in_transaction():
-                await db_session.rollback()
+            if session.in_transaction():
+                await session.rollback()
             raise
 
     app.dependency_overrides[get_postgres_session] = override_get_postgres_session
@@ -173,7 +178,15 @@ async def app(db_session, model_registry, test_configuration):
         app.dependency_overrides.clear()
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def _restore_dependency_overrides(app):
+    snapshot = dict(app.dependency_overrides)
+    yield
+    app.dependency_overrides.clear()
+    app.dependency_overrides.update(snapshot)
+
+
+@pytest_asyncio.fixture(scope="session")
 async def client(app) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
