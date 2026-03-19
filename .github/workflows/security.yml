@@ -14,22 +14,38 @@ on:
   workflow_dispatch:
 
 jobs:
-  semgrep:
-    name: Semgrep SAST
+  semgrep-diff:
+    name: Semgrep SAST (diff)
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     container:
       image: semgrep/semgrep
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run Semgrep
+      - uses: actions/checkout@v4
+      - name: Run Semgrep (diff only)
         run: semgrep ci --config auto --sarif --output semgrep.sarif
         env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }} # Optionnel
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
 
-      - name: Upload results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+  # Scan complet sur push main et releases (thorough)
+  semgrep-full:
+    name: Semgrep SAST (full)
+    if: github.event_name == 'push' || github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Semgrep (full scan)
+        run: semgrep scan --config auto --sarif --output semgrep.sarif
+        #    👆 "scan" au lieu de "ci" = scan complet, pas de diff
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+      - uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: semgrep.sarif
