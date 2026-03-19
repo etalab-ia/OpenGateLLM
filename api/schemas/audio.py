@@ -1,6 +1,5 @@
 import base64
-from enum import Enum
-from typing import Literal
+from enum import StrEnum
 
 from fastapi import File, Form, UploadFile
 from fastapi.exceptions import RequestValidationError
@@ -15,10 +14,13 @@ from api.utils.exceptions import FileSizeLimitExceededException
 from api.utils.variables import SUPPORTED_LANGUAGES
 
 SUPPORTED_LANGUAGES = list(SUPPORTED_LANGUAGES.keys()) + list(SUPPORTED_LANGUAGES.values())
-SUPPORTED_LANGUAGES = {str(lang).upper(): str(lang) for lang in sorted(set(SUPPORTED_LANGUAGES))}
-SUPPORTED_LANGUAGES["EMPTY"] = ""
+AudioTranscriptionLanguage = StrEnum("AudioTranscriptionLanguage", {str(lang).upper(): str(lang) for lang in sorted(set(SUPPORTED_LANGUAGES))})
 
-AudioTranscriptionLanguage = Enum("AudioTranscriptionLanguage", SUPPORTED_LANGUAGES, type=str)
+
+class AudioTranscriptionResponseFormat(StrEnum):
+    JSON = "json"
+    TEXT = "text"
+    VERBOSE_JSON = "verbose_json"
 
 
 class CreateAudioTranscription(BaseModel):
@@ -26,7 +28,7 @@ class CreateAudioTranscription(BaseModel):
     model: str
     language: AudioTranscriptionLanguage
     prompt: str
-    response_format: Literal["json", "text", "verbose_json"]
+    response_format: AudioTranscriptionResponseFormat
     temperature: float
 
     # fmt: off
@@ -35,9 +37,9 @@ class CreateAudioTranscription(BaseModel):
         cls,
         file: UploadFile = File(default=..., description="The audio file object (not file name) to transcribe, in one of these formats: mp3 or wav."),
         model: str = Form(default=..., description="ID of the model to use. Call `/v1/models` endpoint to get the list of available models, only `automatic-speech-recognition` model type is supported."),
-        language: AudioTranscriptionLanguage = Form(default=AudioTranscriptionLanguage.EMPTY, description="The language of the output audio. If the output language is different than the audio language, the audio language will be translated into the output language. Supplying the output language in ISO-639-1 (e.g. en, fr) format will improve accuracy and latency."),
+        language: AudioTranscriptionLanguage = Form(default=AudioTranscriptionLanguage.ENGLISH, description="The language of the output audio. If the output language is different than the audio language, the audio language will be translated into the output language. Supplying the output language in ISO-639-1 (e.g. en, fr) format will improve accuracy and latency."),
         prompt: str = Form(default="", description="An optional text to tell the model what to do with the input audio."),
-        response_format: Literal["json", "text", "verbose_json"] = Form(default="json", description="The format of the transcript output, in one of these formats: `json` or `text`."),
+        response_format: AudioTranscriptionResponseFormat = Form(default=AudioTranscriptionResponseFormat.JSON, description="The format of the transcript output, in one of these formats: `json` or `text`."),
         temperature: float = Form(default=0.0, ge=0.0, le=1.0, description="The sampling temperature, between 0 and 1. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. If set to 0, the model will use log probability to automatically increase the temperature until certain thresholds are hit."),
     ) -> "CreateAudioTranscription":
         try:
@@ -84,8 +86,6 @@ class CreateAudioTranscription(BaseModel):
                 return request_content
 
             case ProviderType.VLLM:
-                request_content.form["language"] = "en" if request_content.form["language"] == "" else request_content.form["language"]
-
                 return request_content
 
             case _:

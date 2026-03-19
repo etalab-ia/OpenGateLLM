@@ -46,7 +46,7 @@ class TestAdminProviders:
         router_id, model_name, url = setup_text_generation_router
 
         payload = CreateProvider(
-            router=router_id,
+            router_id=router_id,
             type=ProviderType.VLLM,
             url=url,
             key=None,  # Mock server doesn't require authentication
@@ -66,7 +66,7 @@ class TestAdminProviders:
         router_id, model_name, url = setup_text_embeddings_inference_router
 
         payload = CreateProvider(
-            router=router_id,
+            router_id=router_id,
             type=ProviderType.TEI,
             url=url,
             key=None,  # Mock server doesn't require authentication

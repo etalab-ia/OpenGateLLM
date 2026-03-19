@@ -25,7 +25,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RouterAlreadyExistsHTTPException,
     RouterNotFoundHTTPException,
 )
-from api.infrastructure.fastapi.schemas.routers import CreateRouterBody, RouterResponse, Routers, UpdateRouterBody
+from api.infrastructure.fastapi.schemas.routers import CreateRouterBody, RouterResponse, RoutersResponse, UpdateRouterBody
 from api.use_cases.admin.routers import (
     CreateRouterCommand,
     CreateRouterUseCase,
@@ -52,13 +52,11 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_ROUTERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses(
-        [
-            RouterAliasAlreadyExistsHTTPException,
-            RouterAlreadyExistsHTTPException,
-            NotAdminUserHTTPException,
-        ]
-    ),
+    responses=get_documentation_responses([
+        RouterAliasAlreadyExistsHTTPException,
+        RouterAlreadyExistsHTTPException,
+        NotAdminUserHTTPException,
+    ]),
 )
 async def create_router(
     body: CreateRouterBody = Body(description="The router creation request."),
@@ -147,7 +145,7 @@ async def get_routers(
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_routers_use_case: GetRoutersUseCase = Depends(get_routers_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
-) -> Routers:
+) -> RoutersResponse:
     command = GetRoutersCommand(
         user_id=request_context.get().user_id,
         offset=offset,
@@ -168,7 +166,7 @@ async def get_routers(
         raise InternalServerHTTPException()
     match result:
         case GetRoutersUseCaseSuccess(router_page=router_page):
-            return Routers(
+            return RoutersResponse(
                 total=router_page.total,
                 offset=offset,
                 limit=limit,
@@ -218,14 +216,12 @@ async def delete_router(
 @router.patch(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
     dependencies=[Security(dependency=get_current_key)],
-    responses=get_documentation_responses(
-        [
-            RouterNotFoundHTTPException,
-            NotAdminUserHTTPException,
-            RouterAliasAlreadyExistsHTTPException,
-            RouterAlreadyExistsHTTPException,
-        ]
-    ),
+    responses=get_documentation_responses([
+        RouterNotFoundHTTPException,
+        NotAdminUserHTTPException,
+        RouterAliasAlreadyExistsHTTPException,
+        RouterAlreadyExistsHTTPException,
+    ]),
     status_code=200,
 )
 async def update_router(

@@ -125,7 +125,7 @@ async def create_elasticsearch_vector_store(
 
     vector_size = routers[0].vector_size
     if vector_size is None:
-        raise RuntimeError("Vector size is None (no provider for this model).")
+        raise RuntimeError(f"Vector size is None (no provider for this model {routers[0].name}).")
 
     es_config = configuration.dependencies.elasticsearch
     vector_store = ElasticsearchVectorStore(index_name=es_config.index_name)

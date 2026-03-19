@@ -374,7 +374,7 @@ def run_local_services(console: Console, env: EnvFile, local_api: bool, local_pl
 
         def _startup_renderable() -> Group:
             status_block = _status_renderable()
-            log_lines = recent_lines[-6:]
+            log_lines = recent_lines[-20:]
             logs_block: RenderableType
             if log_lines:
                 logs_block = Group(*[Text(f"  {line}", style="dim") for line in log_lines])

@@ -71,6 +71,7 @@ py-modules = []
 
 [tool.ruff]
 line-length = 150
+target-version = "py312"
 exclude = [
     "**/alembic",
 ]

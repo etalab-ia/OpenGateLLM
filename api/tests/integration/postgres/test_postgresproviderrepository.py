@@ -72,6 +72,8 @@ class TestCreateProvider:
             qos_limit=12,
             vector_size=10,
             max_context_length=20,
+            created=result.created,
+            updated=result.updated,
         )
         assert result.model_dump(exclude=_EXCLUDE) == expected.model_dump(exclude=_EXCLUDE)
 
@@ -265,7 +267,8 @@ class TestUpdateProvider:
 
         # Act
         result = await repository.update_provider(
-            domain_provider.with_router_id(router_2.id)
+            domain_provider
+            .with_router_id(router_2.id)
             .with_timeout(120)
             .with_model_hosting_zone(ProviderCarbonFootprintZone.USA)
             .with_model_total_params(2_000_000)

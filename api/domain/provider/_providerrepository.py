@@ -28,17 +28,11 @@ class ProviderRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete_provider(
-        self,
-        provider_id: int,
-    ) -> Provider | None:
+    async def delete_provider(self, provider_id: int) -> Provider | None:
         pass
 
     @abstractmethod
-    async def get_one_provider(
-        self,
-        provider_id: int,
-    ) -> Provider | None:
+    async def get_one_provider(self, provider_id: int) -> Provider | None:
         pass
 
     @abstractmethod

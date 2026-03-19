@@ -24,7 +24,7 @@ DEFAULT_PROVIDER_URL = "http://my-test-provider/"
 def _valid_body(router_id: int, **overrides) -> dict:
     """Return a minimal valid provider creation body, with optional overrides."""
     body = {
-        "router": router_id,
+        "router_id": router_id,
         "type": "albert",
         "model_name": "my-model",
         "url": DEFAULT_PROVIDER_URL,
@@ -40,7 +40,15 @@ def _mock_provider_reachable(respx_mock, base_url=DEFAULT_PROVIDER_URL, max_cont
         return_value=httpx.Response(
             200,
             json={
-                "data": [{"id": "my-model", "aliases": [], "max_context_length": max_context_length}],
+                "data": [
+                    {
+                        "id": "my-model",
+                        "aliases": [],
+                        "created": 0,
+                        "owned_by": "test-provider",
+                        "max_context_length": max_context_length,
+                    }
+                ],
             },
         )
     )
