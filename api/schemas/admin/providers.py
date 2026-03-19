@@ -23,7 +23,7 @@ class ProviderType(str, Enum):
 
 
 class CreateProvider(BaseModel):
-    router: int = Field(..., description="ID of the model to create the provider for (router ID, eg. 123).")  # fmt: off
+    router_id: int = Field(..., description="ID of the router to create the provider for (router ID, eg. 123).")  # fmt: off
     type: ProviderType = Field(..., description="Model provider type.")  # fmt: off
     url: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI).")  # fmt: off
     key: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Model provider API key.")  # fmt: off

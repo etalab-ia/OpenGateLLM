@@ -11,7 +11,7 @@ from api.schemas import BaseModel
 from api.schemas.chunks import ChunkMetadata
 from api.utils.exceptions import FileSizeLimitExceededException
 
-PresetSeparators = StrEnum("PresetSeparators", {**{m.name: m.value for m in Language}})
+PresetSeparators = StrEnum("PresetSeparators", {m.name: m.value for m in Language})
 
 
 class Document(BaseModel):

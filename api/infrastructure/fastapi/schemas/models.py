@@ -1,9 +1,8 @@
-from enum import Enum
-from typing import Literal
+from enum import StrEnum
+from typing import Annotated, Literal
 
 from pydantic import Field
 
-from api.domain.model import Model as ModelEntity
 from api.schemas import BaseModel
 
 
@@ -12,7 +11,7 @@ class ModelCosts(BaseModel):
     completion_tokens: float = Field(default=0.0, ge=0.0, description="Cost of a million completion tokens (decrease user budget)")
 
 
-class ModelType(str, Enum):
+class ModelType(StrEnum):
     AUTOMATIC_SPEECH_RECOGNITION = "automatic-speech-recognition"
     IMAGE_TEXT_TO_TEXT = "image-text-to-text"
     IMAGE_TO_TEXT = "image-to-text"
@@ -21,10 +20,17 @@ class ModelType(str, Enum):
     TEXT_CLASSIFICATION = "text-classification"
 
 
-class Model(ModelEntity):
-    object: Literal["model"] = "model"
+class ModelResponse(BaseModel):
+    object: Annotated[Literal["model"], Field("model", description="Type of the object.")]
+    id: Annotated[str, Field(..., description="The model identifier, which can be referenced in the API endpoints.")]
+    type: Annotated[ModelType | None, Field(default=None, description="The type of the model, which can be used to identify the model type.", examples=["text-generation"])]  # fmt: off
+    aliases: Annotated[list[str], Field(default_factory=list, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]])]  # fmt: off
+    created: Annotated[int, Field(..., description="Time of creation, as Unix timestamp.")]
+    owned_by: Annotated[str, Field(..., description="The organization that owns the model.")]
+    max_context_length: Annotated[int | None, Field(default=None, description="Maximum amount of tokens a context could contains. Makes sure it is the same for all models.")]  # fmt: off
+    costs: Annotated[ModelCosts, Field(default_factory=ModelCosts, description="Costs of the model.")]
 
 
-class Models(BaseModel):
-    object: Literal["list"] = "list"
-    data: list[Model]
+class ModelsResponse(BaseModel):
+    object: Annotated[Literal["list"], Field("list", description="Type of the object.")]
+    data: Annotated[list[ModelResponse], Field(..., description="List of models.")]
