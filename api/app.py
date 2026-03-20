@@ -74,11 +74,6 @@ def _register_routers(app: FastAPI, configuration: Configuration) -> None:
         include_in_schema = enabled_router not in hidden_routers
         app.include_router(router=router, include_in_schema=include_in_schema)
 
-    # @TODO: legacy import, remove after total clean archi migration
-    if RouterName.ADMIN not in disabled_routers:
-        module = import_module("api.endpoints.admin")
-        app.include_router(router=module.router, include_in_schema=RouterName.ADMIN not in hidden_routers)
-
 
 def _setup_monitoring(app: FastAPI, configuration: Configuration) -> None:
     if RouterName.MONITORING in configuration.settings.disabled_routers:

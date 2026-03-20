@@ -13,6 +13,11 @@ class ProviderNotReachableError:
 
 
 @dataclass
+class ModelProviderNotFoundError:
+    model_name: str
+
+
+@dataclass
 class ProviderAlreadyExistsError:
     model_name: str
     url: str
