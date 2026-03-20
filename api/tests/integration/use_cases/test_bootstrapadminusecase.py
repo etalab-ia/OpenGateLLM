@@ -99,3 +99,42 @@ class TestBootstrapAdminUseCase:
 
         assert isinstance(result, UserAlreadyExistsError)
         assert result.email == "admin@opengatellm.org"
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestBootstrapAdminUseCaseUsernameCustomization:
+    """Verify that auth_default_username from configuration is respected."""
+
+    @pytest_asyncio.fixture(autouse=True)
+    async def setup(self, db_session):
+        self.use_case = BootstrapAdminUseCase(
+            user_repository=PostgresUserRepository(postgres_session=db_session),
+            role_repository=PostgresRolesRepository(postgres_session=db_session),
+        )
+
+    async def test_custom_username_is_used_as_email(self, db_session):
+        """Simulates auth_default_username="superadmin" from config."""
+        command = BootstrapAdminCommand(
+            name="superadmin",
+            email="superadmin",
+            password="s3cr3t",
+            permissions=[PermissionType.ADMIN],
+            limits=[],
+        )
+        result = await self.use_case.execute(command)
+
+        assert isinstance(result, BootstrapAdminUseCaseSuccess)
+        assert result.email == "superadmin"
+
+    async def test_custom_password_is_accepted(self, db_session):
+        """Simulates auth_default_password="my-strong-pass" from config."""
+        command = BootstrapAdminCommand(
+            name="customadmin",
+            email="customadmin",
+            password="my-strong-pass",
+            permissions=[PermissionType.ADMIN],
+            limits=[],
+        )
+        result = await self.use_case.execute(command)
+
+        assert isinstance(result, BootstrapAdminUseCaseSuccess)
