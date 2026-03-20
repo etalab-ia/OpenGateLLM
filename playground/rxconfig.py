@@ -18,4 +18,5 @@ config = rx.Config(
     deploy_url=os.environ.get("REFLEX_FRONTEND_URL", "http://localhost:8501"),
     frontend_path=os.environ.get("REFLEX_FRONTEND_PATH", ""),
     redis_url=redis_url,
+    redis_lock_expiration=60000,
 )

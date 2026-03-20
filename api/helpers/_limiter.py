@@ -4,6 +4,7 @@ from limits import RateLimitItemPerDay, RateLimitItemPerMinute
 from limits.aio import storage, strategies
 from redis.asyncio import ConnectionPool, Redis, RedisError
 
+from api.domain.role.entities import PermissionType
 from api.schemas.admin.roles import LimitType
 from api.schemas.core.configuration import LimitingStrategy
 from api.schemas.me.info import UserInfo
@@ -94,7 +95,7 @@ class Limiter:
             logger.debug(msg="Error during rate limit remaining.", exc_info=True)
 
     async def check_user_limits(self, user_info: UserInfo, router_id: int, prompt_tokens: int | None = None) -> None:
-        if user_info.id == 0:
+        if PermissionType.ADMIN in user_info.permissions:
             return
 
         has_access = False
