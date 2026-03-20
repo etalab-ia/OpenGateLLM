@@ -103,4 +103,5 @@ async def get_roles(
         order_direction=order_direction,
     )
 
-    return JSONResponse(content=Roles(data=data).model_dump(), status_code=200)
+    # TODO: Remove the model_dump instruction when completely migrating the Role resource. This is a quick fix.
+    return JSONResponse(content=Roles(data=[r.model_dump() for r in data]).model_dump(), status_code=200)
