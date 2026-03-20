@@ -37,46 +37,70 @@ class UsageState(EntityState):
             kgco2eq=usage["usage"]["impacts"]["kgCO2eq"],
         )
 
-    @rx.event
+    @rx.event(background=True)
     async def load_entities(self):
-        if not self.is_authenticated or not self.api_key:
-            return
+        async with self:
+            if not self.is_authenticated or not self.api_key:
+                return
+            self.entities_loading = True
+            url = self.opengatellm_url
+            api_key = self.api_key
+            page = self.page
+            per_page = self.per_page
+            filter_date_from = self.get_filter_date_from_value
+            filter_date_to = self.get_filter_date_to_value
+            filter_endpoint = self.filter_endpoint_value
+            yield
 
-        self.entities_loading = True
-        yield
-
-        start_time = int(dt.datetime.strptime(self.get_filter_date_from_value, "%Y-%m-%d").timestamp())
-        end_time = int(dt.datetime.strptime(self.get_filter_date_to_value, "%Y-%m-%d").timestamp())
+        start_time = int(dt.datetime.strptime(filter_date_from, "%Y-%m-%d").timestamp())
+        end_time = int(dt.datetime.strptime(filter_date_to, "%Y-%m-%d").timestamp())
 
         params = {
-            "offset": (self.page - 1) * self.per_page,
-            "limit": self.per_page,
+            "offset": (page - 1) * per_page,
+            "limit": per_page,
             "start_time": start_time,
             "end_time": end_time,
         }
-        if self.filter_endpoint_value != "All endpoints":
-            params["endpoint"] = self.filter_endpoint_value
+        if filter_endpoint != "All endpoints":
+            params["endpoint"] = filter_endpoint
 
         response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    url=f"{self.opengatellm_url}/v1/me/usage",
+                    url=f"{url}/v1/me/usage",
                     params=params,
-                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    headers={"Authorization": f"Bearer {api_key}"},
                     timeout=configuration.settings.playground_opengatellm_timeout,
                 )
                 response.raise_for_status()
                 data = response.json()
-                self.entities = [self._format_usage(usage) for usage in data.get("data", [])]
-
-            self.has_more_page = len(self.entities) == self.per_page
-
+                entities = [
+                    Usage(
+                        created=dt.datetime.fromtimestamp(u["created"]).strftime("%Y-%m-%d %H:%M"),
+                        endpoint=u["endpoint"],
+                        model=u["model"],
+                        key=u["key"],
+                        prompt_tokens=u["usage"]["prompt_tokens"],
+                        completion_tokens=u["usage"]["completion_tokens"],
+                        total_tokens=u["usage"]["total_tokens"],
+                        cost=u["usage"]["cost"],
+                        kgco2eq=u["usage"]["carbon"]["kgCO2eq"],
+                    )
+                    for u in data.get("data", [])
+                ]
+            has_more = len(entities) == per_page
+            async with self:
+                self.entities = entities
+                self.has_more_page = has_more
+                yield
         except Exception as e:
-            yield httpx_error_toast(exception=e, response=response)
+            async with self:
+                yield httpx_error_toast(exception=e, response=response)
         finally:
-            self.entities_loading = False
-            yield
+            async with self:
+                self.entities_loading = False
+                yield
 
     @rx.var
     def usage_rows(self) -> list[dict[str, Any]]:
@@ -103,21 +127,19 @@ class UsageState(EntityState):
     order_direction_options: list[str] = ["asc", "desc"]
     order_direction_value: str = "asc"
 
-    @rx.event
+    @rx.event(background=True)
     async def prev_page(self):
-        if self.page > 1:
-            self.page -= 1
-            yield
-            async for _ in self.load_entities():
-                yield
+        async with self:
+            if self.page > 1:
+                self.page -= 1
+                yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def next_page(self):
-        if self.has_more_page:
-            self.page += 1
-            yield
-            async for _ in self.load_entities():
-                yield
+        async with self:
+            if self.has_more_page:
+                self.page += 1
+                yield type(self).load_entities()
 
     filter_date_from_value: str | None = None
     filter_date_to_value: str | None = None
@@ -155,6 +177,4 @@ class UsageState(EntityState):
     async def apply_filters(self):
         self.page = 1
         self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        yield type(self).load_entities()
