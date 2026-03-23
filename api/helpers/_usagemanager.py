@@ -6,12 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from api.schemas.me.usage import (
-    CarbonFootprintUsage,
     EndpointUsage,
     MetricsUsage,
     Usage,
     UsageDetail,
 )
+from api.schemas.usage import EnvironmentalImpacts
 from api.sql.models import Usage as UsageTable
 
 
@@ -79,7 +79,7 @@ class UsageManager:
                         completion_tokens=row.completion_tokens,
                         total_tokens=row.total_tokens,
                         cost=row.cost,
-                        carbon=CarbonFootprintUsage(kWh=row.kwh, kgCO2eq=row.kgco2eq),
+                        impacts=EnvironmentalImpacts(kWh=row.kwh, kgCO2eq=row.kgco2eq),
                         metrics=MetricsUsage(latency=row.latency, ttft=row.ttft),
                     ),
                 )

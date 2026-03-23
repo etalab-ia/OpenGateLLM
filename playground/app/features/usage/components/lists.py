@@ -64,12 +64,12 @@ def usage_table() -> rx.Component:
                 rx.table.column_header_cell(
                     rx.tooltip(
                         rx.hstack(
-                            rx.text("Carbon"),
+                            rx.text("Impacts"),
                             rx.icon("info", size=ICON_SIZE_TINY),
                             spacing=SPACING_TINY,
                             align="center",
                         ),
-                        content="Carbon footprint in kgCO2eq (Global warming potential)",
+                        content="Footprint impacts in kgCO2eq (Global warming potential)",
                     ),
                     width="150px",
                 ),
