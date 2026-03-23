@@ -85,7 +85,7 @@ class UsageState(EntityState):
                         completion_tokens=u["usage"]["completion_tokens"],
                         total_tokens=u["usage"]["total_tokens"],
                         cost=u["usage"]["cost"],
-                        kgco2eq=u["usage"]["carbon"]["kgCO2eq"],
+                        kgco2eq=u["usage"]["impacts"]["kgCO2eq"],
                     )
                     for u in data.get("data", [])
                 ]
@@ -106,15 +106,17 @@ class UsageState(EntityState):
     def usage_rows(self) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
         for row in self.entities:
-            rows.append({
-                "date": row.created,
-                "endpoint": row.endpoint,
-                "key": row.key,
-                "model": row.model,
-                "tokens": "" if row.total_tokens == 0 else f"{row.prompt_tokens} → {row.completion_tokens}",
-                "cost": "" if row.cost == 0.0 or row.cost is None else f"{row.cost:.4f}",
-                "kgCO2eq": "" if row.kgco2eq is None else f"{round(row.kgco2eq, 5)}",
-            })
+            rows.append(
+                {
+                    "date": row.created,
+                    "endpoint": row.endpoint,
+                    "key": row.key,
+                    "model": row.model,
+                    "tokens": "" if row.total_tokens == 0 else f"{row.prompt_tokens} → {row.completion_tokens}",
+                    "cost": "" if row.cost == 0.0 or row.cost is None else f"{row.cost:.4f}",
+                    "kgCO2eq": "" if row.kgco2eq is None else f"{round(row.kgco2eq, 5)}",
+                }
+            )
         return rows
 
     ############################################################
