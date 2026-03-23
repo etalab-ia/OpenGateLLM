@@ -4,7 +4,7 @@ import logging
 from celery.result import AsyncResult
 from redis.asyncio import Redis as AsyncRedis
 
-from api.infrastructure.fastapi.schemas.providers import Provider
+from api.domain.provider.entities import Provider
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.core.models import Metric
 from api.tasks import app, create_model_queue
