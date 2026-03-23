@@ -104,12 +104,14 @@ def user_create_form_fields() -> rx.Component:
         entity_form_select_field(
             label="Role*",
             items=UsersState.roles_name_list,
+            value=UsersState.entity_to_create.role,
             on_change=lambda value: UsersState.set_new_entity_attribut("role", value),
             placeholder="Select role",
         ),
         entity_form_select_field(
             label="Organization",
             items=UsersState.organizations_name_list,
+            value=UsersState.entity_to_create.organization,
             on_change=lambda value: UsersState.set_new_entity_attribut("organization", value),
             placeholder="No organization",
         ),

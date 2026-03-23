@@ -42,7 +42,7 @@ class RoutersState(EntityState):
 
         _load_balancing_strategy_converter = {
             "shuffle": "Shuffle",
-            "least_busy": "Least Busy",
+            "least_busy": "Least busy",
         }
         return Router(
             id=router["id"],
