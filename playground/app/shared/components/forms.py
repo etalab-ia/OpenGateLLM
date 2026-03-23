@@ -8,11 +8,12 @@ from app.core.variables import HEADING_SIZE_FORM, ICON_SIZE_TINY, SIZE_MEDIUM, S
 
 def entity_form_select_field(
     label: str,
-    items: rx.var,
+    items: rx.var = None,
     value: Any = None,
     on_change: Callable | None = None,
     disabled: bool = False,
     tooltip: str | None = None,
+    value_labels: dict[str, str] | None = None,
     **kwargs,
 ) -> rx.Component:
     normalized_value: Any = ""
@@ -22,6 +23,30 @@ def entity_form_select_field(
         normalized_value = rx.cond(value != None, value.to(str), "")  # noqa: E711
     else:
         normalized_value = value
+
+    placeholder = kwargs.pop("placeholder", None)
+
+    if value_labels is not None:
+        trigger = rx.select.trigger(placeholder=placeholder, width="100%") if placeholder else rx.select.trigger(width="100%")
+        select_component = rx.select.root(
+            trigger,
+            rx.select.content(
+                *[rx.select.item(display, value=val) for val, display in value_labels.items()],
+            ),
+            value=normalized_value,
+            on_change=on_change,
+            disabled=disabled,
+        )
+    else:
+        select_component = rx.select(
+            items=items,
+            value=normalized_value,
+            on_change=on_change,
+            disabled=disabled,
+            placeholder=placeholder,
+            **kwargs,
+            width="100%",
+        )
 
     return rx.vstack(
         rx.cond(
@@ -37,14 +62,7 @@ def entity_form_select_field(
             ),
             rx.text(label, size=TEXT_SIZE_LABEL, weight="bold"),
         ),
-        rx.select(
-            items=items,
-            value=normalized_value,
-            on_change=on_change,
-            disabled=disabled,
-            **kwargs,
-            width="100%",
-        ),
+        select_component,
         spacing=SPACING_TINY,
         width="100%",
     )
