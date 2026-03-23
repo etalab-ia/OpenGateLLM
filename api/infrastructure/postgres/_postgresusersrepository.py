@@ -157,6 +157,7 @@ class PostgresUserRepository(UserRepository):
         users = [User(**row._mapping) for row in result.all()]
 
         if (user_id is not None or email is not None) and len(users) == 0:
+            # TODO: change this to return the error and raise it in the use case instead of raising it here
             raise UserNotFoundException()
 
         return users
