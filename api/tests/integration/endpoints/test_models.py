@@ -122,9 +122,10 @@ class TestModels:
         user_1 = UserSQLFactory()
         token = await create_token(db_session, name="my_token", user=user_1)
 
-        # Act & Assert
+        # Act
         await db_session.flush()
         response = await client.get(url=f"/v1{EndpointRoute.MODELS}/{non_existent_model}", headers={"Authorization": f"Bearer {token.token}"})
+
         # Assert
         actual_data = response.json()
         assert response.status_code == 404

@@ -34,41 +34,53 @@ class TestBootstrapAdminUseCase:
         )
 
     async def test_happy_path_returns_success_instance(self, db_session):
+        # Act
         result = await self.use_case.execute(self.command)
 
+        # Assert
         assert isinstance(result, BootstrapAdminUseCaseSuccess)
 
     async def test_happy_path_result_contains_correct_email_and_ids(self, db_session):
+        # Act
         result = await self.use_case.execute(self.command)
 
+        # Assert
         assert result.email == "admin@opengatellm.org"
         assert isinstance(result.user_id, int)
         assert isinstance(result.role_id, int)
 
     async def test_happy_path_admin_has_admin_permission_in_db(self, db_session):
+        # Act
         await self.use_case.execute(self.command)
         await db_session.flush()
 
+        # Assert
         assert await self.use_case.user_repository.has_admin_user() is True
 
     async def test_skips_when_admin_user_already_exists(self, db_session):
+        # Arrange
         UserSQLFactory(admin_user=True)
         await db_session.flush()
 
+        # Act
         result = await self.use_case.execute(self.command)
 
+        # Assert
         assert isinstance(result, BootstrapAdminUseCaseSkipped)
 
     async def test_skip_does_not_create_additional_roles_or_users(self, db_session):
+        # Arrange
         UserSQLFactory(admin_user=True)
         await db_session.flush()
 
         role_count_before = (await db_session.execute(select(func.count()).select_from(RoleTable))).scalar()
         user_count_before = (await db_session.execute(select(func.count()).select_from(UserTable))).scalar()
 
+        # Act
         await self.use_case.execute(self.command)
         await db_session.flush()
 
+        # Assert
         role_count_after = (await db_session.execute(select(func.count()).select_from(RoleTable))).scalar()
         user_count_after = (await db_session.execute(select(func.count()).select_from(UserTable))).scalar()
 
@@ -76,15 +88,19 @@ class TestBootstrapAdminUseCase:
         assert user_count_after == user_count_before
 
     async def test_returns_role_already_exists_error_when_role_name_conflicts(self, db_session):
+        # Arrange
         RoleSQLFactory(name="admin")
         await db_session.flush()
 
+        # Act
         result = await self.use_case.execute(self.command)
 
+        # Assert
         assert isinstance(result, RoleAlreadyExistsError)
         assert result.name == "admin"
 
     async def test_returns_user_already_exists_error_when_email_conflicts(self, db_session):
+        # Arrange
         UserSQLFactory(email="admin@opengatellm.org", regular_user=True)
         await db_session.flush()
 
@@ -95,8 +111,11 @@ class TestBootstrapAdminUseCase:
             permissions=[PermissionType.ADMIN],
             limits=[],
         )
+
+        # Act
         result = await self.use_case.execute(command)
 
+        # Assert
         assert isinstance(result, UserAlreadyExistsError)
         assert result.email == "admin@opengatellm.org"
 
@@ -114,6 +133,7 @@ class TestBootstrapAdminUseCaseUsernameCustomization:
 
     async def test_custom_username_is_used_as_email(self, db_session):
         """Simulates auth_default_username="superadmin" from config."""
+        # Arrange
         command = BootstrapAdminCommand(
             name="superadmin",
             email="superadmin",
@@ -121,13 +141,17 @@ class TestBootstrapAdminUseCaseUsernameCustomization:
             permissions=[PermissionType.ADMIN],
             limits=[],
         )
+
+        # Act
         result = await self.use_case.execute(command)
 
+        # Assert
         assert isinstance(result, BootstrapAdminUseCaseSuccess)
         assert result.email == "superadmin"
 
     async def test_custom_password_is_accepted(self, db_session):
         """Simulates auth_default_password="my-strong-pass" from config."""
+        # Arrange
         command = BootstrapAdminCommand(
             name="customadmin",
             email="customadmin",
@@ -135,6 +159,9 @@ class TestBootstrapAdminUseCaseUsernameCustomization:
             permissions=[PermissionType.ADMIN],
             limits=[],
         )
+
+        # Act
         result = await self.use_case.execute(command)
 
+        # Assert
         assert isinstance(result, BootstrapAdminUseCaseSuccess)
