@@ -8,7 +8,8 @@ from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.clients.model import BaseModelProvider as ModelProvider
-from api.infrastructure.fastapi.schemas.providers import Provider, ProviderCarbonFootprintZone, ProviderType
+from api.domain.provider.entities import Provider
+from api.infrastructure.fastapi.schemas.providers import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import Router, RouterLoadBalancingStrategy
 from api.schemas.core.configuration import Model as ModelConfiguration
 from api.schemas.core.context import RequestContext
