@@ -74,7 +74,7 @@ There are three way to configure environmental impact tracking, by Playground, A
 
 ## Environmental impact metrics
 
-For each call to a generative AI model, the API returns environmental impact metrics in the response, in the `usage.carbon` field. The metrics include minimum and maximum estimates to account for variability in model efficiency:
+For each call to a generative AI model, the API returns environmental impact metrics in the response, in the `usage.impacts` field. The metrics include minimum and maximum estimates to account for variability in model efficiency:
 
 - **kWh**: Energy consumption in kilowatt-hours (kWh), representing the final electricity consumption.
 - **kgCO2eq**: Global Warming Potential (GWP) in kilograms of CO2 equivalent (kgCO2eq), representing greenhouse gas emissions related to climate change.
@@ -95,7 +95,7 @@ For each call to a generative AI model, the API returns environmental impact met
     "completion_tokens": 20,
     "total_tokens": 30,
     "cost": 0.000015,
-+    "carbon": {"kWh": 0.0001456, "kgCO2eq": 0.0000672 }
++    "impacts": {"kWh": 0.0001456, "kgCO2eq": 0.0000672 }
   }
 }
 ```

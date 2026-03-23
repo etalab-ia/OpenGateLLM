@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from api.schemas.admin.providers import ProviderCarbonFootprintZone
-from api.schemas.usage import CarbonFootprintUsage
+from api.schemas.usage import EnvironmentalImpacts
 from api.utils.carbon import get_carbon_footprint
 
 
@@ -23,7 +23,7 @@ class TestGetCarbonFootprint:
         model_zone = ProviderCarbonFootprintZone.WOR
         token_count = 1
         request_latency = 0.01
-        expected_carbon_footprint = CarbonFootprintUsage(kWh=0.0, kgCO2eq=0.0)
+        expected_carbon_footprint = EnvironmentalImpacts(kWh=0.0, kgCO2eq=0.0)
         # When
         result = get_carbon_footprint(active_params, total_params, model_zone, token_count, request_latency)
         # Then
@@ -36,7 +36,7 @@ class TestGetCarbonFootprint:
         model_zone = ProviderCarbonFootprintZone.WOR
         token_count = 0
         request_latency = 0.01
-        expected_carbon_footprint = CarbonFootprintUsage(kWh=0.0, kgCO2eq=0.0)
+        expected_carbon_footprint = EnvironmentalImpacts(kWh=0.0, kgCO2eq=0.0)
         # When
         result = get_carbon_footprint(active_params, total_params, model_zone, token_count, request_latency)
         # Then
@@ -47,18 +47,16 @@ class TestGetCarbonFootprint:
         mocked_electricity_mix = mocker.patch("api.utils.carbon.electricity_mixes.find_electricity_mix")
         mocked_electricity_mix.return_value = SimpleNamespace(adpe=1, pe=2, gwp=3, wue=4)
         mocked_compute_llm_impacts = mocker.patch("api.utils.carbon.compute_llm_impacts")
-        mocked_compute_llm_impacts.return_value = dict_to_namespace(
-            {
-                "energy": {"value": 1},
-                "gwp": {"value": 3},
-            }
-        )
+        mocked_compute_llm_impacts.return_value = dict_to_namespace({
+            "energy": {"value": 1},
+            "gwp": {"value": 3},
+        })
         active_params = 1
         total_params = 1
         model_zone = ProviderCarbonFootprintZone.WOR
         token_count = 1
         request_latency = 10  # 10 milliseconds, will be converted to 0.01 seconds
-        expected_carbon_footprint = CarbonFootprintUsage(kWh=1.0, kgCO2eq=3.0)
+        expected_carbon_footprint = EnvironmentalImpacts(kWh=1.0, kgCO2eq=3.0)
         expected_compute_llm_impacts_args = {
             "if_electricity_mix_adpe": 1,
             "if_electricity_mix_pe": 2,

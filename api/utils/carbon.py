@@ -1,7 +1,7 @@
 from ecologits.tracers.utils import compute_llm_impacts, electricity_mixes
 
 from api.schemas.admin.providers import ProviderCarbonFootprintZone
-from api.schemas.usage import CarbonFootprintUsage
+from api.schemas.usage import EnvironmentalImpacts
 
 
 def get_carbon_footprint(
@@ -10,7 +10,7 @@ def get_carbon_footprint(
     model_zone: ProviderCarbonFootprintZone,
     token_count: int,
     request_latency: int | None = None,
-) -> CarbonFootprintUsage:
+) -> EnvironmentalImpacts:
     """Calculate carbon impact of a model inference using direct parameters.
 
     Args:
@@ -28,7 +28,7 @@ def get_carbon_footprint(
         raise ValueError(f"Electricity zone {model_zone.value} not found")
 
     if not active_params or not total_params:
-        return CarbonFootprintUsage(kWh=0, kgCO2eq=0)
+        return EnvironmentalImpacts(kWh=0, kgCO2eq=0)
 
     impacts = compute_llm_impacts(
         model_active_parameter_count=active_params,
@@ -45,6 +45,6 @@ def get_carbon_footprint(
         datacenter_wue=1.8,
         request_latency=request_latency / 1000,  # convert to seconds
     )
-    carbon_footprint = CarbonFootprintUsage(kWh=impacts.energy.value, kgCO2eq=impacts.gwp.value)
+    impacts = EnvironmentalImpacts(kWh=impacts.energy.value, kgCO2eq=impacts.gwp.value)
 
-    return carbon_footprint
+    return impacts

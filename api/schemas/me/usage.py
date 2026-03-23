@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 from pydantic import Field
 
 from api.schemas import BaseModel
+from api.schemas.usage import EnvironmentalImpacts
 
 
 class EndpointUsage(Enum):
@@ -20,17 +21,12 @@ class MetricsUsage(BaseModel):
     ttft: int | None = None
 
 
-class CarbonFootprintUsage(BaseModel):
-    kWh: Annotated[float | None, Field(default=None, description="Carbon footprint in kWh.")]
-    kgCO2eq: Annotated[float | None, Field(default=None, description="Carbon footprint in kgCO2eq (global warming potential).")]
-
-
 class UsageDetail(BaseModel):
     prompt_tokens: Annotated[int | None, Field(default=None, description="Number of prompt tokens (e.g. input tokens).")]
     completion_tokens: Annotated[int | None, Field(default=None, description="Number of completion tokens (e.g. output tokens).")]
     total_tokens: Annotated[int | None, Field(default=None, description="Total number of tokens (e.g. input and output tokens).")]
     cost: Annotated[float | None, Field(default=None, description="Total cost of the request.")]
-    carbon: Annotated[CarbonFootprintUsage, Field(default_factory=CarbonFootprintUsage)]
+    impacts: Annotated[EnvironmentalImpacts, Field(default_factory=EnvironmentalImpacts)]
     metrics: Annotated[MetricsUsage, Field(default_factory=MetricsUsage)]
 
 
