@@ -91,6 +91,7 @@ def router_create_form_fields() -> rx.Component:
         entity_form_select_field(
             label="Type",
             items=RoutersState.router_types_list,
+            value=RoutersState.entity_to_create.type,
             on_change=lambda value: RoutersState.set_new_entity_attribut("type", value),
             tooltip="Router type (e.g., text-generation)",
             placeholder="Select type",
@@ -106,6 +107,7 @@ def router_create_form_fields() -> rx.Component:
         entity_form_select_field(
             label="Load balancing strategy",
             items=RoutersState.router_load_balancing_strategies_list,
+            value=RoutersState.entity_to_create.load_balancing_strategy,
             on_change=lambda value: RoutersState.set_new_entity_attribut("load_balancing_strategy", value),
             tooltip="Strategy to use for load balancing between providers of the router",
             placeholder="Select strategy",
