@@ -85,6 +85,7 @@ class PostgresRolesRepository(RoleRepository):
         role_results = [row._asdict() for row in result.all()]
 
         if role_id is not None and len(role_results) == 0:
+            # TODO: change this to return the error and raise it in the use case instead of raising it here
             raise RoleNotFoundException()
 
         # Build roles dictionary
@@ -129,5 +130,5 @@ class PostgresRolesRepository(RoleRepository):
     async def update_role(self, role: Role) -> Role:
         raise NotImplementedError
 
-    async def delete_role(self, role_id: str) -> None:
+    async def delete_role(self, role_id: int) -> None:
         raise NotImplementedError
