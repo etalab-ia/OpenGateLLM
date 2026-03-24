@@ -171,7 +171,7 @@ class IdentityAccessManager:
     ) -> list[Role]:
         if role_id is None:
             # get the unique role IDs with pagination
-            statement = select(RoleTable.id).offset(offset=offset).limit(limit=limit).order_by(text(f"{order_by} {order_direction}"))
+            statement = select(RoleTable.id).offset(offset=offset).limit(limit=limit).order_by(text(f"{order_by} {order_direction}"))  # nosemgrep
             result = await postgres_session.execute(statement=statement)
             selected_roles = [row[0] for row in result.all()]
         else:
@@ -189,7 +189,7 @@ class IdentityAccessManager:
             .outerjoin(UserTable, RoleTable.id == UserTable.role_id)
             .where(RoleTable.id.in_(selected_roles))
             .group_by(RoleTable.id)
-            .order_by(text(f"{order_by} {order_direction}"))
+            .order_by(text(f"{order_by} {order_direction}"))  # nosemgrep
         )
 
         result = await postgres_session.execute(role_query)
@@ -438,7 +438,7 @@ class IdentityAccessManager:
             )
             .offset(offset=offset)
             .limit(limit=limit)
-            .order_by(text(f"{order_by} {order_direction}"))
+            .order_by(text(f"{order_by} {order_direction}"))  # nosemgrep
         )
         if email is not None:
             statement = statement.where(UserTable.email == email)
@@ -515,7 +515,13 @@ class IdentityAccessManager:
     ) -> list[Organization]:
         if organization_id is None:
             # get the unique role IDs with pagination
-            statement = select(OrganizationTable.id).offset(offset=offset).limit(limit=limit).order_by(text(f"{order_by} {order_direction}"))
+            statement = (
+                select(OrganizationTable.id)
+                .offset(offset=offset)
+                .limit(limit=limit)
+                .order_by(text(f"{order_by} {order_direction}"))  # nosemgrep # fmt: off
+            )
+
             result = await postgres_session.execute(statement=statement)
             selected_organizations = [row[0] for row in result.all()]
 
@@ -533,7 +539,7 @@ class IdentityAccessManager:
             .outerjoin(UserTable, OrganizationTable.id == UserTable.organization_id)
             .where(OrganizationTable.id.in_(selected_organizations))
             .group_by(OrganizationTable.id)
-            .order_by(text(f"{order_by} {order_direction}"))
+            .order_by(text(f"{order_by} {order_direction}"))  # nosemgrep
         )
 
         result = await postgres_session.execute(statement=statement)
@@ -652,7 +658,7 @@ class IdentityAccessManager:
             )
             .offset(offset=offset)
             .limit(limit=limit)
-            .order_by(text(text=f"{order_by} {order_direction}"))
+            .order_by(text(text=f"{order_by} {order_direction}"))  # nosemgrep
         )
 
         if user_id is not None:

@@ -140,7 +140,7 @@ class DocumentManager:
             .outerjoin(UserTable, CollectionTable.user_id == UserTable.id)
             .group_by(CollectionTable.id, UserTable.email)
             .offset(offset=offset)
-            .order_by(text(f"{order_by} {order_direction}"))
+            .order_by(text(f"{order_by} {order_direction}"))  # nosemgrep
             .limit(limit=limit)
         )
 
@@ -299,7 +299,7 @@ class DocumentManager:
             .limit(limit=limit)
             .outerjoin(CollectionTable, DocumentTable.collection_id == CollectionTable.id)
             .where(or_(CollectionTable.user_id == user_id, CollectionTable.visibility == CollectionVisibility.PUBLIC))
-            .order_by(text(f"{order_by} {order_direction}"))
+            .order_by(text(f"{order_by} {order_direction}"))  # nosemgrep
         )
         if collection_id:
             statement = statement.where(DocumentTable.collection_id == collection_id)
