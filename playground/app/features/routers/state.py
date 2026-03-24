@@ -26,6 +26,11 @@ class RoutersState(EntityState):
             ]
         )
 
+    @rx.var
+    def router_load_balancing_strategies_list(self) -> list[str]:
+        """Get list of router load balancing strategies."""
+        return ["Shuffle", "Least busy"]
+
     ############################################################
     # Load entities
     ############################################################
@@ -35,13 +40,17 @@ class RoutersState(EntityState):
     def _format_router(self, router: dict) -> Router:
         """Format router."""
 
+        _load_balancing_strategy_converter = {
+            "shuffle": "Shuffle",
+            "least_busy": "Least Busy",
+        }
         return Router(
             id=router["id"],
             name=router["name"],
             user=self.router_owners[router["user_id"]],
             type=router["type"],
             aliases=",".join(router["aliases"]) if router["aliases"] else "",
-            load_balancing_strategy=router["load_balancing_strategy"],
+            load_balancing_strategy=_load_balancing_strategy_converter.get(router["load_balancing_strategy"]),
             max_context_length=router["max_context_length"],
             vector_size=router["vector_size"],
             cost_prompt_tokens=router["cost_prompt_tokens"],
@@ -56,71 +65,60 @@ class RoutersState(EntityState):
         """Get routers list with correct typing for Reflex."""
         return self.entities
 
-    @rx.event(background=True)
+    @rx.event
     async def load_entities(self):
         """Load entities."""
-        async with self:
-            if not self.is_authenticated or not self.api_key:
-                return
-            self.entities_loading = True
-            url = self.opengatellm_url
-            api_key = self.api_key
-            page = self.page
-            per_page = self.per_page
-            order_by = self.order_by_value
-            order_direction = self.order_direction_value
-            local_router_owners = dict(self.router_owners)
-            yield
+        if not self.is_authenticated or not self.api_key:
+            return
+
+        self.entities_loading = True
+        yield
 
         params = {
-            "offset": (page - 1) * per_page,
-            "limit": per_page,
-            "order_by": order_by,
-            "order_direction": order_direction,
+            "offset": (self.page - 1) * self.per_page,
+            "limit": self.per_page,
+            "order_by": self.order_by_value,
+            "order_direction": self.order_direction_value,
         }
 
         response = None
-        raw_routers = []
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    f"{url}/v1/admin/routers",
+                    f"{self.opengatellm_url}/v1/admin/routers",
                     params=params,
-                    headers={"Authorization": f"Bearer {api_key}"},
+                    headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=configuration.settings.playground_opengatellm_timeout,
                 )
+
                 response.raise_for_status()
                 data = response.json()
-                raw_routers = data.get("data", [])
+                self.entities = []
 
-                for router in raw_routers:
-                    if router["user_id"] not in local_router_owners:
-                        response = await client.get(
-                            url=f"{url}/v1/admin/users/{router['user_id']}",
-                            headers={"Authorization": f"Bearer {api_key}"},
-                            timeout=configuration.settings.playground_opengatellm_timeout,
-                        )
-                        if response.status_code == 404:
-                            local_router_owners[router["user_id"]] = "Master"
-                        elif response.status_code == 200:
-                            data = response.json()
-                            local_router_owners[router["user_id"]] = data.get("name", "Unknown")
-                        else:
-                            local_router_owners[router["user_id"]] = "Unknown"
+                for router in data.get("data", []):
+                    if router["user_id"] not in self.router_owners:
+                        async with httpx.AsyncClient() as client:
+                            response = await client.get(
+                                url=f"{self.opengatellm_url}/v1/admin/users/{router["user_id"]}",
+                                headers={"Authorization": f"Bearer {self.api_key}"},
+                                timeout=configuration.settings.playground_opengatellm_timeout,
+                            )
+                            if response.status_code == 404:
+                                self.router_owners[router["user_id"]] = "Master"
+                            elif response.status_code == 200:
+                                data = response.json()
+                                self.router_owners[router["user_id"]] = data.get("name", "Unknown")
+                            else:
+                                self.router_owners[router["user_id"]] = "Unknown"
 
-            async with self:
-                self.router_owners = local_router_owners
-                entities = [self._format_router(router) for router in raw_routers]
-                self.entities = entities
-                self.has_more_page = len(entities) == per_page
-                yield
+                    self.entities.append(self._format_router(router))
+
+            self.has_more_page = len(self.entities) == self.per_page
         except Exception as e:
-            async with self:
-                yield httpx_error_toast(exception=e, response=response)
+            yield httpx_error_toast(exception=e, response=response)
         finally:
-            async with self:
-                self.entities_loading = False
-                yield
+            self.entities_loading = False
+            yield
 
     ############################################################
     # Delete entity
@@ -160,7 +158,8 @@ class RoutersState(EntityState):
 
                 self.handle_delete_entity_dialog_change(is_open=False)
                 yield rx.toast.success("Router deleted successfully", position="bottom-right")
-                yield type(self).load_entities()
+                async for _ in self.load_entities():
+                    yield
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -173,7 +172,7 @@ class RoutersState(EntityState):
     ############################################################
     entity_to_create: Router = Router(
         type="text-generation",
-        load_balancing_strategy="shuffle",
+        load_balancing_strategy="Shuffle",
         cost_prompt_tokens=0.0,
         cost_completion_tokens=0.0,
     )
@@ -196,10 +195,12 @@ class RoutersState(EntityState):
         self.create_entity_loading = True
         yield
 
+        new_router_load_balancing_strategy = self.entity_to_create.load_balancing_strategy.lower().replace(" ", "_")
+
         payload = {
             "name": self.entity_to_create.name,
             "type": self.entity_to_create.type,
-            "load_balancing_strategy": self.entity_to_create.load_balancing_strategy,
+            "load_balancing_strategy": new_router_load_balancing_strategy,
             "cost_prompt_tokens": self.entity_to_create.cost_prompt_tokens,
             "cost_completion_tokens": self.entity_to_create.cost_completion_tokens,
         }
@@ -221,7 +222,8 @@ class RoutersState(EntityState):
                 response.raise_for_status()
 
                 yield rx.toast.success("Router created successfully", position="bottom-right")
-                yield type(self).load_entities()
+                async for _ in self.load_entities():
+                    yield
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -265,12 +267,13 @@ class RoutersState(EntityState):
         yield
 
         router_aliases = [alias.strip() for alias in self.entity.aliases.split(",") if alias.strip()]
+        router_load_balancing_strategy = self.entity.load_balancing_strategy.lower().replace(" ", "_")
 
         payload = {
             "name": self.entity.name,
             "type": self.entity.type,
             "aliases": router_aliases,
-            "load_balancing_strategy": self.entity.load_balancing_strategy,
+            "load_balancing_strategy": router_load_balancing_strategy,
             "cost_prompt_tokens": self.entity.cost_prompt_tokens,
             "cost_completion_tokens": self.entity.cost_completion_tokens,
         }
@@ -289,7 +292,8 @@ class RoutersState(EntityState):
             self.handle_settings_entity_dialog_change(is_open=False)
             yield rx.toast.success("Router updated successfully", position="bottom-right")
 
-            yield type(self).load_entities()
+            async for _ in self.load_entities():
+                yield
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -308,34 +312,38 @@ class RoutersState(EntityState):
     order_direction_value: str = "asc"
     order_by_options: list[str] = ["id", "name", "created"]
 
-    @rx.event(background=True)
+    @rx.event
     async def set_order_by(self, value: str):
         """Set order by field and reload."""
-        async with self:
-            self.order_by_value = value
-            self.page = 1
-            self.has_more_page = False
-            yield type(self).load_entities()
+        self.order_by_value = value
+        self.page = 1
+        self.has_more_page = False
+        yield
+        async for _ in self.load_entities():
+            yield
 
-    @rx.event(background=True)
+    @rx.event
     async def set_order_direction(self, value: str):
         """Set order direction and reload."""
-        async with self:
-            self.order_direction_value = value
-            self.page = 1
-            self.has_more_page = False
-            yield type(self).load_entities()
+        self.order_direction_value = value
+        self.page = 1
+        self.has_more_page = False
+        yield
+        async for _ in self.load_entities():
+            yield
 
-    @rx.event(background=True)
+    @rx.event
     async def prev_page(self):
-        async with self:
-            if self.page > 1:
-                self.page -= 1
-                yield type(self).load_entities()
+        if self.page > 1:
+            self.page -= 1
+            yield
+            async for _ in self.load_entities():
+                yield
 
-    @rx.event(background=True)
+    @rx.event
     async def next_page(self):
-        async with self:
-            if self.has_more_page:
-                self.page += 1
-                yield type(self).load_entities()
+        if self.has_more_page:
+            self.page += 1
+            yield
+            async for _ in self.load_entities():
+                yield

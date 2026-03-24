@@ -11,14 +11,12 @@ def provider_create_form_fields() -> rx.Component:
         entity_form_select_field(
             label="Router*",
             items=ProvidersState.routers_name_list,
-            value=ProvidersState.entity_to_create.router,
             on_change=lambda value: ProvidersState.set_new_entity_attribut("router", value),
             placeholder="Select router",
         ),
         entity_form_select_field(
             label="API type*",
             items=ProvidersState.provider_types_list,
-            value=ProvidersState.entity_to_create.type,
             on_change=lambda value: ProvidersState.set_new_entity_attribut("type", value),
             placeholder="Select type",
         ),
@@ -79,7 +77,6 @@ def provider_create_form_fields() -> rx.Component:
         entity_form_select_field(
             label="Quality of service metric",
             items=ProvidersState.provider_qos_metric_list,
-            value=ProvidersState.entity_to_create.qos_metric,
             on_change=lambda value: ProvidersState.set_new_entity_attribut("qos_metric", value),
             tooltip="Metric to use for the quality of service policy. If not provided, no QoS policy is applied.",
             placeholder="Select metric (optional)",

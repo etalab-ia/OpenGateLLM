@@ -105,7 +105,6 @@ def role_create_limit_form(role: Role) -> rx.Component:
             entity_form_select_field(
                 label="Router*",
                 items=RolesState.routers_name_list,
-                value=RolesState.new_limit["router"],
                 on_change=lambda value: RolesState.set_new_limit_value("router", value),
                 disabled=RolesState.create_limit_loading,
                 placeholder="Select router",

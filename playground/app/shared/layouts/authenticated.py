@@ -22,35 +22,27 @@ def authenticated_page(content: rx.Component, margin_left: str | None = "250px",
     """
 
     return rx.cond(
-        rx.State.is_hydrated,
-        rx.cond(
-            AuthState.is_authenticated,
-            rx.vstack(
-                nav_header(
-                    documentation_url=configuration.settings.documentation_url,
-                    swagger_url=configuration.settings.swagger_url,
-                    reference_url=configuration.settings.reference_url,
-                ),
-                rx.box(
-                    navigation_sidebar(),
-                    rx.box(
-                        content,
-                        position="fixed",
-                        top="65px",
-                        left=margin_left,
-                        right=margin_right,
-                        width=f"calc(100% - {margin_left} - {margin_right})",
-                        max_height="calc(100vh - 65px)",
-                        overflow="auto",
-                    ),
-                    display="flex",
-                ),
+        AuthState.is_authenticated,
+        rx.vstack(
+            nav_header(
+                documentation_url=configuration.settings.documentation_url,
+                swagger_url=configuration.settings.swagger_url,
+                reference_url=configuration.settings.reference_url,
             ),
-            login_form(),
+            rx.box(
+                navigation_sidebar(),
+                rx.box(
+                    content,
+                    position="fixed",
+                    top="65px",
+                    left=margin_left,
+                    right=margin_right,
+                    width=f"calc(100% - {margin_left} - {margin_right})",
+                    max_height="calc(100vh - 65px)",
+                    overflow="auto",
+                ),
+                display="flex",
+            ),
         ),
-        rx.center(
-            rx.spinner(size="3"),
-            height="100vh",
-            width="100vw",
-        ),
+        login_form(),
     )

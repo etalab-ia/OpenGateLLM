@@ -33,11 +33,11 @@ def router_settings_form_fields() -> rx.Component:
         ),
         entity_form_select_field(
             label="Load balancing strategy",
-            value_labels={"shuffle": "Shuffle", "least_busy": "Least busy"},
+            items=RoutersState.router_load_balancing_strategies_list,
             value=RoutersState.entity.load_balancing_strategy,
             on_change=lambda value: RoutersState.set_edit_entity_attribut("load_balancing_strategy", value),
             tooltip="Strategy to use for load balancing between providers of the router",
-            disabled=RoutersState.edit_entity_loading,
+            disable=RoutersState.edit_entity_loading,
         ),
         entity_form_input_field(
             label="Prompt tokens cost",
@@ -91,7 +91,6 @@ def router_create_form_fields() -> rx.Component:
         entity_form_select_field(
             label="Type",
             items=RoutersState.router_types_list,
-            value=RoutersState.entity_to_create.type,
             on_change=lambda value: RoutersState.set_new_entity_attribut("type", value),
             tooltip="Router type (e.g., text-generation)",
             placeholder="Select type",
@@ -106,8 +105,7 @@ def router_create_form_fields() -> rx.Component:
         ),
         entity_form_select_field(
             label="Load balancing strategy",
-            value_labels={"shuffle": "Shuffle", "least_busy": "Least busy"},
-            value=RoutersState.entity_to_create.load_balancing_strategy,
+            items=RoutersState.router_load_balancing_strategies_list,
             on_change=lambda value: RoutersState.set_new_entity_attribut("load_balancing_strategy", value),
             tooltip="Strategy to use for load balancing between providers of the router",
             placeholder="Select strategy",

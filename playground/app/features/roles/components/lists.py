@@ -45,18 +45,6 @@ def role_row_content(role: Role) -> rx.Component:
                 variant="soft",
                 color_scheme="green",
             ),
-            rx.cond(
-                role.permissions_admin,
-                rx.tooltip(
-                    rx.badge(
-                        rx.icon("shield-check", size=12),
-                        "Admin",
-                        variant="soft",
-                        color_scheme="amber",
-                    ),
-                    content="This role has admin permissions",
-                ),
-            ),
             spacing=SPACING_SMALL,
         ),
         spacing=SPACING_SMALL,

@@ -1,4 +1,3 @@
-import json
 from typing import Any
 
 import httpx
@@ -126,75 +125,82 @@ class ChatState(AuthState):
         """Set the stop sequences."""
         self.stop_sequences = sequences
 
-    @rx.event(background=True)
+    @rx.event
     async def process_question(self, form_data: dict[str, Any]):
+        # Get the question from the form
         question = form_data["question"]
+
+        # Check if the question is empty
         if not question:
             return
 
-        # Check auth, set up initial state, and snapshot all needed values
-        async with self:
-            if not self.is_authenticated or not self.api_key:
-                return
+        async for value in self.api_process_question(question):
+            yield value
 
-            qa = QA(question=question, answer="")
-            self._messages.append(qa)
-            self.processing = True
+    @rx.event
+    async def api_process_question(self, question: str):
+        """Get the response from the API.
 
-            url = self.opengatellm_url
-            api_key = self.api_key
-            model = self.model
-            temperature = self.temperature
-            top_p = self.top_p
-            max_completion_tokens = self.max_completion_tokens
-            frequency_penalty = self.frequency_penalty
-            presence_penalty = self.presence_penalty
-            stream = self.stream
-            seed_str = self.seed_str
-            stop_sequences_str = self.stop_sequences
-            messages_snapshot = list(self._messages)
-            yield
+        Args:
+            question: The user's question.
+        """
 
-        # Build messages outside the lock
+        # Check if authenticated
+        if not self.is_authenticated or not self.api_key:
+            return
+
+        # Add the question to the list of questions.
+        qa = QA(question=question, answer="")
+        self._messages.append(qa)
+
+        # Clear the input and start the processing.
+        self.processing = True
+        yield
+
+        # Build the messages.
         messages = []
-        for qa in messages_snapshot:
+        for qa in self._messages:
             messages.append({"role": "user", "content": qa["question"]})
             if qa["answer"]:
                 messages.append({"role": "assistant", "content": qa["answer"]})
 
+        # Remove the last empty answer.
         if messages and messages[-1]["role"] == "assistant" and not messages[-1]["content"]:
             messages = messages[:-1]
 
+        # Prepare the request payload
         payload = {
-            "model": model,
+            "model": self.model,
             "messages": messages,
-            "temperature": temperature,
-            "top_p": top_p,
-            "max_completion_tokens": max_completion_tokens,
-            "frequency_penalty": frequency_penalty,
-            "presence_penalty": presence_penalty,
-            "stream": stream,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "max_completion_tokens": self.max_completion_tokens,
+            "frequency_penalty": self.frequency_penalty,
+            "presence_penalty": self.presence_penalty,
+            "stream": self.stream,
         }
 
-        if seed_str:
+        # Add optional parameters
+        if self.seed_str:
             try:
-                payload["seed"] = int(seed_str)
+                payload["seed"] = int(self.seed_str)
             except ValueError:
                 pass
 
-        if stop_sequences_str:
-            stop_list = [s.strip() for s in stop_sequences_str.split("\n") if s.strip()]
+        if self.stop_sequences:
+            stop_list = [s.strip() for s in self.stop_sequences.split("\n") if s.strip()]
             if stop_list:
                 payload["stop"] = stop_list
 
         try:
-            if stream:
+            if self.stream:
+                # Streaming response
                 async with httpx.AsyncClient() as client:
                     async with client.stream(
                         "POST",
-                        f"{url}/v1/chat/completions",
+                        f"{self.opengatellm_url}/v1/chat/completions",
                         headers={
-                            "Authorization": f"Bearer {api_key}",
+                            "Authorization": f"Bearer {self.api_key}",
                             "Content-Type": "application/json",
                         },
                         json=payload,
@@ -202,10 +208,9 @@ class ChatState(AuthState):
                     ) as response:
                         if response.status_code != 200:
                             error_text = await response.aread()
-                            async with self:
-                                self._messages[-1]["answer"] = f"Error: {error_text.decode()}"
-                                self.processing = False
-                                yield
+                            self._messages[-1]["answer"] = f"Error: {error_text.decode()}"
+                            self.processing = False
+                            yield
                             return
 
                         async for line in response.aiter_lines():
@@ -213,31 +218,33 @@ class ChatState(AuthState):
                                 data = line[6:]
                                 if data == "[DONE]":
                                     break
+
                                 try:
+                                    import json
+
                                     chunk = json.loads(data)
                                     if chunk.get("choices") and len(chunk["choices"]) > 0:
                                         delta = chunk["choices"][0].get("delta", {})
                                         content = delta.get("content")
                                         if content:
-                                            async with self:
-                                                self._messages[-1]["answer"] += content
-                                                self._messages = self._messages
-                                                yield
+                                            self._messages[-1]["answer"] += content
+                                            self._messages = self._messages
+                                            yield
                                 except Exception:
                                     continue
             else:
+                # Non-streaming response
                 async with httpx.AsyncClient() as client:
                     response = await client.post(
-                        f"{url}/v1/chat/completions",
+                        f"{self.opengatellm_url}/v1/chat/completions",
                         headers={
-                            "Authorization": f"Bearer {api_key}",
+                            "Authorization": f"Bearer {self.api_key}",
                             "Content-Type": "application/json",
                         },
                         json=payload,
                         timeout=configuration.settings.playground_opengatellm_timeout,
                     )
 
-                async with self:
                     if response.status_code != 200:
                         self._messages[-1]["answer"] = f"Error: {response.text}"
                     else:
@@ -245,17 +252,15 @@ class ChatState(AuthState):
                         if data.get("choices") and len(data["choices"]) > 0:
                             content = data["choices"][0]["message"]["content"]
                             self._messages[-1]["answer"] = content
+
                     yield
 
         except httpx.TimeoutException:
-            async with self:
-                self._messages[-1]["answer"] = "Error: Request timeout"
-                yield
+            self._messages[-1]["answer"] = "Error: Request timeout"
+            yield
         except Exception as e:
-            async with self:
-                self._messages[-1]["answer"] = f"Error: {str(e)}"
-                yield
-        finally:
-            async with self:
-                self.processing = False
-                yield
+            self._messages[-1]["answer"] = f"Error: {str(e)}"
+            yield
+
+        # Toggle the processing flag.
+        self.processing = False
