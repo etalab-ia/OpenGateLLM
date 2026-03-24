@@ -1,4 +1,4 @@
-name: Trivy Scan (reusable)
+name: Trivy Scan
 
 on:
   workflow_call:
@@ -11,16 +11,14 @@ on:
         description: "Image tag to scan"
         required: true
         type: string
-      category-prefix:
-        description: "Prefix for SARIF category (ex: trivy-api)"
-        required: true
-        type: string
 
 jobs:
   trivy-scan:
-    name: Trivy scan — ${{ inputs.category-prefix }}
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -28,39 +26,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # HIGH → notifie sans bloquer
       - name: Trivy scan (HIGH — warning)
-        if: always()
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: ${{ inputs.image-name }}:${{ inputs.image-tag }}
-          format: sarif
-          output: trivy-high.sarif
-          severity: HIGH
+          format: 'table'
+          severity: 'HIGH'
           exit-code: "0"
-          ignore-unfixed: true
-
-      - name: Upload HIGH results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: trivy-high.sarif
-          category: ${{ inputs.category-prefix }}-high
 
       # CRITICAL → bloque le pipeline
       - name: Trivy scan (CRITICAL — blocking)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: ${{ inputs.image-name }}:${{ inputs.image-tag }}
-          format: sarif
-          output: trivy-critical.sarif
-          severity: CRITICAL
+          format: 'table'
+          severity: 'CRITICAL'
           exit-code: "1"
-          ignore-unfixed: true
-
-      - name: Upload CRITICAL results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v4
-        if: always()
-        with:
-          sarif_file: trivy-critical.sarif
-          category: ${{ inputs.category-prefix }}-critical
