@@ -40,7 +40,7 @@ jobs:
             --config p/default \
             --config p/secrets \
             --config p/security-audit
-            --config .github/semgrep.yaml
+            --config .github/semgrep-rules.yml
             --severity WARNING
           exit 0  # Never block this job
 
@@ -51,6 +51,6 @@ jobs:
             --config p/default \
             --config p/secrets \
             --config p/security-audit
-            --config .github/semgrep.yaml
+            --config .github/semgrep-rules.yml
             --severity ERROR \
             --error 

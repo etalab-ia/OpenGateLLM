@@ -9,6 +9,9 @@ on:
       - published
       - edited
   workflow_dispatch: # Add this to allow manual triggering
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build-api:
