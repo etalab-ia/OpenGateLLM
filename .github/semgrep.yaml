@@ -1,0 +1,13 @@
+rules:
+  - id: api-keys
+    patterns:
+      - pattern-regex: 'sk-[a-zA-Z0-9-.]{144}'
+    message: >
+      API key detected (pattern sk-...). 
+      Do not commit secrets to the code source.
+    languages:
+      - generic  # scan all file types
+    severity: ERROR
+    metadata:
+      category: security
+      subcategory: secrets

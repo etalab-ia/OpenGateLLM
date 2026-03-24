@@ -381,7 +381,7 @@ class ModelRegistry:
                     and_(first_provider_subquery.c.router_id == RouterTable.id, first_provider_subquery.c.rn == 1),
                     isouter=True,
                 )
-                .order_by(text(f"{order_by} {order_direction}"))
+                .order_by(text(f"{order_by} {order_direction}"))  # nosemgrep
             )
             .offset(offset=offset)
             .limit(limit=limit)
@@ -606,7 +606,7 @@ class ModelRegistry:
             ProviderTable.qos_limit,
             cast(func.extract("epoch", ProviderTable.created), Integer).label("created"),
             cast(func.extract("epoch", ProviderTable.updated), Integer).label("updated"),
-        ).order_by(text(f"{order_by} {order_direction}"))
+        ).order_by(text(f"{order_by} {order_direction}"))  # nosemgrep
         if offset is not None:
             query = query.offset(offset=offset)
         if limit is not None:

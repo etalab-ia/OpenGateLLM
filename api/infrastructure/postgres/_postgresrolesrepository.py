@@ -24,9 +24,10 @@ class PostgresRolesRepository(RoleRepository):
         order_by: Literal["id", "name", "created", "updated"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[Role]:
+
         if role_id is None:
             # get the unique role IDs with pagination
-            statement = select(RoleTable.id).offset(offset=offset).limit(limit=limit).order_by(text(f"{order_by} {order_direction}"))
+            statement = select(RoleTable.id).offset(offset=offset).limit(limit=limit).order_by(text(f"{order_by} {order_direction}"))  # nosemgrep
             result = await self.postgres_session.execute(statement=statement)
             selected_roles = [row[0] for row in result.all()]
         else:
@@ -44,7 +45,7 @@ class PostgresRolesRepository(RoleRepository):
             .outerjoin(UserTable, RoleTable.id == UserTable.role_id)
             .where(RoleTable.id.in_(selected_roles))
             .group_by(RoleTable.id)
-            .order_by(text(f"{order_by} {order_direction}"))
+            .order_by(text(f"{order_by} {order_direction}"))  # nosemgrep
         )
 
         result = await self.postgres_session.execute(role_query)

@@ -36,13 +36,21 @@ jobs:
       - name: Run Semgrep (WARNING severity)
         run: |
           semgrep scan \
-            --config auto \
+            --config auto \ 
+            --config p/default \
+            --config p/secrets \
+            --config p/security-audit
+            --config .github/semgrep.yaml
             --severity WARNING
-          exit 0  # Ne jamais bloquer ce job
+          exit 0  # Never block this job
 
       - name: Run Semgrep (ERROR severity only)
         run: |
           semgrep scan \
-            --config auto \
+            --config auto \ 
+            --config p/default \
+            --config p/secrets \
+            --config p/security-audit
+            --config .github/semgrep.yaml
             --severity ERROR \
-            --error
+            --error 
