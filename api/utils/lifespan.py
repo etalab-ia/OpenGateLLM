@@ -6,6 +6,10 @@ import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from api.clients.parser import BaseParserClient as ParserClient
+from api.dependencies import get_postgres_session
+from api.domain.role.entities import PermissionType
+from api.domain.role.errors import RoleAlreadyExistsError
+from api.domain.user.errors import UserAlreadyExistsError
 from api.helpers._documentmanager import DocumentManager
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers._identityaccessmanager import IdentityAccessManager
@@ -14,7 +18,14 @@ from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
+from api.infrastructure.postgres import PostgresRolesRepository, PostgresUserRepository
 from api.schemas.core.configuration import Configuration
+from api.use_cases.admin.bootstrapadminusecase import (
+    BootstrapAdminCommand,
+    BootstrapAdminUseCase,
+    BootstrapAdminUseCaseSkipped,
+    BootstrapAdminUseCaseSuccess,
+)
 from api.utils.configuration import get_configuration
 from api.utils.context import global_context
 from api.utils.exceptions import RouterNotFoundException
@@ -24,7 +35,7 @@ logger = init_logger(name=__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
     configuration = get_configuration()
 
     global_context.redis_pool = await create_redis_pool(configuration)
@@ -35,6 +46,9 @@ async def lifespan(app: FastAPI):
     global_context.usage_manager = create_usage_manager()
 
     global_context.identity_access_manager = create_identity_access_manager(configuration=configuration)
+
+    await bootstrap_default_admin(configuration=configuration)
+
     global_context.limiter = create_limiter(configuration=configuration, redis_pool=global_context.redis_pool)
     global_context.tokenizer = create_tokenizer(configuration=configuration)
     global_context.parser = await create_parser(configuration=configuration)
@@ -85,6 +99,35 @@ def create_postgres_session_factory(configuration: Configuration) -> tuple[Async
     engine = create_async_engine(**configuration.dependencies.postgres.model_dump())
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     return engine, session_factory
+
+
+# NOTE: Repositories are instantiated manually here because FastAPI's Depends() is only resolved during
+# request handling. Since this function is called in the lifespan context (outside any request),
+# FastAPI's dependency injection system is not available.
+async def bootstrap_default_admin(configuration: Configuration) -> None:
+    async for postgres_session in get_postgres_session():
+        user_repository = PostgresUserRepository(postgres_session=postgres_session)
+        role_repository = PostgresRolesRepository(postgres_session=postgres_session)
+
+        result = await BootstrapAdminUseCase(user_repository=user_repository, role_repository=role_repository).execute(
+            BootstrapAdminCommand(
+                name=configuration.settings.auth_default_username,
+                email=configuration.settings.auth_default_username,
+                password=configuration.settings.auth_default_password,
+                permissions=[PermissionType.ADMIN],
+                limits=[],
+            )
+        )
+
+        match result:
+            case BootstrapAdminUseCaseSuccess(user_id=user_id, email=email, role_id=role_id):
+                logger.info("Default admin successfully created.", extra={"user_id": user_id, "email": email, "role_id": role_id})
+            case BootstrapAdminUseCaseSkipped():
+                logger.info("Admin user already exists, skipping default admin user creation.")
+            case RoleAlreadyExistsError(name=name):
+                raise RuntimeError(f"Failed to bootstrap default admin role: role '{name}' already exists.")
+            case UserAlreadyExistsError(email=email):
+                raise RuntimeError(f"Failed to bootstrap default admin user: user '{email}' already exists.")
 
 
 async def create_model_registry(
@@ -145,7 +188,7 @@ def create_usage_manager() -> UsageManager:
 
 def create_identity_access_manager(configuration: Configuration) -> IdentityAccessManager:
     return IdentityAccessManager(
-        master_key=configuration.settings.auth_master_key,
+        secret_key=configuration.settings.auth_secret_key,
         key_max_expiration_days=configuration.settings.auth_key_max_expiration_days,
         playground_session_duration=configuration.settings.auth_playground_session_duration,
     )

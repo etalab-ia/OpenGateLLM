@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 import pytest
 
-from api.schemas.admin.roles import PermissionType
+from api.domain.role.entities import PermissionType
 from api.utils.variables import EndpointRoute
 
 

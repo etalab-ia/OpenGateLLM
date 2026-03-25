@@ -29,7 +29,6 @@ from api.utils.exceptions import (
     ChunkingFailedException,
     CollectionNotFoundException,
     DocumentNotFoundException,
-    MasterNotAllowedException,
     ParsingDocumentFailedException,
     VectorizationFailedException,
 )
@@ -49,9 +48,6 @@ class DocumentManager:
 
     @staticmethod
     async def create_collection(postgres_session: AsyncSession, user_id: int, name: str, visibility: CollectionVisibility, description: str | None = None) -> int:  # fmt: off
-        if user_id == 0:
-            raise MasterNotAllowedException(detail="Master user is not allowed to create collection.")
-
         query = (
             insert(table=CollectionTable)
             .values(name=name, user_id=user_id, visibility=visibility, description=description)

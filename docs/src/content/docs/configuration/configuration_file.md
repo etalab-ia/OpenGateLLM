@@ -89,7 +89,6 @@ dependencies:
 
 # ---------------------------------- settings -----------------------------------
 settings:
-  # session_secret_key: ${SESSION_SECRET_KEY}
   # disabled_routers: ["admin", "audio"]
   # hidden_routers: ["auth"]
   # usage_tokenizer: tiktoken_gpt2
@@ -104,9 +103,11 @@ settings:
   # swagger_docs_url: /docs
   # swagger_redoc_url: /redoc
 
-  auth_master_username: master
-  auth_master_key: changeme
-  # auth_max_token_expiration_days: 365
+  auth_master_key: changeme # DEPRECATED, use auth_secret_key instead
+  auth_secret_key: changeme
+
+  auth_default_username: admin
+  auth_default_password: changeme
 
   # rate_limiting_strategy: fixed_window
 

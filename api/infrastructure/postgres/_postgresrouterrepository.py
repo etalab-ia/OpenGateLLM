@@ -3,7 +3,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain import SortField, SortOrder
-from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model import ModelType as RouterType
 from api.domain.router import RouterRepository
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage
@@ -13,6 +12,7 @@ from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 from api.sql.models import User as UserTable
+from api.utils.variables import MASTER_ID
 
 
 class PostgresRouterRepository(RouterRepository):
@@ -40,7 +40,7 @@ class PostgresRouterRepository(RouterRepository):
 
     @staticmethod
     def _row_to_router_with_aliases(row, aliases: list[str]) -> Router:
-        user_id = MASTER_USER_ID if row.user_id is None else row.user_id
+        user_id = MASTER_ID if row.user_id is None else row.user_id
         return Router(
             id=row.id,
             name=row.name,
@@ -132,7 +132,7 @@ class PostgresRouterRepository(RouterRepository):
         user_id: int,
         aliases: list[str] | None = None,
     ) -> Router | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError:
-        db_user_id = None if user_id == MASTER_USER_ID else user_id
+        db_user_id = None if user_id == MASTER_ID else user_id
         aliases = aliases or []
 
         try:
@@ -207,7 +207,7 @@ class PostgresRouterRepository(RouterRepository):
         return router
 
     async def update_router(self, router_to_update: Router) -> Router | RouterNameAlreadyExistsError:
-        db_user_id = None if router_to_update.user_id == MASTER_USER_ID else router_to_update.user_id
+        db_user_id = None if router_to_update.user_id == MASTER_ID else router_to_update.user_id
 
         try:
             update_query = (

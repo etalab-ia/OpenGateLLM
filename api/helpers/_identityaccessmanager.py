@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import datetime as dt
 from datetime import datetime, timedelta
 from typing import Literal
@@ -10,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
 from api.schemas.admin.organizations import Organization
-from api.schemas.admin.roles import Limit, LimitType, PermissionType, Role
+from api.schemas.admin.roles import Limit, PermissionType, Role
 from api.schemas.admin.tokens import Token
 from api.schemas.admin.users import User
 from api.schemas.me.info import UserInfo
@@ -21,7 +22,6 @@ from api.sql.models import Role as RoleTable
 from api.sql.models import Token as TokenTable
 from api.sql.models import User as UserTable
 from api.utils.configuration import configuration
-from api.utils.context import global_context
 from api.utils.exceptions import (
     DeleteOrganizationWithUsersException,
     DeleteRoleWithUsersException,
@@ -31,7 +31,6 @@ from api.utils.exceptions import (
     OrganizationNameAlreadyTakenException,
     OrganizationNotFoundException,
     PasswordNotFoundException,
-    ReservedEmailException,
     RoleAlreadyExistsException,
     RoleNotFoundException,
     TokenNotFoundException,
@@ -42,12 +41,19 @@ from api.utils.exceptions import (
 settings = configuration.settings
 
 
-class IdentityAccessManager:
-    TOKEN_PREFIX = "sk-"
-    PLAYGROUND_KEY_NAME = "playground"
+@dataclass
+class CheckTokenResult:
+    user_id: int | None
+    token_id: int | None
+    token_name: str | None
 
-    def __init__(self, master_key: str, key_max_expiration_days: int | None = None, playground_session_duration: int = 3600):
-        self.master_key = master_key
+
+class IdentityAccessManager:
+    TOKEN_PREFIX: str = "sk-"
+    PLAYGROUND_KEY_NAME: str = "playground"
+
+    def __init__(self, secret_key: str, key_max_expiration_days: int | None = None, playground_session_duration: int = 3600):
+        self.secret_key = secret_key
         self.key_max_expiration_days = key_max_expiration_days
         self.playground_session_duration = playground_session_duration
 
@@ -59,14 +65,15 @@ class IdentityAccessManager:
     def _check_password(password: str, hashed_password: str) -> bool:
         return bcrypt.checkpw(password=password.encode("utf-8"), hashed_password=hashed_password.encode("utf-8"))
 
+    # TODO: Remove this. It's a duplicate with api/domain/key/entities.py via api/infrastructure/fastapi/access.py
     def _decode_token(self, token: str) -> dict:
         token = token.split(IdentityAccessManager.TOKEN_PREFIX)[1]
-        return jwt.decode(token=token, key=self.master_key, algorithms=["HS256"])
+        return jwt.decode(token=token, key=self.secret_key, algorithms=["HS256"])
 
     def _encode_token(self, user_id: int, token_id: int, expires: int | None = None) -> str:
         return IdentityAccessManager.TOKEN_PREFIX + jwt.encode(
             claims={"user_id": user_id, "token_id": token_id, "expires": expires},
-            key=self.master_key,
+            key=self.secret_key,
             algorithm="HS256",
         )
 
@@ -105,14 +112,12 @@ class IdentityAccessManager:
 
     @staticmethod
     async def delete_role(postgres_session: AsyncSession, role_id: int) -> None:
-        # check if role exists
         result = await postgres_session.execute(statement=select(RoleTable).where(RoleTable.id == role_id))
         try:
             result.scalar_one()
         except NoResultFound:
             raise RoleNotFoundException()
 
-        # delete the role
         try:
             await postgres_session.execute(statement=delete(table=RoleTable).where(RoleTable.id == role_id))
         except IntegrityError:
@@ -149,7 +154,6 @@ class IdentityAccessManager:
                 await postgres_session.execute(statement=insert(table=LimitTable).values(values))
 
         if permissions is not None:
-            # delete the existing permissions
             await postgres_session.execute(statement=delete(table=PermissionTable).where(PermissionTable.role_id == role.id))
 
             # Only insert if there are permissions to insert
@@ -242,8 +246,8 @@ class IdentityAccessManager:
         postgres_session: AsyncSession,
         email: str,
         role_id: int,
+        password: str,
         name: str | None = None,
-        password: str | None = None,
         sub: str | None = None,
         iss: str | None = None,
         organization_id: int | None = None,
@@ -251,9 +255,6 @@ class IdentityAccessManager:
         expires: int | None = None,
         priority: int = 0,
     ) -> int:
-        if email == "master":
-            raise ReservedEmailException()
-
         expires = func.to_timestamp(expires) if expires is not None else None
 
         # check if role exists
@@ -271,7 +272,7 @@ class IdentityAccessManager:
             except NoResultFound:
                 raise OrganizationNotFoundException()
 
-        password = self._hash_password(password=password) if password is not None else None
+        password = self._hash_password(password=password)
 
         # create the user
         try:
@@ -301,14 +302,12 @@ class IdentityAccessManager:
 
     @staticmethod
     async def delete_user(postgres_session: AsyncSession, user_id: int) -> None:
-        # check if user exists
         result = await postgres_session.execute(statement=select(UserTable.id).where(UserTable.id == user_id))
         try:
             result.scalar_one()
         except NoResultFound:
             raise UserNotFoundException()
 
-        # delete the user
         await postgres_session.execute(statement=delete(table=UserTable).where(UserTable.id == user_id))
         await postgres_session.commit()
 
@@ -353,10 +352,6 @@ class IdentityAccessManager:
 
         # update the user
         email = email if email is not None else user.email
-
-        if email == "master":
-            raise ReservedEmailException()
-
         name = name if name is not None else user.name
         iss = iss if iss is not None else user.iss
         sub = sub if sub is not None else user.sub
@@ -370,6 +365,7 @@ class IdentityAccessManager:
                 result.scalar_one()
             except NoResultFound:
                 raise RoleNotFoundException()
+
         role_id = role_id if role_id is not None else user.role_id
 
         if organization_id is not None:
@@ -587,7 +583,7 @@ class IdentityAccessManager:
 
         Args:
             postgres_session(AsyncSession): Database postgres_session
-            user_id(int): ID of the user
+            user_id(int): ID of the user who owns the token to refresh
             name(str): Name of the token to refresh
 
         Returns:
@@ -678,20 +674,20 @@ class IdentityAccessManager:
 
         return tokens
 
-    async def check_token(self, postgres_session: AsyncSession, token: str) -> tuple[int | None, int | None, str | None]:
+    async def check_token(self, postgres_session: AsyncSession, token: str) -> CheckTokenResult:
         try:
             claims = self._decode_token(token=token)
         except JWTError:
-            return None, None, None
+            return CheckTokenResult(user_id=None, token_id=None, token_name=None)
         except IndexError:  # malformed token (no token prefix)
-            return None, None, None
+            return CheckTokenResult(user_id=None, token_id=None, token_name=None)
 
         try:
             tokens = await self.get_tokens(postgres_session, user_id=claims["user_id"], token_id=claims["token_id"], exclude_expired=True, limit=1)
         except TokenNotFoundException:
-            return None, None, None
+            return CheckTokenResult(user_id=None, token_id=None, token_name=None)
 
-        return claims["user_id"], claims["token_id"], tokens[0].name
+        return CheckTokenResult(user_id=claims["user_id"], token_id=claims["token_id"], token_name=tokens[0].name)
 
     @staticmethod
     async def invalidate_token(postgres_session: AsyncSession, token_id: int, user_id: int) -> None:
@@ -717,6 +713,7 @@ class IdentityAccessManager:
     ) -> User | None:
         # Build conditions list only for non-None values
         conditions = []
+
         if user_id is not None:
             conditions.append(UserTable.id == user_id)
         if sub is not None:
@@ -736,44 +733,28 @@ class IdentityAccessManager:
     async def get_user_info(self, postgres_session: AsyncSession, user_id: int | None = None, email: str | None = None) -> UserInfo:
         assert user_id is not None or email is not None, "user_id or email is required"
 
-        if user_id == 0:  # master user
-            routers = await global_context.model_registry.get_routers(router_id=None, name=None, postgres_session=postgres_session)
-            user = UserInfo(
-                id=0,
-                email="master",
-                name="master",
-                organization=0,
-                budget=None,
-                permissions=[permission for permission in PermissionType],
-                limits=[Limit(router=router.id, type=type, value=None) for router in routers for type in LimitType],
-                expires=None,
-                created=0,
-                updated=0,
-                priority=0,
-            )
-        else:
-            users = await self.get_users(postgres_session=postgres_session, user_id=user_id, email=email)
-            user = users[0]
+        users = await self.get_users(postgres_session=postgres_session, user_id=user_id, email=email)
+        user = users[0]
 
-            roles = await self.get_roles(postgres_session, role_id=user.role)
-            role = roles[0]
+        roles = await self.get_roles(postgres_session, role_id=user.role)
+        role = roles[0]
 
-            # user cannot see limits on models that are not accessible by the role
-            limits = [limit for limit in role.limits if limit.value is None or limit.value > 0]
+        # user cannot see limits on models that are not accessible by the role
+        limits = [limit for limit in role.limits if limit.value is None or limit.value > 0]
 
-            user = UserInfo(
-                id=user.id,
-                email=user.email,
-                name=user.name,
-                organization=user.organization,
-                budget=user.budget,
-                permissions=role.permissions,
-                limits=limits,
-                expires=user.expires,
-                created=user.created,
-                updated=user.updated,
-                priority=user.priority,
-            )
+        user = UserInfo(
+            id=user.id,
+            email=user.email,
+            name=user.name,
+            organization=user.organization,
+            budget=user.budget,
+            permissions=role.permissions,
+            limits=limits,
+            expires=user.expires,
+            created=user.created,
+            updated=user.updated,
+            priority=user.priority,
+        )
 
         return user
 
@@ -790,20 +771,15 @@ class IdentityAccessManager:
         Returns:
             Tuple containing the token ID and the token of the refreshed playground token.
         """
-
-        if email == "master" and password == self.master_key:
-            return 0, self.master_key
-
         user = await self.get_user_info(postgres_session=postgres_session, email=email)  # raise UserNotFoundException (404) if user not found
         result = await postgres_session.execute(statement=select(UserTable.password).where(UserTable.id == user.id))
-        user_password = result.scalar_one()
+        hashed_password = result.scalar_one()
 
-        if not user_password:
+        if not hashed_password:
             raise PasswordNotFoundException()
 
-        if not self._check_password(password=password, hashed_password=user_password):
+        if not self._check_password(password=password, hashed_password=hashed_password):
             raise InvalidCurrentPasswordException()
 
         token_id, token = await self.refresh_token(postgres_session, user_id=user.id, name=self.PLAYGROUND_KEY_NAME)
-
         return token_id, token

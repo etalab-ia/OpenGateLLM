@@ -17,7 +17,7 @@ def postgres_session():
 
 @pytest.fixture
 def iam():
-    return IdentityAccessManager(master_key="secret")
+    return IdentityAccessManager(secret_key="secret")
 
 
 class _Result:
@@ -42,13 +42,6 @@ class _Result:
 
     def __iter__(self):
         return iter(self._iterate_rows or [])
-
-
-@pytest.mark.asyncio
-async def test_login_success_master(postgres_session: AsyncSession, iam: IdentityAccessManager):
-    token_id, token = await iam.login(postgres_session=postgres_session, email="master", password="secret")
-    assert token_id == 0
-    assert token == "secret"
 
 
 @pytest.mark.asyncio

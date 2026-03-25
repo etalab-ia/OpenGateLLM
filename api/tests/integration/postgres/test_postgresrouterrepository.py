@@ -4,7 +4,6 @@ import pytest
 from sqlalchemy import select
 
 from api.domain import SortField, SortOrder
-from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model import ModelType as RouterType
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
@@ -13,13 +12,14 @@ from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 from api.tests.integration.factories import OrganizationSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.utils.variables import MASTER_ID
 
 
 def to_router_domain(router_sql, aliases: list[str] | None = None) -> Router:
     return Router(
         id=router_sql.id,
         name=router_sql.name,
-        user_id=MASTER_USER_ID if router_sql.user_id is None else router_sql.user_id,
+        user_id=MASTER_ID if router_sql.user_id is None else router_sql.user_id,
         type=RouterType(router_sql.type),
         aliases=aliases or [],
         load_balancing_strategy=RouterLoadBalancingStrategy(router_sql.load_balancing_strategy),
@@ -97,7 +97,7 @@ class TestGetAllRouters:
 
         # Assert
         router_user_id = result_routers[0].user_id
-        assert router_user_id == MASTER_USER_ID
+        assert router_user_id == MASTER_ID
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -471,7 +471,7 @@ class TestGetRouterById:
 
         # Assert
         assert isinstance(result, Router)
-        assert result.user_id == MASTER_USER_ID
+        assert result.user_id == MASTER_ID
 
 
 @pytest.mark.asyncio(loop_scope="session")

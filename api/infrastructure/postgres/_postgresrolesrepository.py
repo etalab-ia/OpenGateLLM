@@ -1,10 +1,12 @@
 from typing import Literal
 
-from sqlalchemy import Integer, cast, distinct, func, select, text
+from sqlalchemy import Integer, cast, distinct, func, insert, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.role import RoleRepository
 from api.domain.role.entities import Limit, PermissionType, Role
+from api.domain.role.errors import RoleAlreadyExistsError
 from api.sql.models import Limit as LimitTable
 from api.sql.models import Permission as PermissionTable
 from api.sql.models import Role as RoleTable
@@ -15,6 +17,38 @@ from api.utils.exceptions import RoleNotFoundException
 class PostgresRolesRepository(RoleRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
+
+    async def create_role(self, name: str, permissions: list[PermissionType], limits: list[Limit]) -> Role | RoleAlreadyExistsError:
+        try:
+            result = await self.postgres_session.execute(
+                insert(RoleTable)
+                .values(name=name)
+                .returning(
+                    RoleTable.id,
+                    RoleTable.name,
+                    cast(func.extract("epoch", RoleTable.created), Integer).label("created"),
+                    cast(func.extract("epoch", RoleTable.updated), Integer).label("updated"),
+                )
+            )
+            row = result.one()
+        except IntegrityError:
+            return RoleAlreadyExistsError(name=name)
+
+        for limit in limits:
+            await self.postgres_session.execute(insert(LimitTable).values(role_id=row.id, router_id=limit.router, type=limit.type, value=limit.value))
+
+        for permission in permissions:
+            await self.postgres_session.execute(insert(PermissionTable).values(role_id=row.id, permission=permission))
+
+        return Role(
+            id=row.id,
+            name=row.name,
+            permissions=permissions,
+            limits=limits,
+            users=0,
+            created=row.created,
+            updated=row.updated,
+        )
 
     async def get_roles(
         self,
@@ -52,6 +86,7 @@ class PostgresRolesRepository(RoleRepository):
         role_results = [row._asdict() for row in result.all()]
 
         if role_id is not None and len(role_results) == 0:
+            # TODO: change this to return the error and raise it in the use case instead of raising it here
             raise RoleNotFoundException()
 
         # Build roles dictionary
@@ -92,3 +127,9 @@ class PostgresRolesRepository(RoleRepository):
                     roles[role_id].permissions.append(PermissionType(value=row.permission))
 
         return list(roles.values())
+
+    async def update_role(self, role: Role) -> Role:
+        raise NotImplementedError
+
+    async def delete_role(self, role_id: int) -> None:
+        raise NotImplementedError

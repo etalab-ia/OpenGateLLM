@@ -2,11 +2,6 @@ from fastapi import HTTPException
 
 
 # 400
-class MasterNotAllowedException(HTTPException):
-    def __init__(self, detail: str = "Master is not allowed to process this action.") -> None:
-        super().__init__(status_code=400, detail=detail)
-
-
 class WrongSearchMethodException(HTTPException):
     def __init__(self, detail: str = "Wrong search method.") -> None:
         super().__init__(status_code=400, detail=detail)
@@ -39,8 +34,6 @@ class InvalidPasswordException(HTTPException):
 
 
 # 403
-
-
 class FeatureNotEnabledException(HTTPException):
     def __init__(self, detail: str = "Feature not enabled, please contact an administrator.") -> None:
         super().__init__(status_code=403, detail=detail)
@@ -185,6 +178,26 @@ class DeleteRoleWithUsersException(HTTPException):
 
 class DeleteOrganizationWithUsersException(HTTPException):
     def __init__(self, detail: str = "Delete organization with users is not allowed.") -> None:
+        super().__init__(status_code=409, detail=detail)
+
+
+class DeleteLastAdminRoleException(HTTPException):
+    def __init__(self, detail: str = "Cannot delete the last admin role.") -> None:
+        super().__init__(status_code=409, detail=detail)
+
+
+class UpdateLastAdminRolePermissionsException(HTTPException):
+    def __init__(self, detail: str = "Cannot remove admin permission from the last admin role.") -> None:
+        super().__init__(status_code=409, detail=detail)
+
+
+class DeleteLastAdminUserException(HTTPException):
+    def __init__(self, detail: str = "Cannot delete the last admin user.") -> None:
+        super().__init__(status_code=409, detail=detail)
+
+
+class UpdateLastAdminUserRoleException(HTTPException):
+    def __init__(self, detail: str = "Cannot change the role of the last admin user.") -> None:
         super().__init__(status_code=409, detail=detail)
 
 

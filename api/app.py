@@ -54,7 +54,7 @@ def _setup_sentry(configuration: Configuration) -> None:
 
 
 def _setup_middleware(app: FastAPI, configuration: Configuration) -> None:
-    app.add_middleware(SessionMiddleware, secret_key=configuration.settings.session_secret_key)
+    app.add_middleware(SessionMiddleware, secret_key=configuration.settings.auth_secret_key)
 
     @app.middleware("http")
     async def set_request_context(request: Request, call_next):

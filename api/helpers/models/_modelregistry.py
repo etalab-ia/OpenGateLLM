@@ -8,7 +8,8 @@ from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.clients.model import BaseModelProvider as ModelProvider
-from api.schemas.admin.providers import Provider, ProviderCarbonFootprintZone, ProviderType
+from api.domain.provider.entities import Provider
+from api.infrastructure.fastapi.schemas.providers import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import Router, RouterLoadBalancingStrategy
 from api.schemas.core.configuration import Model as ModelConfiguration
 from api.schemas.core.context import RequestContext
@@ -36,7 +37,7 @@ from api.utils.exceptions import (
     WrongModelTypeException,
 )
 from api.utils.routing import apply_routing_with_queuing, apply_routing_without_queuing
-from api.utils.variables import PREFIX__CELERY_QUEUE_ROUTING, EndpointRoute
+from api.utils.variables import MASTER_ID, PREFIX__CELERY_QUEUE_ROUTING, EndpointRoute
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,7 @@ class ModelRegistry:
             postgres_session(AsyncSession): The database postgres_session
         """
         for model in models:
+            # TODO: Check why MASTER_ID is useful here
             try:
                 router_id = await self.create_router(
                     name=model.name,
@@ -116,7 +118,7 @@ class ModelRegistry:
                     load_balancing_strategy=model.load_balancing_strategy,
                     cost_prompt_tokens=model.cost_prompt_tokens,
                     cost_completion_tokens=model.cost_completion_tokens,
-                    user_id=0,  # setup as master user
+                    user_id=MASTER_ID,  # setup as master user
                     postgres_session=postgres_session,
                 )
                 logger.info(f"Router {model.name} are created (id: {router_id})")
@@ -134,9 +136,10 @@ class ModelRegistry:
 
             for provider in model.providers:
                 try:
+                    # TODO: Check why MASTER_ID is useful here
                     provider_id = await self.create_provider(
                         router_id=router.id,
-                        user_id=0,  # setup as master user
+                        user_id=MASTER_ID,  # setup as master user
                         type=provider.type,
                         url=provider.url,
                         key=provider.key,
@@ -193,7 +196,7 @@ class ModelRegistry:
         """
 
         # Create the router in database
-        user_id = None if user_id == 0 else user_id  # 0 corresponds to master user ID
+        user_id = None if user_id == MASTER_ID else user_id
         try:
             query = (
                 insert(RouterTable)
@@ -409,7 +412,7 @@ class ModelRegistry:
 
         routers = []
         for row in router_results:
-            user_id = 0 if row["user_id"] is None else row["user_id"]  # 0 corresponds to master user ID
+            user_id = MASTER_ID if row["user_id"] is None else row["user_id"]
             routers.append(
                 Router(
                     id=row["id"],
@@ -508,7 +511,7 @@ class ModelRegistry:
 
         # Create provider
         try:
-            user_id = None if user_id == 0 else user_id  # 0 corresponds to master user ID
+            user_id = None if user_id == MASTER_ID else user_id
             qos_metric = qos_metric.value if qos_metric is not None else None
             query = (
                 insert(ProviderTable)
@@ -627,7 +630,7 @@ class ModelRegistry:
         providers = []
         for row in rows:
             qos_metric = Metric(row["qos_metric"]) if row["qos_metric"] is not None else None
-            user_id = 0 if row["user_id"] is None else row["user_id"]  # 0 corresponds to master user ID
+            user_id = MASTER_ID if row["user_id"] is None else row["user_id"]
             providers.append(
                 Provider(
                     id=row["id"],

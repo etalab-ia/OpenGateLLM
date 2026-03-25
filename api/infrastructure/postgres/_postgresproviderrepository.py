@@ -3,12 +3,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain import SortOrder
-from api.domain.key.entities import MASTER_USER_ID
 from api.domain.model.entities import Metric
 from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderPage, ProviderSortField, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError
 from api.sql.models import Provider as ProviderTable
+from api.utils.variables import MASTER_ID
 
 
 class PostgresProviderRepository(ProviderRepository):
@@ -74,7 +74,7 @@ class PostgresProviderRepository(ProviderRepository):
     def _row_to_provider(row) -> Provider:
         return Provider(
             router_id=row.router_id,
-            user_id=MASTER_USER_ID if row.user_id is None else row.user_id,
+            user_id=MASTER_ID if row.user_id is None else row.user_id,
             type=row.type,
             url=row.url,
             key=row.key,

@@ -29,7 +29,7 @@ def postgres_session():
 
 @pytest.fixture
 def iam():
-    return IdentityAccessManager(master_key="secret")
+    return IdentityAccessManager(secret_key="secret")
 
 
 @pytest.mark.asyncio

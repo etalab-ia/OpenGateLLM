@@ -7,7 +7,8 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas.admin.roles import PermissionType
+from api.domain.role.entities import PermissionType
+from api.helpers._identityaccessmanager import CheckTokenResult
 from api.schemas.admin.users import User
 from api.schemas.collections import CollectionVisibility
 from api.schemas.me.info import UserInfo
@@ -83,39 +84,23 @@ class AccessController:
         if not api_key.credentials:
             raise InvalidAPIKeyException()
 
-        # master user can do anything
-        if api_key.credentials == global_context.identity_access_manager.master_key:
-            user_info = UserInfo(
-                id=0,
-                email="master",
-                name="master",
-                budget=None,
-                limits=[],
-                permissions=[permission for permission in PermissionType],
-                expires=None,
-                created=0,
-                updated=0,
-                organization_id=0,
-                priority=0,
-            )
-            key_id = 0
-            key_name = "master"
-        else:
-            user_id, key_id, key_name = await global_context.identity_access_manager.check_token(
-                postgres_session=postgres_session, token=api_key.credentials
-            )
-            if not user_id:
-                raise InvalidAPIKeyException()
+        token_result: CheckTokenResult = await global_context.identity_access_manager.check_token(
+            postgres_session=postgres_session, token=api_key.credentials
+        )
+        if token_result.user_id is None:
+            raise InvalidAPIKeyException()
 
-            user_info = await global_context.identity_access_manager.get_user_info(postgres_session=postgres_session, user_id=user_id)
+        user_info = await global_context.identity_access_manager.get_user_info(postgres_session=postgres_session, user_id=token_result.user_id)
 
-            # invalid token if user is expired, except for /me and /me/role endpoints
-            if user_info.expires and user_info.expires < time.time() and not request.url.path.endswith(EndpointRoute.ME_INFO):
-                raise InvalidAPIKeyException()
+        # invalid token if user is expired, except for /me and /me/role endpoints
+        if user_info.expires and user_info.expires < time.time() and not request.url.path.endswith(EndpointRoute.ME_INFO):
+            raise InvalidAPIKeyException()
 
-        return user_info, key_id, key_name
+        return user_info, token_result.token_id, token_result.token_name
 
     async def _check_permissions(self, permissions: list[PermissionType]) -> None:
+        if PermissionType.ADMIN in permissions:
+            return
         if self.permissions and not set(permissions).intersection(set(self.permissions)):
             raise InsufficientPermissionException()
 
@@ -129,19 +114,16 @@ class AccessController:
     @staticmethod
     async def _check_chat_completions(body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
         router_id = await global_context.model_registry.get_router_id_from_model_name(model_name=body.get("model"), postgres_session=postgres_session)
-
         if router_id is None:
             return
 
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=EndpointRoute.CHAT_COMPLETIONS, body=body)
-
         if body.get("search", False):  # count the search request as one request to the search model (embeddings)
             search_router_id = await global_context.model_registry.get_router_id_from_model_name(
                 model_name=global_context.document_manager.vector_store_model,
                 postgres_session=postgres_session,
             )
             await global_context.limiter.check_user_limits(user_info=user_info, router_id=search_router_id, prompt_tokens=prompt_tokens)
-
         await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
     @staticmethod

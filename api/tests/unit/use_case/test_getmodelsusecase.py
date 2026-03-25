@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from api.domain.model import ModelType
-from api.domain.role.entities import LimitType
+from api.domain.role.entities import LimitType, PermissionType
 from api.domain.userinfo.entities import Limit
 from api.tests.unit.use_case.factories import RouterFactory, UserInfoFactory
 from api.use_cases.models import GetModelsUseCase
@@ -81,7 +81,7 @@ def user_info_with_access():
 
 class TestGetModelsUseCase:
     @pytest.mark.asyncio
-    async def test_should_return_all_models_the_user_has_access_to_when_no_name_is_given(
+    async def test_should_return_all_models_the_user_has_access_to_when_no_name_is_given_and_has_limits(
         self, router_repository, user_info_repository, sample_routers, user_info_with_access
     ):
         # Arrange
@@ -113,6 +113,32 @@ class TestGetModelsUseCase:
         assert result.models[1].owned_by == "Anthropic"
 
         assert all(model.id != "dall-e-3" for model in result.models)
+
+        user_info_repository.get_user_info.assert_called_once_with(user_id=1)
+        router_repository.get_all_routers.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_should_return_all_models_the_user_has_access_to_when_no_name_is_given_and_has_limits_and_is_admin(
+        self, router_repository, user_info_repository, sample_routers
+    ):
+        # Arrange
+        user_info_non_admin = UserInfoFactory(user_id=1, limits=[], permissions=[PermissionType.ADMIN])
+        user_info_repository.get_user_info.return_value = user_info_non_admin
+        router_repository.get_all_routers.return_value = sample_routers
+        router_repository.get_organization_name.side_effect = ["OpenAI", "Anthropic"]
+
+        use_case = GetModelsUseCase(
+            user_id=1,
+            router_repository=router_repository,
+            user_info_repository=user_info_repository,
+        )
+
+        # Act
+        result = await use_case.execute()
+
+        # Assert
+        assert isinstance(result, Success)
+        assert len(result.models) == 2
 
         user_info_repository.get_user_info.assert_called_once_with(user_id=1)
         router_repository.get_all_routers.assert_called_once()
@@ -186,9 +212,11 @@ class TestGetModelsUseCase:
         assert isinstance(result, ModelNotFound)
 
     @pytest.mark.asyncio
-    async def test_should_return_an_empty_list_when_user_has_no_limit_defined(self, router_repository, user_info_repository, sample_routers):
+    async def test_should_return_an_empty_list_when_user_has_no_limit_defined_and_no_admin_permission(
+        self, router_repository, user_info_repository, sample_routers
+    ):
         # Arrange
-        user_info_no_access = UserInfoFactory(user_id=1, limits=[])
+        user_info_no_access = UserInfoFactory(user_id=1, limits=[], permissions=[])
         user_info_repository.get_user_info.return_value = user_info_no_access
         router_repository.get_all_routers.return_value = sample_routers
 
@@ -206,9 +234,11 @@ class TestGetModelsUseCase:
         assert len(result.models) == 0
 
     @pytest.mark.asyncio
-    async def test_should_return_model_not_found_when_given_a_name_and_no_limit(self, router_repository, user_info_repository, sample_routers):
+    async def test_should_return_model_not_found_when_given_a_name_and_no_limit_no_admin_permission(
+        self, router_repository, user_info_repository, sample_routers
+    ):
         # Arrange
-        user_info_no_access = UserInfoFactory(user_id=1, limits=[])
+        user_info_no_access = UserInfoFactory(user_id=1, limits=[], permissions=[])
         user_info_repository.get_user_info.return_value = user_info_no_access
         router_repository.get_all_routers.return_value = sample_routers
 
@@ -233,6 +263,7 @@ class TestGetModelsUseCase:
                 Limit(router=1, value=0, type=LimitType.RPM),
                 Limit(router=2, value=10, type=LimitType.RPM),
             ],
+            permissions=[],
         )
         user_info_repository.get_user_info.return_value = user_info_zero_limit
         router_repository.get_all_routers.return_value = sample_routers
@@ -255,7 +286,7 @@ class TestGetModelsUseCase:
     @pytest.mark.asyncio
     async def test_shoudl_return_the_router_when_associated_limit_value_is_none(self, router_repository, user_info_repository, sample_routers):
         # Arrange
-        user_info_unlimited = UserInfoFactory(user_id=1, limits=[Limit(router=1, value=None, type=LimitType.RPM)])
+        user_info_unlimited = UserInfoFactory(user_id=1, limits=[Limit(router=1, value=None, type=LimitType.RPM)], permissions=[])
         user_info_repository.get_user_info.return_value = user_info_unlimited
         router_repository.get_all_routers.return_value = sample_routers
         router_repository.get_organization_name.return_value = "OpenAI"
@@ -277,7 +308,7 @@ class TestGetModelsUseCase:
     @pytest.mark.asyncio
     async def test_should_return_model_not_found_when_given_a_name_but_has_no_access(self, router_repository, user_info_repository, sample_routers):
         # Arrange
-        user_info_no_access = UserInfoFactory(user_id=1, limits=[])
+        user_info_no_access = UserInfoFactory(user_id=1, limits=[], permissions=[])
         user_info_repository.get_user_info.return_value = user_info_no_access
         router_repository.get_all_routers.return_value = sample_routers
 

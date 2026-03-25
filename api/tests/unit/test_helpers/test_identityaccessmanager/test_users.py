@@ -45,7 +45,7 @@ def postgres_session():
 
 @pytest.fixture
 def iam():
-    return IdentityAccessManager(master_key="secret")
+    return IdentityAccessManager(secret_key="secret")
 
 
 @pytest.mark.asyncio
@@ -62,6 +62,7 @@ async def test_create_user_success(postgres_session: AsyncSession, iam: Identity
         budget=12.5,
         expires=int(dt.datetime.now(tz=dt.UTC).timestamp()) + 100,
         sub="sub123",
+        password="password",
     )
 
     assert uid == 10
@@ -73,7 +74,7 @@ async def test_create_user_role_not_found(postgres_session: AsyncSession, iam: I
     postgres_session.execute = AsyncMock(return_value=_Result(scalar_one=NoResultFound()))
 
     with pytest.raises(RoleNotFoundException):
-        await iam.create_user(postgres_session, email="bob@example.com", name="bob", role_id=9)
+        await iam.create_user(postgres_session, email="bob@example.com", name="bob", role_id=9, password="password")
 
 
 @pytest.mark.asyncio
@@ -81,7 +82,7 @@ async def test_create_user_organization_not_found(postgres_session: AsyncSession
     postgres_session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), _Result(scalar_one=NoResultFound())])
 
     with pytest.raises(OrganizationNotFoundException):
-        await iam.create_user(postgres_session, email="bob@example.com", name="bob", role_id=1, organization_id=5)
+        await iam.create_user(postgres_session, email="bob@example.com", name="bob", role_id=1, organization_id=5, password="password")
 
 
 @pytest.mark.asyncio
@@ -89,7 +90,7 @@ async def test_create_user_unique_violation_to_400(postgres_session: AsyncSessio
     postgres_session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), IntegrityError("", "", None)])
 
     with pytest.raises(UserAlreadyExistsException):
-        await iam.create_user(postgres_session, email="bob@example.com", name="bob", role_id=1)
+        await iam.create_user(postgres_session, email="bob@example.com", name="bob", role_id=1, password="password")
 
 
 @pytest.mark.asyncio
@@ -195,49 +196,6 @@ async def test_get_users_filters_and_not_found(postgres_session: AsyncSession, i
     postgres_session.execute = AsyncMock(return_value=_Result(all_rows=[]))
     with pytest.raises(UserNotFoundException):
         await iam.get_users(postgres_session, user_id=404)
-
-
-@pytest.mark.asyncio
-async def test_get_user_info_master_user(iam: IdentityAccessManager, postgres_session: AsyncSession, monkeypatch):
-    # When user_id is 0, returns master info with all permissions and all non-zero limits
-    from types import SimpleNamespace
-
-    # Provide a fake model_registry with async get_routers returning routers with ids
-    import api.helpers._identityaccessmanager as iam_mod
-    from api.schemas.admin.roles import LimitType, PermissionType
-
-    class _Router:
-        def __init__(self, router_id: int):
-            self.id = router_id
-
-    original_user_info = iam_mod.UserInfo
-
-    class _UserInfo(original_user_info):
-        def __init__(self, **kwargs):
-            kwargs.setdefault("created", 0)
-            kwargs.setdefault("updated", 0)
-            super().__init__(**kwargs)
-
-    monkeypatch.setattr(
-        iam_mod.global_context,
-        "model_registry",
-        SimpleNamespace(get_routers=AsyncMock(return_value=[_Router(1)])),
-        raising=False,
-    )
-    monkeypatch.setattr(iam_mod, "UserInfo", _UserInfo, raising=False)
-
-    user = await iam.get_user_info(postgres_session=postgres_session, user_id=0)
-
-    assert user.id == 0
-    assert user.name == "master"
-    assert user.email == "master"
-    assert user.organization == 0
-    assert set(user.permissions) == set(PermissionType)
-    # limits list is built from global_context.model_registry.models; we only assert structure
-    assert all(limit.value is None or limit.value >= 0 for limit in user.limits)
-    assert all(limit.type in list(LimitType) for limit in user.limits)
-    assert user.created == 0
-    assert user.updated == 0
 
 
 @pytest.mark.asyncio

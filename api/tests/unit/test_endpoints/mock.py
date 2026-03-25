@@ -1,3 +1,4 @@
+from api.helpers._identityaccessmanager import CheckTokenResult
 from api.schemas.admin.organizations import Organization
 from api.schemas.admin.roles import Limit, LimitType, PermissionType, Role
 from api.schemas.admin.tokens import Token
@@ -74,8 +75,8 @@ class MockIdentityAccessManagerSuccess:
     async def login(self, postgres_session, email, password) -> tuple[int, str]:
         return self.LOGIN_KEY_ID, self.LOGIN_KEY
 
-    async def check_token(self, postgres_session, token):
-        return 1, 1
+    async def check_token(self, postgres_session, token) -> CheckTokenResult:
+        return CheckTokenResult(user_id=1, token_id=1, token_name=None)
 
     async def get_user_info(self, postgres_session, user_id=None, email=None) -> UserInfo:
         return UserInfo(
@@ -188,8 +189,8 @@ class MockIdentityAccessManagerFail:
     async def login(self, postgres_session, email, password):
         raise InvalidCurrentPasswordException()
 
-    async def check_token(self, postgres_session, token):
-        return 1, 1
+    async def check_token(self, postgres_session, token) -> CheckTokenResult:
+        return CheckTokenResult(user_id=1, token_id=1, token_name=None)
 
     async def get_user_info(self, postgres_session, user_id=None, email=None) -> UserInfo:
         return UserInfo(
