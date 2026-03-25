@@ -1,0 +1,44 @@
+name: Trivy Scan
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        description: "Full image name (ex: ghcr.io/org/repo/api)"
+        required: true
+        type: string
+      image-tag:
+        description: "Image tag to scan"
+        required: true
+        type: string
+
+jobs:
+  trivy-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trivy scan (HIGH — warning)
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: ${{ inputs.image-name }}:${{ inputs.image-tag }}
+          format: 'table'
+          severity: 'HIGH'
+          exit-code: "0"
+
+      # CRITICAL → bloque le pipeline
+      - name: Trivy scan (CRITICAL — blocking)
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: ${{ inputs.image-name }}:${{ inputs.image-tag }}
+          format: 'table'
+          severity: 'CRITICAL'
+          exit-code: "1"
