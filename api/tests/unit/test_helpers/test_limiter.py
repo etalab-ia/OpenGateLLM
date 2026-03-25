@@ -7,7 +7,7 @@ import pytest
 from redis.exceptions import RedisError
 
 from api.helpers._limiter import Limiter
-from api.schemas.admin.roles import Limit, LimitType
+from api.schemas.admin.roles import Limit, LimitType, PermissionType
 from api.schemas.core.configuration import LimitingStrategy
 from api.schemas.me.info import UserInfo
 from api.utils.exceptions import InsufficientPermissionException, ModelNotFoundException, RateLimitExceeded
@@ -396,7 +396,9 @@ async def test_limiter_check_user_limits_admin(strategy):
         limiter = Limiter(mock_redis_pool, strategy)
         limiter.hit = AsyncMock(return_value=True)
 
-        user_info = UserInfo(id=0, email="admin@test.com", name="Admin", permissions=[], limits=[], expires=None, created=0, updated=0)
+        user_info = UserInfo(
+            id=0, email="admin@test.com", name="Admin", permissions=[PermissionType.ADMIN], limits=[], expires=None, created=0, updated=0
+        )
 
         await limiter.check_user_limits(user_info=user_info, router_id=1)
 

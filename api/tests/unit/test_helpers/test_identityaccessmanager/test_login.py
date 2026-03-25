@@ -45,13 +45,6 @@ class _Result:
 
 
 @pytest.mark.asyncio
-async def test_login_success_master(postgres_session: AsyncSession, iam: IdentityAccessManager):
-    token_id, token = await iam.login(postgres_session=postgres_session, email="master", password="secret")
-    assert token_id == 0
-    assert token == "secret"
-
-
-@pytest.mark.asyncio
 async def test_login_success_user(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # Prepare a real password and its hash stored in DB
     password_plain = "correcthorsebatterystaple"
