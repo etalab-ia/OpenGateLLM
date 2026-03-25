@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run Semgrep (diff only)
-        run: semgrep ci --config auto
+        run: semgrep ci --config auto --verbose
 
   semgrep-full:
     name: Semgrep SAST (full)
@@ -36,21 +36,23 @@ jobs:
       - name: Run Semgrep (WARNING severity)
         run: |
           semgrep scan \
-            --config auto \ 
+            --config auto \
             --config p/default \
             --config p/secrets \
             --config p/security-audit \
             --config .github/semgrep-rules.yml \
             --severity WARNING \
+            --verbose
           exit 0  # Never block this job
 
       - name: Run Semgrep (ERROR severity only)
         run: |
           semgrep scan \
-            --config auto \ 
+            --config auto \
             --config p/default \
             --config p/secrets \
             --config p/security-audit \
             --config .github/semgrep-rules.yml \
             --severity ERROR \
-            --error 
+            --error \
+            --verbose
