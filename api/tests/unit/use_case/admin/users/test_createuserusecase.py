@@ -33,125 +33,95 @@ def command():
     )
 
 
-@pytest.mark.asyncio
-async def test_happy_path_returns_success_instance(use_case, user_repository, user_info_repository, command):
-    # Arrange
-    user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
-    user_repository.create_user.return_value = UserFactory(email="newuser@test.com")
+class TestCreateUserUseCase:
+    @pytest.mark.asyncio
+    async def test_should_create_user_when_user_is_admin(self, use_case, user_repository, user_info_repository):
+        # Arrange
+        user_id = 1
+        user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
+        user_repository.create_user.return_value = UserFactory(id=user_id, email="newuser@test.com")
+        command = CreateUserCommand(
+            user_id=user_id,
+            email="newuser@test.com",
+            password="s3cr3t",
+            role_id=10,
+            name="New User",
+            organization_id=5,
+            budget=100.0,
+            priority=2,
+        )
 
-    # Act
-    result = await use_case.execute(command)
+        # Act
+        result = await use_case.execute(command)
 
-    # Assert
-    assert isinstance(result, CreateUserUseCaseSuccess)
+        # Assert
+        assert isinstance(result, CreateUserUseCaseSuccess)
+        assert result.user.id == user_id
+        assert result.user.email == "newuser@test.com"
 
+        user_repository.create_user.assert_awaited_once()
+        assert user_repository.create_user.call_args.kwargs == {
+            "email": "newuser@test.com",
+            "role_id": 10,
+            "name": "New User",
+            "expires": None,
+            "organization_id": 5,
+            "password": "s3cr3t",
+            "budget": 100.0,
+            "priority": 2,
+        }
 
-@pytest.mark.asyncio
-async def test_happy_path_result_contains_correct_user(use_case, user_repository, user_info_repository, command):
-    # Arrange
-    user = UserFactory(id=42, email="newuser@test.com")
-    user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
-    user_repository.create_user.return_value = user
+    @pytest.mark.asyncio
+    async def test_should_return_user_is_not_admin_error_when_user_is_not_admin(self, use_case, user_repository, user_info_repository, command):
+        # Arrange
+        user_info_repository.get_user_info.return_value = UserInfoFactory(without_permission=True, limits=[])
 
-    # Act
-    result = await use_case.execute(command)
+        # Act
+        result = await use_case.execute(command)
 
-    # Assert
-    assert result.user.id == 42
-    assert result.user.email == "newuser@test.com"
+        # Assert
+        assert isinstance(result, UserIsNotAdminError)
+        user_repository.create_user.assert_not_awaited()
 
+    @pytest.mark.asyncio
+    async def test_should_return_user_already_exists_error_when_a_user_has_the_same_email(
+        self, use_case, user_repository, user_info_repository, command
+    ):
+        # Arrange
+        user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
+        user_repository.create_user.return_value = UserAlreadyExistsError(email="newuser@test.com")
 
-@pytest.mark.asyncio
-async def test_happy_path_create_user_is_called_with_correct_args(use_case, user_repository, user_info_repository):
-    # Arrange
-    user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
-    user_repository.create_user.return_value = UserFactory()
-    command = CreateUserCommand(
-        user_id=1,
-        email="newuser@test.com",
-        password="s3cr3t",
-        role_id=10,
-        name="New User",
-        organization_id=5,
-        budget=100.0,
-        priority=2,
-    )
+        # Act
+        result = await use_case.execute(command)
 
-    # Act
-    await use_case.execute(command)
+        # Assert
+        assert isinstance(result, UserAlreadyExistsError)
+        assert result.email == "newuser@test.com"
 
-    # Assert
-    user_repository.create_user.assert_awaited_once()
-    kwargs = user_repository.create_user.call_args.kwargs
-    assert kwargs["email"] == "newuser@test.com"
-    assert kwargs["role_id"] == 10
-    assert kwargs["name"] == "New User"
-    assert kwargs["organization_id"] == 5
-    assert kwargs["budget"] == 100.0
-    assert kwargs["priority"] == 2
+    @pytest.mark.asyncio
+    async def test_should_return_role_not_found_error_when_the_role_id_does_not_exist(self, use_case, user_repository, user_info_repository, command):
+        # Arrange
+        user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
+        user_repository.create_user.return_value = RoleNotFoundError(role_id=10)
 
+        # Act
+        result = await use_case.execute(command)
 
-@pytest.mark.asyncio
-async def test_returns_user_is_not_admin_error_when_user_is_not_admin(use_case, user_info_repository, command):
-    # Arrange
-    user_info_repository.get_user_info.return_value = UserInfoFactory(without_permission=True, limits=[])
+        # Assert
+        assert isinstance(result, RoleNotFoundError)
+        assert result.role_id == 10
 
-    # Act
-    result = await use_case.execute(command)
+    @pytest.mark.asyncio
+    async def test_should_return_organization_not_found_error_when_the_organisation_does_not_exist(
+        self, use_case, user_repository, user_info_repository, command
+    ):
+        # Arrange
+        user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
+        user_repository.create_user.return_value = OrganizationNotFoundError(organization_id=5)
 
-    # Assert
-    assert isinstance(result, UserIsNotAdminError)
+        # Act
+        result = await use_case.execute(command)
 
-
-@pytest.mark.asyncio
-async def test_non_admin_does_not_call_create_user(use_case, user_repository, user_info_repository, command):
-    # Arrange
-    user_info_repository.get_user_info.return_value = UserInfoFactory(without_permission=True, limits=[])
-
-    # Act
-    await use_case.execute(command)
-
-    # Assert
-    user_repository.create_user.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_returns_user_already_exists_error(use_case, user_repository, user_info_repository, command):
-    # Arrange
-    user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
-    user_repository.create_user.return_value = UserAlreadyExistsError(email="newuser@test.com")
-
-    # Act
-    result = await use_case.execute(command)
-
-    # Assert
-    assert isinstance(result, UserAlreadyExistsError)
-    assert result.email == "newuser@test.com"
-
-
-@pytest.mark.asyncio
-async def test_returns_role_not_found_error(use_case, user_repository, user_info_repository, command):
-    # Arrange
-    user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
-    user_repository.create_user.return_value = RoleNotFoundError(role_id=10)
-
-    # Act
-    result = await use_case.execute(command)
-
-    # Assert
-    assert isinstance(result, RoleNotFoundError)
-    assert result.role_id == 10
-
-
-@pytest.mark.asyncio
-async def test_returns_organization_not_found_error(use_case, user_repository, user_info_repository, command):
-    # Arrange
-    user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
-    user_repository.create_user.return_value = OrganizationNotFoundError(organization_id=5)
-
-    # Act
-    result = await use_case.execute(command)
-
-    # Assert
-    assert isinstance(result, OrganizationNotFoundError)
-    assert result.organization_id == 5
+        # Assert
+        assert isinstance(result, OrganizationNotFoundError)
+        assert result.organization_id == 5

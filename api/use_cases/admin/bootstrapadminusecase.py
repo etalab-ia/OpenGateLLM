@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import logging
 
 from api.domain.role import RoleRepository
 from api.domain.role.entities import Limit, PermissionType, Role
@@ -6,9 +7,8 @@ from api.domain.role.errors import RoleAlreadyExistsError
 from api.domain.user import UserRepository
 from api.domain.user.entities import User
 from api.domain.user.errors import UserAlreadyExistsError
-from api.utils.logging import init_logger
 
-logger = init_logger(name=__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -29,8 +29,8 @@ class BootstrapAdminUseCaseSuccess:
 
 @dataclass
 class BootstrapAdminUseCaseSkipped:
-    # TODO: Add attributes - Add config name not created
-    pass
+    name: str
+    email: str
 
 
 type BootstrapAdminUseCaseResult = BootstrapAdminUseCaseSuccess | BootstrapAdminUseCaseSkipped | RoleAlreadyExistsError | UserAlreadyExistsError
@@ -43,7 +43,7 @@ class BootstrapAdminUseCase:
 
     async def execute(self, command: BootstrapAdminCommand) -> BootstrapAdminUseCaseResult:
         if await self.user_repository.has_admin_user():
-            return BootstrapAdminUseCaseSkipped()
+            return BootstrapAdminUseCaseSkipped(name=command.name, email=command.email)
 
         result = await self.role_repository.create_role(
             name=command.name,
