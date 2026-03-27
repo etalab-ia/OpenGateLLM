@@ -47,7 +47,8 @@ async def lifespan(_: FastAPI):
 
     global_context.identity_access_manager = create_identity_access_manager(configuration=configuration)
 
-    await bootstrap_default_admin(configuration=configuration)
+    async for postgres_session in get_postgres_session():
+        await bootstrap_default_admin(configuration=configuration, postgres_session=postgres_session)
 
     global_context.limiter = create_limiter(configuration=configuration, redis_pool=global_context.redis_pool)
     global_context.tokenizer = create_tokenizer(configuration=configuration)
@@ -101,33 +102,29 @@ def create_postgres_session_factory(configuration: Configuration) -> tuple[Async
     return engine, session_factory
 
 
-# NOTE: Repositories are instantiated manually here because FastAPI's Depends() is only resolved during
-# request handling. Since this function is called in the lifespan context (outside any request),
-# FastAPI's dependency injection system is not available.
-async def bootstrap_default_admin(configuration: Configuration) -> None:
-    async for postgres_session in get_postgres_session():
-        user_repository = PostgresUserRepository(postgres_session=postgres_session)
-        role_repository = PostgresRolesRepository(postgres_session=postgres_session)
+async def bootstrap_default_admin(configuration: Configuration, postgres_session: AsyncSession):
+    user_repository = PostgresUserRepository(postgres_session=postgres_session)
+    role_repository = PostgresRolesRepository(postgres_session=postgres_session)
 
-        result = await BootstrapAdminUseCase(user_repository=user_repository, role_repository=role_repository).execute(
-            BootstrapAdminCommand(
-                name=configuration.settings.auth_default_username,
-                email=configuration.settings.auth_default_username,
-                password=configuration.settings.auth_default_password,
-                permissions=[PermissionType.ADMIN],
-                limits=[],
-            )
+    result = await BootstrapAdminUseCase(user_repository=user_repository, role_repository=role_repository).execute(
+        BootstrapAdminCommand(
+            name=configuration.settings.auth_default_username,
+            email=configuration.settings.auth_default_username,
+            password=configuration.settings.auth_default_password,
+            permissions=[PermissionType.ADMIN],
+            limits=[],
         )
+    )
 
-        match result:
-            case BootstrapAdminUseCaseSuccess(user_id=user_id, email=email, role_id=role_id):
-                logger.info("Default admin successfully created.", extra={"user_id": user_id, "email": email, "role_id": role_id})
-            case BootstrapAdminUseCaseSkipped():
-                logger.info("Admin user already exists, skipping default admin user creation.")
-            case RoleAlreadyExistsError(name=name):
-                raise RuntimeError(f"Failed to bootstrap default admin role: role '{name}' already exists.")
-            case UserAlreadyExistsError(email=email):
-                raise RuntimeError(f"Failed to bootstrap default admin user: user '{email}' already exists.")
+    match result:
+        case BootstrapAdminUseCaseSuccess(user_id=user_id, email=email, role_id=role_id):
+            logger.info("Default admin successfully created.", extra={"user_id": user_id, "email": email, "role_id": role_id})
+        case BootstrapAdminUseCaseSkipped(name=name, email=email):
+            logger.info(f"Admin user {name} / {email} already exists, skipping default admin user creation.")
+        case RoleAlreadyExistsError(name=name):
+            raise RuntimeError(f"Failed to bootstrap default admin role: role '{name}' already exists.")
+        case UserAlreadyExistsError(email=email):
+            raise RuntimeError(f"Failed to bootstrap default admin user: user '{email}' already exists.")
 
 
 async def create_model_registry(
