@@ -8,7 +8,7 @@ from api.tests.unit.infrastructure.http.factories.vllm import VllmFormattedModel
 
 
 @pytest.fixture
-def vllm_model_http_client():
+def vllm_model_http_client() -> VllmModelHttpClient:
     return VllmModelHttpClient(
         url="https://test.com",
         key="test-key",

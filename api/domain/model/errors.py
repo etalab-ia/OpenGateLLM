@@ -21,4 +21,4 @@ class InconsistentModelMaxContextLengthError:
 @dataclass
 class UnsupportedEndpointError:
     endpoint: EndpointRoute
-    provider_type: ProviderType
+    provider_type: ProviderType | None = None

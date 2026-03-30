@@ -10,7 +10,7 @@ from api.tests.unit.infrastructure.http.factories.tei import TeiFormattedModelRe
 
 
 @pytest.fixture
-def tei_model_http_client():
+def tei_model_http_client() -> TeiModelHttpClient:
     return TeiModelHttpClient(
         url="https://test.com",
         key="test-key",

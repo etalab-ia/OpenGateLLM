@@ -6,7 +6,7 @@ import pytest
 from api.domain.provider.entities import ProviderCarbonFootprintZone
 from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
 from api.infrastructure.http.model import FormattedModelRequest, FormattedModelResponse, MistralModelHttpClient
-from api.schemas.audio import AudioTranscription
+from api.schemas.audio import AudioTranscription, AudioTranscriptionResponseFormat
 from api.schemas.usage import Usage
 from api.tests.unit.infrastructure.http.factories.common import HttpModelExchangeFactory, OriginalModelRequestFactory
 from api.tests.unit.infrastructure.http.factories.mistral import (
@@ -16,7 +16,7 @@ from api.tests.unit.infrastructure.http.factories.mistral import (
 
 
 @pytest.fixture
-def mistral_model_http_client():
+def mistral_model_http_client() -> MistralModelHttpClient:
     return MistralModelHttpClient(
         url="https://test.com",
         key="test-key",
@@ -102,12 +102,23 @@ class TestMistralModelHttpClient:
                 "stream": False,
                 "temperature": None,
                 "tool_choice": "required",
-                "tools": None,
+                "tools": [
+                    {
+                        "type": "function",
+                        "name": "get_horoscope",
+                        "description": "Get today's horoscope for an astrological sign.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"sign": {"type": "string", "description": "An astrological sign like Taurus or Aquarius"}},
+                            "required": ["sign"],
+                        },
+                    },
+                ],
                 "top_p": 1.0,
             },
         )
 
-    def test_should_format_valid_audio_transcription_original_response(self, mistral_model_http_client, mocker):
+    def test_should_format_valid_audio_transcription_original_response_with_json_response_format(self, mistral_model_http_client, mocker):
         # Arrange
         exchange = HttpModelExchangeFactory(
             original_request=OriginalModelRequestFactory(audio_transcriptions=True),
@@ -129,6 +140,27 @@ class TestMistralModelHttpClient:
                 text=exchange.original_response.data["choices"][0]["message"]["content"],
                 usage=mock_usage.model_dump(),
             ),
+        )
+
+    def test_should_format_valid_audio_transcription_original_response_with_text_response_format(self, mistral_model_http_client, mocker):
+        # Arrange
+        exchange = HttpModelExchangeFactory(
+            original_request=OriginalModelRequestFactory(audio_transcriptions=True),
+            original_response=MistralOriginalResponseFactory(audio_transcription=True),
+        )
+        exchange.original_request.form["response_format"] = AudioTranscriptionResponseFormat.TEXT.value
+        mock_request_id = "request-1234567890"
+        mock_usage = Usage()
+        mocker.patch.object(mistral_model_http_client, "_get_request_id", return_value=mock_request_id)
+        mocker.patch.object(mistral_model_http_client, "_get_usage", return_value=mock_usage)
+
+        # Act
+        result = mistral_model_http_client.format_response_to_audio_transcription_response(exchange=exchange)
+
+        # Assert
+        assert result.formatted_response == FormattedModelResponse(
+            text=exchange.original_response.data["choices"][0]["message"]["content"],
+            data=None,
         )
 
     def test_should_format_valid_models_original_response(self, mistral_model_http_client):

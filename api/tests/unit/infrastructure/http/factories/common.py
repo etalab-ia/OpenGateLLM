@@ -4,6 +4,7 @@ from faker import Faker
 from api.domain.model.entities import UserModelRequest
 from api.infrastructure.http.model import ModelHttpExchange, OriginalModelRequest
 from api.schemas.chat import CreateChatCompletion
+from api.schemas.ocr import CreateOCR, DocumentURLChunk
 from api.utils.variables import EndpointRoute
 
 RERANK_DOCUMENTS_COUNT = 3
@@ -68,9 +69,49 @@ class UserModelRequestFactory(factory.DictFactory):
                         },
                     },
                     tool_choice="required",
+                    tools=[
+                        {
+                            "type": "function",
+                            "name": "get_horoscope",
+                            "description": "Get today's horoscope for an astrological sign.",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {"sign": {"type": "string", "description": "An astrological sign like Taurus or Aquarius"}},
+                                "required": ["sign"],
+                            },
+                        },
+                    ],
                     seed=10,
                     stop=None,
                     stream=False,
+                ).model_dump()
+            ),
+        )
+        embeddings = factory.Trait(
+            endpoint=EndpointRoute.EMBEDDINGS,
+            body=factory.LazyAttribute(
+                lambda self: {
+                    "model": "openweight-embeddings",
+                    "input": fake.sentences(nb=RERANK_DOCUMENTS_COUNT),
+                    "dimensions": 1536,
+                    "encoding_format": "float",
+                }
+            ),
+        )
+        models = factory.Trait(endpoint=EndpointRoute.MODELS)
+        ocr = factory.Trait(
+            endpoint=EndpointRoute.OCR,
+            body=factory.LazyAttribute(
+                lambda self: CreateOCR(
+                    model="openweight-ocr",
+                    document=DocumentURLChunk(
+                        document_name=fake.file_name(),
+                        document_url=fake.url(),
+                        type="document_url",
+                    ),
+                    image_limit=10,
+                    include_image_base64=True,
+                    pages=[1, 2, 3],
                 ).model_dump()
             ),
         )
@@ -85,16 +126,6 @@ class UserModelRequestFactory(factory.DictFactory):
                 }
             ),
         )
-        embeddings = factory.Trait(
-            endpoint=EndpointRoute.EMBEDDINGS,
-            body=factory.LazyAttribute(
-                lambda self: {
-                    "model": "openweight-embed",
-                    "input": fake.sentences(nb=RERANK_DOCUMENTS_COUNT),
-                }
-            ),
-        )
-        models = factory.Trait(endpoint=EndpointRoute.MODELS)
 
 
 class OriginalModelRequestFactory(UserModelRequestFactory):
@@ -110,10 +141,3 @@ class HttpModelExchangeFactory(factory.Factory):
     formatted_request = None
     original_response = None
     formatted_response = None
-
-    class Params:
-        audio_transcriptions = factory.Trait(original_request=factory.SubFactory(OriginalModelRequestFactory, audio_transcriptions=True))
-        chat_completions = factory.Trait(original_request=factory.SubFactory(OriginalModelRequestFactory, chat_completions=True))
-        embeddings = factory.Trait(original_request=factory.SubFactory(OriginalModelRequestFactory, embeddings=True))
-        models = factory.Trait(original_request=factory.SubFactory(OriginalModelRequestFactory, models=True))
-        rerank = factory.Trait(original_request=factory.SubFactory(OriginalModelRequestFactory, rerank=True))
