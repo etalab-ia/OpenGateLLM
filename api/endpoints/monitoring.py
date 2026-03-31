@@ -6,7 +6,6 @@ from starlette.responses import Response
 
 from api.domain.role.entities import PermissionType
 from api.helpers._accesscontroller import AccessController
-from api.schemas.admin.roles import PermissionType
 from api.utils.configuration import configuration
 from api.utils.monitoring import (
     inference_output_tokens_per_second,
