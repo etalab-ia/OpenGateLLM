@@ -1,7 +1,7 @@
 import datetime as dt
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class PermissionType(StrEnum):
@@ -19,14 +19,12 @@ class LimitType(StrEnum):
 
 
 class Limit(BaseModel):
-    router: int = Field(description="The router ID.")
+    router_id: int = Field(description="The router ID.")
     type: LimitType = Field(description="The limit type.")
     value: int | None = Field(default=None, ge=0, description="The limit value.")
 
 
 class Role(BaseModel):
-    model_config = ConfigDict(validate_assignment=True)
-
     id: int
     name: str
     permissions: list[PermissionType]
@@ -40,7 +38,7 @@ class Role(BaseModel):
     @field_validator("limits")
     @classmethod
     def unique_limits(cls, v: list["Limit"]) -> list["Limit"]:
-        return list({(limit.router, limit.type): limit for limit in v}.values())
+        return list({(limit.router_id, limit.type): limit for limit in v}.values())
 
     users: int = 0
     created: int = Field(default_factory=lambda: int(dt.datetime.now().timestamp()))

@@ -107,7 +107,7 @@ class TestGetRoles:
 
         # Assert
         assert len(result[0].limits) == 1
-        assert result[0].limits[0].router == router.id
+        assert result[0].limits[0].router_id == router.id
         assert result[0].limits[0].type == LimitType.TPM
         assert result[0].limits[0].value == 500
 

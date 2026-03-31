@@ -16,9 +16,9 @@ class PostgresLimitRepository(LimitRepository):
 
         result = await self.postgres_session.execute(
             insert(LimitTable)
-            .values([{"role_id": role_id, "router_id": limit.router, "type": limit.type, "value": limit.value} for limit in limits])
+            .values([{"role_id": role_id, "router_id": limit.router_id, "type": limit.type, "value": limit.value} for limit in limits])
             .on_conflict_do_nothing()
             .returning(LimitTable.router_id, LimitTable.type, LimitTable.value)
         )
 
-        return [Limit(router=row.router_id, type=row.type, value=row.value) for row in result.all()]
+        return [Limit(router_id=row.router_id, type=row.type, value=row.value) for row in result.all()]

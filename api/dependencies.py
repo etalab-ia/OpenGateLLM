@@ -5,6 +5,7 @@ from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.key import KeyRepository
+from api.domain.provider import ProviderRepository
 from api.domain.role import LimitRepository, PermissionRepository
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
@@ -80,6 +81,10 @@ def _permission_repository(session: AsyncSession) -> PermissionRepository:
     return PostgresPermissionRepository(postgres_session=session)
 
 
+def _provider_repository(session: AsyncSession) -> ProviderRepository:
+    return PostgresProviderRepository(postgres_session=session)
+
+
 def get_key_repository(postgres_session: AsyncSession = Depends(get_postgres_session)) -> KeyRepository:
     return PostgresKeyRepository(postgres_session=postgres_session)
 
@@ -136,7 +141,7 @@ def update_router_use_case_factory(postgres_session: AsyncSession = Depends(get_
 def create_provider_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateProviderUseCase:
     return CreateProviderUseCase(
         router_repository=_router_repository(postgres_session),
-        provider_repository=PostgresProviderRepository(postgres_session=postgres_session),
+        provider_repository=_provider_repository(postgres_session),
         provider_gateway=ModelProviderGateway(),
         user_info_repository=_user_info_repository(postgres_session),
     )
@@ -145,27 +150,27 @@ def create_provider_use_case_factory(postgres_session: AsyncSession = Depends(ge
 def update_provider_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateProviderUseCase:
     return UpdateProviderUseCase(
         router_repository=_router_repository(postgres_session),
-        provider_repository=PostgresProviderRepository(postgres_session=postgres_session),
+        provider_repository=_provider_repository(postgres_session),
         user_info_repository=_user_info_repository(postgres_session),
     )
 
 
 def delete_provider_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> DeleteProviderUseCase:
     return DeleteProviderUseCase(
-        provider_repository=PostgresProviderRepository(postgres_session=postgres_session),
+        provider_repository=_provider_repository(postgres_session),
         user_info_repository=_user_info_repository(postgres_session),
     )
 
 
 def get_one_provider_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneProviderUseCase:
     return GetOneProviderUseCase(
-        provider_repository=PostgresProviderRepository(postgres_session=postgres_session),
+        provider_repository=_provider_repository(postgres_session),
         user_info_repository=_user_info_repository(postgres_session),
     )
 
 
 def get_providers_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetProvidersUseCase:
     return GetProvidersUseCase(
-        provider_repository=PostgresProviderRepository(postgres_session=postgres_session),
+        provider_repository=_provider_repository(postgres_session),
         user_info_repository=_user_info_repository(postgres_session),
     )

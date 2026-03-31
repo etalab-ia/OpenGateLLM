@@ -244,11 +244,11 @@ class ProvidersState(EntityState):
     @rx.event
     async def create_entity(self):
         """Create a provider."""
-        if not self.entity_to_create.router:
+        if not self.entity_to_create.router_id:
             yield rx.toast.warning("Router is required", position="bottom-right")
             return
 
-        router_id = self.routers_dict.get(self.entity_to_create.router, None)
+        router_id = self.routers_dict.get(self.entity_to_create.router_id, None)
         if not router_id:
             yield rx.toast.warning("Router not found", position="bottom-right")
             return
@@ -335,7 +335,7 @@ class ProvidersState(EntityState):
         yield
 
         payload = {
-            "router": self.routers_dict.get(self.entity.router, None),
+            "router": self.routers_dict.get(self.entity.router_id, None),
             "timeout": self.entity.timeout,
             "model_hosting_zone": self.entity.model_hosting_zone,
             "model_total_params": self.entity.model_total_params,

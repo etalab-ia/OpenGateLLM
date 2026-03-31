@@ -53,6 +53,4 @@ class CreateRoleUseCase:
                 return error
         permissions = await self.permission_repository.create_permissions(role_id=role.id, permissions=command.permissions)
         limits = await self.limit_repository.create_limits(role_id=role.id, limits=command.limits)
-        role.permissions = permissions
-        role.limits = limits
-        return CreateRoleUseCaseSuccess(role)
+        return CreateRoleUseCaseSuccess(role=role.model_copy(update={"permissions": permissions, "limits": limits}))

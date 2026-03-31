@@ -73,8 +73,8 @@ def user_info_with_access():
     return UserInfoFactory(
         id=1,
         limits=[
-            Limit(router=1, value=100, type=LimitType.RPM),
-            Limit(router=2, value=None, type=LimitType.RPM),
+            Limit(router_id=1, value=100, type=LimitType.RPM),
+            Limit(router_id=2, value=None, type=LimitType.RPM),
         ],
     )
 
@@ -260,8 +260,8 @@ class TestGetModelsUseCase:
         user_info_zero_limit = UserInfoFactory(
             user_id=1,
             limits=[
-                Limit(router=1, value=0, type=LimitType.RPM),
-                Limit(router=2, value=10, type=LimitType.RPM),
+                Limit(router_id=1, value=0, type=LimitType.RPM),
+                Limit(router_id=2, value=10, type=LimitType.RPM),
             ],
             permissions=[],
         )
@@ -286,7 +286,7 @@ class TestGetModelsUseCase:
     @pytest.mark.asyncio
     async def test_shoudl_return_the_router_when_associated_limit_value_is_none(self, router_repository, user_info_repository, sample_routers):
         # Arrange
-        user_info_unlimited = UserInfoFactory(user_id=1, limits=[Limit(router=1, value=None, type=LimitType.RPM)], permissions=[])
+        user_info_unlimited = UserInfoFactory(user_id=1, limits=[Limit(router_id=1, value=None, type=LimitType.RPM)], permissions=[])
         user_info_repository.get_user_info.return_value = user_info_unlimited
         router_repository.get_all_routers.return_value = sample_routers
         router_repository.get_organization_name.return_value = "OpenAI"

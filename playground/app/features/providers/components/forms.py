@@ -140,7 +140,7 @@ def provider_settings_form_fields() -> rx.Component:
         entity_form_select_field(
             label="Router",
             items=ProvidersState.routers_name_list,
-            value=ProvidersState.entity.router,
+            value=ProvidersState.entity.router_id,
             on_change=lambda value: ProvidersState.set_edit_entity_attribut("router", value),
             disable=ProvidersState.edit_entity_loading,
             tooltip="Router of the provider",

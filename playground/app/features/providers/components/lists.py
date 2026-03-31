@@ -26,7 +26,7 @@ def provider_row_content(provider: Provider) -> rx.Component:
             ),
             rx.tooltip(
                 rx.badge(
-                    provider.router,
+                    provider.router_id,
                     variant="soft",
                     color_scheme="green",
                 ),

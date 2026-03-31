@@ -30,8 +30,8 @@ class TestCreateLimits:
         router_2 = RouterSQLFactory()
         await db_session.flush()
         limits = [
-            Limit(router=router_1.id, type=LimitType.TPM, value=100),
-            Limit(router=router_2.id, type=LimitType.RPM, value=200),
+            Limit(router_id=router_1.id, type=LimitType.TPM, value=100),
+            Limit(router_id=router_2.id, type=LimitType.RPM, value=200),
         ]
 
         # Act
@@ -39,7 +39,7 @@ class TestCreateLimits:
 
         # Assert
         assert len(result) == 2
-        result_by_router = {r.router: r for r in result}
+        result_by_router = {r.router_id: r for r in result}
         assert result_by_router[router_1.id].type == LimitType.TPM
         assert result_by_router[router_1.id].value == 100
         assert result_by_router[router_2.id].type == LimitType.RPM
@@ -52,7 +52,7 @@ class TestCreateLimits:
         await db_session.flush()
 
         # Act
-        result = await repository.create_limits(role_id=role.id, limits=[Limit(router=router.id, type=LimitType.TPD, value=None)])
+        result = await repository.create_limits(role_id=role.id, limits=[Limit(router_id=router.id, type=LimitType.TPD, value=None)])
 
         # Assert
         assert result[0].value is None
@@ -66,8 +66,9 @@ class TestCreateLimits:
 
         # Act
         limits = await repository.create_limits(
-            role_id=role.id, limits=[Limit(router=router.id, type=LimitType.TPM, value=200), Limit(router=router.id, type=LimitType.RPM, value=200)]
+            role_id=role.id,
+            limits=[Limit(router_id=router.id, type=LimitType.TPM, value=200), Limit(router_id=router.id, type=LimitType.RPM, value=200)],
         )
 
         # Assert
-        assert limits == [Limit(router=router.id, type=LimitType.RPM, value=200)]
+        assert limits == [Limit(router_id=router.id, type=LimitType.RPM, value=200)]
