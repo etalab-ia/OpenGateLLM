@@ -5,7 +5,13 @@ import pytest
 from api.domain.model.errors import UnsupportedEndpointError
 from api.domain.provider.entities import ProviderCarbonFootprintZone, ProviderType
 from api.infrastructure.fastapi.schemas.models import ModelsResponse
-from api.infrastructure.http.model import FormattedModelRequest, FormattedModelResponse, ModelHttpClient, ModelHttpExchange, OriginalModelResponse
+from api.infrastructure.http.model import (
+    FormattedModelRequest,
+    FormattedModelResponse,
+    ModelHttpClient,
+    ModelHttpExchange,
+    OriginalModelResponse,
+)
 from api.schemas.audio import AudioTranscription, AudioTranscriptionResponseFormat
 from api.schemas.chat import ChatCompletion
 from api.schemas.core.context import RequestContext
@@ -13,10 +19,11 @@ from api.schemas.embeddings import Embeddings
 from api.schemas.ocr import OCR
 from api.schemas.rerank import RerankResult, Reranks
 from api.schemas.usage import Usage
-from api.tests.unit.infrastructure.http.factories.common import OriginalModelRequestFactory
+from api.tests.unit.infrastructure.http.factories.common import OriginalModelRequestFactory, UserModelRequestFactory
 from api.tests.unit.infrastructure.http.factories.mistral import MistralOriginalResponseFactory
 from api.tests.unit.infrastructure.http.factories.openai import OpenaiOriginalResponseFactory
 from api.tests.unit.infrastructure.http.factories.vllm import VllmOriginalResponseFactory
+from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture
@@ -32,105 +39,383 @@ def model_http_client() -> ModelHttpClient:
     )
 
 
-def test_is_supported_endpoint_return_false_when_endpoint_is_none(model_http_client, monkeypatch):
-    # Arrange
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(models=True))
-    monkeypatch.setattr(model_http_client.ENDPOINT_TABLE, "models", None)
+def test_get_method_and_url_should_return_audio_transcriptions_endpoint(model_http_client):
+    result = model_http_client.ENDPOINT_TABLE.get_method_and_url(base_url=model_http_client.url, endpoint=EndpointRoute.AUDIO_TRANSCRIPTIONS)
 
-    # Act
-    result = model_http_client._is_supported_endpoint(exchange=exchange)
-
-    # Assert
-    assert result is False
+    assert result == (HTTPMethod.POST, "https://test.com/v1/audio/transcriptions")
 
 
-def test_is_supported_endpoint_return_true_when_endpoint_is_supported(model_http_client):
-    # Arrange
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(models=True))
+def test_get_method_and_url_should_return_chat_completions_endpoint(model_http_client):
+    result = model_http_client.ENDPOINT_TABLE.get_method_and_url(base_url=model_http_client.url, endpoint=EndpointRoute.CHAT_COMPLETIONS)
 
-    # Act
-    result = model_http_client._is_supported_endpoint(exchange=exchange)
-
-    # Assert
-    assert result is True
+    assert result == (HTTPMethod.POST, "https://test.com/v1/chat/completions")
 
 
-def test_build_request_exchange_should_return_unsupported_endpoint_error_when_endpoint_is_not_supported(model_http_client, mocker):
+def test_get_method_and_url_should_return_embeddings_endpoint(model_http_client):
+    result = model_http_client.ENDPOINT_TABLE.get_method_and_url(base_url=model_http_client.url, endpoint=EndpointRoute.EMBEDDINGS)
+
+    assert result == (HTTPMethod.POST, "https://test.com/v1/embeddings")
+
+
+def test_get_method_and_url_should_return_models_endpoint(model_http_client):
+    result = model_http_client.ENDPOINT_TABLE.get_method_and_url(base_url=model_http_client.url, endpoint=EndpointRoute.MODELS)
+
+    assert result == (HTTPMethod.GET, "https://test.com/v1/models")
+
+
+def test_get_method_and_url_should_return_ocr_endpoint(model_http_client):
+    result = model_http_client.ENDPOINT_TABLE.get_method_and_url(base_url=model_http_client.url, endpoint=EndpointRoute.OCR)
+
+    assert result == (HTTPMethod.POST, "https://test.com/v1/ocr")
+
+
+def test_get_method_and_url_should_return_rerank_endpoint(model_http_client):
+    result = model_http_client.ENDPOINT_TABLE.get_method_and_url(base_url=model_http_client.url, endpoint=EndpointRoute.RERANK)
+
+    assert result == (HTTPMethod.POST, "https://test.com/v1/rerank")
+
+
+def test_get_method_and_url_should_lstrip_leading_slash_before_urljoin(model_http_client):
+    result = model_http_client.ENDPOINT_TABLE.get_method_and_url(base_url="https://test.com/provider/", endpoint=EndpointRoute.MODELS)
+
+    assert result == (HTTPMethod.GET, "https://test.com/provider/v1/models")
+
+
+def test_get_method_and_url_should_return_none_for_unsupported_endpoint(model_http_client):
+    result = model_http_client.ENDPOINT_TABLE.get_method_and_url(base_url=model_http_client.url, endpoint=EndpointRoute.SEARCH)
+
+    assert result == (None, None)
+
+
+def test_build_request_exchange_should_return_unsupported_endpoint_error_when_method_is_none(model_http_client, mocker):
     user_request = OriginalModelRequestFactory(models=True)
     model_http_client.TYPE = ProviderType.OPENAI
-    mocker.patch.object(model_http_client, "_is_supported_endpoint", return_value=False)
+    mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(None, "https://test.com/v1/chat/completions"))
 
     result = model_http_client.build_request_exchange(user_request=user_request)
 
     assert result == UnsupportedEndpointError(endpoint=user_request.endpoint, provider_type=model_http_client.TYPE)
 
 
+def test_build_request_exchange_should_return_unsupported_endpoint_error_when_url_is_none(model_http_client, mocker):
+    user_request = OriginalModelRequestFactory(models=True)
+    model_http_client.TYPE = ProviderType.OPENAI
+    mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(HTTPMethod.GET, None))
+
+    result = model_http_client.build_request_exchange(user_request=user_request)
+
+    assert result == UnsupportedEndpointError(endpoint=user_request.endpoint, provider_type=model_http_client.TYPE)
+
+
+# Test request formatting methods
 def test_build_request_exchange_should_format_audio_transcription_request(model_http_client, mocker):
-    user_request = OriginalModelRequestFactory(audio_transcriptions=True)
-    mocker.patch.object(model_http_client, "_is_supported_endpoint", return_value=True)
-    mocked_format = mocker.patch.object(model_http_client, "format_audio_transcription_request", return_value="formatted-audio")
+    user_request = UserModelRequestFactory(audio_transcriptions=True)
+    method, url = HTTPMethod.POST, "https://test.com/v1/audio/transcriptions"
+    mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(method, url))
+    formatted_request = FormattedModelRequest(method=method, url=url, body={}, form={}, files={})
+    mocked_format = mocker.patch.object(model_http_client, "get_formatted_audio_transcription_request", return_value=formatted_request)
 
     result = model_http_client.build_request_exchange(user_request=user_request)
 
     mocked_format.assert_called_once()
-    assert result.formatted_request == "formatted-audio"
+    assert isinstance(result, ModelHttpExchange)
+    assert result.original_request == OriginalModelRequestFactory(
+        endpoint=user_request.endpoint,
+        body=user_request.body,
+        form=user_request.form,
+        files=user_request.files,
+    )
+    assert result.formatted_request == formatted_request
 
 
 def test_build_request_exchange_should_format_chat_completion_request(model_http_client, mocker):
-    user_request = OriginalModelRequestFactory(chat_completions=True)
-    mocker.patch.object(model_http_client, "_is_supported_endpoint", return_value=True)
-    mocked_format = mocker.patch.object(model_http_client, "format_chat_completion_request", return_value="formatted-chat")
+    user_request = UserModelRequestFactory(chat_completions=True)
+    method, url = HTTPMethod.POST, "https://test.com/v1/chat/completions"
+    mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(method, url))
+    formatted_request = FormattedModelRequest(method=method, url=url, body={}, form={}, files={})
+    mocked_format = mocker.patch.object(model_http_client, "get_formatted_chat_completion_request", return_value=formatted_request)
 
     result = model_http_client.build_request_exchange(user_request=user_request)
 
     mocked_format.assert_called_once()
-    assert result.formatted_request == "formatted-chat"
+    assert isinstance(result, ModelHttpExchange)
+    assert result.original_request == OriginalModelRequestFactory(
+        endpoint=user_request.endpoint,
+        body=user_request.body,
+        form=user_request.form,
+        files=user_request.files,
+    )
+    assert result.formatted_request == formatted_request
 
 
 def test_build_request_exchange_should_format_models_request(model_http_client, mocker):
-    user_request = OriginalModelRequestFactory(models=True)
-    mocker.patch.object(model_http_client, "_is_supported_endpoint", return_value=True)
-    mocked_format = mocker.patch.object(model_http_client, "format_models_request", return_value="formatted-models")
+    user_request = UserModelRequestFactory(models=True)
+    method, url = HTTPMethod.GET, "https://test.com/v1/models"
+    mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(method, url))
+    formatted_request = FormattedModelRequest(method=method, url=url, body={}, form={}, files={})
+    mocked_format = mocker.patch.object(model_http_client, "get_formatted_models_request", return_value=formatted_request)
 
     result = model_http_client.build_request_exchange(user_request=user_request)
 
     mocked_format.assert_called_once()
-    assert result.formatted_request == "formatted-models"
+    assert isinstance(result, ModelHttpExchange)
+    assert result.original_request == OriginalModelRequestFactory(
+        endpoint=user_request.endpoint,
+        body=user_request.body,
+        form=user_request.form,
+        files=user_request.files,
+    )
+    assert result.formatted_request == formatted_request
 
 
 def test_build_request_exchange_should_format_embeddings_request(model_http_client, mocker):
-    user_request = OriginalModelRequestFactory(embeddings=True)
-    mocker.patch.object(model_http_client, "_is_supported_endpoint", return_value=True)
-    mocked_format = mocker.patch.object(model_http_client, "format_embeddings_request", return_value="formatted-embeddings")
+    user_request = UserModelRequestFactory(embeddings=True)
+    method, url = HTTPMethod.POST, "https://test.com/v1/embeddings"
+    mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(method, url))
+    formatted_request = FormattedModelRequest(method=method, url=url, body={}, form={}, files={})
+    mocked_format = mocker.patch.object(model_http_client, "get_formatted_embeddings_request", return_value=formatted_request)
 
     result = model_http_client.build_request_exchange(user_request=user_request)
 
     mocked_format.assert_called_once()
-    assert result.formatted_request == "formatted-embeddings"
+    assert isinstance(result, ModelHttpExchange)
+    assert result.original_request == OriginalModelRequestFactory(
+        endpoint=user_request.endpoint,
+        body=user_request.body,
+        form=user_request.form,
+        files=user_request.files,
+    )
+    assert result.formatted_request == formatted_request
 
 
 def test_build_request_exchange_should_format_ocr_request(model_http_client, mocker):
-    user_request = OriginalModelRequestFactory(ocr=True)
-    mocker.patch.object(model_http_client, "_is_supported_endpoint", return_value=True)
-    mocked_format = mocker.patch.object(model_http_client, "format_ocr_request", return_value="formatted-ocr")
+    user_request = UserModelRequestFactory(ocr=True)
+    method, url = HTTPMethod.POST, "https://test.com/v1/ocr"
+    mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(method, url))
+    formatted_request = FormattedModelRequest(method=method, url=url, body={}, form={}, files={})
+    mocked_format = mocker.patch.object(model_http_client, "get_formatted_ocr_request", return_value=formatted_request)
 
     result = model_http_client.build_request_exchange(user_request=user_request)
 
     mocked_format.assert_called_once()
-    assert result.formatted_request == "formatted-ocr"
+    assert isinstance(result, ModelHttpExchange)
+    assert result.original_request == OriginalModelRequestFactory(
+        endpoint=user_request.endpoint,
+        body=user_request.body,
+        form=user_request.form,
+        files=user_request.files,
+    )
+    assert result.formatted_request == formatted_request
 
 
 def test_build_request_exchange_should_format_rerank_request(model_http_client, mocker):
-    user_request = OriginalModelRequestFactory(rerank=True)
-    mocker.patch.object(model_http_client, "_is_supported_endpoint", return_value=True)
-    mocked_format = mocker.patch.object(model_http_client, "format_rerank_request", return_value="formatted-rerank")
+    user_request = UserModelRequestFactory(rerank=True)
+    method, url = HTTPMethod.POST, "/v1/rerank"
+    mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(method, url))
+    formatted_request = FormattedModelRequest(method=method, url=url, body={}, form={}, files={})
+    mocked_format = mocker.patch.object(model_http_client, "get_formatted_rerank_request", return_value=formatted_request)
 
     result = model_http_client.build_request_exchange(user_request=user_request)
 
     mocked_format.assert_called_once()
-    assert result.formatted_request == "formatted-rerank"
+    assert isinstance(result, ModelHttpExchange)
+    assert result.original_request == OriginalModelRequestFactory(
+        endpoint=user_request.endpoint,
+        body=user_request.body,
+        form=user_request.form,
+        files=user_request.files,
+    )
+    assert result.formatted_request == formatted_request
 
 
+def test_should_format_valid_audio_transcription_request(model_http_client):
+    # Arrange
+    original_request = OriginalModelRequestFactory(audio_transcriptions=True)
+    method, url = HTTPMethod.POST, "https://test.com/v1/audio/transcription"
+
+    # Act
+    result = model_http_client.get_formatted_audio_transcription_request(original_request=original_request, method=method, url=url)
+
+    # Assert
+    assert result == FormattedModelRequest(
+        method=method,
+        url=url,
+        form={
+            "model": "test-model",
+            "language": "fr",
+            "prompt": original_request.form["prompt"],
+            "temperature": 0.3,
+            "response_format": "json",
+        },
+        files={"file": ("audio.wav", b"test-audio-content", "audio/wav")},
+    )
+
+
+def test_should_format_audio_transcription_request_with_text_response_format_to_json_response_format(model_http_client):
+    # Arrange
+    original_request = OriginalModelRequestFactory(audio_transcriptions=True)
+    original_request.form["response_format"] = AudioTranscriptionResponseFormat.TEXT.value
+    method, url = HTTPMethod.POST, "https://test.com/v1/audio/transcription"
+
+    # Act
+    result = model_http_client.get_formatted_audio_transcription_request(original_request=original_request, method=method, url=url)
+
+    # Assert
+    assert result == FormattedModelRequest(
+        method=method,
+        url=url,
+        form={
+            "model": "test-model",
+            "language": "fr",
+            "prompt": original_request.form["prompt"],
+            "temperature": 0.3,
+            "response_format": "json",
+        },
+        files={"file": ("audio.wav", b"test-audio-content", "audio/wav")},
+    )
+
+
+def test_should_format_valid_chat_completion_request(model_http_client):
+    # Arrange
+    original_request = OriginalModelRequestFactory(chat_completions=True)
+    method, url = HTTPMethod.POST, "https://test.com/v1/chat/completions"
+
+    # Act
+    result = model_http_client.get_formatted_chat_completion_request(original_request=original_request, method=method, url=url)
+
+    # Assert
+    assert result == FormattedModelRequest(
+        method=method,
+        url=url,
+        body={
+            "model": "test-model",
+            "messages": original_request.body["messages"],
+            "frequency_penalty": None,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "DummyResponseFormat",
+                    "schema": {
+                        "properties": {
+                            "dummy_list": {"items": {"type": "string"}, "title": "Dummy List", "type": "array"},
+                            "dummy_str": {"title": "Dummy Str", "type": "string"},
+                            "dummy_optional_bool": {"default": False, "title": "Dummy Optional Bool", "type": "boolean"},
+                            "dummy_nullable_int": {"anyOf": [{"type": "integer"}, {"type": "null"}], "title": "Dummy Nullable Int"},
+                        },
+                        "required": ["dummy_list", "dummy_str", "dummy_nullable_int"],
+                        "title": "DummyResponseFormat",
+                        "type": "object",
+                    },
+                },
+            },
+            "tool_choice": "required",
+            "tools": [
+                {
+                    "type": "function",
+                    "name": "get_horoscope",
+                    "description": "Get today's horoscope for an astrological sign.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"sign": {"type": "string", "description": "An astrological sign like Taurus or Aquarius"}},
+                        "required": ["sign"],
+                    },
+                },
+            ],
+            "seed": 10,
+            "stop": None,
+            "stream": False,
+            "logit_bias": None,
+            "logprobs": False,
+            "top_logprobs": None,
+            "presence_penalty": 0.0,
+            "max_completion_tokens": None,
+            "n": 1,
+            "stream_options": None,
+            "temperature": None,
+            "top_p": None,
+            "parallel_tool_calls": False,
+            "user": None,
+            "search": False,
+            "search_args": None,
+        },
+    )
+
+
+def test_should_format_valid_embeddings_request(model_http_client):
+    # Arrange
+    original_request = OriginalModelRequestFactory(embeddings=True)
+    method, url = HTTPMethod.POST, "https://test.com/v1/embeddings"
+
+    # Act
+    result = model_http_client.get_formatted_embeddings_request(original_request=original_request, method=method, url=url)
+
+    # Assert
+    assert result == FormattedModelRequest(
+        method=method,
+        url=url,
+        body={"model": "test-model", "input": original_request.body["input"], "dimensions": 1536, "encoding_format": "float"},
+    )
+
+
+def test_should_format_valid_models_request(model_http_client):
+    # Arrange
+    original_request = OriginalModelRequestFactory(models=True)
+    method, url = HTTPMethod.GET, "https://test.com/v1/models"
+
+    # Act
+    result = model_http_client.get_formatted_models_request(original_request=original_request, method=method, url=url)
+
+    # Assert
+    assert result == FormattedModelRequest(method=method, url=url)
+
+
+def test_should_format_valid_ocr_request(model_http_client):
+    # Arrange
+    original_request = OriginalModelRequestFactory(ocr=True)
+    method, url = HTTPMethod.POST, "https://test.com/v1/ocr"
+
+    # Act
+    result = model_http_client.get_formatted_ocr_request(original_request=original_request, method=method, url=url)
+
+    # Assert
+    assert result == FormattedModelRequest(
+        method=method,
+        url=url,
+        body={
+            "model": "test-model",
+            "bbox_annotation_format": None,
+            "document": original_request.body["document"],
+            "document_annotation_format": None,
+            "image_limit": 10,
+            "image_min_size": None,
+            "include_image_base64": True,
+            "pages": [1, 2, 3],
+        },
+    )
+
+
+def test_should_format_valid_rerank_request(model_http_client):
+    # Arrange
+    original_request = OriginalModelRequestFactory(rerank=True)
+    method, url = HTTPMethod.POST, "https://test.com/v1/rerank"
+
+    # Act
+    result = model_http_client.get_formatted_rerank_request(original_request=original_request, method=method, url=url)
+
+    # Assert
+    assert result == FormattedModelRequest(
+        method=method,
+        url=url,
+        body={
+            "model": "test-model",
+            "query": original_request.body["query"],
+            "documents": original_request.body["documents"],
+            "top_n": 2,
+        },
+    )
+
+
+# Test response formatting methods
 def test_complete_response_exchange_should_format_audio_transcription_original_response(model_http_client, mocker):
     exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(audio_transcriptions=True))
     mocked_format = mocker.patch.object(model_http_client, "format_audio_transcription_original_response", return_value=exchange)
@@ -195,186 +480,6 @@ def test_complete_response_exchange_should_format_rerank_original_response(model
     mocked_format.assert_called_once()
     assert mocked_format.call_args.kwargs["exchange"].original_response == OriginalModelResponse(data={"results": []}, latency=10)
     assert result == exchange
-
-
-def test_should_format_valid_audio_transcription_request(model_http_client):
-    # Arrange
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(audio_transcriptions=True))
-
-    # Act
-    result = model_http_client.format_audio_transcription_request(exchange=exchange)
-
-    # Assert
-    assert result.formatted_request == FormattedModelRequest(
-        method=HTTPMethod.POST,
-        endpoint="/v1/audio/transcriptions",
-        form={
-            "model": "test-model",
-            "language": "fr",
-            "prompt": exchange.original_request.form["prompt"],
-            "temperature": 0.3,
-            "response_format": "json",
-        },
-        files={"file": ("audio.wav", b"test-audio-content", "audio/wav")},
-    )
-
-
-def test_should_format_audio_transcription_request_with_text_response_format_to_json_response_format(model_http_client):
-    # Arrange
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(audio_transcriptions=True))
-    exchange.original_request.form["response_format"] = AudioTranscriptionResponseFormat.TEXT.value
-
-    # Act
-    result = model_http_client.format_audio_transcription_request(exchange=exchange)
-
-    # Assert
-    assert result.formatted_request == FormattedModelRequest(
-        method=HTTPMethod.POST,
-        endpoint="/v1/audio/transcriptions",
-        form={
-            "model": "test-model",
-            "language": "fr",
-            "prompt": exchange.original_request.form["prompt"],
-            "temperature": 0.3,
-            "response_format": "json",
-        },
-        files={"file": ("audio.wav", b"test-audio-content", "audio/wav")},
-    )
-
-
-def test_should_format_valid_chat_completion_request(model_http_client):
-    # Arrange
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(chat_completions=True))
-
-    # Act
-    result = model_http_client.format_chat_completion_request(exchange=exchange)
-
-    # Assert
-    assert result.formatted_request == FormattedModelRequest(
-        method=HTTPMethod.POST,
-        endpoint="/v1/chat/completions",
-        body={
-            "model": "test-model",
-            "messages": exchange.original_request.body["messages"],
-            "frequency_penalty": None,
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "DummyResponseFormat",
-                    "schema": {
-                        "properties": {
-                            "dummy_list": {"items": {"type": "string"}, "title": "Dummy List", "type": "array"},
-                            "dummy_str": {"title": "Dummy Str", "type": "string"},
-                            "dummy_optional_bool": {"default": False, "title": "Dummy Optional Bool", "type": "boolean"},
-                            "dummy_nullable_int": {"anyOf": [{"type": "integer"}, {"type": "null"}], "title": "Dummy Nullable Int"},
-                        },
-                        "required": ["dummy_list", "dummy_str", "dummy_nullable_int"],
-                        "title": "DummyResponseFormat",
-                        "type": "object",
-                    },
-                },
-            },
-            "tool_choice": "required",
-            "tools": [
-                {
-                    "type": "function",
-                    "name": "get_horoscope",
-                    "description": "Get today's horoscope for an astrological sign.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {"sign": {"type": "string", "description": "An astrological sign like Taurus or Aquarius"}},
-                        "required": ["sign"],
-                    },
-                },
-            ],
-            "seed": 10,
-            "stop": None,
-            "stream": False,
-            "logit_bias": None,
-            "logprobs": False,
-            "top_logprobs": None,
-            "presence_penalty": 0.0,
-            "max_completion_tokens": None,
-            "n": 1,
-            "stream_options": None,
-            "temperature": None,
-            "top_p": None,
-            "parallel_tool_calls": False,
-            "user": None,
-            "search": False,
-            "search_args": None,
-        },
-    )
-
-
-def test_should_format_valid_embeddings_request(model_http_client):
-    # Arrange
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(embeddings=True))
-
-    # Act
-    result = model_http_client.format_embeddings_request(exchange=exchange)
-
-    # Assert
-    assert result.formatted_request == FormattedModelRequest(
-        method=HTTPMethod.POST,
-        endpoint="/v1/embeddings",
-        body={"model": "test-model", "input": exchange.original_request.body["input"], "dimensions": 1536, "encoding_format": "float"},
-    )
-
-
-def test_should_format_valid_models_request(model_http_client):
-    # Arrange
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(models=True))
-
-    # Act
-    result = model_http_client.format_models_request(exchange=exchange)
-
-    # Assert
-    assert result.formatted_request == FormattedModelRequest(method=HTTPMethod.GET, endpoint="/v1/models")
-
-
-def test_should_format_valid_ocr_request(model_http_client):
-    # Arrange
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(ocr=True))
-
-    # Act
-    result = model_http_client.format_ocr_request(exchange=exchange)
-
-    # Assert
-    assert result.formatted_request == FormattedModelRequest(
-        method=HTTPMethod.POST,
-        endpoint="/v1/ocr",
-        body={
-            "model": "test-model",
-            "bbox_annotation_format": None,
-            "document": exchange.original_request.body["document"],
-            "document_annotation_format": None,
-            "image_limit": 10,
-            "image_min_size": None,
-            "include_image_base64": True,
-            "pages": [1, 2, 3],
-        },
-    )
-
-
-def test_should_format_valid_rerank_request(model_http_client):
-    # Arrange
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(rerank=True))
-
-    # Act
-    result = model_http_client.format_rerank_request(exchange=exchange)
-
-    # Assert
-    assert result.formatted_request == FormattedModelRequest(
-        method=HTTPMethod.POST,
-        endpoint="/v1/rerank",
-        body={
-            "model": "test-model",
-            "query": exchange.original_request.body["query"],
-            "documents": exchange.original_request.body["documents"],
-            "top_n": 2,
-        },
-    )
 
 
 def test_should_format_valid_audio_transcription_original_response(model_http_client, mocker):

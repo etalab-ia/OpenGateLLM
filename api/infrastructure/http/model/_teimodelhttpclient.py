@@ -7,7 +7,14 @@ from api.domain.provider.entities import ProviderType
 from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
 from api.schemas.rerank import RerankResult, Reranks
 
-from ._modelhttpclient import FormattedModelRequest, FormattedModelResponse, ModelHttpClient, ModelHttpClientEndpoints, ModelHttpExchange
+from ._modelhttpclient import (
+    FormattedModelRequest,
+    FormattedModelResponse,
+    ModelHttpClient,
+    ModelHttpClientEndpoints,
+    ModelHttpExchange,
+    OriginalModelRequest,
+)
 
 
 class TeiCreateRerankBody(BaseModel):
@@ -21,24 +28,20 @@ class TeiCreateRerankBody(BaseModel):
 
 class TeiModelHttpClient(ModelHttpClient):
     ENDPOINT_TABLE = ModelHttpClientEndpoints(
-        audio_transcriptions=None,
-        chat_completions=None,
+        audio_transcriptions=(None, None),
+        chat_completions=(None, None),
         models=(HTTPMethod.GET, "/info"),
-        ocr=None,
+        ocr=(None, None),
         rerank=(HTTPMethod.POST, "/rerank"),
     )
     TYPE = ProviderType.TEI
 
     # request formatting
-    def format_rerank_request(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+    def get_formatted_rerank_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
+        body = TeiCreateRerankBody(query=original_request.body["query"], texts=original_request.body["documents"]).model_dump()
+        formatted_request = FormattedModelRequest(method=method, url=url, body=body)
 
-        body = TeiCreateRerankBody(query=exchange.original_request.body["query"], texts=exchange.original_request.body["documents"]).model_dump()
-        exchange.formatted_request = FormattedModelRequest(
-            method=self.ENDPOINT_TABLE.rerank[0],
-            endpoint=self.ENDPOINT_TABLE.rerank[1],
-            body=body,
-        )
-        return exchange
+        return formatted_request
 
     # response formatting
     def format_response_to_models_response(self, exchange: ModelHttpExchange) -> ModelHttpExchange:

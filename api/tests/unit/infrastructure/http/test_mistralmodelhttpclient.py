@@ -29,28 +29,28 @@ def mistral_model_http_client() -> MistralModelHttpClient:
 
 
 class TestMistralModelHttpClient:
-    def test_should_format_valid_audio_transcription_original_request(self, mistral_model_http_client):
+    def test_should_format_valid_audio_transcription_original_request(self, mistral_model_http_client, mocker):
         # Arrange
-        exchange = HttpModelExchangeFactory(original_request=OriginalModelRequestFactory(audio_transcriptions=True))
+        original_request = OriginalModelRequestFactory(audio_transcriptions=True)
+        mocker.patch.object(base64, "b64encode", return_value=b"mock-base64-encoded-audio")
+        method, url = HTTPMethod.POST, "https://test.com/v1/chat/completions"
 
         # Act
-        result = mistral_model_http_client.format_audio_transcription_request(exchange=exchange)
+        result = mistral_model_http_client.get_formatted_audio_transcription_request(original_request=original_request, method=method, url=url)
 
         # Assert
-        expected_audio = base64.b64encode(exchange.original_request.files["file"][1]).decode("utf-8")
-
-        assert result.formatted_request == FormattedModelRequest(
-            method=HTTPMethod.POST,
-            endpoint="/v1/chat/completions",
+        assert result == FormattedModelRequest(
+            method=method,
+            url=url,
             body={
                 "model": mistral_model_http_client.model_name,
-                "temperature": exchange.original_request.form["temperature"],
+                "temperature": original_request.form["temperature"],
                 "messages": [
                     {
                         "role": "user",
                         "content": [
-                            {"type": "input_audio", "input_audio": expected_audio},
-                            {"type": "text", "text": exchange.original_request.form["prompt"]},
+                            {"type": "input_audio", "input_audio": "mock-base64-encoded-audio"},
+                            {"type": "text", "text": original_request.form["prompt"]},
                         ],
                     },
                 ],
@@ -60,19 +60,20 @@ class TestMistralModelHttpClient:
 
     def test_should_format_valid_chat_completion_original_request(self, mistral_model_http_client):
         # Arrange
-        exchange = HttpModelExchangeFactory(original_request=OriginalModelRequestFactory(chat_completions=True))
+        original_request = OriginalModelRequestFactory(chat_completions=True)
+        method, url = HTTPMethod.POST, "https://test.com/v1/chat/completions"
 
         # Act
-        result = mistral_model_http_client.format_chat_completion_request(exchange=exchange)
+        result = mistral_model_http_client.get_formatted_chat_completion_request(original_request=original_request, method=method, url=url)
 
         # Assert
-        assert result.formatted_request == FormattedModelRequest(
-            method=HTTPMethod.POST,
-            endpoint="/v1/chat/completions",
+        assert result == FormattedModelRequest(
+            method=method,
+            url=url,
             body={
                 "frequency_penalty": 0.0,
                 "max_tokens": None,
-                "messages": exchange.original_request.body.get("messages"),
+                "messages": original_request.body.get("messages"),
                 "model": mistral_model_http_client.model_name,
                 "n": 1,
                 "parallel_tool_calls": False,

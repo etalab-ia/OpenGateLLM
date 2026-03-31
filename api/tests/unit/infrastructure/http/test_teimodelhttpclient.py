@@ -1,3 +1,5 @@
+from http import HTTPMethod
+
 import pytest
 
 from api.domain.provider.entities import ProviderCarbonFootprintZone
@@ -25,18 +27,19 @@ def tei_model_http_client() -> TeiModelHttpClient:
 class TestTeiModelHttpClient:
     def test_should_format_valid_rerank_original_request(self, tei_model_http_client):
         # Arrange
-        exchange = HttpModelExchangeFactory(original_request=OriginalModelRequestFactory(rerank=True))
+        original_request = OriginalModelRequestFactory(rerank=True)
+        method, url = HTTPMethod.POST, "https://test.com/v1/rerank"
 
         # Act
-        result = tei_model_http_client.format_rerank_request(exchange=exchange)
+        result = tei_model_http_client.get_formatted_rerank_request(original_request=original_request, method=method, url=url)
 
         # Assert
-        assert result.formatted_request == FormattedModelRequest(
-            method="POST",
-            endpoint="/rerank",
+        assert result == FormattedModelRequest(
+            method=method,
+            url=url,
             body={
-                "query": exchange.original_request.body["query"],
-                "texts": exchange.original_request.body["documents"],
+                "query": original_request.body["query"],
+                "texts": original_request.body["documents"],
                 "raw_scores": False,
                 "return_text": False,
                 "truncate": False,

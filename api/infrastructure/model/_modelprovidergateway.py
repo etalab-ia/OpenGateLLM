@@ -1,3 +1,5 @@
+import logging
+
 from api.domain.model import ModelType as RouterType
 from api.domain.model.entities import UserModelRequest
 from api.domain.provider import ProviderCapabilities, ProviderGateway
@@ -14,6 +16,8 @@ from api.infrastructure.http.model import (
 )
 from api.utils.exceptions import HTTPException, ModelIsTooBusyException
 from api.utils.variables import EndpointRoute
+
+logger = logging.getLogger(__name__)
 
 
 class ModelProviderGateway(ProviderGateway):
@@ -76,7 +80,8 @@ class ModelProviderGateway(ProviderGateway):
         try:
             exchange = client.build_request_exchange(user_request=request)
             response = await client.forward_request(exchange=exchange)
-        except ModelIsTooBusyException | HTTPException:
+        except (ModelIsTooBusyException, HTTPException) as e:
+            logger.exception(msg=f"Failed to get max context length for {client.model_name}: {e}.")
             return ProviderNotReachableError(model_name=client.model_name)
 
         data = response.json()["data"]
@@ -92,8 +97,8 @@ class ModelProviderGateway(ProviderGateway):
         try:
             exchange = client.build_request_exchange(user_request=request)
             response = await client.forward_request(exchange=exchange)
-        except ModelIsTooBusyException | HTTPException:
-            # TODO: handle log logic here
+        except (ModelIsTooBusyException, HTTPException) as e:
+            logger.exception(msg=f"Failed to get vector size for {client.model_name}: {e}.")
             return ProviderNotReachableError(model_name=client.model_name)
 
         if response.status_code != 200:

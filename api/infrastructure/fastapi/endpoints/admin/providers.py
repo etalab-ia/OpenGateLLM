@@ -66,17 +66,15 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_PROVIDERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses(
-        [
-            InconsistentModelMaxContextLengthHTTPException,
-            InconsistentModelVectorSizeHTTPException,
-            InvalidProviderTypeHTTPException,
-            ProviderNotReachableHTTPException,
-            ProviderAlreadyExistsHTTPException,
-            RouterNotFoundHTTPException,
-            NotAdminUserHTTPException,
-        ]
-    ),
+    responses=get_documentation_responses([
+        InconsistentModelMaxContextLengthHTTPException,
+        InconsistentModelVectorSizeHTTPException,
+        InvalidProviderTypeHTTPException,
+        ProviderNotReachableHTTPException,
+        ProviderAlreadyExistsHTTPException,
+        RouterNotFoundHTTPException,
+        NotAdminUserHTTPException,
+    ]),
 )
 async def create_provider(
     body: CreateProviderBody,
@@ -104,7 +102,7 @@ async def create_provider(
             "Unexpected error while executing create_provider use case",
             extra={
                 "user_id": request_context.get().user_id,
-                "provider_router_id": body.router,
+                "provider_router_id": body.router_id,
                 "provider_url": body.url,
                 "provider_model_name": body.model_name,
                 "error_type": type(e).__name__,
@@ -181,17 +179,15 @@ async def delete_provider(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses(
-        [
-            InconsistentModelMaxContextLengthHTTPException,
-            InconsistentModelVectorSizeHTTPException,
-            InvalidProviderTypeHTTPException,
-            ProviderAlreadyExistsHTTPException,
-            RouterNotFoundHTTPException,
-            ProviderNotFoundHTTPException,
-            NotAdminUserHTTPException,
-        ]
-    ),
+    responses=get_documentation_responses([
+        InconsistentModelMaxContextLengthHTTPException,
+        InconsistentModelVectorSizeHTTPException,
+        InvalidProviderTypeHTTPException,
+        ProviderAlreadyExistsHTTPException,
+        RouterNotFoundHTTPException,
+        ProviderNotFoundHTTPException,
+        NotAdminUserHTTPException,
+    ]),
 )
 async def update_provider(
     provider_id: int = Path(description="The ID of the provider to update."),
@@ -201,7 +197,7 @@ async def update_provider(
 ) -> ProviderResponse:
     command = UpdateProviderCommand(
         provider_id=provider_id,
-        router_id=body.router,
+        router_id=body.router_id,
         user_id=request_context.get().user_id,
         timeout=body.timeout,
         model_hosting_zone=body.model_hosting_zone,
@@ -217,7 +213,7 @@ async def update_provider(
             "Unexpected error while executing update_provider use case",
             extra={
                 "user_id": request_context.get().user_id,
-                "provider_router_id": body.router,
+                "provider_router_id": body.router_id,
                 "error_type": type(e).__name__,
             },
         )

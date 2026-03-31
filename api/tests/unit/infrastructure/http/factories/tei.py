@@ -15,7 +15,7 @@ class TeiFormattedModelRequestFactory(factory.DictFactory):
         model = FormattedModelRequest
 
     method = factory.Faker("random_element", elements=list(HTTPMethod))
-    endpoint = factory.Faker("url")
+    url = factory.Faker("url")
     body = factory.LazyFunction(lambda: {})
     form = factory.LazyFunction(lambda: {})
     files = factory.LazyFunction(lambda: {})

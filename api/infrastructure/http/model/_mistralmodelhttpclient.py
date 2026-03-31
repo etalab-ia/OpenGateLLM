@@ -7,53 +7,58 @@ from api.domain.provider.entities import ProviderType
 from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
 from api.schemas.audio import AudioTranscription, AudioTranscriptionResponseFormat
 
-from ._modelhttpclient import FormattedModelRequest, FormattedModelResponse, ModelHttpClient, ModelHttpClientEndpoints, ModelHttpExchange
+from ._modelhttpclient import (
+    FormattedModelRequest,
+    FormattedModelResponse,
+    ModelHttpClient,
+    ModelHttpClientEndpoints,
+    ModelHttpExchange,
+    OriginalModelRequest,
+)
 
 
 class MistralModelHttpClient(ModelHttpClient):
-    ENDPOINT_TABLE = ModelHttpClientEndpoints(audio_transcriptions=(HTTPMethod.POST, "/v1/chat/completions"), rerank=None)
+    ENDPOINT_TABLE = ModelHttpClientEndpoints(audio_transcriptions=(HTTPMethod.POST, "/v1/chat/completions"), rerank=(None, None))
     TYPE = ProviderType.MISTRAL
 
     # request formatting
-    def format_chat_completion_request(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+    def get_formatted_chat_completion_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
         # @TODO: build body with model_fields_set to exclude unset fields
 
         # see https://docs.mistral.ai/api#operation-chat_completion_v1_chat_completions_post
         body = {
-            "frequency_penalty": exchange.original_request.body.get("frequency_penalty") or 0.0,
-            "max_tokens": exchange.original_request.body.get("max_tokens"),
-            "messages": exchange.original_request.body.get("messages"),
+            "frequency_penalty": original_request.body.get("frequency_penalty") or 0.0,
+            "max_tokens": original_request.body.get("max_tokens"),
+            "messages": original_request.body.get("messages"),
             "model": self.model_name,
-            "n": exchange.original_request.body.get("n"),
-            "parallel_tool_calls": exchange.original_request.body.get("parallel_tool_calls") or False,
-            "prediction": exchange.original_request.body.get("prediction") or {},
-            "presence_penalty": exchange.original_request.body.get("presence_penalty") or 0.0,
-            "prompt_mode": exchange.original_request.body.get("prompt_mode"),
-            "random_seed": exchange.original_request.body.get("random_seed") or exchange.original_request.body.get("seed"),
-            "response_format": exchange.original_request.body.get("response_format") or {"type": "text"},
-            "safe_prompt": exchange.original_request.body.get("safe_prompt") or False,
-            "stop": exchange.original_request.body.get("stop") or [],
-            "stream": exchange.original_request.body.get("stream") or False,
-            "temperature": exchange.original_request.body.get("temperature"),
-            "tool_choice": exchange.original_request.body.get("tool_choice"),
-            "tools": exchange.original_request.body.get("tools"),
-            "top_p": exchange.original_request.body.get("top_p") or 1.0,
+            "n": original_request.body.get("n"),
+            "parallel_tool_calls": original_request.body.get("parallel_tool_calls") or False,
+            "prediction": original_request.body.get("prediction") or {},
+            "presence_penalty": original_request.body.get("presence_penalty") or 0.0,
+            "prompt_mode": original_request.body.get("prompt_mode"),
+            "random_seed": original_request.body.get("random_seed") or original_request.body.get("seed"),
+            "response_format": original_request.body.get("response_format") or {"type": "text"},
+            "safe_prompt": original_request.body.get("safe_prompt") or False,
+            "stop": original_request.body.get("stop") or [],
+            "stream": original_request.body.get("stream") or False,
+            "temperature": original_request.body.get("temperature"),
+            "tool_choice": original_request.body.get("tool_choice"),
+            "tools": original_request.body.get("tools"),
+            "top_p": original_request.body.get("top_p") or 1.0,
         }
 
-        exchange.formatted_request = FormattedModelRequest(
-            method=self.ENDPOINT_TABLE.chat_completions[0],
-            endpoint=self.ENDPOINT_TABLE.chat_completions[1],
-            body=body,
-        )
+        formatted_request = FormattedModelRequest(method=method, url=url, body=body)
 
-        return exchange
+        return formatted_request
 
-    def format_audio_transcription_request(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
-        text = exchange.original_request.form.get("prompt") or f"Transcribe this audio in this language : {exchange.original_request.form.get('language', 'en')}"  # fmt: off
-        input_audio = base64.b64encode(exchange.original_request.files["file"][1]).decode("utf-8")
-        exchange.formatted_request = FormattedModelRequest(
-            method=self.ENDPOINT_TABLE.audio_transcriptions[0],
-            endpoint=self.ENDPOINT_TABLE.audio_transcriptions[1],
+    def get_formatted_audio_transcription_request(
+        self, original_request: OriginalModelRequest, method: HTTPMethod, url: str
+    ) -> FormattedModelRequest:
+        text = original_request.form.get("prompt") or f"Transcribe this audio in this language : {original_request.form.get('language', 'en')}"  # fmt: off
+        input_audio = base64.b64encode(original_request.files["file"][1]).decode("utf-8")
+        formatted_request = FormattedModelRequest(
+            method=method,
+            url=url,
             body=ChatCompletionRequest(
                 model=self.model_name,
                 messages=[
@@ -62,11 +67,11 @@ class MistralModelHttpClient(ModelHttpClient):
                         content=[AudioChunk(type="input_audio", input_audio=input_audio), TextChunk(type="text", text=text)],
                     )
                 ],
-                temperature=exchange.original_request.form.get("temperature"),
+                temperature=original_request.form.get("temperature"),
             ).model_dump(),
         )
 
-        return exchange
+        return formatted_request
 
     # response formatting
     def format_response_to_audio_transcription_response(self, exchange: ModelHttpExchange) -> ModelHttpExchange:

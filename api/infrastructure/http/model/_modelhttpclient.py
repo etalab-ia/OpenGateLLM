@@ -35,9 +35,9 @@ logger = logging.getLogger(__name__)
 
 class OriginalModelRequest(BaseModel):
     endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
-    body: dict = Field(default={}, description="The JSON body to use for the request.")
-    form: dict = Field(default={}, description="The form-encoded data to use for the request.")
-    files: dict = Field(default={}, description="The files to use for the request.")
+    body: Annotated[dict, Field(default={}, description="The JSON body to use for the request.")]
+    form: Annotated[dict, Field(default={}, description="The form-encoded data to use for the request.")]
+    files: Annotated[dict, Field(default={}, description="The files to use for the request.")]
 
     @classmethod
     def from_user_request(cls, user_request: UserModelRequest) -> "OriginalModelRequest":
@@ -50,21 +50,21 @@ class OriginalModelRequest(BaseModel):
 
 
 class FormattedModelRequest(BaseModel):
-    method: HTTPMethod
-    endpoint: Annotated[str, Field(description="The model client endpoint.")]
-    body: dict = Field(default={}, description="The JSON body to use for the request.")
-    form: dict = Field(default={}, description="The form-encoded data to use for the request.")
-    files: dict = Field(default={}, description="The files to use for the request.")
+    method: Annotated[HTTPMethod, Field(description="The HTTP method to build the request.")]
+    url: Annotated[str, Field(description="The model API URL to build the request.")]
+    body: Annotated[dict, Field(default={}, description="The JSON body to use for the request.")]
+    form: Annotated[dict, Field(default={}, description="The form-encoded data to use for the request.")]
+    files: Annotated[dict, Field(default={}, description="The files to use for the request.")]
 
 
 class OriginalModelResponse(BaseModel):
-    data: dict | list = Field(default={}, description="The JSON data to use for the response.")
-    latency: int | None = Field(default=None, description="The latency of the response.")
+    data: Annotated[dict | list, Field(default={}, description="The JSON data to use for the response.")]
+    latency: Annotated[int | None, Field(default=None, description="The latency of the response.")]
 
 
 class FormattedModelResponse(BaseModel):
-    data: AudioTranscription | ChatCompletion | ChatCompletionChunk | Embeddings | ModelsResponse | OCR | Reranks | None = Field(default=None, description="The JSON data to use for the response.")  # fmt: off
-    text: str | None = Field(default=None, description="The text data to use for the response.")
+    data: Annotated[AudioTranscription | ChatCompletion | ChatCompletionChunk | Embeddings | ModelsResponse | OCR | Reranks | None, Field(default=None, description="The JSON data to use for the response.")]  # fmt: off
+    text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
 
 
 class ModelHttpExchange(BaseModel):
@@ -75,32 +75,32 @@ class ModelHttpExchange(BaseModel):
 
 
 class ModelHttpClientEndpoints(BaseModel):
-    audio_transcriptions: Annotated[tuple[HTTPMethod, Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]] | None, Field(default=(HTTPMethod.POST, "/v1/audio/transcriptions"))]  # fmt: off
-    chat_completions: Annotated[tuple[HTTPMethod, Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]] | None, Field(default=(HTTPMethod.POST, "/v1/chat/completions"))]  # fmt: off
-    embeddings: Annotated[tuple[HTTPMethod, Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]] | None, Field(default=(HTTPMethod.POST, "/v1/embeddings"))]  # fmt: off
-    models: Annotated[tuple[HTTPMethod, Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]] | None, Field(default=(HTTPMethod.GET, "/v1/models"))]  # fmt: off
-    ocr: Annotated[tuple[HTTPMethod, Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]] | None, Field(default=(HTTPMethod.POST, "/v1/ocr"))]  # fmt: off
-    rerank: Annotated[tuple[HTTPMethod, Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]] | None, Field(default=(HTTPMethod.POST, "/v1/rerank"))]  # fmt: off
+    audio_transcriptions: Annotated[tuple[HTTPMethod | None, Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]], Field(default=(HTTPMethod.POST, "/v1/audio/transcriptions"))]  # fmt: off
+    chat_completions: Annotated[tuple[HTTPMethod | None, Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]], Field(default=(HTTPMethod.POST, "/v1/chat/completions"))]  # fmt: off
+    embeddings: Annotated[tuple[HTTPMethod | None, Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]], Field(default=(HTTPMethod.POST, "/v1/embeddings"))]  # fmt: off
+    models: Annotated[tuple[HTTPMethod | None, Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]], Field(default=(HTTPMethod.GET, "/v1/models"))]  # fmt: off
+    ocr: Annotated[tuple[HTTPMethod | None, Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]], Field(default=(HTTPMethod.POST, "/v1/ocr"))]  # fmt: off
+    rerank: Annotated[tuple[HTTPMethod | None, Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]], Field(default=(HTTPMethod.POST, "/v1/rerank"))]  # fmt: off
 
-    def get_endpoint(self, endpoint: EndpointRoute) -> str | None:
+    def get_method_and_url(self, base_url: str, endpoint: EndpointRoute) -> tuple[HTTPMethod | None, str | None]:
         if endpoint == EndpointRoute.AUDIO_TRANSCRIPTIONS:
-            endpoint = self.audio_transcriptions
+            method, endpoint = self.audio_transcriptions
         elif endpoint == EndpointRoute.CHAT_COMPLETIONS:
-            endpoint = self.chat_completions
+            method, endpoint = self.chat_completions
         elif endpoint == EndpointRoute.EMBEDDINGS:
-            endpoint = self.embeddings
+            method, endpoint = self.embeddings
         elif endpoint == EndpointRoute.MODELS:
-            endpoint = self.models
+            method, endpoint = self.models
         elif endpoint == EndpointRoute.OCR:
-            endpoint = self.ocr
+            method, endpoint = self.ocr
         elif endpoint == EndpointRoute.RERANK:
-            endpoint = self.rerank
+            method, endpoint = self.rerank
         else:
-            endpoint = None
+            method, endpoint = None, None
 
-        endpoint = endpoint if endpoint is None else endpoint.lstrip("/")
+        url = endpoint if endpoint is None else urljoin(base=base_url, url=endpoint.lstrip("/"))
 
-        return endpoint
+        return method, url
 
 
 class ModelHttpClient:
@@ -143,26 +143,51 @@ class ModelHttpClient:
     def build_request_exchange(self, user_request: UserModelRequest) -> ModelHttpExchange | UnsupportedEndpointError:
         exchange = ModelHttpExchange(original_request=OriginalModelRequest.from_user_request(user_request=user_request))
 
-        if not self._is_supported_endpoint(exchange=exchange):
+        method, url = self.ENDPOINT_TABLE.get_method_and_url(base_url=self.url, endpoint=exchange.original_request.endpoint)
+        if method is None or url is None:
             return UnsupportedEndpointError(endpoint=exchange.original_request.endpoint, provider_type=self.TYPE)
 
         if exchange.original_request.endpoint == EndpointRoute.AUDIO_TRANSCRIPTIONS:
-            exchange.formatted_request = self.format_audio_transcription_request(exchange=exchange)
+            exchange.formatted_request = self.get_formatted_audio_transcription_request(
+                original_request=exchange.original_request,
+                method=method,
+                url=url,
+            )
 
         elif exchange.original_request.endpoint == EndpointRoute.CHAT_COMPLETIONS:
-            exchange.formatted_request = self.format_chat_completion_request(exchange=exchange)
+            exchange.formatted_request = self.get_formatted_chat_completion_request(
+                original_request=exchange.original_request,
+                method=method,
+                url=url,
+            )
 
         elif exchange.original_request.endpoint == EndpointRoute.MODELS:
-            exchange.formatted_request = self.format_models_request(exchange=exchange)
+            exchange.formatted_request = self.get_formatted_models_request(
+                original_request=exchange.original_request,
+                method=method,
+                url=url,
+            )
 
         elif exchange.original_request.endpoint == EndpointRoute.EMBEDDINGS:
-            exchange.formatted_request = self.format_embeddings_request(exchange=exchange)
+            exchange.formatted_request = self.get_formatted_embeddings_request(
+                original_request=exchange.original_request,
+                method=method,
+                url=url,
+            )
 
         elif exchange.original_request.endpoint == EndpointRoute.OCR:
-            exchange.formatted_request = self.format_ocr_request(exchange=exchange)
+            exchange.formatted_request = self.get_formatted_ocr_request(
+                original_request=exchange.original_request,
+                method=method,
+                url=url,
+            )
 
         elif exchange.original_request.endpoint == EndpointRoute.RERANK:
-            exchange.formatted_request = self.format_rerank_request(exchange=exchange)
+            exchange.formatted_request = self.get_formatted_rerank_request(
+                original_request=exchange.original_request,
+                method=method,
+                url=url,
+            )
 
         return exchange
 
@@ -174,9 +199,9 @@ class ModelHttpClient:
                 try:
                     start_time = time.perf_counter()
                     response = await async_client.request(
-                        method=exchange.formatted_request.method,
-                        url=self._build_url(exchange=exchange),
                         headers=self.headers,
+                        method=exchange.formatted_request.method,
+                        url=exchange.formatted_request.url,
                         json=exchange.formatted_request.body,
                         files=exchange.formatted_request.files,
                         data=exchange.formatted_request.form,
@@ -215,7 +240,7 @@ class ModelHttpClient:
         # add additional data to the response
         latency = self._elapsed_ms(start_time=start_time)
         response_data = response.json()
-        response = self.complete_response_exchange(exchange=exchange, response_data=response_data, latency=latency)
+        exchange = self.complete_response_exchange(exchange=exchange, response_data=response_data, latency=latency)
         await self._log_performance_metric(redis_client=redis_client, ttft=None, latency=latency)
 
         if exchange.formatted_response.data is None:
@@ -249,9 +274,9 @@ class ModelHttpClient:
         async with httpx.AsyncClient(timeout=self.timeout) as async_client:
             try:
                 async with async_client.stream(
-                    method=exchange.formatted_request.method,
-                    url=self._build_url(exchange=exchange),
                     headers=self.headers,
+                    method=exchange.formatted_request.method,
+                    url=exchange.formatted_request.url,
                     json=exchange.formatted_request.body,
                     files=exchange.formatted_request.files,
                     data=exchange.formatted_request.form,
@@ -336,79 +361,62 @@ class ModelHttpClient:
         return exchange
 
     # request formatting
-    def format_audio_transcription_request(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+    def get_formatted_audio_transcription_request(
+        self,
+        original_request: OriginalModelRequest,
+        method: HTTPMethod,
+        url: str,
+    ) -> FormattedModelRequest:
         """This method can be overridden by children clients to format the audio transcription request."""
 
-        form = deepcopy(exchange.original_request.form)
+        form = deepcopy(original_request.form)
         form["model"] = self.model_name
         if form["response_format"] == AudioTranscriptionResponseFormat.TEXT:
             form["response_format"] = AudioTranscriptionResponseFormat.JSON.value
 
-        exchange.formatted_request = FormattedModelRequest(
-            method=self.ENDPOINT_TABLE.audio_transcriptions[0],
-            endpoint=self.ENDPOINT_TABLE.audio_transcriptions[1],
-            form=form,
-            files=exchange.original_request.files,
-        )
+        formatted_request = FormattedModelRequest(method=method, url=url, form=form, files=original_request.files)
 
-        return exchange
+        return formatted_request
 
-    def format_chat_completion_request(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+    def get_formatted_chat_completion_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
         """This method can be overridden by children clients to format the chat completion request."""
         # @TODO: setup default temperature by model (default=1.0)
         # @TODO: check behavior of usage computation with unstream
-
-        body = deepcopy(exchange.original_request.body)
+        body = deepcopy(original_request.body)
         body["model"] = self.model_name
-        exchange.formatted_request = FormattedModelRequest(
-            method=self.ENDPOINT_TABLE.chat_completions[0],
-            endpoint=self.ENDPOINT_TABLE.chat_completions[1],
-            body=body,
-        )
+        formatted_request = FormattedModelRequest(method=method, url=url, body=body)
 
-        return exchange
+        return formatted_request
 
-    def format_embeddings_request(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+    def get_formatted_embeddings_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
         """This method can be overridden by children clients to format the embeddings request."""
-        body = deepcopy(exchange.original_request.body)
+        body = deepcopy(original_request.body)
         body["model"] = self.model_name
-        exchange.formatted_request = FormattedModelRequest(
-            method=self.ENDPOINT_TABLE.embeddings[0],
-            endpoint=self.ENDPOINT_TABLE.embeddings[1],
-            body=body,
-        )
-        return exchange
+        formatted_request = FormattedModelRequest(method=method, url=url, body=body)
 
-    def format_models_request(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+        return formatted_request
+
+    def get_formatted_models_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
         """This method can be overridden by children clients to format the models request."""
-        exchange.formatted_request = FormattedModelRequest(
-            method=self.ENDPOINT_TABLE.models[0],
-            endpoint=self.ENDPOINT_TABLE.models[1],
-        )
+        formatted_request = FormattedModelRequest(method=method, url=url)
 
-        return exchange
+        return formatted_request
 
-    def format_ocr_request(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+    def get_formatted_ocr_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
         """This method can be overridden by children clients to format the OCR request."""
-        body = deepcopy(exchange.original_request.body)
+        body = deepcopy(original_request.body)
         body["model"] = self.model_name
-        exchange.formatted_request = FormattedModelRequest(
-            method=self.ENDPOINT_TABLE.ocr[0],
-            endpoint=self.ENDPOINT_TABLE.ocr[1],
-            body=body,
-        )
-        return exchange
+        formatted_request = FormattedModelRequest(method=method, url=url, body=body)
 
-    def format_rerank_request(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+        return formatted_request
+
+    def get_formatted_rerank_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
         """This method can be overridden by children clients to format the rerank request."""
-        body = deepcopy(exchange.original_request.body)
+        body = deepcopy(original_request.body)
         body["model"] = self.model_name
-        exchange.formatted_request = FormattedModelRequest(
-            method=self.ENDPOINT_TABLE.rerank[0],
-            endpoint=self.ENDPOINT_TABLE.rerank[1],
-            body=body,
-        )
-        return exchange
+        formatted_request = FormattedModelRequest(method=method, url=url, body=body)
+
+        return formatted_request
 
     # response formatting
     def format_audio_transcription_original_response(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
@@ -492,34 +500,6 @@ class ModelHttpClient:
 
         return exchange
 
-    def _is_supported_endpoint(self, exchange: ModelHttpExchange) -> bool:
-        if {
-            EndpointRoute.AUDIO_TRANSCRIPTIONS: self.ENDPOINT_TABLE.audio_transcriptions,
-            EndpointRoute.CHAT_COMPLETIONS: self.ENDPOINT_TABLE.chat_completions,
-            EndpointRoute.EMBEDDINGS: self.ENDPOINT_TABLE.embeddings,
-            EndpointRoute.MODELS: self.ENDPOINT_TABLE.models,
-            EndpointRoute.OCR: self.ENDPOINT_TABLE.ocr,
-            EndpointRoute.RERANK: self.ENDPOINT_TABLE.rerank,
-        }.get(exchange.original_request.endpoint) is None:
-            return False
-
-        return True
-
-    def _build_url(self, exchange: ModelHttpExchange) -> str:
-        return urljoin(base=self.url, url=self.endpoint_table.get_endpoint(endpoint=exchange.formatted_request.endpoint))
-
-    @staticmethod
-    def _get_request_id(exchange: ModelHttpExchange) -> str:
-        request_id = request_context.get().id  # can be not None when the endpoint make multiple requests to a model (e.g. /v1/search)
-        if "id" in exchange.original_response.data:
-            request_id = exchange.original_response.data["id"]
-        elif request_context.get().id is None:
-            request_id = f"request-{str(uuid4()).replace('-', '')}"
-
-        request_context.get().id = request_id
-
-        return request_id
-
     def _get_usage(self, exchange: ModelHttpExchange) -> Usage | None:
         """
         Get usage data from request and response.
@@ -566,23 +546,6 @@ class ModelHttpClient:
 
         return usage
 
-    @staticmethod
-    async def _ensure_timeseries_exists(redis_client: AsyncRedis, key: str) -> None:
-        """
-        Ensure a time series exists with proper retention configuration.
-
-        Args:
-            redis_client(AsyncRedis): The redis client to use.
-            key(str): The time series key to create.
-        """
-        try:
-            await redis_client.ts().info(key)
-        except Exception:
-            try:
-                await redis_client.ts().create(key, retention_msecs=REDIS__TIMESERIE_RETENTION_SECONDS * 1000, duplicate_policy="LAST")
-            except Exception:
-                pass
-
     async def _log_performance_metric(self, redis_client: AsyncRedis | None = None, ttft: int | None = None, latency: int | None = None) -> None:
         """
         Log performance metrics in redis.
@@ -617,14 +580,6 @@ class ModelHttpClient:
             logger.error(f"Failed to log request metrics (latency) in redis (id: {self.provider_id})", exc_info=True)
             await safe_redis_reset(redis_client)
 
-    @staticmethod
-    def _elapsed_ms(start_time: float) -> int:
-        return int((time.perf_counter() - start_time) * 1000)  # ms
-
-    @staticmethod
-    def _build_inflight_key(provider_id: int) -> str:
-        return f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{provider_id}"
-
     async def _increment_inflight_key(self, redis_client: AsyncRedis | None = None) -> bool:
         if redis_client is None:
             return False
@@ -643,3 +598,40 @@ class ModelHttpClient:
             await redis_retry(redis_client.decr, name=inflight_key, max_retries=2)
         except Exception as e:
             logger.exception(msg=f"Failed to decrement inflight key {inflight_key} for provider {self.provider_id}: {e}")
+
+    @staticmethod
+    def _get_request_id(exchange: ModelHttpExchange) -> str:
+        request_id = request_context.get().id  # can be not None when the endpoint make multiple requests to a model (e.g. /v1/search)
+        if "id" in exchange.original_response.data:
+            request_id = exchange.original_response.data["id"]
+        elif request_context.get().id is None:
+            request_id = f"request-{str(uuid4()).replace('-', '')}"
+
+        request_context.get().id = request_id
+
+        return request_id
+
+    @staticmethod
+    async def _ensure_timeseries_exists(redis_client: AsyncRedis, key: str) -> None:
+        """
+        Ensure a time series exists with proper retention configuration.
+
+        Args:
+            redis_client(AsyncRedis): The redis client to use.
+            key(str): The time series key to create.
+        """
+        try:
+            await redis_client.ts().info(key)
+        except Exception:
+            try:
+                await redis_client.ts().create(key, retention_msecs=REDIS__TIMESERIE_RETENTION_SECONDS * 1000, duplicate_policy="LAST")
+            except Exception:
+                pass
+
+    @staticmethod
+    def _elapsed_ms(start_time: float) -> int:
+        return int((time.perf_counter() - start_time) * 1000)  # ms
+
+    @staticmethod
+    def _build_inflight_key(provider_id: int) -> str:
+        return f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{provider_id}"
