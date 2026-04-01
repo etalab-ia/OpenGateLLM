@@ -84,6 +84,9 @@ class ModelProviderGateway(ProviderGateway):
             logger.info(msg=f"Failed to get max context length for {client.model_name}: {e}.")
             return ProviderNotReachableError(model_name=client.model_name)
 
+        if response.status_code != 200:
+            return ProviderNotReachableError(model_name=client.model_name)
+
         data = response.json().get("data", [])
         model = next((ModelResponse(**model) for model in data if model["id"] == client.model_name or client.model_name in model["aliases"]), None)
         if model is None:

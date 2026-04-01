@@ -439,7 +439,7 @@ def test_complete_response_exchange_should_format_chat_completion_original_respo
     mocked_format = mocker.patch.object(model_http_client, "get_chat_completion_formatted_response", return_value=formatted_response)
 
     result = model_http_client.complete_response_exchange(
-        exchange=ModelHttpExchange(original_request=original_request),
+        exchange=ModelHttpExchangeFactory(original_request=original_request),
         response_data={"id": "chat-id"},
         latency=10,
     )
@@ -455,7 +455,7 @@ def test_complete_response_exchange_should_format_embeddings_original_response(m
     mocked_format = mocker.patch.object(model_http_client, "get_embeddings_formatted_response", return_value=formatted_response)
 
     result = model_http_client.complete_response_exchange(
-        exchange=ModelHttpExchange(original_request=original_request),
+        exchange=ModelHttpExchangeFactory(original_request=original_request),
         response_data={"data": []},
         latency=10,
     )
@@ -471,7 +471,7 @@ def test_complete_response_exchange_should_format_models_original_response(model
     mocked_format = mocker.patch.object(model_http_client, "get_models_formatted_response", return_value=formatted_response)
 
     result = model_http_client.complete_response_exchange(
-        exchange=ModelHttpExchange(original_request=original_request),
+        exchange=ModelHttpExchangeFactory(original_request=original_request),
         response_data={"data": []},
         latency=10,
     )
@@ -487,7 +487,7 @@ def test_complete_response_exchange_should_format_ocr_original_response(model_ht
     mocked_format = mocker.patch.object(model_http_client, "get_ocr_formatted_response", return_value=formatted_response)
 
     result = model_http_client.complete_response_exchange(
-        exchange=ModelHttpExchange(original_request=original_request),
+        exchange=ModelHttpExchangeFactory(original_request=original_request),
         response_data={"pages": []},
         latency=10,
     )
@@ -503,7 +503,7 @@ def test_complete_response_exchange_should_get_rerank_formatted_response(model_h
     mocked_format = mocker.patch.object(model_http_client, "get_rerank_formatted_response", return_value=formatted_response)
 
     result = model_http_client.complete_response_exchange(
-        exchange=ModelHttpExchange(original_request=original_request),
+        exchange=ModelHttpExchangeFactory(original_request=original_request),
         response_data={"results": []},
         latency=10,
     )
@@ -614,7 +614,7 @@ def test_should_format_valid_embeddings_original_response(model_http_client, moc
     """Using the Vllm response factory because the responses are not overriden by VllM child provider class (see VllmModelHttpClient)."""
 
     # Arrange
-    exchange = ModelHttpExchange(
+    exchange = ModelHttpExchangeFactory(
         original_request=OriginalModelRequestFactory(embeddings=True),
         original_response=VllmOriginalResponseFactory(embeddings=True),
     )
@@ -642,7 +642,7 @@ def test_should_format_valid_models_original_response(model_http_client, mocker)
     """Using the OpenAI response factory because the responses are not overriden by OpenAI child provider class (see OpenaiModelHttpClient)."""
 
     # Arrange
-    exchange = ModelHttpExchange(
+    exchange = ModelHttpExchangeFactory(
         original_request=OriginalModelRequestFactory(models=True),
         original_response=OpenaiOriginalResponseFactory(models=True),
     )
@@ -669,7 +669,7 @@ def test_should_format_valid_models_original_response(model_http_client, mocker)
 def test_should_format_valid_ocr_original_response(model_http_client, mocker):
     """Using the Mistral response factory because the responses are not overriden by Mistral child provider class (see MistralModelHttpClient)."""
     # Arrange
-    exchange = ModelHttpExchange(
+    exchange = ModelHttpExchangeFactory(
         original_request=OriginalModelRequestFactory(ocr=True),
         original_response=MistralOriginalResponseFactory(ocr=True),
     )
@@ -729,7 +729,7 @@ def test_should_format_valid_ocr_original_response(model_http_client, mocker):
 def test_should_format_valid_rerank_original_response(model_http_client, mocker):
     """Using the Vllm response factory because the responses are not overriden by VLLM child provider class (see VllmModelHttpClient)."""
     # Arrange
-    exchange = ModelHttpExchange(
+    exchange = ModelHttpExchangeFactory(
         original_request=OriginalModelRequestFactory(rerank=True),
         original_response=VllmOriginalResponseFactory(rerank=True),
     )
@@ -760,7 +760,7 @@ def test_get_request_id_should_return_original_response_id_when_present(mocker):
     mocked_request_context = RequestContext(id="context-id")
     mocked_request_context_var = mocker.Mock()
     mocked_request_context_var.get.return_value = mocked_request_context
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(models=True), original_response={"data": {"id": "response-id"}})
+    exchange = ModelHttpExchangeFactory(original_request=OriginalModelRequestFactory(models=True), original_response={"data": {"id": "response-id"}})
     mocker.patch("api.infrastructure.http.model._modelhttpclient.request_context", mocked_request_context_var)
 
     result = ModelHttpClient._get_request_id(exchange=exchange)
@@ -772,7 +772,7 @@ def test_get_request_id_should_generate_id_when_context_id_is_none(mocker, monke
     mocked_request_context = RequestContext(id=None)
     mocked_request_context_var = mocker.Mock()
     mocked_request_context_var.get.return_value = mocked_request_context
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(models=True), original_response={"data": {}})
+    exchange = ModelHttpExchangeFactory(original_request=OriginalModelRequestFactory(models=True), original_response={"data": {}})
     monkeypatch.setattr("api.infrastructure.http.model._modelhttpclient.uuid4", lambda: "12345678-1234-5678-1234-567812345678")
     mocker.patch("api.infrastructure.http.model._modelhttpclient.request_context", mocked_request_context_var)
 
@@ -785,7 +785,7 @@ def test_get_request_id_should_return_context_id_when_available(mocker):
     mocked_request_context = RequestContext(id="context-id")
     mocked_request_context_var = mocker.Mock()
     mocked_request_context_var.get.return_value = mocked_request_context
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(models=True), original_response={"data": {}})
+    exchange = ModelHttpExchangeFactory(original_request=OriginalModelRequestFactory(models=True), original_response={"data": {}})
     mocker.patch("api.infrastructure.http.model._modelhttpclient.request_context", mocked_request_context_var)
 
     result = ModelHttpClient._get_request_id(exchange=exchange)

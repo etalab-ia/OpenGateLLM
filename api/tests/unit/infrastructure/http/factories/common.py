@@ -1,7 +1,10 @@
+from unittest.mock import Mock
+
 import factory
 from faker import Faker
 
 from api.domain.model.entities import UserModelRequest
+from api.infrastructure.fastapi.schemas.models import ModelCosts, ModelType
 from api.infrastructure.http.model import ModelHttpExchange, OriginalModelRequest
 from api.schemas.chat import CreateChatCompletion
 from api.schemas.ocr import CreateOCR, DocumentURLChunk
@@ -141,3 +144,43 @@ class ModelHttpExchangeFactory(factory.Factory):
     formatted_request = None
     original_response = None
     formatted_response = None
+
+
+class HttpResponseFactory(factory.Factory):
+    class Meta:
+        model = Mock
+        exclude = ("payload",)
+
+    status_code = 200
+    payload = factory.LazyFunction(lambda: {})
+    json = factory.LazyAttribute(lambda self: Mock(return_value=self.payload))
+
+
+class ModelPayloadFactory(factory.DictFactory):
+    class Meta:
+        model = dict
+
+    object = "model"
+    id = factory.Faker("bothify", text="model_####")
+    type = factory.Faker("random_element", elements=list(ModelType))
+    aliases = factory.LazyFunction(list)
+    created = factory.LazyFunction(lambda: int(fake.unix_time()))
+    owned_by = "open-gate"
+    max_context_length = factory.Faker("random_int", min=64000, max=245600)
+    costs = factory.LazyFunction(lambda: ModelCosts(prompt_tokens=0.0, completion_tokens=0.0))
+
+
+class ModelsPayloadFactory(factory.DictFactory):
+    class Meta:
+        model = dict
+
+    object = "list"
+    data = factory.LazyFunction(lambda: [ModelPayloadFactory()])
+
+
+class EmbeddingsPayloadFactory(factory.DictFactory):
+    class Meta:
+        model = dict
+
+    object = "list"
+    data = factory.LazyFunction(lambda: [{"embedding": [-0.30128387, 0.5073153, -0.807378], "index": 0, "object": "embedding", "dimensions": 3}])

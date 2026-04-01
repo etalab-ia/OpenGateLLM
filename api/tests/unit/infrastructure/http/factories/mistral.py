@@ -20,10 +20,7 @@ class MistralFormattedModelRequestFactory(factory.DictFactory):
     files = factory.LazyFunction(lambda: {})
 
     class Params:
-        models = factory.Trait(
-            method=HTTPMethod.GET,
-            endpoint="/v1/models",
-        )
+        models = factory.Trait(method=HTTPMethod.GET, url="/v1/models")
 
 
 # Original response factories
