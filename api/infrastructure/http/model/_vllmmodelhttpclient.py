@@ -11,8 +11,8 @@ class VllmModelHttpClient(ModelHttpClient):
     TYPE = ProviderType.VLLM
 
     # response formatting
-    def format_response_to_models_response(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
-        exchange.formatted_response = FormattedModelResponse(
+    def format_response_to_models_response(self, exchange: ModelHttpExchange) -> FormattedModelResponse:
+        formatted_response = FormattedModelResponse(
             data=ModelsResponse(
                 data=[
                     ModelResponse(
@@ -25,4 +25,5 @@ class VllmModelHttpClient(ModelHttpClient):
                 ]
             )
         )
-        return exchange
+
+        return formatted_response

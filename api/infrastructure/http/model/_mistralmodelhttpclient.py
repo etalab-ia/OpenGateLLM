@@ -22,7 +22,7 @@ class MistralModelHttpClient(ModelHttpClient):
     TYPE = ProviderType.MISTRAL
 
     # request formatting
-    def get_formatted_chat_completion_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
+    def get_chat_completion_formatted_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
         # @TODO: build body with model_fields_set to exclude unset fields
 
         # see https://docs.mistral.ai/api#operation-chat_completion_v1_chat_completions_post
@@ -51,8 +51,11 @@ class MistralModelHttpClient(ModelHttpClient):
 
         return formatted_request
 
-    def get_formatted_audio_transcription_request(
-        self, original_request: OriginalModelRequest, method: HTTPMethod, url: str
+    def get_audio_transcription_formatted_request(
+        self,
+        original_request: OriginalModelRequest,
+        method: HTTPMethod,
+        url: str,
     ) -> FormattedModelRequest:
         text = original_request.form.get("prompt") or f"Transcribe this audio in this language : {original_request.form.get('language', 'en')}"  # fmt: off
         input_audio = base64.b64encode(original_request.files["file"][1]).decode("utf-8")
@@ -74,19 +77,19 @@ class MistralModelHttpClient(ModelHttpClient):
         return formatted_request
 
     # response formatting
-    def format_response_to_audio_transcription_response(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+    def format_response_to_audio_transcription_response(self, exchange: ModelHttpExchange) -> FormattedModelResponse:
         request_id = self._get_request_id(exchange=exchange)
         text = exchange.original_response.data["choices"][0]["message"]["content"]
 
         if exchange.original_request.form["response_format"] == AudioTranscriptionResponseFormat.TEXT:
-            exchange.formatted_response = FormattedModelResponse(text=text)
-            return exchange
+            formatted_response = FormattedModelResponse(text=text)
+            return formatted_response
 
         usage = self._get_usage(exchange=exchange)
         if usage is not None:
             usage = usage.model_dump()
 
-        exchange.formatted_response = FormattedModelResponse(
+        formatted_response = FormattedModelResponse(
             data=AudioTranscription(
                 id=request_id,
                 model=exchange.original_request.form["model"],
@@ -94,10 +97,11 @@ class MistralModelHttpClient(ModelHttpClient):
                 usage=usage,
             ),
         )
-        return exchange
 
-    def format_response_to_models_response(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
-        exchange.formatted_response = FormattedModelResponse(
+        return formatted_response
+
+    def format_response_to_models_response(self, exchange: ModelHttpExchange) -> FormattedModelResponse:
+        formatted_response = FormattedModelResponse(
             data=ModelsResponse(
                 data=[
                     ModelResponse(
@@ -112,4 +116,4 @@ class MistralModelHttpClient(ModelHttpClient):
             )
         )
 
-        return exchange
+        return formatted_response

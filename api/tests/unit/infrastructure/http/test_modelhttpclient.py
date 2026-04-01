@@ -19,7 +19,7 @@ from api.schemas.embeddings import Embeddings
 from api.schemas.ocr import OCR
 from api.schemas.rerank import RerankResult, Reranks
 from api.schemas.usage import Usage
-from api.tests.unit.infrastructure.http.factories.common import OriginalModelRequestFactory, UserModelRequestFactory
+from api.tests.unit.infrastructure.http.factories.common import ModelHttpExchangeFactory, OriginalModelRequestFactory, UserModelRequestFactory
 from api.tests.unit.infrastructure.http.factories.mistral import MistralOriginalResponseFactory
 from api.tests.unit.infrastructure.http.factories.openai import OpenaiOriginalResponseFactory
 from api.tests.unit.infrastructure.http.factories.vllm import VllmOriginalResponseFactory
@@ -113,7 +113,7 @@ def test_build_request_exchange_should_format_audio_transcription_request(model_
     method, url = HTTPMethod.POST, "https://test.com/v1/audio/transcriptions"
     mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(method, url))
     formatted_request = FormattedModelRequest(method=method, url=url, body={}, form={}, files={})
-    mocked_format = mocker.patch.object(model_http_client, "get_formatted_audio_transcription_request", return_value=formatted_request)
+    mocked_format = mocker.patch.object(model_http_client, "get_audio_transcription_formatted_request", return_value=formatted_request)
 
     result = model_http_client.build_request_exchange(user_request=user_request)
 
@@ -133,7 +133,7 @@ def test_build_request_exchange_should_format_chat_completion_request(model_http
     method, url = HTTPMethod.POST, "https://test.com/v1/chat/completions"
     mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(method, url))
     formatted_request = FormattedModelRequest(method=method, url=url, body={}, form={}, files={})
-    mocked_format = mocker.patch.object(model_http_client, "get_formatted_chat_completion_request", return_value=formatted_request)
+    mocked_format = mocker.patch.object(model_http_client, "get_chat_completion_formatted_request", return_value=formatted_request)
 
     result = model_http_client.build_request_exchange(user_request=user_request)
 
@@ -153,7 +153,7 @@ def test_build_request_exchange_should_format_models_request(model_http_client, 
     method, url = HTTPMethod.GET, "https://test.com/v1/models"
     mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(method, url))
     formatted_request = FormattedModelRequest(method=method, url=url, body={}, form={}, files={})
-    mocked_format = mocker.patch.object(model_http_client, "get_formatted_models_request", return_value=formatted_request)
+    mocked_format = mocker.patch.object(model_http_client, "get_models_formatted_request", return_value=formatted_request)
 
     result = model_http_client.build_request_exchange(user_request=user_request)
 
@@ -173,7 +173,7 @@ def test_build_request_exchange_should_format_embeddings_request(model_http_clie
     method, url = HTTPMethod.POST, "https://test.com/v1/embeddings"
     mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(method, url))
     formatted_request = FormattedModelRequest(method=method, url=url, body={}, form={}, files={})
-    mocked_format = mocker.patch.object(model_http_client, "get_formatted_embeddings_request", return_value=formatted_request)
+    mocked_format = mocker.patch.object(model_http_client, "get_embeddings_formatted_request", return_value=formatted_request)
 
     result = model_http_client.build_request_exchange(user_request=user_request)
 
@@ -193,7 +193,7 @@ def test_build_request_exchange_should_format_ocr_request(model_http_client, moc
     method, url = HTTPMethod.POST, "https://test.com/v1/ocr"
     mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(method, url))
     formatted_request = FormattedModelRequest(method=method, url=url, body={}, form={}, files={})
-    mocked_format = mocker.patch.object(model_http_client, "get_formatted_ocr_request", return_value=formatted_request)
+    mocked_format = mocker.patch.object(model_http_client, "get_ocr_formatted_request", return_value=formatted_request)
 
     result = model_http_client.build_request_exchange(user_request=user_request)
 
@@ -213,7 +213,7 @@ def test_build_request_exchange_should_format_rerank_request(model_http_client, 
     method, url = HTTPMethod.POST, "/v1/rerank"
     mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(method, url))
     formatted_request = FormattedModelRequest(method=method, url=url, body={}, form={}, files={})
-    mocked_format = mocker.patch.object(model_http_client, "get_formatted_rerank_request", return_value=formatted_request)
+    mocked_format = mocker.patch.object(model_http_client, "get_rerank_formatted_request", return_value=formatted_request)
 
     result = model_http_client.build_request_exchange(user_request=user_request)
 
@@ -234,7 +234,7 @@ def test_should_format_valid_audio_transcription_request(model_http_client):
     method, url = HTTPMethod.POST, "https://test.com/v1/audio/transcription"
 
     # Act
-    result = model_http_client.get_formatted_audio_transcription_request(original_request=original_request, method=method, url=url)
+    result = model_http_client.get_audio_transcription_formatted_request(original_request=original_request, method=method, url=url)
 
     # Assert
     assert result == FormattedModelRequest(
@@ -258,7 +258,7 @@ def test_should_format_audio_transcription_request_with_text_response_format_to_
     method, url = HTTPMethod.POST, "https://test.com/v1/audio/transcription"
 
     # Act
-    result = model_http_client.get_formatted_audio_transcription_request(original_request=original_request, method=method, url=url)
+    result = model_http_client.get_audio_transcription_formatted_request(original_request=original_request, method=method, url=url)
 
     # Assert
     assert result == FormattedModelRequest(
@@ -281,7 +281,7 @@ def test_should_format_valid_chat_completion_request(model_http_client):
     method, url = HTTPMethod.POST, "https://test.com/v1/chat/completions"
 
     # Act
-    result = model_http_client.get_formatted_chat_completion_request(original_request=original_request, method=method, url=url)
+    result = model_http_client.get_chat_completion_formatted_request(original_request=original_request, method=method, url=url)
 
     # Assert
     assert result == FormattedModelRequest(
@@ -347,7 +347,7 @@ def test_should_format_valid_embeddings_request(model_http_client):
     method, url = HTTPMethod.POST, "https://test.com/v1/embeddings"
 
     # Act
-    result = model_http_client.get_formatted_embeddings_request(original_request=original_request, method=method, url=url)
+    result = model_http_client.get_embeddings_formatted_request(original_request=original_request, method=method, url=url)
 
     # Assert
     assert result == FormattedModelRequest(
@@ -363,7 +363,7 @@ def test_should_format_valid_models_request(model_http_client):
     method, url = HTTPMethod.GET, "https://test.com/v1/models"
 
     # Act
-    result = model_http_client.get_formatted_models_request(original_request=original_request, method=method, url=url)
+    result = model_http_client.get_models_formatted_request(original_request=original_request, method=method, url=url)
 
     # Assert
     assert result == FormattedModelRequest(method=method, url=url)
@@ -375,7 +375,7 @@ def test_should_format_valid_ocr_request(model_http_client):
     method, url = HTTPMethod.POST, "https://test.com/v1/ocr"
 
     # Act
-    result = model_http_client.get_formatted_ocr_request(original_request=original_request, method=method, url=url)
+    result = model_http_client.get_ocr_formatted_request(original_request=original_request, method=method, url=url)
 
     # Assert
     assert result == FormattedModelRequest(
@@ -400,7 +400,7 @@ def test_should_format_valid_rerank_request(model_http_client):
     method, url = HTTPMethod.POST, "https://test.com/v1/rerank"
 
     # Act
-    result = model_http_client.get_formatted_rerank_request(original_request=original_request, method=method, url=url)
+    result = model_http_client.get_rerank_formatted_request(original_request=original_request, method=method, url=url)
 
     # Assert
     assert result == FormattedModelRequest(
@@ -417,75 +417,105 @@ def test_should_format_valid_rerank_request(model_http_client):
 
 # Test response formatting methods
 def test_complete_response_exchange_should_format_audio_transcription_original_response(model_http_client, mocker):
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(audio_transcriptions=True))
-    mocked_format = mocker.patch.object(model_http_client, "format_audio_transcription_original_response", return_value=exchange)
+    original_request = OriginalModelRequestFactory(audio_transcriptions=True)
+    original_response = OriginalModelResponse(data={"text": "audio"}, latency=10)
+    formatted_response = FormattedModelResponse(data=None)
+    mocked_format = mocker.patch.object(model_http_client, "get_audio_transcription_formatted_response", return_value=formatted_response)
 
-    result = model_http_client.complete_response_exchange(exchange=exchange, response_data={"text": "audio"}, latency=10)
+    result = model_http_client.complete_response_exchange(
+        exchange=ModelHttpExchangeFactory(original_request=original_request),
+        response_data={"text": "audio"},
+        latency=10,
+    )
 
     mocked_format.assert_called_once()
-    assert mocked_format.call_args.kwargs["exchange"].original_response == OriginalModelResponse(data={"text": "audio"}, latency=10)
-    assert result == exchange
+    assert result == ModelHttpExchange(original_request=original_request, original_response=original_response, formatted_response=formatted_response)
 
 
 def test_complete_response_exchange_should_format_chat_completion_original_response(model_http_client, mocker):
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(chat_completions=True))
-    mocked_format = mocker.patch.object(model_http_client, "format_chat_completion_original_response", return_value=exchange)
+    original_request = OriginalModelRequestFactory(chat_completions=True)
+    original_response = OriginalModelResponse(data={"id": "chat-id"}, latency=10)
+    formatted_response = FormattedModelResponse(data=None)
+    mocked_format = mocker.patch.object(model_http_client, "get_chat_completion_formatted_response", return_value=formatted_response)
 
-    result = model_http_client.complete_response_exchange(exchange=exchange, response_data={"id": "chat-id"}, latency=10)
+    result = model_http_client.complete_response_exchange(
+        exchange=ModelHttpExchange(original_request=original_request),
+        response_data={"id": "chat-id"},
+        latency=10,
+    )
 
     mocked_format.assert_called_once()
-    assert mocked_format.call_args.kwargs["exchange"].original_response == OriginalModelResponse(data={"id": "chat-id"}, latency=10)
-    assert result == exchange
+    assert result == ModelHttpExchange(original_request=original_request, original_response=original_response, formatted_response=formatted_response)
 
 
 def test_complete_response_exchange_should_format_embeddings_original_response(model_http_client, mocker):
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(embeddings=True))
-    mocked_format = mocker.patch.object(model_http_client, "format_embeddings_original_response", return_value=exchange)
+    original_request = OriginalModelRequestFactory(embeddings=True)
+    original_response = OriginalModelResponse(data={"data": []}, latency=10)
+    formatted_response = FormattedModelResponse(data=None)
+    mocked_format = mocker.patch.object(model_http_client, "get_embeddings_formatted_response", return_value=formatted_response)
 
-    result = model_http_client.complete_response_exchange(exchange=exchange, response_data={"data": []}, latency=10)
+    result = model_http_client.complete_response_exchange(
+        exchange=ModelHttpExchange(original_request=original_request),
+        response_data={"data": []},
+        latency=10,
+    )
 
     mocked_format.assert_called_once()
-    assert mocked_format.call_args.kwargs["exchange"].original_response == OriginalModelResponse(data={"data": []}, latency=10)
-    assert result == exchange
+    assert result == ModelHttpExchange(original_request=original_request, original_response=original_response, formatted_response=formatted_response)
 
 
 def test_complete_response_exchange_should_format_models_original_response(model_http_client, mocker):
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(models=True))
-    mocked_format = mocker.patch.object(model_http_client, "format_models_original_response", return_value=exchange)
+    original_request = OriginalModelRequestFactory(models=True)
+    original_response = OriginalModelResponse(data={"data": []}, latency=10)
+    formatted_response = FormattedModelResponse(data=None)
+    mocked_format = mocker.patch.object(model_http_client, "get_models_formatted_response", return_value=formatted_response)
 
-    result = model_http_client.complete_response_exchange(exchange=exchange, response_data={"data": []}, latency=10)
+    result = model_http_client.complete_response_exchange(
+        exchange=ModelHttpExchange(original_request=original_request),
+        response_data={"data": []},
+        latency=10,
+    )
 
     mocked_format.assert_called_once()
-    assert mocked_format.call_args.kwargs["exchange"].original_response == OriginalModelResponse(data={"data": []}, latency=10)
-    assert result == exchange
+    assert result == ModelHttpExchange(original_request=original_request, original_response=original_response, formatted_response=formatted_response)
 
 
 def test_complete_response_exchange_should_format_ocr_original_response(model_http_client, mocker):
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(ocr=True))
-    mocked_format = mocker.patch.object(model_http_client, "format_ocr_original_response", return_value=exchange)
+    original_request = OriginalModelRequestFactory(ocr=True)
+    original_response = OriginalModelResponse(data={"pages": []}, latency=10)
+    formatted_response = FormattedModelResponse(data=None)
+    mocked_format = mocker.patch.object(model_http_client, "get_ocr_formatted_response", return_value=formatted_response)
 
-    result = model_http_client.complete_response_exchange(exchange=exchange, response_data={"pages": []}, latency=10)
-
-    mocked_format.assert_called_once()
-    assert mocked_format.call_args.kwargs["exchange"].original_response == OriginalModelResponse(data={"pages": []}, latency=10)
-    assert result == exchange
-
-
-def test_complete_response_exchange_should_format_rerank_original_response(model_http_client, mocker):
-    exchange = ModelHttpExchange(original_request=OriginalModelRequestFactory(rerank=True))
-    mocked_format = mocker.patch.object(model_http_client, "format_rerank_original_response", return_value=exchange)
-
-    result = model_http_client.complete_response_exchange(exchange=exchange, response_data={"results": []}, latency=10)
+    result = model_http_client.complete_response_exchange(
+        exchange=ModelHttpExchange(original_request=original_request),
+        response_data={"pages": []},
+        latency=10,
+    )
 
     mocked_format.assert_called_once()
-    assert mocked_format.call_args.kwargs["exchange"].original_response == OriginalModelResponse(data={"results": []}, latency=10)
-    assert result == exchange
+    assert result == ModelHttpExchange(original_request=original_request, original_response=original_response, formatted_response=formatted_response)
+
+
+def test_complete_response_exchange_should_get_rerank_formatted_response(model_http_client, mocker):
+    original_request = OriginalModelRequestFactory(rerank=True)
+    original_response = OriginalModelResponse(data={"results": []}, latency=10)
+    formatted_response = FormattedModelResponse(data=None)
+    mocked_format = mocker.patch.object(model_http_client, "get_rerank_formatted_response", return_value=formatted_response)
+
+    result = model_http_client.complete_response_exchange(
+        exchange=ModelHttpExchange(original_request=original_request),
+        response_data={"results": []},
+        latency=10,
+    )
+
+    mocked_format.assert_called_once()
+    assert result == ModelHttpExchange(original_request=original_request, original_response=original_response, formatted_response=formatted_response)
 
 
 def test_should_format_valid_audio_transcription_original_response(model_http_client, mocker):
     """Using the Vllm response factory because the responses are not overriden by VLLM child provider class (see VllmModelHttpClient)."""
     # Arrange
-    exchange = ModelHttpExchange(
+    exchange = ModelHttpExchangeFactory(
         original_request=OriginalModelRequestFactory(audio_transcriptions=True),
         original_response=VllmOriginalResponseFactory(audio_transcriptions=True),
     )
@@ -495,10 +525,10 @@ def test_should_format_valid_audio_transcription_original_response(model_http_cl
     mocker.patch.object(model_http_client, "_get_usage", return_value=mock_usage)
 
     # Act
-    result = model_http_client.format_audio_transcription_original_response(exchange=exchange)
+    result = model_http_client.get_audio_transcription_formatted_response(exchange=exchange)
 
     # Assert
-    assert result.formatted_response == FormattedModelResponse(
+    assert result == FormattedModelResponse(
         data=AudioTranscription(
             id=mock_request_id,
             model="openweight-audio",
@@ -522,10 +552,10 @@ def test_should_format_audio_transcription_original_response_with_text_response_
     mocker.patch.object(model_http_client, "_get_usage", return_value=mock_usage)
 
     # Act
-    result = model_http_client.format_audio_transcription_original_response(exchange=exchange)
+    result = model_http_client.get_audio_transcription_formatted_response(exchange=exchange)
 
     # Assert
-    assert result.formatted_response == FormattedModelResponse(text=exchange.original_response.data["text"], data=None)
+    assert result == FormattedModelResponse(text=exchange.original_response.data["text"], data=None)
 
 
 def test_should_format_valid_chat_completion_original_response(model_http_client, mocker):
@@ -541,10 +571,10 @@ def test_should_format_valid_chat_completion_original_response(model_http_client
     mocker.patch.object(model_http_client, "_get_usage", return_value=mock_usage)
 
     # Act
-    result = model_http_client.format_chat_completion_original_response(exchange=exchange)
+    result = model_http_client.get_chat_completion_formatted_response(exchange=exchange)
 
     # Assert
-    assert result.formatted_response == FormattedModelResponse(
+    assert result == FormattedModelResponse(
         data=ChatCompletion(
             id=mock_request_id,
             model="openweight-large",
@@ -594,10 +624,10 @@ def test_should_format_valid_embeddings_original_response(model_http_client, moc
     mocker.patch.object(model_http_client, "_get_usage", return_value=mock_usage)
 
     # Act
-    result = model_http_client.format_embeddings_original_response(exchange=exchange)
+    result = model_http_client.get_embeddings_formatted_response(exchange=exchange)
 
     # Assert
-    assert result.formatted_response == FormattedModelResponse(
+    assert result == FormattedModelResponse(
         data=Embeddings(
             id=mock_request_id,
             model="openweight-embeddings",
@@ -618,10 +648,10 @@ def test_should_format_valid_models_original_response(model_http_client, mocker)
     )
 
     # Act
-    result = model_http_client.format_models_original_response(exchange=exchange)
+    result = model_http_client.get_models_formatted_response(exchange=exchange)
 
     # Assert
-    assert result.formatted_response == FormattedModelResponse(
+    assert result == FormattedModelResponse(
         data=ModelsResponse(
             object="list",
             data=[
@@ -649,10 +679,10 @@ def test_should_format_valid_ocr_original_response(model_http_client, mocker):
     mocker.patch.object(model_http_client, "_get_usage", return_value=mock_usage)
 
     # Act
-    result = model_http_client.format_ocr_original_response(exchange=exchange)
+    result = model_http_client.get_ocr_formatted_response(exchange=exchange)
 
     # Assert
-    assert result.formatted_response == FormattedModelResponse(
+    assert result == FormattedModelResponse(
         data=OCR(
             document_annotation=None,
             id=mock_request_id,
@@ -709,10 +739,10 @@ def test_should_format_valid_rerank_original_response(model_http_client, mocker)
     mocker.patch.object(model_http_client, "_get_usage", return_value=mock_usage)
 
     # Act
-    result = model_http_client.format_rerank_original_response(exchange=exchange)
+    result = model_http_client.get_rerank_formatted_response(exchange=exchange)
 
     # Assert
-    assert result.formatted_response == FormattedModelResponse(
+    assert result == FormattedModelResponse(
         data=Reranks(
             id=mock_request_id,
             model="openweight-rerank",

@@ -37,15 +37,15 @@ class TeiModelHttpClient(ModelHttpClient):
     TYPE = ProviderType.TEI
 
     # request formatting
-    def get_formatted_rerank_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
+    def get_rerank_formatted_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
         body = TeiCreateRerankBody(query=original_request.body["query"], texts=original_request.body["documents"]).model_dump()
         formatted_request = FormattedModelRequest(method=method, url=url, body=body)
 
         return formatted_request
 
     # response formatting
-    def format_response_to_models_response(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
-        exchange.formatted_response = FormattedModelResponse(
+    def format_response_to_models_response(self, exchange: ModelHttpExchange) -> FormattedModelResponse:
+        formatted_response = FormattedModelResponse(
             data=ModelsResponse(
                 data=[
                     ModelResponse(
@@ -57,9 +57,9 @@ class TeiModelHttpClient(ModelHttpClient):
                 ]
             )
         )
-        return exchange
+        return formatted_response
 
-    def format_response_to_rerank_response(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+    def format_response_to_rerank_response(self, exchange: ModelHttpExchange) -> FormattedModelResponse:
         request_id = self._get_request_id(exchange=exchange)
         usage = self._get_usage(exchange=exchange)
         if usage is not None:
@@ -68,7 +68,7 @@ class TeiModelHttpClient(ModelHttpClient):
         results = sorted(exchange.original_response.data, key=lambda x: x["score"], reverse=True)[: exchange.original_request.body.get("top_n")]
         results = [RerankResult(relevance_score=rank["score"], index=rank["index"]) for rank in results]
 
-        exchange.formatted_response = FormattedModelResponse(
+        formatted_response = FormattedModelResponse(
             data=Reranks(
                 id=request_id,
                 model=exchange.original_request.body["model"],
@@ -76,4 +76,5 @@ class TeiModelHttpClient(ModelHttpClient):
                 usage=usage,
             )
         )
-        return exchange
+
+        return formatted_response

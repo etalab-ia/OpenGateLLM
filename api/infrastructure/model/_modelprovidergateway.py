@@ -81,12 +81,13 @@ class ModelProviderGateway(ProviderGateway):
             exchange = client.build_request_exchange(user_request=request)
             response = await client.forward_request(exchange=exchange)
         except (ModelIsTooBusyException, HTTPException) as e:
-            logger.exception(msg=f"Failed to get max context length for {client.model_name}: {e}.")
+            logger.info(msg=f"Failed to get max context length for {client.model_name}: {e}.")
             return ProviderNotReachableError(model_name=client.model_name)
 
-        data = response.json()["data"]
+        data = response.json().get("data", [])
         model = next((ModelResponse(**model) for model in data if model["id"] == client.model_name or client.model_name in model["aliases"]), None)
         if model is None:
+            logger.info(msg=f"Model not found in response of {client.model_name}: {data}.")
             return ModelProviderNotFoundError(model_name=client.model_name)
 
         return model.max_context_length
@@ -98,7 +99,7 @@ class ModelProviderGateway(ProviderGateway):
             exchange = client.build_request_exchange(user_request=request)
             response = await client.forward_request(exchange=exchange)
         except (ModelIsTooBusyException, HTTPException) as e:
-            logger.exception(msg=f"Failed to get vector size for {client.model_name}: {e}.")
+            logger.info(msg=f"Failed to get vector size for {client.model_name}: {e}.")
             return ProviderNotReachableError(model_name=client.model_name)
 
         if response.status_code != 200:

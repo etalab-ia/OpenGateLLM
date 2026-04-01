@@ -148,42 +148,42 @@ class ModelHttpClient:
             return UnsupportedEndpointError(endpoint=exchange.original_request.endpoint, provider_type=self.TYPE)
 
         if exchange.original_request.endpoint == EndpointRoute.AUDIO_TRANSCRIPTIONS:
-            exchange.formatted_request = self.get_formatted_audio_transcription_request(
+            exchange.formatted_request = self.get_audio_transcription_formatted_request(
                 original_request=exchange.original_request,
                 method=method,
                 url=url,
             )
 
         elif exchange.original_request.endpoint == EndpointRoute.CHAT_COMPLETIONS:
-            exchange.formatted_request = self.get_formatted_chat_completion_request(
+            exchange.formatted_request = self.get_chat_completion_formatted_request(
                 original_request=exchange.original_request,
                 method=method,
                 url=url,
             )
 
         elif exchange.original_request.endpoint == EndpointRoute.MODELS:
-            exchange.formatted_request = self.get_formatted_models_request(
+            exchange.formatted_request = self.get_models_formatted_request(
                 original_request=exchange.original_request,
                 method=method,
                 url=url,
             )
 
         elif exchange.original_request.endpoint == EndpointRoute.EMBEDDINGS:
-            exchange.formatted_request = self.get_formatted_embeddings_request(
+            exchange.formatted_request = self.get_embeddings_formatted_request(
                 original_request=exchange.original_request,
                 method=method,
                 url=url,
             )
 
         elif exchange.original_request.endpoint == EndpointRoute.OCR:
-            exchange.formatted_request = self.get_formatted_ocr_request(
+            exchange.formatted_request = self.get_ocr_formatted_request(
                 original_request=exchange.original_request,
                 method=method,
                 url=url,
             )
 
         elif exchange.original_request.endpoint == EndpointRoute.RERANK:
-            exchange.formatted_request = self.get_formatted_rerank_request(
+            exchange.formatted_request = self.get_rerank_formatted_request(
                 original_request=exchange.original_request,
                 method=method,
                 url=url,
@@ -346,22 +346,22 @@ class ModelHttpClient:
         exchange.original_response = OriginalModelResponse(data=response_data, latency=latency)
 
         if exchange.original_request.endpoint == EndpointRoute.AUDIO_TRANSCRIPTIONS:
-            exchange = self.format_audio_transcription_original_response(exchange=exchange)
+            exchange.formatted_response = self.get_audio_transcription_formatted_response(exchange=exchange)
         elif exchange.original_request.endpoint == EndpointRoute.CHAT_COMPLETIONS:
-            exchange = self.format_chat_completion_original_response(exchange=exchange)
+            exchange.formatted_response = self.get_chat_completion_formatted_response(exchange=exchange)
         elif exchange.original_request.endpoint == EndpointRoute.EMBEDDINGS:
-            exchange = self.format_embeddings_original_response(exchange=exchange)
+            exchange.formatted_response = self.get_embeddings_formatted_response(exchange=exchange)
         elif exchange.original_request.endpoint == EndpointRoute.MODELS:
-            exchange = self.format_models_original_response(exchange=exchange)
+            exchange.formatted_response = self.get_models_formatted_response(exchange=exchange)
         elif exchange.original_request.endpoint == EndpointRoute.OCR:
-            exchange = self.format_ocr_original_response(exchange=exchange)
+            exchange.formatted_response = self.get_ocr_formatted_response(exchange=exchange)
         elif exchange.original_request.endpoint == EndpointRoute.RERANK:
-            exchange = self.format_rerank_original_response(exchange=exchange)
+            exchange.formatted_response = self.get_rerank_formatted_response(exchange=exchange)
 
         return exchange
 
     # request formatting
-    def get_formatted_audio_transcription_request(
+    def get_audio_transcription_formatted_request(
         self,
         original_request: OriginalModelRequest,
         method: HTTPMethod,
@@ -378,7 +378,7 @@ class ModelHttpClient:
 
         return formatted_request
 
-    def get_formatted_chat_completion_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
+    def get_chat_completion_formatted_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
         """This method can be overridden by children clients to format the chat completion request."""
         # @TODO: setup default temperature by model (default=1.0)
         # @TODO: check behavior of usage computation with unstream
@@ -388,7 +388,7 @@ class ModelHttpClient:
 
         return formatted_request
 
-    def get_formatted_embeddings_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
+    def get_embeddings_formatted_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
         """This method can be overridden by children clients to format the embeddings request."""
         body = deepcopy(original_request.body)
         body["model"] = self.model_name
@@ -396,13 +396,13 @@ class ModelHttpClient:
 
         return formatted_request
 
-    def get_formatted_models_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
+    def get_models_formatted_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
         """This method can be overridden by children clients to format the models request."""
         formatted_request = FormattedModelRequest(method=method, url=url)
 
         return formatted_request
 
-    def get_formatted_ocr_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
+    def get_ocr_formatted_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
         """This method can be overridden by children clients to format the OCR request."""
         body = deepcopy(original_request.body)
         body["model"] = self.model_name
@@ -410,7 +410,7 @@ class ModelHttpClient:
 
         return formatted_request
 
-    def get_formatted_rerank_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
+    def get_rerank_formatted_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
         """This method can be overridden by children clients to format the rerank request."""
         body = deepcopy(original_request.body)
         body["model"] = self.model_name
@@ -419,14 +419,14 @@ class ModelHttpClient:
         return formatted_request
 
     # response formatting
-    def format_audio_transcription_original_response(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+    def get_audio_transcription_formatted_response(self, exchange: ModelHttpExchange) -> FormattedModelResponse:
         """This method can be overridden by children clients to format the audio transcription response."""
 
         request_id = self._get_request_id(exchange=exchange)
 
         if exchange.original_request.form["response_format"] == AudioTranscriptionResponseFormat.TEXT:
-            exchange.formatted_response = FormattedModelResponse(text=exchange.original_response.data["text"])
-            return exchange
+            formatted_response = FormattedModelResponse(text=exchange.original_response.data["text"])
+            return formatted_response
 
         data = deepcopy(exchange.original_response.data)
         data.update({"id": request_id})
@@ -435,11 +435,11 @@ class ModelHttpClient:
         if usage is not None:
             data.update({"usage": usage.model_dump()})
 
-        exchange.formatted_response = FormattedModelResponse(data=AudioTranscription(**data))
+        formatted_response = FormattedModelResponse(data=AudioTranscription(**data))
 
-        return exchange
+        return formatted_response
 
-    def format_chat_completion_original_response(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+    def get_chat_completion_formatted_response(self, exchange: ModelHttpExchange) -> FormattedModelResponse:
         """This method can be overridden by children clients to format the chat completion response."""
         request_id = self._get_request_id(exchange=exchange)
         data = deepcopy(exchange.original_response.data)
@@ -449,10 +449,11 @@ class ModelHttpClient:
         if usage is not None:
             data.update({"usage": usage.model_dump()})
 
-        exchange.formatted_response = FormattedModelResponse(data=ChatCompletion(**data))
-        return exchange
+        formatted_response = FormattedModelResponse(data=ChatCompletion(**data))
 
-    def format_embeddings_original_response(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+        return formatted_response
+
+    def get_embeddings_formatted_response(self, exchange: ModelHttpExchange) -> FormattedModelResponse:
         """This method can be overridden by children clients to format the embeddings response."""
         request_id = self._get_request_id(exchange=exchange)
         data = deepcopy(exchange.original_response.data)
@@ -462,16 +463,18 @@ class ModelHttpClient:
         if usage is not None:
             data.update({"usage": usage.model_dump()})
 
-        exchange.formatted_response = FormattedModelResponse(data=Embeddings(**data))
-        return exchange
+        formatted_response = FormattedModelResponse(data=Embeddings(**data))
 
-    def format_models_original_response(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+        return formatted_response
+
+    def get_models_formatted_response(self, exchange: ModelHttpExchange) -> FormattedModelResponse:
         """This method can be overridden by children clients to format the models response."""
-        exchange.formatted_response = FormattedModelResponse(data=ModelsResponse(**exchange.original_response.data))
+        data = deepcopy(exchange.original_response.data)
+        formatted_response = FormattedModelResponse(data=ModelsResponse(**data))
 
-        return exchange
+        return formatted_response
 
-    def format_ocr_original_response(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+    def get_ocr_formatted_response(self, exchange: ModelHttpExchange) -> FormattedModelResponse:
         """This method can be overridden by children clients to format the OCR response."""
         request_id = self._get_request_id(exchange=exchange)
         data = deepcopy(exchange.original_response.data)
@@ -481,11 +484,11 @@ class ModelHttpClient:
         if usage is not None:
             data.update({"usage": usage.model_dump()})
 
-        exchange.formatted_response = FormattedModelResponse(data=OCR(**data))
+        formatted_response = FormattedModelResponse(data=OCR(**data))
 
-        return exchange
+        return formatted_response
 
-    def format_rerank_original_response(self, exchange: ModelHttpExchange) -> ModelHttpExchange:
+    def get_rerank_formatted_response(self, exchange: ModelHttpExchange) -> FormattedModelResponse:
         """This method can be overridden by children clients to format the rerank response."""
 
         request_id = self._get_request_id(exchange=exchange)
@@ -496,9 +499,9 @@ class ModelHttpClient:
         if usage is not None:
             data.update({"usage": usage.model_dump()})
 
-        exchange.formatted_response = FormattedModelResponse(data=Reranks(**data))
+        formatted_response = FormattedModelResponse(data=Reranks(**data))
 
-        return exchange
+        return formatted_response
 
     def _get_usage(self, exchange: ModelHttpExchange) -> Usage | None:
         """

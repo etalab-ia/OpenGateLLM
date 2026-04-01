@@ -133,7 +133,7 @@ class OriginalModelRequestFactory(UserModelRequestFactory):
         model = OriginalModelRequest
 
 
-class HttpModelExchangeFactory(factory.Factory):
+class ModelHttpExchangeFactory(factory.Factory):
     class Meta:
         model = ModelHttpExchange
 

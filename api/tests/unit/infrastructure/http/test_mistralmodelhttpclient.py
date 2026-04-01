@@ -8,7 +8,7 @@ from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsRespo
 from api.infrastructure.http.model import FormattedModelRequest, FormattedModelResponse, MistralModelHttpClient
 from api.schemas.audio import AudioTranscription, AudioTranscriptionResponseFormat
 from api.schemas.usage import Usage
-from api.tests.unit.infrastructure.http.factories.common import HttpModelExchangeFactory, OriginalModelRequestFactory
+from api.tests.unit.infrastructure.http.factories.common import ModelHttpExchangeFactory, OriginalModelRequestFactory
 from api.tests.unit.infrastructure.http.factories.mistral import (
     MistralFormattedModelRequestFactory,
     MistralOriginalResponseFactory,
@@ -36,7 +36,7 @@ class TestMistralModelHttpClient:
         method, url = HTTPMethod.POST, "https://test.com/v1/chat/completions"
 
         # Act
-        result = mistral_model_http_client.get_formatted_audio_transcription_request(original_request=original_request, method=method, url=url)
+        result = mistral_model_http_client.get_audio_transcription_formatted_request(original_request=original_request, method=method, url=url)
 
         # Assert
         assert result == FormattedModelRequest(
@@ -64,7 +64,7 @@ class TestMistralModelHttpClient:
         method, url = HTTPMethod.POST, "https://test.com/v1/chat/completions"
 
         # Act
-        result = mistral_model_http_client.get_formatted_chat_completion_request(original_request=original_request, method=method, url=url)
+        result = mistral_model_http_client.get_chat_completion_formatted_request(original_request=original_request, method=method, url=url)
 
         # Assert
         assert result == FormattedModelRequest(
@@ -121,7 +121,7 @@ class TestMistralModelHttpClient:
 
     def test_should_format_valid_audio_transcription_original_response_with_json_response_format(self, mistral_model_http_client, mocker):
         # Arrange
-        exchange = HttpModelExchangeFactory(
+        exchange = ModelHttpExchangeFactory(
             original_request=OriginalModelRequestFactory(audio_transcriptions=True),
             original_response=MistralOriginalResponseFactory(audio_transcription=True),
         )
@@ -134,7 +134,7 @@ class TestMistralModelHttpClient:
         result = mistral_model_http_client.format_response_to_audio_transcription_response(exchange=exchange)
 
         # Assert
-        assert result.formatted_response == FormattedModelResponse(
+        assert result == FormattedModelResponse(
             data=AudioTranscription(
                 id=mock_request_id,
                 model=exchange.original_request.form["model"],
@@ -145,7 +145,7 @@ class TestMistralModelHttpClient:
 
     def test_should_format_valid_audio_transcription_original_response_with_text_response_format(self, mistral_model_http_client, mocker):
         # Arrange
-        exchange = HttpModelExchangeFactory(
+        exchange = ModelHttpExchangeFactory(
             original_request=OriginalModelRequestFactory(audio_transcriptions=True),
             original_response=MistralOriginalResponseFactory(audio_transcription=True),
         )
@@ -159,14 +159,14 @@ class TestMistralModelHttpClient:
         result = mistral_model_http_client.format_response_to_audio_transcription_response(exchange=exchange)
 
         # Assert
-        assert result.formatted_response == FormattedModelResponse(
+        assert result == FormattedModelResponse(
             text=exchange.original_response.data["choices"][0]["message"]["content"],
             data=None,
         )
 
     def test_should_format_valid_models_original_response(self, mistral_model_http_client):
         # Arrange
-        exchange = HttpModelExchangeFactory(
+        exchange = ModelHttpExchangeFactory(
             original_request=OriginalModelRequestFactory(models=True),
             formatted_request=MistralFormattedModelRequestFactory(models=True),
             original_response=MistralOriginalResponseFactory(models=True),
@@ -176,7 +176,7 @@ class TestMistralModelHttpClient:
         result = mistral_model_http_client.format_response_to_models_response(exchange=exchange)
 
         # Assert
-        assert result.formatted_response == FormattedModelResponse(
+        assert result == FormattedModelResponse(
             data=ModelsResponse(
                 data=[
                     ModelResponse(
