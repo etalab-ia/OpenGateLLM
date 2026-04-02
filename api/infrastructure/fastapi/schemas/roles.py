@@ -1,9 +1,29 @@
+from enum import StrEnum
 from typing import Annotated, Literal
 
 from pydantic import Field, StringConstraints
 
-from api.domain.role.entities import Limit, PermissionType
 from api.schemas import BaseModel
+
+
+class PermissionType(StrEnum):
+    ADMIN = "admin"
+    CREATE_PUBLIC_COLLECTION = "create_public_collection"
+    READ_METRIC = "read_metric"
+    PROVIDE_MODELS = "provide_models"
+
+
+class LimitType(StrEnum):
+    TPM = "tpm"
+    TPD = "tpd"
+    RPM = "rpm"
+    RPD = "rpd"
+
+
+class Limit(BaseModel):
+    router_id: int = Field(alias="router_id", description="The router ID.")
+    type: LimitType = Field(description="The limit type.")
+    value: int | None = Field(default=None, ge=0, description="The limit value.")
 
 
 class CreateRoleBody(BaseModel):

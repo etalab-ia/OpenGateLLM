@@ -22,7 +22,7 @@ class LimitType(str, Enum):
 
 
 class Limit(BaseModel):
-    router: int = Field(description="The router ID.")
+    router_id: int = Field(description="The router ID.")
     type: LimitType = Field(description="The limit type.")
     value: int | None = Field(default=None, ge=0, description="The limit value.")
 

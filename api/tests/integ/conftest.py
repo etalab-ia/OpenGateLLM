@@ -76,10 +76,10 @@ def roles(test_client: TestClient) -> tuple[dict, dict]:
 
     limits = []
     for router in routers:
-        limits.append({"router": router["id"], "type": LimitType.RPM.value, "value": None})
-        limits.append({"router": router["id"], "type": LimitType.RPD.value, "value": None})
-        limits.append({"router": router["id"], "type": LimitType.TPM.value, "value": None})
-        limits.append({"router": router["id"], "type": LimitType.TPD.value, "value": None})
+        limits.append({"router_id": router["id"], "type": LimitType.RPM.value, "value": None})
+        limits.append({"router_id": router["id"], "type": LimitType.RPD.value, "value": None})
+        limits.append({"router_id": router["id"], "type": LimitType.TPM.value, "value": None})
+        limits.append({"router_id": router["id"], "type": LimitType.TPD.value, "value": None})
 
     # create role admin
     response = test_client.post(

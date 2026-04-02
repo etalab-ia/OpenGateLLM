@@ -193,10 +193,10 @@ def create_role(router_id: int, client: TestClient) -> int:
     payload = CreateRole(
         name=f"test-role-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}",
         limits=[
-            Limit(router=router_id, type=LimitType.RPM, value=None),
-            Limit(router=router_id, type=LimitType.RPD, value=None),
-            Limit(router=router_id, type=LimitType.TPM, value=None),
-            Limit(router=router_id, type=LimitType.TPD, value=None),
+            Limit(router_id=router_id, type=LimitType.RPM, value=None),
+            Limit(router_id=router_id, type=LimitType.RPD, value=None),
+            Limit(router_id=router_id, type=LimitType.TPM, value=None),
+            Limit(router_id=router_id, type=LimitType.TPD, value=None),
         ],
     )
 

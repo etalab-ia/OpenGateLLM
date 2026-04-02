@@ -23,8 +23,8 @@ class TestIdentityAccessManager:
             "name": "test-role",
             "permissions": [PermissionType.ADMIN.value],
             "limits": [
-                {"router": router_id, "type": "rpm", "value": 100},
-                {"router": router_id, "type": "rpd", "value": 1000},
+                {"router_id": router_id, "type": "rpm", "value": 100},
+                {"router_id": router_id, "type": "rpd", "value": 1000},
             ],
         }
 
@@ -38,7 +38,7 @@ class TestIdentityAccessManager:
             "name": "updated-role",
             "permissions": [PermissionType.ADMIN.value],
             "limits": [
-                {"router": router_id, "type": "rpm", "value": 200},
+                {"router_id": router_id, "type": "rpm", "value": 200},
             ],
         }
 
@@ -54,7 +54,7 @@ class TestIdentityAccessManager:
         # Verify the updates
         assert updated_role["name"] == "updated-role"
         assert len(updated_role["limits"]) == 1
-        assert updated_role["limits"][0]["router"] == router_id
+        assert updated_role["limits"][0]["router_id"] == router_id
         assert updated_role["limits"][0]["type"] == "rpm"
         assert updated_role["limits"][0]["value"] == 200
         assert len(updated_role["permissions"]) == 1

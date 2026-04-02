@@ -344,7 +344,7 @@ async def test_get_user_info_by_email_success(postgres_session: AsyncSession, ia
     assert user.created == 20
     assert user.updated == 21
     assert any(p.value == "admin" for p in user.permissions)
-    assert any(limit.router == 202 and limit.type == LimitType.RPM and limit.value == 200 for limit in user.limits)
+    assert any(limit.router_id == 202 and limit.type == LimitType.RPM and limit.value == 200 for limit in user.limits)
 
 
 @pytest.mark.asyncio

@@ -101,7 +101,7 @@ class Limiter:
         has_access = False
         tpm, tpd, rpm, rpd = 0, 0, 0, 0
         for limit in user_info.limits:
-            if limit.router == router_id:
+            if limit.router_id == router_id:
                 has_access = True
                 match limit.type:
                     case LimitType.TPM:

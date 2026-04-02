@@ -751,7 +751,7 @@ class ModelRegistry:
                 continue
 
             # skip model if user has no access to it
-            router_limit = next((limit for limit in user_info.limits if limit.router == router.id), None)
+            router_limit = next((limit for limit in user_info.limits if limit.router_id == router.id), None)
             has_access = router_limit is not None and (router_limit.value is None or router_limit.value > 0)
             if not has_access:
                 if name is not None:

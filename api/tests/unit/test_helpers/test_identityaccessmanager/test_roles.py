@@ -161,7 +161,7 @@ async def test_get_roles_with_details(postgres_session: AsyncSession, iam: Ident
     assert len(roles) == 2
     first = next(r for r in roles if r.id == 1)
     assert first.users == 3
-    assert any(limit.router == 1 and limit.type == LimitType.TPM for limit in first.limits)
+    assert any(limit.router_id == 1 and limit.type == LimitType.TPM for limit in first.limits)
     assert PermissionType.ADMIN in first.permissions
 
 

@@ -100,7 +100,7 @@ class IdentityAccessManager:
 
         # create the limits
         for limit in limits:
-            await postgres_session.execute(statement=insert(table=LimitTable).values(role_id=role_id, router_id=limit.router, type=limit.type, value=limit.value))  # fmt: off
+            await postgres_session.execute(statement=insert(table=LimitTable).values(role_id=role_id, router_id=limit.router_id, type=limit.type, value=limit.value))  # fmt: off
 
         # create the permissions
         for permission in permissions:
@@ -149,7 +149,7 @@ class IdentityAccessManager:
             await postgres_session.execute(statement=delete(table=LimitTable).where(LimitTable.role_id == role.id))
 
             # create the new limits
-            values = [{"role_id": role.id, "router_id": limit.router, "type": limit.type, "value": limit.value} for limit in limits]
+            values = [{"role_id": role.id, "router_id": limit.router_id, "type": limit.type, "value": limit.value} for limit in limits]
             if values:
                 await postgres_session.execute(statement=insert(table=LimitTable).values(values))
 
@@ -228,7 +228,7 @@ class IdentityAccessManager:
             for row in result:
                 role_id = row.role_id
                 if role_id in roles:
-                    roles[role_id].limits.append(Limit(router=row.router_id, type=row.type, value=row.value))
+                    roles[role_id].limits.append(Limit(router_id=row.router_id, type=row.type, value=row.value))
 
             # Query permissions for these roles
             permissions_query = select(PermissionTable.role_id, PermissionTable.permission).where(PermissionTable.role_id.in_(list(roles.keys())))

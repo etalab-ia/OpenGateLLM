@@ -198,10 +198,10 @@ class TestAuth:
             json={
                 "name": f"test_role_{str(uuid4())}",
                 "limits": [
-                    {"router": text_generation_router.id, "type": LimitType.RPM.value, "value": None},
-                    {"router": text_generation_router.id, "type": LimitType.RPD.value, "value": None},
-                    {"router": text_generation_router.id, "type": LimitType.TPM.value, "value": None},
-                    {"router": text_generation_router.id, "type": LimitType.TPD.value, "value": 10},  # 10 tokens per days
+                    {"router_id": text_generation_router.id, "type": LimitType.RPM.value, "value": None},
+                    {"router_id": text_generation_router.id, "type": LimitType.RPD.value, "value": None},
+                    {"router_id": text_generation_router.id, "type": LimitType.TPM.value, "value": None},
+                    {"router_id": text_generation_router.id, "type": LimitType.TPD.value, "value": 10},  # 10 tokens per days
                 ],
             },
         )
@@ -263,10 +263,10 @@ class TestAuth:
             json={
                 "name": f"test_role_{str(uuid4())}",
                 "limits": [
-                    {"router": text_generation_router.id, "type": "rpm", "value": None},
-                    {"router": text_generation_router.id, "type": "rpd", "value": None},
-                    {"router": text_generation_router.id, "type": "tpm", "value": None},
-                    {"router": text_generation_router.id, "type": "tpd", "value": 50},  # 50 tokens per days
+                    {"router_id": text_generation_router.id, "type": "rpm", "value": None},
+                    {"router_id": text_generation_router.id, "type": "rpd", "value": None},
+                    {"router_id": text_generation_router.id, "type": "tpm", "value": None},
+                    {"router_id": text_generation_router.id, "type": "tpd", "value": 50},  # 50 tokens per days
                 ],
             },
         )
