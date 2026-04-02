@@ -29,7 +29,7 @@ class RoutersState(EntityState):
     @rx.var
     def router_load_balancing_strategies_list(self) -> list[str]:
         """Get list of router load balancing strategies."""
-        return ["Shuffle", "Least busy"]
+        return ["Shuffle", "Least Busy"]
 
     ############################################################
     # Load entities
