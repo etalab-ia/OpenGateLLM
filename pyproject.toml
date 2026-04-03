@@ -29,6 +29,7 @@ api = [
     "html-to-markdown==2.29.0",
     "itsdangerous==2.2.0",
     "langchain-text-splitters==1.1.1",
+    "langfuse==4.0.6",
     "limits==5.8.0",
     "mistralai==2.0.0",
     "openai==2.15.0",
