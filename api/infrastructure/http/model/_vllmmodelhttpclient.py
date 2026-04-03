@@ -5,7 +5,9 @@ from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsRespo
 from api.schemas.usage import Usage
 from api.utils.variables import EndpointRoute
 
-from ._modelhttpclient import FormattedModelResponse, ModelHttpClient, ModelHttpClientEndpoints, ModelHttpExchange, ModelsAdapter
+from ._endpoint_adapters import ModelsAdapter
+from ._exchanges import FormattedModelResponse, ModelHttpExchange
+from ._modelhttpclient import ModelHttpClient, ModelHttpClientEndpoints
 
 
 class VllmModelsAdapter(ModelsAdapter):

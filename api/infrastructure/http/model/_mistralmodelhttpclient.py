@@ -9,17 +9,9 @@ from api.schemas.audio import AudioTranscription, AudioTranscriptionResponseForm
 from api.schemas.usage import Usage
 from api.utils.variables import EndpointRoute
 
-from ._modelhttpclient import (
-    AudioTranscriptionAdapter,
-    ChatCompletionAdapter,
-    FormattedModelRequest,
-    FormattedModelResponse,
-    ModelHttpClient,
-    ModelHttpClientEndpoints,
-    ModelHttpExchange,
-    ModelsAdapter,
-    OriginalModelRequest,
-)
+from ._endpoint_adapters import AudioTranscriptionAdapter, ChatCompletionAdapter, ModelsAdapter
+from ._exchanges import FormattedModelRequest, FormattedModelResponse, ModelHttpExchange, OriginalModelRequest
+from ._modelhttpclient import ModelHttpClient, ModelHttpClientEndpoints
 
 
 class MistralChatCompletionAdapter(ChatCompletionAdapter):

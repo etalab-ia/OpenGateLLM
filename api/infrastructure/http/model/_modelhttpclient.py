@@ -1,6 +1,4 @@
-from abc import ABC, abstractmethod
 import ast
-from copy import deepcopy
 from http import HTTPMethod
 from json import JSONDecodeError, dumps, loads
 import logging
@@ -15,214 +13,31 @@ import httpx
 from pydantic import BaseModel, Field, StringConstraints
 from redis.asyncio import Redis as AsyncRedis
 
-from api.domain.model.entities import Metric, UserModelRequest
+from api.domain.model.entities import UserModelRequest
 from api.domain.model.errors import UnsupportedEndpointError
 from api.domain.provider.entities import ProviderCarbonFootprintZone, ProviderType
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.infrastructure.fastapi.context import FastApiRequestManager
-from api.infrastructure.fastapi.schemas.models import ModelsResponse
-from api.schemas.audio import AudioTranscription, AudioTranscriptionResponseFormat
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk
-from api.schemas.embeddings import Embeddings
-from api.schemas.ocr import OCR
-from api.schemas.rerank import Reranks
 from api.schemas.usage import Usage
 from api.utils.carbon import get_carbon_footprint
 from api.utils.context import global_context
 from api.utils.exceptions import ModelIsTooBusyException
-from api.utils.redis import redis_retry, safe_redis_reset
-from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE, PREFIX__REDIS_METRIC_TIMESERIE, REDIS__TIMESERIE_RETENTION_SECONDS, EndpointRoute
+from api.utils.variables import EndpointRoute
+
+from ._endpoint_adapters import (
+    AudioTranscriptionAdapter,
+    ChatCompletionAdapter,
+    EmbeddingsAdapter,
+    EndpointAdapter,
+    ModelsAdapter,
+    OcrAdapter,
+    RerankAdapter,
+)
+from ._exchanges import ModelHttpExchange, OriginalModelRequest, OriginalModelResponse
+from ._metricslogger import ModelMetricsLogger
 
 logger = logging.getLogger(__name__)
-
-
-class ModelMetricsLogger:
-    def __init__(self, request_manager: FastApiRequestManager):
-        self.request_manager = request_manager
-
-    async def log_performance(self, redis_client: AsyncRedis, provider_id: int, ttft: int | None, latency: int | None) -> None:
-        self.request_manager.set_ttft(ttft)
-        self.request_manager.set_latency(latency)
-
-        try:
-            if ttft is not None:
-                key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{Metric.TTFT.value}:{provider_id}"
-                await self._ensure_timeseries_exists(redis_client, key)
-                await redis_client.ts().add(key=key, timestamp=int(time.time() * 1000), value=ttft)
-        except Exception:
-            logger.error(f"Failed to log request metrics (TTFT) in redis (id: {provider_id})", exc_info=True)
-            await safe_redis_reset(redis_client)
-
-        try:
-            if latency is not None:
-                key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{Metric.LATENCY.value}:{provider_id}"
-                await self._ensure_timeseries_exists(redis_client, key)
-                await redis_client.ts().add(key=key, timestamp=int(time.time() * 1000), value=latency)
-        except Exception:
-            logger.error(f"Failed to log request metrics (latency) in redis (id: {provider_id})", exc_info=True)
-            await safe_redis_reset(redis_client)
-
-    async def increment_inflight(self, redis_client: AsyncRedis, provider_id: int) -> bool:
-        inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{provider_id}"
-        try:
-            await redis_retry(redis_client.incr, name=inflight_key, max_retries=2)
-            return True
-        except Exception:
-            return False
-
-    async def decrement_inflight(self, redis_client: AsyncRedis, provider_id: int, inflight_is_incremented: bool) -> None:
-        if not inflight_is_incremented:
-            return
-        inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{provider_id}"
-        try:
-            await redis_retry(redis_client.decr, name=inflight_key, max_retries=2)
-        except Exception as e:
-            logger.exception(msg=f"Failed to decrement inflight key {inflight_key} for provider {provider_id}: {e}")
-
-    @staticmethod
-    async def _ensure_timeseries_exists(redis_client: AsyncRedis, key: str) -> None:
-        try:
-            await redis_client.ts().info(key)
-        except Exception:
-            try:
-                await redis_client.ts().create(key, retention_msecs=REDIS__TIMESERIE_RETENTION_SECONDS * 1000, duplicate_policy="LAST")
-            except Exception:
-                pass
-
-
-class OriginalModelRequest(BaseModel):
-    endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
-    body: Annotated[dict, Field(default={}, description="The JSON body to use for the request.")]
-    form: Annotated[dict, Field(default={}, description="The form-encoded data to use for the request.")]
-    files: Annotated[dict, Field(default={}, description="The files to use for the request.")]
-
-    @classmethod
-    def from_user_request(cls, user_request: UserModelRequest) -> "OriginalModelRequest":
-        return cls(
-            endpoint=user_request.endpoint,
-            body=user_request.body,
-            form=user_request.form,
-            files=user_request.files,
-        )
-
-
-class FormattedModelRequest(BaseModel):
-    method: Annotated[HTTPMethod, Field(description="The HTTP method to build the request.")]
-    url: Annotated[str, Field(description="The model API URL to build the request.")]
-    body: Annotated[dict, Field(default={}, description="The JSON body to use for the request.")]
-    form: Annotated[dict, Field(default={}, description="The form-encoded data to use for the request.")]
-    files: Annotated[dict, Field(default={}, description="The files to use for the request.")]
-
-
-class OriginalModelResponse(BaseModel):
-    data: Annotated[dict | list, Field(default={}, description="The JSON data to use for the response.")]
-    latency: Annotated[int | None, Field(default=None, description="The latency of the response.")]
-
-
-class FormattedModelResponse(BaseModel):
-    data: Annotated[AudioTranscription | ChatCompletion | ChatCompletionChunk | Embeddings | ModelsResponse | OCR | Reranks | None, Field(default=None, description="The JSON data to use for the response.")]  # fmt: off
-    text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
-
-
-class ModelHttpExchange(BaseModel):
-    original_request: OriginalModelRequest
-    formatted_request: FormattedModelRequest | None = None
-    original_response: OriginalModelResponse | None = None
-    formatted_response: FormattedModelResponse | None = None
-
-
-class EndpointAdapter(ABC):
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    def format_request(self, original_request: "OriginalModelRequest", method: HTTPMethod, url: str, model_name: str) -> "FormattedModelRequest": ...
-
-    @abstractmethod
-    def format_response(self, exchange: "ModelHttpExchange", request_id: str, usage: Usage | None) -> "FormattedModelResponse": ...
-
-
-class AudioTranscriptionAdapter(EndpointAdapter):
-    def format_request(self, original_request: "OriginalModelRequest", method: HTTPMethod, url: str, model_name: str) -> "FormattedModelRequest":
-        form = deepcopy(original_request.form)
-        form["model"] = model_name
-        if form["response_format"] == AudioTranscriptionResponseFormat.TEXT:
-            form["response_format"] = AudioTranscriptionResponseFormat.JSON.value
-        return FormattedModelRequest(method=method, url=url, form=form, files=original_request.files)
-
-    def format_response(self, exchange: "ModelHttpExchange", request_id: str, usage: Usage | None) -> "FormattedModelResponse":
-        if exchange.original_request.form["response_format"] == AudioTranscriptionResponseFormat.TEXT:
-            return FormattedModelResponse(text=exchange.original_response.data["text"])
-        data = deepcopy(exchange.original_response.data)
-        data.update({"id": request_id, "model": exchange.original_request.form["model"]})
-        if usage is not None:
-            data.update({"usage": usage.model_dump()})
-        return FormattedModelResponse(data=AudioTranscription(**data))
-
-
-class ChatCompletionAdapter(EndpointAdapter):
-    def format_request(self, original_request: "OriginalModelRequest", method: HTTPMethod, url: str, model_name: str) -> "FormattedModelRequest":
-        body = deepcopy(original_request.body)
-        body["model"] = model_name
-        return FormattedModelRequest(method=method, url=url, body=body)
-
-    def format_response(self, exchange: "ModelHttpExchange", request_id: str, usage: Usage | None) -> "FormattedModelResponse":
-        data = deepcopy(exchange.original_response.data)
-        data.update({"id": request_id, "model": exchange.original_request.body["model"]})
-        if usage is not None:
-            data.update({"usage": usage.model_dump()})
-        return FormattedModelResponse(data=ChatCompletion(**data))
-
-
-class EmbeddingsAdapter(EndpointAdapter):
-    def format_request(self, original_request: "OriginalModelRequest", method: HTTPMethod, url: str, model_name: str) -> "FormattedModelRequest":
-        body = deepcopy(original_request.body)
-        body["model"] = model_name
-        return FormattedModelRequest(method=method, url=url, body=body)
-
-    def format_response(self, exchange: "ModelHttpExchange", request_id: str, usage: Usage | None) -> "FormattedModelResponse":
-        data = deepcopy(exchange.original_response.data)
-        data.update({"id": request_id, "model": exchange.original_request.body["model"]})
-        if usage is not None:
-            data.update({"usage": usage.model_dump()})
-        return FormattedModelResponse(data=Embeddings(**data))
-
-
-class ModelsAdapter(EndpointAdapter):
-    def format_request(self, original_request: "OriginalModelRequest", method: HTTPMethod, url: str, model_name: str) -> "FormattedModelRequest":
-        return FormattedModelRequest(method=method, url=url)
-
-    def format_response(self, exchange: "ModelHttpExchange", request_id: str, usage: Usage | None) -> "FormattedModelResponse":
-        data = deepcopy(exchange.original_response.data)
-        return FormattedModelResponse(data=ModelsResponse(**data))
-
-
-class OcrAdapter(EndpointAdapter):
-    def format_request(self, original_request: "OriginalModelRequest", method: HTTPMethod, url: str, model_name: str) -> "FormattedModelRequest":
-        body = deepcopy(original_request.body)
-        body["model"] = model_name
-        return FormattedModelRequest(method=method, url=url, body=body)
-
-    def format_response(self, exchange: "ModelHttpExchange", request_id: str, usage: Usage | None) -> "FormattedModelResponse":
-        data = deepcopy(exchange.original_response.data)
-        data.update({"id": request_id, "model": exchange.original_request.body["model"]})
-        if usage is not None:
-            data.update({"usage": usage.model_dump()})
-        return FormattedModelResponse(data=OCR(**data))
-
-
-class RerankAdapter(EndpointAdapter):
-    def format_request(self, original_request: "OriginalModelRequest", method: HTTPMethod, url: str, model_name: str) -> "FormattedModelRequest":
-        body = deepcopy(original_request.body)
-        body["model"] = model_name
-        return FormattedModelRequest(method=method, url=url, body=body)
-
-    def format_response(self, exchange: "ModelHttpExchange", request_id: str, usage: Usage | None) -> "FormattedModelResponse":
-        data = deepcopy(exchange.original_response.data)
-        data.update({"id": request_id, "model": exchange.original_request.body["model"]})
-        if usage is not None:
-            data.update({"usage": usage.model_dump()})
-        return FormattedModelResponse(data=Reranks(**data))
 
 
 class ModelHttpClientEndpoints(BaseModel):
@@ -491,17 +306,6 @@ class ModelHttpClient:
         return exchange
 
     def _get_usage(self, exchange: ModelHttpExchange, usage: Usage | None) -> Usage | None:
-        """
-        Get usage data from request and response.
-
-        Args:
-            request_content(RequestContent): The request content.
-            response_data(dict | list[dict]): The data of the response.
-            request_latency(float): The request latency in seconds.
-
-        Returns:
-            Usage | None: The usage data.
-        """
         if usage is None:
             return None
         updated_usage = usage

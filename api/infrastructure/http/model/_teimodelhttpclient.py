@@ -9,16 +9,9 @@ from api.schemas.rerank import RerankResult, Reranks
 from api.schemas.usage import Usage
 from api.utils.variables import EndpointRoute
 
-from ._modelhttpclient import (
-    FormattedModelRequest,
-    FormattedModelResponse,
-    ModelHttpClient,
-    ModelHttpClientEndpoints,
-    ModelHttpExchange,
-    ModelsAdapter,
-    OriginalModelRequest,
-    RerankAdapter,
-)
+from ._endpoint_adapters import ModelsAdapter, RerankAdapter
+from ._exchanges import FormattedModelRequest, FormattedModelResponse, ModelHttpExchange, OriginalModelRequest
+from ._modelhttpclient import ModelHttpClient, ModelHttpClientEndpoints
 
 
 class TeiCreateRerankBody(BaseModel):
