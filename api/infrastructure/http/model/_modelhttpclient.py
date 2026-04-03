@@ -11,7 +11,6 @@ from uuid import uuid4
 from fastapi import HTTPException
 import httpx
 from pydantic import BaseModel, Field, StringConstraints
-from redis.asyncio import Redis as AsyncRedis
 
 from api.domain.model.entities import UserModelRequest
 from api.domain.model.errors import UnsupportedEndpointError
@@ -131,10 +130,8 @@ class ModelHttpClient:
 
         return exchange
 
-    async def forward_request(self, exchange: ModelHttpExchange, redis_client: AsyncRedis | None = None) -> httpx.Response:
-        inflight_is_incremented = (
-            await self.metrics_logger.increment_inflight(redis_client=redis_client, provider_id=self.provider_id) if redis_client else False
-        )
+    async def forward_request(self, exchange: ModelHttpExchange) -> httpx.Response:
+        inflight_is_incremented = await self.metrics_logger.increment_inflight(provider_id=self.provider_id)
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as async_client:
@@ -177,17 +174,13 @@ class ModelHttpClient:
                         message = response.text
                     raise HTTPException(status_code=response.status_code, detail=message)
         finally:
-            if redis_client:
-                await self.metrics_logger.decrement_inflight(
-                    redis_client=redis_client, provider_id=self.provider_id, inflight_is_incremented=inflight_is_incremented
-                )
+            await self.metrics_logger.decrement_inflight(provider_id=self.provider_id, inflight_is_incremented=inflight_is_incremented)
 
         # add additional data to the response
         latency = self._elapsed_ms(start_time=start_time)
         response_data = response.json()
         exchange = self.complete_response_exchange(exchange=exchange, response_data=response_data, latency=latency)
-        if redis_client:
-            await self.metrics_logger.log_performance(redis_client=redis_client, provider_id=self.provider_id, ttft=None, latency=latency)
+        await self.metrics_logger.log_performance(provider_id=self.provider_id, ttft=None, latency=latency)
 
         if exchange.formatted_response.data is None:
             response = httpx.Response(
@@ -204,19 +197,16 @@ class ModelHttpClient:
 
         return response
 
-    async def forward_stream(self, exchange: ModelHttpExchange, redis_client: AsyncRedis | None = None):
+    async def forward_stream(self, exchange: ModelHttpExchange):
         """
         Forward a stream request to a provider model and add model name to the response. Optionally, add additional data to the response.
 
         Args:
-            redis_client(AsyncRedis | None): The redis client to use for the request. If None, performance metrics are not logged.
             request_content(RequestContent): The request content to use for the request.
         """
         assert exchange.original_request.endpoint == EndpointRoute.CHAT_COMPLETIONS, "Only chat completions are supported for streaming"
 
-        inflight_is_incremented = (
-            await self.metrics_logger.increment_inflight(redis_client=redis_client, provider_id=self.provider_id) if redis_client else False
-        )
+        inflight_is_incremented = await self.metrics_logger.increment_inflight(provider_id=self.provider_id)
 
         async with httpx.AsyncClient(timeout=self.timeout) as async_client:
             try:
@@ -270,8 +260,7 @@ class ModelHttpClient:
                     response_data = ChatCompletion(model=self.model_name, choices=[{"index": 0, "message": " ".join(buffer)}]).model_dump()
                     exchange = self.complete_response_exchange(exchange=exchange, response_data=response_data, latency=latency)
 
-                if redis_client:
-                    await self.metrics_logger.log_performance(redis_client=redis_client, provider_id=self.provider_id, ttft=ttft, latency=latency)
+                await self.metrics_logger.log_performance(provider_id=self.provider_id, ttft=ttft, latency=latency)
 
             except (
                 httpx.TimeoutException,
@@ -288,10 +277,7 @@ class ModelHttpClient:
                 logger.exception(msg=f"Failed to forward stream request to {self.model_name}: {e}.")
                 yield dumps({"detail": type(e).__name__}), 500
             finally:
-                if redis_client:
-                    await self.metrics_logger.decrement_inflight(
-                        redis_client=redis_client, provider_id=self.provider_id, inflight_is_incremented=inflight_is_incremented
-                    )
+                await self.metrics_logger.decrement_inflight(provider_id=self.provider_id, inflight_is_incremented=inflight_is_incremented)
 
     def complete_response_exchange(self, exchange: ModelHttpExchange, response_data: dict, latency: int | None = None) -> ModelHttpExchange:
         exchange.original_response = OriginalModelResponse(data=response_data, latency=latency)
