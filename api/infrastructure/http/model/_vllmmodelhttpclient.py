@@ -2,17 +2,15 @@ from http import HTTPMethod
 
 from api.domain.provider.entities import ProviderType
 from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
+from api.schemas.usage import Usage
+from api.utils.variables import EndpointRoute
 
-from ._modelhttpclient import FormattedModelResponse, ModelHttpClient, ModelHttpClientEndpoints, ModelHttpExchange
+from ._modelhttpclient import FormattedModelResponse, ModelHttpClient, ModelHttpClientEndpoints, ModelHttpExchange, ModelsAdapter
 
 
-class VllmModelHttpClient(ModelHttpClient):
-    ENDPOINT_TABLE = ModelHttpClientEndpoints(rerank=(HTTPMethod.POST, "/v2/rerank"))
-    TYPE = ProviderType.VLLM
-
-    # response formatting
-    def format_response_to_models_response(self, exchange: ModelHttpExchange) -> FormattedModelResponse:
-        formatted_response = FormattedModelResponse(
+class VllmModelsAdapter(ModelsAdapter):
+    def format_response(self, exchange: ModelHttpExchange, request_id: str, usage: Usage | None) -> FormattedModelResponse:
+        return FormattedModelResponse(
             data=ModelsResponse(
                 data=[
                     ModelResponse(
@@ -26,4 +24,12 @@ class VllmModelHttpClient(ModelHttpClient):
             )
         )
 
-        return formatted_response
+
+class VllmModelHttpClient(ModelHttpClient):
+    ENDPOINT_TABLE = ModelHttpClientEndpoints(rerank=(HTTPMethod.POST, "/v2/rerank"))
+    TYPE = ProviderType.VLLM
+
+    def _build_adapters(self):
+        adapters = super()._build_adapters()
+        adapters[EndpointRoute.MODELS] = VllmModelsAdapter()
+        return adapters

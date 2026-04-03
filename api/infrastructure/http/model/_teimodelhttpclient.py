@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 from api.domain.provider.entities import ProviderType
 from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
 from api.schemas.rerank import RerankResult, Reranks
+from api.schemas.usage import Usage
+from api.utils.variables import EndpointRoute
 
 from ._modelhttpclient import (
     FormattedModelRequest,
@@ -13,7 +15,9 @@ from ._modelhttpclient import (
     ModelHttpClient,
     ModelHttpClientEndpoints,
     ModelHttpExchange,
+    ModelsAdapter,
     OriginalModelRequest,
+    RerankAdapter,
 )
 
 
@@ -26,26 +30,27 @@ class TeiCreateRerankBody(BaseModel):
     truncation_direction: Literal["left", "right"] = "right"
 
 
-class TeiModelHttpClient(ModelHttpClient):
-    ENDPOINT_TABLE = ModelHttpClientEndpoints(
-        audio_transcriptions=(None, None),
-        chat_completions=(None, None),
-        models=(HTTPMethod.GET, "/info"),
-        ocr=(None, None),
-        rerank=(HTTPMethod.POST, "/rerank"),
-    )
-    TYPE = ProviderType.TEI
-
-    # request formatting
-    def get_rerank_formatted_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str) -> FormattedModelRequest:
+class TeiRerankAdapter(RerankAdapter):
+    def format_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str, model_name: str) -> FormattedModelRequest:
         body = TeiCreateRerankBody(query=original_request.body["query"], texts=original_request.body["documents"]).model_dump()
-        formatted_request = FormattedModelRequest(method=method, url=url, body=body)
+        return FormattedModelRequest(method=method, url=url, body=body)
 
-        return formatted_request
+    def format_response(self, exchange: ModelHttpExchange, request_id: str, usage: Usage | None) -> FormattedModelResponse:
+        results = sorted(exchange.original_response.data, key=lambda x: x["score"], reverse=True)[: exchange.original_request.body.get("top_n")]
+        results = [RerankResult(relevance_score=rank["score"], index=rank["index"]) for rank in results]
+        return FormattedModelResponse(
+            data=Reranks(
+                id=request_id,
+                model=exchange.original_request.body["model"],
+                results=results,
+                usage=usage.model_dump() if usage is not None else None,
+            )
+        )
 
-    # response formatting
-    def format_response_to_models_response(self, exchange: ModelHttpExchange) -> FormattedModelResponse:
-        formatted_response = FormattedModelResponse(
+
+class TeiModelsAdapter(ModelsAdapter):
+    def format_response(self, exchange: ModelHttpExchange, request_id: str, usage: Usage | None) -> FormattedModelResponse:
+        return FormattedModelResponse(
             data=ModelsResponse(
                 data=[
                     ModelResponse(
@@ -57,24 +62,20 @@ class TeiModelHttpClient(ModelHttpClient):
                 ]
             )
         )
-        return formatted_response
 
-    def format_response_to_rerank_response(self, exchange: ModelHttpExchange) -> FormattedModelResponse:
-        request_id = self._get_request_id(exchange=exchange)
-        usage = self._get_usage(exchange=exchange)
-        if usage is not None:
-            usage = usage.model_dump()
 
-        results = sorted(exchange.original_response.data, key=lambda x: x["score"], reverse=True)[: exchange.original_request.body.get("top_n")]
-        results = [RerankResult(relevance_score=rank["score"], index=rank["index"]) for rank in results]
+class TeiModelHttpClient(ModelHttpClient):
+    ENDPOINT_TABLE = ModelHttpClientEndpoints(
+        audio_transcriptions=(None, None),
+        chat_completions=(None, None),
+        models=(HTTPMethod.GET, "/info"),
+        ocr=(None, None),
+        rerank=(HTTPMethod.POST, "/rerank"),
+    )
+    TYPE = ProviderType.TEI
 
-        formatted_response = FormattedModelResponse(
-            data=Reranks(
-                id=request_id,
-                model=exchange.original_request.body["model"],
-                results=results,
-                usage=usage,
-            )
-        )
-
-        return formatted_response
+    def _build_adapters(self):
+        adapters = super()._build_adapters()
+        adapters[EndpointRoute.MODELS] = TeiModelsAdapter()
+        adapters[EndpointRoute.RERANK] = TeiRerankAdapter()
+        return adapters
