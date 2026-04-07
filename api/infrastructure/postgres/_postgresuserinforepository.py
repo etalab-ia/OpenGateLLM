@@ -91,7 +91,7 @@ class PostgresUserInfoRepository(UserInfoRepository):
             for row in result:
                 role_id = row.role_id
                 if role_id in roles:
-                    roles[role_id].limits.append(Limit(router=row.router_id, type=row.type, value=row.value))
+                    roles[role_id].limits.append(Limit(router_id=row.router_id, type=row.type, value=row.value))
 
             # Query permissions for these roles
             permissions_query = select(PermissionTable.role_id, PermissionTable.permission).where(PermissionTable.role_id.in_(list(roles.keys())))

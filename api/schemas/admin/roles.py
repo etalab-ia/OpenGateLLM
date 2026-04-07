@@ -22,7 +22,7 @@ class LimitType(str, Enum):
 
 
 class Limit(BaseModel):
-    router: int = Field(description="The router ID.")
+    router_id: int = Field(description="The router ID.")
     type: LimitType = Field(description="The limit type.")
     value: int | None = Field(default=None, ge=0, description="The limit value.")
 
@@ -37,9 +37,9 @@ class RoleUpdateRequest(BaseModel):
         keys = set()
         if limits is not None:
             for limit in limits:
-                key = (limit.router, limit.type.value)
+                key = (limit.router_id, limit.type.value)
                 if key in keys:
-                    raise ValueError(f"Duplicate limit found: ({limit.router}, {limit.type}).")
+                    raise ValueError(f"Duplicate limit found: ({limit.router_id}, {limit.type}).")
                 keys.add(key)
         return limits
 
@@ -57,9 +57,9 @@ class CreateRole(BaseModel):
     def check_duplicate_limits(cls, limits):
         keys = set()
         for limit in limits:
-            key = (limit.router, limit.type.value)
+            key = (limit.router_id, limit.type.value)
             if key in keys:
-                raise ValueError(f"Duplicate limit found: ({limit.router}, {limit.type}).")
+                raise ValueError(f"Duplicate limit found: ({limit.router_id}, {limit.type}).")
             keys.add(key)
 
         return limits

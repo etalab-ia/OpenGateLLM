@@ -1,4 +1,6 @@
 from ._postgreskeyrepository import PostgresKeyRepository
+from ._postgreslimitrepository import PostgresLimitRepository
+from ._postgrespermissionrepository import PostgresPermissionRepository
 from ._postgresproviderrepository import PostgresProviderRepository
 from ._postgresrolesrepository import PostgresRolesRepository
 from ._postgresrouterrepository import PostgresRouterRepository
@@ -12,4 +14,6 @@ __all__ = [
     "PostgresRolesRepository",
     "PostgresRouterRepository",
     "PostgresProviderRepository",
+    "PostgresPermissionRepository",
+    "PostgresLimitRepository",
 ]

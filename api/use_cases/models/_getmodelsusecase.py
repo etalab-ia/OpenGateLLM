@@ -38,7 +38,7 @@ class GetModelsUseCase:
 
         for router in routers:
             if router.providers > 0:
-                router_limit = next((limit for limit in user_info.limits if limit.router == router.id), None)
+                router_limit = next((limit for limit in user_info.limits if limit.router_id == router.id), None)
                 has_access = (router_limit is not None and (router_limit.value is None or router_limit.value > 0)) or (
                     PermissionType.ADMIN in user_info.permissions
                 )

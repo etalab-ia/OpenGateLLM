@@ -1,6 +1,6 @@
 import pytest
 
-from api.domain.role.entities import Limit, LimitType, PermissionType, Role
+from api.domain.role.entities import LimitType, PermissionType, Role
 from api.domain.role.errors import RoleAlreadyExistsError
 from api.infrastructure.postgres import PostgresRolesRepository
 from api.tests.integration.factories import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory, UserSQLFactory
@@ -16,47 +16,19 @@ def repository(db_session):
 class TestCreateRole:
     async def test_creates_role_and_returns_role_entity(self, repository, db_session):
         # Act
-        result = await repository.create_role(name="test_role", permissions=[], limits=[])
+        result = await repository.create_role(name="test_role")
 
         # Assert
         assert isinstance(result, Role)
         assert result.name == "test_role"
         assert isinstance(result.id, int)
 
-    async def test_creates_role_with_permissions(self, repository, db_session):
-        # Act
-        result = await repository.create_role(
-            name="test_role_with_permissions",
-            permissions=[PermissionType.ADMIN, PermissionType.READ_METRIC],
-            limits=[],
-        )
-
-        # Assert
-        assert isinstance(result, Role)
-        assert set(result.permissions) == {PermissionType.ADMIN, PermissionType.READ_METRIC}
-
-    async def test_creates_role_with_limits(self, repository, db_session):
-        # Arrange
-        router = RouterSQLFactory()
-        await db_session.flush()
-        limit = Limit(router=router.id, type=LimitType.TPM, value=100)
-
-        # Act
-        result = await repository.create_role(name="test_role_with_limits", permissions=[], limits=[limit])
-
-        # Assert
-        assert isinstance(result, Role)
-        assert len(result.limits) == 1
-        assert result.limits[0].router == router.id
-        assert result.limits[0].type == LimitType.TPM
-        assert result.limits[0].value == 100
-
     async def test_returns_role_already_exists_error_when_name_is_duplicate(self, repository, db_session):
         # Arrange
-        await repository.create_role(name="duplicate_role", permissions=[], limits=[])
+        await repository.create_role(name="duplicate_role")
 
         # Act
-        result = await repository.create_role(name="duplicate_role", permissions=[], limits=[])
+        result = await repository.create_role(name="duplicate_role")
 
         # Assert
         assert isinstance(result, RoleAlreadyExistsError)
@@ -135,7 +107,7 @@ class TestGetRoles:
 
         # Assert
         assert len(result[0].limits) == 1
-        assert result[0].limits[0].router == router.id
+        assert result[0].limits[0].router_id == router.id
         assert result[0].limits[0].type == LimitType.TPM
         assert result[0].limits[0].value == 500
 

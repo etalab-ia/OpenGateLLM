@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_ROLES,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses([NotAdminUserHTTPException]),
+    responses=get_documentation_responses([NotAdminUserHTTPException, RoleAlreadyExistsHTTPException]),
 )
 async def create_role(
     body: CreateRoleBody = Body(description="The role creation request."),

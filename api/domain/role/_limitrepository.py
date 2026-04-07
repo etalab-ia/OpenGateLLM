@@ -1,0 +1,9 @@
+from abc import ABC, abstractmethod
+
+from api.domain.role.entities import Limit
+
+
+class LimitRepository(ABC):
+    @abstractmethod
+    async def create_limits(self, role_id: int, limits: list[Limit]) -> list[Limit]:
+        pass

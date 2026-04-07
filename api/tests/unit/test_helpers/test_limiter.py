@@ -439,7 +439,7 @@ async def test_limiter_check_user_limits_insufficient_permission(strategy):
         limiter = Limiter(mock_redis_pool, strategy)
 
         # Mock limit with 0 value
-        limit_mock = Limit(router=1, type=LimitType.TPM, value=0)
+        limit_mock = Limit(router_id=1, type=LimitType.TPM, value=0)
 
         user_info = UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[limit_mock], expires=None, created=0, updated=0)
 
@@ -462,10 +462,10 @@ async def test_limiter_check_user_limits_rpm_exceeded(strategy):
 
         # Mock limits
         limits = [
-            Limit(router=1, type=LimitType.RPM, value=10),
-            Limit(router=1, type=LimitType.RPD, value=1000),
-            Limit(router=1, type=LimitType.TPM, value=500),
-            Limit(router=1, type=LimitType.TPD, value=5000),
+            Limit(router_id=1, type=LimitType.RPM, value=10),
+            Limit(router_id=1, type=LimitType.RPD, value=1000),
+            Limit(router_id=1, type=LimitType.TPM, value=500),
+            Limit(router_id=1, type=LimitType.TPD, value=5000),
         ]
 
         user_info = UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=limits, expires=None, created=0, updated=0)
@@ -505,17 +505,17 @@ async def test_limiter_check_user_limits_with_prompt_tokens_success(strategy):
 
         # Mock limits: RPM, RPD, TPM, TPD
         # We need at least one limit for router 1 so has_access=True
-        limit_rpm = Limit(router=1, type=LimitType.RPM, value=100)
+        limit_rpm = Limit(router_id=1, type=LimitType.RPM, value=100)
 
         user_info = UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=[limit_rpm], expires=None, created=0, updated=0)
 
         limiter.hit = AsyncMock(return_value=True)
 
         limits = [
-            Limit(router=1, type=LimitType.RPM, value=100),
-            Limit(router=1, type=LimitType.RPD, value=1000),
-            Limit(router=1, type=LimitType.TPM, value=500),
-            Limit(router=1, type=LimitType.TPD, value=5000),
+            Limit(router_id=1, type=LimitType.RPM, value=100),
+            Limit(router_id=1, type=LimitType.RPD, value=1000),
+            Limit(router_id=1, type=LimitType.TPM, value=500),
+            Limit(router_id=1, type=LimitType.TPD, value=5000),
         ]
         user_info = UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=limits, expires=None, created=0, updated=0)
 
@@ -544,10 +544,10 @@ async def test_limiter_check_user_limits_rpd_exceeded(strategy):
         limiter = Limiter(mock_redis_pool, strategy)
 
         limits = [
-            Limit(router=1, type=LimitType.RPM, value=100),
-            Limit(router=1, type=LimitType.RPD, value=1000),
-            Limit(router=1, type=LimitType.TPM, value=500),
-            Limit(router=1, type=LimitType.TPD, value=5000),
+            Limit(router_id=1, type=LimitType.RPM, value=100),
+            Limit(router_id=1, type=LimitType.RPD, value=1000),
+            Limit(router_id=1, type=LimitType.TPM, value=500),
+            Limit(router_id=1, type=LimitType.TPD, value=5000),
         ]
         user_info = UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=limits, expires=None, created=0, updated=0)
 
@@ -578,10 +578,10 @@ async def test_limiter_check_user_limits_tpd_exceeded(strategy):
         limiter = Limiter(mock_redis_pool, strategy)
 
         limits = [
-            Limit(router=1, type=LimitType.RPM, value=100),
-            Limit(router=1, type=LimitType.RPD, value=1000),
-            Limit(router=1, type=LimitType.TPM, value=500),
-            Limit(router=1, type=LimitType.TPD, value=5000),
+            Limit(router_id=1, type=LimitType.RPM, value=100),
+            Limit(router_id=1, type=LimitType.RPD, value=1000),
+            Limit(router_id=1, type=LimitType.TPM, value=500),
+            Limit(router_id=1, type=LimitType.TPD, value=5000),
         ]
         user_info = UserInfo(id=1, email="u@test.com", name="User", permissions=[], limits=limits, expires=None, created=0, updated=0)
 

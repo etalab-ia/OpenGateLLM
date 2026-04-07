@@ -18,7 +18,7 @@ from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
-from api.infrastructure.postgres import PostgresRolesRepository, PostgresUserRepository
+from api.infrastructure.postgres import PostgresLimitRepository, PostgresPermissionRepository, PostgresRolesRepository, PostgresUserRepository
 from api.schemas.core.configuration import Configuration
 from api.use_cases.admin.bootstrapadminusecase import (
     BootstrapAdminCommand,
@@ -105,8 +105,15 @@ def create_postgres_session_factory(configuration: Configuration) -> tuple[Async
 async def bootstrap_default_admin(configuration: Configuration, postgres_session: AsyncSession):
     user_repository = PostgresUserRepository(postgres_session=postgres_session)
     role_repository = PostgresRolesRepository(postgres_session=postgres_session)
+    limit_repository = PostgresLimitRepository(postgres_session=postgres_session)
+    permission_repository = PostgresPermissionRepository(postgres_session=postgres_session)
 
-    result = await BootstrapAdminUseCase(user_repository=user_repository, role_repository=role_repository).execute(
+    result = await BootstrapAdminUseCase(
+        user_repository=user_repository,
+        role_repository=role_repository,
+        limit_repository=limit_repository,
+        permission_repository=permission_repository,
+    ).execute(
         BootstrapAdminCommand(
             name=configuration.settings.auth_default_username,
             email=configuration.settings.auth_default_username,

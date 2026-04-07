@@ -99,8 +99,8 @@ async def test_update_role_name_limits_permissions(postgres_session: AsyncSessio
         role_id=10,
         name="power-user",
         limits=[
-            Limit(router=1, type=LimitType.TPM, value=100),
-            Limit(router=1, type=LimitType.RPM, value=200),
+            Limit(router_id=1, type=LimitType.TPM, value=100),
+            Limit(router_id=1, type=LimitType.RPM, value=200),
         ],
         permissions=[PermissionType.READ_METRIC, PermissionType.READ_METRIC],  # duplicate intentional
     )
@@ -161,7 +161,7 @@ async def test_get_roles_with_details(postgres_session: AsyncSession, iam: Ident
     assert len(roles) == 2
     first = next(r for r in roles if r.id == 1)
     assert first.users == 3
-    assert any(limit.router == 1 and limit.type == LimitType.TPM for limit in first.limits)
+    assert any(limit.router_id == 1 and limit.type == LimitType.TPM for limit in first.limits)
     assert PermissionType.ADMIN in first.permissions
 
 

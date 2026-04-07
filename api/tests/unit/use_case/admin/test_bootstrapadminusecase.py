@@ -25,8 +25,23 @@ def role_repository():
 
 
 @pytest.fixture
-def use_case(user_repository, role_repository):
-    return BootstrapAdminUseCase(user_repository=user_repository, role_repository=role_repository)
+def permission_repository():
+    return AsyncMock()
+
+
+@pytest.fixture
+def limit_repository():
+    return AsyncMock()
+
+
+@pytest.fixture
+def use_case(user_repository, role_repository, permission_repository, limit_repository):
+    return BootstrapAdminUseCase(
+        user_repository=user_repository,
+        role_repository=role_repository,
+        limit_repository=limit_repository,
+        permission_repository=permission_repository,
+    )
 
 
 @pytest.fixture

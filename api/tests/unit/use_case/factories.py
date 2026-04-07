@@ -16,7 +16,7 @@ class LimitFactory(factory.Factory):
     class Meta:
         model = Limit
 
-    router = factory.Faker("random_int", min=1, max=1000)
+    router_id = factory.Faker("random_int", min=1, max=1000)
     type = fuzzy.FuzzyChoice([LimitType.TPM, LimitType.TPD, LimitType.RPM, LimitType.RPD])
     value = fuzzy.FuzzyInteger(100, 10000)
 

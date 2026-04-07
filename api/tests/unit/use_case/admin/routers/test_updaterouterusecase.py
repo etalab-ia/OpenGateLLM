@@ -7,7 +7,7 @@ from api.domain.router.entities import RouterLoadBalancingStrategy
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.unit.use_case.factories import RouterFactory, UserInfoFactory
-from api.use_cases.admin.routers._updaterouterusecase import UpdateRouterCommand, UpdateRouterUseCase, UpdateRouterUseCaseSuccess
+from api.use_cases.admin.routers import UpdateRouterCommand, UpdateRouterUseCase, UpdateRouterUseCaseSuccess
 
 
 @pytest.fixture

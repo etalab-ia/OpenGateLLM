@@ -18,7 +18,7 @@ class PostgresRolesRepository(RoleRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
 
-    async def create_role(self, name: str, permissions: list[PermissionType], limits: list[Limit]) -> Role | RoleAlreadyExistsError:
+    async def create_role(self, name: str) -> Role | RoleAlreadyExistsError:
         try:
             result = await self.postgres_session.execute(
                 insert(RoleTable)
@@ -34,17 +34,11 @@ class PostgresRolesRepository(RoleRepository):
         except IntegrityError:
             return RoleAlreadyExistsError(name=name)
 
-        for limit in limits:
-            await self.postgres_session.execute(insert(LimitTable).values(role_id=row.id, router_id=limit.router, type=limit.type, value=limit.value))
-
-        for permission in permissions:
-            await self.postgres_session.execute(insert(PermissionTable).values(role_id=row.id, permission=permission))
-
         return Role(
             id=row.id,
             name=row.name,
-            permissions=permissions,
-            limits=limits,
+            permissions=[],
+            limits=[],
             users=0,
             created=row.created,
             updated=row.updated,
@@ -114,7 +108,7 @@ class PostgresRolesRepository(RoleRepository):
             for row in result:
                 role_id = row.role_id
                 if role_id in roles:
-                    roles[role_id].limits.append(Limit(router=row.router_id, type=row.type, value=row.value))
+                    roles[role_id].limits.append(Limit(router_id=row.router_id, type=row.type, value=row.value))
 
             # Query permissions for these roles
             permissions_query = select(PermissionTable.role_id, PermissionTable.permission).where(PermissionTable.role_id.in_(list(roles.keys())))

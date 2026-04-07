@@ -30,7 +30,7 @@ class RolesState(EntityState):
         limits_dict = defaultdict(lambda: {"rpm": None, "rpd": None, "tpm": None, "tpd": None})
 
         for limit in role["limits"]:
-            router_name = router_dict_reverse[limit["router"]]
+            router_name = router_dict_reverse[limit["router_id"]]
             limits_dict[router_name][limit["type"]] = limit["value"]
 
         # Ensure limits are returned sorted by router name for consistent UI ordering
@@ -52,10 +52,10 @@ class RolesState(EntityState):
     def _format_limit(self, limit: dict[str, str | int]) -> list[dict[str, str | int]]:
         """Format limit from Playground format to OpenGateLLM format."""
         return [
-            {"router": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
-            {"router": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
-            {"router": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
-            {"router": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
+            {"router_id": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
+            {"router_id": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
+            {"router_id": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
+            {"router_id": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
         ]
 
     ############################################################
@@ -191,10 +191,10 @@ class RolesState(EntityState):
 
             limits.extend(
                 [
-                    {"router": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
-                    {"router": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
-                    {"router": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
-                    {"router": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
+                    {"router_id": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
+                    {"router_id": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
+                    {"router_id": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
+                    {"router_id": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
                 ]
             )
 
