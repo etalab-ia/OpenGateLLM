@@ -11,7 +11,7 @@ from api.infrastructure.postgres import PostgresRouterRepository
 from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
-from api.tests.integration.factories import OrganizationSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import OrganizationSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.variables import MASTER_ID
 
 

@@ -4,7 +4,7 @@ from sqlalchemy import select
 from api.domain.role.entities import Limit, LimitType
 from api.infrastructure.postgres._postgreslimitrepository import PostgresLimitRepository
 from api.sql.models import Limit as LimitTable
-from api.tests.integration.factories import LimitSQLFactory, RoleSQLFactory, RouterSQLFactory
+from api.tests.integration.factories.sql import LimitSQLFactory, RoleSQLFactory, RouterSQLFactory
 
 
 @pytest.fixture

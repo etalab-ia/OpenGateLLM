@@ -4,7 +4,7 @@ from sqlalchemy import select
 from api.domain.role.entities import PermissionType
 from api.infrastructure.postgres._postgrespermissionrepository import PostgresPermissionRepository
 from api.sql.models import Permission as PermissionTable
-from api.tests.integration.factories import PermissionSQLFactory, RoleSQLFactory
+from api.tests.integration.factories.sql import PermissionSQLFactory, RoleSQLFactory
 
 
 @pytest.fixture

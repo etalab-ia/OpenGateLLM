@@ -14,15 +14,9 @@ from pydantic import BaseModel, Field, StringConstraints
 
 from api.domain.model.entities import UserModelRequest
 from api.domain.model.errors import UnsupportedEndpointError
-from api.domain.provider.entities import ProviderCarbonFootprintZone, ProviderType
-from api.helpers._usagetokenizer import UsageTokenizer
-from api.infrastructure.fastapi.context import FastApiRequestManager
-from api.schemas.chat import ChatCompletion, ChatCompletionChunk
-from api.utils.context import global_context
-from api.utils.exceptions import ModelIsTooBusyException
-from api.utils.variables import EndpointRoute
-
-from ._endpoint_adapters import (
+from api.domain.provider.entities import ProviderType
+from api.infrastructure.fastapi.context import RequestContextManager
+from api.infrastructure.http.model.adapters import (
     AudioTranscriptionAdapter,
     ChatCompletionAdapter,
     EmbeddingsAdapter,
@@ -31,9 +25,13 @@ from ._endpoint_adapters import (
     OcrAdapter,
     RerankAdapter,
 )
-from ._exchanges import ModelHttpExchange, OriginalModelRequest, OriginalModelResponse
-from ._metricslogger import ModelMetricsLogger
-from ._usagecomputer import UsageComputer
+from api.infrastructure.http.model.exchanges import ModelHttpExchange, OriginalModelRequest, OriginalModelResponse
+from api.schemas.chat import ChatCompletion, ChatCompletionChunk
+from api.utils.exceptions import ModelIsTooBusyException
+from api.utils.variables import EndpointRoute
+
+from ._modelmetricslogger import ModelMetricsLogger
+from ._modelusagecomputer import ModelUsageComputer
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +49,7 @@ class ModelHttpClientEndpoints(BaseModel):
             method, path = getattr(self, endpoint.name.lower())
         except AttributeError:
             return None, None
+        base_url = base_url + "/" if not base_url.endswith("/") else base_url
         url = None if path is None else urljoin(base=base_url, url=path.lstrip("/"))
         return method, url
 
@@ -65,21 +64,21 @@ class ModelHttpClient:
         key: str,
         timeout: int,
         model_name: str,
-        model_hosting_zone: ProviderCarbonFootprintZone,
-        model_total_params: int | None,
-        model_active_params: int | None,
-        tokenizer: UsageTokenizer,
-        request_manager: FastApiRequestManager,
         metrics_logger: ModelMetricsLogger,
+        request_manager: RequestContextManager,
+        usage_computer: ModelUsageComputer | None = None,
     ):
         """
-        Initialize the model HTTP client. This class has two main methods:
-        - build_exchange: Build an exchange from a request content.
+        Initialize the model HTTP client. This class has four main methods:
+        - build_request_exchange: Build an exchange from a request content.
         - forward_request: Forward a request to a provider model and add model name to the response. Optionally, add additional data to the response.
         - forward_stream: Forward a stream request to a provider model and add model name to the response. Optionally, add additional data to the response.
+        - complete_response_exchange: Complete the response exchange by adding the model name, request ID and usage to the response.
         """
-        self.request_manager = request_manager
         self.metrics_logger = metrics_logger
+        self.request_manager = request_manager
+        self.usage_computer = usage_computer
+
         self.url = url
         self.key = key
         self.timeout = timeout
@@ -87,13 +86,6 @@ class ModelHttpClient:
         self.provider_id: int | None = None  # set by the ModelRegistry when the provider is created
         self.cost_prompt_tokens: float | None = None  # set by the ModelRegistry when the provider is retrieved
         self.cost_completion_tokens: float | None = None  # set by the ModelRegistry when the provider is retrieved
-
-        self.usage_computer = UsageComputer(
-            tokenizer=tokenizer if tokenizer else global_context.tokenizer,
-            model_hosting_zone=model_hosting_zone,
-            model_total_params=model_total_params,
-            model_active_params=model_active_params,
-        )
 
         self.headers = {"Authorization": f"Bearer {self.key}"} if self.key else {}
 
@@ -283,13 +275,18 @@ class ModelHttpClient:
         adapter = self._adapters.get(exchange.original_request.endpoint)
         if adapter:
             request_id = self._get_request_id(exchange=exchange)
-            usage = self.usage_computer.compute(
-                exchange=exchange,
-                usage=self.request_manager.get_usage(),
-                cost_prompt_tokens=self.cost_prompt_tokens,
-                cost_completion_tokens=self.cost_completion_tokens,
-            )
-            self.request_manager.set_usage(usage)
+            self.request_manager.set_request_id(request_id)
+
+            usage = self.request_manager.get_usage()
+            if self.usage_computer is not None:
+                usage = self.usage_computer.compute(
+                    exchange=exchange,
+                    usage=usage,
+                    cost_prompt_tokens=self.cost_prompt_tokens,
+                    cost_completion_tokens=self.cost_completion_tokens,
+                )
+                self.request_manager.set_usage(usage)
+
             exchange.formatted_response = adapter.format_response(exchange=exchange, request_id=request_id, usage=usage)
 
         return exchange
@@ -300,7 +297,6 @@ class ModelHttpClient:
             request_id = exchange.original_response.data["id"]
         elif request_id is None:
             request_id = f"request-{str(uuid4()).replace('-', '')}"
-        self.request_manager.set_request_id(request_id)
         return request_id
 
     @staticmethod

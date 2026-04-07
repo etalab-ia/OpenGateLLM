@@ -3,42 +3,11 @@ from http import HTTPMethod
 
 from mistralai.client.models import AudioChunk, ChatCompletionRequest, TextChunk, UserMessage
 
-from api.domain.provider.entities import ProviderType
 from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
+from api.infrastructure.http.model.adapters import AudioTranscriptionAdapter, ChatCompletionAdapter, ModelsAdapter
+from api.infrastructure.http.model.exchanges import FormattedModelRequest, FormattedModelResponse, ModelHttpExchange, OriginalModelRequest
 from api.schemas.audio import AudioTranscription, AudioTranscriptionResponseFormat
 from api.schemas.usage import Usage
-from api.utils.variables import EndpointRoute
-
-from ._endpoint_adapters import AudioTranscriptionAdapter, ChatCompletionAdapter, ModelsAdapter
-from ._exchanges import FormattedModelRequest, FormattedModelResponse, ModelHttpExchange, OriginalModelRequest
-from ._modelhttpclient import ModelHttpClient, ModelHttpClientEndpoints
-
-
-class MistralChatCompletionAdapter(ChatCompletionAdapter):
-    def format_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str, model_name: str) -> FormattedModelRequest:
-        # @TODO: build body with model_fields_set to exclude unset fields
-        # see https://docs.mistral.ai/api#operation-chat_completion_v1_chat_completions_post
-        body = {
-            "frequency_penalty": original_request.body.get("frequency_penalty") or 0.0,
-            "max_tokens": original_request.body.get("max_tokens"),
-            "messages": original_request.body.get("messages"),
-            "model": model_name,
-            "n": original_request.body.get("n"),
-            "parallel_tool_calls": original_request.body.get("parallel_tool_calls") or False,
-            "prediction": original_request.body.get("prediction") or {},
-            "presence_penalty": original_request.body.get("presence_penalty") or 0.0,
-            "prompt_mode": original_request.body.get("prompt_mode"),
-            "random_seed": original_request.body.get("random_seed") or original_request.body.get("seed"),
-            "response_format": original_request.body.get("response_format") or {"type": "text"},
-            "safe_prompt": original_request.body.get("safe_prompt") or False,
-            "stop": original_request.body.get("stop") or [],
-            "stream": original_request.body.get("stream") or False,
-            "temperature": original_request.body.get("temperature"),
-            "tool_choice": original_request.body.get("tool_choice"),
-            "tools": original_request.body.get("tools"),
-            "top_p": original_request.body.get("top_p") or 1.0,
-        }
-        return FormattedModelRequest(method=method, url=url, body=body)
 
 
 class MistralAudioTranscriptionAdapter(AudioTranscriptionAdapter):
@@ -74,6 +43,33 @@ class MistralAudioTranscriptionAdapter(AudioTranscriptionAdapter):
         )
 
 
+class MistralChatCompletionAdapter(ChatCompletionAdapter):
+    def format_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str, model_name: str) -> FormattedModelRequest:
+        # @TODO: build body with model_fields_set to exclude unset fields
+        # see https://docs.mistral.ai/api#operation-chat_completion_v1_chat_completions_post
+        body = {
+            "frequency_penalty": original_request.body.get("frequency_penalty") or 0.0,
+            "max_tokens": original_request.body.get("max_tokens"),
+            "messages": original_request.body.get("messages"),
+            "model": model_name,
+            "n": original_request.body.get("n"),
+            "parallel_tool_calls": original_request.body.get("parallel_tool_calls") or False,
+            "prediction": original_request.body.get("prediction") or {},
+            "presence_penalty": original_request.body.get("presence_penalty") or 0.0,
+            "prompt_mode": original_request.body.get("prompt_mode"),
+            "random_seed": original_request.body.get("random_seed") or original_request.body.get("seed"),
+            "response_format": original_request.body.get("response_format") or {"type": "text"},
+            "safe_prompt": original_request.body.get("safe_prompt") or False,
+            "stop": original_request.body.get("stop") or [],
+            "stream": original_request.body.get("stream") or False,
+            "temperature": original_request.body.get("temperature"),
+            "tool_choice": original_request.body.get("tool_choice"),
+            "tools": original_request.body.get("tools"),
+            "top_p": original_request.body.get("top_p") or 1.0,
+        }
+        return FormattedModelRequest(method=method, url=url, body=body)
+
+
 class MistralModelsAdapter(ModelsAdapter):
     def format_response(self, exchange: ModelHttpExchange, request_id: str, usage: Usage | None) -> FormattedModelResponse:
         return FormattedModelResponse(
@@ -90,15 +86,3 @@ class MistralModelsAdapter(ModelsAdapter):
                 ]
             )
         )
-
-
-class MistralModelHttpClient(ModelHttpClient):
-    ENDPOINT_TABLE = ModelHttpClientEndpoints(audio_transcriptions=(HTTPMethod.POST, "/v1/chat/completions"), rerank=(None, None))
-    TYPE = ProviderType.MISTRAL
-
-    def _build_adapters(self):
-        adapters = super()._build_adapters()
-        adapters[EndpointRoute.AUDIO_TRANSCRIPTIONS] = MistralAudioTranscriptionAdapter()
-        adapters[EndpointRoute.CHAT_COMPLETIONS] = MistralChatCompletionAdapter()
-        adapters[EndpointRoute.MODELS] = MistralModelsAdapter()
-        return adapters

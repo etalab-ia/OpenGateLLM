@@ -4,6 +4,8 @@ from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+import tiktoken
+from tiktoken.core import Encoding
 
 from api.clients.parser import BaseParserClient as ParserClient
 from api.dependencies import get_postgres_session
@@ -19,7 +21,7 @@ from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
 from api.infrastructure.postgres import PostgresLimitRepository, PostgresPermissionRepository, PostgresRolesRepository, PostgresUserRepository
-from api.schemas.core.configuration import Configuration
+from api.schemas.core.configuration import Configuration, Tokenizer
 from api.use_cases.admin.bootstrapadminusecase import (
     BootstrapAdminCommand,
     BootstrapAdminUseCase,
@@ -52,6 +54,7 @@ async def lifespan(_: FastAPI):
 
     global_context.limiter = create_limiter(configuration=configuration, redis_pool=global_context.redis_pool)
     global_context.tokenizer = create_tokenizer(configuration=configuration)
+    global_context._tokenizer = initialize_tokenizer(configuration=configuration)
     global_context.parser = await create_parser(configuration=configuration)
     global_context.document_manager = create_document_manager(configuration, elasticsearch_vector_store=global_context.elasticsearch_vector_store)
 
@@ -204,6 +207,22 @@ def create_limiter(configuration: Configuration, redis_pool: redis.ConnectionPoo
 
 def create_tokenizer(configuration: Configuration) -> UsageTokenizer:
     return UsageTokenizer(tokenizer=configuration.settings.usage_tokenizer)
+
+
+def initialize_tokenizer(configuration: Configuration) -> Encoding:
+    match configuration.settings.usage_tokenizer:
+        case Tokenizer.TIKTOKEN_O200K_BASE:
+            return tiktoken.get_encoding("o200k_base")
+        case Tokenizer.TIKTOKEN_P50K_BASE:
+            return tiktoken.get_encoding("p50k_base")
+        case Tokenizer.TIKTOKEN_R50K_BASE:
+            return tiktoken.get_encoding("r50k_base")
+        case Tokenizer.TIKTOKEN_P50K_EDIT:
+            return tiktoken.get_encoding("p50k_edit")
+        case Tokenizer.TIKTOKEN_CL100K_BASE:
+            return tiktoken.get_encoding("cl100k_base")
+        case Tokenizer.TIKTOKEN_GPT2:
+            return tiktoken.get_encoding("gpt2")
 
 
 async def create_parser(configuration: Configuration) -> ParserClient | None:

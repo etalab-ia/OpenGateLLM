@@ -2,12 +2,11 @@ from http import HTTPMethod
 
 from api.domain.provider.entities import ProviderType
 from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
+from api.infrastructure.http.model import ModelHttpClient, ModelHttpClientEndpoints
+from api.infrastructure.http.model.adapters import ModelsAdapter
+from api.infrastructure.http.model.exchanges import FormattedModelResponse, ModelHttpExchange
 from api.schemas.usage import Usage
 from api.utils.variables import EndpointRoute
-
-from ._endpoint_adapters import ModelsAdapter
-from ._exchanges import FormattedModelResponse, ModelHttpExchange
-from ._modelhttpclient import ModelHttpClient, ModelHttpClientEndpoints
 
 
 class VllmModelsAdapter(ModelsAdapter):

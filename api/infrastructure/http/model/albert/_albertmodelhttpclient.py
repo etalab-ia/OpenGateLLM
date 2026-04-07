@@ -1,6 +1,5 @@
 from api.domain.provider.entities import ProviderType
-
-from ._modelhttpclient import ModelHttpClient
+from api.infrastructure.http.model import ModelHttpClient
 
 
 class AlbertModelHttpClient(ModelHttpClient):

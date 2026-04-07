@@ -2,14 +2,13 @@ from copy import deepcopy
 from http import HTTPMethod
 
 from api.infrastructure.fastapi.schemas.models import ModelsResponse
+from api.infrastructure.http.model.exchanges import FormattedModelRequest, FormattedModelResponse, ModelHttpExchange, OriginalModelRequest
 from api.schemas.audio import AudioTranscription, AudioTranscriptionResponseFormat
 from api.schemas.chat import ChatCompletion
 from api.schemas.embeddings import Embeddings
 from api.schemas.ocr import OCR
 from api.schemas.rerank import Reranks
 from api.schemas.usage import Usage
-
-from ._exchanges import FormattedModelRequest, FormattedModelResponse, ModelHttpExchange, OriginalModelRequest
 
 
 class EndpointAdapter:

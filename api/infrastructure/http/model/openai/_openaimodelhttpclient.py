@@ -1,6 +1,5 @@
 from api.domain.provider.entities import ProviderType
-
-from ._modelhttpclient import ModelHttpClient, ModelHttpClientEndpoints
+from api.infrastructure.http.model import ModelHttpClient, ModelHttpClientEndpoints
 
 
 class OpenaiModelHttpClient(ModelHttpClient):

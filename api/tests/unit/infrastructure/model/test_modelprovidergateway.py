@@ -4,30 +4,25 @@ import pytest
 
 from api.domain.model import ModelType as RouterType
 from api.domain.provider import ProviderCapabilities
-from api.domain.provider.entities import ProviderCarbonFootprintZone, ProviderType
+from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import ModelProviderNotFoundError, ProviderNotReachableError
-from api.infrastructure.http.model import (
-    AlbertModelHttpClient,
-    MistralModelHttpClient,
-    ModelHttpClient,
-    OpenaiModelHttpClient,
-    TeiModelHttpClient,
-    VllmModelHttpClient,
-)
+from api.infrastructure.http.model import ModelHttpClient
+from api.infrastructure.http.model.albert import AlbertModelHttpClient
+from api.infrastructure.http.model.mistral import MistralModelHttpClient
+from api.infrastructure.http.model.openai import OpenaiModelHttpClient
+from api.infrastructure.http.model.tei import TeiModelHttpClient
+from api.infrastructure.http.model.vllm import VllmModelHttpClient
 from api.infrastructure.model._modelprovidergateway import ModelProviderGateway
-from api.tests.unit.infrastructure.http.factories.common import (
-    EmbeddingsPayloadFactory,
-    HttpResponseFactory,
-    ModelPayloadFactory,
-    ModelsPayloadFactory,
-)
+from api.tests.integration.factories.albert import AlbertModelResponseFactory, AlbertModelsResponseFactory
+from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory
+from api.tests.unit.infrastructure.http.model.factories import HttpResponseFactory
 from api.utils.exceptions import HTTPException, ModelIsTooBusyException
 from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture
-def gateway():
-    return ModelProviderGateway()
+def gateway() -> ModelProviderGateway:
+    return ModelProviderGateway(metrics_logger=Mock(), request_manager=Mock())
 
 
 @pytest.fixture
@@ -37,9 +32,8 @@ def client() -> ModelHttpClient:
         key="test-key",
         timeout=120,
         model_name="test-model",
-        model_hosting_zone=ProviderCarbonFootprintZone.WOR,
-        model_total_params=10,
-        model_active_params=10,
+        metrics_logger=Mock(),
+        request_manager=Mock(),
     )
 
 
@@ -56,9 +50,15 @@ class TestModelProviderGateway:
     )
     def test_should_build_matching_http_client(self, provider_type, provider_class):
         # Arrange
-
+        gateway = ModelProviderGateway(metrics_logger=Mock(), request_manager=Mock())
         # Act
-        result = ModelProviderGateway._build_client(provider_type, url="https://example.com", key="key", timeout=30, model_name="test-model")
+        result = gateway._build_client(
+            provider_type=provider_type,
+            url="https://example.com",
+            key="key",
+            timeout=30,
+            model_name="test-model",
+        )
 
         # Assert
         assert isinstance(result, provider_class)
@@ -85,14 +85,17 @@ class TestModelProviderGateway:
         )
 
         # Assert
+        mocked_build_client.assert_called_once()
+        mocked_get_max_context_length.assert_called_once()
+        mocked_get_vector_size.assert_not_called()
         assert result == ProviderCapabilities(max_context_length=4096, vector_size=None)
 
     @pytest.mark.asyncio
     async def test_should_get_capabilities_for_embedding_router(self, gateway, client, mocker):
         # Arrange
-        mocker.patch.object(ModelProviderGateway, "_build_client", return_value=client)
-        mocker.patch.object(ModelProviderGateway, "_get_max_context_length", AsyncMock(return_value=2048))
-        mocker.patch.object(ModelProviderGateway, "_get_vector_size", AsyncMock(return_value=3))
+        mocked_build_client = mocker.patch.object(ModelProviderGateway, "_build_client", return_value=client)
+        mocked_get_max_context_length = mocker.patch.object(ModelProviderGateway, "_get_max_context_length", AsyncMock(return_value=2048))
+        mocked_get_vector_size = mocker.patch.object(ModelProviderGateway, "_get_vector_size", AsyncMock(return_value=3))
 
         # Act
         result = await gateway.get_capabilities(
@@ -105,6 +108,9 @@ class TestModelProviderGateway:
         )
 
         # Assert
+        mocked_build_client.assert_called_once()
+        mocked_get_max_context_length.assert_called_once()
+        mocked_get_vector_size.assert_called_once()
         assert result == ProviderCapabilities(max_context_length=2048, vector_size=3)
 
     @pytest.mark.asyncio
@@ -153,11 +159,8 @@ class TestModelProviderGateway:
         # Arrange
         mocker.patch.object(client, "build_request_exchange", return_value=Mock())
         mock_response = HttpResponseFactory(
-            payload=ModelsPayloadFactory(
-                data=[
-                    ModelPayloadFactory(id="test-model", aliases=["test-model-alias"], max_context_length=10),
-                    ModelPayloadFactory(),
-                ]
+            payload=AlbertModelsResponseFactory(
+                count=2, data=[AlbertModelResponseFactory(id="test-model", aliases=["test-model-alias"], max_context_length=10)]
             )
         )
         mocker.patch.object(client, "forward_request", return_value=mock_response)
@@ -178,11 +181,11 @@ class TestModelProviderGateway:
         client.model_name = "model-alias"
         mocker.patch.object(client, "build_request_exchange", return_value=Mock())
         mock_response = HttpResponseFactory(
-            payload=ModelsPayloadFactory(
+            payload=AlbertModelsResponseFactory(
                 data=[
-                    ModelPayloadFactory(aliases=["model-alias", "model-alias-2"], max_context_length=10),
-                    ModelPayloadFactory(aliases=["model-alias-3"]),
-                ],
+                    AlbertModelResponseFactory(aliases=["model-alias", "model-alias-2"], max_context_length=10),
+                    AlbertModelResponseFactory(aliases=["model-alias-3"]),
+                ]
             )
         )
         mocker.patch.object(client, "forward_request", return_value=mock_response)
@@ -198,11 +201,11 @@ class TestModelProviderGateway:
         # Arrange
         mocker.patch.object(client, "build_request_exchange", return_value=Mock())
         mock_response = HttpResponseFactory(
-            payload=ModelsPayloadFactory(
+            payload=AlbertModelsResponseFactory(
                 data=[
-                    ModelPayloadFactory(id="test-model", max_context_length=10),
-                    ModelPayloadFactory(id="test-model", max_context_length=20),
-                ],
+                    AlbertModelResponseFactory(id="test-model", max_context_length=10),
+                    AlbertModelResponseFactory(id="test-model", max_context_length=20),
+                ]
             )
         )
         mocker.patch.object(client, "forward_request", return_value=mock_response)
@@ -217,7 +220,7 @@ class TestModelProviderGateway:
     async def test_should_return_model_not_found_when_models_response_is_empty(self, client, mocker):
         # Arrange
         mocker.patch.object(client, "build_request_exchange", return_value=Mock())
-        mock_response = HttpResponseFactory(payload=ModelsPayloadFactory(data=[]))
+        mock_response = HttpResponseFactory(payload=AlbertModelsResponseFactory(data=[]))
         mocker.patch.object(client, "forward_request", return_value=mock_response)
 
         # Act
@@ -230,7 +233,7 @@ class TestModelProviderGateway:
     async def test_should_return_model_not_found_when_model_is_missing_in_models_response(self, client, mocker):
         # Arrange
         mocker.patch.object(client, "build_request_exchange", return_value=Mock())
-        mock_response = HttpResponseFactory(payload=ModelsPayloadFactory(data=[ModelPayloadFactory()]))
+        mock_response = HttpResponseFactory(payload=AlbertModelsResponseFactory(data=[AlbertModelResponseFactory()]))
         mocker.patch.object(client, "forward_request", return_value=mock_response)
 
         # Act
@@ -255,7 +258,9 @@ class TestModelProviderGateway:
     async def test_should_return_provider_not_reachable_when_models_response_status_is_not_200(self, client, mocker):
         # Arrange
         mocker.patch.object(client, "build_request_exchange", return_value=Mock())
-        mocker.patch.object(client, "forward_request", return_value=HttpResponseFactory(status_code=500, payload=ModelsPayloadFactory(data=[])))
+        mocker.patch.object(
+            client, "forward_request", return_value=HttpResponseFactory(status_code=500, payload=AlbertModelsResponseFactory(data=[]))
+        )
 
         # Act
         result = await ModelProviderGateway._get_max_context_length(client)
@@ -267,7 +272,7 @@ class TestModelProviderGateway:
     async def test_should_get_vector_size(self, client, mocker):
         # Arrange
         mocker.patch.object(client, "build_request_exchange", return_value=Mock())
-        mocker.patch.object(client, "forward_request", return_value=HttpResponseFactory(payload=EmbeddingsPayloadFactory()))
+        mocker.patch.object(client, "forward_request", return_value=HttpResponseFactory(payload=TeiEmbeddingsResponseFactory(dimensions=3)))
 
         # Act
         result = await ModelProviderGateway._get_vector_size(client)
@@ -283,7 +288,9 @@ class TestModelProviderGateway:
     async def test_should_return_provider_not_reachable_when_embeddings_status_is_not_200(self, client, mocker):
         # Arrange
         mocker.patch.object(client, "build_request_exchange", return_value=Mock())
-        mocker.patch.object(client, "forward_request", return_value=HttpResponseFactory(status_code=500, payload=EmbeddingsPayloadFactory()))
+        mocker.patch.object(
+            client, "forward_request", return_value=HttpResponseFactory(status_code=500, payload=TeiEmbeddingsResponseFactory(dimensions=3))
+        )
 
         # Act
         result = await ModelProviderGateway._get_vector_size(client)

@@ -5,15 +5,14 @@ from api.domain.model.entities import UserModelRequest
 from api.domain.provider import ProviderCapabilities, ProviderGateway
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import ModelProviderNotFoundError, ProviderNotReachableError
+from api.infrastructure.fastapi.context import RequestContextManager
 from api.infrastructure.fastapi.schemas.models import ModelResponse
-from api.infrastructure.http.model import (
-    AlbertModelHttpClient,
-    MistralModelHttpClient,
-    ModelHttpClient,
-    OpenaiModelHttpClient,
-    TeiModelHttpClient,
-    VllmModelHttpClient,
-)
+from api.infrastructure.http.model import ModelHttpClient, ModelMetricsLogger, ModelUsageComputer
+from api.infrastructure.http.model.albert import AlbertModelHttpClient
+from api.infrastructure.http.model.mistral import MistralModelHttpClient
+from api.infrastructure.http.model.openai import OpenaiModelHttpClient
+from api.infrastructure.http.model.tei import TeiModelHttpClient
+from api.infrastructure.http.model.vllm import VllmModelHttpClient
 from api.utils.exceptions import HTTPException, ModelIsTooBusyException
 from api.utils.variables import EndpointRoute
 
@@ -21,16 +20,20 @@ logger = logging.getLogger(__name__)
 
 
 class ModelProviderGateway(ProviderGateway):
+    def __init__(self, metrics_logger: ModelMetricsLogger, request_manager: RequestContextManager):
+        self.metrics_logger = metrics_logger
+        self.request_manager = request_manager
+
     async def get_capabilities(
         self,
-        router_type,
-        provider_type,
-        url,
-        key,
-        timeout,
-        model_name,
+        router_type: RouterType,
+        provider_type: ProviderType,
+        url: str,
+        key: str | None,
+        timeout: int,
+        model_name: str,
     ) -> ProviderCapabilities | ModelProviderNotFoundError | ProviderNotReachableError:
-        client = ModelProviderGateway._build_client(provider_type, url, key, timeout, model_name)
+        client = self._build_client(provider_type=provider_type, url=url, key=key, timeout=timeout, model_name=model_name)
 
         result = await self._get_max_context_length(client=client)
         match result:
@@ -53,8 +56,15 @@ class ModelProviderGateway(ProviderGateway):
 
         return ProviderCapabilities(max_context_length=max_context_length, vector_size=vector_size)
 
-    @staticmethod
-    def _build_client(provider_type, url, key, timeout, model_name) -> ModelHttpClient:
+    def _build_client(
+        self,
+        provider_type,
+        url,
+        key,
+        timeout,
+        model_name,
+        usage_computer: ModelUsageComputer | None = None,
+    ) -> ModelHttpClient:
         provider_class: dict[ProviderType, type[ModelHttpClient]] = {
             ProviderType.ALBERT: AlbertModelHttpClient,
             ProviderType.MISTRAL: MistralModelHttpClient,
@@ -63,15 +73,14 @@ class ModelProviderGateway(ProviderGateway):
             ProviderType.VLLM: VllmModelHttpClient,
         }
 
-        # @TODO: add model_hosting_zone, model_total_params, model_active_params
         return provider_class[provider_type](
             url=url,
             key=key,
             timeout=timeout,
             model_name=model_name,
-            model_active_params=None,
-            model_total_params=None,
-            model_hosting_zone=None,
+            metrics_logger=self.metrics_logger,
+            request_manager=self.request_manager,
+            usage_computer=usage_computer,
         )
 
     @staticmethod
@@ -80,6 +89,7 @@ class ModelProviderGateway(ProviderGateway):
         try:
             exchange = client.build_request_exchange(user_request=request)
             response = await client.forward_request(exchange=exchange)
+        # @TODO: handle exception properly and add integration tests for this case and adapt unit tests
         except (ModelIsTooBusyException, HTTPException) as e:
             logger.info(msg=f"Failed to get max context length for {client.model_name}: {e}.")
             return ProviderNotReachableError(model_name=client.model_name)

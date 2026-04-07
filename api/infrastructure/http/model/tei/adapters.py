@@ -3,15 +3,11 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from api.domain.provider.entities import ProviderType
 from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
+from api.infrastructure.http.model.adapters import ModelsAdapter, RerankAdapter
+from api.infrastructure.http.model.exchanges import FormattedModelRequest, FormattedModelResponse, ModelHttpExchange, OriginalModelRequest
 from api.schemas.rerank import RerankResult, Reranks
 from api.schemas.usage import Usage
-from api.utils.variables import EndpointRoute
-
-from ._endpoint_adapters import ModelsAdapter, RerankAdapter
-from ._exchanges import FormattedModelRequest, FormattedModelResponse, ModelHttpExchange, OriginalModelRequest
-from ._modelhttpclient import ModelHttpClient, ModelHttpClientEndpoints
 
 
 class TeiCreateRerankBody(BaseModel):
@@ -55,20 +51,3 @@ class TeiModelsAdapter(ModelsAdapter):
                 ]
             )
         )
-
-
-class TeiModelHttpClient(ModelHttpClient):
-    ENDPOINT_TABLE = ModelHttpClientEndpoints(
-        audio_transcriptions=(None, None),
-        chat_completions=(None, None),
-        models=(HTTPMethod.GET, "/info"),
-        ocr=(None, None),
-        rerank=(HTTPMethod.POST, "/rerank"),
-    )
-    TYPE = ProviderType.TEI
-
-    def _build_adapters(self):
-        adapters = super()._build_adapters()
-        adapters[EndpointRoute.MODELS] = TeiModelsAdapter()
-        adapters[EndpointRoute.RERANK] = TeiRerankAdapter()
-        return adapters
