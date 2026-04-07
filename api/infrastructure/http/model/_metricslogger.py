@@ -4,7 +4,6 @@ import time
 from redis.asyncio import Redis as AsyncRedis
 
 from api.domain.model.entities import Metric
-from api.infrastructure.fastapi.context import FastApiRequestManager
 from api.utils.redis import redis_retry, safe_redis_reset
 from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE, PREFIX__REDIS_METRIC_TIMESERIE, REDIS__TIMESERIE_RETENTION_SECONDS
 
@@ -12,14 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 class ModelMetricsLogger:
-    def __init__(self, request_manager: FastApiRequestManager, redis_client: AsyncRedis):
+    def __init__(self, redis_client: AsyncRedis):
         self.redis_client = redis_client
-        self.request_manager = request_manager
 
     async def log_performance(self, provider_id: int | None, ttft: int | None, latency: int | None) -> None:
-        self.request_manager.set_ttft(ttft)
-        self.request_manager.set_latency(latency)
-
         try:
             if ttft is not None:
                 key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{Metric.TTFT.value}:{provider_id}"

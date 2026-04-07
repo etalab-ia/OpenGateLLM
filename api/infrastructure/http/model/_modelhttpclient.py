@@ -175,6 +175,8 @@ class ModelHttpClient:
         latency = self._elapsed_ms(start_time=start_time)
         response_data = response.json()
         exchange = self.complete_response_exchange(exchange=exchange, response_data=response_data, latency=latency)
+        self.request_manager.set_ttft(None)
+        self.request_manager.set_latency(latency)
         await self.metrics_logger.log_performance(provider_id=self.provider_id, ttft=None, latency=latency)
 
         if exchange.formatted_response.data is None:
@@ -254,7 +256,8 @@ class ModelHttpClient:
                     latency = self._elapsed_ms(start_time=start_time)
                     response_data = ChatCompletion(model=self.model_name, choices=[{"index": 0, "message": " ".join(buffer)}]).model_dump()
                     exchange = self.complete_response_exchange(exchange=exchange, response_data=response_data, latency=latency)
-
+                self.request_manager.set_ttft(ttft)
+                self.request_manager.set_latency(latency)
                 await self.metrics_logger.log_performance(provider_id=self.provider_id, ttft=ttft, latency=latency)
 
             except (
