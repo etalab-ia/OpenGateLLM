@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from copy import deepcopy
 from http import HTTPMethod
 
@@ -13,15 +12,20 @@ from api.schemas.usage import Usage
 from ._exchanges import FormattedModelRequest, FormattedModelResponse, ModelHttpExchange, OriginalModelRequest
 
 
-class EndpointAdapter(ABC):
-    def __init__(self):
-        pass
+class EndpointAdapter:
+    response_type: type
 
-    @abstractmethod
-    def format_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str, model_name: str) -> FormattedModelRequest: ...
+    def format_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str, model_name: str) -> FormattedModelRequest:
+        body = deepcopy(original_request.body)
+        body["model"] = model_name
+        return FormattedModelRequest(method=method, url=url, body=body)
 
-    @abstractmethod
-    def format_response(self, exchange: ModelHttpExchange, request_id: str, usage: Usage | None) -> FormattedModelResponse: ...
+    def format_response(self, exchange: ModelHttpExchange, request_id: str, usage: Usage | None) -> FormattedModelResponse:
+        data = deepcopy(exchange.original_response.data)
+        data.update({"id": request_id, "model": exchange.original_request.body["model"]})
+        if usage is not None:
+            data.update({"usage": usage.model_dump()})
+        return FormattedModelResponse(data=self.response_type(**data))
 
 
 class AudioTranscriptionAdapter(EndpointAdapter):
@@ -43,31 +47,11 @@ class AudioTranscriptionAdapter(EndpointAdapter):
 
 
 class ChatCompletionAdapter(EndpointAdapter):
-    def format_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str, model_name: str) -> FormattedModelRequest:
-        body = deepcopy(original_request.body)
-        body["model"] = model_name
-        return FormattedModelRequest(method=method, url=url, body=body)
-
-    def format_response(self, exchange: ModelHttpExchange, request_id: str, usage: Usage | None) -> FormattedModelResponse:
-        data = deepcopy(exchange.original_response.data)
-        data.update({"id": request_id, "model": exchange.original_request.body["model"]})
-        if usage is not None:
-            data.update({"usage": usage.model_dump()})
-        return FormattedModelResponse(data=ChatCompletion(**data))
+    response_type = ChatCompletion
 
 
 class EmbeddingsAdapter(EndpointAdapter):
-    def format_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str, model_name: str) -> FormattedModelRequest:
-        body = deepcopy(original_request.body)
-        body["model"] = model_name
-        return FormattedModelRequest(method=method, url=url, body=body)
-
-    def format_response(self, exchange: ModelHttpExchange, request_id: str, usage: Usage | None) -> FormattedModelResponse:
-        data = deepcopy(exchange.original_response.data)
-        data.update({"id": request_id, "model": exchange.original_request.body["model"]})
-        if usage is not None:
-            data.update({"usage": usage.model_dump()})
-        return FormattedModelResponse(data=Embeddings(**data))
+    response_type = Embeddings
 
 
 class ModelsAdapter(EndpointAdapter):
@@ -80,28 +64,8 @@ class ModelsAdapter(EndpointAdapter):
 
 
 class OcrAdapter(EndpointAdapter):
-    def format_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str, model_name: str) -> FormattedModelRequest:
-        body = deepcopy(original_request.body)
-        body["model"] = model_name
-        return FormattedModelRequest(method=method, url=url, body=body)
-
-    def format_response(self, exchange: ModelHttpExchange, request_id: str, usage: Usage | None) -> FormattedModelResponse:
-        data = deepcopy(exchange.original_response.data)
-        data.update({"id": request_id, "model": exchange.original_request.body["model"]})
-        if usage is not None:
-            data.update({"usage": usage.model_dump()})
-        return FormattedModelResponse(data=OCR(**data))
+    response_type = OCR
 
 
 class RerankAdapter(EndpointAdapter):
-    def format_request(self, original_request: OriginalModelRequest, method: HTTPMethod, url: str, model_name: str) -> FormattedModelRequest:
-        body = deepcopy(original_request.body)
-        body["model"] = model_name
-        return FormattedModelRequest(method=method, url=url, body=body)
-
-    def format_response(self, exchange: ModelHttpExchange, request_id: str, usage: Usage | None) -> FormattedModelResponse:
-        data = deepcopy(exchange.original_response.data)
-        data.update({"id": request_id, "model": exchange.original_request.body["model"]})
-        if usage is not None:
-            data.update({"usage": usage.model_dump()})
-        return FormattedModelResponse(data=Reranks(**data))
+    response_type = Reranks
