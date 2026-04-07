@@ -18,8 +18,6 @@ from api.domain.provider.entities import ProviderCarbonFootprintZone, ProviderTy
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.infrastructure.fastapi.context import FastApiRequestManager
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk
-from api.schemas.usage import Usage
-from api.utils.carbon import get_carbon_footprint
 from api.utils.context import global_context
 from api.utils.exceptions import ModelIsTooBusyException
 from api.utils.variables import EndpointRoute
@@ -35,6 +33,7 @@ from ._endpoint_adapters import (
 )
 from ._exchanges import ModelHttpExchange, OriginalModelRequest, OriginalModelResponse
 from ._metricslogger import ModelMetricsLogger
+from ._usagecomputer import UsageComputer
 
 logger = logging.getLogger(__name__)
 
@@ -47,18 +46,11 @@ class ModelHttpClientEndpoints(BaseModel):
     ocr: Annotated[tuple[HTTPMethod | None, Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]], Field(default=(HTTPMethod.POST, "/v1/ocr"))]  # fmt: off
     rerank: Annotated[tuple[HTTPMethod | None, Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]], Field(default=(HTTPMethod.POST, "/v1/rerank"))]  # fmt: off
 
-    _ENDPOINT_FIELD: dict[EndpointRoute, str] = {
-        EndpointRoute.AUDIO_TRANSCRIPTIONS: "audio_transcriptions",
-        EndpointRoute.CHAT_COMPLETIONS: "chat_completions",
-        EndpointRoute.EMBEDDINGS: "embeddings",
-        EndpointRoute.MODELS: "models",
-        EndpointRoute.OCR: "ocr",
-        EndpointRoute.RERANK: "rerank",
-    }
-
     def get_method_and_url(self, base_url: str, endpoint: EndpointRoute) -> tuple[HTTPMethod | None, str | None]:
-        field = self._ENDPOINT_FIELD.get(endpoint)
-        method, path = getattr(self, field) if field else (None, None)
+        try:
+            method, path = getattr(self, endpoint.name.lower())
+        except AttributeError:
+            return None, None
         url = None if path is None else urljoin(base=base_url, url=path.lstrip("/"))
         return method, url
 
@@ -92,13 +84,16 @@ class ModelHttpClient:
         self.key = key
         self.timeout = timeout
         self.model_name = model_name
-        self.model_hosting_zone = model_hosting_zone
-        self.model_total_params = model_total_params
-        self.model_active_params = model_active_params
-        self.tokenizer = tokenizer if tokenizer else global_context.tokenizer
         self.provider_id: int | None = None  # set by the ModelRegistry when the provider is created
         self.cost_prompt_tokens: float | None = None  # set by the ModelRegistry when the provider is retrieved
         self.cost_completion_tokens: float | None = None  # set by the ModelRegistry when the provider is retrieved
+
+        self.usage_computer = UsageComputer(
+            tokenizer=tokenizer if tokenizer else global_context.tokenizer,
+            model_hosting_zone=model_hosting_zone,
+            model_total_params=model_total_params,
+            model_active_params=model_active_params,
+        )
 
         self.headers = {"Authorization": f"Bearer {self.key}"} if self.key else {}
 
@@ -285,53 +280,16 @@ class ModelHttpClient:
         adapter = self._adapters.get(exchange.original_request.endpoint)
         if adapter:
             request_id = self._get_request_id(exchange=exchange)
-            usage = self._get_usage(exchange=exchange, usage=self.request_manager.get_usage())
+            usage = self.usage_computer.compute(
+                exchange=exchange,
+                usage=self.request_manager.get_usage(),
+                cost_prompt_tokens=self.cost_prompt_tokens,
+                cost_completion_tokens=self.cost_completion_tokens,
+            )
             self.request_manager.set_usage(usage)
             exchange.formatted_response = adapter.format_response(exchange=exchange, request_id=request_id, usage=usage)
 
         return exchange
-
-    def _get_usage(self, exchange: ModelHttpExchange, usage: Usage | None) -> Usage | None:
-        if usage is None:
-            return None
-        updated_usage = usage
-        if exchange.original_request.endpoint in self.tokenizer.USAGE_ENDPOINTS:
-            try:
-                prompt_tokens = self.tokenizer.get_prompt_tokens(endpoint=exchange.original_request.endpoint, body=exchange.original_request.body)
-                completion_tokens = self.tokenizer.get_completion_tokens(
-                    endpoint=exchange.original_request.endpoint, response_data=exchange.original_response.data
-                )
-                total_tokens = prompt_tokens + completion_tokens
-
-                carbon_footprint = get_carbon_footprint(
-                    active_params=self.model_active_params,
-                    total_params=self.model_total_params,
-                    model_zone=self.model_hosting_zone,
-                    token_count=total_tokens,
-                    request_latency=exchange.original_response.latency,
-                )
-                cost = round(prompt_tokens / 1000000 * self.cost_prompt_tokens + completion_tokens / 1000000 * self.cost_completion_tokens, ndigits=6)  # fmt: off
-
-                updated_usage = updated_usage.model_copy(
-                    update={
-                        "prompt_tokens": usage.prompt_tokens + prompt_tokens,
-                        "completion_tokens": usage.completion_tokens + completion_tokens,
-                        "total_tokens": usage.total_tokens + total_tokens,
-                        "cost": usage.cost + cost,
-                        "carbon": usage.carbon.model_copy(
-                            update={
-                                "kgCO2eq": usage.carbon.kgCO2eq + carbon_footprint.kgCO2eq,
-                                "kWh": usage.carbon.kWh + carbon_footprint.kWh,
-                            }
-                        ),
-                        "requests": usage.requests + 1,
-                    }
-                )
-
-            except Exception as e:
-                logger.exception(msg=f"Failed to compute usage values for endpoint {exchange.original_request.endpoint}: {e}.")
-
-        return updated_usage
 
     def _get_request_id(self, exchange: ModelHttpExchange) -> str:
         request_id = self.request_manager.get_request_id()  # can be not None when the endpoint make multiple requests to a model (e.g. /v1/search)
