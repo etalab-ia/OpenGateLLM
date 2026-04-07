@@ -61,7 +61,7 @@ async def test_login_success_user(postgres_session: AsyncSession, iam: IdentityA
             organization=None,
             budget=None,
             permissions=[PermissionType.READ_METRIC],
-            limits=[Limit(router=1, type=LimitType.TPM, value=100)],
+            limits=[Limit(router_id=1, type=LimitType.TPM, value=100)],
             expires=None,
             created=10,
             updated=11,

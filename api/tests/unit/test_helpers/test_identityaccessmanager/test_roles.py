@@ -99,8 +99,8 @@ async def test_update_role_name_limits_permissions(postgres_session: AsyncSessio
         role_id=10,
         name="power-user",
         limits=[
-            Limit(router=1, type=LimitType.TPM, value=100),
-            Limit(router=1, type=LimitType.RPM, value=200),
+            Limit(router_id=1, type=LimitType.TPM, value=100),
+            Limit(router_id=1, type=LimitType.RPM, value=200),
         ],
         permissions=[PermissionType.READ_METRIC, PermissionType.READ_METRIC],  # duplicate intentional
     )
