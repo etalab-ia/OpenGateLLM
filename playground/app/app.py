@@ -122,6 +122,7 @@ def providers() -> rx.Component:
 
 # Create the app with theme configuration
 app = rx.App(
+    stylesheets=["proconnect.css"],
     theme=rx.theme(
         has_background=configuration.settings.playground_theme_has_background,
         accent_color=configuration.settings.playground_theme_accent_color,
