@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from api.domain.role.entities import Role
-from api.domain.role.errors import RoleAlreadyExistsError
+from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 
 
 class RoleRepository(ABC):
@@ -14,7 +14,11 @@ class RoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def update_role(self, role: Role) -> Role:
+    async def get_role_by_id(self, role_id: int) -> Role | RoleNotFoundError:
+        pass
+
+    @abstractmethod
+    async def update_role(self, role: Role) -> Role | RoleAlreadyExistsError | RoleNotFoundError:
         pass
 
     @abstractmethod

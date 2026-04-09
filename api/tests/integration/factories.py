@@ -41,6 +41,18 @@ class RoleSQLFactory(BaseSQLFactory):
     created = factory.LazyFunction(lambda: datetime.now())
     updated = factory.LazyFunction(lambda: datetime.now())
 
+    @factory.post_generation
+    def permissions(self, create, extracted, **kwargs):
+        if extracted:
+            for permission in extracted:
+                PermissionSQLFactory(role=self, permission=permission)
+
+    @factory.post_generation
+    def limits(self, create, extracted, **kwargs):
+        if extracted:
+            for limit in extracted:
+                LimitSQLFactory(role=self, **limit)
+
     class Params:
         admin = factory.Trait(
             name="admin",
