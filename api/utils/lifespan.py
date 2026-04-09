@@ -15,6 +15,7 @@ from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.helpers._documentmanager import DocumentManager
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers._identityaccessmanager import IdentityAccessManager
+from api.helpers._langfusemanager import LangfuseManager
 from api.helpers._limiter import Limiter
 from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
@@ -62,6 +63,8 @@ async def lifespan(_: FastAPI):
     global_context.model_registry = await create_model_registry(configuration, global_context.postgres_session_factory)
     global_context.elasticsearch_vector_store = await create_elasticsearch_vector_store(configuration, global_context.elasticsearch_client, global_context.model_registry, global_context.postgres_session_factory)  # fmt: off
     global_context.usage_manager = create_usage_manager()
+    global_context.langfuse_client = create_langfuse_client(configuration)
+
     global_context.identity_access_manager = create_identity_access_manager(configuration=configuration)
     global_context.limiter = create_limiter(configuration=configuration, redis_pool=global_context.redis_pool)
     global_context.tokenizer = create_tokenizer(configuration=configuration)
@@ -280,3 +283,10 @@ async def create_parser(configuration: Configuration) -> ParserClient | None:
 def create_document_manager(configuration: Configuration, elasticsearch_vector_store: ElasticsearchVectorStore | None) -> DocumentManager | None:
     parser_manager = ParserManager(max_concurrent=configuration.settings.document_parsing_max_concurrent)
     return DocumentManager(vector_store_model=configuration.settings.vector_store_model, parser_manager=parser_manager)
+
+
+def create_langfuse_client(configuration: Configuration) -> LangfuseManager | None:
+    if configuration.dependencies.langfuse is None:
+        return None
+
+    return LangfuseManager(config=configuration.dependencies.langfuse)

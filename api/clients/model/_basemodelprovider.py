@@ -11,6 +11,7 @@ from fastapi import HTTPException
 import httpx
 from redis.asyncio import Redis as AsyncRedis
 
+from api.helpers._langfusemanager import ObservationName
 from api.schemas.admin.providers import ProviderType
 from api.schemas.audio import AudioTranscription, CreateAudioTranscription
 from api.schemas.chat import ChatCompletionChunk, CreateChatCompletion
@@ -292,58 +293,91 @@ class BaseModelProvider(ABC):
         url = urljoin(base=self.url, url=self.ENDPOINT_TABLE.get_endpoint(endpoint=request_content.endpoint).lstrip("/"))
         request_content = self._format_request(request_content=request_content)
 
-        inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
+        langfuse_obs = None
+        if global_context.langfuse_client is not None:
+            try:
+                langfuse_obs = global_context.langfuse_client.start_observation(
+                    as_type="generation",
+                    name=ObservationName[request_content.endpoint.name],
+                    model=self.model_name,
+                    input=request_content.body.get("messages") or request_content.body.get("input") or request_content.body,
+                )
+            except Exception:
+                logger.debug("Failed to start Langfuse generation observation", exc_info=True)
+
         try:
-            await redis_retry(redis_client.incr, name=inflight_key, max_retries=2)
+            inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
+            try:
+                await redis_retry(redis_client.incr, name=inflight_key, max_retries=2)
 
-            async with httpx.AsyncClient(timeout=self.timeout) as async_client:
-                try:
-                    start_time = time.perf_counter()
-                    response = await async_client.request(
-                        method=request_content.method,
-                        url=url,
-                        headers=self.headers,
-                        json=request_content.body,
-                        files=request_content.files,
-                        data=request_content.form,
-                    )
-                except (
-                    httpx.TimeoutException,
-                    httpx.ReadTimeout,
-                    httpx.ConnectTimeout,
-                    httpx.WriteTimeout,
-                    httpx.PoolTimeout,
-                    httpx.RemoteProtocolError,
-                ) as e:
-                    raise ModelIsTooBusyException(detail=f"Model is too busy ({type(e).__name__}), please try again later")
-                except httpx.ConnectError:
-                    raise ModelIsTooBusyException(detail="Model is temporarily unavailable, please try again later.")
-                except Exception as e:
-                    logger.exception(msg=f"Failed to forward request to {self.model_name}: {e}.")
-                    raise HTTPException(status_code=500, detail=type(e).__name__)
-                try:
-                    response.raise_for_status()
-                except httpx.HTTPStatusError:
+                async with httpx.AsyncClient(timeout=self.timeout) as async_client:
                     try:
-                        message = loads(response.text)  # format error message
-                        if "message" in message:
-                            try:
-                                message = ast.literal_eval(message["message"])
-                            except Exception:
-                                message = message["message"]
-                    except JSONDecodeError:
-                        logger.debug(traceback.format_exc())
-                        message = response.text
-                    raise HTTPException(status_code=response.status_code, detail=message)
+                        start_time = time.perf_counter()
+                        response = await async_client.request(
+                            method=request_content.method,
+                            url=url,
+                            headers=self.headers,
+                            json=request_content.body,
+                            files=request_content.files,
+                            data=request_content.form,
+                        )
+                    except (
+                        httpx.TimeoutException,
+                        httpx.ReadTimeout,
+                        httpx.ConnectTimeout,
+                        httpx.WriteTimeout,
+                        httpx.PoolTimeout,
+                        httpx.RemoteProtocolError,
+                    ) as e:
+                        raise ModelIsTooBusyException(detail=f"Model is too busy ({type(e).__name__}), please try again later")
+                    except httpx.ConnectError:
+                        raise ModelIsTooBusyException(detail="Model is temporarily unavailable, please try again later.")
+                    except Exception as e:
+                        logger.exception(msg=f"Failed to forward request to {self.model_name}: {e}.")
+                        raise HTTPException(status_code=500, detail=type(e).__name__)
+                    try:
+                        response.raise_for_status()
+                    except httpx.HTTPStatusError:
+                        try:
+                            message = loads(response.text)  # format error message
+                            if "message" in message:
+                                try:
+                                    message = ast.literal_eval(message["message"])
+                                except Exception:
+                                    message = message["message"]
+                        except JSONDecodeError:
+                            logger.debug(traceback.format_exc())
+                            message = response.text
+                        raise HTTPException(status_code=response.status_code, detail=message)
+            finally:
+                await redis_retry(redis_client.decr, name=inflight_key, max_retries=2)
+
+            # add additional data to the response
+            latency = self._elapsed_ms(start_time=start_time)
+            response = self._format_response(request_content=request_content, response=response, request_latency=latency)
+            await self._log_performance_metric(redis_client=redis_client, ttft=None, latency=latency)
+
+            if langfuse_obs is not None:
+                try:
+                    ctx = request_context.get()
+                    response_data = response.json()
+                    output = (response_data.get("choices") or [{}])[0].get("message", {}).get("content")
+                    langfuse_obs.update(
+                        output=output,
+                        usage_details={"input": ctx.usage.prompt_tokens, "output": ctx.usage.completion_tokens},
+                        metadata={"latency_ms": latency, "cost": ctx.usage.cost, "router_name": ctx.router_name},
+                    )
+                except Exception:
+                    logger.debug("Failed to update Langfuse generation observation", exc_info=True)
+                finally:
+                    langfuse_obs.end()
+                    langfuse_obs = None
+
+            return response
+
         finally:
-            await redis_retry(redis_client.decr, name=inflight_key, max_retries=2)
-
-        # add additional data to the response
-        latency = self._elapsed_ms(start_time=start_time)
-        response = self._format_response(request_content=request_content, response=response, request_latency=latency)
-        await self._log_performance_metric(redis_client=redis_client, ttft=None, latency=latency)
-
-        return response
+            if langfuse_obs is not None:
+                langfuse_obs.end()
 
     def _get_extra_stream_chunk(self, request_content: RequestContent, buffer: list[dict], latency: float | None = None) -> dict | None:
         """
@@ -389,6 +423,18 @@ class BaseModelProvider(ABC):
         url = urljoin(base=self.url, url=self.ENDPOINT_TABLE.get_endpoint(endpoint=request_content.endpoint).lstrip("/"))
         request_content = self._format_request(request_content=request_content)
 
+        langfuse_obs = None
+        if global_context.langfuse_client is not None:
+            try:
+                langfuse_obs = global_context.langfuse_client.start_observation(
+                    as_type="generation",
+                    name=ObservationName[request_content.endpoint.name],
+                    model=self.model_name,
+                    input=request_content.body.get("messages"),
+                )
+            except Exception:
+                logger.debug("Failed to start Langfuse stream generation observation", exc_info=True)
+
         inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
         inflight_incremented = False
 
@@ -409,6 +455,7 @@ class BaseModelProvider(ABC):
                     data=request_content.form,
                 ) as response:
                     buffer: list[dict] = []
+                    stream_output: list[str] = []  # collects text content for Langfuse
                     start_time = time.perf_counter()
                     ttft: int | None = None
                     latency: int | None = None
@@ -431,6 +478,11 @@ class BaseModelProvider(ABC):
                                 buffer.append(parsed_chunk)
                                 if ttft is None and ChatCompletionChunk.extract_chunk_content(chunk=parsed_chunk):
                                     ttft = self._elapsed_ms(start_time=start_time)
+                                if langfuse_obs is not None:
+                                    for choice in parsed_chunk.get("choices", []):
+                                        content = choice.get("delta", {}).get("content")
+                                        if content:
+                                            stream_output.append(content)
 
                             yield chunk + "\n\n", response.status_code
 
@@ -439,6 +491,21 @@ class BaseModelProvider(ABC):
                             done_chunk = True
                             latency = self._elapsed_ms(start_time=start_time)
                             extra_chunk = self._get_extra_stream_chunk(request_content=request_content, buffer=buffer, latency=latency)
+
+                            if langfuse_obs is not None:
+                                try:
+                                    ctx = request_context.get()
+                                    langfuse_obs.update(
+                                        output="".join(stream_output),
+                                        usage_details={"input": ctx.usage.prompt_tokens, "output": ctx.usage.completion_tokens},
+                                        metadata={"latency_ms": latency, "ttft_ms": ttft, "cost": ctx.usage.cost, "router_name": ctx.router_name},
+                                    )
+                                except Exception:
+                                    logger.debug("Failed to update Langfuse stream generation observation", exc_info=True)
+                                finally:
+                                    langfuse_obs.end()
+                                    langfuse_obs = None
+
                             if extra_chunk is not None:
                                 yield f"data: {dumps(extra_chunk)}\n\n", response.status_code
 
@@ -473,3 +540,5 @@ class BaseModelProvider(ABC):
                         await redis_retry(redis_client.decr, name=inflight_key, max_retries=2)
                     except Exception:
                         logger.error("Unable to decrement redis requests inflight key")
+                if langfuse_obs is not None:
+                    langfuse_obs.end()

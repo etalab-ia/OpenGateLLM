@@ -7,7 +7,6 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
 
 from api.endpoints.monitoring import setup_prometheus
-from api.helpers._tracingmanager import langfuse
 from api.schemas.core.context import RequestContext
 from api.schemas.usage import Usage
 from api.utils.configuration import Configuration, get_configuration
@@ -44,10 +43,6 @@ def create_app(
     _setup_middleware(app, configuration)
     _register_routers(app, configuration)
     _setup_monitoring(app, configuration)
-
-    tmp = langfuse
-
-    langfuse.flush()
 
     return app
 
