@@ -5,10 +5,11 @@ import pytest
 import pytest_asyncio
 
 from api.dependencies import update_role_use_case_factory
+from api.domain.role.entities import LimitType, PermissionType
 from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.helpers import create_token
-from api.tests.integration.factories import RoleSQLFactory, UserSQLFactory
+from api.tests.integration.factories import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.ADMIN_ROLES}"
@@ -29,19 +30,24 @@ class TestUpdateRole:
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         role = RoleSQLFactory()
+        router = RouterSQLFactory()
+        LimitSQLFactory(role=role, router=router, type=LimitType.TPM, value=100)
+        PermissionSQLFactory(role=role, permission=PermissionType.READ_METRIC)
         await db_session.flush()
 
-        response = await client.post(
+        response = await client.patch(
             url=f"{URL}/{role.id}",
             headers={"Authorization": f"Bearer {self.token.token}"},
-            json=_valid_body(name="updated-role"),
+            json=_valid_body(name="updated-role", permissions=[PermissionType.ADMIN]),
         )
 
-        assert response.status_code == 201, response.text
+        assert response.status_code == 200, response.text
         data = response.json()
         assert data["id"] == role.id
         assert data["object"] == "role"
         assert data["name"] == "updated-role"
+        assert len(data["limits"]) == 1
+        assert len(data["permissions"]) == 1
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
@@ -68,7 +74,7 @@ class TestUpdateRole:
         mock_use_case.execute.return_value = use_case_result
         app.dependency_overrides[update_role_use_case_factory] = lambda: mock_use_case
 
-        response = await client.post(
+        response = await client.patch(
             url=f"{URL}/1",
             headers={"Authorization": f"Bearer {self.token.token}"},
             json=_valid_body(),
@@ -85,7 +91,7 @@ class TestUpdateRole:
         ],
     )
     async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):
-        response = await client.post(url=f"{URL}/1", headers=headers, json=_valid_body())
+        response = await client.patch(url=f"{URL}/1", headers=headers, json=_valid_body())
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail

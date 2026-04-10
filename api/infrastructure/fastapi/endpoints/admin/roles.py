@@ -4,6 +4,7 @@ import logging
 from fastapi import Body, Depends, Path, Security
 
 from api.dependencies import create_role_use_case_factory, get_request_context, update_role_use_case_factory
+from api.domain.role.entities import Limit
 from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.infrastructure.fastapi.access import get_current_key
@@ -69,14 +70,14 @@ async def create_role(
             raise NotAdminUserHTTPException()
 
 
-@router.post(
+@router.patch(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException, RoleAlreadyExistsHTTPException, RoleNotFoundHTTPException]),
 )
 async def update_role(
-    not_found_role_id: int = Path(description="The ID of the role to update."),
+    role_id: int = Path(description="The ID of the role to update."),
     body: CreateRoleBody = Body(description="The role update request."),
     update_role_use_case: UpdateRoleUseCase = Depends(update_role_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
@@ -84,10 +85,12 @@ async def update_role(
     try:
         command = UpdateRoleCommand(
             user_id=request_context.get().user_id,
-            role_id=not_found_role_id,
+            role_id=role_id,
             name=body.name,
             permissions=body.permissions,
-            limits=body.limits,
+            limits=[Limit(router_id=body_limit.router_id, type=body_limit.type, value=body_limit.value) for body_limit in body.limits]
+            if body.limits
+            else None,
         )
         result = await update_role_use_case.execute(command)
     except Exception as e:
