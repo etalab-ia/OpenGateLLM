@@ -46,6 +46,81 @@ class AuthState(rx.State):
         self.password_input = value
 
     @rx.event
+    async def login_proconnect(self):
+        """Auto-login using the ProConnect identity injected by oauth2-proxy.
+
+        Reads the X-Auth-Request-Email header forwarded by oauth2-proxy into the WebSocket
+        connection. If the header is present, calls POST /v1/auth/proconnect on the API
+        (no password required - the OIDC authentication already happened at the proxy level).
+        If the header is absent the user landed directly on the playground (port 8501) and
+        no action is taken - they can still log in with email/password.
+        """
+        if self.is_authenticated:
+            return
+
+        # oauth2-proxy injecte X-Forwarded-Email (via pass_user_headers=true)
+        # accessible via raw_headers (clés en minuscules avec tirets)
+        email = self.router.headers.raw_headers.get("x-forwarded-email")
+        if not email:
+            return
+
+        self.is_loading = True
+        yield
+
+        response = None
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.opengatellm_url}/v1/auth/proconnect",
+                    headers={"X-Auth-Request-Email": email},
+                    timeout=configuration.settings.playground_opengatellm_timeout,
+                )
+                if response.status_code != 200:
+                    error_detail = response.json().get("detail", "ProConnect login failed")
+                    yield rx.toast.error(error_detail, position="bottom-right")
+                    self.is_loading = False
+                    yield
+                    return
+
+                login_data = response.json()
+                api_key = login_data.get("key")
+                api_key_id = login_data.get("id")
+
+                response = await client.get(
+                    f"{self.opengatellm_url}/v1/me/info",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    timeout=configuration.settings.playground_opengatellm_timeout,
+                )
+
+                if response.status_code != 200:
+                    yield rx.toast.error("Failed to fetch user info", position="bottom-right")
+                    self.is_loading = False
+                    yield
+                    return
+
+                user_data = response.json()
+
+                self.is_authenticated = True
+                self.user_id = user_data.get("id")
+                self.user_email = user_data.get("email")
+                self.user_name = user_data.get("name")
+                self.api_key = api_key
+                self.api_key_id = api_key_id
+                self.user_organization = user_data.get("organization")
+                self.user_budget = user_data.get("budget")
+                self.user_priority = user_data.get("priority", 0)
+                self.user_created = user_data.get("created")
+                self.user_updated = user_data.get("updated")
+                self.user_permissions = user_data.get("permissions", [])
+                self.user_limits = user_data.get("limits", [])
+
+        except Exception as e:
+            yield httpx_error_toast(exception=e, response=response)
+        finally:
+            self.is_loading = False
+            yield
+
+    @rx.event
     async def login_direct(self):
         """Handle login using direct state values."""
         email = self.email_input.strip()

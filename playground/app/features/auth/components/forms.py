@@ -83,6 +83,7 @@ def login_form() -> rx.Component:
                             ),
                             class_name="proconnect-button",
                             type="button",
+                            on_click=AuthState.login_proconnect,
                         ),
                         width="100%",
                     ),

@@ -221,3 +221,5 @@ docs/.astro
 docs/node_modules
 docs/.cache
 docs/package-lock.json
+oauth2-proxy.cfg
+oauth2-proxy.example.cfg
