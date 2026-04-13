@@ -45,12 +45,20 @@ class AccountState(AuthState):
             yield rx.toast.warning("Current password is required", position="bottom-right")
             return
 
+        if len(self.current_password) > 72:
+            yield rx.toast.warning("Current password cannot be longer than 72 characters", position="bottom-right")
+            return
+
         if not self.new_password:
             yield rx.toast.warning("New password is required", position="bottom-right")
             return
 
         if len(self.new_password) < 8:
             yield rx.toast.warning("New password must be at least 8 characters", position="bottom-right")
+            return
+
+        if len(self.new_password) > 72:
+            yield rx.toast.warning("New password cannot be longer than 72 characters", position="bottom-right")
             return
 
         if self.new_password != self.confirm_password:

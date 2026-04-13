@@ -226,6 +226,10 @@ class UsersState(EntityState):
             yield rx.toast.warning("User password is required", position="bottom-right")
             return
 
+        if len(self.entity_to_create.password) > 72:
+            yield rx.toast.warning("Password cannot be longer than 72 characters", position="bottom-right")
+            return
+
         if not self.entity_to_create.role:
             yield rx.toast.warning("Role is required", position="bottom-right")
             return
@@ -336,6 +340,10 @@ class UsersState(EntityState):
         else:
             payload["budget"] = self.entity.budget
         if self.entity.password:
+            if len(self.entity.password) > 72:
+                self.edit_entity_loading = False
+                yield rx.toast.warning("Password cannot be longer than 72 characters", position="bottom-right")
+                return
             payload["password"] = self.entity.password
         if organization_id:
             payload["organization"] = organization_id
