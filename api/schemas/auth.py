@@ -5,7 +5,7 @@ from api.schemas import BaseModel
 
 class Login(BaseModel):
     email: constr(strip_whitespace=True, min_length=1) = Field(description="The user email.")
-    password: constr(strip_whitespace=True, min_length=1) = Field(description="The user password.")
+    password: constr(strip_whitespace=True, min_length=1, max_length=72) = Field(description="The user password.")
 
 
 class LoginResponse(BaseModel):
