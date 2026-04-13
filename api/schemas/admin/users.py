@@ -7,7 +7,7 @@ from api.schemas import BaseModel
 
 
 class UserUpdateRequest(BaseModel):
-    email: Annotated[str, constr(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="The new user email. If None, the user email is not changed.")  # fmt: off
+    email: Annotated[str, constr(strip_whitespace=True, min_length=1, max_length=254)] | None = Field(default=None, description="The new user email. If None, the user email is not changed.")  # fmt: off
     name: Annotated[str, constr(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="The new user name. If None, the user name is not changed.")  # fmt: off
     current_password: Annotated[str, constr(strip_whitespace=True, min_length=1, max_length=72)] | None = Field(default=None, description="The current user password.")  # fmt: off
     password: Annotated[str, constr(strip_whitespace=True, min_length=1, max_length=72)] | None = Field(default=None, description="The new user password. If None, the user password is not changed.")  # fmt: off
@@ -31,7 +31,7 @@ class UsersResponse(BaseModel):
 
 
 class CreateUser(BaseModel):
-    email: Annotated[str, constr(strip_whitespace=True, min_length=1)] = Field(description="The user email.")
+    email: Annotated[str, constr(strip_whitespace=True, min_length=1, max_length=254)] = Field(description="The user email.")
     name: Annotated[str, constr(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="The user name.")
     password: Annotated[str, constr(strip_whitespace=True, min_length=1, max_length=72)] = Field(description="The user password.")
     role: int = Field(description="The role ID.")

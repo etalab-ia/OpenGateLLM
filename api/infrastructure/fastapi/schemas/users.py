@@ -7,7 +7,7 @@ from api.schemas import BaseModel
 
 
 class CreateUserBody(BaseModel):
-    email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(..., description="The user email.")]
+    email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254), Field(..., description="The user email.")]
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="The user name.")
     password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72)] = Field(..., description="The user password.")
     role: int = Field(..., description="The role ID.")

@@ -55,6 +55,10 @@ class AuthState(rx.State):
             yield rx.toast.warning("Email and password are required", position="bottom-right")
             return
 
+        if len(email) > 254:
+            yield rx.toast.warning("Email cannot be longer than 254 characters", position="bottom-right")
+            return
+
         if len(password) > 72:
             yield rx.toast.warning("Password cannot be longer than 72 characters", position="bottom-right")
             return
