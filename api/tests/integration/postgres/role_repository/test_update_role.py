@@ -22,7 +22,7 @@ class TestUpdateRole:
             limits=[{"router": router, "type": LimitType.TPM, "value": 1000}],
         )
         await db_session.flush()
-        role = await repository.get_role_by_id(role_id=sql_role.id)
+        role = await repository.get_role_with_permissions_and_limits_by_id(role_id=sql_role.id)
         updated_role = role.model_copy(update={"name": "updated-name", "limits": [], "permissions": []})
 
         # Act
@@ -40,7 +40,7 @@ class TestUpdateRole:
         RoleSQLFactory(name="taken-name")
         sql_role = RoleSQLFactory(name="other-name")
         await db_session.flush()
-        role = await repository.get_role_by_id(role_id=sql_role.id)
+        role = await repository.get_role_with_permissions_and_limits_by_id(role_id=sql_role.id)
         conflicting_role = role.model_copy(update={"name": "taken-name"})
 
         # Act
@@ -54,7 +54,7 @@ class TestUpdateRole:
         # Arrange
         sql_role = RoleSQLFactory()
         await db_session.flush()
-        domain_role = await repository.get_role_by_id(role_id=sql_role.id)
+        domain_role = await repository.get_role_with_permissions_and_limits_by_id(role_id=sql_role.id)
         non_existent_role = domain_role.model_copy(update={"id": 999999})
 
         # Act

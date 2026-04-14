@@ -1,13 +1,10 @@
-from typing import Literal
-
-from fastapi import Depends, Path, Query, Request, Security
-from fastapi.responses import JSONResponse, Response
+from fastapi import Depends, Path, Request, Security
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.domain.role.entities import PermissionType, Role
+from api.domain.role.entities import PermissionType
 from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
-from api.schemas.admin.roles import Roles
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
 from api.utils.variables import EndpointRoute
@@ -30,52 +27,3 @@ async def delete_role(
     await global_context.identity_access_manager.delete_role(postgres_session=postgres_session, role_id=role)
 
     return Response(status_code=204)
-
-
-@router.get(
-    path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
-    status_code=200,
-    response_model=Role,
-)
-async def get_role(
-    request: Request,
-    role_id: int = Path(description="The ID of the role to get."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-) -> JSONResponse:
-    """
-    Get a role by id.
-    """
-
-    roles = await global_context.identity_access_manager.get_roles(postgres_session=postgres_session, role_id=role_id)
-
-    return JSONResponse(content=roles[0].model_dump(), status_code=200)
-
-
-@router.get(
-    path=EndpointRoute.ADMIN_ROLES,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
-    status_code=200,
-    response_model=Roles,
-)
-async def get_roles(
-    request: Request,
-    offset: int = Query(default=0, ge=0, description="The offset of the roles to get."),
-    limit: int = Query(default=10, ge=1, le=100, description="The limit of the roles to get."),
-    order_by: Literal["id", "name", "created", "updated"] = Query(default="id", description="The field to order the roles by."),
-    order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the roles by."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-) -> JSONResponse:
-    """
-    Get all roles.
-    """
-    data = await global_context.identity_access_manager.get_roles(
-        postgres_session=postgres_session,
-        offset=offset,
-        limit=limit,
-        order_by=order_by,
-        order_direction=order_direction,
-    )
-
-    # TODO: Remove the model_dump instruction when completely migrating the Role resource. This is a quick fix.
-    return JSONResponse(content=Roles(data=[r.model_dump() for r in data]).model_dump(), status_code=200)

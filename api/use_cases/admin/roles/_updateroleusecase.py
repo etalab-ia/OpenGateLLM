@@ -46,12 +46,9 @@ class UpdateRoleUseCase:
         if not user_info.is_admin:
             return UserIsNotAdminError()
 
-        get_result = await self.role_repository.get_role_by_id(role_id=command.role_id)
-        match get_result:
-            case Role() as found_role:
-                role = found_role
-            case error:
-                return error
+        role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=command.role_id)
+        if role is None:
+            return RoleNotFoundError(role_id=command.role_id)
         role_to_persist = role
         if command.name is not None:
             role_to_persist = role_to_persist.with_name(command.name)
