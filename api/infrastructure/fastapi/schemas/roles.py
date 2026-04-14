@@ -21,15 +21,15 @@ class LimitType(StrEnum):
 
 
 class Limit(BaseModel):
-    router_id: int = Field(alias="router_id", description="The router ID.")
-    type: LimitType = Field(description="The limit type.")
-    value: int | None = Field(default=None, ge=0, description="The limit value.")
+    router_id: Annotated[int, Field(alias="router_id", description="The router ID.")]
+    type: Annotated[LimitType, Field(description="The limit type.")]
+    value: Annotated[int | None, Field(default=None, ge=0, description="The limit value.")]
 
 
 class CreateRoleBody(BaseModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(..., description="Name of the role.", examples=["my-role"])]
-    permissions: list[PermissionType] | None = Field(default=None, description="List of permissions.")
-    limits: list[Limit] | None = Field(default=None, description="List of limits.")
+    permissions: Annotated[list[PermissionType] | None, Field(default=None, description="List of permissions.")]
+    limits: Annotated[list[Limit] | None, Field(default=None, description="List of limits.")]
 
 
 class RoleResponse(BaseModel):
