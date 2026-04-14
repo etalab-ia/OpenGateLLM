@@ -300,7 +300,8 @@ class BaseModelProvider(ABC):
                     as_type="generation",
                     name=ObservationName[request_content.endpoint.name],
                     model=self.model_name,
-                    input=request_content.body.get("messages") or request_content.body.get("input") or request_content.body,
+                    # input=request_content.body.get("messages") or request_content.body.get("input") or request_content.body,
+                    input=["REDACTED"],
                 )
             except Exception:
                 logger.debug("Failed to start Langfuse generation observation", exc_info=True)
@@ -363,7 +364,7 @@ class BaseModelProvider(ABC):
                     response_data = response.json()
                     output = (response_data.get("choices") or [{}])[0].get("message", {}).get("content")
                     langfuse_obs.update(
-                        output=output,
+                        output="[REDACTED]",
                         usage_details={"input": ctx.usage.prompt_tokens, "output": ctx.usage.completion_tokens},
                         metadata={"latency_ms": latency, "cost": ctx.usage.cost, "router_name": ctx.router_name},
                     )
@@ -430,7 +431,8 @@ class BaseModelProvider(ABC):
                     as_type="generation",
                     name=ObservationName[request_content.endpoint.name],
                     model=self.model_name,
-                    input=request_content.body.get("messages"),
+                    # input=request_content.body.get("messages"),
+                    input=["REDACTED"],
                 )
             except Exception:
                 logger.debug("Failed to start Langfuse stream generation observation", exc_info=True)
@@ -496,7 +498,7 @@ class BaseModelProvider(ABC):
                                 try:
                                     ctx = request_context.get()
                                     langfuse_obs.update(
-                                        output="".join(stream_output),
+                                        output="[REDACTED]",
                                         usage_details={"input": ctx.usage.prompt_tokens, "output": ctx.usage.completion_tokens},
                                         metadata={"latency_ms": latency, "ttft_ms": ttft, "cost": ctx.usage.cost, "router_name": ctx.router_name},
                                     )

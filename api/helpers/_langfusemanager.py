@@ -81,5 +81,5 @@ class LangfuseManager:
             langfuse_obs.end()
 
 
-# TODO - Redact content
 # TODO - Add userId in traces to track users
+# TODO - When using a file/picture, please add the document type as metadata and document size
