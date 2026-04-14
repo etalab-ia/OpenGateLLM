@@ -1,7 +1,9 @@
 import pytest
+from sqlalchemy import select
 
 from api.domain.role.entities import Limit, LimitType
 from api.infrastructure.postgres._postgreslimitrepository import PostgresLimitRepository
+from api.sql.models import Limit as LimitTable
 from api.tests.integration.factories import LimitSQLFactory, RoleSQLFactory, RouterSQLFactory
 
 
@@ -72,3 +74,29 @@ class TestCreateLimits:
 
         # Assert
         assert limits == [Limit(router_id=router.id, type=LimitType.RPM, value=200)]
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestDeleteLimitsByRoleId:
+    async def test_deletes_all_limits_for_role_and_returns_them(self, repository, db_session):
+        # Arrange
+        role = RoleSQLFactory()
+        other_role = RoleSQLFactory()
+        router_1 = RouterSQLFactory()
+        router_2 = RouterSQLFactory()
+        LimitSQLFactory(role=role, router=router_1, type=LimitType.TPM, value=100)
+        LimitSQLFactory(role=role, router=router_2, type=LimitType.RPD, value=200)
+        LimitSQLFactory(role=other_role, router=router_1, type=LimitType.TPM, value=999)
+        await db_session.flush()
+
+        # Act
+        result = await repository.delete_limits_by_role_id(role.id)
+
+        # Assert
+        assert len(result) == 2
+        result_by_router = {r.router_id: r for r in result}
+        assert result_by_router[router_1.id].value == 100
+        assert result_by_router[router_2.id].value == 200
+        remaining = (await db_session.execute(select(LimitTable).where(LimitTable.role_id == other_role.id))).scalars().all()
+        assert len(remaining) == 1
+        assert remaining[0].value == 999

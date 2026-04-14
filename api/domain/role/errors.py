@@ -8,4 +8,4 @@ class RoleAlreadyExistsError:
 
 @dataclass
 class RoleNotFoundError:
-    name: str
+    role_id: int

@@ -1,3 +1,4 @@
+from sqlalchemy import delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,4 +22,10 @@ class PostgresLimitRepository(LimitRepository):
             .returning(LimitTable.router_id, LimitTable.type, LimitTable.value)
         )
 
+        return [Limit(router_id=row.router_id, type=row.type, value=row.value) for row in result.all()]
+
+    async def delete_limits_by_role_id(self, role_id: int) -> list[Limit]:
+        result = await self.postgres_session.execute(
+            delete(table=LimitTable).where(LimitTable.role_id == role_id).returning(LimitTable.router_id, LimitTable.type, LimitTable.value)
+        )
         return [Limit(router_id=row.router_id, type=row.type, value=row.value) for row in result.all()]
