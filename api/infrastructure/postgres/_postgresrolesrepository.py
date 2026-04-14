@@ -1,12 +1,13 @@
 from typing import Literal
 
-from sqlalchemy import Integer, cast, distinct, func, insert, select, text, update
+from sqlalchemy import Integer, asc, cast, desc, distinct, func, insert, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from api.domain import SortField, SortOrder
 from api.domain.role import RoleRepository
-from api.domain.role.entities import Limit, PermissionType, Role
+from api.domain.role.entities import Limit, PermissionType, Role, RolePage
 from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 from api.sql.models import Limit as LimitTable
 from api.sql.models import Permission as PermissionTable
@@ -18,6 +19,45 @@ from api.utils.exceptions import RoleNotFoundException
 class PostgresRolesRepository(RoleRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
+
+    async def get_roles_page(
+        self, limit: int = 10, offset: int = 0, sort_by: SortField = SortField.ID, sort_order: SortOrder = SortOrder.ASC
+    ) -> RolePage:
+        sort_column = {SortField.ID: RoleTable.id, SortField.NAME: RoleTable.name, SortField.CREATED: RoleTable.created}[sort_by]
+        order_fn = asc if sort_order == SortOrder.ASC else desc
+        role_query = (
+            select(
+                RoleTable.id,
+                RoleTable.name,
+                cast(func.extract("epoch", RoleTable.created), Integer).label("created"),
+                cast(func.extract("epoch", RoleTable.updated), Integer).label("updated"),
+                func.count(distinct(UserTable.id)).label("users"),
+            )
+            .outerjoin(UserTable, RoleTable.id == UserTable.role_id)
+            .group_by(RoleTable.id)
+            .order_by(order_fn(sort_column))
+            .offset(offset)
+            .limit(limit)
+        )
+
+        count_query = select(func.count()).select_from(RoleTable)
+        total = (await self.postgres_session.execute(count_query)).scalar_one()
+
+        result = await self.postgres_session.execute(role_query)
+        roles = [
+            Role(
+                id=row.id,
+                name=row.name,
+                created=row.created,
+                updated=row.updated,
+                users=row.users,
+                limits=[],
+                permissions=[],
+            )
+            for row in result.all()
+        ]
+
+        return RolePage(total=total, data=roles)
 
     async def create_role(self, name: str) -> Role | RoleAlreadyExistsError:
         try:

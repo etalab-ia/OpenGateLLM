@@ -41,3 +41,11 @@ class RoleResponse(BaseModel):
     users: Annotated[int, Field(..., description="Number of users assigned to the role.")]
     created: Annotated[int, Field(..., description="Time of creation, as Unix timestamp.")]
     updated: Annotated[int, Field(..., description="Time of last update, as Unix timestamp.")]
+
+
+class RolesResponse(BaseModel):
+    object: Annotated[Literal["list"], Field(default="list", description="Type of the object.")]
+    total: Annotated[int, Field(description="Total number of roles.")]
+    offset: Annotated[int, Field(description="Offset of the roles list.")]
+    limit: Annotated[int, Field(description="Limit of the roles list.")]
+    data: Annotated[list[RoleResponse], Field(description="List of roles.")]
