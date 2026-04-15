@@ -50,7 +50,7 @@ async def audio_transcriptions(
             model=data.model,
             endpoint=EndpointRoute.AUDIO_TRANSCRIPTIONS,
             files={"file": (data.file.filename, file_content, data.file.content_type)},
-            form=data.model_dump(mode="json", exclude="file"),
+            form=data.model_dump(mode="json", exclude_none=True, exclude={"file"}),
         ),
         redis_client=redis_client,
     )
