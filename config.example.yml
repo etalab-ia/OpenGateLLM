@@ -31,6 +31,11 @@ dependencies:
   # sentry:
   #   dsn: ${SENTRY_DSN}
 
+  # langfuse:
+  #   public_key: ${LANGFUSE_PUBLIC_KEY}
+  #   secret_key: ${LANGFUSE_SECRET_KEY}
+  #   url: ${LANGFUSE_BASE_URL}
+
 # ---------------------------------- settings -----------------------------------
 settings:
   # disabled_routers: ["admin", "audio"]
