@@ -298,10 +298,8 @@ class BaseModelProvider(ABC):
             try:
                 langfuse_obs = global_context.langfuse_client.start_observation(
                     as_type="generation",
-                    name=ObservationName[request_content.endpoint.name],
+                    name=ObservationName[request_content.endpoint.name].value,
                     model=self.model_name,
-                    # input=request_content.body.get("messages") or request_content.body.get("input") or request_content.body,
-                    input=["REDACTED"],
                 )
             except Exception:
                 logger.debug("Failed to start Langfuse generation observation", exc_info=True)
@@ -361,8 +359,6 @@ class BaseModelProvider(ABC):
             if langfuse_obs is not None:
                 try:
                     ctx = request_context.get()
-                    response_data = response.json()
-                    output = (response_data.get("choices") or [{}])[0].get("message", {}).get("content")
                     langfuse_obs.update(
                         output="[REDACTED]",
                         usage_details={"input": ctx.usage.prompt_tokens, "output": ctx.usage.completion_tokens},
@@ -429,10 +425,8 @@ class BaseModelProvider(ABC):
             try:
                 langfuse_obs = global_context.langfuse_client.start_observation(
                     as_type="generation",
-                    name=ObservationName[request_content.endpoint.name],
+                    name=ObservationName[request_content.endpoint.name].value,
                     model=self.model_name,
-                    # input=request_content.body.get("messages"),
-                    input=["REDACTED"],
                 )
             except Exception:
                 logger.debug("Failed to start Langfuse stream generation observation", exc_info=True)

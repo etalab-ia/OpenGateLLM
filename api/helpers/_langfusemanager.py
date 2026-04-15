@@ -2,7 +2,7 @@ from enum import StrEnum
 import logging
 from typing import Any
 
-from langfuse import Langfuse
+from langfuse import Langfuse, propagate_attributes
 
 from api.schemas.core.configuration import LangfuseDependency
 from api.utils.context import request_context
@@ -33,14 +33,13 @@ class LangfuseManager:
             return
         logger.info("Langfuse client successfully connected.")
 
-    def start_observation(self, as_type: str, name: str | None = None, model: str | None = None, input: Any = None) -> Any:
+    def start_observation(self, as_type: str, name: str | None = None, model: str | None = None) -> Any:
         """Start a new observation in the current trace context.
 
         Args:
             as_type: The type of observation ("span" or "generation").
             name: Optional name for the observation.
             model: Optional model name (for generation observations).
-            input: Optional input data to attach to the observation.
 
         Returns:
             The Langfuse observation object.
@@ -55,9 +54,10 @@ class LangfuseManager:
             kwargs["model"] = model
         if trace_context is not None:
             kwargs["trace_context"] = trace_context
-        if input is not None:
-            kwargs["input"] = input
 
+        if ctx.user_info is not None:
+            with propagate_attributes(user_id=str(ctx.user_info.email)):
+                return self._client.start_observation(**kwargs)
         return self._client.start_observation(**kwargs)
 
     @staticmethod
@@ -81,5 +81,4 @@ class LangfuseManager:
             langfuse_obs.end()
 
 
-# TODO - Add userId in traces to track users
 # TODO - When using a file/picture, please add the document type as metadata and document size
