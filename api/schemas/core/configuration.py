@@ -21,7 +21,8 @@ from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, RouterName
 # utils ----------------------------------------------------------------------------------------------------------------------------------------------
 
 
-def custom_validation_error(url: str | None = None):
+def custom_validation_error(suffix: str = ""):
+    # TODO: surcharge url pour playground
     """
     Decorator to override Pydantic ValidationError to change error message.
 
@@ -63,7 +64,7 @@ def custom_validation_error(url: str | None = None):
                         break
 
                     current_model = next_model
-                    documentation_url = f"{base_url}#{current_model.__name__.lower()}"
+                    documentation_url = f"{base_url}#{current_model.__name__.lower()}{suffix}"
 
                 return documentation_url
 
@@ -345,7 +346,7 @@ class Tokenizer(StrEnum):
     TIKTOKEN_O200K_BASE = "tiktoken_o200k_base"
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/configuration/configuration_file#settings")
+@custom_validation_error()
 class Settings(ConfigBaseModel):
     """
     General settings configuration fields.

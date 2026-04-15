@@ -3,7 +3,6 @@ import datetime as dt
 import httpx
 import reflex as rx
 
-from app.core.configuration import configuration
 from app.features.users.models import User
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
@@ -99,7 +98,7 @@ class UsersState(EntityState):
                         response = await client.get(
                             url=f"{self.opengatellm_url}/v1/admin/roles",
                             headers={"Authorization": f"Bearer {self.api_key}"},
-                            timeout=configuration.settings.playground_opengatellm_timeout,
+                            timeout=self.opengatellm_timeout,
                         )
 
                         response.raise_for_status()
@@ -121,7 +120,7 @@ class UsersState(EntityState):
                             url=f"{self.opengatellm_url}/v1/admin/organizations",
                             params={"offset": offset, "limit": 100},
                             headers={"Authorization": f"Bearer {self.api_key}"},
-                            timeout=configuration.settings.playground_opengatellm_timeout,
+                            timeout=self.opengatellm_timeout,
                         )
 
                         response.raise_for_status()
@@ -138,7 +137,7 @@ class UsersState(EntityState):
                     url=f"{self.opengatellm_url}/v1/admin/users",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
 
                 response.raise_for_status()
@@ -187,7 +186,7 @@ class UsersState(EntityState):
                 response = await client.delete(
                     url=f"{self.opengatellm_url}/v1/admin/users/{self.entity_to_delete.id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -272,7 +271,7 @@ class UsersState(EntityState):
                     url=f"{self.opengatellm_url}/v1/admin/users",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -347,7 +346,7 @@ class UsersState(EntityState):
                     url=f"{self.opengatellm_url}/v1/admin/users/{self.entity.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
             response.raise_for_status()
 

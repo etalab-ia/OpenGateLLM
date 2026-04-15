@@ -122,7 +122,6 @@ def providers() -> rx.Component:
 
 # Create the app with theme configuration
 app = rx.App(
-    stylesheets=["proconnect.css"],
     theme=rx.theme(
         has_background=configuration.settings.playground_theme_has_background,
         accent_color=configuration.settings.playground_theme_accent_color,
@@ -135,8 +134,11 @@ app = rx.App(
     head_components=[rx.el.link(rel="icon", type="image/svg+xml", href="/favicon.svg")],
 )
 
+
 # Add pages
-app.add_page(component=index, route="/", on_load=[AuthState.login_proconnect])
+sso_login = [AuthState.sso_login] if configuration.settings.playground_sso_enabled else []
+
+app.add_page(component=index, route="/", on_load=sso_login)
 app.add_page(component=account, route="/account")
 app.add_page(component=keys, route="/keys", on_load=[KeysState.load_entities])
 app.add_page(component=usage, route="/usage", on_load=[UsageState.load_entities])

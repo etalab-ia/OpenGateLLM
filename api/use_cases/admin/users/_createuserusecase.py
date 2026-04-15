@@ -11,8 +11,8 @@ from api.domain.userinfo.errors import UserIsNotAdminError
 class CreateUserCommand:
     user_id: int
     email: str
-    password: str
     role_id: int
+    password: str | None = None
     name: str | None = None
     organization_id: int | None = None
     budget: float | None = None

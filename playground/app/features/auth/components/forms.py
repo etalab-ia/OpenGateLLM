@@ -57,7 +57,7 @@ def login_form() -> rx.Component:
                     ),
                     rx.button(
                         "Sign In",
-                        on_click=AuthState.login_direct,
+                        on_click=AuthState.basic_login,
                         width="100%",
                         loading=AuthState.is_loading,
                         disabled=AuthState.is_loading,
@@ -65,40 +65,6 @@ def login_form() -> rx.Component:
                     ),
                     spacing="4",
                     width="100%",
-                ),
-                rx.vstack(
-                    rx.hstack(
-                        rx.separator(flex_grow="1"),
-                        rx.text("ou", size="1", color=rx.color("gray", 9)),
-                        rx.separator(flex_grow="1"),
-                        width="100%",
-                        align="center",
-                        spacing="2",
-                    ),
-                    rx.center(
-                        rx.el.button(
-                            rx.el.span(
-                                "S'identifier avec ProConnect",
-                                class_name="proconnect-sr-only",
-                            ),
-                            class_name="proconnect-button",
-                            type="button",
-                            on_click=AuthState.login_proconnect,
-                        ),
-                        width="100%",
-                    ),
-                    rx.center(
-                        rx.el.a(
-                            "Qu'est-ce que ProConnect ?",
-                            href="https://www.proconnect.gouv.fr/",
-                            target="_blank",
-                            rel="noopener noreferrer",
-                        ),
-                        width="100%",
-                    ),
-                    spacing="3",
-                    width="100%",
-                    padding_top="1em",
                 ),
                 spacing="0",
                 width="100%",

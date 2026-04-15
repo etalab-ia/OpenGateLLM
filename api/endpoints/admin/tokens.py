@@ -31,6 +31,7 @@ async def create_token(
     token_id, token = await global_context.identity_access_manager.create_token(
         postgres_session=postgres_session,
         user_id=body.user,
+        email=body.email,
         name=body.name,
         expires=body.expires,
     )

@@ -30,8 +30,9 @@ class AuthState(rx.State):
     is_loading: bool = False
 
     opengatellm_url: str = configuration.settings.playground_opengatellm_url
-    admin_api_key: str = configuration.settings.playground_admin_api_key
-    default_role_id: int = int(configuration.settings.playground_default_role_id)
+    opengatellm_timeout: int = configuration.settings.playground_opengatellm_timeout
+    sso_opengatellm_admin_api_key: str | None = configuration.settings.playground_sso_opengatellm_admin_api_key
+    sso_opengatellm_default_role_id: int | None = configuration.settings.playground_sso_opengatellm_default_role_id
 
     # Form fields
     email_input: str = ""
@@ -47,123 +48,42 @@ class AuthState(rx.State):
         """Set password input value."""
         self.password_input = value
 
-    @rx.event
-    async def login_proconnect(self):
-        """Auto-login using the ProConnect identity injected by oauth2-proxy.
+    async def _login(self, client: httpx.AsyncClient, email: str, password: str):
+        response = await client.post(
+            url=f"{self.opengatellm_url}/v1/auth/login",
+            json={"email": email, "password": password},
+            timeout=self.opengatellm_timeout,
+        )
+        return response
 
-        Reads the X-Auth-Request-Email header forwarded by oauth2-proxy into the WebSocket
-        connection. If the header is present, calls POST /v1/auth/proconnect on the API
-        (no password required - the OIDC authentication already happened at the proxy level).
-        If the header is absent the user landed directly on the playground (port 8501) and
-        no action is taken - they can still log in with email/password.
-        """
-        if self.is_authenticated:
-            return
+    async def _create_api_key(self, client: httpx.AsyncClient, email: str):
+        response = await client.post(
+            url=f"{self.opengatellm_url}/v1/admin/tokens",
+            json={"email": email, "name": "playground"},
+            headers={"Authorization": f"Bearer {self.sso_opengatellm_admin_api_key}"},
+            timeout=self.opengatellm_timeout,
+        )
+        return response
 
-        # oauth2-proxy injecte X-Forwarded-Email (via pass_user_headers=true)
-        # accessible via raw_headers (clés en minuscules avec tirets)
-        email = self.router.headers.raw_headers.get("x-forwarded-email")
-        if not email:
-            return
+    async def _create_user(self, client: httpx.AsyncClient, email: str):
+        response = await client.post(
+            url=f"{self.opengatellm_url}/v1/admin/users",
+            json={"email": email, "name": email, "role": self.sso_opengatellm_default_role_id},
+            headers={"Authorization": f"Bearer {self.sso_opengatellm_admin_api_key}"},
+            timeout=self.opengatellm_timeout,
+        )
+        return response
 
-        self.is_loading = True
-        yield
-
-        response = None
-        try:
-            async with httpx.AsyncClient() as client:
-                # response = await client.post(
-                #     f"{self.opengatellm_url}/v1/auth/proconnect",
-                #     headers={"X-Auth-Request-Email": email},
-                #     timeout=configuration.settings.playground_opengatellm_timeout,
-                # )
-                import requests
-
-                url = f"{self.opengatellm_url}/v1/admin/users"
-                response = requests.get(url=url, params={"email": email}, headers={"Authorization": f"Bearer {self.admin_api_key}"})
-                if response.status_code == 404:
-                    # TODO:  rendre le password optionnel
-                    response = requests.post(
-                        url=url,
-                        json={"email": email, "name": email, "password": "changeme", "role": self.default_role_id},
-                        headers={"Authorization": f"Bearer {self.admin_api_key}"},
-                    )
-                    if response.status_code != 201:
-                        error_detail = response.json().get("detail", "Failed to create user")
-                        error_detail = f"Failed to create user: {error_detail}\nURL: {url}\nAPI Key: {self.admin_api_key}"
-                        yield rx.toast.error(error_detail, position="bottom-right")
-                        self.is_loading = False
-                        yield
-                        return
-
-                    user_id = response.json().get("id")
-
-                elif response.status_code == 200:
-                    user_id = response.json().get("data", [])[0]["id"]
-                else:
-                    error_detail = response.json().get("detail", "Failed to fetch user info")
-                    error_detail = f"Failed to fetch user info: {error_detail}\nURL: {url}\nAPI Key: {self.admin_api_key}"
-
-                    yield rx.toast.error(error_detail, position="bottom-right")
-                    self.is_loading = False
-                    yield
-                    return
-
-                # TODO: support email as param to /v1/admin/tokens endpoint
-                # TODO: add SSO expiration duration
-                response = requests.post(
-                    url=f"{self.opengatellm_url}/v1/admin/tokens",
-                    json={"user": user_id, "name": "playground"},
-                    headers={"Authorization": f"Bearer {self.admin_api_key}"},
-                )
-                if response.status_code != 201:
-                    error_detail = response.json().get("detail", "Failed to create token")
-                    error_detail = f"Failed to create token: {error_detail}\nURL: {url}\nAPI Key: {self.admin_api_key}"
-                    yield rx.toast.error(error_detail, position="bottom-right")
-                    self.is_loading = False
-                    yield
-                    return
-
-                api_key = response.json().get("token")
-                api_key_id = response.json().get("id")
-
-                response = await client.get(
-                    f"{self.opengatellm_url}/v1/me/info",
-                    headers={"Authorization": f"Bearer {api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
-                )
-
-                if response.status_code != 200:
-                    yield rx.toast.error("Failed to fetch user info", position="bottom-right")
-                    self.is_loading = False
-                    yield
-                    return
-
-                user_data = response.json()
-
-                self.is_authenticated = True
-                self.user_id = user_data.get("id")
-                self.user_email = user_data.get("email")
-                self.user_name = user_data.get("name")
-                self.api_key = api_key
-                self.api_key_id = api_key_id
-                self.user_organization = user_data.get("organization")
-                self.user_budget = user_data.get("budget")
-                self.user_priority = user_data.get("priority", 0)
-                self.user_created = user_data.get("created")
-                self.user_updated = user_data.get("updated")
-                self.user_permissions = user_data.get("permissions", [])
-                self.user_limits = user_data.get("limits", [])
-
-        except Exception as e:
-            yield httpx_error_toast(exception=e, response=response)
-        finally:
-            self.is_loading = False
-            yield
+    async def _get_user_info(self, client: httpx.AsyncClient, api_key: str):
+        response = await client.get(
+            url=f"{self.opengatellm_url}/v1/me/info",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=self.opengatellm_timeout,
+        )
+        return response
 
     @rx.event
-    async def login_direct(self):
-        """Handle login using direct state values."""
+    async def basic_login(self):
         email = self.email_input.strip()
         password = self.password_input.strip()
 
@@ -177,35 +97,15 @@ class AuthState(rx.State):
         response = None
         try:
             async with httpx.AsyncClient() as client:
-                # Login to get API key
-                response = await client.post(
-                    f"{self.opengatellm_url}/v1/auth/login",
-                    json={"email": email, "password": password},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
-                )
-                if response.status_code != 200:
-                    error_detail = response.json().get("detail", "Login failed")
-                    yield rx.toast.error(error_detail, position="bottom-right")
-                    self.is_loading = False
-                    yield
-                    return
-
-                login_data = response.json()
-                api_key = login_data.get("key")
-                api_key_id = login_data.get("id")
+                # Create API key
+                response = await self._login(client=client, email=email, password=password)
+                response.raise_for_status()
+                api_key = response.json().get("key")
+                api_key_id = response.json().get("id")
 
                 # Get user info
-                response = await client.get(
-                    f"{self.opengatellm_url}/v1/me/info",
-                    headers={"Authorization": f"Bearer {api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
-                )
-
-                if response.status_code != 200:
-                    yield rx.toast.error("Failed to fetch user info", position="bottom-right")
-                    self.is_loading = False
-                    yield
-                    return
+                response = await self._get_user_info(client=client, api_key=api_key)
+                response.raise_for_status()
 
                 user_data = response.json()
 
@@ -231,6 +131,61 @@ class AuthState(rx.State):
                 if hasattr(self, "load_models"):
                     async for _ in self.load_models():
                         yield
+
+        except Exception as e:
+            yield httpx_error_toast(exception=e, response=response)
+        finally:
+            self.is_loading = False
+            yield
+
+    @rx.event
+    async def sso_login(self):
+        if self.is_authenticated:
+            return
+
+        email = self.router.headers.raw_headers.get("x-forwarded-email")
+        if not email:
+            return
+
+        self.is_loading = True
+        yield
+
+        response = None
+        try:
+            async with httpx.AsyncClient() as client:
+                # Create API key
+                response = await self._create_api_key(client=client, email=email)
+
+                if response.status_code == 404:
+                    response = await self._create_user(client=client, email=email)
+                    response.raise_for_status()
+
+                    response = await self._create_api_key(client=client, email=email)
+                    response.raise_for_status()
+
+                response.raise_for_status()
+                api_key = response.json().get("token")
+                api_key_id = response.json().get("id")
+
+                # Get user info
+                response = await self._get_user_info(client=client, api_key=api_key)
+                response.raise_for_status()
+                user_data = response.json()
+
+                # Update state
+                self.is_authenticated = True
+                self.user_id = user_data.get("id")
+                self.user_email = user_data.get("email")
+                self.user_name = user_data.get("name")
+                self.api_key = api_key
+                self.api_key_id = api_key_id
+                self.user_organization = user_data.get("organization")
+                self.user_budget = user_data.get("budget")
+                self.user_priority = user_data.get("priority", 0)
+                self.user_created = user_data.get("created")
+                self.user_updated = user_data.get("updated")
+                self.user_permissions = user_data.get("permissions", [])
+                self.user_limits = user_data.get("limits", [])
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)

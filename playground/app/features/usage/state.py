@@ -6,7 +6,6 @@ from typing import Any
 import httpx
 import reflex as rx
 
-from app.core.configuration import configuration
 from app.features.usage.models import Usage
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
@@ -64,7 +63,7 @@ class UsageState(EntityState):
                     url=f"{self.opengatellm_url}/v1/me/usage",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -82,17 +81,15 @@ class UsageState(EntityState):
     def usage_rows(self) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
         for row in self.entities:
-            rows.append(
-                {
-                    "date": row.created,
-                    "endpoint": row.endpoint,
-                    "key": row.key,
-                    "model": row.model,
-                    "tokens": "" if row.total_tokens == 0 else f"{row.prompt_tokens} → {row.completion_tokens}",
-                    "cost": "" if row.cost == 0.0 or row.cost is None else f"{row.cost:.4f}",
-                    "kgCO2eq": "" if row.kgco2eq is None else f"{round(row.kgco2eq, 5)}",
-                }
-            )
+            rows.append({
+                "date": row.created,
+                "endpoint": row.endpoint,
+                "key": row.key,
+                "model": row.model,
+                "tokens": "" if row.total_tokens == 0 else f"{row.prompt_tokens} → {row.completion_tokens}",
+                "cost": "" if row.cost == 0.0 or row.cost is None else f"{row.cost:.4f}",
+                "kgCO2eq": "" if row.kgco2eq is None else f"{round(row.kgco2eq, 5)}",
+            })
         return rows
 
     ############################################################

@@ -45,7 +45,6 @@ class EndpointRoute(StrEnum):
     ADMIN_USERS = f"/{RouterName.ADMIN}/users"
     AUDIO_TRANSCRIPTIONS = f"/{RouterName.AUDIO}/transcriptions"
     AUTH_LOGIN = f"/{RouterName.AUTH}/login"
-    AUTH_PROCONNECT = f"/{RouterName.AUTH}/proconnect"
     CHAT_COMPLETIONS = f"/{RouterName.CHAT}/completions"
     CHUNKS = f"/{RouterName.CHUNKS}"
     COLLECTIONS = f"/{RouterName.COLLECTIONS}"

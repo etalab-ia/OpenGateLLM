@@ -2,7 +2,7 @@ from functools import wraps
 import logging
 import os
 import re
-from typing import Any
+from typing import Any, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field, constr, field_validator, model_validator
 from pydantic import ValidationError as PydanticValidationError
@@ -12,7 +12,7 @@ import yaml
 from app.core.variables import DEFAULT_APP_NAME
 
 
-def custom_validation_error(url: str | None = None):
+def custom_validation_error(suffix: str = ""):
     """
     Decorator to override Pydantic ValidationError to change error message.
 
@@ -21,25 +21,50 @@ def custom_validation_error(url: str | None = None):
     """
 
     class ValidationError(Exception):
-        def __init__(self, exc: PydanticValidationError, cls: BaseModel, url: str):
+        def __init__(
+            self, exc: PydanticValidationError, cls: BaseModel, base_url: str = "https://docs.opengatellm.org/configuration/configuration_file"
+        ):
             super().__init__()
-            error_count = exc.error_count()
             error_content = exc.errors()
-            message = f"{error_count} validation error for {cls.__name__}\n"
 
+            def resolve_model_for_error(model: type[BaseModel], loc: tuple[Any, ...]):
+                current_model = model
+                documentation_url = base_url
+
+                for idx, part in enumerate(loc):
+                    if not isinstance(part, str):
+                        continue
+                    if part not in current_model.__pydantic_fields__:
+                        break
+
+                    field_info = current_model.__pydantic_fields__[part]
+
+                    annotation = field_info.annotation
+                    next_model = None
+                    origin = get_origin(annotation)
+                    args = get_args(annotation)
+                    candidates = args if origin is not None else (annotation,)
+
+                    for candidate in candidates:
+                        if isinstance(candidate, type) and issubclass(candidate, BaseModel):
+                            next_model = candidate
+                            break
+
+                    if next_model is None:
+                        break
+
+                    current_model = next_model
+                    documentation_url = f"{base_url}#{current_model.__name__.lower()}{suffix}"
+
+                return documentation_url
+
+            message = str(exc)
             for error in error_content:
-                url = url or error["url"]
-                if error["type"] == "assertion_error":
-                    message += f"{error['msg']}\n"
-                else:
-                    if len(error["loc"]) > 0:
-                        message += f"{error['loc'][0]}\n"
-                    message += f"  {error["msg"]} [type={error["type"]}, input_value={error.get("input", "")}, input_type={type(error.get("input")).__name__}]\n"  # fmt: off
-                    if len(error["loc"]) > 0:
-                        description = cls.__pydantic_fields__[error["loc"][0]].description
-                        if description:
-                            message += f"\n  {description}\n"
-                message += f"    For further information visit {url}\n\n"
+                loc = tuple(error.get("loc", ()))
+                documentation_url = resolve_model_for_error(cls, loc)
+                original_line = f"    For further information visit {error['url']}"
+                replacement_line = f"    For further information visit {documentation_url}"
+                message = message.replace(original_line, replacement_line, 1)
 
             self.message = message
 
@@ -54,7 +79,7 @@ def custom_validation_error(url: str | None = None):
             try:
                 original_init(self, **data)
             except PydanticValidationError as e:
-                raise ValidationError(exc=e, cls=cls, url=url) from None  # hide previous traceback
+                raise ValidationError(exc=e, cls=cls) from None  # hide previous traceback
 
         cls.__init__ = new_init
         return cls
@@ -66,26 +91,29 @@ class ConfigBaseModel(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/configuration/configuration_file#redisdependency-1")
+@custom_validation_error(suffix="-1")
 class RedisDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/configuration/configuration_file#dependencies-1")
+@custom_validation_error(suffix="-1")
 class Dependencies(ConfigBaseModel):
     redis: RedisDependency | None = Field(default=None, description="Set the Redis connection url to use as stage manager. See https://reflex.dev/docs/api-reference/config/ for more information.")  # fmt: off
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/configuration/configuration_file#settings-1")
+@custom_validation_error(suffix="-1")
 class Settings(ConfigBaseModel):
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
     routing_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in routing tasks.")  # fmt: off
     app_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application.")
 
     playground_opengatellm_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
-    playground_admin_api_key: str = Field(description="The API key to use to access the admin API.")
-    playground_default_role_id: str | int = Field(description="The default role ID for new users.")
     playground_opengatellm_timeout: int = Field(default=60, description="The timeout in seconds for the OpenGateLLM API.")
+
+    playground_sso_enabled: bool = Field(default=False, description="Whether SSO is enabled.")
+    playground_sso_opengatellm_admin_api_key: str | None = Field(default=None, description="To activate SSO, set OpenGateLLM API key with ADMIN permissions to create users and tokens.")  # fmt: off
+    playground_sso_opengatellm_default_role_id: int | None = Field(default=None, description="To activate SSO, set the default role ID of OpenGateLLM API for new users.")  # fmt: off
+
     playground_default_model: str | None = Field(default=None, description="The first model selected in chat page.")
     playground_theme_has_background: bool = Field(default=True, description="Whether the theme has a background.")
     playground_theme_accent_color: str = Field(default="purple", description="The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.")  # fmt: off
@@ -98,6 +126,15 @@ class Settings(ConfigBaseModel):
     swagger_url: str | None = Field(default="http://localhost:8000/docs", pattern=r"^http[s]?://", description="Swagger URL. If not provided, deactivated swagger link in the navigation bar.")  # fmt: off
     reference_url: str | None = Field(default="http://localhost:8000/redoc", pattern=r"^http[s]?://", description="Reference URL. If not provided, deactivated reference link in the navigation bar.")  # fmt: off
     documentation_url: str | None = Field(default="https://docs.opengatellm.org", pattern=r"^http[s]?://", description="Documentation URL. If not provided, deactivated documentation link in the navigation bar.")  # fmt: off
+
+    @model_validator(mode="after")
+    def validate_sso_enabled(self):
+        if self.playground_sso_enabled:
+            if self.playground_sso_opengatellm_admin_api_key is None:
+                raise ValueError("SSO is enabled but no OpenGateLLM API key with ADMIN permissions is provided.")
+            if self.playground_sso_opengatellm_default_role_id is None:
+                raise ValueError("SSO is enabled but no default role ID is provided.")
+        return self
 
 
 class ConfigFile(ConfigBaseModel):
@@ -131,6 +168,14 @@ class Configuration(BaseSettings):
         uncommented_lines = [line for line in lines if not line.lstrip().startswith("#")]
         file_content = cls.replace_environment_variables(file_content="".join(uncommented_lines))
         config = ConfigFile(**yaml.safe_load(stream=file_content))
+
+        try:
+            default_role_id = config.settings.playground_sso_opengatellm_default_role_id
+            if default_role_id is not None:
+                default_role_id = int(default_role_id)
+            config.settings.playground_sso_opengatellm_default_role_id = default_role_id
+        except ValueError:
+            raise ValueError("For SSO to be enabled, default role ID must be an integer.")
 
         values.dependencies = config.dependencies
         values.settings = config.settings

@@ -546,14 +546,24 @@ class IdentityAccessManager:
 
         return organizations
 
-    async def create_token(self, postgres_session: AsyncSession, user_id: int, name: str, expires: int | None = None) -> tuple[int, str]:
+    async def create_token(
+        self, postgres_session: AsyncSession, name: str, expires: int | None = None, user_id: int | None = None, email: str | None = None
+    ) -> tuple[int, str]:
+        assert user_id is not None or email is not None, "user_id or email is required"
+        assert user_id is None or email is None, "user_id and email cannot be provided together"
+
         if self.key_max_expiration_days:
             if expires is None:
                 expires = int(dt.datetime.now(tz=dt.UTC).timestamp()) + self.key_max_expiration_days * 86400
             elif expires > int(dt.datetime.now(tz=dt.UTC).timestamp()) + self.key_max_expiration_days * 86400:
                 raise InvalidTokenExpirationException(detail=f"Token expiration timestamp cannot be greater than {self.key_max_expiration_days} days from now.")  # fmt: off
 
-        result = await postgres_session.execute(statement=select(UserTable).where(UserTable.id == user_id))
+        statement = select(UserTable)
+        if user_id is not None:
+            statement = statement.where(UserTable.id == user_id)
+        if email is not None:
+            statement = statement.where(UserTable.email == email)
+        result = await postgres_session.execute(statement=statement)
         try:
             user = result.scalar_one()
         except NoResultFound:
@@ -600,7 +610,7 @@ class IdentityAccessManager:
             expires = int((datetime.now() + timedelta(seconds=self.playground_session_duration)).timestamp())
 
         # Create a new token
-        token_id, token = await self.create_token(postgres_session, user_id, name, expires=expires)
+        token_id, token = await self.create_token(postgres_session=postgres_session, user_id=user_id, name=name, expires=expires)
 
         return token_id, token
 

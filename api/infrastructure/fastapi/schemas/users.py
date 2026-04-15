@@ -9,8 +9,8 @@ from api.schemas import BaseModel
 class CreateUserBody(BaseModel):
     email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(..., description="The user email.")]
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="The user name.")
-    password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., description="The user password.")
-    role: int = Field(..., description="The role ID.")
+    password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="The user password.")
+    role: int = Field(..., description="The role ID.")  # @TODO: replace by role_id
     organization: int | None = Field(default=None, description="The organization ID.")
     budget: float | None = Field(default=None, description="The budget.")
     expires: int | None = Field(default=None, description="The expiration timestamp.")
@@ -18,6 +18,7 @@ class CreateUserBody(BaseModel):
 
     @field_validator("expires", mode="before")
     def must_be_future(cls, expires):
+        # @TODO: replace by Pydantic FutureDatetime
         if isinstance(expires, int):
             if expires <= int(dt.datetime.now(tz=dt.UTC).timestamp()):
                 raise ValueError("Wrong timestamp, must be in the future.")
