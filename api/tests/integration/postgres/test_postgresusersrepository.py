@@ -6,7 +6,7 @@ from api.domain.user.entities import User
 from api.domain.user.errors import OrganizationNotFoundError, RoleNotFoundError, UserAlreadyExistsError
 from api.infrastructure.postgres import PostgresUserRepository
 from api.sql.models import User as UserTable
-from api.tests.integration.factories import OrganizationSQLFactory, RoleSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import OrganizationSQLFactory, RoleSQLFactory, UserSQLFactory
 from api.utils.exceptions import UserNotFoundException
 
 

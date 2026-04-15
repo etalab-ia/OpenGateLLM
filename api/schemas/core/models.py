@@ -46,6 +46,7 @@ class RequestContent(BaseModel):
 
     # @TODO: add a build method to build the request content from a request (after clean architecture refactor)
     # @TODO: build body with model_fields_set to exclude unset fields
+    # @TODO: set auto method
 
 
 class Metric(str, Enum):

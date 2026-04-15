@@ -1,3 +1,4 @@
+from sqlalchemy import delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,4 +22,10 @@ class PostgresPermissionRepository(PermissionRepository):
             .returning(PermissionTable.permission)
         )
 
+        return [PermissionType(row.permission) for row in result.all()]
+
+    async def delete_permissions_by_role_id(self, role_id: int) -> list[PermissionType]:
+        result = await self.postgres_session.execute(
+            delete(table=PermissionTable).where(PermissionTable.role_id == role_id).returning(PermissionTable.permission)
+        )
         return [PermissionType(row.permission) for row in result.all()]

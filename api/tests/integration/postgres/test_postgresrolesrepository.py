@@ -1,9 +1,9 @@
 import pytest
 
 from api.domain.role.entities import LimitType, PermissionType, Role
-from api.domain.role.errors import RoleAlreadyExistsError
+from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 from api.infrastructure.postgres import PostgresRolesRepository
-from api.tests.integration.factories import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.exceptions import RoleNotFoundException
 
 
@@ -170,14 +170,56 @@ class TestGetRoles:
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestUpdateRole:
-    async def test_raises_not_implemented_error(self, repository, db_session):
+    async def test_updates_role_name_and_returns_updated_role(self, repository, db_session):
         # Arrange
-        role = RoleSQLFactory()
+        router = RouterSQLFactory()
+        sql_role = RoleSQLFactory(
+            name="original-name",
+            permissions=[PermissionType.READ_METRIC],
+            limits=[{"router": router, "type": LimitType.TPM, "value": 1000}],
+        )
         await db_session.flush()
+        role = await repository.get_role_by_id(role_id=sql_role.id)
+        updated_role = role.model_copy(update={"name": "updated-name", "limits": [], "permissions": []})
 
-        # Act & Assert
-        with pytest.raises(NotImplementedError):
-            await repository.update_role(role)
+        # Act
+        result = await repository.update_role(updated_role)
+
+        # Assert
+        assert isinstance(result, Role)
+        assert result.id == sql_role.id
+        assert result.name == "updated-name"
+        assert result.permissions == []
+        assert result.limits == []
+
+    async def test_returns_role_already_exists_error_when_name_conflicts(self, repository, db_session):
+        # Arrange
+        RoleSQLFactory(name="taken-name")
+        sql_role = RoleSQLFactory(name="other-name")
+        await db_session.flush()
+        role = await repository.get_role_by_id(role_id=sql_role.id)
+        conflicting_role = role.model_copy(update={"name": "taken-name"})
+
+        # Act
+        result = await repository.update_role(conflicting_role)
+
+        # Assert
+        assert isinstance(result, RoleAlreadyExistsError)
+        assert result.name == "taken-name"
+
+    async def test_returns_role_not_found_error_when_role_does_not_exist(self, repository, db_session):
+        # Arrange
+        sql_role = RoleSQLFactory()
+        await db_session.flush()
+        domain_role = await repository.get_role_by_id(role_id=sql_role.id)
+        non_existent_role = domain_role.model_copy(update={"id": 999999})
+
+        # Act
+        result = await repository.update_role(non_existent_role)
+
+        # Assert
+        assert isinstance(result, RoleNotFoundError)
+        assert result.role_id == 999999
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -186,3 +228,84 @@ class TestDeleteRole:
         # Act & Assert
         with pytest.raises(NotImplementedError):
             await repository.delete_role(role_id=1)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestGetRoleById:
+    async def test_returns_role_when_it_exists(self, repository, db_session):
+        # Arrange
+        role = RoleSQLFactory(name="existing-role")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_role_by_id(role_id=role.id)
+
+        # Assert
+        assert isinstance(result, Role)
+        assert result.id == role.id
+        assert result.name == "existing-role"
+
+    async def test_should_return_role_not_found_when_role_does_not_exist(self, repository, db_session):
+        # Act & Assert
+        result = await repository.get_role_by_id(role_id=999999)
+
+        assert isinstance(result, RoleNotFoundError)
+
+    async def test_returns_role_with_permissions(self, repository, db_session):
+        # Arrange
+        role = RoleSQLFactory()
+        PermissionSQLFactory(role=role, permission=PermissionType.ADMIN)
+        PermissionSQLFactory(role=role, permission=PermissionType.READ_METRIC)
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_role_by_id(role_id=role.id)
+
+        # Assert
+        assert set(result.permissions) == {PermissionType.ADMIN, PermissionType.READ_METRIC}
+
+    async def test_returns_role_with_limits(self, repository, db_session):
+        # Arrange
+        role = RoleSQLFactory()
+        router = RouterSQLFactory()
+        LimitSQLFactory(role=role, router=router, type=LimitType.TPM, value=500)
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_role_by_id(role_id=role.id)
+
+        # Assert
+        assert len(result.limits) == 1
+        assert result.limits[0].router_id == router.id
+        assert result.limits[0].type == LimitType.TPM
+        assert result.limits[0].value == 500
+
+    async def test_returns_role_without_permissions_and_limits_when_none_set(self, repository, db_session):
+        # Arrange
+        role = RoleSQLFactory()
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_role_by_id(role_id=role.id)
+
+        # Assert
+        assert result.permissions == []
+        assert result.limits == []
+
+    async def test_returns_role_with_correct_timestamps(self, repository, db_session):
+        # Arrange
+        role = RoleSQLFactory()
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_role_by_id(role_id=role.id)
+
+        # Assert
+        assert isinstance(result.created, int)
+        assert isinstance(result.updated, int)
+        assert result.created == int(role.created.timestamp())
+        assert result.updated == int(role.updated.timestamp())
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

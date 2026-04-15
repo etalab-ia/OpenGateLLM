@@ -1,12 +1,17 @@
 from collections.abc import AsyncGenerator
 from contextvars import ContextVar
+from typing import Any
 
 from fastapi import Depends
+import redis.asyncio as redis
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.key import KeyRepository
 from api.domain.provider import ProviderRepository
 from api.domain.role import LimitRepository, PermissionRepository
+from api.infrastructure.fastapi.context import RequestContextManager
+from api.infrastructure.http.model import ModelMetricsLogger, ModelTokenizerComputer
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
     PostgresKeyRepository,
@@ -26,7 +31,7 @@ from api.use_cases.admin.providers import (
     GetProvidersUseCase,
     UpdateProviderUseCase,
 )
-from api.use_cases.admin.roles import CreateRoleUseCase
+from api.use_cases.admin.roles import CreateRoleUseCase, UpdateRoleUseCase
 from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
 from api.use_cases.admin.users import CreateUserUseCase
 from api.use_cases.models import GetModelsUseCase
@@ -35,6 +40,7 @@ from api.utils.context import global_context, request_context
 
 
 def get_request_context() -> ContextVar[RequestContext]:
+    # @TODO: replace with RequestContextManager.get_request_context()
     return request_context
 
 
@@ -54,6 +60,12 @@ async def get_postgres_session() -> AsyncGenerator[AsyncSession]:
             if postgres_session.in_transaction():
                 await postgres_session.rollback()
             raise
+
+
+async def get_redis_client() -> AsyncGenerator[Redis, Any]:
+    client = redis.Redis(connection_pool=global_context.redis_pool)
+    yield client
+    await client.aclose()
 
 
 # repositories
@@ -89,6 +101,26 @@ def get_key_repository(postgres_session: AsyncSession = Depends(get_postgres_ses
     return PostgresKeyRepository(postgres_session=postgres_session)
 
 
+# helpers
+def get_tokenizer_computer() -> ModelTokenizerComputer:
+    return ModelTokenizerComputer(tokenizer=global_context._tokenizer)
+
+
+def get_request_manager() -> RequestContextManager:
+    return RequestContextManager()
+
+
+def get_metrics_logger(redis_client: Redis = Depends(get_redis_client)) -> ModelMetricsLogger:
+    return ModelMetricsLogger(redis_client=redis_client)
+
+
+def _provider_gateway(
+    metrics_logger: ModelMetricsLogger = Depends(get_metrics_logger),
+    request_manager: RequestContextManager = Depends(get_request_manager),
+) -> ModelProviderGateway:
+    return ModelProviderGateway(metrics_logger=metrics_logger, request_manager=request_manager)
+
+
 # models use cases
 def get_models_use_case(
     postgres_session: AsyncSession = Depends(get_postgres_session),
@@ -109,6 +141,15 @@ def create_user_use_case_factory(postgres_session: AsyncSession = Depends(get_po
 # roles use cases
 def create_role_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateRoleUseCase:
     return CreateRoleUseCase(
+        role_repository=_role_repository(postgres_session),
+        limit_repository=_limit_repository(postgres_session),
+        permission_repository=_permission_repository(postgres_session),
+        user_info_repository=_user_info_repository(postgres_session),
+    )
+
+
+def update_role_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateRoleUseCase:
+    return UpdateRoleUseCase(
         role_repository=_role_repository(postgres_session),
         limit_repository=_limit_repository(postgres_session),
         permission_repository=_permission_repository(postgres_session),
@@ -138,11 +179,15 @@ def update_router_use_case_factory(postgres_session: AsyncSession = Depends(get_
 
 
 # providers use cases
-def create_provider_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateProviderUseCase:
+def create_provider_use_case_factory(
+    metrics_logger: ModelMetricsLogger = Depends(get_metrics_logger),
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    request_manager: RequestContextManager = Depends(get_request_manager),
+) -> CreateProviderUseCase:
     return CreateProviderUseCase(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
-        provider_gateway=ModelProviderGateway(),
+        provider_gateway=_provider_gateway(metrics_logger=metrics_logger, request_manager=request_manager),
         user_info_repository=_user_info_repository(postgres_session),
     )
 

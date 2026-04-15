@@ -1,12 +1,13 @@
 from typing import Literal
 
-from sqlalchemy import Integer, cast, distinct, func, insert, select, text
+from sqlalchemy import Integer, cast, distinct, func, insert, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from api.domain.role import RoleRepository
 from api.domain.role.entities import Limit, PermissionType, Role
-from api.domain.role.errors import RoleAlreadyExistsError
+from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 from api.sql.models import Limit as LimitTable
 from api.sql.models import Permission as PermissionTable
 from api.sql.models import Role as RoleTable
@@ -121,8 +122,49 @@ class PostgresRolesRepository(RoleRepository):
 
         return list(roles.values())
 
-    async def update_role(self, role: Role) -> Role:
-        raise NotImplementedError
+    async def get_role_by_id(self, role_id: int) -> Role | RoleNotFoundError:
+        statement = select(RoleTable).options(selectinload(RoleTable.permissions), selectinload(RoleTable.limits)).where(RoleTable.id == role_id)
+        result = await self.postgres_session.execute(statement=statement)
+        row = result.scalar_one_or_none()
+        if row is None:
+            return RoleNotFoundError(role_id=role_id)
+        return Role(
+            id=row.id,
+            name=row.name,
+            permissions=[p.permission for p in row.permissions],
+            limits=[Limit(router_id=limit.router_id, type=limit.type, value=limit.value) for limit in row.limits],
+            created=int(row.created.timestamp()),
+            updated=int(row.updated.timestamp()),
+        )
+
+    async def update_role(self, role: Role) -> Role | RoleAlreadyExistsError | RoleNotFoundError:
+        statement = (
+            update(table=RoleTable)
+            .values(name=role.name)
+            .returning(
+                RoleTable.id,
+                RoleTable.name,
+                cast(func.extract("epoch", RoleTable.created), Integer).label("created"),
+                cast(func.extract("epoch", RoleTable.updated), Integer).label("updated"),
+            )
+            .where(RoleTable.id == role.id)
+        )
+        try:
+            result = await self.postgres_session.execute(statement)
+            row = result.one_or_none()
+        except IntegrityError:
+            return RoleAlreadyExistsError(name=role.name)
+        if row is None:
+            return RoleNotFoundError(role_id=role.id)
+        return Role(
+            id=row.id,
+            name=row.name,
+            permissions=role.permissions,
+            limits=role.limits,
+            users=0,
+            created=row.created,
+            updated=row.updated,
+        )
 
     async def delete_role(self, role_id: int) -> None:
         raise NotImplementedError
