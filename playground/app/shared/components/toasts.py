@@ -27,7 +27,7 @@ def httpx_error_toast(exception: Exception, response: Response | None = None) ->
             error_data = response.json()
             detail = error_data.get("detail", response.text)
 
-            if isinstance(detail, list):
+            if isinstance(detail, list):  # 422 validation errors enter this statement
                 toasts = []
                 for error in detail:
                     if isinstance(error, dict):
