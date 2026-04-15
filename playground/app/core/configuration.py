@@ -83,6 +83,8 @@ class Settings(ConfigBaseModel):
     app_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application.")
 
     playground_opengatellm_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
+    playground_admin_api_key: str = Field(description="The API key to use to access the admin API.")
+    playground_default_role_id: str | int = Field(description="The default role ID for new users.")
     playground_opengatellm_timeout: int = Field(default=60, description="The timeout in seconds for the OpenGateLLM API.")
     playground_default_model: str | None = Field(default=None, description="The first model selected in chat page.")
     playground_theme_has_background: bool = Field(default=True, description="Whether the theme has a background.")
@@ -92,8 +94,6 @@ class Settings(ConfigBaseModel):
     playground_theme_panel_background: str = Field(default="solid", description="Whether panel backgrounds are translucent: 'solid' | 'translucent'.")
     playground_theme_radius: str = Field(default="medium", description="The radius of the theme. Can be 'small', 'medium', or 'large'.")
     playground_theme_scaling: str = Field(default="100%", description="The scaling of the theme.")
-
-    admin_api_key: str = Field(default="changeme", description="The API key to use to access the admin API.")
 
     swagger_url: str | None = Field(default="http://localhost:8000/docs", pattern=r"^http[s]?://", description="Swagger URL. If not provided, deactivated swagger link in the navigation bar.")  # fmt: off
     reference_url: str | None = Field(default="http://localhost:8000/redoc", pattern=r"^http[s]?://", description="Reference URL. If not provided, deactivated reference link in the navigation bar.")  # fmt: off

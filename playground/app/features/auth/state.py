@@ -30,6 +30,8 @@ class AuthState(rx.State):
     is_loading: bool = False
 
     opengatellm_url: str = configuration.settings.playground_opengatellm_url
+    admin_api_key: str = configuration.settings.playground_admin_api_key
+    default_role_id: int = int(configuration.settings.playground_default_role_id)
 
     # Form fields
     email_input: str = ""
@@ -77,28 +79,46 @@ class AuthState(rx.State):
                 # )
                 import requests
 
-                response = requests.post(
-                    url="http://localhost:8000/v1/admin/users",
-                    params={"email": email},
-                    headers={"Authorization": f"Bearer {configuration.settings.admin_api_key}"},
-                )
-                if response.status_code != 200:
+                url = f"{self.opengatellm_url}/v1/admin/users"
+                response = requests.get(url=url, params={"email": email}, headers={"Authorization": f"Bearer {self.admin_api_key}"})
+                if response.status_code == 404:
+                    # TODO:  rendre le password optionnel
+                    response = requests.post(
+                        url=url,
+                        json={"email": email, "name": email, "password": "changeme", "role": self.default_role_id},
+                        headers={"Authorization": f"Bearer {self.admin_api_key}"},
+                    )
+                    if response.status_code != 201:
+                        error_detail = response.json().get("detail", "Failed to create user")
+                        error_detail = f"Failed to create user: {error_detail}\nURL: {url}\nAPI Key: {self.admin_api_key}"
+                        yield rx.toast.error(error_detail, position="bottom-right")
+                        self.is_loading = False
+                        yield
+                        return
+
+                    user_id = response.json().get("id")
+
+                elif response.status_code == 200:
+                    user_id = response.json().get("data", [])[0]["id"]
+                else:
                     error_detail = response.json().get("detail", "Failed to fetch user info")
+                    error_detail = f"Failed to fetch user info: {error_detail}\nURL: {url}\nAPI Key: {self.admin_api_key}"
+
                     yield rx.toast.error(error_detail, position="bottom-right")
                     self.is_loading = False
                     yield
                     return
 
-                user_info = response.json().get("data", [])[0]
-
                 # TODO: support email as param to /v1/admin/tokens endpoint
+                # TODO: add SSO expiration duration
                 response = requests.post(
-                    url="http://api:8000/v1/admin/tokens",
-                    json={"user": user_info.get("id"), "name": "playground"},
-                    headers={"Authorization": f"Bearer {configuration.settings.admin_api_key}"},
+                    url=f"{self.opengatellm_url}/v1/admin/tokens",
+                    json={"user": user_id, "name": "playground"},
+                    headers={"Authorization": f"Bearer {self.admin_api_key}"},
                 )
-                if response.status_code != 200:
+                if response.status_code != 201:
                     error_detail = response.json().get("detail", "Failed to create token")
+                    error_detail = f"Failed to create token: {error_detail}\nURL: {url}\nAPI Key: {self.admin_api_key}"
                     yield rx.toast.error(error_detail, position="bottom-right")
                     self.is_loading = False
                     yield
@@ -106,12 +126,6 @@ class AuthState(rx.State):
 
                 api_key = response.json().get("token")
                 api_key_id = response.json().get("id")
-                if response.status_code != 200:
-                    error_detail = response.json().get("detail", "ProConnect login failed")
-                    yield rx.toast.error(error_detail, position="bottom-right")
-                    self.is_loading = False
-                    yield
-                    return
 
                 response = await client.get(
                     f"{self.opengatellm_url}/v1/me/info",

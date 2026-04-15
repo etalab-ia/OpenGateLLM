@@ -41,7 +41,6 @@ dependencies:
     index_name: opengatellm
     index_language: english
     number_of_shards: 1
-    index_name: "opengatellm"
     number_of_replicas: 0
     hosts: "http://${ELASTICSEARCH_HOST:-localhost}:${ELASTICSEARCH_PORT:-9200}"
     basic_auth:
@@ -85,6 +84,8 @@ settings:
   # search_multi_agents_reranker_model: my-model
 
   playground_opengatellm_url: ${OPENGATELLM_URL}
+  playground_admin_api_key: ${PLAYGROUND_ADMIN_API_KEY}
+  playground_default_role_id: 2
   # playground_default_model: my-model
   # playground_theme_has_background: True
   # playground_theme_accent_color: purple
