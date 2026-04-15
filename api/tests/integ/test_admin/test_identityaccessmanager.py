@@ -44,7 +44,7 @@ class TestIdentityAccessManager:
 
         # Update role via API
         response = client.patch_with_permissions(url=f"/v1{EndpointRoute.ADMIN_ROLES}/{role_id}", json=updated_role_data)
-        assert response.status_code == 204, response.text
+        assert response.status_code == 200, response.text
 
         # Fetch the updated role
         response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_ROLES}/{role_id}")

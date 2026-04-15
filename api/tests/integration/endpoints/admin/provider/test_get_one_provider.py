@@ -8,7 +8,7 @@ from api.dependencies import get_one_provider_use_case_factory
 from api.domain.provider.errors import ProviderNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.helpers import create_token
-from api.tests.integration.factories import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.ADMIN_PROVIDERS}"

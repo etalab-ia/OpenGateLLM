@@ -61,7 +61,7 @@ class CreateProviderResponse(BaseModel):
 
 
 class UpdateProviderBody(BaseModel):
-    router: int | None = Field(default=None, description="The ID of the new router to assign to the provider.")  # fmt: off
+    router_id: int | None = Field(default=None, description="The ID of the new router to assign to the provider.")  # fmt: off
     timeout: int | None = Field(default=None, description="Timeout for the model provider requests, after user receive an 500 error (model is too busy).")  # fmt: off
     model_hosting_zone: Annotated[ProviderCarbonFootprintZone | None, Field(default=None, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")]  # fmt: off
     model_total_params: Annotated[int | None, Field(default=None, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off

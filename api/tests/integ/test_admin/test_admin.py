@@ -270,7 +270,7 @@ class TestAuth:
                 ],
             },
         )
-        assert response.status_code == 204, response.text
+        assert response.status_code == 200, response.text
 
         response = client.post(
             url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}",

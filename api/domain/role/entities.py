@@ -43,3 +43,12 @@ class Role(BaseModel):
     users: int = 0
     created: int = Field(default_factory=lambda: int(dt.datetime.now().timestamp()))
     updated: int = Field(default_factory=lambda: int(dt.datetime.now().timestamp()))
+
+    def with_name(self, name: str | None) -> "Role":
+        return self.model_copy(update={"name": name})
+
+    def with_limits(self, limits: list["Limit"]) -> "Role":
+        return self.model_copy(update={"limits": limits})
+
+    def with_permissions(self, permissions: list["PermissionType"]) -> "Role":
+        return self.model_copy(update={"permissions": permissions})

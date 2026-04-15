@@ -4,7 +4,7 @@ from sqlalchemy import select
 from api.domain.role.entities import PermissionType
 from api.schemas.core.configuration import Configuration, Dependencies, Settings
 from api.sql.models import Permission, User
-from api.tests.integration.factories import RoleSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import RoleSQLFactory, UserSQLFactory
 from api.utils.lifespan import bootstrap_default_admin
 
 ADMIN_USERNAME = "admin"

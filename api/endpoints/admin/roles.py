@@ -1,13 +1,13 @@
 from typing import Literal
 
-from fastapi import Body, Depends, Path, Query, Request, Security
+from fastapi import Depends, Path, Query, Request, Security
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.role.entities import PermissionType, Role
 from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
-from api.schemas.admin.roles import Roles, RoleUpdateRequest
+from api.schemas.admin.roles import Roles
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
 from api.utils.variables import EndpointRoute
@@ -28,32 +28,6 @@ async def delete_role(
     """
 
     await global_context.identity_access_manager.delete_role(postgres_session=postgres_session, role_id=role)
-
-    return Response(status_code=204)
-
-
-@router.patch(
-    path=EndpointRoute.ADMIN_ROLES + "/{role}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
-    status_code=204,
-)
-async def update_role(
-    request: Request,
-    role: int = Path(description="The ID of the role to update."),
-    body: RoleUpdateRequest = Body(description="The role update request."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-) -> Response:
-    """
-    Update a role.
-    """
-
-    await global_context.identity_access_manager.update_role(
-        postgres_session=postgres_session,
-        role_id=role,
-        name=body.name,
-        permissions=body.permissions,
-        limits=body.limits,
-    )
 
     return Response(status_code=204)
 

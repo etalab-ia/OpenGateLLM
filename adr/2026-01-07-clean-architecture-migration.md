@@ -210,11 +210,11 @@ async def test_should_return_all_models_the_user_has_access_to(
 
 ```python
 # tests/integration/test_postgresrouterrepository.py
-from api.tests.integration.factories import (
+from api.tests.integration.factories.sql import (
     OrganizationSQLFactory,
     ProviderSQLFactory,
     RouterSQLFactory,
-    UserSQLFactory,
+    UserSQLFactory
 )
 
 

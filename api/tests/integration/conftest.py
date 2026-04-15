@@ -5,20 +5,23 @@ import asyncpg
 from httpx import ASGITransport, AsyncClient
 import pytest
 import pytest_asyncio
+import redis.asyncio as redis
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from api.app import create_app
-from api.dependencies import get_postgres_session
+from api.dependencies import get_postgres_session, get_redis_client
 from api.helpers.models import ModelRegistry
 from api.schemas.core.configuration import Configuration, Dependencies, Settings
 from api.sql.models import Base
 from api.tests.integration import factories
 from api.utils.dependencies import get_model_registry
 from api.utils.dependencies import get_postgres_session as get_postgres_session_utils
+from api.utils.dependencies import get_redis_client as get_redis_client_utils
 
-TEST_DATABASE_URL = "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db"
+TEST_POSTGRES_URL = "postgresql+asyncpg://postgres:changeme@localhost:5432/test_db"
+TEST_REDIS_URL = "redis://:changeme@localhost:6379/1"
 _current_db_session: ContextVar[AsyncSession | None] = ContextVar("_current_db_session", default=None)
 
 
@@ -46,6 +49,20 @@ def test_configuration():
 
 
 @pytest_asyncio.fixture(scope="session")
+async def test_redis_pool(test_configuration):
+    pool = redis.ConnectionPool.from_url(url=TEST_REDIS_URL)
+    pool.url = TEST_REDIS_URL
+    client = redis.Redis(connection_pool=pool)
+    if not await client.ping():
+        raise RuntimeError("Redis database is not reachable.")
+    await client.aclose()
+
+    yield pool
+
+    await pool.aclose()
+
+
+@pytest_asyncio.fixture(scope="session")
 async def test_postgres_engine():
     conn = await asyncpg.connect("postgresql://postgres:changeme@localhost:5432/postgres")
     try:
@@ -55,7 +72,7 @@ async def test_postgres_engine():
     finally:
         await conn.close()
 
-    engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
+    engine = create_async_engine(url=TEST_POSTGRES_URL, poolclass=NullPool)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
@@ -71,33 +88,12 @@ async def test_postgres_engine():
 
 def _all_sql_factories():
     result = []
-    stack = list(factories.BaseSQLFactory.__subclasses__())
+    stack = list(factories.sql.BaseSQLFactory.__subclasses__())
     while stack:
         cls = stack.pop()
         result.append(cls)
         stack.extend(cls.__subclasses__())
     return result
-
-
-# @pytest_asyncio.fixture(scope="session")
-# async def test_session_factory(test_engine):
-#     return async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
-
-#
-# @pytest_asyncio.fixture(scope="function")
-# async def db_session(test_session_factory) -> AsyncGenerator[AsyncSession]:
-#     async with test_session_factory() as session:
-#         all_sql_factories = factories.BaseSQLFactory.__subclasses__()
-#         session.expire_on_commit = False
-#         try:
-#             async with session.begin_nested():
-#                 for factory in all_sql_factories:
-#                     factory._meta.sqlalchemy_session = session
-#                 yield session
-#         finally:
-#             if session.in_transaction():
-#                 await session.rollback()
-#             await session.close()
 
 
 def pytest_addoption(parser):
@@ -141,6 +137,15 @@ async def db_session(test_postgres_engine, request) -> AsyncGenerator[AsyncSessi
                 await postgres_outer_transaction.rollback()
 
 
+@pytest_asyncio.fixture(scope="function")
+async def redis_client(test_redis_pool) -> AsyncGenerator[redis.Redis]:
+    client = redis.Redis(connection_pool=test_redis_pool)
+    try:
+        yield client
+    finally:
+        await client.aclose()
+
+
 @pytest.fixture(scope="session")
 def model_registry():
     return ModelRegistry(
@@ -153,7 +158,7 @@ def model_registry():
 
 
 @pytest_asyncio.fixture(scope="session")
-async def app(model_registry, test_configuration):
+async def app(model_registry, test_configuration, test_redis_pool):
     app = create_app(test_configuration, skip_lifespan=True)
 
     async def override_get_postgres_session():
@@ -167,8 +172,17 @@ async def app(model_registry, test_configuration):
                 await session.rollback()
             raise
 
+    async def override_get_redis_client():
+        client = redis.Redis(connection_pool=test_redis_pool)
+        try:
+            yield client
+        finally:
+            await client.aclose()
+
     app.dependency_overrides[get_postgres_session] = override_get_postgres_session
-    app.dependency_overrides[get_postgres_session_utils] = override_get_postgres_session
+    app.dependency_overrides[get_postgres_session_utils] = override_get_postgres_session  # @TODO: remove after legacy migration
+    app.dependency_overrides[get_redis_client] = override_get_redis_client
+    app.dependency_overrides[get_redis_client_utils] = override_get_redis_client  # @TODO: remove after legacy migration
     app.dependency_overrides[get_model_registry] = lambda: model_registry
 
     try:
@@ -189,3 +203,15 @@ async def _restore_dependency_overrides(app):
 async def client(app) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
+
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def _reset_redis_between_tests(test_redis_pool):
+    client = redis.Redis(connection_pool=test_redis_pool)
+    try:
+        # Keep Redis state isolated per test (closest equivalent to DB rollback).
+        await client.flushdb()
+        yield
+        await client.flushdb()
+    finally:
+        await client.aclose()

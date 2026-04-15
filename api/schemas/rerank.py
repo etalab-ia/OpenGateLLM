@@ -33,12 +33,6 @@ class CreateRerank(BaseModel):
                 raise NotImplementedError(f"Provider {provider_type} not implemented")
 
 
-class Rerank(BaseModel):
-    object: Annotated[Literal["rerank"], Field(default="rerank", description="The type of the object.")]
-    score: Annotated[float, Field(description="The score of the reranked text.")]
-    index: Annotated[int, Field(description="The index of the reranked text.")]
-
-
 class RerankResult(BaseModel):
     relevance_score: Annotated[float, Field(description="The relevance score of the reranked text.")]
     index: Annotated[int, Field(description="The index of the reranked text.")]

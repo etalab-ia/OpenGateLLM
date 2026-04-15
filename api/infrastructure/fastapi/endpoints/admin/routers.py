@@ -65,16 +65,16 @@ async def create_router(
     create_router_use_case: CreateRouterUseCase = Depends(create_router_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> RouterResponse:
+    command = CreateRouterCommand(
+        user_id=request_context.get().user_id,
+        name=body.name,
+        router_type=body.router_type,
+        aliases=body.aliases,
+        load_balancing_strategy=body.load_balancing_strategy,
+        cost_prompt_tokens=body.cost_prompt_tokens,
+        cost_completion_tokens=body.cost_completion_tokens,
+    )
     try:
-        command = CreateRouterCommand(
-            user_id=request_context.get().user_id,
-            name=body.name,
-            router_type=body.router_type,
-            aliases=body.aliases,
-            load_balancing_strategy=body.load_balancing_strategy,
-            cost_prompt_tokens=body.cost_prompt_tokens,
-            cost_completion_tokens=body.cost_completion_tokens,
-        )
         result = await create_router_use_case.execute(command)
     except Exception as e:
         logger.exception(
@@ -129,7 +129,7 @@ async def get_router(
         case GetOneRouterUseCaseSuccess(returned_router):
             return RouterResponse.model_validate(returned_router, from_attributes=True)
         case RouterNotFoundError(router_id=not_found_id):
-            raise RouterNotFoundHTTPException(not_found_id)
+            raise RouterNotFoundHTTPException(router_id=not_found_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
 
