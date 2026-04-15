@@ -135,7 +135,7 @@ def users(test_client: TestClient, roles: tuple[dict, dict]) -> tuple[dict, dict
     response.raise_for_status()
     user_with_permissions = response.json()
 
-    # create user user
+    # create user
     response = test_client.post(
         url=f"/v1{EndpointRoute.ADMIN_USERS}",
         json={"email": "test-user-user@example.com", "name": "test-user-user", "password": "test-password", "role": role_without_permissions["id"]},

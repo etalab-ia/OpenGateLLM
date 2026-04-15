@@ -55,14 +55,6 @@ class AuthState(rx.State):
             yield rx.toast.warning("Email and password are required", position="bottom-right")
             return
 
-        if len(email) > 254:
-            yield rx.toast.warning("Email cannot be longer than 254 characters", position="bottom-right")
-            return
-
-        if len(password) > 72:
-            yield rx.toast.warning("Password cannot be longer than 72 characters", position="bottom-right")
-            return
-
         self.is_loading = True
         yield
 
@@ -75,12 +67,7 @@ class AuthState(rx.State):
                     json={"email": email, "password": password},
                     timeout=configuration.settings.playground_opengatellm_timeout,
                 )
-                if response.status_code != 200:
-                    error_detail = response.json().get("detail", "Login failed")
-                    yield rx.toast.error(error_detail, position="bottom-right")
-                    self.is_loading = False
-                    yield
-                    return
+                response.raise_for_status()
 
                 login_data = response.json()
                 api_key = login_data.get("key")

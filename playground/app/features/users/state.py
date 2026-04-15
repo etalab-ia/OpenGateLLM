@@ -222,16 +222,8 @@ class UsersState(EntityState):
             yield rx.toast.warning("User email is required", position="bottom-right")
             return
 
-        if len(self.entity_to_create.email) > 254:
-            yield rx.toast.warning("Email cannot be longer than 254 characters", position="bottom-right")
-            return
-
         if not self.entity_to_create.password:
             yield rx.toast.warning("User password is required", position="bottom-right")
-            return
-
-        if len(self.entity_to_create.password) > 72:
-            yield rx.toast.warning("Password cannot be longer than 72 characters", position="bottom-right")
             return
 
         if not self.entity_to_create.role:
@@ -326,10 +318,6 @@ class UsersState(EntityState):
     @rx.event
     async def edit_entity(self):
         """Update a role."""
-        if self.entity.email and len(self.entity.email) > 254:
-            yield rx.toast.warning("Email cannot be longer than 254 characters", position="bottom-right")
-            return
-
         self.edit_entity_loading = True
         yield
 
@@ -348,10 +336,6 @@ class UsersState(EntityState):
         else:
             payload["budget"] = self.entity.budget
         if self.entity.password:
-            if len(self.entity.password) > 72:
-                self.edit_entity_loading = False
-                yield rx.toast.warning("Password cannot be longer than 72 characters", position="bottom-right")
-                return
             payload["password"] = self.entity.password
         if organization_id:
             payload["organization"] = organization_id
