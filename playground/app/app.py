@@ -21,8 +21,6 @@ from app.features.users.state import UsersState
 from app.shared.components.page import access_denied_page
 from app.shared.layouts.authenticated import authenticated_page
 
-import requests
-from fastapi import Request, HTTPException
 
 def index() -> rx.Component:
     """Chat page."""
@@ -121,47 +119,6 @@ def providers() -> rx.Component:
         )
     )
 
-async def login_proconnect(self, postgres_session: AsyncSession, email: str) -> tuple[int, str]:
-    """
-    Login a user authenticated via ProConnect (OIDC) and return a refreshed playground token.
-    The user must already exist in the database (no auto-provisioning).
-    Raises UserNotFoundException (404) if the user has not been provisioned by an admin.
-
-    Args:
-        postgres_session(AsyncSession): Database session
-        email(str): User email asserted by the OIDC provider (injected by oauth2-proxy via X-Auth-Request-Email header)
-
-    Returns:
-        Tuple containing the token ID and the playground token.
-    """
-    user = await self.get_user(postgres_session=postgres_session, email=email)
-    if user is None:
-        raise UserNotFoundException()
-
-    token_id, token = await self.refresh_token(postgres_session, user_id=user.id, name=self.PLAYGROUND_KEY_NAME)
-    return token_id, token
-
-fastapi_app = FastAPI(title="My API")
-
-# Add routes to the FastAPI app
-@fastapi_app.get("/api/items")
-async def get_items():
-    return dict(items=["Item1", "Item2", "Item3"])
-
-@fastapi_app.post(path="/oauth2/authorize")
-async def login_proconnect(request: Request) -> LoginResponse:
-    """
-    Exchange ProConnect identity (injected by oauth2-proxy) for a playground API token.
-    The user email is read from the X-Auth-Request-Email header set by oauth2-proxy after a successful OIDC authentication.
-    The user must already exist in the database; no auto-provisioning is performed.
-    """
-    email = request.headers.get("X-Auth-Request-Email")
-    if not email:
-        raise HTTPException(status_code=401, detail="Missing ProConnect authentication headers.")
-
-    token_id, token = await global_context.identity_access_manager.login_proconnect(postgres_session=postgres_session, email=email)
-
-    return JSONResponse(status_code=200, content=LoginResponse(id=token_id, key=token).model_dump())
 
 # Create the app with theme configuration
 app = rx.App(
@@ -176,7 +133,6 @@ app = rx.App(
         scaling=configuration.settings.playground_theme_scaling,
     ),
     head_components=[rx.el.link(rel="icon", type="image/svg+xml", href="/favicon.svg")],
-    api_transformer=fastapi_app
 )
 
 # Add pages

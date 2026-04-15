@@ -70,21 +70,48 @@ class AuthState(rx.State):
         response = None
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.opengatellm_url}/v1/auth/proconnect",
-                    headers={"X-Auth-Request-Email": email},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                # response = await client.post(
+                #     f"{self.opengatellm_url}/v1/auth/proconnect",
+                #     headers={"X-Auth-Request-Email": email},
+                #     timeout=configuration.settings.playground_opengatellm_timeout,
+                # )
+                import requests
+
+                response = requests.post(
+                    url="http://localhost:8000/v1/admin/users",
+                    params={"email": email},
+                    headers={"Authorization": f"Bearer {configuration.settings.admin_api_key}"},
                 )
+                if response.status_code != 200:
+                    error_detail = response.json().get("detail", "Failed to fetch user info")
+                    yield rx.toast.error(error_detail, position="bottom-right")
+                    self.is_loading = False
+                    yield
+                    return
+
+                user_info = response.json().get("data", [])[0]
+
+                # TODO: support email as param to /v1/admin/tokens endpoint
+                response = requests.post(
+                    url="http://api:8000/v1/admin/tokens",
+                    json={"user": user_info.get("id"), "name": "playground"},
+                    headers={"Authorization": f"Bearer {configuration.settings.admin_api_key}"},
+                )
+                if response.status_code != 200:
+                    error_detail = response.json().get("detail", "Failed to create token")
+                    yield rx.toast.error(error_detail, position="bottom-right")
+                    self.is_loading = False
+                    yield
+                    return
+
+                api_key = response.json().get("token")
+                api_key_id = response.json().get("id")
                 if response.status_code != 200:
                     error_detail = response.json().get("detail", "ProConnect login failed")
                     yield rx.toast.error(error_detail, position="bottom-right")
                     self.is_loading = False
                     yield
                     return
-
-                login_data = response.json()
-                api_key = login_data.get("key")
-                api_key_id = login_data.get("id")
 
                 response = await client.get(
                     f"{self.opengatellm_url}/v1/me/info",

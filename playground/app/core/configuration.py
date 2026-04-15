@@ -93,6 +93,8 @@ class Settings(ConfigBaseModel):
     playground_theme_radius: str = Field(default="medium", description="The radius of the theme. Can be 'small', 'medium', or 'large'.")
     playground_theme_scaling: str = Field(default="100%", description="The scaling of the theme.")
 
+    admin_api_key: str = Field(default="changeme", description="The API key to use to access the admin API.")
+
     swagger_url: str | None = Field(default="http://localhost:8000/docs", pattern=r"^http[s]?://", description="Swagger URL. If not provided, deactivated swagger link in the navigation bar.")  # fmt: off
     reference_url: str | None = Field(default="http://localhost:8000/redoc", pattern=r"^http[s]?://", description="Reference URL. If not provided, deactivated reference link in the navigation bar.")  # fmt: off
     documentation_url: str | None = Field(default="https://docs.opengatellm.org", pattern=r"^http[s]?://", description="Documentation URL. If not provided, deactivated documentation link in the navigation bar.")  # fmt: off

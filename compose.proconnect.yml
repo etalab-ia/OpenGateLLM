@@ -1,0 +1,125 @@
+name: opengatellm
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+# Should be the next release image
+#    image: ghcr.io/etalab-ia/opengatellm/api:0.4.2
+    restart: always
+    env_file: .env
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - "${CONFIG_FILE:-./config.yml}:/config.yml:ro" # outside the container, do not change this line
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+
+  playground:
+    build:
+      context: .
+      dockerfile: playground/Dockerfile
+      args:
+        - REFLEX_BACKEND_URL=${PLAYGROUND_PUBLIC_URL:-http://localhost:${OAUTH2_PROXY_PORT:-4180}}
+        - REFLEX_FRONTEND_URL=${PLAYGROUND_PUBLIC_URL:-http://localhost:${OAUTH2_PROXY_PORT:-4180}}
+    # Should be the next release image
+#    image: ghcr.io/etalab-ia/opengatellm/playground:0.4.2
+    environment:
+      - "OPENGATELLM_URL=${OPENGATELLM_URL:-http://api:8000}"
+      - "REDIS_HOST=redis"
+      - "REDIS_PORT=${REDIS_PORT:-6379}"
+    ports:
+      - "${PLAYGROUND_PORT:-8501}:8501"
+    volumes:
+      - "./${CONFIG_FILE:-config.yml}:/config.yml:ro"
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  # OAuth2-proxy : point d'entrée pour l'authentification ProConnect (OIDC)
+  # Proxifie vers le playground après authentification.
+  # Accès : http://localhost:${OAUTH2_PROXY_PORT:-4180}
+  # Pour l'activer : docker compose --profile proconnect up
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.8.1
+    profiles: ["proconnect"]
+    command: --config /oauth2-proxy.cfg
+    ports:
+      - "${OAUTH2_PROXY_PORT:-4180}:4180"
+    volumes:
+      - "./oauth2-proxy.cfg:/oauth2-proxy.cfg:ro"
+    environment:
+      - "OAUTH2_PROXY_CLIENT_ID=${PROCONNECT_CLIENT_ID}"
+      - "OAUTH2_PROXY_CLIENT_SECRET=${PROCONNECT_CLIENT_SECRET}"
+      - "OAUTH2_PROXY_COOKIE_SECRET=${OAUTH2_PROXY_COOKIE_SECRET}"
+    depends_on:
+      playground:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16.5
+    restart: always
+    user: postgres
+    environment:
+      - "POSTGRES_USER=${POSTGRES_USER:-postgres}"
+      - "POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}"
+      - "POSTGRES_DB=postgres"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready", "-U", "postgres" ]
+      interval: 4s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  redis:
+    image: redis/redis-stack-server:7.4.0-v7
+    restart: always
+    environment:
+      REDIS_ARGS: "--dir /data --requirepass ${REDIS_PASSWORD:-changeme} --user ${REDIS_USER:-redis} on >password ~* allcommands --save 60 1 --appendonly yes"
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+      interval: 4s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.0.2
+    restart: always
+    ports:
+      - "${ELASTICSEARCH_PORT:-9200}:9200"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "ELASTIC_USERNAME=elasticsearch"
+      - "ELASTIC_PASSWORD=changeme"
+    volumes:
+      - elasticsearch:/usr/share/elasticsearch/data
+    healthcheck:
+      test: [ "CMD-SHELL", "bash", "-c", ":> /dev/tcp/127.0.0.1/9200" ]
+      interval: 4s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  elasticsearch:
+  postgres:
+  redis:
