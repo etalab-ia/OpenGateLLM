@@ -10,7 +10,7 @@ from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlready
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.helpers import create_token
-from api.tests.integration.factories import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.ADMIN_PROVIDERS}"

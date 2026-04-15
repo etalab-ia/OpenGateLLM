@@ -28,6 +28,8 @@ class UsageTokenizer:
 
     def get_prompt_tokens(self, endpoint: str, body: dict) -> int:
         try:
+            # @TODO: add audio transcription support (completion tokens)
+
             if endpoint == EndpointRoute.CHAT_COMPLETIONS:
                 contents = [message.get("content") for message in body["messages"] if message.get("content")]
                 prompt_tokens = sum([len(self.tokenizer.encode(content)) for content in contents])

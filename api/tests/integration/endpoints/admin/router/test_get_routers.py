@@ -7,7 +7,7 @@ import pytest_asyncio
 from api.dependencies import get_routers_use_case_factory
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.helpers import create_token
-from api.tests.integration.factories import RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.ADMIN_ROUTERS}"

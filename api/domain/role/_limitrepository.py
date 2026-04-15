@@ -7,3 +7,10 @@ class LimitRepository(ABC):
     @abstractmethod
     async def create_limits(self, role_id: int, limits: list[Limit]) -> list[Limit]:
         pass
+
+    @abstractmethod
+    async def delete_limits_by_role_id(
+        self,
+        role_id: int,
+    ) -> list[Limit]:
+        pass

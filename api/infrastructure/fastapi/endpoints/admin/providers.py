@@ -104,7 +104,7 @@ async def create_provider(
             "Unexpected error while executing create_provider use case",
             extra={
                 "user_id": request_context.get().user_id,
-                "provider_router_id": body.router,
+                "provider_router_id": body.router_id,
                 "provider_url": body.url,
                 "provider_model_name": body.model_name,
                 "error_type": type(e).__name__,
@@ -201,7 +201,7 @@ async def update_provider(
 ) -> ProviderResponse:
     command = UpdateProviderCommand(
         provider_id=provider_id,
-        router_id=body.router,
+        router_id=body.router_id,
         user_id=request_context.get().user_id,
         timeout=body.timeout,
         model_hosting_zone=body.model_hosting_zone,
@@ -217,7 +217,7 @@ async def update_provider(
             "Unexpected error while executing update_provider use case",
             extra={
                 "user_id": request_context.get().user_id,
-                "provider_router_id": body.router,
+                "provider_router_id": body.router_id,
                 "error_type": type(e).__name__,
             },
         )
