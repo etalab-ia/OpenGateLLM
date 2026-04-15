@@ -69,7 +69,7 @@ def hooks(func):
                     langfuse_obs,
                     metadata={"status": e.status_code, "error": e.detail},
                 )
-                langfuse_obs.end()
+                global_context.langfuse_client.end_observation(langfuse_obs)
             raise e  # Re-raise the exception for FastAPI to handle
 
     return wrapper
@@ -111,7 +111,7 @@ def wrap_unstreaming_response(response: Response, usage: Usage, langfuse_obs=Non
     asyncio.create_task(log_usage(usage=usage))
     asyncio.create_task(update_budget(usage=usage))
 
-    if langfuse_obs is not None:
+    if global_context.langfuse_client is not None and langfuse_obs is not None:
         global_context.langfuse_client.end_root_observation(langfuse_obs=langfuse_obs, status=response.status_code)
 
     return response
@@ -143,7 +143,7 @@ def wrap_streaming_response(response: StreamingResponse, usage: Usage, langfuse_
             asyncio.create_task(log_usage(usage=usage))
             asyncio.create_task(update_budget(usage=usage))
 
-            if langfuse_obs is not None:
+            if global_context.langfuse_client is not None and langfuse_obs is not None:
                 global_context.langfuse_client.end_root_observation(langfuse_obs=langfuse_obs, status=response_status_code)
 
     return StreamingResponseWithStatusCode(wrapped_stream(), media_type=response.media_type)

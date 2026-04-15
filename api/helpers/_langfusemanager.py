@@ -82,6 +82,14 @@ class LangfuseManager:
             logger.debug(f"Failed to update Langfuse observation: {e}", exc_info=True)
 
     @staticmethod
+    def end_observation(langfuse_obs) -> None:
+        """End an observation. Swallows Langfuse errors so tracing failures never break the request."""
+        try:
+            langfuse_obs.end()
+        except Exception as e:
+            logger.debug(f"Failed to end Langfuse observation: {e}", exc_info=True)
+
+    @staticmethod
     def end_root_observation(langfuse_obs, status: int | None) -> None:
         """Update the root span with request metadata and end it. Works for both streaming and non-streaming responses."""
         try:

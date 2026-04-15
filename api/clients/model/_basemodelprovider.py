@@ -368,8 +368,8 @@ class BaseModelProvider(ABC):
             return response
 
         finally:
-            if langfuse_obs is not None:
-                langfuse_obs.end()
+            if global_context.langfuse_client is not None and langfuse_obs is not None:
+                global_context.langfuse_client.end_observation(langfuse_obs)
 
     def _get_extra_stream_chunk(self, request_content: RequestContent, buffer: list[dict], latency: float | None = None) -> dict | None:
         """
@@ -526,5 +526,5 @@ class BaseModelProvider(ABC):
                         await redis_retry(redis_client.decr, name=inflight_key, max_retries=2)
                     except Exception:
                         logger.error("Unable to decrement redis requests inflight key")
-                if langfuse_obs is not None:
-                    langfuse_obs.end()
+                if global_context.langfuse_client is not None and langfuse_obs is not None:
+                    global_context.langfuse_client.end_observation(langfuse_obs)
