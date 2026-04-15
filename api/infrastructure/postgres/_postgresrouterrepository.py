@@ -6,7 +6,8 @@ from api.domain import SortField, SortOrder
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.router import RouterRepository
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage
-from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
+from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
+from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
@@ -60,16 +61,16 @@ class PostgresRouterRepository(RouterRepository):
         result = await self.postgres_session.execute(query)
         return [row[0] for row in result.all()]
 
-    async def get_router_by_id(self, router_id: int) -> Router | None:
+    async def get_router_by_id(self, router_id: int) -> Router | RouterNotFoundError:
         query = self._select_routers_with_provider_stats().where(RouterTable.id == router_id).limit(1)
         result = await self.postgres_session.execute(query)
         row = result.one_or_none()
         if row is None:
-            return None
+            return RouterNotFoundError(id=router_id)
         aliases = await self.get_aliases_by_router_id(router_id)
         return self._row_to_router_with_aliases(row, aliases)
 
-    async def get_organization_name(self, user_id) -> str:
+    async def get_organization_name(self, user_id: int) -> str:
         query = (
             select(OrganizationTable.name.label("owned_by"))
             .join(UserTable, UserTable.organization_id == OrganizationTable.id)
@@ -120,6 +121,7 @@ class PostgresRouterRepository(RouterRepository):
             aliases.setdefault(row.router_id, []).append(row.value)
         return aliases
 
+    @with_lock(namespace="router", key="name")
     async def create_router(
         self,
         name: str,
@@ -196,26 +198,32 @@ class PostgresRouterRepository(RouterRepository):
         result = await self.postgres_session.execute(query)
         return [row[0] for row in result.all()]
 
-    async def delete_router(self, router_id: int) -> Router | None:
+    @with_lock(namespace="router", key="router_id")
+    async def delete_router(self, router_id: int) -> Router | RouterNotFoundError:
         router = await self.get_router_by_id(router_id)
-        if router is None:
-            return None
+        if isinstance(router, RouterNotFoundError):
+            return RouterNotFoundError(id=router_id)
         await self.postgres_session.execute(delete(RouterTable).where(RouterTable.id == router_id))
         return router
 
-    async def update_router(self, router_to_update: Router) -> Router | RouterNameAlreadyExistsError:
+    async def delete_all_routers(self) -> list[Router]:
+        routers = await self.get_all_routers()
+        await self.postgres_session.execute(delete(RouterTable).where(RouterTable.id.in_([router.id for router in routers])))
+        return routers
 
+    @with_lock(namespace="router", key="router.id")
+    async def update_router(self, router: Router) -> Router | RouterNameAlreadyExistsError:
         try:
             update_query = (
                 update(RouterTable)
-                .where(RouterTable.id == router_to_update.id)
+                .where(RouterTable.id == router.id)
                 .values(
-                    user_id=router_to_update.user_id,
-                    name=router_to_update.name,
-                    type=router_to_update.type.value,
-                    load_balancing_strategy=router_to_update.load_balancing_strategy.value,
-                    cost_prompt_tokens=router_to_update.cost_prompt_tokens,
-                    cost_completion_tokens=router_to_update.cost_completion_tokens,
+                    user_id=router.user_id,
+                    name=router.name,
+                    type=router.type.value,
+                    load_balancing_strategy=router.load_balancing_strategy.value,
+                    cost_prompt_tokens=router.cost_prompt_tokens,
+                    cost_completion_tokens=router.cost_completion_tokens,
                 )
                 .returning(
                     RouterTable.id,
@@ -232,30 +240,84 @@ class PostgresRouterRepository(RouterRepository):
             result = await self.postgres_session.execute(update_query)
             row = result.one()
 
-            if router_to_update.aliases is not None:
-                await self.postgres_session.execute(delete(RouterAliasTable).where(RouterAliasTable.router_id == router_to_update.id))
-                if router_to_update.aliases:
+            if router.aliases is not None:
+                await self.postgres_session.execute(delete(RouterAliasTable).where(RouterAliasTable.router_id == router.id))
+                if router.aliases:
                     await self.postgres_session.execute(
                         insert(RouterAliasTable),
-                        [{"value": alias, "router_id": router_to_update.id} for alias in router_to_update.aliases],
+                        [{"value": alias, "router_id": router.id} for alias in router.aliases],
                     )
         except IntegrityError as e:
             if "router_name_key" in str(e.orig):
-                return RouterNameAlreadyExistsError(name=router_to_update.name)
+                return RouterNameAlreadyExistsError(name=router.name)
             raise
 
         return Router(
             id=row.id,
             name=row.name,
-            user_id=router_to_update.user_id,
+            user_id=router.user_id,
             type=RouterType(row.type),
-            aliases=router_to_update.aliases,
+            aliases=router.aliases,
             load_balancing_strategy=RouterLoadBalancingStrategy(row.load_balancing_strategy),
-            vector_size=router_to_update.vector_size,
-            max_context_length=router_to_update.max_context_length,
+            vector_size=router.vector_size,
+            max_context_length=router.max_context_length,
             cost_prompt_tokens=row.cost_prompt_tokens or 0.0,
             cost_completion_tokens=row.cost_completion_tokens or 0.0,
-            providers=router_to_update.providers,
+            providers=router.providers,
             created=row.created,
             updated=row.updated,
         )
+
+    # async def get_all_router_with_providers(self) -> list[RouterWithProviders]:
+    #     query = (
+    #         select(
+    #             RouterTable.id,
+    #             RouterTable.name,
+    #             RouterTable.user_id,
+    #             RouterTable.type,
+    #             RouterTable.load_balancing_strategy,
+    #             RouterTable.cost_prompt_tokens,
+    #             RouterTable.cost_completion_tokens,
+    #             ProviderTable.max_context_length,
+    #             ProviderTable.vector_size,
+    #             ProviderTable.qos_metric,
+    #             ProviderTable.qos_limit,
+    #             ProviderTable.created,
+    #             ProviderTable.updated,
+    #             func.array_remove(func.array_agg(RouterAliasTable.value.distinct()), None).label("aliases"),
+    #             func.coalesce(
+    #                 func.jsonb_agg(
+    #                     func.jsonb_build_object(
+    #                         "id",
+    #                         ProviderTable.id,
+    #                         "router_id",
+    #                         ProviderTable.router_id,
+    #                         "user_id",
+    #                         ProviderTable.user_id,
+    #                         "type",
+    #                         ProviderTable.type,
+    #                         "url",
+    #                         ProviderTable.url,
+    #                         "key",
+    #                         ProviderTable.key,
+    #                         "timeout",
+    #                         ProviderTable.timeout,
+    #                         "model_name",
+    #                         ProviderTable.model_name,
+    #                         "model_hosting_zone",
+    #                         ProviderTable.model_hosting_zone,
+    #                         "model_total_params",
+    #                         ProviderTable.model_total_params,
+    #                         "model_active_params",
+    #                         ProviderTable.model_active_params,
+    #                     ).distinct()
+    #                 ).filter(ProviderTable.id.is_not(None)),
+    #                 text("'[]'::jsonb"),
+    #             ).label("providers"),
+    #         )
+    #         .join(ProviderTable, ProviderTable.router_id == RouterTable.id, isouter=True)
+    #         .join(RouterAliasTable, RouterAliasTable.router_id == RouterTable.id, isouter=True)
+    #         .group_by(RouterTable.id, RouterTable.name, RouterTable.user_id)
+    #     )
+    #     result = await self.postgres_session.execute(query)
+    #     return [RouterWithProviders(**row._asdict()) for row in result.all()]

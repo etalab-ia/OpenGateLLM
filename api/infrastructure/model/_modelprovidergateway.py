@@ -92,10 +92,10 @@ class ModelProviderGateway(ProviderGateway):
         # @TODO: handle exception properly and add integration tests for this case and adapt unit tests
         except (ModelIsTooBusyException, HTTPException) as e:
             logger.info(msg=f"Failed to get max context length for {client.model_name}: {e}.")
-            return ProviderNotReachableError(model_name=client.model_name)
+            return ProviderNotReachableError(model_name=client.model_name, status_code=500, detail=str(e))
 
         if response.status_code != 200:
-            return ProviderNotReachableError(model_name=client.model_name)
+            return ProviderNotReachableError(model_name=client.model_name, status_code=response.status_code, detail=response.text)
 
         data = response.json().get("data", [])
         model = next((ModelResponse(**model) for model in data if model["id"] == client.model_name or client.model_name in model["aliases"]), None)
@@ -113,10 +113,10 @@ class ModelProviderGateway(ProviderGateway):
             response = await client.forward_request(exchange=exchange)
         except (ModelIsTooBusyException, HTTPException) as e:
             logger.info(msg=f"Failed to get vector size for {client.model_name}: {e}.")
-            return ProviderNotReachableError(model_name=client.model_name)
+            return ProviderNotReachableError(model_name=client.model_name, status_code=500, detail=str(e))
 
         if response.status_code != 200:
-            return ProviderNotReachableError(model_name=client.model_name)
+            return ProviderNotReachableError(model_name=client.model_name, status_code=response.status_code, detail=response.text)
 
         data = response.json()["data"]
         vector_size = len(data[0]["embedding"])

@@ -165,10 +165,10 @@ class RoleHasUsersHTTPException(HTTPException):
 # 424
 class ProviderNotReachableHTTPException(HTTPException):
     status_code = 424
-    detail = "Model provider {provider_name} not reachable."
+    detail = "Model provider {name} not reachable ({status_code}): {detail}"
 
-    def __init__(self, name: str) -> None:
-        super().__init__(status_code=self.status_code, detail=f"Model provider {name} not reachable.")
+    def __init__(self, name: str, status_code: int, detail: str) -> None:
+        super().__init__(status_code=self.status_code, detail=f"Model provider {name} not reachable ({status_code}): {detail}")
 
 
 # 429
@@ -184,3 +184,13 @@ class InternalServerHTTPException(HTTPException):
 
 
 # 503
+class ModelIsTooBusyException(HTTPException):
+    status_code = 503
+    detail = "Model is too busy ({error_type}), please try again later."
+
+    def __init__(self, error_type: str) -> None:
+        super().__init__(
+            status_code=self.status_code,
+            detail=f"Model is too busy ({error_type}), please try again later.",
+            headers={"Retry-After": "10"},
+        )

@@ -151,5 +151,6 @@ class HttpResponseFactory(factory.Factory):
         exclude = ("payload",)
 
     status_code = 200
+    text = ""
     payload = factory.LazyFunction(lambda: {})
     json = factory.LazyAttribute(lambda self: Mock(return_value=self.payload))

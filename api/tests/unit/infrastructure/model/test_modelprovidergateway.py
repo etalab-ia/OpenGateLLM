@@ -114,7 +114,13 @@ class TestModelProviderGateway:
         assert result == ProviderCapabilities(max_context_length=2048, vector_size=3)
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("error", [ProviderNotReachableError(model_name="test-model"), ModelProviderNotFoundError(model_name="test-model")])
+    @pytest.mark.parametrize(
+        "error",
+        [
+            ProviderNotReachableError(model_name="test-model", status_code=500, detail="error_detail"),
+            ModelProviderNotFoundError(model_name="test-model"),
+        ],
+    )
     async def test_should_return_max_context_error(self, gateway, client, error, mocker):
         # Arrange
         mocker.patch.object(ModelProviderGateway, "_build_client", return_value=client)
@@ -136,7 +142,7 @@ class TestModelProviderGateway:
     @pytest.mark.asyncio
     async def test_should_return_vector_size_error(self, gateway, client, mocker):
         # Arrange
-        error = ProviderNotReachableError(model_name="test-model")
+        error = ProviderNotReachableError(model_name="test-model", status_code=500, detail="error_detail")
         mocker.patch.object(ModelProviderGateway, "_build_client", return_value=client)
         mocker.patch.object(ModelProviderGateway, "_get_max_context_length", AsyncMock(return_value=4096))
         mocker.patch.object(ModelProviderGateway, "_get_vector_size", AsyncMock(return_value=error))
@@ -252,7 +258,7 @@ class TestModelProviderGateway:
         result = await ModelProviderGateway._get_max_context_length(client)
 
         # Assert
-        assert result == ProviderNotReachableError(model_name="test-model")
+        assert result == ProviderNotReachableError(model_name="test-model", status_code=500, detail=str(error))
 
     @pytest.mark.asyncio
     async def test_should_return_provider_not_reachable_when_models_response_status_is_not_200(self, client, mocker):
@@ -266,7 +272,7 @@ class TestModelProviderGateway:
         result = await ModelProviderGateway._get_max_context_length(client)
 
         # Assert
-        assert result == ProviderNotReachableError(model_name="test-model")
+        assert result == ProviderNotReachableError(model_name="test-model", status_code=500, detail="")
 
     @pytest.mark.asyncio
     async def test_should_get_vector_size(self, client, mocker):
@@ -296,7 +302,7 @@ class TestModelProviderGateway:
         result = await ModelProviderGateway._get_vector_size(client)
 
         # Assert
-        assert result == ProviderNotReachableError(model_name="test-model")
+        assert result == ProviderNotReachableError(model_name="test-model", status_code=500, detail="")
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("error", [ModelIsTooBusyException(), HTTPException(status_code=500, detail="boom")])
@@ -309,4 +315,4 @@ class TestModelProviderGateway:
         result = await ModelProviderGateway._get_vector_size(client)
 
         # Assert
-        assert result == ProviderNotReachableError(model_name="test-model")
+        assert result == ProviderNotReachableError(model_name="test-model", status_code=500, detail=str(error))

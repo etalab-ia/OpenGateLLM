@@ -79,7 +79,7 @@ class TestUpdateRouterUseCase:
         assert result.router == updated_router
         user_info_repository.get_user_info.assert_called_once_with(user_id=admin_user_info.id)
         router_repository.get_router_by_id.assert_called_once_with(router_id=42)
-        router_repository.update_router.assert_called_once_with(router_to_update=updated_router)
+        router_repository.update_router.assert_called_once_with(router=updated_router)
 
     @pytest.mark.asyncio
     async def test_should_return_user_is_not_admin_error_when_user_is_not_admin(self, use_case, router_repository, unauthorized_user_info):
@@ -98,7 +98,7 @@ class TestUpdateRouterUseCase:
     async def test_should_return_router_not_found_error_when_router_does_not_exist(self, use_case, router_repository, admin_user_info):
         # Arrange
         use_case.user_info_repository.get_user_info.return_value = admin_user_info
-        use_case.router_repository.get_router_by_id.return_value = None
+        use_case.router_repository.get_router_by_id.return_value = RouterNotFoundError(id=99)
 
         # Act
         result = await use_case.execute(command=UpdateRouterCommand(user_id=admin_user_info.id, router_id=99))
@@ -140,7 +140,7 @@ class TestUpdateRouterUseCase:
 
         # Assert
         assert isinstance(result, UpdateRouterUseCaseSuccess)
-        router_repository.update_router.assert_called_once_with(router_to_update=router.with_aliases(["own-alias", "new-alias"]))
+        router_repository.update_router.assert_called_once_with(router=router.with_aliases(["own-alias", "new-alias"]))
 
     @pytest.mark.asyncio
     async def test_should_not_check_aliases_when_command_aliases_is_none(self, use_case, router_repository, admin_user_info, sample_router):
@@ -186,7 +186,7 @@ class TestUpdateRouterUseCase:
 
         # Assert
         assert isinstance(result, UpdateRouterUseCaseSuccess)
-        router_repository.update_router.assert_called_once_with(router_to_update=router.with_aliases(["new-alias"]))
+        router_repository.update_router.assert_called_once_with(router=router.with_aliases(["new-alias"]))
 
     @pytest.mark.asyncio
     async def test_should_not_call_update_router_when_router_should_not_be_updated(self, use_case, router_repository, admin_user_info, sample_router):

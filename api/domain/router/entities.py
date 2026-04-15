@@ -46,3 +46,9 @@ class Router(BaseModel):
 
     def with_aliases(self, aliases: list[str]) -> "Router":
         return self.model_copy(update={"aliases": aliases})
+
+    def vector_size_is_consistent(self, vector_size: int) -> bool:
+        return self.vector_size == vector_size
+
+    def max_context_length_is_consistent(self, max_context_length) -> bool:
+        return self.max_context_length == max_context_length

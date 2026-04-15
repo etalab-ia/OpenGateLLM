@@ -59,11 +59,11 @@ class UpdateProviderUseCase:
             return UserIsNotAdminError()
 
         existing_provider = await self.provider_repository.get_one_provider(provider_id=command.provider_id)
-        if existing_provider is None:
+        if isinstance(existing_provider, ProviderNotFoundError):
             return ProviderNotFoundError(id=command.provider_id)
 
         current_router = await self.router_repository.get_router_by_id(router_id=existing_provider.router_id)
-        if current_router is None:
+        if isinstance(current_router, RouterNotFoundError):
             return RouterNotFoundError(id=existing_provider.router_id)
 
         provider_to_persist = existing_provider

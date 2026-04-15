@@ -276,7 +276,7 @@ class TestCreateProviderUseCase:
     ):
         # Arrange
         router_repository.get_router_by_id.return_value = sample_router
-        provider_gateway.get_capabilities.return_value = ProviderNotReachableError(model_name="my-model")
+        provider_gateway.get_capabilities.return_value = ProviderNotReachableError(model_name="my-model", status_code=500, detail="error_detail")
 
         # Act
         result = await use_case.execute(default_command)
@@ -284,6 +284,8 @@ class TestCreateProviderUseCase:
         # Assert
         assert isinstance(result, ProviderNotReachableError)
         assert result.model_name == "my-model"
+        assert result.status_code == 500
+        assert result.detail == "error_detail"
         provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio

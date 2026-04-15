@@ -23,8 +23,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_ADMIN_ROLE_NAME = "bootstrap_admin"
-DEFAULT_ADMIN_USER_NAME = "bootstrap_admin"
+BOOTSTRAP_ADMIN_ROLE_NAME = "bootstrap_admin"
+BOOTSTRAP_ADMIN_USER_NAME = "bootstrap_admin"
 
 
 def _get_null_user_reference_count(bind: sa.Connection) -> int:
@@ -37,7 +37,7 @@ def _ensure_bootstrap_admin(bind: sa.Connection) -> int:
     admin_username = configuration.settings.auth_bootsrap_admin_username
     admin_password = configuration.settings.auth_bootsrap_admin_password
     
-    # Create the default admin role
+    # Create the bootstrap admin role
     role_id = bind.execute(
         sa.text(
             """
@@ -46,10 +46,10 @@ def _ensure_bootstrap_admin(bind: sa.Connection) -> int:
             RETURNING id
             """
         ),
-        {"name": DEFAULT_ADMIN_ROLE_NAME},
+        {"name": BOOTSTRAP_ADMIN_ROLE_NAME},
     ).scalar_one()
 
-    # Create the default admin permission
+    # Create the bootstrap admin permission
     bind.execute(
         sa.text(
             """
@@ -60,7 +60,7 @@ def _ensure_bootstrap_admin(bind: sa.Connection) -> int:
         {"role_id": role_id, "permission": "ADMIN"},
     )
 
-    # Create the default admin user
+    # Create the bootstrap admin user
     hashed_password = bcrypt.hashpw(admin_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
     user_id = bind.execute(
         sa.text(
@@ -73,7 +73,7 @@ def _ensure_bootstrap_admin(bind: sa.Connection) -> int:
         {
             "email": admin_username,
             "password": hashed_password,
-            "name": DEFAULT_ADMIN_USER_NAME,
+            "name": BOOTSTRAP_ADMIN_USER_NAME,
             "role_id": role_id,
             "priority": 0,
         },

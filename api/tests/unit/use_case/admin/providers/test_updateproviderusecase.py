@@ -94,7 +94,7 @@ class TestUpdateProviderUseCase:
     ):
         # Arrange
         user_info_repository.get_user_info.return_value = admin_user_info
-        provider_repository.get_one_provider.return_value = None
+        provider_repository.get_one_provider.return_value = ProviderNotFoundError(id=10)
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -112,7 +112,7 @@ class TestUpdateProviderUseCase:
         # Arrange
         user_info_repository.get_user_info.return_value = admin_user_info
         provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.return_value = None
+        router_repository.get_router_by_id.return_value = RouterNotFoundError(id=sample_provider.router_id)
 
         # Act
         result = await use_case.execute(command=default_command)

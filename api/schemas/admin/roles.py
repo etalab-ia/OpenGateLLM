@@ -27,27 +27,6 @@ class Limit(BaseModel):
     value: int | None = Field(default=None, ge=0, description="The limit value.")
 
 
-class RoleUpdateRequest(BaseModel):
-    name: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="The new role name.")
-    permissions: list[PermissionType] | None = Field(default=None, description="The new permissions.")
-    limits: list[Limit] | None = Field(default=None, description="The new limits.")
-
-    @field_validator("limits", mode="after")
-    def check_duplicate_limits(cls, limits):
-        keys = set()
-        if limits is not None:
-            for limit in limits:
-                key = (limit.router_id, limit.type.value)
-                if key in keys:
-                    raise ValueError(f"Duplicate limit found: ({limit.router_id}, {limit.type}).")
-                keys.add(key)
-        return limits
-
-
-class RolesResponse(BaseModel):
-    id: int
-
-
 class CreateRole(BaseModel):
     name: constr(strip_whitespace=True, min_length=1)
     permissions: list[PermissionType] | None = []

@@ -132,7 +132,7 @@ class TestUpdateRoleUseCase:
         # Assert
         assert isinstance(result, UpdateRoleUseCaseSuccess)
         assert result.role == updated_role
-        role_repository.update_role.assert_called_once_with(sample_role.with_name("new-name"))
+        role_repository.update_role.assert_called_once_with(role=sample_role.with_name("new-name"))
 
     @pytest.mark.asyncio
     async def test_should_replace_limits_when_limits_are_changed(

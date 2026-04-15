@@ -35,17 +35,14 @@ class UpdateRouterUseCase:
         self.router_repository = router_repository
         self.user_info_repository = user_info_repository
 
-    async def execute(
-        self,
-        command: UpdateRouterCommand,
-    ) -> UpdateRouterUseCaseResult:
+    async def execute(self, command: UpdateRouterCommand) -> UpdateRouterUseCaseResult:
         user_info = await self.user_info_repository.get_user_info(user_id=command.user_id)
 
         if not user_info.is_admin:
             return UserIsNotAdminError()
 
         router = await self.router_repository.get_router_by_id(router_id=command.router_id)
-        if router is None:
+        if isinstance(router, RouterNotFoundError):
             return RouterNotFoundError(id=command.router_id)
 
         if command.aliases:
@@ -71,7 +68,7 @@ class UpdateRouterUseCase:
         if router_to_persist == router:
             return UpdateRouterUseCaseSuccess(router=router)
 
-        result = await self.router_repository.update_router(router_to_update=router_to_persist)
+        result = await self.router_repository.update_router(router=router_to_persist)
 
         match result:
             case Router() as updated_router:

@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 from api.domain.model.entities import Metric
-from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider import ProviderGateway, ProviderRepository
 from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderType
@@ -86,20 +85,20 @@ class CreateProviderUseCase:
                 pass
 
         max_context_length = provider_capabilities.max_context_length
-        if router.type == RouterType.TEXT_EMBEDDINGS_INFERENCE:
-            vector_size = provider_capabilities.vector_size
-        else:
-            vector_size = None
+        vector_size = provider_capabilities.vector_size
 
-        if router.providers > 0:
-            if router.vector_size != vector_size:
-                return InconsistentModelVectorSizeError(
-                    actual_vector_size=vector_size, expected_vector_size=router.vector_size, router_name=router.name
-                )
-            if router.max_context_length != max_context_length:
-                return InconsistentModelMaxContextLengthError(
-                    actual_max_context_length=max_context_length, expected_max_context_length=router.max_context_length, router_name=router.name
-                )
+        if router.providers > 0 and not router.vector_size_is_consistent(vector_size):
+            return InconsistentModelVectorSizeError(
+                actual_vector_size=vector_size,
+                expected_vector_size=router.vector_size,
+                router_name=router.name,
+            )
+        if router.providers > 0 and not router.max_context_length_is_consistent(max_context_length):
+            return InconsistentModelMaxContextLengthError(
+                actual_max_context_length=max_context_length,
+                expected_max_context_length=router.max_context_length,
+                router_name=router.name,
+            )
 
         result = await self.provider_repository.create_provider(
             router_id=command.router_id,

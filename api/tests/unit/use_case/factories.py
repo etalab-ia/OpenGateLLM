@@ -10,8 +10,11 @@ from api.domain.role.entities import Limit, LimitType, PermissionType, Role
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy
 from api.domain.user.entities import User
 from api.domain.userinfo.entities import UserInfo
+from api.schemas.core.configuration import Model as ModelConfiguration
+from api.schemas.core.configuration import ModelProvider as ModelProviderConfiguration
 
 
+# Entity factories
 class LimitFactory(factory.Factory):
     class Meta:
         model = Limit
@@ -133,3 +136,44 @@ class UserInfoFactory(factory.Factory):
         admin = factory.Trait(permissions=[PermissionType.ADMIN])
         without_permission = factory.Trait(permissions=[])
         no_organization = factory.Trait(organization=None, name=None)
+
+
+# Configuration factories
+class ModelProviderConfigurationFactory(factory.Factory):
+    class Meta:
+        model = ModelProviderConfiguration
+
+    type = ProviderType.VLLM
+    url = factory.Faker("url")
+    key = None
+    timeout = 30
+    model_name = factory.Faker("bothify", text="model-????")
+    model_hosting_zone = ProviderCarbonFootprintZone.WOR
+    model_total_params = 0
+    model_active_params = 0
+    qos_metric = None
+    qos_limit = None
+
+    class Params:
+        tei = factory.Trait(type=ProviderType.TEI)
+        openai = factory.Trait(type=ProviderType.OPENAI)
+        albert = factory.Trait(type=ProviderType.ALBERT)
+
+
+class ModelConfigurationFactory(factory.Factory):
+    class Meta:
+        model = ModelConfiguration
+
+    name = factory.Faker("bothify", text="router_####")
+    type = RouterType.TEXT_GENERATION
+    aliases = factory.LazyFunction(list)
+    load_balancing_strategy = RouterLoadBalancingStrategy.SHUFFLE
+    cost_prompt_tokens = 0.0
+    cost_completion_tokens = 0.0
+    providers = factory.LazyFunction(lambda: [ModelProviderConfigurationFactory()])
+
+    class Params:
+        embedding = factory.Trait(
+            type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
+            providers=factory.LazyFunction(lambda: [ModelProviderConfigurationFactory(tei=True)]),
+        )
