@@ -108,6 +108,3 @@ class LangfuseManager:
             logger.debug(f"Failed to update Langfuse root observation: {e}", exc_info=True)
         finally:
             langfuse_obs.end()
-
-
-# TODO - When using a file/picture, please add the document type as metadata and document size
