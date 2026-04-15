@@ -58,9 +58,7 @@ class GetRolesUseCase:
                 self.permission_repository.get_permissions_by_role_ids(role_ids=role_ids),
             )
 
-            roles_with_limits_and_permissions = [
-                role.with_limits(limits.get(role.id, [])).with_permissions(permissions.get(role.id, [])) for role in role_page.data
-            ]
-            role_page = replace(role_page, data=roles_with_limits_and_permissions)
+            full_roles = [role.with_limits(limits.get(role.id, [])).with_permissions(permissions.get(role.id, [])) for role in role_page.data]
+            role_page = replace(role_page, data=full_roles)
 
         return GetRolesUseCaseSuccess(role_page=role_page)

@@ -169,8 +169,6 @@ def get_roles_use_case_factory(postgres_session: AsyncSession = Depends(get_post
 def get_role_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetRoleUseCase:
     return GetRoleUseCase(
         role_repository=_role_repository(postgres_session),
-        limit_repository=_limit_repository(postgres_session),
-        permission_repository=_permission_repository(postgres_session),
         user_info_repository=_user_info_repository(postgres_session),
     )
 

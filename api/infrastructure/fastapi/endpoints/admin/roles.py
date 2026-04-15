@@ -142,14 +142,14 @@ async def get_roles(
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
     get_roles_use_case: GetRolesUseCase = Depends(get_roles_use_case_factory),
 ) -> RolesResponse:
-    command = GetRolesCommand(
-        user_id=request_context.get().user_id,
-        offset=offset,
-        limit=limit,
-        sort_by=sort_by,
-        sort_order=sort_order,
-    )
     try:
+        command = GetRolesCommand(
+            user_id=request_context.get().user_id,
+            offset=offset,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
         result = await get_roles_use_case.execute(command)
     except Exception as e:
         logger.exception(
@@ -207,7 +207,7 @@ async def get_role(
     match result:
         case GetRoleUseCaseSuccess(role=role):
             return RoleResponse.model_validate(role, from_attributes=True)
-        case RoleNotFoundError(role_id=name):
-            raise RoleNotFoundHTTPException(name)
+        case RoleNotFoundError(role_id=role_id):
+            raise RoleNotFoundHTTPException(role_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()

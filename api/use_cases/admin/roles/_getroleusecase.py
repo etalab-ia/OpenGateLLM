@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from api.domain.role import LimitRepository, PermissionRepository, RoleRepository
+from api.domain.role import RoleRepository
 from api.domain.role.entities import Role
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.userinfo import UserInfoRepository
@@ -25,13 +25,9 @@ class GetRoleUseCase:
     def __init__(
         self,
         role_repository: RoleRepository,
-        permission_repository: PermissionRepository,
-        limit_repository: LimitRepository,
         user_info_repository: UserInfoRepository,
     ):
         self.role_repository = role_repository
-        self.permission_repository = permission_repository
-        self.limit_repository = limit_repository
         self.user_info_repository = user_info_repository
 
     async def execute(
@@ -43,7 +39,7 @@ class GetRoleUseCase:
         if not user_info.is_admin:
             return UserIsNotAdminError()
 
-        role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=command.role_id)
+        role = await self.role_repository.get_full_role_by_id(role_id=command.role_id)
         if role is None:
             return RoleNotFoundError(role_id=command.role_id)
         return GetRoleUseCaseSuccess(role=role)
