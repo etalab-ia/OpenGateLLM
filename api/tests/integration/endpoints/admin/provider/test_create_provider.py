@@ -1,66 +1,40 @@
 from unittest.mock import AsyncMock
 
-import httpx
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 import respx
 
 from api.dependencies import create_provider_use_case_factory
+from api.domain.model import ModelType as RouterType
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
+from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
-from api.schemas.models import ModelType
 from api.tests.helpers import create_token
-from api.tests.integration.factories import RouterSQLFactory, UserSQLFactory
+from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_embeddings_responses, mock_models_responses
+from api.tests.integration.factories.albert import AlbertModelResponseFactory, AlbertModelsResponseFactory, AlbertWrongModelTypeResponseFactory
+from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.ADMIN_PROVIDERS}"
 
-DEFAULT_PROVIDER_URL = "http://my-test-provider/"
+
+DEFAULT_MODEL_ID = "test/my-model"
+DEFAULT_MAX_CONTEXT_LENGTH = 4096
 
 
 def _valid_body(router_id: int, **overrides) -> dict:
     """Return a minimal valid provider creation body, with optional overrides."""
     body = {
         "router_id": router_id,
-        "type": "albert",
-        "model_name": "my-model",
+        "type": ProviderType.ALBERT.value,
+        "model_name": DEFAULT_MODEL_ID,
         "url": DEFAULT_PROVIDER_URL,
     }
     body.update(overrides)
     return body
-
-
-def _mock_provider_reachable(respx_mock, base_url=DEFAULT_PROVIDER_URL, max_context_length=4096, vector_size=768):
-    """Mock GET /v1/models and POST /v1/embeddings for a reachable albert provider."""
-    base_url = base_url.rstrip("/")
-    respx_mock.get(f"{base_url}/v1/models").mock(
-        return_value=httpx.Response(
-            200,
-            json={
-                "data": [
-                    {
-                        "id": "my-model",
-                        "aliases": [],
-                        "created": 0,
-                        "owned_by": "test-provider",
-                        "max_context_length": max_context_length,
-                    }
-                ],
-            },
-        )
-    )
-    embedding = [0.0] * vector_size if vector_size else []
-    respx_mock.post(f"{base_url}/v1/embeddings").mock(
-        return_value=httpx.Response(
-            200,
-            json={
-                "data": [{"embedding": embedding}],
-            },
-        )
-    )
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -72,9 +46,24 @@ class TestCreateProvider:
 
     @respx.mock
     async def test_happy_path(self, client: AsyncClient, db_session):
-        router = RouterSQLFactory(user=self.admin_user, type=ModelType.TEXT_GENERATION)
+        router = RouterSQLFactory(user=self.admin_user, type=RouterType.TEXT_GENERATION)
         await db_session.flush()
-        _mock_provider_reachable(respx)
+        mock_models_responses(
+            respx_mock=respx,
+            provider_type=ProviderType.ALBERT,
+            body=AlbertModelsResponseFactory(
+                data=[AlbertModelResponseFactory(model_id=DEFAULT_MODEL_ID, max_context_length=DEFAULT_MAX_CONTEXT_LENGTH)],
+                count=3,
+            ),
+            status_code=AlbertModelsResponseFactory._status_code,
+        )
+        mock_embeddings_responses(
+            respx_mock=respx,
+            provider_type=ProviderType.ALBERT,
+            body=AlbertWrongModelTypeResponseFactory(),
+            status_code=AlbertWrongModelTypeResponseFactory._status_code,
+        )
+
         response = await client.post(
             url=URL,
             headers={"Authorization": f"Bearer {self.token.token}"},

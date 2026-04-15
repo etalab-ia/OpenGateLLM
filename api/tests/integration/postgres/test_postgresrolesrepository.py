@@ -3,7 +3,7 @@ import pytest
 from api.domain.role.entities import LimitType, PermissionType, Role
 from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 from api.infrastructure.postgres import PostgresRolesRepository
-from api.tests.integration.factories import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.exceptions import RoleNotFoundException
 
 

@@ -184,7 +184,6 @@ class ChatCompletionChunk(ChatCompletionChunk):
 
         result = ""
         for choice in choices:
-            choice = choices[0]
             delta = choice.get("delta") or {}
             content = delta.get("content") or ""
             reasoning_content = delta.get("reasoning_content") or ""

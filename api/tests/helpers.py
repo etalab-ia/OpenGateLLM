@@ -1,7 +1,7 @@
 from jose import jwt
 
 from api.helpers._identityaccessmanager import IdentityAccessManager
-from api.tests.integration.factories import TokenSQLFactory
+from api.tests.integration.factories.sql import TokenSQLFactory
 from api.utils.configuration import configuration
 
 

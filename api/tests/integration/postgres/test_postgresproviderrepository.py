@@ -9,11 +9,7 @@ from api.domain.provider import Provider, ProviderAlreadyExistsError, ProviderCa
 from api.domain.provider.entities import ProviderSortField
 from api.infrastructure.postgres import PostgresProviderRepository
 from api.sql.models import Provider as ProviderTable
-from api.tests.integration.factories import (
-    ProviderSQLFactory,
-    RouterSQLFactory,
-    UserSQLFactory,
-)
+from api.tests.integration.factories.sql import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.variables import MASTER_ID
 
 _EXCLUDE = {"id", "created", "updated"}
@@ -267,7 +263,8 @@ class TestUpdateProvider:
 
         # Act
         result = await repository.update_provider(
-            domain_provider.with_router_id(router_2.id)
+            domain_provider
+            .with_router_id(router_2.id)
             .with_timeout(120)
             .with_model_hosting_zone(ProviderCarbonFootprintZone.USA)
             .with_model_total_params(2_000_000)

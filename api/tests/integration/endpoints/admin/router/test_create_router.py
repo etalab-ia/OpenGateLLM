@@ -8,7 +8,7 @@ from api.dependencies import create_router_use_case_factory
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.helpers import create_token
-from api.tests.integration.factories import UserSQLFactory
+from api.tests.integration.factories.sql import UserSQLFactory
 from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.ADMIN_ROUTERS}"

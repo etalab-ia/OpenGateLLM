@@ -57,7 +57,7 @@ class RoleSQLFactory(BaseSQLFactory):
         admin = factory.Trait(
             name="admin",
             admin_permission=factory.RelatedFactory(
-                "api.tests.integration.factories.PermissionSQLFactory",
+                "api.tests.integration.factories.sql.PermissionSQLFactory",
                 factory_related_name="role",
                 permission=PermissionType.ADMIN,
             ),
