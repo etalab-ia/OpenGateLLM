@@ -356,19 +356,14 @@ class BaseModelProvider(ABC):
             response = self._format_response(request_content=request_content, response=response, request_latency=latency)
             await self._log_performance_metric(redis_client=redis_client, ttft=None, latency=latency)
 
-            if langfuse_obs is not None:
-                try:
-                    ctx = request_context.get()
-                    langfuse_obs.update(
-                        output="[REDACTED]",
+            if global_context.langfuse_client is not None and langfuse_obs is not None:
+                ctx = request_context.get()
+                if ctx.usage is not None:
+                    global_context.langfuse_client.update_observation(
+                        langfuse_obs,
                         usage_details={"input": ctx.usage.prompt_tokens, "output": ctx.usage.completion_tokens},
                         metadata={"latency_ms": latency, "cost": ctx.usage.cost, "router_name": ctx.router_name},
                     )
-                except Exception:
-                    logger.debug("Failed to update Langfuse generation observation", exc_info=True)
-                finally:
-                    langfuse_obs.end()
-                    langfuse_obs = None
 
             return response
 
@@ -488,19 +483,14 @@ class BaseModelProvider(ABC):
                             latency = self._elapsed_ms(start_time=start_time)
                             extra_chunk = self._get_extra_stream_chunk(request_content=request_content, buffer=buffer, latency=latency)
 
-                            if langfuse_obs is not None:
-                                try:
-                                    ctx = request_context.get()
-                                    langfuse_obs.update(
-                                        output="[REDACTED]",
+                            if global_context.langfuse_client is not None and langfuse_obs is not None:
+                                ctx = request_context.get()
+                                if ctx.usage is not None:
+                                    global_context.langfuse_client.update_observation(
+                                        langfuse_obs,
                                         usage_details={"input": ctx.usage.prompt_tokens, "output": ctx.usage.completion_tokens},
                                         metadata={"latency_ms": latency, "ttft_ms": ttft, "cost": ctx.usage.cost, "router_name": ctx.router_name},
                                     )
-                                except Exception:
-                                    logger.debug("Failed to update Langfuse stream generation observation", exc_info=True)
-                                finally:
-                                    langfuse_obs.end()
-                                    langfuse_obs = None
 
                             if extra_chunk is not None:
                                 yield f"data: {dumps(extra_chunk)}\n\n", response.status_code

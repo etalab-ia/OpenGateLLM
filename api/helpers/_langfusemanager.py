@@ -61,6 +61,27 @@ class LangfuseManager:
         return self._client.start_observation(**kwargs)
 
     @staticmethod
+    def update_observation(
+        langfuse_obs,
+        *,
+        usage_details: dict[str, int] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Update an observation with output, usage details, or metadata. Swallows Langfuse errors so tracing failures never break the request."""
+        kwargs: dict[str, Any] = {}
+        if usage_details is not None:
+            kwargs["usage_details"] = usage_details
+        if metadata is not None:
+            kwargs["metadata"] = metadata
+        if not kwargs:
+            return
+
+        try:
+            langfuse_obs.update(**kwargs)
+        except Exception as e:
+            logger.debug(f"Failed to update Langfuse observation: {e}", exc_info=True)
+
+    @staticmethod
     def end_root_observation(langfuse_obs, status: int | None) -> None:
         """Update the root span with request metadata and end it. Works for both streaming and non-streaming responses."""
         try:

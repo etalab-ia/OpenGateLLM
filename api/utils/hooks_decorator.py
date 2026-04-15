@@ -64,11 +64,12 @@ def hooks(func):
             usage = set_usage_from_context(usage=usage)
             usage.status = e.status_code
             asyncio.create_task(log_usage(usage=usage))
-            if langfuse_obs is not None:
-                try:
-                    langfuse_obs.update(metadata={"status": e.status_code, "error": e.detail})
-                finally:
-                    langfuse_obs.end()
+            if global_context.langfuse_client is not None and langfuse_obs is not None:
+                global_context.langfuse_client.update_observation(
+                    langfuse_obs,
+                    metadata={"status": e.status_code, "error": e.detail},
+                )
+                langfuse_obs.end()
             raise e  # Re-raise the exception for FastAPI to handle
 
     return wrapper
