@@ -3,7 +3,7 @@ from enum import StrEnum
 from pydantic import BaseModel
 
 from api.domain import EntitiesPage
-from api.domain.model import ModelType as RouterType
+from api.domain.model.entities import ModelType as RouterType
 
 
 class RouterLoadBalancingStrategy(StrEnum):

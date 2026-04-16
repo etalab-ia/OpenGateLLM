@@ -2,8 +2,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.model import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
-from api.domain.model import ModelType as RouterType
+from api.domain.model.entities import ModelType as RouterType
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider.entities import ProviderCarbonFootprintZone, ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.errors import RouterNotFoundError

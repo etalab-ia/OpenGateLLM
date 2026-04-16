@@ -4,7 +4,7 @@ import random
 import factory
 from factory import fuzzy
 
-from api.domain.model import ModelType as RouterType
+from api.domain.model.entities import ModelType as RouterType
 from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderType
 from api.domain.role.entities import Limit, LimitType, PermissionType, Role
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy

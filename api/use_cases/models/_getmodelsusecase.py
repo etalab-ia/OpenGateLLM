@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from api.domain.model import Model, ModelCosts
+from api.domain.model.entities import Model, ModelCosts
 from api.domain.role.entities import PermissionType
 from api.domain.router import RouterRepository
 from api.domain.userinfo import UserInfoRepository

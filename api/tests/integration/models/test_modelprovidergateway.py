@@ -1,7 +1,7 @@
 import pytest
 import respx
 
-from api.domain.model import ModelType as RouterType
+from api.domain.model.entities import ModelType as RouterType
 from api.domain.provider import ProviderCapabilities
 from api.domain.provider.entities import ProviderType
 from api.infrastructure.fastapi.context import RequestContextManager

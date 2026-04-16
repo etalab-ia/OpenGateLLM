@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
-from api.domain.provider import Provider, ProviderRepository
+from api.domain.provider import ProviderRepository
+from api.domain.provider.entities import Provider
 from api.domain.provider.errors import ProviderNotFoundError
 from api.domain.userinfo import UserInfoRepository
 from api.domain.userinfo.errors import UserIsNotAdminError
