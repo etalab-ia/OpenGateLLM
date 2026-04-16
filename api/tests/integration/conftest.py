@@ -62,6 +62,17 @@ async def test_redis_pool(test_configuration):
     await pool.aclose()
 
 
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def _reset_redis_between_tests(test_redis_pool):
+    client = redis.Redis(connection_pool=test_redis_pool)
+    try:
+        await client.flushdb()
+        yield
+        await client.flushdb()
+    finally:
+        await client.aclose()
+
+
 @pytest_asyncio.fixture(scope="session")
 async def test_postgres_engine():
     conn = await asyncpg.connect("postgresql://postgres:changeme@localhost:5432/postgres")
