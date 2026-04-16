@@ -11,3 +11,7 @@ class PermissionRepository(ABC):
     @abstractmethod
     async def delete_permissions_by_role_id(self, role_id: int) -> list[PermissionType]:
         pass
+
+    @abstractmethod
+    async def get_permissions_by_role_ids(self, role_ids: list[int]) -> dict[int, list[PermissionType]]:
+        pass

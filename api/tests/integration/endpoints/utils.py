@@ -20,11 +20,11 @@ ENDPOINT_TABLE = {
 }
 
 
-def mock_models_responses(respx_mock, provider_type: ProviderType, body: factory.DictFactory, status_code: int) -> dict:
+def mock_models_responses(respx_mock, provider_type: ProviderType, body: factory.DictFactory, status_code: int) -> None:
     url = urljoin(base=DEFAULT_PROVIDER_URL, url=ENDPOINT_TABLE[provider_type].models[1])
     respx_mock.get(url=url).mock(return_value=httpx.Response(status_code=status_code, json=body))
 
 
-def mock_embeddings_responses(respx_mock, provider_type: ProviderType, body: factory.DictFactory, status_code: int) -> tuple(int, dict):
+def mock_embeddings_responses(respx_mock, provider_type: ProviderType, body: factory.DictFactory, status_code: int) -> None:
     url = urljoin(base=DEFAULT_PROVIDER_URL, url=ENDPOINT_TABLE[provider_type].embeddings[1])
     respx_mock.post(url=url).mock(return_value=httpx.Response(status_code=status_code, json=body))

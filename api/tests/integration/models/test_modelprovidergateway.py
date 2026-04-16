@@ -6,7 +6,7 @@ from api.domain.provider import ProviderCapabilities
 from api.domain.provider.entities import ProviderType
 from api.infrastructure.fastapi.context import RequestContextManager
 from api.infrastructure.http.model import ModelMetricsLogger
-from api.infrastructure.model._modelprovidergateway import ModelProviderGateway
+from api.infrastructure.model import ModelProviderGateway
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_embeddings_responses, mock_models_responses
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory, TeiModelsResponseFactory
 from api.tests.integration.factories.vllm import VllmModelsResponseFactory, VllmNotFoundResponseFactory

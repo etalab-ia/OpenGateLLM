@@ -6,7 +6,7 @@ from api.domain.role.entities import LimitType, PermissionType
 from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.unit.use_case.factories import LimitFactory, RoleFactory, UserInfoFactory
-from api.use_cases.admin.roles._updateroleusecase import UpdateRoleCommand, UpdateRoleUseCase, UpdateRoleUseCaseSuccess
+from api.use_cases.admin.roles import UpdateRoleCommand, UpdateRoleUseCase, UpdateRoleUseCaseSuccess
 
 
 @pytest.fixture
@@ -78,7 +78,7 @@ class TestUpdateRoleUseCase:
 
         # Assert
         assert isinstance(result, UserIsNotAdminError)
-        role_repository.get_role_by_id.assert_not_called()
+        role_repository.get_role_with_permissions_and_limits_by_id.assert_not_called()
         role_repository.update_role.assert_not_called()
 
     @pytest.mark.asyncio
@@ -87,7 +87,7 @@ class TestUpdateRoleUseCase:
     ):
         # Arrange
         user_info_repository.get_user_info.return_value = admin_user_info
-        role_repository.get_role_by_id.return_value = RoleNotFoundError(role_id=1)
+        role_repository.get_role_with_permissions_and_limits_by_id.return_value = None
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -96,7 +96,7 @@ class TestUpdateRoleUseCase:
         assert isinstance(result, RoleNotFoundError)
         assert result.role_id == 1
         role_repository.update_role.assert_not_called()
-        role_repository.get_role_by_id.assert_called_once_with(role_id=1)
+        role_repository.get_role_with_permissions_and_limits_by_id.assert_called_once_with(role_id=1)
 
     @pytest.mark.asyncio
     async def test_should_not_call_update_role_when_no_fields_are_changed(
@@ -104,7 +104,7 @@ class TestUpdateRoleUseCase:
     ):
         # Arrange
         user_info_repository.get_user_info.return_value = admin_user_info
-        role_repository.get_role_by_id.return_value = sample_role
+        role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -121,7 +121,7 @@ class TestUpdateRoleUseCase:
         # Arrange
         updated_role = sample_role.with_name("new-name")
         user_info_repository.get_user_info.return_value = admin_user_info
-        role_repository.get_role_by_id.return_value = sample_role
+        role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
         command = UpdateRoleCommand(user_id=1, role_id=1, name="new-name", permissions=None, limits=None)
@@ -142,7 +142,7 @@ class TestUpdateRoleUseCase:
         new_limits = [LimitFactory(router_id=1, type=LimitType.TPM, value=1000)]
         updated_role = sample_role.with_limits(new_limits)
         user_info_repository.get_user_info.return_value = admin_user_info
-        role_repository.get_role_by_id.return_value = sample_role
+        role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
         command = UpdateRoleCommand(user_id=1, role_id=1, name=None, permissions=None, limits=new_limits)
@@ -163,7 +163,7 @@ class TestUpdateRoleUseCase:
         new_permissions = [PermissionType.ADMIN, PermissionType.READ_METRIC]
         updated_role = sample_role.with_permissions(new_permissions)
         user_info_repository.get_user_info.return_value = admin_user_info
-        role_repository.get_role_by_id.return_value = sample_role
+        role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
         command = UpdateRoleCommand(user_id=1, role_id=1, name=None, permissions=new_permissions, limits=None)
@@ -185,7 +185,7 @@ class TestUpdateRoleUseCase:
         new_permissions = [PermissionType.ADMIN]
         updated_role = sample_role.with_name("updated").with_limits(new_limits).with_permissions(new_permissions)
         user_info_repository.get_user_info.return_value = admin_user_info
-        role_repository.get_role_by_id.return_value = sample_role
+        role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
         command = UpdateRoleCommand(user_id=1, role_id=1, name="updated", permissions=new_permissions, limits=new_limits)
@@ -208,7 +208,7 @@ class TestUpdateRoleUseCase:
     ):
         # Arrange
         user_info_repository.get_user_info.return_value = admin_user_info
-        role_repository.get_role_by_id.return_value = sample_role
+        role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = RoleAlreadyExistsError(name="new-name")
 
         command = UpdateRoleCommand(user_id=1, role_id=1, name="new-name", permissions=None, limits=None)

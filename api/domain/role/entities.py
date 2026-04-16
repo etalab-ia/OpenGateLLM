@@ -3,6 +3,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field, field_validator
 
+from api.domain import EntitiesPage
+
 
 class PermissionType(StrEnum):
     ADMIN = "admin"
@@ -52,3 +54,6 @@ class Role(BaseModel):
 
     def with_permissions(self, permissions: list["PermissionType"]) -> "Role":
         return self.model_copy(update={"permissions": permissions})
+
+
+RolePage = EntitiesPage["Role"]

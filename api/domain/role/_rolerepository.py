@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
-from api.domain.role.entities import Role
+from api.domain import SortField, SortOrder
+from api.domain.role.entities import Role, RolePage
 from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 
 
@@ -10,11 +11,7 @@ class RoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_roles(self, role_id: str) -> list[Role]:
-        pass
-
-    @abstractmethod
-    async def get_role_by_id(self, role_id: int) -> Role | RoleNotFoundError:
+    async def get_role_with_permissions_and_limits_by_id(self, role_id: int) -> Role | None:
         pass
 
     @abstractmethod
@@ -22,5 +19,15 @@ class RoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete_role(self, role_id: str) -> None:
+    async def delete_role(self, role_id: int) -> None:
+        pass
+
+    @abstractmethod
+    async def get_roles_page(
+        self,
+        limit: int,
+        offset: int,
+        sort_by: SortField,
+        sort_order: SortOrder,
+    ) -> RolePage:
         pass

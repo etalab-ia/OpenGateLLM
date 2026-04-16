@@ -14,3 +14,10 @@ class LimitRepository(ABC):
         role_id: int,
     ) -> list[Limit]:
         pass
+
+    @abstractmethod
+    async def get_limits_by_role_ids(
+        self,
+        role_ids: list[int],
+    ) -> dict[int, list[Limit]]:
+        pass

@@ -1,4 +1,4 @@
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,6 +10,15 @@ from api.sql.models import Permission as PermissionTable
 class PostgresPermissionRepository(PermissionRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
+
+    async def get_permissions_by_role_ids(self, role_ids: list[int]) -> dict[int, list[PermissionType]]:
+        permissions_query = select(PermissionTable.role_id, PermissionTable.permission).where(PermissionTable.role_id.in_(role_ids))
+
+        result = await self.postgres_session.execute(permissions_query)
+        permissions: dict[int, list[PermissionType]] = {}
+        for row in result.all():
+            permissions.setdefault(row.role_id, []).append(PermissionType(row.permission))
+        return permissions
 
     async def create_permissions(self, role_id: int, permissions: list[PermissionType]) -> list[PermissionType]:
         if not permissions:
