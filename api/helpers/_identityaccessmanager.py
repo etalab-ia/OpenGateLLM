@@ -31,7 +31,6 @@ from api.utils.exceptions import (
     OrganizationNameAlreadyTakenException,
     OrganizationNotFoundException,
     PasswordNotFoundException,
-    RoleAlreadyExistsException,
     RoleNotFoundException,
     TokenNotFoundException,
     UserAlreadyExistsException,
@@ -76,39 +75,6 @@ class IdentityAccessManager:
             key=self.secret_key,
             algorithm="HS256",
         )
-
-    @staticmethod
-    async def create_role(
-        postgres_session: AsyncSession,
-        name: str,
-        limits: list[Limit] = None,
-        permissions: list[PermissionType] = None,
-    ) -> int:
-        if limits is None:
-            limits = []
-
-        if permissions is None:
-            permissions = []
-
-        # create the role
-        try:
-            result = await postgres_session.execute(statement=insert(table=RoleTable).values(name=name).returning(RoleTable.id))
-            role_id = result.scalar_one()
-            await postgres_session.commit()
-        except IntegrityError:
-            raise RoleAlreadyExistsException()
-
-        # create the limits
-        for limit in limits:
-            await postgres_session.execute(statement=insert(table=LimitTable).values(role_id=role_id, router_id=limit.router_id, type=limit.type, value=limit.value))  # fmt: off
-
-        # create the permissions
-        for permission in permissions:
-            await postgres_session.execute(statement=insert(table=PermissionTable).values(role_id=role_id, permission=permission))
-
-        await postgres_session.commit()
-
-        return role_id
 
     @staticmethod
     async def delete_role(postgres_session: AsyncSession, role_id: int) -> None:

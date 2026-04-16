@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, asc, cast, desc, distinct, func, insert, select, update
+from sqlalchemy import Integer, asc, cast, delete, desc, distinct, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -120,5 +120,18 @@ class PostgresRolesRepository(RoleRepository):
             return RoleNotFoundError(role_id=role.id)
         return self._row_to_role(row, permissions=role.permissions, limits=role.limits)
 
-    async def delete_role(self, role_id: int) -> None:
-        raise NotImplementedError
+    async def delete_role(self, role_id: int) -> Role | None:
+        result = await self.postgres_session.execute(
+            delete(RoleTable)
+            .where(RoleTable.id == role_id)
+            .returning(
+                RoleTable.id,
+                RoleTable.name,
+                _unix_timestamp(RoleTable.created).label("created"),
+                _unix_timestamp(RoleTable.updated).label("updated"),
+            )
+        )
+        row = result.one_or_none()
+        if row is None:
+            return None
+        return self._row_to_role(row)

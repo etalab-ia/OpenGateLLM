@@ -148,6 +148,14 @@ class ProviderAlreadyExistsHTTPException(HTTPException):
         super().__init__(status_code=409, detail=f"Model provider {model_name} for url {url} already exists for router {router_id}.")
 
 
+class RoleHasUsersHTTPException(HTTPException):
+    status_code = 409
+    detail = "Role {role_id} has {number_of_users} users and cannot be removed."
+
+    def __init__(self, role_id: int, number_of_users: int) -> None:
+        super().__init__(status_code=409, detail=f"Role {role_id} has {number_of_users} users and cannot be removed.")
+
+
 # 413
 
 

@@ -5,6 +5,7 @@ from fastapi import Body, Depends, Path, Query, Security
 
 from api.dependencies import (
     create_role_use_case_factory,
+    delete_role_use_case_factory,
     get_request_context,
     get_role_use_case_factory,
     get_roles_use_case_factory,
@@ -12,7 +13,7 @@ from api.dependencies import (
 )
 from api.domain import SortField, SortOrder
 from api.domain.role.entities import Limit
-from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
+from api.domain.role.errors import RoleAlreadyExistsError, RoleHasUsersError, RoleNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
@@ -22,6 +23,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     InternalServerHTTPException,
     NotAdminUserHTTPException,
     RoleAlreadyExistsHTTPException,
+    RoleHasUsersHTTPException,
     RoleNotFoundHTTPException,
 )
 from api.infrastructure.fastapi.schemas.roles import CreateRoleBody, RoleResponse, RolesResponse
@@ -29,6 +31,9 @@ from api.use_cases.admin.roles import (
     CreateRoleCommand,
     CreateRoleUseCase,
     CreateRoleUseCaseSuccess,
+    DeleteRoleCommand,
+    DeleteRoleUseCase,
+    DeleteRoleUseCaseSuccess,
     GetRoleCommand,
     GetRolesCommand,
     GetRolesUseCase,
@@ -209,5 +214,44 @@ async def get_role(
             return RoleResponse.model_validate(role, from_attributes=True)
         case RoleNotFoundError(role_id=role_id):
             raise RoleNotFoundHTTPException(role_id)
+        case UserIsNotAdminError():
+            raise NotAdminUserHTTPException()
+
+
+@router.delete(
+    path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
+    dependencies=[Security(dependency=get_current_key)],
+    status_code=200,
+    responses=get_documentation_responses([RoleNotFoundHTTPException, RoleHasUsersHTTPException, NotAdminUserHTTPException]),
+)
+async def delete_role(
+    role_id: int = Path(description="The ID of the role to delete."),
+    delete_role_use_case: DeleteRoleUseCase = Depends(delete_role_use_case_factory),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+) -> RoleResponse:
+    try:
+        command = DeleteRoleCommand(
+            user_id=request_context.get().user_id,
+            role_id=role_id,
+        )
+        result = await delete_role_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing delete_role use case",
+            extra={
+                "user_id": request_context.get().user_id,
+                "role_id": role_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
+
+    match result:
+        case DeleteRoleUseCaseSuccess(role=role):
+            return RoleResponse.model_validate(role, from_attributes=True)
+        case RoleNotFoundError(role_id=role_id):
+            raise RoleNotFoundHTTPException(role_id)
+        case RoleHasUsersError(role_id=role_id, number_of_users=number_of_users):
+            raise RoleHasUsersHTTPException(role_id=role_id, number_of_users=number_of_users)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
