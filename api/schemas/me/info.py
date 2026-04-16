@@ -23,6 +23,6 @@ class UserInfo(BaseModel):
 
 class UpdateUserInfo(BaseModel):
     name: str | None = Field(default=None, description="The user name.")
-    email: str | None = Field(default=None, description="The user email.")
-    current_password: str | None = Field(default=None, description="The current user password.")
-    password: str | None = Field(default=None, description="The new user password. If None, the user password is not changed.")
+    email: str | None = Field(default=None, max_length=254, description="The user email.")
+    current_password: str | None = Field(default=None, max_length=72, description="The current user password.")
+    password: str | None = Field(default=None, max_length=72, description="The new user password. If None, the user password is not changed.")

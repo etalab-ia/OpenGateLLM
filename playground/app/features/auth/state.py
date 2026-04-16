@@ -67,12 +67,7 @@ class AuthState(rx.State):
                     json={"email": email, "password": password},
                     timeout=configuration.settings.playground_opengatellm_timeout,
                 )
-                if response.status_code != 200:
-                    error_detail = response.json().get("detail", "Login failed")
-                    yield rx.toast.error(error_detail, position="bottom-right")
-                    self.is_loading = False
-                    yield
-                    return
+                response.raise_for_status()
 
                 login_data = response.json()
                 api_key = login_data.get("key")
