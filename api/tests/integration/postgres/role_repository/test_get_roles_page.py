@@ -3,7 +3,7 @@ import pytest
 from api.domain import EntitiesPage, SortField, SortOrder
 from api.domain.role.entities import Role
 from api.infrastructure.postgres import PostgresRolesRepository
-from api.tests.integration.factories import RoleSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import RoleSQLFactory, UserSQLFactory
 
 
 @pytest.fixture

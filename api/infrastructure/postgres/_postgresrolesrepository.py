@@ -77,7 +77,7 @@ class PostgresRolesRepository(RoleRepository):
 
         return self._row_to_role(row)
 
-    async def get_full_role_by_id(self, role_id: int) -> Role | None:
+    async def get_role_with_permissions_and_limits_by_id(self, role_id: int) -> Role | None:
         users_subquery = select(func.count(UserTable.id)).where(UserTable.role_id == RoleTable.id).correlate(RoleTable).scalar_subquery()
         statement = (
             select(RoleTable, users_subquery.label("users"))

@@ -8,7 +8,7 @@ from api.dependencies import get_roles_use_case_factory
 from api.domain.role.entities import LimitType, PermissionType
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.helpers import create_token
-from api.tests.integration.factories import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.ADMIN_ROLES}"

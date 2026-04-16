@@ -11,7 +11,7 @@ class RoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_full_role_by_id(self, role_id: int) -> Role | None:
+    async def get_role_with_permissions_and_limits_by_id(self, role_id: int) -> Role | None:
         pass
 
     @abstractmethod

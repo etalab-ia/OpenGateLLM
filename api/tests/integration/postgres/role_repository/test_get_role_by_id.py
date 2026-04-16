@@ -2,7 +2,7 @@ import pytest
 
 from api.domain.role.entities import LimitType, PermissionType, Role
 from api.infrastructure.postgres import PostgresRolesRepository
-from api.tests.integration.factories import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory
+from api.tests.integration.factories.sql import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory
 
 
 @pytest.fixture
@@ -18,7 +18,7 @@ class TestGetRoleById:
         await db_session.flush()
 
         # Act
-        result = await repository.get_full_role_by_id(role_id=role.id)
+        result = await repository.get_role_with_permissions_and_limits_by_id(role_id=role.id)
 
         # Assert
         assert isinstance(result, Role)
@@ -27,7 +27,7 @@ class TestGetRoleById:
 
     async def test_should_return_role_not_found_when_role_does_not_exist(self, repository, db_session):
         # Act & Assert
-        result = await repository.get_full_role_by_id(role_id=999999)
+        result = await repository.get_role_with_permissions_and_limits_by_id(role_id=999999)
 
         assert result is None
 
@@ -39,7 +39,7 @@ class TestGetRoleById:
         await db_session.flush()
 
         # Act
-        result = await repository.get_full_role_by_id(role_id=role.id)
+        result = await repository.get_role_with_permissions_and_limits_by_id(role_id=role.id)
 
         # Assert
         assert set(result.permissions) == {PermissionType.ADMIN, PermissionType.READ_METRIC}
@@ -52,7 +52,7 @@ class TestGetRoleById:
         await db_session.flush()
 
         # Act
-        result = await repository.get_full_role_by_id(role_id=role.id)
+        result = await repository.get_role_with_permissions_and_limits_by_id(role_id=role.id)
 
         # Assert
         assert len(result.limits) == 1
@@ -66,7 +66,7 @@ class TestGetRoleById:
         await db_session.flush()
 
         # Act
-        result = await repository.get_full_role_by_id(role_id=role.id)
+        result = await repository.get_role_with_permissions_and_limits_by_id(role_id=role.id)
 
         # Assert
         assert result.permissions == []
@@ -78,7 +78,7 @@ class TestGetRoleById:
         await db_session.flush()
 
         # Act
-        result = await repository.get_full_role_by_id(role_id=role.id)
+        result = await repository.get_role_with_permissions_and_limits_by_id(role_id=role.id)
 
         # Assert
         assert isinstance(result.created, int)

@@ -6,7 +6,7 @@ from api.domain.role.entities import LimitType, PermissionType
 from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.unit.use_case.factories import LimitFactory, RoleFactory, UserInfoFactory
-from api.use_cases.admin.roles._updateroleusecase import UpdateRoleCommand, UpdateRoleUseCase, UpdateRoleUseCaseSuccess
+from api.use_cases.admin.roles import UpdateRoleCommand, UpdateRoleUseCase, UpdateRoleUseCaseSuccess
 
 
 @pytest.fixture
@@ -78,7 +78,7 @@ class TestUpdateRoleUseCase:
 
         # Assert
         assert isinstance(result, UserIsNotAdminError)
-        role_repository.get_role_by_id.assert_not_called()
+        role_repository.get_role_with_permissions_and_limits_by_id.assert_not_called()
         role_repository.update_role.assert_not_called()
 
     @pytest.mark.asyncio
