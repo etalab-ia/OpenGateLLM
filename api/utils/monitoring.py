@@ -22,7 +22,7 @@ def inference_requests_total(metric_namespace: str = "") -> Callable[[Info], Non
         try:
             context = request_context.get()
             model = context.router_name
-            endpoint = context.endpoint
+            endpoint = info.modified_handler
             if model and endpoint:
                 metric.labels(endpoint=endpoint, model=model, status_code=info.modified_status).inc()
         except Exception:
@@ -82,7 +82,7 @@ def inference_requests_duration_seconds(metric_namespace: str = "") -> Callable[
         try:
             context = request_context.get()
             model = context.router_name
-            endpoint = context.endpoint
+            endpoint = info.modified_handler
             latency = context.latency
             if model and endpoint and latency is not None:
                 metric.labels(
@@ -147,7 +147,7 @@ def inference_ttft_milliseconds(metric_namespace: str = "") -> Callable[[Info], 
         try:
             context = request_context.get()
             model = context.router_name
-            endpoint = context.endpoint
+            endpoint = info.modified_handler
             ttft = context.ttft
             if model and endpoint and ttft is not None:
                 metric.labels(endpoint=endpoint, model=model, status_code=info.modified_status).observe(ttft)
@@ -170,7 +170,7 @@ def inference_output_tokens_per_second(metric_namespace: str = "") -> Callable[[
         try:
             context = request_context.get()
             model = context.router_name
-            endpoint = context.endpoint
+            endpoint = info.modified_handler
             usage = context.usage
             latency = context.latency
             if model and endpoint and usage and latency and usage.completion_tokens:
@@ -193,7 +193,7 @@ def inference_tokens_total(metric_namespace: str = "") -> Callable[[Info], None]
         try:
             context = request_context.get()
             model = context.router_name
-            endpoint = context.endpoint
+            endpoint = info.modified_handler
             usage = context.usage
             if model and endpoint and usage is not None:
                 if usage.prompt_tokens:
