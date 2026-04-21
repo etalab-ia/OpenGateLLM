@@ -4,7 +4,8 @@ import logging
 from fastapi import Body, Depends, Security
 
 from api.dependencies import create_user_use_case_factory, get_request_context
-from api.domain.user.errors import OrganizationNotFoundError, RoleNotFoundError, UserAlreadyExistsError
+from api.domain.role.errors import RoleNotFoundError
+from api.domain.user.errors import OrganizationNotFoundError, UserAlreadyExistsError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
@@ -28,9 +29,12 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_USERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses(
-        [UserAlreadyExistsHTTPException, RoleNotFoundHTTPException, OrganizationNotFoundHTTPException, NotAdminUserHTTPException]
-    ),
+    responses=get_documentation_responses([
+        UserAlreadyExistsHTTPException,
+        RoleNotFoundHTTPException,
+        OrganizationNotFoundHTTPException,
+        NotAdminUserHTTPException,
+    ]),
 )
 async def create_user(
     body: CreateUserBody = Body(description="The user creation request."),
@@ -66,9 +70,9 @@ async def create_user(
             return UserResponse.model_validate(user, from_attributes=True)
         case UserAlreadyExistsError(email=email):
             raise UserAlreadyExistsHTTPException(email)
-        case RoleNotFoundError(role_id=role_id):
+        case RoleNotFoundError(id=role_id):
             raise RoleNotFoundHTTPException(role_id)
-        case OrganizationNotFoundError(organization_id=organization_id):
+        case OrganizationNotFoundError(id=organization_id):
             raise OrganizationNotFoundHTTPException(organization_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()

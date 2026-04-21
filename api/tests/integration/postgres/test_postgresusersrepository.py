@@ -2,8 +2,9 @@ import bcrypt
 import pytest
 from sqlalchemy import select
 
+from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.entities import User
-from api.domain.user.errors import OrganizationNotFoundError, RoleNotFoundError, UserAlreadyExistsError
+from api.domain.user.errors import OrganizationNotFoundError, UserAlreadyExistsError
 from api.infrastructure.postgres import PostgresUserRepository
 from api.sql.models import User as UserTable
 from api.tests.integration.factories.sql import OrganizationSQLFactory, RoleSQLFactory, UserSQLFactory
@@ -96,7 +97,7 @@ class TestCreateUser:
 
         # Assert
         assert isinstance(result, RoleNotFoundError)
-        assert result.role_id == 999999
+        assert result.id == 999999
 
     async def test_returns_organization_not_found_error_when_organization_does_not_exist(self, repository, db_session):
         # Arrange
@@ -108,7 +109,7 @@ class TestCreateUser:
 
         # Assert
         assert isinstance(result, OrganizationNotFoundError)
-        assert result.organization_id == 999999
+        assert result.id == 999999
 
     async def test_creates_user_with_all_optional_fields(self, repository, db_session):
         # Arrange

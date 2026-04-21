@@ -249,7 +249,7 @@ class TestCreateProviderUseCase:
 
         # Assert
         assert isinstance(result, RouterNotFoundError)
-        assert result.router_id == 1
+        assert result.id == 1
         provider_gateway.get_capabilities.assert_not_called()
         provider_repository.create_provider.assert_not_called()
 

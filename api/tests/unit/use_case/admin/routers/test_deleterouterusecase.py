@@ -67,7 +67,7 @@ class TestDeleteRouterUseCase:
 
         # Assert
         assert isinstance(result, RouterNotFoundError)
-        assert result.router_id == 99
+        assert result.id == 99
         router_repository.delete_router.assert_called_once_with(99)
 
     @pytest.mark.asyncio

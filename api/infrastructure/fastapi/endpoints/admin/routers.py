@@ -52,13 +52,11 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_ROUTERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses(
-        [
-            RouterAliasAlreadyExistsHTTPException,
-            RouterAlreadyExistsHTTPException,
-            NotAdminUserHTTPException,
-        ]
-    ),
+    responses=get_documentation_responses([
+        RouterAliasAlreadyExistsHTTPException,
+        RouterAlreadyExistsHTTPException,
+        NotAdminUserHTTPException,
+    ]),
 )
 async def create_router(
     body: CreateRouterBody = Body(description="The router creation request."),
@@ -128,7 +126,7 @@ async def get_router(
     match result:
         case GetOneRouterUseCaseSuccess(returned_router):
             return RouterResponse.model_validate(returned_router, from_attributes=True)
-        case RouterNotFoundError(router_id=not_found_id):
+        case RouterNotFoundError(id=not_found_id):
             raise RouterNotFoundHTTPException(router_id=not_found_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
@@ -209,7 +207,7 @@ async def delete_router(
     match result:
         case DeleteRouterUseCaseSuccess(deleted_router):
             return RouterResponse.model_validate(deleted_router, from_attributes=True)
-        case RouterNotFoundError(router_id=not_found_id):
+        case RouterNotFoundError(id=not_found_id):
             raise RouterNotFoundHTTPException(not_found_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
@@ -218,14 +216,12 @@ async def delete_router(
 @router.patch(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
     dependencies=[Security(dependency=get_current_key)],
-    responses=get_documentation_responses(
-        [
-            RouterNotFoundHTTPException,
-            NotAdminUserHTTPException,
-            RouterAliasAlreadyExistsHTTPException,
-            RouterAlreadyExistsHTTPException,
-        ]
-    ),
+    responses=get_documentation_responses([
+        RouterNotFoundHTTPException,
+        NotAdminUserHTTPException,
+        RouterAliasAlreadyExistsHTTPException,
+        RouterAlreadyExistsHTTPException,
+    ]),
     status_code=200,
 )
 async def update_router(
@@ -259,7 +255,7 @@ async def update_router(
     match result:
         case UpdateRouterUseCaseSuccess(router=updated_router):
             return RouterResponse.model_validate(updated_router, from_attributes=True)
-        case RouterNotFoundError(router_id=not_found_id):
+        case RouterNotFoundError(id=not_found_id):
             raise RouterNotFoundHTTPException(not_found_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()

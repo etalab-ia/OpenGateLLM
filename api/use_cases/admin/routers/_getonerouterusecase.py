@@ -38,5 +38,5 @@ class GetOneRouterUseCase:
         router = await self.router_repository.get_router_by_id(command.router_id)
 
         if not router:
-            return RouterNotFoundError(command.router_id)
+            return RouterNotFoundError(id=command.router_id)
         return GetOneRouterUseCaseSuccess(router=router)

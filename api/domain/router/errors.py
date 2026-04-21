@@ -13,4 +13,4 @@ class RouterNameAlreadyExistsError:
 
 @dataclass
 class RouterNotFoundError:
-    router_id: int
+    id: int

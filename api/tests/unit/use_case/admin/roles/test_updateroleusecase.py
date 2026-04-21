@@ -94,7 +94,7 @@ class TestUpdateRoleUseCase:
 
         # Assert
         assert isinstance(result, RoleNotFoundError)
-        assert result.role_id == 1
+        assert result.id == 1
         role_repository.update_role.assert_not_called()
         role_repository.get_role_with_permissions_and_limits_by_id.assert_called_once_with(role_id=1)
 

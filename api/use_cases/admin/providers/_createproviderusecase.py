@@ -66,7 +66,7 @@ class CreateProviderUseCase:
 
         router = await self.router_repository.get_router_by_id(router_id=command.router_id)
         if router is None:
-            return RouterNotFoundError(command.router_id)
+            return RouterNotFoundError(id=command.router_id)
 
         if not command.provider_type.is_compatible_with(router_type=router.type):
             return InvalidProviderTypeError(provider_type=command.provider_type.value, router_type=router.type.value)

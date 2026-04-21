@@ -128,7 +128,7 @@ async def create_provider(
         case ProviderAlreadyExistsError(model_name=model_name, url=url, router_id=router_id):
             raise ProviderAlreadyExistsHTTPException(model_name=model_name, url=url, router_id=router_id)
 
-        case RouterNotFoundError(router_id=router_id):
+        case RouterNotFoundError(id=router_id):
             raise RouterNotFoundHTTPException(router_id=router_id)
 
         case UserIsNotAdminError():
@@ -167,8 +167,8 @@ async def delete_provider(
         case DeleteProviderUseCaseSuccess(deleted_provider):
             return ProviderResponse.model_validate(deleted_provider, from_attributes=True)
 
-        case ProviderNotFoundError(provider_id=not_found_id):
-            raise ProviderNotFoundHTTPException(not_found_id)
+        case ProviderNotFoundError(id=not_found_id):
+            raise ProviderNotFoundHTTPException(provider_id=not_found_id)
 
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
@@ -234,10 +234,10 @@ async def update_provider(
         case ProviderAlreadyExistsError(model_name=model_name, url=url, router_id=router_id):
             raise ProviderAlreadyExistsHTTPException(model_name=model_name, url=url, router_id=router_id)
 
-        case RouterNotFoundError(router_id=router_id):
+        case RouterNotFoundError(id=router_id):
             raise RouterNotFoundHTTPException(router_id=router_id)
 
-        case ProviderNotFoundError(provider_id=provider_id):
+        case ProviderNotFoundError(id=provider_id):
             raise ProviderNotFoundHTTPException(provider_id=provider_id)
 
         case UserIsNotAdminError():
@@ -272,8 +272,8 @@ async def get_provider(
         case GetOneProviderUseCaseSuccess(provider):
             return ProviderResponse.model_validate(provider, from_attributes=True)
 
-        case ProviderNotFoundError(provider_id=not_found_id):
-            raise ProviderNotFoundHTTPException(not_found_id)
+        case ProviderNotFoundError(id=not_found_id):
+            raise ProviderNotFoundHTTPException(provider_id=not_found_id)
 
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()

@@ -38,5 +38,5 @@ class DeleteRouterUseCase:
         router = await self.router_repository.delete_router(command.router_id)
 
         if router is None:
-            return RouterNotFoundError(command.router_id)
+            return RouterNotFoundError(id=command.router_id)
         return DeleteRouterUseCaseSuccess(router=router)

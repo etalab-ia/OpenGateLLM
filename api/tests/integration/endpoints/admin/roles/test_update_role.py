@@ -53,7 +53,7 @@ class TestUpdateRole:
         "use_case_result,expected_status,expected_detail",
         [
             (
-                RoleNotFoundError(role_id=1),
+                RoleNotFoundError(id=1),
                 404,
                 "Role 1 not found.",
             ),

@@ -39,12 +39,12 @@ class TestDeleteRole:
         "use_case_result,expected_status,expected_detail",
         [
             (
-                RoleNotFoundError(role_id=999),
+                RoleNotFoundError(id=999),
                 404,
                 "Role 999 not found.",
             ),
             (
-                RoleHasUsersError(role_id=999, number_of_users=3),
+                RoleHasUsersError(id=999, number_of_users=3),
                 409,
                 "Role 999 has 3 users and cannot be removed.",
             ),

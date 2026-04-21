@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Literal
 
+from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.entities import User
-from api.domain.user.errors import OrganizationNotFoundError, RoleNotFoundError, UserAlreadyExistsError
+from api.domain.user.errors import OrganizationNotFoundError, UserAlreadyExistsError
 
 
 class UserRepository(ABC):

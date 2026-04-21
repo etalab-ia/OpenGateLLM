@@ -46,7 +46,7 @@ class UpdateRouterUseCase:
 
         router = await self.router_repository.get_router_by_id(router_id=command.router_id)
         if router is None:
-            return RouterNotFoundError(router_id=command.router_id)
+            return RouterNotFoundError(id=command.router_id)
 
         if command.aliases:
             existing_aliases = await self.router_repository.get_aliases()

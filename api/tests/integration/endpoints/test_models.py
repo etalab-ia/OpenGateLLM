@@ -6,12 +6,7 @@ import pytest
 from api.domain.role.entities import LimitType
 from api.schemas.models import Model, Models, ModelType
 from api.tests.helpers import create_token
-from api.tests.integration.factories.sql import (
-    LimitSQLFactory,
-    OrganizationSQLFactory,
-    RouterSQLFactory,
-    UserSQLFactory,
-)
+from api.tests.integration.factories.sql import LimitSQLFactory, OrganizationSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
 

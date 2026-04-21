@@ -2,7 +2,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.user.errors import OrganizationNotFoundError, RoleNotFoundError, UserAlreadyExistsError
+from api.domain.role.errors import RoleNotFoundError
+from api.domain.user.errors import OrganizationNotFoundError, UserAlreadyExistsError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.unit.use_case.factories import UserFactory, UserInfoFactory
 from api.use_cases.admin.users import CreateUserCommand, CreateUserUseCase, CreateUserUseCaseSuccess
@@ -102,14 +103,14 @@ class TestCreateUserUseCase:
     async def test_should_return_role_not_found_error_when_the_role_id_does_not_exist(self, use_case, user_repository, user_info_repository, command):
         # Arrange
         user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
-        user_repository.create_user.return_value = RoleNotFoundError(role_id=10)
+        user_repository.create_user.return_value = RoleNotFoundError(id=10)
 
         # Act
         result = await use_case.execute(command)
 
         # Assert
         assert isinstance(result, RoleNotFoundError)
-        assert result.role_id == 10
+        assert result.id == 10
 
     @pytest.mark.asyncio
     async def test_should_return_organization_not_found_error_when_the_organisation_does_not_exist(
@@ -117,11 +118,11 @@ class TestCreateUserUseCase:
     ):
         # Arrange
         user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
-        user_repository.create_user.return_value = OrganizationNotFoundError(organization_id=5)
+        user_repository.create_user.return_value = OrganizationNotFoundError(id=5)
 
         # Act
         result = await use_case.execute(command)
 
         # Assert
         assert isinstance(result, OrganizationNotFoundError)
-        assert result.organization_id == 5
+        assert result.id == 5

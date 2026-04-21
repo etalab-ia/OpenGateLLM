@@ -42,7 +42,7 @@ class TestGetRole:
         "use_case_result,expected_status,expected_detail",
         [
             (
-                RoleNotFoundError(role_id=999),
+                RoleNotFoundError(id=999),
                 404,
                 "Role 999 not found.",
             ),

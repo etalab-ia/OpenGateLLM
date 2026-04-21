@@ -62,4 +62,4 @@ class TestUpdateRole:
 
         # Assert
         assert isinstance(result, RoleNotFoundError)
-        assert result.role_id == 999999
+        assert result.id == 999999

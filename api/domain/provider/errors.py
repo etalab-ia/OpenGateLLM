@@ -26,4 +26,4 @@ class ProviderAlreadyExistsError:
 
 @dataclass
 class ProviderNotFoundError:
-    provider_id: int
+    id: int

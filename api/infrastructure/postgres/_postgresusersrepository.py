@@ -6,9 +6,10 @@ from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.role.entities import PermissionType
+from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserRepository
 from api.domain.user.entities import User
-from api.domain.user.errors import OrganizationNotFoundError, RoleNotFoundError, UserAlreadyExistsError
+from api.domain.user.errors import OrganizationNotFoundError, UserAlreadyExistsError
 from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Permission as PermissionTable
 from api.sql.models import Role as RoleTable
@@ -49,14 +50,14 @@ class PostgresUserRepository(UserRepository):
         try:
             result.scalar_one()
         except NoResultFound:
-            return RoleNotFoundError(role_id=role_id)
+            return RoleNotFoundError(id=role_id)
 
         if organization_id is not None:
             result = await self.postgres_session.execute(select(OrganizationTable.id).where(OrganizationTable.id == organization_id))
             try:
                 result.scalar_one()
             except NoResultFound:
-                return OrganizationNotFoundError(organization_id=organization_id)
+                return OrganizationNotFoundError(id=organization_id)
 
         hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
         expires_value = func.to_timestamp(expires) if expires is not None else None

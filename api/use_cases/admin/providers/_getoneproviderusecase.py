@@ -38,5 +38,5 @@ class GetOneProviderUseCase:
         provider = await self.provider_repository.get_one_provider(command.provider_id)
 
         if not provider:
-            return ProviderNotFoundError(command.provider_id)
+            return ProviderNotFoundError(id=command.provider_id)
         return GetOneProviderUseCaseSuccess(provider=provider)

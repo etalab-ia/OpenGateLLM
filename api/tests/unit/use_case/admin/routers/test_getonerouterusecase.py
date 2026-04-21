@@ -71,7 +71,7 @@ class TestGetOneRouterUseCase:
 
         # Assert
         assert isinstance(result, RouterNotFoundError)
-        assert result.router_id == 99
+        assert result.id == 99
         router_repository.get_router_by_id.assert_called_once_with(99)
 
     @pytest.mark.asyncio

@@ -48,7 +48,7 @@ class UpdateRoleUseCase:
 
         role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=command.role_id)
         if role is None:
-            return RoleNotFoundError(role_id=command.role_id)
+            return RoleNotFoundError(id=command.role_id)
         role_to_persist = role
         if command.name is not None:
             role_to_persist = role_to_persist.with_name(command.name)

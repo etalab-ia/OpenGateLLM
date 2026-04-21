@@ -39,7 +39,7 @@ class TestDeleteRouter:
         "use_case_result,expected_status,expected_detail",
         [
             (
-                RouterNotFoundError(router_id=1),
+                RouterNotFoundError(id=1),
                 404,
                 "Model router 1 not found.",
             ),

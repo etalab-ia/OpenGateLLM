@@ -101,7 +101,7 @@ class TestUpdateProviderUseCase:
 
         # Assert
         assert isinstance(result, ProviderNotFoundError)
-        assert result.provider_id == 10
+        assert result.id == 10
         router_repository.get_router_by_id.assert_not_called()
         provider_repository.update_provider.assert_not_called()
 
@@ -119,7 +119,7 @@ class TestUpdateProviderUseCase:
 
         # Assert
         assert isinstance(result, RouterNotFoundError)
-        assert result.router_id == sample_provider.router_id
+        assert result.id == sample_provider.router_id
         provider_repository.update_provider.assert_not_called()
 
     @pytest.mark.asyncio
@@ -148,7 +148,7 @@ class TestUpdateProviderUseCase:
 
         # Assert
         assert isinstance(result, RouterNotFoundError)
-        assert result.router_id == 99
+        assert result.id == 99
         provider_repository.update_provider.assert_not_called()
 
     @pytest.mark.asyncio

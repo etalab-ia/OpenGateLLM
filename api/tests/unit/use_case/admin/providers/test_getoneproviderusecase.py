@@ -67,7 +67,7 @@ class TestGetOneProviderUseCase:
 
         # Assert
         assert isinstance(result, ProviderNotFoundError)
-        assert result.provider_id == 99
+        assert result.id == 99
         provider_repository.get_one_provider.assert_called_once_with(99)
 
     @pytest.mark.asyncio

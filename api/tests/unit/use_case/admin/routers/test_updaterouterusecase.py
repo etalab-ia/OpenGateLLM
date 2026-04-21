@@ -105,7 +105,7 @@ class TestUpdateRouterUseCase:
 
         # Assert
         assert isinstance(result, RouterNotFoundError)
-        assert result.router_id == 99
+        assert result.id == 99
         router_repository.update_router.assert_not_called()
 
     @pytest.mark.asyncio
