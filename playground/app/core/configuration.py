@@ -114,6 +114,9 @@ class Settings(ConfigBaseModel):
     playground_sso_opengatellm_admin_api_key: str | None = Field(default=None, description="To activate SSO, set OpenGateLLM API key with ADMIN permissions to create users and tokens.")  # fmt: off
     playground_sso_opengatellm_default_role_id: int | None = Field(default=None, description="To activate SSO, set the default role ID of OpenGateLLM API for new users.")  # fmt: off
 
+    playground_sso_oauth2_proxy_url: str = Field(default="http://localhost:4180", description="The proxy url for SSO.")
+    playground_sso_provider_logout_url: str | None = Field(default= None, description="The logout url for SSO.")
+
     playground_default_model: str | None = Field(default=None, description="The first model selected in chat page.")
     playground_theme_has_background: bool = Field(default=True, description="Whether the theme has a background.")
     playground_theme_accent_color: str = Field(default="purple", description="The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.")  # fmt: off
@@ -134,8 +137,8 @@ class Settings(ConfigBaseModel):
                 raise ValueError("SSO is enabled but no OpenGateLLM API key with ADMIN permissions is provided.")
             if self.playground_sso_opengatellm_default_role_id is None:
                 raise ValueError("SSO is enabled but no default role ID is provided.")
-        return self
-
+            if self.playground_sso_provider_logout_url is None:
+                raise ValueError("SSO is enabled but no logout url is provided.")
 
 class ConfigFile(ConfigBaseModel):
     """

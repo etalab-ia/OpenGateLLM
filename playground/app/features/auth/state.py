@@ -1,5 +1,6 @@
 import httpx
 import reflex as rx
+from urllib3.contrib.emscripten import response
 
 from app.core.configuration import configuration
 from app.shared.components.toasts import httpx_error_toast
@@ -33,6 +34,8 @@ class AuthState(rx.State):
     opengatellm_timeout: int = configuration.settings.playground_opengatellm_timeout
     sso_opengatellm_admin_api_key: str | None = configuration.settings.playground_sso_opengatellm_admin_api_key
     sso_opengatellm_default_role_id: int | None = configuration.settings.playground_sso_opengatellm_default_role_id
+    sso_oauth2_proxy_url: str = configuration.settings.playground_sso_oauth2_proxy_url
+    sso_provider_logout_url: str = configuration.settings.playground_sso_provider_logout_url
 
     # Form fields
     email_input: str = ""
@@ -219,3 +222,36 @@ class AuthState(rx.State):
         self.user_updated = None
         self.user_permissions = []
         self.user_limits = []
+
+    @rx.event
+    async def sso_logout(self):
+        """Handle logout."""
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    url=f"{self.sso_oauth2_proxy_url}/oauth2/sign_out",
+                    params={"rd" : self.sso_provider_logout_url},
+                    timeout=self.opengatellm_timeout,
+                )
+                response.raise_for_status()
+
+                self.is_authenticated = False
+                self.user_id = None
+                self.user_email = None
+                self.user_name = None
+                self.api_key = None
+                self.api_key_id = None
+                self.user_organization = None
+                self.user_budget = None
+                self.user_priority = None
+                self.user_created = None
+                self.user_updated = None
+                self.user_permissions = []
+                self.user_limits = []
+
+        except Exception as e:
+            yield httpx_error_toast(exception=e, response=response)
+
+        finally:
+            self.is_loading = False
+            yield
