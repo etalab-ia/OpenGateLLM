@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from api.domain.model import ModelType
+from api.domain.model.entities import ModelType as RouterType
 from api.domain.role.entities import LimitType, PermissionType
 from api.domain.userinfo.entities import Limit
 from api.tests.unit.use_case.factories import RouterFactory, UserInfoFactory
@@ -32,7 +32,7 @@ def sample_routers():
         RouterFactory(
             id=1,
             name="gpt-4",
-            type=ModelType.TEXT_GENERATION,
+            type=RouterType.TEXT_GENERATION,
             aliases=["gpt-4-turbo"],
             user_id=100,
             created=int(datetime(2024, 1, 1).timestamp()),
@@ -44,7 +44,7 @@ def sample_routers():
         RouterFactory(
             id=2,
             name="claude-3",
-            type=ModelType.TEXT_GENERATION,
+            type=RouterType.TEXT_GENERATION,
             aliases=["claude-3-opus"],
             user_id=101,
             created=int(datetime(2024, 1, 2).timestamp()),
@@ -56,7 +56,7 @@ def sample_routers():
         RouterFactory(
             id=3,
             name="dall-e-3",
-            type=ModelType.IMAGE_TEXT_TO_TEXT,
+            type=RouterType.IMAGE_TEXT_TO_TEXT,
             aliases=[],
             user_id=100,
             created=int(datetime(2024, 1, 3).timestamp()),
@@ -103,7 +103,7 @@ class TestGetModelsUseCase:
         assert len(result.models) == 2
 
         assert result.models[0].id == "gpt-4"
-        assert result.models[0].type == ModelType.TEXT_GENERATION
+        assert result.models[0].type == RouterType.TEXT_GENERATION
         assert result.models[0].owned_by == "OpenAI"
         assert result.models[0].aliases == ["gpt-4-turbo"]
         assert result.models[0].costs.prompt_tokens == 0.03

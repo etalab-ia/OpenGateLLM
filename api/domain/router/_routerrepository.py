@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from api.domain import SortField, SortOrder
-from api.domain.model import ModelType as RouterType
+from api.domain.model.entities import ModelType as RouterType
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 

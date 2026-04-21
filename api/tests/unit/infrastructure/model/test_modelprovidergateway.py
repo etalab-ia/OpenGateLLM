@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from api.domain.model import ModelType as RouterType
+from api.domain.model.entities import ModelType as RouterType
 from api.domain.provider import ProviderCapabilities
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import ModelProviderNotFoundError, ProviderNotReachableError

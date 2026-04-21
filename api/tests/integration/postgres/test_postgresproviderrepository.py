@@ -5,8 +5,8 @@ from sqlalchemy import select
 
 from api.domain import SortOrder
 from api.domain.model.entities import Metric, ModelType
-from api.domain.provider import Provider, ProviderAlreadyExistsError, ProviderCarbonFootprintZone, ProviderType
-from api.domain.provider.entities import ProviderSortField
+from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderSortField, ProviderType
+from api.domain.provider.errors import ProviderAlreadyExistsError
 from api.infrastructure.postgres import PostgresProviderRepository
 from api.sql.models import Provider as ProviderTable
 from api.tests.integration.factories.sql import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
@@ -263,7 +263,8 @@ class TestUpdateProvider:
 
         # Act
         result = await repository.update_provider(
-            domain_provider.with_router_id(router_2.id)
+            domain_provider
+            .with_router_id(router_2.id)
             .with_timeout(120)
             .with_model_hosting_zone(ProviderCarbonFootprintZone.USA)
             .with_model_total_params(2_000_000)

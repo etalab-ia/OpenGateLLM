@@ -12,10 +12,9 @@ from api.dependencies import (
     update_provider_use_case_factory,
 )
 from api.domain import SortOrder
-from api.domain.model import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
-from api.domain.provider import InvalidProviderTypeError, ProviderNotReachableError
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider.entities import ProviderSortField
-from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
+from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.infrastructure.fastapi.access import get_current_key
@@ -66,17 +65,15 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_PROVIDERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses(
-        [
-            InconsistentModelMaxContextLengthHTTPException,
-            InconsistentModelVectorSizeHTTPException,
-            InvalidProviderTypeHTTPException,
-            ProviderNotReachableHTTPException,
-            ProviderAlreadyExistsHTTPException,
-            RouterNotFoundHTTPException,
-            NotAdminUserHTTPException,
-        ]
-    ),
+    responses=get_documentation_responses([
+        InconsistentModelMaxContextLengthHTTPException,
+        InconsistentModelVectorSizeHTTPException,
+        InvalidProviderTypeHTTPException,
+        ProviderNotReachableHTTPException,
+        ProviderAlreadyExistsHTTPException,
+        RouterNotFoundHTTPException,
+        NotAdminUserHTTPException,
+    ]),
 )
 async def create_provider(
     body: CreateProviderBody,
@@ -181,17 +178,15 @@ async def delete_provider(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses(
-        [
-            InconsistentModelMaxContextLengthHTTPException,
-            InconsistentModelVectorSizeHTTPException,
-            InvalidProviderTypeHTTPException,
-            ProviderAlreadyExistsHTTPException,
-            RouterNotFoundHTTPException,
-            ProviderNotFoundHTTPException,
-            NotAdminUserHTTPException,
-        ]
-    ),
+    responses=get_documentation_responses([
+        InconsistentModelMaxContextLengthHTTPException,
+        InconsistentModelVectorSizeHTTPException,
+        InvalidProviderTypeHTTPException,
+        ProviderAlreadyExistsHTTPException,
+        RouterNotFoundHTTPException,
+        ProviderNotFoundHTTPException,
+        NotAdminUserHTTPException,
+    ]),
 )
 async def update_provider(
     provider_id: int = Path(description="The ID of the provider to update."),

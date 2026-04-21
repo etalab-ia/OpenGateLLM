@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 
-from api.domain.model import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelType
 from api.domain.model.entities import Metric
-from api.domain.provider import InvalidProviderTypeError, ProviderGateway, ProviderNotReachableError, ProviderRepository
+from api.domain.model.entities import ModelType as RouterType
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
+from api.domain.provider import ProviderGateway, ProviderRepository
 from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderType
-from api.domain.provider.errors import ProviderAlreadyExistsError
+from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.userinfo import UserInfoRepository
@@ -85,7 +86,7 @@ class CreateProviderUseCase:
                 pass
 
         max_context_length = provider_capabilities.max_context_length
-        if router.type == ModelType.TEXT_EMBEDDINGS_INFERENCE:
+        if router.type == RouterType.TEXT_EMBEDDINGS_INFERENCE:
             vector_size = provider_capabilities.vector_size
         else:
             vector_size = None

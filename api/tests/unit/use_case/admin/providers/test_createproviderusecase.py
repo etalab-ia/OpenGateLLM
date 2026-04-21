@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.model import ModelType as RouterType
+from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider import ProviderCapabilities
 from api.domain.provider.entities import ProviderCarbonFootprintZone, ProviderType

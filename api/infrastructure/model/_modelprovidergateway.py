@@ -1,6 +1,6 @@
 import logging
 
-from api.domain.model import ModelType as RouterType
+from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.entities import UserModelRequest
 from api.domain.provider import ProviderCapabilities, ProviderGateway
 from api.domain.provider.entities import ProviderType

@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.model import ModelType as RouterType
+from api.domain.model.entities import ModelType as RouterType
 from api.domain.router.entities import RouterLoadBalancingStrategy
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.domain.userinfo.errors import UserIsNotAdminError
@@ -47,7 +47,8 @@ class TestUpdateRouterUseCase:
     ):
         # Arrange
         updated_router = (
-            sample_router.with_name("new-name")
+            sample_router
+            .with_name("new-name")
             .with_type(RouterType.TEXT_EMBEDDINGS_INFERENCE)
             .with_load_balancing_strategy(RouterLoadBalancingStrategy.LEAST_BUSY)
             .with_cost_prompt_tokens(0.005)

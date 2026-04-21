@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.model import ModelType as RouterType
+from api.domain.model.entities import ModelType as RouterType
 from api.domain.router.entities import RouterLoadBalancingStrategy
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.domain.userinfo.errors import UserIsNotAdminError

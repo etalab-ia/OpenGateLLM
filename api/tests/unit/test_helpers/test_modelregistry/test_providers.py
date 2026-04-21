@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.domain.provider import Provider
+from api.domain.provider.entities import Provider
 import api.helpers.models._modelregistry as modelregistry_module
 from api.helpers.models._modelregistry import ModelRegistry
 from api.infrastructure.fastapi.schemas.providers import ProviderCarbonFootprintZone, ProviderType
@@ -763,27 +763,25 @@ async def test_update_provider_change_router_invalid_type(postgres_session: Asyn
     # Mock get_providers to return provider (will be called with router_id=None, provider_id=1)
     # Note: get_providers creates provider with type from DB (string), which Pydantic converts to enum
     provider_result = _Result()
-    provider_result.mappings = lambda: _MappingsResult(
-        [
-            {
-                "id": 1,
-                "router_id": 1,
-                "user_id": 1,
-                "type": ProviderType.MISTRAL.value,  # MISTRAL is not compatible with TEXT_CLASSIFICATION
-                "url": "https://mistral.example.com/",
-                "key": "sk-test",
-                "timeout": 30,
-                "model_name": "mistral-model",
-                "model_hosting_zone": ProviderCarbonFootprintZone.WOR.value,
-                "model_total_params": 0,
-                "model_active_params": 0,
-                "qos_metric": None,
-                "qos_limit": None,
-                "created": 100,
-                "updated": 200,
-            }
-        ]
-    )
+    provider_result.mappings = lambda: _MappingsResult([
+        {
+            "id": 1,
+            "router_id": 1,
+            "user_id": 1,
+            "type": ProviderType.MISTRAL.value,  # MISTRAL is not compatible with TEXT_CLASSIFICATION
+            "url": "https://mistral.example.com/",
+            "key": "sk-test",
+            "timeout": 30,
+            "model_name": "mistral-model",
+            "model_hosting_zone": ProviderCarbonFootprintZone.WOR.value,
+            "model_total_params": 0,
+            "model_active_params": 0,
+            "qos_metric": None,
+            "qos_limit": None,
+            "created": 100,
+            "updated": 200,
+        }
+    ])
     postgres_session.execute = AsyncMock(return_value=provider_result)
     model_registry.get_routers = AsyncMock(side_effect=[[current_router], [new_router]])
 
@@ -1156,27 +1154,25 @@ async def test_update_provider_noop(postgres_session: AsyncSession, model_regist
     )
 
     result = _Result()
-    result.mappings = lambda: _MappingsResult(
-        [
-            {
-                "id": 1,
-                "router_id": 1,
-                "user_id": 1,
-                "type": ProviderType.OPENAI.value,
-                "url": "https://api.openai.com/",
-                "key": "sk-test",
-                "timeout": 30,
-                "model_name": "gpt-4",
-                "model_hosting_zone": ProviderCarbonFootprintZone.WOR.value,
-                "model_total_params": 0,
-                "model_active_params": 0,
-                "qos_metric": None,
-                "qos_limit": None,
-                "created": 100,
-                "updated": 200,
-            }
-        ]
-    )
+    result.mappings = lambda: _MappingsResult([
+        {
+            "id": 1,
+            "router_id": 1,
+            "user_id": 1,
+            "type": ProviderType.OPENAI.value,
+            "url": "https://api.openai.com/",
+            "key": "sk-test",
+            "timeout": 30,
+            "model_name": "gpt-4",
+            "model_hosting_zone": ProviderCarbonFootprintZone.WOR.value,
+            "model_total_params": 0,
+            "model_active_params": 0,
+            "qos_metric": None,
+            "qos_limit": None,
+            "created": 100,
+            "updated": 200,
+        }
+    ])
     postgres_session.execute = AsyncMock(return_value=result)
     model_registry.get_routers = AsyncMock(return_value=[router])
 

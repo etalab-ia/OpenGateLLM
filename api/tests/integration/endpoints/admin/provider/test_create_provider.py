@@ -6,7 +6,7 @@ import pytest_asyncio
 import respx
 
 from api.dependencies import create_provider_use_case_factory
-from api.domain.model import ModelType as RouterType
+from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError

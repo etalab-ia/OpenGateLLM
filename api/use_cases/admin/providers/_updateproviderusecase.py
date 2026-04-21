@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 
-from api.domain.model import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.model.entities import Metric
-from api.domain.provider import InvalidProviderTypeError, ProviderRepository
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
+from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone
-from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
+from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.userinfo import UserInfoRepository
