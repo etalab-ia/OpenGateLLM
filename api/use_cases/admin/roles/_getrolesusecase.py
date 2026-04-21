@@ -11,8 +11,8 @@ from api.domain.userinfo.errors import UserIsNotAdminError
 @dataclass
 class GetRolesCommand:
     user_id: int
-    offset: int = 0
-    limit: int = 10
+    offset: int
+    limit: int | None
     sort_by: SortField = SortField.ID
     sort_order: SortOrder = SortOrder.ASC
 
@@ -48,7 +48,10 @@ class GetRolesUseCase:
             return UserIsNotAdminError()
 
         role_page = await self.role_repository.get_roles_page(
-            limit=command.limit, offset=command.offset, sort_by=command.sort_by, sort_order=command.sort_order
+            limit=command.limit,
+            offset=command.offset,
+            sort_by=command.sort_by,
+            sort_order=command.sort_order,
         )
 
         if role_page.data:

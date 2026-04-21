@@ -12,7 +12,7 @@ class GetProvidersCommand:
     user_id: int
     router_id: int | None
     offset: int
-    limit: int
+    limit: int | None
     sort_by: ProviderSortField
     sort_order: SortOrder
 

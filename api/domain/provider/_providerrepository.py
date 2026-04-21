@@ -39,7 +39,7 @@ class ProviderRepository(ABC):
     async def get_providers_page(
         self,
         router_id: int | None,
-        limit: int,
+        limit: int | None,
         offset: int,
         sort_by: ProviderSortField = ProviderSortField.ID,
         sort_order: SortOrder = SortOrder.ASC,

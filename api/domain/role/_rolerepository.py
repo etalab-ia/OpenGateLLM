@@ -25,7 +25,7 @@ class RoleRepository(ABC):
     @abstractmethod
     async def get_roles_page(
         self,
-        limit: int,
+        limit: int | None,
         offset: int,
         sort_by: SortField,
         sort_order: SortOrder,

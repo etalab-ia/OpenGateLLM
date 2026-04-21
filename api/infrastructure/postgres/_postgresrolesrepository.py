@@ -32,7 +32,11 @@ class PostgresRolesRepository(RoleRepository):
         )
 
     async def get_roles_page(
-        self, limit: int = 10, offset: int = 0, sort_by: SortField = SortField.ID, sort_order: SortOrder = SortOrder.ASC
+        self,
+        limit: int | None,
+        offset: int,
+        sort_by: SortField = SortField.ID,
+        sort_order: SortOrder = SortOrder.ASC,
     ) -> RolePage:
         sort_column = {SortField.ID: RoleTable.id, SortField.NAME: RoleTable.name, SortField.CREATED: RoleTable.created}[sort_by]
         order_fn = asc if sort_order == SortOrder.ASC else desc

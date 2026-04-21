@@ -27,14 +27,14 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_users(
+    async def get_users(  # @TODO: remove this method after total clean archi migration
         self,
         email: str | None = None,
         user_id: int | None = None,
         role_id: int | None = None,
         organization_id: int | None = None,
         offset: int = 0,
-        limit: int = 10,
+        limit: int | None = 10,
         order_by: Literal["id", "email", "created", "updated"] = "id",
         order_direction: Literal["asc", "desc"] = "asc",
     ) -> list[User]:

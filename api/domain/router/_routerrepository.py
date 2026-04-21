@@ -18,7 +18,7 @@ class RouterRepository(ABC):
     @abstractmethod
     async def get_routers_page(
         self,
-        limit: int,
+        limit: int | None,
         offset: int,
         sort_by: SortField = SortField.ID,
         sort_order: SortOrder = SortOrder.ASC,

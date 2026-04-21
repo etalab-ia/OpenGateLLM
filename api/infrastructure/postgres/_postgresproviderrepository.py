@@ -42,7 +42,12 @@ class PostgresProviderRepository(ProviderRepository):
             raise
 
     async def get_providers_page(
-        self, router_id: int | None, limit: int, offset: int, sort_by: ProviderSortField = ProviderSortField.ID, sort_order: SortOrder = SortOrder.ASC
+        self,
+        router_id: int | None,
+        limit: int | None,
+        offset: int,
+        sort_by: ProviderSortField = ProviderSortField.ID,
+        sort_order: SortOrder = SortOrder.ASC,
     ) -> ProviderPage:
         select_query = select(ProviderTable)
         count_query = select(func.count()).select_from(ProviderTable)

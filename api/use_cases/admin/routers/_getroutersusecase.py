@@ -11,7 +11,7 @@ from api.domain.userinfo.errors import UserIsNotAdminError
 class GetRoutersCommand:
     user_id: int
     offset: int
-    limit: int
+    limit: int | None
     sort_by: SortField
     sort_order: SortOrder
 
