@@ -31,7 +31,7 @@ from api.use_cases.admin.providers import (
     GetProvidersUseCase,
     UpdateProviderUseCase,
 )
-from api.use_cases.admin.roles import CreateRoleUseCase, GetRolesUseCase, GetRoleUseCase, UpdateRoleUseCase
+from api.use_cases.admin.roles import CreateRoleUseCase, DeleteRoleUseCase, GetRolesUseCase, GetRoleUseCase, UpdateRoleUseCase
 from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
 from api.use_cases.admin.users import CreateUserUseCase
 from api.use_cases.models import GetModelsUseCase
@@ -168,6 +168,13 @@ def get_roles_use_case_factory(postgres_session: AsyncSession = Depends(get_post
 
 def get_role_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetRoleUseCase:
     return GetRoleUseCase(
+        role_repository=_role_repository(postgres_session),
+        user_info_repository=_user_info_repository(postgres_session),
+    )
+
+
+def delete_role_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> DeleteRoleUseCase:
+    return DeleteRoleUseCase(
         role_repository=_role_repository(postgres_session),
         user_info_repository=_user_info_repository(postgres_session),
     )

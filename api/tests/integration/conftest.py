@@ -62,6 +62,17 @@ async def test_redis_pool(test_configuration):
     await pool.aclose()
 
 
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def _reset_redis_between_tests(test_redis_pool):
+    client = redis.Redis(connection_pool=test_redis_pool)
+    try:
+        await client.flushdb()
+        yield
+        await client.flushdb()
+    finally:
+        await client.aclose()
+
+
 @pytest_asyncio.fixture(scope="session")
 async def test_postgres_engine():
     conn = await asyncpg.connect("postgresql://postgres:changeme@localhost:5432/postgres")
@@ -191,27 +202,7 @@ async def app(model_registry, test_configuration, test_redis_pool):
         app.dependency_overrides.clear()
 
 
-@pytest_asyncio.fixture(scope="function", autouse=True)
-async def _restore_dependency_overrides(app):
-    snapshot = dict(app.dependency_overrides)
-    yield
-    app.dependency_overrides.clear()
-    app.dependency_overrides.update(snapshot)
-
-
 @pytest_asyncio.fixture(scope="session")
 async def client(app) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
-
-
-@pytest_asyncio.fixture(scope="function", autouse=True)
-async def _reset_redis_between_tests(test_redis_pool):
-    client = redis.Redis(connection_pool=test_redis_pool)
-    try:
-        # Keep Redis state isolated per test (closest equivalent to DB rollback).
-        await client.flushdb()
-        yield
-        await client.flushdb()
-    finally:
-        await client.aclose()

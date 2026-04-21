@@ -19,7 +19,7 @@ class RoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete_role(self, role_id: int) -> None:
+    async def delete_role(self, role_id: int) -> Role | None:
         pass
 
     @abstractmethod
