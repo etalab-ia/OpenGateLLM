@@ -138,7 +138,10 @@ class Settings(ConfigBaseModel):
             if self.playground_sso_opengatellm_default_role_id is None:
                 raise ValueError("SSO is enabled but no default role ID is provided.")
             if self.playground_sso_provider_logout_url is None:
-                raise ValueError("SSO is enabled but no logout url is provided.")
+                raise ValueError("SSO is enabled but no provider logout url is provided.")
+            if self.playground_sso_oauth2_proxy_url is None:
+                raise ValueError("SSO is enabled but no oauth2 proxy url is provided.")
+        return self
 
 class ConfigFile(ConfigBaseModel):
     """
@@ -164,6 +167,7 @@ class Configuration(BaseSettings):
         return config_file
 
     @model_validator(mode="after")
+    @classmethod
     def setup_config(cls, values) -> Any:
         with open(file=values.config_file) as file:
             lines = file.readlines()
