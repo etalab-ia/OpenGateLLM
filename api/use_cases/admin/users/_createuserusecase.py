@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 
+from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserRepository
 from api.domain.user.entities import User
-from api.domain.user.errors import OrganizationNotFoundError, UserAlreadyExistsError
+from api.domain.user.errors import UserAlreadyExistsError
 from api.domain.userinfo import UserInfoRepository
 from api.domain.userinfo.errors import UserIsNotAdminError
 

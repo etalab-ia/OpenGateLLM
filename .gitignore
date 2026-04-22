@@ -210,6 +210,8 @@ uv.lock
 !.github/.env.ci.example
 .direnv/
 compose.yml
+compose.**.yml
+oauth2-proxy.cfg
 playground/.web
 playground/.states
 playground/.gitignore

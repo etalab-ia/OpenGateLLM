@@ -1,16 +1,13 @@
 from abc import ABC, abstractmethod
 from typing import Literal
 
+from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.entities import User
-from api.domain.user.errors import OrganizationNotFoundError, UserAlreadyExistsError
+from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
 
 
 class UserRepository(ABC):
-    @abstractmethod
-    async def has_admin_user(self) -> bool:
-        pass
-
     @abstractmethod
     async def create_user(
         self,
@@ -28,6 +25,14 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_first_admin_user(self) -> User | UserNotFoundError:
+        pass
+
+    @abstractmethod
+    async def get_user_by_email(self, email: str) -> User | UserNotFoundError:
+        pass
+
+    @abstractmethod
     async def get_users(
         self,
         email: str | None = None,
@@ -42,9 +47,9 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
-    async def update_user(self, user: User) -> User:
+    async def update_user(self, user: User) -> User | UserNotFoundError | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError:
         pass
 
     @abstractmethod
-    async def delete_user(self, user_id: int) -> None:
+    async def delete_user(self, user_id: int) -> User | UserNotFoundError:
         pass

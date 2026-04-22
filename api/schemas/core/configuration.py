@@ -21,7 +21,7 @@ from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, RouterName
 # utils ----------------------------------------------------------------------------------------------------------------------------------------------
 
 
-def custom_validation_error(url: str | None = None):
+def custom_validation_error():
     """
     Decorator to override Pydantic ValidationError to change error message.
 
@@ -345,7 +345,7 @@ class Tokenizer(StrEnum):
     TIKTOKEN_O200K_BASE = "tiktoken_o200k_base"
 
 
-@custom_validation_error(url="https://docs.opengatellm.org/configuration/configuration_file#settings")
+@custom_validation_error()
 class Settings(ConfigBaseModel):
     """
     General settings configuration fields.
@@ -381,10 +381,10 @@ class Settings(ConfigBaseModel):
     swagger_redoc_url: str = Field(default="/redoc", pattern=r"^/", description="Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
 
     # auth
-    auth_master_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="changeme", description="[DEPRECATED] Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user.")  # fmt: off
+    auth_master_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="changeme", description="[DEPRECATED] Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user.", deprecated=True)  # fmt: off
     auth_secret_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="Secret key for the API. It should be a random string with at least 32 characters. This key is used to encrypt user tokens, watch out if you modify the secret key, you'll need to update all user API keys. If not provided, the master key will be used.")  # fmt: off
-    auth_default_username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(default="admin", description="Username of the admin user created at startup.")  # fmt: off
-    auth_default_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72)] = Field(default="changeme", description="Password of the admin user created at startup.")  # fmt: off
+    auth_bootsrap_admin_username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(default="admin", description="Username of the admin user created at the first startup.")  # fmt: off
+    auth_bootsrap_admin_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72)] = Field(default="changeme", description="Password of the admin user created at the first startup.")  # fmt: off
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a new API key to be valid.")  # fmt: off
     auth_playground_session_duration: int = Field(default=3600, ge=1, description="Duration of the playground postgres_session in seconds.")  # fmt: off
 

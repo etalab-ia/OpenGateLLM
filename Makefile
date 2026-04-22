@@ -9,8 +9,8 @@ quickstart:
 	@python cli.py --quickstart --env-file $(env)
 
 # create-admon ----------------------------------------------------------------------------------------------------------------------------------------
-create-admin:
-	@python scripts/create_admin.py
+create-api-key:
+	@python scripts/create_api_key.py
 
 # dev ------------------------------------------------------------------------------------------------------------------------------------------------
 dev:
@@ -36,4 +36,4 @@ test-integ:
 %:
 	@:
 
-.PHONY: help quickstart dev lint test-unit test-integ create-admin
+.PHONY: help quickstart dev lint test-unit test-integ create-api-key

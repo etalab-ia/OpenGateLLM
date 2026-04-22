@@ -27,7 +27,11 @@ import makeQuickstartGif from '../../../assets/make_quickstart.gif';
     ```bash
     make quickstart
     ```
-    <img src={makeQuickstartGif.src} alt="Quickstart command" width="100%"/>
+
+    <div style="display: flex; justify-content: center;">
+    <img src={makeQuickstartGif.src} alt="Quickstart command" width="50%"/>
+    </div>
+    
     The services are running and available at the following URLs:
     - **API – http://localhost:8000/docs**
     - **Playground – http://localhost:8501**
@@ -40,21 +44,13 @@ import makeQuickstartGif from '../../../assets/make_quickstart.gif';
     - *compose.example.yml* → *compose.yml*
     </Aside>
 
-3. **Create an admin role and your first admin user**
 
-    Run the following command to create the default admin role and admin user:
-
-    ```bash
-    make create-admin
-    ```
-
-    <Aside type="tip" title="Connect to the Playground">
-    Open the Playground at http://localhost:8501 and sign in with the default master account:
-    - email: `master`
+    **The bootstrap default admin user is created and you can connect to the Playground with the following credentials:**
+    - email: `admin`
     - password: `changeme`
-    </Aside>
 
-    You can modify the created admin role and user on Playground UI or use the [API Reference](/reference/) for role and user management details (endpoints `/v1/admin/roles` and `/v1/admin/users`).
+    This user is created at the first startup into a new role called `bootstrap_admin`. We recommend deleting it after you have created your own admin account.
+    See [configuration file documentation](/configuration/configuration_file/) for more information about the default admin user.
 
 4. Setup models
 

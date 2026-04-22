@@ -7,5 +7,6 @@ class UserAlreadyExistsError:
 
 
 @dataclass
-class OrganizationNotFoundError:
-    id: int
+class UserNotFoundError:
+    id: int | None = None
+    email: str | None = None

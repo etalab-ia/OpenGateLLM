@@ -37,18 +37,15 @@ class UpdateRoleUseCase:
         self.limit_repository = limit_repository
         self.user_info_repository = user_info_repository
 
-    async def execute(
-        self,
-        command: UpdateRoleCommand,
-    ) -> UpdateRoleUseCaseResult:
+    async def execute(self, command: UpdateRoleCommand) -> UpdateRoleUseCaseResult:
         user_info = await self.user_info_repository.get_user_info(user_id=command.user_id)
 
         if not user_info.is_admin:
             return UserIsNotAdminError()
 
         role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=command.role_id)
-        if role is None:
-            return RoleNotFoundError(id=command.role_id)
+        if isinstance(role, RoleNotFoundError):
+            return role
         role_to_persist = role
         if command.name is not None:
             role_to_persist = role_to_persist.with_name(command.name)

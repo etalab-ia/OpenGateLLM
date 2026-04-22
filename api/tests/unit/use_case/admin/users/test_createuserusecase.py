@@ -2,8 +2,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user.errors import OrganizationNotFoundError, UserAlreadyExistsError
+from api.domain.user.errors import UserAlreadyExistsError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.tests.unit.use_case.factories import UserFactory, UserInfoFactory
 from api.use_cases.admin.users import CreateUserCommand, CreateUserUseCase, CreateUserUseCaseSuccess

@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock
 import pytest
 
 from api.domain.role.entities import PermissionType
-from api.domain.role.errors import RoleAlreadyExistsError
-from api.domain.user.errors import UserAlreadyExistsError
+from api.domain.role.errors import RoleNotFoundError
+from api.domain.user.errors import UserNotFoundError
 from api.tests.unit.use_case.factories import RoleFactory, UserFactory
 from api.use_cases.admin.bootstrapadminusecase import (
     BootstrapAdminCommand,
@@ -46,77 +46,99 @@ def use_case(user_repository, role_repository, permission_repository, limit_repo
 
 @pytest.fixture
 def command():
-    return BootstrapAdminCommand(
-        name="admin",
-        email="admin@opengatellm.org",
-        password="s3cr3t",
-        permissions=[PermissionType.ADMIN],
-        limits=[],
-    )
+    return BootstrapAdminCommand(email="admin@opengatellm.org", password="s3cr3t")
 
 
 class TestBootstrapAdminUserUseCase:
     @pytest.mark.asyncio
-    async def test_happy_path_returns_success_instance(self, use_case, user_repository, role_repository, command):
+    async def test_successfully_creates_admin_user_and_role(self, use_case, user_repository, role_repository, permission_repository, command):
         # Arrange
         role = RoleFactory(id=42)
-        user = UserFactory(id=10, email="admin@opengatellm.org")
-        user_repository.has_admin_user.return_value = False
+        user = UserFactory(id=10, email="admin@opengatellm.org", role=42)
+        user_repository.get_first_admin_user.return_value = UserNotFoundError()
+        role_repository.get_role_with_permissions_and_limits_by_name.return_value = RoleNotFoundError(
+            name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_ROLE_NAME
+        )
         role_repository.create_role.return_value = role
+        user_repository.get_user_by_email.return_value = UserNotFoundError(email=command.email)
         user_repository.create_user.return_value = user
 
         # Act
         result = await use_case.execute(command)
 
         # Assert
-        assert isinstance(result, BootstrapAdminUseCaseSuccess)
+        assert result == BootstrapAdminUseCaseSuccess(user_id=10, email="admin@opengatellm.org", role_id=42)
 
-        assert result.email == "admin@opengatellm.org"
-        assert result.user_id == 10
-        assert result.role_id == 42
-
-        user_repository.create_user.assert_awaited_once_with(email=command.email, password=command.password, role_id=role.id, name=command.name)
+        role_repository.create_role.assert_awaited_once_with(name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_ROLE_NAME)
+        permission_repository.create_permissions.assert_awaited_once_with(role_id=42, permissions=[PermissionType.ADMIN])
+        user_repository.create_user.assert_awaited_once_with(
+            email=command.email,
+            password=command.password,
+            role_id=42,
+            name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_USER_NAME,
+        )
 
     @pytest.mark.asyncio
     async def test_skips_when_admin_user_already_exists(self, use_case, user_repository, role_repository, command):
         # Arrange
-        user_repository.has_admin_user.return_value = True
+        existing_user = UserFactory(id=7, email="admin@opengatellm.org", role=99)
+        user_repository.get_first_admin_user.return_value = existing_user
 
         # Act
         result = await use_case.execute(command)
 
         # Assert
-        assert isinstance(result, BootstrapAdminUseCaseSkipped)
-        assert result.email == "admin@opengatellm.org"
-        assert result.name == "admin"
+        assert result == BootstrapAdminUseCaseSkipped(user_id=7, email="admin@opengatellm.org", role_id=99)
+        role_repository.get_role_with_permissions_and_limits_by_name.assert_not_awaited()
         role_repository.create_role.assert_not_awaited()
         user_repository.create_user.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_returns_role_already_exists_error_when_role_name_conflicts(self, use_case, user_repository, role_repository, command):
+    async def test_reuses_existing_role_when_role_name_conflicts(self, use_case, user_repository, role_repository, permission_repository, command):
         # Arrange
-        user_repository.has_admin_user.return_value = False
-        role_repository.create_role.return_value = RoleAlreadyExistsError(name="admin")
+        existing_role = RoleFactory(
+            id=5,
+            name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_ROLE_NAME,
+            permissions=[PermissionType.ADMIN],
+        )
+        user = UserFactory(id=11, email="admin@opengatellm.org", role=5)
+        user_repository.get_first_admin_user.return_value = UserNotFoundError()
+        role_repository.get_role_with_permissions_and_limits_by_name.return_value = existing_role
+        user_repository.get_user_by_email.return_value = UserNotFoundError(email=command.email)
+        user_repository.create_user.return_value = user
 
         # Act
         result = await use_case.execute(command)
 
         # Assert
-        assert isinstance(result, RoleAlreadyExistsError)
-        assert result.name == "admin"
+        assert result == BootstrapAdminUseCaseSuccess(user_id=11, email="admin@opengatellm.org", role_id=5)
+        role_repository.create_role.assert_not_awaited()
+        permission_repository.create_permissions.assert_not_awaited()
+        user_repository.create_user.assert_awaited_once_with(
+            email=command.email,
+            password=command.password,
+            role_id=5,
+            name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_USER_NAME,
+        )
 
     @pytest.mark.asyncio
-    async def test_should_return_user_already_exists_error_when_email_conflicts_and_has_no_admin(
-        self, use_case, user_repository, role_repository, command
-    ):
+    async def test_updates_existing_user_when_email_conflicts_and_has_no_admin(self, use_case, user_repository, role_repository, command):
         # Arrange
-        user_repository.has_admin_user.return_value = False
-        role_repository.create_role.return_value = RoleFactory()
-        user_repository.create_user.return_value = UserAlreadyExistsError(email="admin@opengatellm.org")
+        role = RoleFactory(id=3)
+        existing_user = UserFactory(id=20, email="admin@opengatellm.org", role=1)
+        updated_user = existing_user.model_copy(update={"role": 3})
+        user_repository.get_first_admin_user.return_value = UserNotFoundError()
+        role_repository.get_role_with_permissions_and_limits_by_name.return_value = RoleNotFoundError(
+            name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_ROLE_NAME
+        )
+        role_repository.create_role.return_value = role
+        user_repository.get_user_by_email.return_value = existing_user
 
         # Act
         result = await use_case.execute(command)
 
         # Assert
-        assert isinstance(result, UserAlreadyExistsError)
-        assert result.email == "admin@opengatellm.org"
+        assert result == BootstrapAdminUseCaseSuccess(user_id=20, email="admin@opengatellm.org", role_id=3)
+        user_repository.create_user.assert_not_awaited()
+        user_repository.update_user.assert_awaited_once()
+        assert user_repository.update_user.await_args.kwargs["user"] == updated_user

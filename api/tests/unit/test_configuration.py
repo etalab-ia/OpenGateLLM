@@ -7,8 +7,8 @@ class TestSettingsDefaults:
     def test_default_values_when_no_values_provided(self):
         settings = Settings()
         assert settings.auth_master_key == "changeme"
-        assert settings.auth_default_username == "admin"
-        assert settings.auth_default_password == "changeme"
+        assert settings.auth_bootsrap_admin_username == "admin"
+        assert settings.auth_bootsrap_admin_password == "changeme"
         assert settings.auth_key_max_expiration_days is None
 
     def test_auth_secret_key_falls_back_to_master_key_when_not_set(self):

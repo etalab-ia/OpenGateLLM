@@ -10,7 +10,6 @@ from api.domain.provider.errors import ProviderAlreadyExistsError
 from api.infrastructure.postgres import PostgresProviderRepository
 from api.sql.models import Provider as ProviderTable
 from api.tests.integration.factories.sql import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
-from api.utils.variables import MASTER_ID
 
 _EXCLUDE = {"id", "created", "updated"}
 
@@ -117,19 +116,6 @@ class TestGetOneProvider:
 
         # Assert
         assert result is None
-
-    async def test_get_one_provider_should_map_null_user_id_to_master_user_id(self, repository, db_session):
-        # Arrange
-        router = RouterSQLFactory(user=None)
-        provider = ProviderSQLFactory(router=router, user=None)
-        await db_session.flush()
-
-        # Act
-        result = await repository.get_one_provider(provider.id)
-
-        # Assert
-        assert isinstance(result, Provider)
-        assert result.user_id == MASTER_ID
 
 
 @pytest.mark.asyncio(loop_scope="session")
