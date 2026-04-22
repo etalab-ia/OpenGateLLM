@@ -60,17 +60,17 @@ class UpdateProviderUseCase:
 
         existing_provider = await self.provider_repository.get_one_provider(provider_id=command.provider_id)
         if existing_provider is None:
-            return ProviderNotFoundError(command.provider_id)
+            return ProviderNotFoundError(id=command.provider_id)
 
         current_router = await self.router_repository.get_router_by_id(router_id=existing_provider.router_id)
         if current_router is None:
-            return RouterNotFoundError(existing_provider.router_id)
+            return RouterNotFoundError(id=existing_provider.router_id)
 
         provider_to_persist = existing_provider
         if command.router_id is not None:
             new_router = await self.router_repository.get_router_by_id(router_id=command.router_id)
             if new_router is None:
-                return RouterNotFoundError(command.router_id)
+                return RouterNotFoundError(id=command.router_id)
             if not existing_provider.is_compatible_with(new_router):
                 return InvalidProviderTypeError(provider_type=existing_provider.type.value, router_type=new_router.type.value)
 

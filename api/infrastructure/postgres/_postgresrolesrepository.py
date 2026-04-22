@@ -117,7 +117,7 @@ class PostgresRolesRepository(RoleRepository):
         except IntegrityError:
             return RoleAlreadyExistsError(name=role.name)
         if row is None:
-            return RoleNotFoundError(role_id=role.id)
+            return RoleNotFoundError(id=role.id)
         return self._row_to_role(row, permissions=role.permissions, limits=role.limits)
 
     async def delete_role(self, role_id: int) -> Role | None:

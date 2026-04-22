@@ -68,5 +68,5 @@ class TestGetRoleUseCase:
 
         # Assert
         assert isinstance(result, RoleNotFoundError)
-        assert result.role_id == 99
+        assert result.id == 99
         role_repository.get_role_with_permissions_and_limits_by_id.assert_awaited_once_with(role_id=99)

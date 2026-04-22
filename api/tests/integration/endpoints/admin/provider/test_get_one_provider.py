@@ -40,7 +40,7 @@ class TestGetProvider:
         "use_case_result,expected_status,expected_detail",
         [
             (
-                ProviderNotFoundError(provider_id=1),
+                ProviderNotFoundError(id=1),
                 404,
                 "Model provider 1 not found.",
             ),

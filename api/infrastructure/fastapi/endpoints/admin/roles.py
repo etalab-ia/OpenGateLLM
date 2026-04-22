@@ -125,7 +125,7 @@ async def update_role(
     match result:
         case UpdateRoleUseCaseSuccess(role=role):
             return RoleResponse.model_validate(role, from_attributes=True)
-        case RoleNotFoundError(role_id=not_found_role_id):
+        case RoleNotFoundError(id=not_found_role_id):
             raise RoleNotFoundHTTPException(not_found_role_id)
         case RoleAlreadyExistsError(name=name):
             raise RoleAlreadyExistsHTTPException(name)
@@ -212,7 +212,7 @@ async def get_role(
     match result:
         case GetRoleUseCaseSuccess(role=role):
             return RoleResponse.model_validate(role, from_attributes=True)
-        case RoleNotFoundError(role_id=role_id):
+        case RoleNotFoundError(id=role_id):
             raise RoleNotFoundHTTPException(role_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
@@ -249,9 +249,9 @@ async def delete_role(
     match result:
         case DeleteRoleUseCaseSuccess(role=role):
             return RoleResponse.model_validate(role, from_attributes=True)
-        case RoleNotFoundError(role_id=role_id):
+        case RoleNotFoundError(id=role_id):
             raise RoleNotFoundHTTPException(role_id)
-        case RoleHasUsersError(role_id=role_id, number_of_users=number_of_users):
+        case RoleHasUsersError(id=role_id, number_of_users=number_of_users):
             raise RoleHasUsersHTTPException(role_id=role_id, number_of_users=number_of_users)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()

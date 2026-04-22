@@ -41,5 +41,5 @@ class GetRoleUseCase:
 
         role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=command.role_id)
         if role is None:
-            return RoleNotFoundError(role_id=command.role_id)
+            return RoleNotFoundError(id=command.role_id)
         return GetRoleUseCaseSuccess(role=role)

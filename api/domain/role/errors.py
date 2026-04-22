@@ -8,10 +8,10 @@ class RoleAlreadyExistsError:
 
 @dataclass
 class RoleNotFoundError:
-    role_id: int
+    id: int
 
 
 @dataclass
 class RoleHasUsersError:
-    role_id: int
+    id: int
     number_of_users: int

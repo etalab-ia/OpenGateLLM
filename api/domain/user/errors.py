@@ -7,10 +7,5 @@ class UserAlreadyExistsError:
 
 
 @dataclass
-class RoleNotFoundError:
-    role_id: int
-
-
-@dataclass
 class OrganizationNotFoundError:
-    organization_id: int
+    id: int

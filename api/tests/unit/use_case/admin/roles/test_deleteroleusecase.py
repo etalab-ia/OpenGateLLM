@@ -69,7 +69,7 @@ class TestDeleteRoleUseCase:
 
         # Assert
         assert isinstance(result, RoleNotFoundError)
-        assert result.role_id == 99
+        assert result.id == 99
         role_repository.delete_role.assert_not_called()
 
     @pytest.mark.asyncio
@@ -85,5 +85,5 @@ class TestDeleteRoleUseCase:
 
         # Assert
         assert isinstance(result, RoleHasUsersError)
-        assert result.role_id == 42
+        assert result.id == 42
         role_repository.delete_role.assert_not_called()

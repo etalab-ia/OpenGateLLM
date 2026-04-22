@@ -40,8 +40,8 @@ class DeleteRoleUseCase:
             return UserIsNotAdminError()
         role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=command.role_id)
         if role is None:
-            return RoleNotFoundError(role_id=command.role_id)
+            return RoleNotFoundError(id=command.role_id)
         if role.users > 0:
-            return RoleHasUsersError(role_id=command.role_id, number_of_users=role.users)
+            return RoleHasUsersError(id=command.role_id, number_of_users=role.users)
         await self.role_repository.delete_role(role_id=command.role_id)
         return DeleteRoleUseCaseSuccess(role=role)
