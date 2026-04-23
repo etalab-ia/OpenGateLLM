@@ -145,8 +145,6 @@ class Model(ConfigBaseModel):
     serve the same type of model (text-generation or text-embeddings-inference, etc.). We recommend that all providers of a model serve exactly the same
     model, otherwise users may receive responses of varying quality. For embedding models, the API verifies that all providers output vectors of the
     same dimension. You can define the load balancing strategy between the model's providers. By default, it is random.
-
-    For more information to configure model providers, see the [ModelProvider section](#modelprovider).
     """
 
     name: constr(strip_whitespace=True, min_length=1, max_length=64) = Field(..., description="Unique name exposed to clients when selecting the model.", examples=["gpt-4o"])  # fmt: off
@@ -269,13 +267,13 @@ class EmptyDependency(ConfigBaseModel):
 
 @custom_validation_error()
 class Dependencies(ConfigBaseModel):
-    albert: AlbertDependency | None = Field(default=None, description="**[DEPRECATED]** See the [AlbertDependency section](#albertdependency) for more information.", json_schema_extra={"deprecated": True})  # fmt: off
-    celery: CeleryDependency | None = Field(default=None, description="**[DEPRECATED]** See the [CeleryDependency section](#celerydependency) for more information.", json_schema_extra={"deprecated": True})  # fmt: off
-    elasticsearch: ElasticsearchDependency | None = Field(default=None, description="See the [ElasticsearchDependency section](#elasticsearchdependency) for more information.")  # fmt: off
-    marker: MarkerDependency | None = Field(default=None, description="**[DEPRECATED]** See the [MarkerDependency section](#markerdependency) for more information.", json_schema_extra={"deprecated": True})  # fmt: off
-    postgres: PostgresDependency = Field(..., description="See the [PostgresDependency section](#postgresdependency) for more information.")  # fmt: off
-    redis: RedisDependency  = Field(..., description="See the [RedisDependency section](#redisdependency) for more information.")  # fmt: off
-    sentry: SentryDependency | None = Field(default=None, description="See the [SentryDependency section](#sentrydependency) for more information.")  # fmt: off
+    albert: AlbertDependency | None = Field(default=None, json_schema_extra={"deprecated": True})  # fmt: off
+    celery: CeleryDependency | None = Field(default=None, json_schema_extra={"deprecated": True})  # fmt: off
+    elasticsearch: ElasticsearchDependency | None = Field(default=None, description="Elasticsearch is an optional dependency of OpenGateLLM. Elasticsearch is used as a vector store. If this dependency is provided, all documents endpoint are enabled.")  # fmt: off
+    marker: MarkerDependency | None = Field(default=None, json_schema_extra={"deprecated": True})  # fmt: off
+    postgres: PostgresDependency = Field(..., description="Postgres is a required dependency of OpenGateLLM to store API data.")  # fmt: off
+    redis: RedisDependency  = Field(..., description="Redis is a required dependency of OpenGateLLM to store rate limiting counters and performance metrics.")  # fmt: off
+    sentry: SentryDependency | None = Field(default=None, description="Sentry is an optional dependency of OpenGateLLM. Sentry helps you identify, diagnose, and fix errors in real-time.")  # fmt: off
 
     @model_validator(mode="after")
     def complete_celery(self):
