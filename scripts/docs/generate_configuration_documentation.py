@@ -26,6 +26,7 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
     for property in sorted(properties):
         description = properties[property].get("description", "")
         description = description.replace("|", "\\|")
+
         default = properties[property].get("default", properties[property].get("default", "**required**"))
         default = f"`{default}`" if default != "**required**" else "**required**"
 
@@ -34,6 +35,23 @@ def get_documentation_data(title: str, data: list, properties: dict, defs: dict,
 
         if "anyOf" in properties[property]:
             properties[property].update(properties[property]["anyOf"][0])
+
+        if "oneOf" in properties[property]:
+            for one_of in properties[property]["oneOf"]:
+                ref_key = one_of.get("$ref").split("/")[-1]
+                ref = defs[ref_key]
+                type = ref.get("type", "")
+                values = ref.get("enum", [])
+
+                if "properties" in ref:
+                    data = get_documentation_data(
+                        title=ref_key,
+                        data=data,
+                        properties=ref["properties"],
+                        defs=defs,
+                        header=ref.get("description"),
+                        level=level + 1,
+                    )
 
         if "$ref" in properties[property]:
             ref_key = properties[property]["$ref"].split("/")[-1]

@@ -216,6 +216,7 @@ playground/.gitignore
 playground/requirements.txt
 run.sh
 .claude
+.cursor
 bruno
 docs/.astro
 docs/node_modules

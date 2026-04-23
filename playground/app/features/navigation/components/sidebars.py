@@ -106,7 +106,7 @@ def navigation_sidebar() -> rx.Component:
                         on_click=rx.cond(
                             AuthState.sso_enabled,
                             AuthState.sso_logout,
-                            AuthState.logout,
+                            AuthState.basic_logout,
                         ),
                         variant="soft",
                         color_scheme="red",
@@ -127,7 +127,7 @@ def navigation_sidebar() -> rx.Component:
         width="250px",
         height="94%",
         background_color=rx.color("mauve", 2),
-        border_right=f"1px solid {rx.color("mauve", 3)}",
+        border_right=f"1px solid {rx.color('mauve', 3)}",
         position="fixed",
         left="0",
         top="65px",

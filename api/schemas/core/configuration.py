@@ -22,7 +22,6 @@ from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, RouterName
 
 
 def custom_validation_error(suffix: str = ""):
-    # TODO: surcharge url pour playground
     """
     Decorator to override Pydantic ValidationError to change error message.
 
@@ -270,10 +269,10 @@ class EmptyDependency(ConfigBaseModel):
 
 @custom_validation_error()
 class Dependencies(ConfigBaseModel):
-    albert: AlbertDependency | None = Field(default=None, description="**[DEPRECATED]** See the [AlbertDependency section](#albertdependency) for more information.")  # fmt: off
-    celery: CeleryDependency | None = Field(default=None, description="**[DEPRECATED]** See the [CeleryDependency section](#celerydependency) for more information.")  # fmt: off
+    albert: AlbertDependency | None = Field(default=None, description="**[DEPRECATED]** See the [AlbertDependency section](#albertdependency) for more information.", json_schema_extra={"deprecated": True})  # fmt: off
+    celery: CeleryDependency | None = Field(default=None, description="**[DEPRECATED]** See the [CeleryDependency section](#celerydependency) for more information.", json_schema_extra={"deprecated": True})  # fmt: off
     elasticsearch: ElasticsearchDependency | None = Field(default=None, description="See the [ElasticsearchDependency section](#elasticsearchdependency) for more information.")  # fmt: off
-    marker: MarkerDependency | None = Field(default=None, description="**[DEPRECATED]** See the [MarkerDependency section](#markerdependency) for more information.")  # fmt: off
+    marker: MarkerDependency | None = Field(default=None, description="**[DEPRECATED]** See the [MarkerDependency section](#markerdependency) for more information.", json_schema_extra={"deprecated": True})  # fmt: off
     postgres: PostgresDependency = Field(..., description="See the [PostgresDependency section](#postgresdependency) for more information.")  # fmt: off
     redis: RedisDependency  = Field(..., description="See the [RedisDependency section](#redisdependency) for more information.")  # fmt: off
     sentry: SentryDependency | None = Field(default=None, description="See the [SentryDependency section](#sentrydependency) for more information.")  # fmt: off
@@ -382,7 +381,7 @@ class Settings(ConfigBaseModel):
     swagger_redoc_url: str = Field(default="/redoc", pattern=r"^/", description="Redoc URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.")  # fmt: off
 
     # auth
-    auth_master_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="changeme", description="[DEPRECATED] Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user.")  # fmt: off
+    auth_master_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="changeme", description="[DEPRECATED] Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user.", json_schema_extra={"deprecated": True})  # fmt: off
     auth_secret_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="Secret key for the API. It should be a random string with at least 32 characters. This key is used to encrypt user tokens, watch out if you modify the secret key, you'll need to update all user API keys. If not provided, the master key will be used.")  # fmt: off
     auth_default_username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="admin", description="Username of the admin user created at startup.")  # fmt: off
     auth_default_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="changeme", description="Password of the admin user created at startup.")  # fmt: off

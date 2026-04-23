@@ -2,9 +2,9 @@ from functools import wraps
 import logging
 import os
 import re
-from typing import Any, get_args, get_origin
+from typing import Annotated, Any, Literal, get_args, get_origin
 
-from pydantic import BaseModel, ConfigDict, Field, constr, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, constr, field_validator, model_validator
 from pydantic import ValidationError as PydanticValidationError
 from pydantic_settings import BaseSettings
 import yaml
@@ -102,22 +102,15 @@ class Dependencies(ConfigBaseModel):
 
 
 @custom_validation_error(suffix="-1")
-class Settings(ConfigBaseModel):
+class Settings(BaseModel):
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
     routing_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in routing tasks.")  # fmt: off
     app_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application.")
 
     playground_opengatellm_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
     playground_opengatellm_timeout: int = Field(default=60, description="The timeout in seconds for the OpenGateLLM API.")
-
-    playground_sso_enabled: bool = Field(default=False, description="Whether SSO is enabled.")
-    playground_sso_opengatellm_admin_api_key: str | None = Field(default=None, description="To activate SSO, set OpenGateLLM API key with ADMIN permissions to create users and tokens.")  # fmt: off
-    playground_sso_opengatellm_default_role_id: int | None = Field(default=None, description="To activate SSO, set the default role ID of OpenGateLLM API for new users.")  # fmt: off
-
-    playground_sso_oauth2_proxy_url: str = Field(default="http://localhost:4180", description="The proxy url for SSO.")
-    playground_sso_provider_logout_url: str | None = Field(default= None, description="The logout url for SSO.")
-
     playground_default_model: str | None = Field(default=None, description="The first model selected in chat page.")
+
     playground_theme_has_background: bool = Field(default=True, description="Whether the theme has a background.")
     playground_theme_accent_color: str = Field(default="purple", description="The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.")  # fmt: off
     playground_theme_appearance: str = Field(default="light", description="The appearance of the theme.")
@@ -130,18 +123,20 @@ class Settings(ConfigBaseModel):
     reference_url: str | None = Field(default="http://localhost:8000/redoc", pattern=r"^http[s]?://", description="Reference URL. If not provided, deactivated reference link in the navigation bar.")  # fmt: off
     documentation_url: str | None = Field(default="https://docs.opengatellm.org", pattern=r"^http[s]?://", description="Documentation URL. If not provided, deactivated documentation link in the navigation bar.")  # fmt: off
 
-    @model_validator(mode="after")
-    def validate_sso_enabled(self):
-        if self.playground_sso_enabled:
-            if self.playground_sso_opengatellm_admin_api_key is None:
-                raise ValueError("SSO is enabled but no OpenGateLLM API key with ADMIN permissions is provided.")
-            if self.playground_sso_opengatellm_default_role_id is None:
-                raise ValueError("SSO is enabled but no default role ID is provided.")
-            if self.playground_sso_provider_logout_url is None:
-                raise ValueError("SSO is enabled but no provider logout url is provided.")
-            if self.playground_sso_oauth2_proxy_url is None:
-                raise ValueError("SSO is enabled but no oauth2 proxy url is provided.")
-        return self
+
+class SettingsWithoutSSO(Settings):
+    playground_sso_enabled: Literal[False] = Field(default=False, description="Whether SSO is enabled.")
+    playground_sso_opengatellm_admin_api_key: Any = Field(default=None, description="To activate SSO, set OpenGateLLM API key with ADMIN permissions to create users and tokens.")  # fmt: off
+    playground_sso_opengatellm_default_role_id: Any = Field(default=None, description="To activate SSO, set the default role ID of OpenGateLLM API for new users.")  # fmt: off
+    playground_sso_provider_logout_url: Any = Field(default=None, description="The logout url for SSO.")
+
+
+class SettingsWithSSO(Settings):
+    playground_sso_enabled: Literal[True] = Field(default=True, description="Whether SSO is enabled.")
+    playground_sso_opengatellm_admin_api_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="To activate SSO, set OpenGateLLM API key with ADMIN permissions to create users and tokens.")  # fmt: off
+    playground_sso_opengatellm_default_role_id: Annotated[int, Field(ge=0, description="To activate SSO, set the default role ID of OpenGateLLM API for new users.")] = Field(description="To activate SSO, set the default role ID of OpenGateLLM API for new users.")  # fmt: off
+    playground_sso_provider_logout_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="The logout url for SSO.")  # fmt: off
+
 
 class ConfigFile(ConfigBaseModel):
     """
@@ -153,7 +148,14 @@ class ConfigFile(ConfigBaseModel):
     """
 
     dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the playground.")  # fmt: off
-    settings: Settings = Field(default_factory=Settings, description="General settings configuration fields. Some fields are common to the API and the playground.")  # fmt: off
+    settings: Annotated[SettingsWithoutSSO | SettingsWithSSO, Field(discriminator="playground_sso_enabled", default_factory=SettingsWithoutSSO, description="General settings configuration fields. Some fields are common to the API and the playground.")]  # fmt: off
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize(cls, data: Any) -> Any:
+        if isinstance(data, dict) and isinstance(data.get("settings"), dict):
+            data["settings"].setdefault("playground_sso_enabled", False)
+        return data
 
 
 class Configuration(BaseSettings):

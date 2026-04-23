@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 import httpx
 import reflex as rx
 
@@ -34,7 +36,6 @@ class AuthState(rx.State):
     sso_enabled: bool = configuration.settings.playground_sso_enabled
     sso_opengatellm_admin_api_key: str | None = configuration.settings.playground_sso_opengatellm_admin_api_key
     sso_opengatellm_default_role_id: int | None = configuration.settings.playground_sso_opengatellm_default_role_id
-    sso_oauth2_proxy_url: str = configuration.settings.playground_sso_oauth2_proxy_url
     sso_provider_logout_url: str = configuration.settings.playground_sso_provider_logout_url
 
     # Form fields
@@ -207,7 +208,7 @@ class AuthState(rx.State):
         return self.user_id == 0
 
     @rx.event
-    def logout(self):
+    def basic_logout(self):
         """Handle logout."""
         self.is_authenticated = False
         self.user_id = None
@@ -242,4 +243,9 @@ class AuthState(rx.State):
         self.user_updated = None
         self.user_permissions = []
         self.user_limits = []
-        return rx.redirect(f"{self.sso_oauth2_proxy_url}/oauth2/sign_out?rd={self.sso_provider_logout_url}")
+
+        # return rx.redirect(rd)
+        # client_id = "557aea18a617ec6a06260ec42015f26251d671f3914a7312e6b168dc4e4f738e"
+        # url = f"https://fca.integ01.dev-agentconnect.fr/api/v2/session/end?client_id={client_id}&post_logout_redirect_uri=http%3A%2F%2Flocalhost:4180/oauth2/sign_in"
+        # return rx.redirect(urljoin(base=self.sso_oauth2_proxy_url, url=f"/oauth2/sign_out?rd={rd}"))
+        return rx.redirect(quote(self.sso_provider_logout_url, safe=""))
