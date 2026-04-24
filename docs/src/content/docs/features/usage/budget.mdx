@@ -37,7 +37,9 @@ There are three ways to configure model pricing used for budget computation: Pla
 
   <TabItem value="config" label="Configuration file" icon="lucide:file-text">
   <Aside type="caution">
-  We not recommend to use the configuration file to setup your models parameters, prefer to use the Playground UI or API endpoints.
+  We not recommend to use the configuration file to setup your models parameters, prefer to use the Playground UI or API endpoints. 
+  The configuration of models in the configuration file is only used for the initial bootstrap of the API.
+  The model section of the configuration is ignored if any models are already registered in the database.
   </Aside>
 
   To define model pricing in the configuration file, set the following fields for each provider:

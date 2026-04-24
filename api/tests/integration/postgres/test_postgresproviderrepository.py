@@ -6,7 +6,7 @@ from sqlalchemy import select
 from api.domain import SortOrder
 from api.domain.model.entities import Metric, ModelType
 from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderSortField, ProviderType
-from api.domain.provider.errors import ProviderAlreadyExistsError
+from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.infrastructure.postgres import PostgresProviderRepository
 from api.sql.models import Provider as ProviderTable
 from api.tests.integration.factories.sql import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
@@ -110,12 +110,13 @@ class TestGetOneProvider:
         assert result.max_context_length == provider.max_context_length
         assert result.vector_size == provider.vector_size
 
-    async def test_get_one_provider_should_return_none_when_provider_does_not_exist(self, repository, db_session):
+    async def test_get_one_provider_should_return_provider_not_found_when_provider_does_not_exist(self, repository, db_session):
         # Act
         result = await repository.get_one_provider(provider_id=999999)
 
         # Assert
-        assert result is None
+        assert isinstance(result, ProviderNotFoundError)
+        assert result.id == 999999
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -315,12 +316,13 @@ class TestDeleteProvider:
         assert result.id == provider.id
         assert result.model_name == "provider_to_delete"
 
-    async def test_delete_provider_should_return_none_when_provider_does_not_exist(self, repository, db_session):
+    async def test_delete_provider_should_return_provider_not_found_when_provider_does_not_exist(self, repository, db_session):
         # Act
         result = await repository.delete_provider(provider_id=999999)
 
         # Assert
-        assert result is None
+        assert isinstance(result, ProviderNotFoundError)
+        assert result.id == 999999
 
     async def test_delete_provider_should_remove_provider_from_database(self, repository, db_session):
         # Arrange

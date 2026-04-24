@@ -10,6 +10,8 @@ class InvalidProviderTypeError:
 @dataclass
 class ProviderNotReachableError:
     model_name: str
+    status_code: int
+    detail: str
 
 
 @dataclass

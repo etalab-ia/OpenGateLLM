@@ -6,7 +6,7 @@ from sqlalchemy import select
 from api.domain import SortField, SortOrder
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy
-from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
+from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.infrastructure.postgres import PostgresRouterRepository
 from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
@@ -407,12 +407,13 @@ class TestGetRouterById:
         assert result.max_context_length == first_provider.max_context_length
         assert result.vector_size == first_provider.vector_size
 
-    async def test_get_router_by_id_should_return_none_when_router_does_not_exist(self, repository, db_session):
+    async def test_get_router_by_id_should_return_router_not_found_when_router_does_not_exist(self, repository, db_session):
         # Act
         result = await repository.get_router_by_id(router_id=999999)
 
         # Assert
-        assert result is None
+        assert isinstance(result, RouterNotFoundError)
+        assert result.id == 999999
 
     async def test_get_router_by_id_should_return_router_without_aliases_when_none_set(self, repository, db_session):
         # Arrange
@@ -445,12 +446,13 @@ class TestDeleteRouter:
         assert result.name == "router_to_delete"
         assert result.aliases == ["alias1"]
 
-    async def test_delete_router_should_return_none_when_router_does_not_exist(self, repository, db_session):
+    async def test_delete_router_should_return_router_not_found_when_router_does_not_exist(self, repository, db_session):
         # Act
         result = await repository.delete_router(router_id=999999)
 
         # Assert
-        assert result is None
+        assert isinstance(result, RouterNotFoundError)
+        assert result.id == 999999
 
     async def test_delete_router_should_delete_cascade_router_aliases_and_providers_from_database(self, repository, db_session):
         # Arrange

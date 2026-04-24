@@ -9,7 +9,7 @@ from api.domain.provider.errors import ProviderNotReachableError
 @dataclass
 class ProviderCapabilities:
     max_context_length: int | None
-    vector_size: int | None
+    vector_size: int | None = None
 
 
 class ProviderGateway(ABC):

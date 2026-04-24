@@ -60,7 +60,7 @@ class TestDeleteRouterUseCase:
     async def test_should_return_router_not_found_error_when_router_does_not_exist(self, use_case, router_repository, admin_user_info):
         # Arrange
         use_case.user_info_repository.get_user_info.return_value = admin_user_info
-        use_case.router_repository.delete_router.return_value = None
+        use_case.router_repository.delete_router.return_value = RouterNotFoundError(id=99)
 
         # Act
         result = await use_case.execute(command=DeleteRouterCommand(user_id=admin_user_info.id, router_id=99))

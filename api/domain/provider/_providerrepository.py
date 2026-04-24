@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from api.domain import SortOrder
 from api.domain.model.entities import Metric
 from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderPage, ProviderSortField, ProviderType
-from api.domain.provider.errors import ProviderAlreadyExistsError
+from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 
 
 class ProviderRepository(ABC):
@@ -28,11 +28,11 @@ class ProviderRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete_provider(self, provider_id: int) -> Provider | None:
+    async def delete_provider(self, provider_id: int) -> Provider | ProviderNotFoundError:
         pass
 
     @abstractmethod
-    async def get_one_provider(self, provider_id: int) -> Provider | None:
+    async def get_one_provider(self, provider_id: int) -> Provider | ProviderNotFoundError:
         pass
 
     @abstractmethod
@@ -47,5 +47,5 @@ class ProviderRepository(ABC):
         pass
 
     @abstractmethod
-    async def update_provider(self, provider_to_persist: Provider) -> Provider | ProviderAlreadyExistsError:
+    async def update_provider(self, provider: Provider) -> Provider | ProviderAlreadyExistsError:
         pass

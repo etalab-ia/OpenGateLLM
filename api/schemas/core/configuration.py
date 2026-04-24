@@ -11,7 +11,7 @@ from pydantic import ValidationError as PydanticValidationError
 from pydantic_settings import BaseSettings
 import yaml
 
-from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
+from api.domain.provider.entities import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.core.elasticsearch import ElasticsearchIndexLanguage
 from api.schemas.core.models import Metric
@@ -105,16 +105,16 @@ class ConfigBaseModel(BaseModel):
 
 @custom_validation_error()
 class ModelProvider(ConfigBaseModel):
-    type: ProviderType = Field(..., description="Model provider type.", examples=["openai"])  # fmt: off
-    url: constr(strip_whitespace=True, min_length=1, to_lower=True) | None = Field(default=None, description="Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI).", examples=["https://api.openai.com"])  # fmt: off
-    key: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Model provider API key.", examples=["sk-1234567890"])  # fmt: off
-    timeout: int = Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 500 error (model is too busy).", examples=[10])  # fmt: off
-    model_name: constr(strip_whitespace=True, min_length=1) = Field(..., description="Model name from the model provider.", examples=["gpt-4o"])  # fmt: off
-    model_hosting_zone: ProviderCarbonFootprintZone = Field(default=ProviderCarbonFootprintZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])  # fmt: off
-    model_total_params: int = Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
-    model_active_params: int = Field(default=0, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai", examples=[8])  # fmt: off
-    qos_metric: Metric | None = Field(default=None, description="The metric to use for the quality of service. If not provided, no QoS policy is applied.", examples=[Metric.INFLIGHT.value])  # fmt: off
-    qos_limit: float | None = Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.", examples=[0.5])  # fmt: off
+    type: Annotated[ProviderType, Field(..., description="Model provider type.")]
+    url: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI).")]  # fmt: off
+    key: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Model provider API key.")]  # fmt: off
+    timeout: Annotated[int, Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 503 error (model is too busy).")]  # fmt: off
+    model_name: Annotated[str, Field(..., description="Model name from the model provider.")]  # fmt: off
+    model_hosting_zone: Annotated[ProviderCarbonFootprintZone, Field(default=ProviderCarbonFootprintZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")]  # fmt: off
+    model_total_params: Annotated[int, Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai")]  # fmt: off
+    model_active_params: Annotated[int, Field(default=0, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai")]  # fmt: off
+    qos_metric: Annotated[Metric | None, Field(default=None, description="The metric to use for the quality of service policy. If not provided, no QoS policy is applied.")]  # fmt: off
+    qos_limit: Annotated[float | None, Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")]  # fmt: off
 
     @model_validator(mode="after")
     def format_provider(self):
@@ -140,13 +140,8 @@ class ModelProvider(ConfigBaseModel):
 @custom_validation_error()
 class Model(ConfigBaseModel):
     """
-    In the models section, you define a list of models. Each model is a set of API providers for that model. Users will access the models specified in
-    this section using their *name*. Load balancing is performed between the different providers of the requested model. All providers in a model must
-    serve the same type of model (text-generation or text-embeddings-inference, etc.). We recommend that all providers of a model serve exactly the same
-    model, otherwise users may receive responses of varying quality. For embedding models, the API verifies that all providers output vectors of the
-    same dimension. You can define the load balancing strategy between the model's providers. By default, it is random.
-
-    For more information to configure model providers, see the [ModelProvider section](#modelprovider).
+    In the model section, you define a list of models (routers and providers). These models are only used for the initial bootstrap of the API.
+    The model section of the configuration is ignored if any models are already registered in the database.
     """
 
     name: constr(strip_whitespace=True, min_length=1, max_length=64) = Field(..., description="Unique name exposed to clients when selecting the model.", examples=["gpt-4o"])  # fmt: off
@@ -156,6 +151,14 @@ class Model(ConfigBaseModel):
     cost_prompt_tokens: float = Field(default=0.0, ge=0.0, description="Model costs prompt tokens for user budget computation. The cost is by 1M tokens.", examples=[0.1])  # fmt: off
     cost_completion_tokens: float = Field(default=0.0, ge=0.0, description="Model costs completion tokens for user budget computation. The cost is by 1M tokens. Set to `0.0` to disable budget computation for this model.", examples=[0.1])  # fmt: off
     providers: list[ModelProvider] = Field(..., description="API providers of the model. If there are multiple providers, the model will be load balanced between them according to the routing strategy. The different models have to the same type.")  # fmt: off
+
+    @model_validator(mode="after")
+    def validate_provider_type(self):
+        for provider in self.providers:
+            if not provider.type.is_compatible_with(router_type=self.type):
+                raise ValueError(f"Provider type {provider.type.value} is not compatible with model type {self.type.value}")
+
+        return self
 
 
 # dependencies ---------------------------------------------------------------------------------------------------------------------------------------

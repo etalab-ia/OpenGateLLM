@@ -87,9 +87,9 @@ class TestCreateProvider:
                 "Invalid model provider type tei for text-generation router.",
             ),
             (
-                ProviderNotReachableError(model_name="my-model"),
+                ProviderNotReachableError(model_name="my-model", status_code=500, detail="error_detail"),
                 424,
-                "Model provider my-model not reachable.",
+                "Model provider my-model not reachable (500): error_detail",
             ),
             (
                 ProviderAlreadyExistsError(model_name="my-model", url=DEFAULT_PROVIDER_URL, router_id=1),

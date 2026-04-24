@@ -26,10 +26,7 @@ class GetOneRouterUseCase:
         self.router_repository = router_repository
         self.user_info_repository = user_info_repository
 
-    async def execute(
-        self,
-        command: GetOneRouterCommand,
-    ) -> GetOneRouterUseCaseResult:
+    async def execute(self, command: GetOneRouterCommand) -> GetOneRouterUseCaseResult:
         user_info = await self.user_info_repository.get_user_info(user_id=command.user_id)
 
         if not user_info.is_admin:

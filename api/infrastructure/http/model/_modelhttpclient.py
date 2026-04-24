@@ -16,6 +16,7 @@ from api.domain.model.entities import UserModelRequest
 from api.domain.model.errors import UnsupportedEndpointError
 from api.domain.provider.entities import ProviderType
 from api.infrastructure.fastapi.context import RequestContextManager
+from api.infrastructure.fastapi.endpoints.exceptions import ModelIsTooBusyException
 from api.infrastructure.http.model.adapters import (
     AudioTranscriptionAdapter,
     ChatCompletionAdapter,
@@ -27,7 +28,6 @@ from api.infrastructure.http.model.adapters import (
 )
 from api.infrastructure.http.model.exchanges import ModelHttpExchange, OriginalModelRequest, OriginalModelResponse
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk
-from api.utils.exceptions import ModelIsTooBusyException
 from api.utils.variables import EndpointRoute
 
 from ._modelmetricslogger import ModelMetricsLogger
@@ -139,10 +139,9 @@ class ModelHttpClient:
                     httpx.WriteTimeout,
                     httpx.PoolTimeout,
                     httpx.RemoteProtocolError,
+                    httpx.ConnectError,
                 ) as e:
-                    raise ModelIsTooBusyException(detail=f"Model is too busy ({type(e).__name__}), please try again later")
-                except httpx.ConnectError:
-                    raise ModelIsTooBusyException(detail="Model is temporarily unavailable, please try again later.")
+                    raise ModelIsTooBusyException(error_type=type(e).__name__)
                 except Exception as e:
                     logger.exception(msg=f"Failed to forward request to {self.model_name}: {e}.")
                     raise HTTPException(status_code=500, detail=type(e).__name__)

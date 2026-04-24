@@ -122,8 +122,8 @@ async def create_provider(
         case InvalidProviderTypeError(provider_type=provider_type, router_type=router_type):
             raise InvalidProviderTypeHTTPException(incorrect_provider_type=provider_type, router_type=router_type)
 
-        case ProviderNotReachableError(model_name=name):
-            raise ProviderNotReachableHTTPException(name=name)
+        case ProviderNotReachableError() as error:
+            raise ProviderNotReachableHTTPException(name=error.model_name, status_code=error.status_code, detail=error.detail)
 
         case ProviderAlreadyExistsError(model_name=model_name, url=url, router_id=router_id):
             raise ProviderAlreadyExistsHTTPException(model_name=model_name, url=url, router_id=router_id)

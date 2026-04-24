@@ -37,7 +37,7 @@ This guide provides practical defaults and hardening recommendations for running
 
 After you have launched the API for the first time, an administrator account is created with the default values (`admin` and `changeme`).
 This account is intended to let you create your first administrator account. We recommend deleting it after you have created your own admin account.
-On subsequent restarts, the default administrator account will not be created if an administrator account already exists.
+On subsequent restarts, the bootstrap administrator account will not be created if an administrator account already exists.
 
 - Limit API key lifetime with `auth_key_max_expiration_days`.
 - Hide sensitive routes `admin` and `auth` from public API docs.

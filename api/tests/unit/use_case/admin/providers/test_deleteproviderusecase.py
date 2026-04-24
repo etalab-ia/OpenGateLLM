@@ -60,7 +60,7 @@ class TestDeleteProviderUseCase:
     async def test_should_return_provider_not_found_error_when_provider_does_not_exist(self, use_case, provider_repository, admin_user_info):
         # Arrange
         use_case.user_info_repository.get_user_info.return_value = admin_user_info
-        use_case.provider_repository.delete_provider.return_value = None
+        use_case.provider_repository.delete_provider.return_value = ProviderNotFoundError(id=99)
 
         # Act
         result = await use_case.execute(command=DeleteProviderCommand(user_id=admin_user_info.id, provider_id=99))

@@ -4,42 +4,12 @@ from pydantic import Field, StringConstraints, model_validator
 
 from api.domain.provider.entities import ProviderCarbonFootprintZone, ProviderType
 from api.schemas import BaseModel
+from api.schemas.core.configuration import ModelProvider
 from api.schemas.core.models import Metric
-from api.utils.variables import DEFAULT_TIMEOUT
 
 
-class CreateProviderBody(BaseModel):
+class CreateProviderBody(ModelProvider):
     router_id: Annotated[int, Field(..., description="ID of the model to create the provider for (router ID, eg. 123).")]
-    type: Annotated[ProviderType, Field(..., description="Model provider type.")]
-    url: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI).")]  # fmt: off
-    key: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Model provider API key.")]  # fmt: off
-    timeout: Annotated[int, Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 503 error (model is too busy).")]  # fmt: off
-    model_name: Annotated[str, Field(..., description="Model name from the model provider.")]  # fmt: off
-    model_hosting_zone: Annotated[ProviderCarbonFootprintZone, Field(default=ProviderCarbonFootprintZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")]  # fmt: off
-    model_total_params: Annotated[int, Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai")]  # fmt: off
-    model_active_params: Annotated[int, Field(default=0, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai")]  # fmt: off
-    qos_metric: Annotated[Metric | None, Field(default=None, description="The metric to use for the quality of service policy. If not provided, no QoS policy is applied.")]  # fmt: off
-    qos_limit: Annotated[float | None, Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")]  # fmt: off
-
-    @model_validator(mode="after")
-    def format_provider(self):
-        if self.qos_metric is not None and self.qos_limit is None:
-            raise ValueError("QoS value is required if QoS metric is provided.")
-
-        if self.url is None:
-            if self.type == ProviderType.ALBERT:
-                self.url = "https://albert.api.etalab.gouv.fr/"
-            elif self.type == ProviderType.MISTRAL:
-                self.url = "https://albert.api.etalab.gouv.fr/"
-            elif self.type == ProviderType.OPENAI:
-                self.url = "https://api.openai.com/"
-            else:
-                raise ValueError("URL is required for this model provider type.")
-
-        elif not self.url.endswith("/"):
-            self.url = f"{self.url}/"
-
-        return self
 
 
 class CreateProviderResponse(BaseModel):

@@ -60,7 +60,7 @@ class UpdateRoleUseCase:
         if role_to_persist == role:
             return UpdateRoleUseCaseSuccess(role=role)
 
-        update_result = await self.role_repository.update_role(role_to_persist)
+        update_result = await self.role_repository.update_role(role=role_to_persist)
 
         match update_result:
             case Role() as updated_role:

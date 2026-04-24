@@ -120,7 +120,7 @@ sequenceDiagram
   </Steps>
   </TabItem>
 
-  <TabItem value="config" label="API" icon="lucide:code">
+  <TabItem label="API" icon="lucide:code">
   <Steps>
     <ol>
       <li>
@@ -138,6 +138,30 @@ sequenceDiagram
       <LinkButton href="/reference/" icon="external">See API Reference</LinkButton>
     </ol>
   </Steps>
+  </TabItem>
+
+  <TabItem label="Configuration file" icon="lucide:file-text">
+  <Aside type="caution">
+  We not recommend to use the configuration file to setup your models parameters, prefer to use the Playground UI or API endpoints.
+  The configuration of models in the configuration file is only used for the initial bootstrap of the API.
+  The model section of the configuration is ignored if any models are already registered in the database.
+  </Aside>
+
+  **Example:**
+
+  ```yaml
+  models:
+    [...]
+    - name: my-language-model
+      type: text-generation
+      providers:
+        - type: openai
+          url: https://api.openai.com
+          key: ${OPENAI_API_KEY}
+          model_name: gpt-4o-mini
+  ```
+
+  <LinkButton href="/configuration/configuration_file/" icon="external">Configuration file documentation</LinkButton>
   </TabItem>
 
 </Tabs>

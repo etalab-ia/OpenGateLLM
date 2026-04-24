@@ -38,6 +38,8 @@ class DeleteProviderUseCase:
 
         provider = await self.provider_repository.delete_provider(command.provider_id)
 
-        if provider is None:
-            return ProviderNotFoundError(id=command.provider_id)
-        return DeleteProviderUseCaseSuccess(deleted_provider=provider)
+        match provider:
+            case Provider() as deleted_provider:
+                return DeleteProviderUseCaseSuccess(deleted_provider=deleted_provider)
+            case ProviderNotFoundError(id=not_found_id):
+                return ProviderNotFoundError(id=not_found_id)

@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from api.domain import SortField, SortOrder
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage
-from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
+from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 
 
 class RouterRepository(ABC):
@@ -26,7 +26,7 @@ class RouterRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_router_by_id(self, router_id: int) -> Router | None:
+    async def get_router_by_id(self, router_id: int) -> Router | RouterNotFoundError:
         pass
 
     @abstractmethod
@@ -47,7 +47,11 @@ class RouterRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete_router(self, router_id: int) -> Router | None:
+    async def delete_router(self, router_id: int) -> Router | RouterNotFoundError:
+        pass
+
+    @abstractmethod
+    async def delete_all_routers(self) -> list[Router]:
         pass
 
     @abstractmethod
@@ -55,5 +59,9 @@ class RouterRepository(ABC):
         pass
 
     @abstractmethod
-    async def update_router(self, router_to_update: Router) -> Router | RouterNameAlreadyExistsError:
+    async def update_router(self, router: Router) -> Router | RouterNameAlreadyExistsError:
         pass
+
+    # @abstractmethod
+    # async def get_all_router_with_providers(self) -> list[RouterWithProviders]:
+    #     pass

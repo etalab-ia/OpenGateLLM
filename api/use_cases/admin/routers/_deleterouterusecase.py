@@ -35,8 +35,10 @@ class DeleteRouterUseCase:
         if not user_info.is_admin:
             return UserIsNotAdminError()
 
-        router = await self.router_repository.delete_router(command.router_id)
+        result = await self.router_repository.delete_router(command.router_id)
 
-        if router is None:
-            return RouterNotFoundError(id=command.router_id)
-        return DeleteRouterUseCaseSuccess(router=router)
+        match result:
+            case Router() as deleted_router:
+                return DeleteRouterUseCaseSuccess(router=deleted_router)
+            case RouterNotFoundError(id=not_found_id):
+                return RouterNotFoundError(id=not_found_id)
