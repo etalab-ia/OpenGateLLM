@@ -11,7 +11,11 @@ class RoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_role_with_permissions_and_limits_by_id(self, role_id: int) -> Role | None:
+    async def get_role_with_permissions_and_limits_by_id(self, role_id: int) -> Role | RoleNotFoundError:
+        pass
+
+    @abstractmethod
+    async def get_role_with_permissions_and_limits_by_name(self, role_name: str) -> Role | RoleNotFoundError:
         pass
 
     @abstractmethod
@@ -19,7 +23,7 @@ class RoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete_role(self, role_id: int) -> Role | None:
+    async def delete_role(self, role_id: int) -> Role | RoleNotFoundError:
         pass
 
     @abstractmethod

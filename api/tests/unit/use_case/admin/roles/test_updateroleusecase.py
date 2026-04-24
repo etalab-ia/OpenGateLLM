@@ -87,7 +87,7 @@ class TestUpdateRoleUseCase:
     ):
         # Arrange
         user_info_repository.get_user_info.return_value = admin_user_info
-        role_repository.get_role_with_permissions_and_limits_by_id.return_value = None
+        role_repository.get_role_with_permissions_and_limits_by_id.return_value = RoleNotFoundError(id=1)
 
         # Act
         result = await use_case.execute(command=default_command)

@@ -7,8 +7,8 @@ class User(BaseModel):
     name: str | None = Field(default=None, description="The user name.")
     sub: str | None = Field(default=None, description="The user subject identifier. Null when using email/password auth.")
     iss: str | None = Field(default=None, description="The user issuer identifier. Null when using email/password auth.")
-    role: int = Field(description="The user role ID.")
-    organization: int | None = Field(default=None, description="The user organization ID.")
+    role: int = Field(description="The user role ID.")  # @TODO: rename to role_id
+    organization: int | None = Field(default=None, description="The user organization ID.")  # @TODO: rename to organization_id
     budget: float | None = Field(default=None, description="The user budget. If None, the user has unlimited budget.")
     expires: int | None = Field(default=None, description="The user expiration timestamp. If None, the user will never expire.")
     created: int = Field(description="The user creation timestamp.")

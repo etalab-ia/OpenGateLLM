@@ -42,15 +42,15 @@ To simplify development, we have created a make command that allows you to launc
     ```
     The API will be available at http://localhost:8000 and the playground at http://localhost:8501. 
 
-5. **Create the first admin user**
+5. **Create the API key for the admin user**
 
-    Open another terminal and create the first admin user with the following command:
+    The default created user will be `admin` as email and its password `changeme`.
+
+    Open another terminal and create a new API key with the following command:
 
     ```bash
-    make create-admin
+    make create-api-key
     ```
-
-    The default created user will be `admin` as email and its password `changeme`. The script create a role with `admin` permissions that allows to access to all models with no limits.
 
 6. **Setup your models**
 

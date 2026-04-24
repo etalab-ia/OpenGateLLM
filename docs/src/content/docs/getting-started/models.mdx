@@ -141,3 +141,27 @@ sequenceDiagram
   </TabItem>
 
 </Tabs>
+
+4. **Create a API key for the admin user**
+    
+    To test your models, you can create a new API key for the admin user with the following command:
+
+    ```bash
+    make create-api-key
+    ```
+
+    The API key will be displayed in the terminal. You can use this API key to test your models:
+
+    ```curl
+    curl -X POST "http://localhost:8000/v1/chat/completions" \
+    -H "Authorization: Bearer <API_KEY>" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "model": "<MODEL_NAME>",
+      "messages": [{"role": "user", "content": "Hello, how are you?"}]
+    }'
+    ```
+
+    <Aside type="note" title="API key">
+    Change the `<API_KEY>` with the API key you created and the `<MODEL_NAME>` with the name of the router you want to test.
+    </Aside>

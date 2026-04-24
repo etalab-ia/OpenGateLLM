@@ -4,8 +4,9 @@ import logging
 from fastapi import Body, Depends, Security
 
 from api.dependencies import create_user_use_case_factory, get_request_context
+from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user.errors import OrganizationNotFoundError, UserAlreadyExistsError
+from api.domain.user.errors import UserAlreadyExistsError
 from api.domain.userinfo.errors import UserIsNotAdminError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext

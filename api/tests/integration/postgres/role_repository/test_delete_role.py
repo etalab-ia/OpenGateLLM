@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy import select
 
 from api.domain.role.entities import LimitType, PermissionType, Role
+from api.domain.role.errors import RoleNotFoundError
 from api.infrastructure.postgres import PostgresRolesRepository
 from api.sql.models import Limit as LimitTable
 from api.sql.models import Permission as PermissionTable
@@ -21,7 +22,7 @@ class TestDeleteRole:
         result = await repository.delete_role(role_id=999999)
 
         # Assert
-        assert result is None
+        assert result == RoleNotFoundError(id=999999)
 
     async def test_delete_role_should_delete_role_with_permissions_and_limits(self, repository, db_session):
         # Arrange

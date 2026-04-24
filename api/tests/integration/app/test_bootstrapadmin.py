@@ -5,6 +5,7 @@ from api.domain.role.entities import PermissionType
 from api.schemas.core.configuration import Configuration, Dependencies, Settings
 from api.sql.models import Permission, User
 from api.tests.integration.factories.sql import RoleSQLFactory, UserSQLFactory
+from api.use_cases.admin.bootstrapadminusecase import BootstrapAdminUseCase
 from api.utils.lifespan import bootstrap_default_admin
 
 ADMIN_USERNAME = "admin"
@@ -15,8 +16,8 @@ ADMIN_PASSWORD = "s3cr3t"
 def bootstrap_configuration() -> Configuration:
     return Configuration.model_construct(
         settings=Settings.model_construct(
-            auth_default_username=ADMIN_USERNAME,
-            auth_default_password=ADMIN_PASSWORD,
+            auth_bootsrap_admin_username=ADMIN_USERNAME,
+            auth_bootsrap_admin_password=ADMIN_PASSWORD,
         ),
         dependencies=Dependencies.model_construct(sentry=None),
     )
@@ -47,23 +48,42 @@ class TestBootstrapDefaultAdmin:
         # Act
         await bootstrap_default_admin(configuration=bootstrap_configuration, postgres_session=db_session)
 
-    async def test_raises_runtime_error_when_role_name_already_taken(self, db_session, bootstrap_configuration):
+    async def test_reuses_existing_role_and_adds_admin_permission_when_role_name_already_taken(self, db_session, bootstrap_configuration):
         # Arrange
-        role = RoleSQLFactory(name=ADMIN_USERNAME)
+        role = RoleSQLFactory(name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_ROLE_NAME)
         await db_session.flush()
 
-        # Act & Assert
-        with pytest.raises(RuntimeError, match=f"'{role.name}' already exists"):
-            await bootstrap_default_admin(configuration=bootstrap_configuration, postgres_session=db_session)
+        # Act
+        await bootstrap_default_admin(configuration=bootstrap_configuration, postgres_session=db_session)
 
-    async def test_raises_runtime_error_when_user_email_already_taken(self, db_session, bootstrap_configuration):
+        # Assert
+        user = (await db_session.execute(select(User).where(User.email == ADMIN_USERNAME))).scalar_one_or_none()
+        assert user is not None
+        assert user.role_id == role.id
+
+        permission = (
+            await db_session.execute(select(Permission).where(Permission.role_id == role.id, Permission.permission == PermissionType.ADMIN))
+        ).scalar_one_or_none()
+        assert permission is not None
+
+    async def test_updates_existing_user_when_user_email_already_taken(self, db_session, bootstrap_configuration):
         # Arrange
         user = UserSQLFactory(regular_user=True, email=ADMIN_USERNAME)
         await db_session.flush()
 
-        # Act & Assert
-        with pytest.raises(RuntimeError, match=f"'{user.email}' already exists"):
-            await bootstrap_default_admin(configuration=bootstrap_configuration, postgres_session=db_session)
+        # Act
+        await bootstrap_default_admin(configuration=bootstrap_configuration, postgres_session=db_session)
+
+        # Assert
+        updated_user = (await db_session.execute(select(User).where(User.id == user.id))).scalar_one()
+        assert updated_user.id == user.id
+
+        permission = (
+            await db_session.execute(
+                select(Permission).where(Permission.role_id == updated_user.role_id, Permission.permission == PermissionType.ADMIN)
+            )
+        ).scalar_one_or_none()
+        assert permission is not None
 
 
 if __name__ == "__main__":

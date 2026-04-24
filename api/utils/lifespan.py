@@ -9,9 +9,6 @@ from tiktoken.core import Encoding
 
 from api.clients.parser import BaseParserClient as ParserClient
 from api.dependencies import get_postgres_session
-from api.domain.role.entities import PermissionType
-from api.domain.role.errors import RoleAlreadyExistsError
-from api.domain.user.errors import UserAlreadyExistsError
 from api.helpers._documentmanager import DocumentManager
 from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers._identityaccessmanager import IdentityAccessManager
@@ -117,24 +114,20 @@ async def bootstrap_default_admin(configuration: Configuration, postgres_session
         limit_repository=limit_repository,
         permission_repository=permission_repository,
     ).execute(
-        BootstrapAdminCommand(
-            name=configuration.settings.auth_default_username,
-            email=configuration.settings.auth_default_username,
-            password=configuration.settings.auth_default_password,
-            permissions=[PermissionType.ADMIN],
-            limits=[],
-        )
+        BootstrapAdminCommand(email=configuration.settings.auth_bootsrap_admin_username, password=configuration.settings.auth_bootsrap_admin_password)
     )
 
     match result:
-        case BootstrapAdminUseCaseSuccess(user_id=user_id, email=email, role_id=role_id):
-            logger.info("Default admin successfully created.", extra={"user_id": user_id, "email": email, "role_id": role_id})
-        case BootstrapAdminUseCaseSkipped(name=name, email=email):
-            logger.info(f"Admin user {name} / {email} already exists, skipping default admin user creation.")
-        case RoleAlreadyExistsError(name=name):
-            raise RuntimeError(f"Failed to bootstrap default admin role: role '{name}' already exists.")
-        case UserAlreadyExistsError(email=email):
-            raise RuntimeError(f"Failed to bootstrap default admin user: user '{email}' already exists.")
+        case BootstrapAdminUseCaseSuccess() as success:
+            logger.info(f"Admin user not found, default admin created ({success.email}):")
+            logger.info(f"user ID: {success.user_id}")
+            logger.info(f"role ID: {success.role_id}")
+            return success.user_id
+        case BootstrapAdminUseCaseSkipped() as skipped:
+            logger.info(f"Admin user already exists, use first admin user as default admin user ({skipped.email}):")
+            logger.info(f"user ID: {skipped.user_id}")
+            logger.info(f"role ID: {skipped.role_id}")
+            return skipped.user_id
 
 
 async def create_model_registry(

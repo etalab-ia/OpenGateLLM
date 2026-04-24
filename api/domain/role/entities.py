@@ -31,6 +31,7 @@ class Role(BaseModel):
     name: str
     permissions: list[PermissionType]
     limits: list[Limit]
+    # TODO: add created and updated timestamps after convert int to datetime in all the repositories
 
     @field_validator("permissions")
     @classmethod

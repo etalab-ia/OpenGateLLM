@@ -8,7 +8,6 @@ from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderPage, ProviderSortField, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError
 from api.sql.models import Provider as ProviderTable
-from api.utils.variables import MASTER_ID
 
 
 class PostgresProviderRepository(ProviderRepository):

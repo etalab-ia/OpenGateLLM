@@ -1,22 +1,3 @@
-# ----------------------------------- models ------------------------------------
-models:
-  - name: albert-testbed
-    type: text-generation
-    # aliases: ["model-alias"]
-    # owned_by: Me
-    # load_balancing_strategy: shuffle
-    # cost_prompt_tokens: 0.10
-    # cost_completion_tokens: 0.10
-    providers:
-      - type: vllm
-        url: http://albert-testbed.etalab.gouv.fr:8000
-        # key: sk-xxx
-        model_name: "gemma3:1b"
-        # timeout: 60
-        # model_hosting_zone: FRA
-        # model_total_params: 8
-        # model_active_params: 8
-  
 # -------------------------------- dependencies ---------------------------------
 dependencies:
   postgres: # required
@@ -41,7 +22,6 @@ dependencies:
     index_name: opengatellm
     index_language: english
     number_of_shards: 1
-    index_name: "opengatellm"
     number_of_replicas: 0
     hosts: "http://${ELASTICSEARCH_HOST:-localhost}:${ELASTICSEARCH_PORT:-9200}"
     basic_auth:
@@ -68,8 +48,8 @@ settings:
   # swagger_redoc_url: /redoc
 
   auth_secret_key: changeme
-  auth_default_username: admin
-  auth_default_password: changeme
+  auth_bootsrap_admin_username: admin
+  auth_bootsrap_admin_password: changeme
 
   # rate_limiting_strategy: fixed_window
 
@@ -91,3 +71,22 @@ settings:
   # playground_theme_panel_background: solid
   # playground_theme_radius: medium
   # playground_theme_scaling: 100%
+
+# ----------------------------------- models ------------------------------------
+# models:
+#   - name: albert-testbed
+#     type: text-generation
+#     # aliases: ["model-alias"]
+#     # owned_by: Me
+#     # load_balancing_strategy: shuffle
+#     # cost_prompt_tokens: 0.10
+#     # cost_completion_tokens: 0.10
+#     providers:
+#       - type: vllm
+#         url: http://albert-testbed.etalab.gouv.fr:8000
+#         # key: sk-xxx
+#         model_name: "gemma3:1b"
+#         # timeout: 60
+#         # model_hosting_zone: FRA
+#         # model_total_params: 8
+#         # model_active_params: 8

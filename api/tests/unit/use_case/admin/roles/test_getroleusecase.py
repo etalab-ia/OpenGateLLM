@@ -60,7 +60,7 @@ class TestGetRoleUseCase:
     async def test_should_return_role_not_found_error_when_role_does_not_exist(self, use_case, role_repository, user_info_repository):
         # Arrange
         user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
-        role_repository.get_role_with_permissions_and_limits_by_id.return_value = None
+        role_repository.get_role_with_permissions_and_limits_by_id.return_value = RoleNotFoundError(id=99)
         command = GetRoleCommand(user_id=1, role_id=99)
 
         # Act

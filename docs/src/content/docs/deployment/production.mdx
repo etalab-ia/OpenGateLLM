@@ -14,7 +14,7 @@ This guide provides practical defaults and hardening recommendations for running
   ```yaml
   settings:
     [...]
-    auth_master_key: ${AUTH_MASTER_KEY}
+    auth_secret_key: ${AUTH_SECRET_KEY}
     session_secret_key: ${SESSION_SECRET_KEY}
   ```
 
@@ -29,15 +29,16 @@ This guide provides practical defaults and hardening recommendations for running
 
 ## Security and access control
 
-- Use the master key only for bootstrap operations: **creating the first admin role and user**.
-- Do not use the master identity for day-to-day model administration. When you create a router, the model is shown with an `owned_by` attribute set to the organization of the user who created it.
-- Set a strong `auth_master_key` at least 32 characters, high entropy.
+- Change default `auth_secret_key` to a strong, random string with at least 32 characters.
 
-  <Aside type="caution" title="Master key rotation impact">
-    The master key is used to encrypt user API keys. If you change it, you need to regenerate all user API keys.
+  <Aside type="caution" title="auth_secret_key rotation impact">
+    The `auth_secret_key` is used to encrypt user API keys. If you change it, you need to regenerate all user API keys.
   </Aside>
 
-- Set a dedicated `session_secret_key` instead of reusing the master key.
+After you have launched the API for the first time, an administrator account is created with the default values (`admin` and `changeme`).
+This account is intended to let you create your first administrator account. We recommend deleting it after you have created your own admin account.
+On subsequent restarts, the default administrator account will not be created if an administrator account already exists.
+
 - Limit API key lifetime with `auth_key_max_expiration_days`.
 - Hide sensitive routes `admin` and `auth` from public API docs.
 
@@ -46,7 +47,12 @@ This guide provides practical defaults and hardening recommendations for running
 ```yaml
 settings:
   [...]
-  auth_master_key: "your-strong-master-key"
+  auth_secret_key: "your-strong-secret-key"
+
+  # delete this account after you have created your own admin account and clean your config file
+  auth_bootsrap_admin_username: "admin@example.com" 
+  auth_bootsrap_admin_password: "your-strong-password"
+  
   session_secret_key: "your-strong-session-secret-key"
   auth_key_max_expiration_days: 365 # days
   hidden_routers: ["admin", "auth"]

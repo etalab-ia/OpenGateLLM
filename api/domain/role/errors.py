@@ -8,7 +8,8 @@ class RoleAlreadyExistsError:
 
 @dataclass
 class RoleNotFoundError:
-    id: int
+    id: int | None = None
+    name: str | None = None
 
 
 @dataclass

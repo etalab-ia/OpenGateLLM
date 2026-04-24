@@ -185,7 +185,7 @@ class Router(Base):
     __tablename__ = "router"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    user_id: Mapped[int | None] = mapped_column(ForeignKey(column="user.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(unique=True)
     type: Mapped[ModelType]
     load_balancing_strategy: Mapped[RouterLoadBalancingStrategy]
@@ -216,7 +216,7 @@ class Provider(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     router_id: Mapped[int] = mapped_column(ForeignKey(column="router.id", ondelete="CASCADE"))
-    user_id: Mapped[int | None] = mapped_column(ForeignKey(column="user.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="CASCADE"))
     type: Mapped[ProviderType]
     url: Mapped[str]
     key: Mapped[str | None]

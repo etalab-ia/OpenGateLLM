@@ -7,6 +7,7 @@ from api.domain import SortField, SortOrder
 from api.domain.role import RoleRepository
 from api.domain.role.entities import Limit, PermissionType, Role, RolePage
 from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
+from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Role as RoleTable
 from api.sql.models import User as UserTable
 
@@ -59,6 +60,7 @@ class PostgresRolesRepository(RoleRepository):
 
         return RolePage(total=total, data=roles)
 
+    @with_lock(namespace="role", key="name")
     async def create_role(self, name: str) -> Role | RoleAlreadyExistsError:
         try:
             result = await self.postgres_session.execute(
@@ -77,7 +79,7 @@ class PostgresRolesRepository(RoleRepository):
 
         return self._row_to_role(row)
 
-    async def get_role_with_permissions_and_limits_by_id(self, role_id: int) -> Role | None:
+    async def get_role_with_permissions_and_limits_by_id(self, role_id: int) -> Role | RoleNotFoundError:
         users_subquery = select(func.count(UserTable.id)).where(UserTable.role_id == RoleTable.id).correlate(RoleTable).scalar_subquery()
         statement = (
             select(RoleTable, users_subquery.label("users"))
@@ -87,8 +89,8 @@ class PostgresRolesRepository(RoleRepository):
         result = await self.postgres_session.execute(statement=statement)
         row = result.one_or_none()
         if row is None:
-            return None
-        role_row, users_count = row
+            return RoleNotFoundError(id=role_id)
+        role_row, users_count = row  # @TODO: use _row_to_role after converting int to datetime in all the repositories
         return Role(
             id=role_row.id,
             name=role_row.name,
@@ -99,6 +101,29 @@ class PostgresRolesRepository(RoleRepository):
             updated=int(role_row.updated.timestamp()),
         )
 
+    async def get_role_with_permissions_and_limits_by_name(self, role_name: str) -> Role | RoleNotFoundError:
+        users_subquery = select(func.count(UserTable.id)).where(UserTable.role_id == RoleTable.id).correlate(RoleTable).scalar_subquery()
+        statement = (
+            select(RoleTable, users_subquery.label("users"))
+            .options(selectinload(RoleTable.permissions), selectinload(RoleTable.limits))
+            .where(RoleTable.name == role_name)
+        )
+        result = await self.postgres_session.execute(statement=statement)
+        row = result.one_or_none()
+        if row is None:
+            return RoleNotFoundError(name=role_name)
+        role_row, users_count = row  # @TODO: use _row_to_role after converting int to datetime in all the repositories
+        return Role(
+            id=role_row.id,
+            name=role_row.name,
+            permissions=[p.permission for p in role_row.permissions],
+            limits=[Limit(router_id=limit.router_id, type=limit.type, value=limit.value) for limit in role_row.limits],
+            users=users_count,
+            created=int(role_row.created.timestamp()),
+            updated=int(role_row.updated.timestamp()),
+        )
+
+    @with_lock(namespace="role", key="role.id")
     async def update_role(self, role: Role) -> Role | RoleAlreadyExistsError | RoleNotFoundError:
         statement = (
             update(table=RoleTable)
@@ -120,7 +145,8 @@ class PostgresRolesRepository(RoleRepository):
             return RoleNotFoundError(id=role.id)
         return self._row_to_role(row, permissions=role.permissions, limits=role.limits)
 
-    async def delete_role(self, role_id: int) -> Role | None:
+    @with_lock(namespace="role", key="role_id")
+    async def delete_role(self, role_id: int) -> Role | RoleNotFoundError:
         result = await self.postgres_session.execute(
             delete(RoleTable)
             .where(RoleTable.id == role_id)
@@ -133,5 +159,5 @@ class PostgresRolesRepository(RoleRepository):
         )
         row = result.one_or_none()
         if row is None:
-            return None
+            return RoleNotFoundError(id=role_id)
         return self._row_to_role(row)

@@ -12,7 +12,6 @@ from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 from api.sql.models import User as UserTable
-from api.utils.variables import MASTER_ID
 
 
 class PostgresRouterRepository(RouterRepository):
@@ -40,11 +39,10 @@ class PostgresRouterRepository(RouterRepository):
 
     @staticmethod
     def _row_to_router_with_aliases(row, aliases: list[str]) -> Router:
-        user_id = MASTER_ID if row.user_id is None else row.user_id
         return Router(
             id=row.id,
             name=row.name,
-            user_id=user_id,
+            user_id=row.user_id,
             type=RouterType(row.type),
             aliases=aliases,
             load_balancing_strategy=RouterLoadBalancingStrategy(row.load_balancing_strategy),
@@ -132,14 +130,13 @@ class PostgresRouterRepository(RouterRepository):
         user_id: int,
         aliases: list[str] | None = None,
     ) -> Router | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError:
-        db_user_id = None if user_id == MASTER_ID else user_id
         aliases = aliases or []
 
         try:
             insert_router_query = (
                 insert(RouterTable)
                 .values(
-                    user_id=db_user_id,
+                    user_id=user_id,
                     name=name,
                     type=router_type.value,
                     load_balancing_strategy=load_balancing_strategy.value,
@@ -207,14 +204,13 @@ class PostgresRouterRepository(RouterRepository):
         return router
 
     async def update_router(self, router_to_update: Router) -> Router | RouterNameAlreadyExistsError:
-        db_user_id = None if router_to_update.user_id == MASTER_ID else router_to_update.user_id
 
         try:
             update_query = (
                 update(RouterTable)
                 .where(RouterTable.id == router_to_update.id)
                 .values(
-                    user_id=db_user_id,
+                    user_id=router_to_update.user_id,
                     name=router_to_update.name,
                     type=router_to_update.type.value,
                     load_balancing_strategy=router_to_update.load_balancing_strategy.value,

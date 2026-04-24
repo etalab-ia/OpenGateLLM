@@ -12,14 +12,13 @@ from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 from api.tests.integration.factories.sql import OrganizationSQLFactory, RouterSQLFactory, UserSQLFactory
-from api.utils.variables import MASTER_ID
 
 
 def to_router_domain(router_sql, aliases: list[str] | None = None) -> Router:
     return Router(
         id=router_sql.id,
         name=router_sql.name,
-        user_id=MASTER_ID if router_sql.user_id is None else router_sql.user_id,
+        user_id=router_sql.user_id,
         type=RouterType(router_sql.type),
         aliases=aliases or [],
         load_balancing_strategy=RouterLoadBalancingStrategy(router_sql.load_balancing_strategy),
@@ -84,20 +83,6 @@ class TestGetAllRouters:
         assert result_router_1.max_context_length == first_provider_router_1.max_context_length
         assert result_router_1.vector_size == first_provider_router_1.vector_size
         assert result_router_1.aliases == ["alias1", "alias2"]
-
-    async def test_get_all_routers_should_return_routers_with_master_id_user(self, repository, db_session):
-        # Arrange
-        RouterSQLFactory(
-            user=None, name="router_1", type=RouterType.TEXT_GENERATION, cost_prompt_tokens=0.001, cost_completion_tokens=0.002, providers=2
-        )
-
-        # Act
-        await db_session.flush()
-        result_routers = await repository.get_all_routers()
-
-        # Assert
-        router_user_id = result_routers[0].user_id
-        assert router_user_id == MASTER_ID
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -182,25 +167,6 @@ class TestCreateRouter:
         # Assert
         assert isinstance(result, RouterNameAlreadyExistsError)
         assert result.name == "duplicate-router"
-
-    async def test_create_router_with_master_user_id_should_set_db_user_id_to_null(self, repository, db_session):
-        # Arrange
-        master_user_id = 0
-
-        # Act
-        result = await repository.create_router(
-            name="master-router",
-            router_type=RouterType.TEXT_GENERATION,
-            load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
-            cost_prompt_tokens=0.0,
-            cost_completion_tokens=0.0,
-            user_id=master_user_id,
-        )
-
-        # Assert
-        assert isinstance(result, Router)
-        assert result.user_id == master_user_id
-        assert result.name == "master-router"
 
     async def test_create_router_with_aliases_should_insert_aliases(self, repository, db_session):
         # Arrange
@@ -460,18 +426,6 @@ class TestGetRouterById:
         assert isinstance(result, Router)
         assert result.id == router.id
         assert result.aliases == []
-
-    async def test_get_router_by_id_should_map_null_user_id_to_master_user_id(self, repository, db_session):
-        # Arrange
-        router = RouterSQLFactory(user=None, name="master-router-by-id", type=RouterType.TEXT_GENERATION)
-        await db_session.flush()
-
-        # Act
-        result = await repository.get_router_by_id(router.id)
-
-        # Assert
-        assert isinstance(result, Router)
-        assert result.user_id == MASTER_ID
 
 
 @pytest.mark.asyncio(loop_scope="session")
