@@ -10,7 +10,7 @@ from starlette.responses import StreamingResponse
 from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 from api.sql.models import Usage, User
 from api.utils.configuration import configuration
-from api.utils.context import request_context
+from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
 
 logger = logging.getLogger(__name__)
@@ -41,22 +41,35 @@ def hooks(func):
         if not request:
             raise Exception("No request found in args or kwargs")
 
-        # extract usage from response
-        response = None  # initialize in case of early exception not from func
+        # use start_observation (not context manager) so the span survives the streaming lifecycle
+        langfuse_obs = None
+        if global_context.langfuse_client is not None:
+            try:
+                langfuse_obs = global_context.langfuse_client.start_observation(as_type="span")
+                context.langfuse_trace_id = langfuse_obs.trace_id
+                context.langfuse_parent_span_id = langfuse_obs.id
+            except Exception:
+                logger.debug("Failed to start Langfuse root observation", exc_info=True)
+
         try:
             # call the endpoint
             response = await func(*args, **kwargs)
 
             if isinstance(response, StreamingResponse):
-                return wrap_streaming_response(response=response, usage=usage)
-
+                return wrap_streaming_response(response=response, usage=usage, langfuse_obs=langfuse_obs)
             else:
-                return wrap_unstreaming_response(response=response, usage=usage)
+                return wrap_unstreaming_response(response=response, usage=usage, langfuse_obs=langfuse_obs)
 
         except HTTPException as e:
             usage = set_usage_from_context(usage=usage)
             usage.status = e.status_code
             asyncio.create_task(log_usage(usage=usage))
+            if global_context.langfuse_client is not None and langfuse_obs is not None:
+                global_context.langfuse_client.update_observation(
+                    langfuse_obs,
+                    metadata={"status": e.status_code, "error": e.detail},
+                )
+                global_context.langfuse_client.end_observation(langfuse_obs)
             raise e  # Re-raise the exception for FastAPI to handle
 
     return wrapper
@@ -86,7 +99,7 @@ def set_usage_from_context(usage: Usage):
     return usage
 
 
-def wrap_unstreaming_response(response: Response, usage: Usage) -> Response:
+def wrap_unstreaming_response(response: Response, usage: Usage, langfuse_obs=None) -> Response:
     """
     Wrap a non-streaming response to capture the final status code and log usage.
     Usage data is already populated from request_context, so no parsing is needed.
@@ -98,10 +111,13 @@ def wrap_unstreaming_response(response: Response, usage: Usage) -> Response:
     asyncio.create_task(log_usage(usage=usage))
     asyncio.create_task(update_budget(usage=usage))
 
+    if global_context.langfuse_client is not None and langfuse_obs is not None:
+        global_context.langfuse_client.end_root_observation(langfuse_obs=langfuse_obs, status=response.status_code)
+
     return response
 
 
-def wrap_streaming_response(response: StreamingResponse, usage: Usage) -> StreamingResponseWithStatusCode:
+def wrap_streaming_response(response: StreamingResponse, usage: Usage, langfuse_obs=None) -> StreamingResponseWithStatusCode:
     """
     Wrap a streaming response to capture the final status code and log usage.
     Usage data is already populated from request_context, so no parsing is needed.
@@ -126,6 +142,9 @@ def wrap_streaming_response(response: StreamingResponse, usage: Usage) -> Stream
 
             asyncio.create_task(log_usage(usage=usage))
             asyncio.create_task(update_budget(usage=usage))
+
+            if global_context.langfuse_client is not None and langfuse_obs is not None:
+                global_context.langfuse_client.end_root_observation(langfuse_obs=langfuse_obs, status=response_status_code)
 
     return StreamingResponseWithStatusCode(wrapped_stream(), media_type=response.media_type)
 

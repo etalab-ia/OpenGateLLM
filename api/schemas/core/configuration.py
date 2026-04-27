@@ -246,6 +246,18 @@ class PostgresDependency(ConfigBaseModel):
 
 
 @custom_validation_error()
+class LangfuseDependency(ConfigBaseModel):
+    """
+    Langfuse is an optional dependency of OpenGateLLM. Langfuse is used for LLM observability and tracing.
+    In this section, you can pass all Langfuse client arguments, see https://python.reference.langfuse.com/langfuse for more information.
+    """
+
+    public_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., description="Langfuse public key.", examples=["pk-lf-..."])  # fmt: off
+    secret_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., description="Langfuse secret key.", examples=["sk-lf-..."])  # fmt: off
+    url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="http://localhost:3000", description="Langfuse server URL.", examples=["http://localhost:3000"])  # fmt: off
+
+
+@custom_validation_error()
 class SentryDependency(ConfigBaseModel):
     """
     Sentry is an optional dependency of OpenGateLLM. Sentry helps you identify, diagnose, and fix errors in real-time.
@@ -275,6 +287,7 @@ class Dependencies(ConfigBaseModel):
     albert: AlbertDependency | None = Field(default=None, description="**[DEPRECATED]** See the [AlbertDependency section](#albertdependency) for more information.")  # fmt: off
     celery: CeleryDependency | None = Field(default=None, description="**[DEPRECATED]** See the [CeleryDependency section](#celerydependency) for more information.")  # fmt: off
     elasticsearch: ElasticsearchDependency | None = Field(default=None, description="See the [ElasticsearchDependency section](#elasticsearchdependency) for more information.")  # fmt: off
+    langfuse: LangfuseDependency | None = Field(default=None, description="See the [LangfuseDependency section](#langfusedependency) for more information.")  # fmt: off
     marker: MarkerDependency | None = Field(default=None, description="**[DEPRECATED]** See the [MarkerDependency section](#markerdependency) for more information.")  # fmt: off
     postgres: PostgresDependency = Field(..., description="See the [PostgresDependency section](#postgresdependency) for more information.")  # fmt: off
     redis: RedisDependency  = Field(..., description="See the [RedisDependency section](#redisdependency) for more information.")  # fmt: off
@@ -481,7 +494,6 @@ class Configuration(BaseSettings):
         with open(file=self.config_file) as file:
             lines = file.readlines()
 
-        # remove commented lines
         uncommented_lines = [line for line in lines if not line.lstrip().startswith("#")]
 
         # replace environment variables

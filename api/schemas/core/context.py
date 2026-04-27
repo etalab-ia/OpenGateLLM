@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from api.helpers._documentmanager import DocumentManager
     from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
     from api.helpers._identityaccessmanager import IdentityAccessManager
+    from api.helpers._langfusemanager import LangfuseManager
     from api.helpers._limiter import Limiter
     from api.helpers._parsermanager import ParserManager
     from api.helpers._usagemanager import UsageManager
@@ -40,6 +41,7 @@ class GlobalContext(BaseModel):
     redis_pool: ConnectionPool | None = None
     postgres_session_factory: async_sessionmaker | None = None
     postgres_engine: AsyncEngine | None = None
+    langfuse_client: LangfuseManager | None = None
 
 
 class RequestContext(BaseModel):
@@ -65,3 +67,7 @@ class RequestContext(BaseModel):
     usage: Usage | None = None
     ttft: int | None = None
     latency: int | None = None
+
+    # tracing
+    langfuse_trace_id: str | None = None
+    langfuse_parent_span_id: str | None = None
