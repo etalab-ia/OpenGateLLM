@@ -5,49 +5,49 @@ description = "OpenGateLLM project"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 dependencies = [
-    "requests>=2.32.5",
-    "pydantic>=2.12.5",
-    "pydantic-settings>=2.13.1",
-    "httpx>=0.28.0",
-    "pyyaml>=6.0.3",
-    "pycountry>=26.2.16",
+    "requests==2.32.5",
+    "pydantic==2.12.5",
+    "pydantic-settings==2.13.1",
+    "httpx==0.28.0",
+    "pyyaml==6.0.3",
+    "pycountry==26.2.16",
 ]
 
 [project.optional-dependencies]
 playground = [
-    "reflex>=0.8.27",
+    "reflex==0.8.27",
 ]
 api = [
-    "alembic>=1.18.4",
-    "asyncpg>=0.31.0",
-    "bcrypt>=5.0.0",
-    "celery>=5.6.2",
-    "ecologits>=0.9.3",
-    "elasticsearch[async]>=9.3.0",
-    "fastapi>=0.133.1",
-    "gunicorn>=25.1.0",
+    "alembic==1.18.4",
+    "asyncpg==0.31.0",
+    "bcrypt==5.0.0",
+    "celery==5.6.2",
+    "ecologits==0.9.3",
+    "elasticsearch[async]==9.3.0",
+    "fastapi==0.133.1",
+    "gunicorn==25.1.0",
     "html-to-markdown==2.29.0",
-    "itsdangerous>=2.2.0",
-    "langchain-text-splitters>=1.1.1",
-    "limits>=5.8.0",
-    "mistralai>=2.0.0",
-    "openai>=2.15.0",
-    "prometheus-fastapi-instrumentator>=7.1.0",
-    "psycopg2-binary>=2.9.11",
-    "pymupdf4llm>=0.3.4",
-    "PyMuPDF>=1.27.1",
-    "python-jose>=3.5.0",
-    "python-multipart>=0.0.22",
-    "redis>=7.2.1",
-    "sentry-sdk[fastapi]>=2.53.0",
-    "sqlalchemy-utils>=0.42.1",
-    "sqlalchemy[asyncio]>=2.0.47",
-    "tiktoken>=0.12.0",
-    "uvicorn>=0.41.0"
+    "itsdangerous==2.2.0",
+    "langchain-text-splitters==1.1.1",
+    "limits==5.8.0",
+    "mistralai==2.0.0",
+    "openai==2.15.0",
+    "prometheus-fastapi-instrumentator==7.1.0",
+    "psycopg2-binary==2.9.11",
+    "pymupdf4llm==0.3.4",
+    "PyMuPDF==1.27.1",
+    "python-jose==3.5.0",
+    "python-multipart==0.0.22",
+    "redis==7.2.1",
+    "sentry-sdk[fastapi]==2.53.0",
+    "sqlalchemy-utils==0.42.1",
+    "sqlalchemy[asyncio]==2.0.47",
+    "tiktoken==0.12.0",
+    "uvicorn==0.41.0"
 ]
 worker = [
-    "celery>=5.6.2",
-    "redis>=7.2.1",
+    "celery==5.6.2",
+    "redis==7.2.1",
 ]
 dev = [
     "pre-commit>=4.5.1",
