@@ -440,7 +440,6 @@ class BaseModelProvider(ABC):
                     data=request_content.form,
                 ) as response:
                     buffer: list[dict] = []
-                    stream_output: list[str] = []  # collects text content for Langfuse
                     start_time = time.perf_counter()
                     ttft: int | None = None
                     latency: int | None = None
@@ -463,11 +462,6 @@ class BaseModelProvider(ABC):
                                 buffer.append(parsed_chunk)
                                 if ttft is None and ChatCompletionChunk.extract_chunk_content(chunk=parsed_chunk):
                                     ttft = self._elapsed_ms(start_time=start_time)
-                                if langfuse_obs is not None:
-                                    for choice in parsed_chunk.get("choices", []):
-                                        content = choice.get("delta", {}).get("content")
-                                        if content:
-                                            stream_output.append(content)
 
                             yield chunk + "\n\n", response.status_code
 
