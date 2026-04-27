@@ -34,7 +34,7 @@ dependencies:
   # langfuse:
   #   public_key: ${LANGFUSE_PUBLIC_KEY}
   #   secret_key: ${LANGFUSE_SECRET_KEY}
-  #   url: ${LANGFUSE_BASE_URL}
+  #   url: http://localhost:3000
 
 # ---------------------------------- settings -----------------------------------
 settings:
