@@ -4,7 +4,6 @@ from typing import Any
 
 from langfuse import Langfuse, propagate_attributes
 
-from api.schemas.core.configuration import LangfuseDependency
 from api.utils.context import request_context
 
 logger = logging.getLogger(__name__)
@@ -21,17 +20,8 @@ class ObservationName(StrEnum):
 
 
 class LangfuseManager:
-    def __init__(self, config: LangfuseDependency):
-        self._client = Langfuse(
-            public_key=config.public_key,
-            secret_key=config.secret_key,
-            host=config.url,
-        )
-
-        if not self._client.auth_check():
-            logger.warning("Cannot connect to Langfuse. Check your langfuse dependency configuration (public_key, secret_key, url).")
-            return
-        logger.info("Langfuse client successfully connected.")
+    def __init__(self, client: Langfuse):
+        self._client = client
 
     def start_observation(self, as_type: str, name: str | None = None, model: str | None = None) -> Any:
         """Start a new observation in the current trace context.

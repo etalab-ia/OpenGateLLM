@@ -320,65 +320,60 @@ class BaseModelProvider(ABC):
 
         langfuse_obs = self._start_langfuse_observation(request_content=request_content)
 
+        inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
         try:
-            inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
-            try:
-                await redis_retry(redis_client.incr, name=inflight_key, max_retries=2)
+            await redis_retry(redis_client.incr, name=inflight_key, max_retries=2)
 
-                async with httpx.AsyncClient(timeout=self.timeout) as async_client:
+            async with httpx.AsyncClient(timeout=self.timeout) as async_client:
+                try:
+                    start_time = time.perf_counter()
+                    response = await async_client.request(
+                        method=request_content.method,
+                        url=url,
+                        headers=self.headers,
+                        json=request_content.body,
+                        files=request_content.files,
+                        data=request_content.form,
+                    )
+                except (
+                    httpx.TimeoutException,
+                    httpx.ReadTimeout,
+                    httpx.ConnectTimeout,
+                    httpx.WriteTimeout,
+                    httpx.PoolTimeout,
+                    httpx.RemoteProtocolError,
+                ) as e:
+                    raise ModelIsTooBusyException(detail=f"Model is too busy ({type(e).__name__}), please try again later")
+                except httpx.ConnectError:
+                    raise ModelIsTooBusyException(detail="Model is temporarily unavailable, please try again later.")
+                except Exception as e:
+                    logger.exception(msg=f"Failed to forward request to {self.model_name}: {e}.")
+                    raise HTTPException(status_code=500, detail=type(e).__name__)
+                try:
+                    response.raise_for_status()
+                except httpx.HTTPStatusError:
                     try:
-                        start_time = time.perf_counter()
-                        response = await async_client.request(
-                            method=request_content.method,
-                            url=url,
-                            headers=self.headers,
-                            json=request_content.body,
-                            files=request_content.files,
-                            data=request_content.form,
-                        )
-                    except (
-                        httpx.TimeoutException,
-                        httpx.ReadTimeout,
-                        httpx.ConnectTimeout,
-                        httpx.WriteTimeout,
-                        httpx.PoolTimeout,
-                        httpx.RemoteProtocolError,
-                    ) as e:
-                        raise ModelIsTooBusyException(detail=f"Model is too busy ({type(e).__name__}), please try again later")
-                    except httpx.ConnectError:
-                        raise ModelIsTooBusyException(detail="Model is temporarily unavailable, please try again later.")
-                    except Exception as e:
-                        logger.exception(msg=f"Failed to forward request to {self.model_name}: {e}.")
-                        raise HTTPException(status_code=500, detail=type(e).__name__)
-                    try:
-                        response.raise_for_status()
-                    except httpx.HTTPStatusError:
-                        try:
-                            message = loads(response.text)  # format error message
-                            if "message" in message:
-                                try:
-                                    message = ast.literal_eval(message["message"])
-                                except Exception:
-                                    message = message["message"]
-                        except JSONDecodeError:
-                            logger.debug(traceback.format_exc())
-                            message = response.text
-                        raise HTTPException(status_code=response.status_code, detail=message)
-            finally:
-                await redis_retry(redis_client.decr, name=inflight_key, max_retries=2)
-
-            # add additional data to the response
-            latency = self._elapsed_ms(start_time=start_time)
-            response = self._format_response(request_content=request_content, response=response, request_latency=latency)
-            await self._log_performance_metric(redis_client=redis_client, ttft=None, latency=latency)
-
-            self._end_langfuse_observation(langfuse_obs=langfuse_obs, latency=latency)
-
-            return response
-
+                        message = loads(response.text)  # format error message
+                        if "message" in message:
+                            try:
+                                message = ast.literal_eval(message["message"])
+                            except Exception:
+                                message = message["message"]
+                    except JSONDecodeError:
+                        logger.debug(traceback.format_exc())
+                        message = response.text
+                    raise HTTPException(status_code=response.status_code, detail=message)
         finally:
-            if global_context.langfuse_client is not None and langfuse_obs is not None:
-                global_context.langfuse_client.end_observation(langfuse_obs)
+            await redis_retry(redis_client.decr, name=inflight_key, max_retries=2)
+
+        # add additional data to the response
+        latency = self._elapsed_ms(start_time=start_time)
+        response = self._format_response(request_content=request_content, response=response, request_latency=latency)
+        await self._log_performance_metric(redis_client=redis_client, ttft=None, latency=latency)
+
+        self._end_langfuse_observation(langfuse_obs=langfuse_obs, latency=latency)
+
+        return response
 
     def _get_extra_stream_chunk(self, request_content: RequestContent, buffer: list[dict], latency: float | None = None) -> dict | None:
         """

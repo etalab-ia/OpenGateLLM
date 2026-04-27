@@ -249,7 +249,7 @@ class PostgresDependency(ConfigBaseModel):
 class LangfuseDependency(ConfigBaseModel):
     """
     Langfuse is an optional dependency of OpenGateLLM. Langfuse is used for LLM observability and tracing.
-    See https://langfuse.com/docs for more information.
+    In this section, you can pass all Langfuse client arguments, see https://python.reference.langfuse.com/langfuse for more information.
     """
 
     public_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., description="Langfuse public key.", examples=["pk-lf-..."])  # fmt: off

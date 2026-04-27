@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
+from langfuse import Langfuse
 import redis.asyncio as redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 import tiktoken
@@ -63,8 +64,8 @@ async def lifespan(_: FastAPI):
     global_context.model_registry = await create_model_registry(configuration, global_context.postgres_session_factory)
     global_context.elasticsearch_vector_store = await create_elasticsearch_vector_store(configuration, global_context.elasticsearch_client, global_context.model_registry, global_context.postgres_session_factory)  # fmt: off
     global_context.usage_manager = create_usage_manager()
-    global_context.langfuse_client = create_langfuse_client(configuration)
 
+    global_context.langfuse_client = create_langfuse_client(configuration=configuration)
     global_context.identity_access_manager = create_identity_access_manager(configuration=configuration)
     global_context.limiter = create_limiter(configuration=configuration, redis_pool=global_context.redis_pool)
     global_context.tokenizer = create_tokenizer(configuration=configuration)
@@ -289,4 +290,9 @@ def create_langfuse_client(configuration: Configuration) -> LangfuseManager | No
     if configuration.dependencies.langfuse is None:
         return None
 
-    return LangfuseManager(config=configuration.dependencies.langfuse)
+    langfuse_client = Langfuse(**configuration.dependencies.langfuse.model_dump())
+    if not langfuse_client.auth_check():
+        logger.warning("Cannot connect to Langfuse. Check your langfuse dependency configuration (public_key, secret_key, url).")
+        return None
+
+    return LangfuseManager(client=langfuse_client)

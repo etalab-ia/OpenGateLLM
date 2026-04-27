@@ -8,7 +8,7 @@ dependencies = [
     "requests==2.32.5",
     "pydantic==2.12.5",
     "pydantic-settings==2.13.1",
-    "httpx==0.28.0",
+    "httpx==0.28.1",
     "pyyaml==6.0.3",
     "pycountry==26.2.16",
 ]
@@ -24,7 +24,7 @@ api = [
     "celery==5.6.2",
     "ecologits==0.9.3",
     "elasticsearch[async]==9.3.0",
-    "fastapi==0.133.1",
+    "fastapi==0.135.1",
     "gunicorn==25.1.0",
     "html-to-markdown==2.29.0",
     "itsdangerous==2.2.0",
