@@ -212,7 +212,7 @@ class ElasticsearchDependency(ConfigBaseModel):
 
     index_name: constr(strip_whitespace=True, min_length=1) = Field(default="opengatellm", description="Name of the Elasticsearch index.", examples=["my_index"])  # fmt: off
     index_language: ElasticsearchIndexLanguage = Field(default=ElasticsearchIndexLanguage.ENGLISH, description="Language of the Elasticsearch index.", examples=[ElasticsearchIndexLanguage.ENGLISH.value])  # fmt: off
-    number_of_shards: int = Field(default=24, ge=1, description="Number of shards for the Elasticsearch index.", examples=[1])  # fmt: off
+    number_of_shards: int = Field(default=12, ge=1, le=75, description="Number of shards for the Elasticsearch index.", examples=[4])  # fmt: off
     number_of_replicas: int = Field(default=1, ge=0, description="Number of replicas for the Elasticsearch index.", examples=[1])  # fmt: off
 
 
