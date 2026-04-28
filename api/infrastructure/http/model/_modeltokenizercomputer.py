@@ -43,8 +43,7 @@ class ModelTokenizerComputer:
     def compute_completion_tokens(self, endpoint: EndpointRoute, response_data: dict) -> int:
         match endpoint:
             case EndpointRoute.AUDIO_TRANSCRIPTIONS:
-                # @TODO: add audio transcription support (completion tokens)
-                return 0
+                completion_tokens = len(self.tokenizer.encode(response_data.get("text", "")))
             case EndpointRoute.CHAT_COMPLETIONS:  # streaming responses are handled as a single response (see ModelHttpClient.forward_stream)
                 completion_tokens = len(self.tokenizer.encode(ChatCompletion.extract_response_content(response=response_data)))
             case _:

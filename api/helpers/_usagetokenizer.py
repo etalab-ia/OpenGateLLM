@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class UsageTokenizer:
-    USAGE_ENDPOINTS = [EndpointRoute.CHAT_COMPLETIONS, EndpointRoute.EMBEDDINGS, EndpointRoute.OCR, EndpointRoute.RERANK, EndpointRoute.SEARCH]
+    USAGE_ENDPOINTS = [EndpointRoute.AUDIO_TRANSCRIPTIONS, EndpointRoute.CHAT_COMPLETIONS, EndpointRoute.EMBEDDINGS, EndpointRoute.OCR, EndpointRoute.RERANK, EndpointRoute.SEARCH]
 
     def __init__(self, tokenizer: Tokenizer):
         if tokenizer == Tokenizer.TIKTOKEN_O200K_BASE:
@@ -28,8 +28,6 @@ class UsageTokenizer:
 
     def get_prompt_tokens(self, endpoint: str, body: dict) -> int:
         try:
-            # @TODO: add audio transcription support (completion tokens)
-
             if endpoint == EndpointRoute.CHAT_COMPLETIONS:
                 contents = [message.get("content") for message in body["messages"] if message.get("content")]
                 prompt_tokens = sum([len(self.tokenizer.encode(content)) for content in contents])
@@ -46,6 +44,7 @@ class UsageTokenizer:
             elif endpoint == EndpointRoute.OCR:
                 prompt_tokens = len(self.tokenizer.encode(str(body.get("prompt", ""))))
             else:
+                # @TODO: add audio transcription support (prompt tokens)
                 prompt_tokens = 0
 
         except Exception:  # to avoid request format error before schema validation
@@ -67,5 +66,8 @@ class UsageTokenizer:
                 completion_tokens = sum([len(self.tokenizer.encode(ChatCompletionChunk.extract_chunk_content(chunk=chunk))) for chunk in response_data])  # fmt: off
             else:
                 completion_tokens = len(self.tokenizer.encode(ChatCompletion.extract_response_content(response=response_data)))
+
+        elif endpoint == EndpointRoute.AUDIO_TRANSCRIPTIONS:
+            completion_tokens = len(self.tokenizer.encode(response_data.get("text", "")))
 
         return completion_tokens

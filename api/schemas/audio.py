@@ -21,6 +21,16 @@ class AudioTranscriptionResponseFormat(StrEnum):
     JSON = "json"
     TEXT = "text"
     VERBOSE_JSON = "verbose_json"
+    DIARIZED_JSON = "diarized_json"
+
+
+class Segment(BaseModel):
+    id: str = Field(default=..., description="A unique identifier for the segment.")
+    type: str = Field(default="transcript.text.segment", description="The type of the segment.")
+    text: str = Field(default=..., description="The segment text.")
+    start: float = Field(default=..., description="Start time of the segment in seconds.")
+    end: float = Field(default=..., description="End time of the segment in seconds.")
+    speaker: str | None = Field(default=None, description="Speaker label assigned by diarization, if available.")
 
 
 class CreateAudioTranscription(BaseModel):
@@ -39,7 +49,7 @@ class CreateAudioTranscription(BaseModel):
         model: str = Form(default=..., description="ID of the model to use. Call `/v1/models` endpoint to get the list of available models, only `automatic-speech-recognition` model type is supported."),
         language: AudioTranscriptionLanguage | None = Form(default=None, description="The language of the output audio. If the output language is different than the audio language, the audio language will be translated into the output language. Output language must be supplied in ISO-639-1 format (e.g. en, fr) format."),
         prompt: str = Form(default="", description="An optional text to tell the model what to do with the input audio."),
-        response_format: AudioTranscriptionResponseFormat = Form(default=AudioTranscriptionResponseFormat.JSON, description="The format of the transcript output, in one of these formats: `json` or `text`."),
+        response_format: AudioTranscriptionResponseFormat = Form(default=AudioTranscriptionResponseFormat.JSON, description="The format of the transcript output: `json` (default), `text`, or `diarized_json` to return per-segment speaker labels."),
         temperature: float = Form(default=0.0, ge=0.0, le=1.0, description="The sampling temperature, between 0 and 1. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. If set to 0, the model will use log probability to automatically increase the temperature until certain thresholds are hit."),
     ) -> "CreateAudioTranscription":
         try:
@@ -88,6 +98,9 @@ class CreateAudioTranscription(BaseModel):
             case ProviderType.VLLM:
                 return request_content
 
+            case ProviderType.OPENAI:
+                return request_content
+
             case _:
                 raise NotImplementedError(f"Provider {provider_type} not implemented")
 
@@ -96,6 +109,7 @@ class AudioTranscription(BaseModel):
     id: str = Field(default=..., description="A unique identifier for the audio transcription.")
     text: str = Field(default=..., description="The transcription text.")
     model: str = Field(default=..., description="The model used to generate the transcription.")
+    segments: list[Segment] | None = Field(default=None, description="Diarized segments, only set when `response_format=diarized_json`.")
     usage: Usage = Field(default_factory=Usage, description="Usage information for the request.")
 
     @classmethod
@@ -110,6 +124,10 @@ class AudioTranscription(BaseModel):
                 return cls(text=text, **request_content.additional_data)
 
             case ProviderType.VLLM:
+                response_data.update(request_content.additional_data)
+                return cls(**response_data)
+
+            case ProviderType.OPENAI:
                 response_data.update(request_content.additional_data)
                 return cls(**response_data)
 
