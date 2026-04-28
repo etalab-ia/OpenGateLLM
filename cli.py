@@ -217,7 +217,7 @@ def is_http_200(url: str, timeout: float = 1.5) -> bool:
         request = urllib.request.Request(url, method="GET")
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return response.status == 200
-    except (urllib.error.URLError, TimeoutError):
+    except (urllib.error.URLError, TimeoutError, ConnectionError):
         return False
 
 
@@ -295,7 +295,7 @@ def run_local_playground(console: Console, env: EnvFile) -> tuple[subprocess.Pop
             f"export REDIS_HOST=localhost; "
             f'export CONFIG_FILE="{config_file}"; '
             f"export OPENGATELLM_URL=http://localhost:{env.api_port}; "
-            f"reflex run --env dev --loglevel {log_level}"
+            f"reflex run --env dev --frontend-port {env.playground_port} --loglevel {log_level}"
         ),
     ]
 
