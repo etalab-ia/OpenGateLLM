@@ -99,6 +99,8 @@ class CreateAudioTranscription(BaseModel):
                 return request_content
 
             case ProviderType.OPENAI:
+                if request_content.form.get("response_format") == AudioTranscriptionResponseFormat.TEXT.value:
+                    request_content.form["response_format"] = AudioTranscriptionResponseFormat.JSON.value
                 return request_content
 
             case _:
