@@ -51,7 +51,6 @@ class BootstrapAdminUseCase:
         self.user_repository = user_repository
 
     async def execute(self, command: BootstrapAdminCommand) -> BootstrapAdminUseCaseResult:
-
         result = await self.user_repository.get_first_admin_user()
         match result:
             case User() as user:

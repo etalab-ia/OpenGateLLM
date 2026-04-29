@@ -53,7 +53,11 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_ROUTERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses([RouterAliasAlreadyExistsHTTPException, RouterAlreadyExistsHTTPException, NotAdminUserHTTPException]),
+    responses=get_documentation_responses([
+        RouterAliasAlreadyExistsHTTPException,
+        RouterAlreadyExistsHTTPException,
+        NotAdminUserHTTPException,
+    ]),
 )
 async def create_router(
     body: CreateRouterBody = Body(description="The router creation request."),

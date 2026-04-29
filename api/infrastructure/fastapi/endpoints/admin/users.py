@@ -30,12 +30,14 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_USERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses([
-        UserAlreadyExistsHTTPException,
-        RoleNotFoundHTTPException,
-        OrganizationNotFoundHTTPException,
-        NotAdminUserHTTPException,
-    ]),
+    responses=get_documentation_responses(
+        [
+            UserAlreadyExistsHTTPException,
+            RoleNotFoundHTTPException,
+            OrganizationNotFoundHTTPException,
+            NotAdminUserHTTPException,
+        ]
+    ),
 )
 async def create_user(
     body: CreateUserBody = Body(description="The user creation request."),

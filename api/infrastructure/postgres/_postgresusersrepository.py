@@ -2,7 +2,7 @@ from typing import Literal
 
 import bcrypt
 from sqlalchemy import Integer, cast, func, insert, select, update
-from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.organization.errors import OrganizationNotFoundError
@@ -58,54 +58,51 @@ class PostgresUserRepository(UserRepository):
         expires: int | None = None,
         priority: int = 0,
     ) -> User | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError:
-        result = await self.postgres_session.execute(select(RoleTable.id).where(RoleTable.id == role_id))
-        try:
-            result.scalar_one()
-        except NoResultFound:
+        role_result = (await self.postgres_session.execute(select(RoleTable.id).where(RoleTable.id == role_id))).scalar_one_or_none()
+        if role_result is None:
             return RoleNotFoundError(id=role_id)
 
         if organization_id is not None:
-            result = await self.postgres_session.execute(select(OrganizationTable.id).where(OrganizationTable.id == organization_id))
-            try:
-                result.scalar_one()
-            except NoResultFound:
+            organisation_result = (
+                await self.postgres_session.execute(select(OrganizationTable.id).where(OrganizationTable.id == organization_id))
+            ).scalar_one_or_none()
+            if organisation_result is None:
                 return OrganizationNotFoundError(id=organization_id)
 
         hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
         expires_value = func.to_timestamp(expires) if expires is not None else None
 
         try:
-            async with self.postgres_session.begin_nested():
-                result = await self.postgres_session.execute(
-                    insert(UserTable)
-                    .values(
-                        email=email,
-                        name=name,
-                        password=hashed_password,
-                        sub=sub,
-                        iss=iss,
-                        role_id=role_id,
-                        organization_id=organization_id,
-                        budget=budget,
-                        expires=expires_value,
-                        priority=priority,
-                    )
-                    .returning(
-                        UserTable.id,
-                        UserTable.email,
-                        UserTable.name,
-                        UserTable.sub,
-                        UserTable.iss,
-                        UserTable.role_id.label("role"),
-                        UserTable.organization_id.label("organization"),
-                        UserTable.budget,
-                        _unix_timestamp(UserTable.expires).label("expires"),
-                        _unix_timestamp(UserTable.created).label("created"),
-                        _unix_timestamp(UserTable.updated).label("updated"),
-                        UserTable.priority,
-                    )
+            result = await self.postgres_session.execute(
+                insert(UserTable)
+                .values(
+                    email=email,
+                    name=name,
+                    password=hashed_password,
+                    sub=sub,
+                    iss=iss,
+                    role_id=role_id,
+                    organization_id=organization_id,
+                    budget=budget,
+                    expires=expires_value,
+                    priority=priority,
                 )
-                row = result.one()
+                .returning(
+                    UserTable.id,
+                    UserTable.email,
+                    UserTable.name,
+                    UserTable.sub,
+                    UserTable.iss,
+                    UserTable.role_id.label("role"),
+                    UserTable.organization_id.label("organization"),
+                    UserTable.budget,
+                    _unix_timestamp(UserTable.expires).label("expires"),
+                    _unix_timestamp(UserTable.created).label("created"),
+                    _unix_timestamp(UserTable.updated).label("updated"),
+                    UserTable.priority,
+                )
+            )
+            row = result.one()
         except IntegrityError:
             return UserAlreadyExistsError(email=email)
 
