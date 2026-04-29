@@ -1,5 +1,5 @@
-from api.infrastructure.fastapi.schemas.models import Model, ModelsResponse
-from api.infrastructure.http.model.exchanges import FormattedModelResponse, OriginalModelResponse
+from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalResponse
+from api.infrastructure.fastapi.schemas.models import ModelsResponse
 from api.infrastructure.http.model.vllm.adapters import VllmModelsAdapter
 from api.schemas.usage import Usage
 from api.tests.integration.factories.vllm import VllmFormattedModelRequestFactory, VllmModelsResponseFactory
@@ -12,7 +12,7 @@ class TestVllmModelsAdapter:
         exchange = ModelHttpExchangeFactory(
             original_request=OriginalModelRequestFactory(models=True),
             formatted_request=VllmFormattedModelRequestFactory(models=True),
-            original_response=OriginalModelResponse(data=VllmModelsResponseFactory(model_id="openai/gpt-oss-120b", max_context_length=131072)),
+            original_response=ProviderOriginalResponse(data=VllmModelsResponseFactory(model_id="openai/gpt-oss-120b", max_context_length=131072)),
         )
         mock_request_id = "request-1234567890"
         mock_usage = Usage()
@@ -22,7 +22,7 @@ class TestVllmModelsAdapter:
         result = adapter.format_response(exchange=exchange, request_id=mock_request_id, usage=mock_usage)
 
         # Assert
-        assert result == FormattedModelResponse(
+        assert result == ProviderFormattedResponse(
             data=ModelsResponse(
                 data=[
                     Model(

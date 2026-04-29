@@ -2,6 +2,18 @@ from dataclasses import dataclass
 
 
 @dataclass
+class DeleteUserWithProvidersError:
+    user_id: int
+    provider_ids: list[int] | None
+
+
+@dataclass
+class DeleteUserWithRoutersError:
+    user_id: int
+    router_ids: list[int] | None
+
+
+@dataclass
 class UserAlreadyExistsError:
     email: str
 
@@ -23,12 +35,5 @@ class UserExpiredError:
 
 
 @dataclass
-class DeleteUserWithProvidersError:
-    user_id: int
-    provider_ids: list[int] | None
-
-
-@dataclass
-class DeleteUserWithRoutersError:
-    user_id: int
-    router_ids: list[int] | None
+class UserHasNoAccessToRouterError:
+    id: int

@@ -56,3 +56,7 @@ class ProviderRepository(ABC):
     @abstractmethod
     async def get_provider_ids_by_user_id(self, user_id: int) -> list[int]:
         pass
+
+    @abstractmethod
+    async def get_all_providers_of_router(self, router_id: int) -> list[Provider]:
+        pass

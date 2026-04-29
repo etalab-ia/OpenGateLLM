@@ -4,7 +4,7 @@ import factory
 from faker import Faker
 
 from api.domain.model.entities import UserModelRequest
-from api.infrastructure.http.model.exchanges import ModelHttpExchange, OriginalModelRequest
+from api.domain.provider.entities import ModelHttpExchange, ProviderOriginalRequest
 from api.schemas.chat import CreateChatCompletion
 from api.schemas.ocr import CreateOCR, DocumentURLChunk
 from api.utils.variables import EndpointRoute
@@ -132,7 +132,7 @@ class UserModelRequestFactory(factory.DictFactory):
 
 class OriginalModelRequestFactory(UserModelRequestFactory):
     class Meta:
-        model = OriginalModelRequest
+        model = ProviderOriginalRequest
 
 
 class ModelHttpExchangeFactory(factory.Factory):

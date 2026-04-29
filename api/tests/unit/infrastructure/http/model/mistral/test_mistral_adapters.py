@@ -1,8 +1,8 @@
 import base64
 from http import HTTPMethod
 
-from api.infrastructure.fastapi.schemas.models import Model, ModelsResponse
-from api.infrastructure.http.model.exchanges import FormattedModelRequest, FormattedModelResponse, OriginalModelResponse
+from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalResponse
+from api.infrastructure.fastapi.schemas.models import ModelsResponse
 from api.infrastructure.http.model.mistral.adapters import MistralAudioTranscriptionAdapter, MistralChatCompletionAdapter, MistralModelsAdapter
 from api.schemas.audio import AudioTranscription, AudioTranscriptionResponseFormat
 from api.schemas.usage import Usage
@@ -27,7 +27,7 @@ class TestMistralAudioTranscriptionAdapter:
         result = adapter.format_request(original_request=original_request, method=method, url=url, model_name=mock_model_name)
 
         # Assert
-        assert result == FormattedModelRequest(
+        assert result == ProviderFormattedRequest(
             method=method,
             url=url,
             body={
@@ -50,7 +50,7 @@ class TestMistralAudioTranscriptionAdapter:
         # Arrange
         exchange = ModelHttpExchangeFactory(
             original_request=OriginalModelRequestFactory(audio_transcriptions=True),
-            original_response=OriginalModelResponse(data=MistralAudioTranscriptionResponseFactory(), latency=10),
+            original_response=ProviderOriginalResponse(data=MistralAudioTranscriptionResponseFactory(), latency=10),
         )
         adapter = MistralAudioTranscriptionAdapter()
         mock_usage = Usage()
@@ -60,7 +60,7 @@ class TestMistralAudioTranscriptionAdapter:
         result = adapter.format_response(exchange=exchange, request_id=mock_request_id, usage=mock_usage)
 
         # Assert
-        assert result == FormattedModelResponse(
+        assert result == ProviderFormattedResponse(
             data=AudioTranscription(
                 id=mock_request_id,
                 model=exchange.original_request.form["model"],
@@ -73,7 +73,7 @@ class TestMistralAudioTranscriptionAdapter:
         # Arrange
         exchange = ModelHttpExchangeFactory(
             original_request=OriginalModelRequestFactory(audio_transcriptions=True),
-            original_response=OriginalModelResponse(data=MistralAudioTranscriptionResponseFactory(), latency=10),
+            original_response=ProviderOriginalResponse(data=MistralAudioTranscriptionResponseFactory(), latency=10),
         )
         exchange.original_request.form["response_format"] = AudioTranscriptionResponseFormat.TEXT
         mock_request_id = "request-1234567890"
@@ -84,7 +84,7 @@ class TestMistralAudioTranscriptionAdapter:
         result = adapter.format_response(exchange=exchange, request_id=mock_request_id, usage=mock_usage)
 
         # Assert
-        assert result == FormattedModelResponse(text=exchange.original_response.data["choices"][0]["message"]["content"], data=None)
+        assert result == ProviderFormattedResponse(text=exchange.original_response.data["choices"][0]["message"]["content"], data=None)
 
 
 class TestMistralChatCompletionAdapter:
@@ -98,7 +98,7 @@ class TestMistralChatCompletionAdapter:
         result = adapter.format_request(original_request=original_request, method=method, url=url, model_name=model_name)
 
         # Assert
-        assert result == FormattedModelRequest(
+        assert result == ProviderFormattedRequest(
             method=method,
             url=url,
             body={
@@ -156,7 +156,7 @@ class TestMistralModelsAdapter:
         # Arrange
         exchange = ModelHttpExchangeFactory(
             original_request=OriginalModelRequestFactory(models=True),
-            original_response=OriginalModelResponse(
+            original_response=ProviderOriginalResponse(
                 data=MistralModelsResponseFactory(
                     data=[
                         MistralModelResponseFactory(
@@ -185,7 +185,7 @@ class TestMistralModelsAdapter:
         result = adapter.format_response(exchange=exchange, request_id=mock_request_id, usage=mock_usage)
 
         # Assert
-        assert result == FormattedModelResponse(
+        assert result == ProviderFormattedResponse(
             data=ModelsResponse(
                 data=[
                     Model(

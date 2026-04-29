@@ -86,7 +86,6 @@ async def create_provider(
     try:
         command = CreateProviderCommand(
             router_id=body.router_id,
-            user_id=request_context.get().user_id,
             provider_type=body.type,
             url=body.url,
             key=body.key,
@@ -97,6 +96,7 @@ async def create_provider(
             model_active_params=body.model_active_params,
             qos_metric=body.qos_metric,
             qos_limit=body.qos_limit,
+            request_context=request_context,
         )
         result = await create_provider_use_case.execute(command)
     except Exception as e:
@@ -152,10 +152,7 @@ async def delete_provider(
     delete_provider_use_case: DeleteProviderUseCase = Depends(delete_provider_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> ProviderResponse:
-    command = DeleteProviderCommand(
-        user_id=request_context.get().user_id,
-        provider_id=provider_id,
-    )
+    command = DeleteProviderCommand(user_id=request_context.get().user_id, provider_id=provider_id)
     try:
         result = await delete_provider_use_case.execute(command)
     except Exception as e:

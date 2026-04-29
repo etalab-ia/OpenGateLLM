@@ -1,6 +1,5 @@
 from http import HTTPMethod
 
-from api.infrastructure.fastapi.schemas.models import ModelsResponse
 from api.infrastructure.http.model.adapters import (
     AudioTranscriptionAdapter,
     ChatCompletionAdapter,
@@ -9,7 +8,9 @@ from api.infrastructure.http.model.adapters import (
     OcrAdapter,
     RerankAdapter,
 )
-from api.infrastructure.http.model.exchanges import FormattedModelRequest, FormattedModelResponse, ModelHttpExchange, OriginalModelResponse
+
+from api.domain.provider.entities import ModelHttpExchange, ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalResponse
+from api.infrastructure.fastapi.schemas.models import ModelsResponse
 from api.schemas.audio import AudioTranscription, AudioTranscriptionResponseFormat
 from api.schemas.chat import ChatCompletion
 from api.schemas.embeddings import Embeddings
@@ -34,7 +35,7 @@ class TestAudioTranscriptionAdapter:
         result = adapter.format_request(original_request=original_request, method=method, url=url, model_name=model_name)
 
         # Assert
-        assert result == FormattedModelRequest(
+        assert result == ProviderFormattedRequest(
             method=method,
             url=url,
             form={
@@ -58,7 +59,7 @@ class TestAudioTranscriptionAdapter:
         result = adapter.format_request(original_request=original_request, method=method, url=url, model_name=model_name)
 
         # Assert
-        assert result == FormattedModelRequest(
+        assert result == ProviderFormattedRequest(
             method=method,
             url=url,
             form={
@@ -76,7 +77,7 @@ class TestAudioTranscriptionAdapter:
         # Arrange
         exchange = ModelHttpExchangeFactory(
             original_request=OriginalModelRequestFactory(audio_transcriptions=True),
-            original_response=OriginalModelResponse(data=VllmAudioTranscriptionsResponseFactory(), latency=10),
+            original_response=ProviderOriginalResponse(data=VllmAudioTranscriptionsResponseFactory(), latency=10),
         )
         mock_request_id = "request-1234567890"
         mock_usage = Usage()
@@ -86,7 +87,7 @@ class TestAudioTranscriptionAdapter:
         result = adapter.format_response(exchange=exchange, request_id=mock_request_id, usage=mock_usage)
 
         # Assert
-        assert result == FormattedModelResponse(
+        assert result == ProviderFormattedResponse(
             data=AudioTranscription(
                 id=mock_request_id,
                 model="openweight-audio",
@@ -100,7 +101,7 @@ class TestAudioTranscriptionAdapter:
         # Arrange
         exchange = ModelHttpExchange(
             original_request=OriginalModelRequestFactory(audio_transcriptions=True),
-            original_response=OriginalModelResponse(data=VllmAudioTranscriptionsResponseFactory(), latency=10),
+            original_response=ProviderOriginalResponse(data=VllmAudioTranscriptionsResponseFactory(), latency=10),
         )
         exchange.original_request.form["response_format"] = AudioTranscriptionResponseFormat.TEXT.value
         mock_request_id = "request-1234567890"
@@ -111,7 +112,7 @@ class TestAudioTranscriptionAdapter:
         result = adapter.format_response(exchange=exchange, request_id=mock_request_id, usage=mock_usage)
 
         # Assert
-        assert result == FormattedModelResponse(text=exchange.original_response.data["text"], data=None)
+        assert result == ProviderFormattedResponse(text=exchange.original_response.data["text"], data=None)
 
 
 class TestChatCompletionAdapter:
@@ -125,7 +126,7 @@ class TestChatCompletionAdapter:
         result = adapter.format_request(original_request=original_request, method=method, url=url, model_name=model_name)
 
         # Assert
-        assert result == FormattedModelRequest(
+        assert result == ProviderFormattedRequest(
             method=method,
             url=url,
             body={
@@ -186,7 +187,7 @@ class TestChatCompletionAdapter:
         # Arrange
         exchange = ModelHttpExchange(
             original_request=OriginalModelRequestFactory(chat_completions=True),
-            original_response=OriginalModelResponse(data=VllmChatCompletionsResponseFactory(created=1774879102), latency=10),
+            original_response=ProviderOriginalResponse(data=VllmChatCompletionsResponseFactory(created=1774879102), latency=10),
         )
         mock_request_id = "request-1234567890"
         mock_usage = Usage()
@@ -196,7 +197,7 @@ class TestChatCompletionAdapter:
         result = adapter.format_response(exchange=exchange, request_id=mock_request_id, usage=mock_usage)
 
         # Assert
-        assert result == FormattedModelResponse(
+        assert result == ProviderFormattedResponse(
             data=ChatCompletion(
                 id=mock_request_id,
                 model="openweight-large",
@@ -243,7 +244,7 @@ class TestEmbeddingsAdapter:
         result = adapter.format_request(original_request=original_request, method=method, url=url, model_name=model_name)
 
         # Assert
-        assert result == FormattedModelRequest(
+        assert result == ProviderFormattedRequest(
             method=method,
             url=url,
             body={"model": "test-model", "input": original_request.body["input"], "dimensions": 1536, "encoding_format": "float"},
@@ -255,7 +256,7 @@ class TestEmbeddingsAdapter:
         # Arrange
         exchange = ModelHttpExchangeFactory(
             original_request=OriginalModelRequestFactory(embeddings=True),
-            original_response=OriginalModelResponse(data=TeiEmbeddingsResponseFactory(model_id="tei-model-1234", dimensions=3), latency=10),
+            original_response=ProviderOriginalResponse(data=TeiEmbeddingsResponseFactory(model_id="tei-model-1234", dimensions=3), latency=10),
         )
         mock_request_id = "request-1234567890"
         mock_usage = Usage()
@@ -265,7 +266,7 @@ class TestEmbeddingsAdapter:
         result = adapter.format_response(exchange=exchange, request_id=mock_request_id, usage=mock_usage)
 
         # Assert
-        assert result == FormattedModelResponse(
+        assert result == ProviderFormattedResponse(
             data=Embeddings(
                 id=mock_request_id,
                 model="openweight-embeddings",
@@ -287,7 +288,7 @@ class TestModelsAdapter:
         result = adapter.format_request(original_request=original_request, method=method, url=url, model_name=model_name)
 
         # Assert
-        assert result == FormattedModelRequest(method=method, url=url)
+        assert result == ProviderFormattedRequest(method=method, url=url)
 
     def test_should_format_valid_original_response(self):
         """Using the OpenAI response factory because the responses are not overriden by OpenAI child provider class (see OpenaiModelHttpClient)."""
@@ -295,7 +296,7 @@ class TestModelsAdapter:
         # Arrange
         exchange = ModelHttpExchangeFactory(
             original_request=OriginalModelRequestFactory(models=True),
-            original_response=OriginalModelResponse(
+            original_response=ProviderOriginalResponse(
                 data=OpenaiModelsResponseFactory(
                     data=[
                         OpenaiModelResponseFactory(model_id="gpt-4-0613", created=1686588896, owned_by="openai"),
@@ -312,7 +313,7 @@ class TestModelsAdapter:
         result = adapter.format_response(exchange=exchange, request_id=mock_request_id, usage=mock_usage)
 
         # Assert
-        assert result == FormattedModelResponse(
+        assert result == ProviderFormattedResponse(
             data=ModelsResponse(
                 object="list",
                 data=[
@@ -335,7 +336,7 @@ class TestOcrAdapter:
         result = adapter.format_request(original_request=original_request, method=method, url=url, model_name=model_name)
 
         # Assert
-        assert result == FormattedModelRequest(
+        assert result == ProviderFormattedRequest(
             method=method,
             url=url,
             body={
@@ -355,7 +356,7 @@ class TestOcrAdapter:
         # Arrange
         exchange = ModelHttpExchangeFactory(
             original_request=OriginalModelRequestFactory(ocr=True),
-            original_response=OriginalModelResponse(
+            original_response=ProviderOriginalResponse(
                 data=MistralOcrResponseFactory(page_count=2, usage_info={"doc_size_bytes": 135171, "pages_processed": 2}),
                 latency=10,
             ),
@@ -368,7 +369,7 @@ class TestOcrAdapter:
         result = adapter.format_response(exchange=exchange, request_id=mock_request_id, usage=mock_usage)
 
         # Assert
-        assert result == FormattedModelResponse(
+        assert result == ProviderFormattedResponse(
             data=OCR(
                 document_annotation=None,
                 id=mock_request_id,
@@ -392,7 +393,7 @@ class TestRerankAdapter:
         result = adapter.format_request(original_request=original_request, method=method, url=url, model_name=model_name)
 
         # Assert
-        assert result == FormattedModelRequest(
+        assert result == ProviderFormattedRequest(
             method=method,
             url=url,
             body={
@@ -408,7 +409,7 @@ class TestRerankAdapter:
         # Arrange
         exchange = ModelHttpExchangeFactory(
             original_request=OriginalModelRequestFactory(rerank=True),
-            original_response=OriginalModelResponse(data=VllmRerankResponseFactory(count=3), latency=10),
+            original_response=ProviderOriginalResponse(data=VllmRerankResponseFactory(count=3), latency=10),
         )
         mock_request_id = "request-1234567890"
         mock_usage = Usage()
@@ -418,7 +419,7 @@ class TestRerankAdapter:
         result = adapter.format_response(exchange=exchange, request_id=mock_request_id, usage=mock_usage)
 
         # Assert
-        assert result == FormattedModelResponse(
+        assert result == ProviderFormattedResponse(
             data=Reranks(
                 id=mock_request_id,
                 model="openweight-rerank",
