@@ -53,7 +53,7 @@ def navigation_sidebar() -> rx.Component:
                 ),
                 rx.cond(AuthState.is_admin, rx.divider()),
                 rx.cond(
-                    AuthState.is_admin,
+                    AuthState.is_admin & AuthState.publish_admin_pages,
                     rx.box(
                         nav_item("Routers", "network", "/routers"),
                         nav_item("Providers", "container", "/providers"),
@@ -123,7 +123,7 @@ def navigation_sidebar() -> rx.Component:
         width="250px",
         height="94%",
         background_color=rx.color("mauve", 2),
-        border_right=f"1px solid {rx.color("mauve", 3)}",
+        border_right=f"1px solid {rx.color('mauve', 3)}",
         position="fixed",
         left="0",
         top="65px",

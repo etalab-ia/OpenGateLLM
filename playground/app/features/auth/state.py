@@ -30,6 +30,7 @@ class AuthState(rx.State):
     is_loading: bool = False
 
     opengatellm_url: str = configuration.settings.playground_opengatellm_url
+    publish_admin_pages: bool = configuration.settings.playground_publish_admin_pages
 
     # Form fields
     email_input: str = ""

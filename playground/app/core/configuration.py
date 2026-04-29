@@ -83,6 +83,7 @@ class Settings(ConfigBaseModel):
     app_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application.")
 
     playground_opengatellm_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
+    playground_publish_admin_pages: bool = Field(default=True, description="Whether to publish admin pages (roles, users, organizations, routers, providers).")  # fmt: off
     playground_opengatellm_timeout: int = Field(default=60, description="The timeout in seconds for the OpenGateLLM API.")
     playground_default_model: str | None = Field(default=None, description="The first model selected in chat page.")
     playground_theme_has_background: bool = Field(default=True, description="Whether the theme has a background.")

@@ -134,13 +134,16 @@ app = rx.App(
     head_components=[rx.el.link(rel="icon", type="image/svg+xml", href="/favicon.svg")],
 )
 
-# Add pages
+# Public pages
 app.add_page(component=index, route="/")
 app.add_page(component=account, route="/account")
 app.add_page(component=keys, route="/keys", on_load=[KeysState.load_entities])
 app.add_page(component=usage, route="/usage", on_load=[UsageState.load_entities])
-app.add_page(component=roles, route="/roles", on_load=[RolesState.load_entities])
-app.add_page(component=users, route="/users", on_load=[UsersState.load_entities])
-app.add_page(component=organizations, route="/organizations", on_load=[OrganizationsState.load_entities])
-app.add_page(component=routers, route="/routers", on_load=[RoutersState.load_entities])
-app.add_page(component=providers, route="/providers", on_load=[ProvidersState.load_entities])
+
+# Admin pages
+if configuration.settings.playground_publish_admin_pages:
+    app.add_page(component=roles, route="/roles", on_load=[RolesState.load_entities])
+    app.add_page(component=users, route="/users", on_load=[UsersState.load_entities])
+    app.add_page(component=organizations, route="/organizations", on_load=[OrganizationsState.load_entities])
+    app.add_page(component=routers, route="/routers", on_load=[RoutersState.load_entities])
+    app.add_page(component=providers, route="/providers", on_load=[ProvidersState.load_entities])
