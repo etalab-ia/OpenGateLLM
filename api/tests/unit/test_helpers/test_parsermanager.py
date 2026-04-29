@@ -147,6 +147,8 @@ class TestParserManagerParse:
         file = create_binary_upload_file(b"%PDF-1.4 fake pdf content", "test.pdf", "application/pdf")
 
         mock_pdf = MagicMock()
+        mock_pdf.__enter__ = MagicMock(return_value=mock_pdf)
+        mock_pdf.__exit__ = MagicMock(return_value=False)
         markdown_content = "# Document Title\n\nThis is the converted markdown content."
 
         manager = ParserManager()
