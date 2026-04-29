@@ -60,8 +60,8 @@ class ParserManager:
             case FileType.PDF:
                 async with self.conversion_semaphore:
                     file_content = await file.read()
-                    doc = pymupdf.open(stream=file_content, filetype="pdf")
-                    content = await asyncio.to_thread(pymupdf4llm.to_markdown, doc)
+                    with pymupdf.open(stream=file_content, filetype="pdf") as doc:
+                        content = await asyncio.to_thread(pymupdf4llm.to_markdown, doc)
 
             case FileType.HTML:
                 file_content = await self._read_content(file=file)
