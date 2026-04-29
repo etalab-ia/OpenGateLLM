@@ -125,11 +125,16 @@ jobs:
         environment: [dev, staging, prod]
         include:
           - environment: dev
-            url: https://albert.playground.dev.etalab.gouv.fr
+            public_url: https://albert.playground.dev.etalab.gouv.fr
+            private_url: http://albert.api.001.dev.etalab.gouv.fr:8002
           - environment: staging
-            url: https://albert.playground.staging.etalab.gouv.fr
+            public_url: https://albert.playground.staging.etalab.gouv.fr
+            private_url: http://albert.api.001.staging.etalab.gouv.fr:8002
+
           - environment: prod
-            url: https://albert.playground.etalab.gouv.fr
+            public_url: https://albert.playground.etalab.gouv.fr
+            private_url: http://albert.api.private.etalab.gouv.fr:8002
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -144,20 +149,38 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push Albert playground images to GitLab
+      - name: Build and push Albert public playground images to GitLab
         uses: docker/build-push-action@v6
         with:
           context: .
           build-args: |
-            REFLEX_BACKEND_URL=${{ matrix.url }}
-            REFLEX_FRONTEND_URL=${{ matrix.url }}
+            REFLEX_BACKEND_URL=${{ matrix.public_url }}
+            REFLEX_FRONTEND_URL=${{ matrix.public_url }}
             CONFIG_FILE=.github/assets/playground.config.yml
+            PLAYGROUND_DISABLED_PAGES=[roles,users,organizations,routers,providers]
             FAVICON=.github/assets/logo.svg
             LOGO=.github/assets/logo.svg
           file: ./playground/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}:${{ env.IMAGE_TAG }}
+          cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
+
+      - name: Build and push Albert private playground images to GitLab
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          build-args: |
+            REFLEX_BACKEND_URL=${{ matrix.private_url }}
+            REFLEX_FRONTEND_URL=${{ matrix.private_url }}
+            CONFIG_FILE=.github/assets/playground.config.yml
+            PLAYGROUND_DISABLED_PAGES=[]
+            FAVICON=.github/assets/logo.svg
+            LOGO=.github/assets/logo.svg
+          file: ./playground/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}:${{ env.IMAGE_TAG }}.private
           cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
 
   trivy-scan-api:

@@ -18,7 +18,8 @@ ARG CONFIG_FILE=config.example.yml \
     FAVICON=./playground/assets/logo.svg \
     REFLEX_BACKEND_URL=http://localhost:8501 \
     REFLEX_FRONTEND_URL=http://localhost:8501 \
-    REFLEX_FRONTEND_PATH=''
+    REFLEX_FRONTEND_PATH='' \
+    PLAYGROUND_DISABLED_PAGES=''
 
 COPY $CONFIG_FILE ./config.yml
 COPY ./playground/ .

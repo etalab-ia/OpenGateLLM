@@ -1,11 +1,10 @@
 import os
 
+from app.core.configuration import configuration
 import reflex as rx
 
-from app.core.configuration import configuration
-
 redis_url = None
-if hasattr(configuration, "dependencies") and configuration.dependencies and configuration.dependencies.redis:
+if configuration.dependencies.redis is not None:
     redis_url = configuration.dependencies.redis.url
 
 config = rx.Config(

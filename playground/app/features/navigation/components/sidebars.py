@@ -4,8 +4,6 @@ from app.core.configuration import PlaygroundPages, configuration
 from app.features.auth.state import AuthState
 from app.shared.components.dark_mode_toggle import dark_mode_toggle
 
-_DISABLED_PAGES = configuration.settings.playground_disabled_pages
-
 
 def nav_item(label: str, icon: str, page: str) -> rx.Component:
     """Navigation item.
@@ -44,7 +42,7 @@ def navigation_sidebar() -> rx.Component:
         (PlaygroundPages.KEYS, nav_item("API Keys", "key", "/keys")),
         (PlaygroundPages.USAGE, nav_item("Usage", "bar-chart-3", "/usage")),
     ]
-    user_items = [item for page, item in user_items if page not in _DISABLED_PAGES]
+    user_items = [item for page, item in user_items if page not in configuration.settings.playground_disabled_pages]
 
     admin_items = [
         (PlaygroundPages.ROUTERS, nav_item("Routers", "network", "/routers")),
@@ -53,7 +51,7 @@ def navigation_sidebar() -> rx.Component:
         (PlaygroundPages.ORGANIZATIONS, nav_item("Organizations", "building", "/organizations")),
         (PlaygroundPages.USERS, nav_item("Users", "users", "/users")),
     ]
-    admin_items = [item for page, item in admin_items if page not in _DISABLED_PAGES]
+    admin_items = [item for page, item in admin_items if page not in configuration.settings.playground_disabled_pages]
 
     return rx.box(
         rx.vstack(
