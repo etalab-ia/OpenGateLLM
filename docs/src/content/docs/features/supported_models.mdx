@@ -72,6 +72,8 @@ The model type determines the capabilities of the model and enables a specific s
   <TabItem label="Ollama" icon="lobe:ollama">
     Ollama is a local-first model runtime for self-hosted models.
 
+    To add it as a provider, you need to set `openai` as the provider type.
+
     **Supported model types:**
     | Model type | Example model |
     | --- | --- |
@@ -79,4 +81,20 @@ The model type determines the capabilities of the model and enables a specific s
 
     <LinkButton href="https://ollama.com/" icon="external">Ollama documentation</LinkButton>
   </TabItem>
+
+  <TabItem label="WhisperX" icon="lobe:openai">
+    WhisperX is a open-source framework to run Whisper with fast inference and a Pyannote diarization integration. 
+    To run WhisperX, you need to deploy an API server with OpenAI compatible API. 
+    We recommend to use the following repository [etalab-ia/whisperx-openai-api](https://github.com/etalab-ia/whisperx-openai-api).
+
+    To add it as a provider, you need to set `openai` as the provider type.
+
+    **Supported model types:**
+    | Model type | Example model |
+    | --- | --- |
+    | `automatic-speech-recognition` | [openai/whisper-large-v3](https://huggingface.co/openai/whisper-large-v3) |
+
+    <LinkButton href="https://github.com/etalab-ia/whisperx-openai-api" icon="external">WhisperX documentation</LinkButton>
+  </TabItem>
+
 </Tabs>
