@@ -1,3 +1,4 @@
+from api.infrastructure.http.model import ModelMetricsLogger
 import pytest
 import respx
 

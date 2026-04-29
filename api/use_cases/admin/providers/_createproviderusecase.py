@@ -1,3 +1,4 @@
+from contextvars import ContextVar
 from dataclasses import dataclass
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
@@ -8,12 +9,12 @@ from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.user import UserWithRoleQuery
 from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
+from api.infrastructure.fastapi.context import RequestContext
 
 
 @dataclass
 class CreateProviderCommand:
     router_id: int
-    user_id: int
     provider_type: ProviderType
     url: str
     key: str | None
@@ -24,6 +25,7 @@ class CreateProviderCommand:
     model_active_params: int
     qos_metric: Metric | None
     qos_limit: float | None
+    request_context: ContextVar[RequestContext]
 
 
 @dataclass
@@ -58,7 +60,9 @@ class CreateProviderUseCase:
         self.user_with_role_query = user_with_role_query
 
     async def execute(self, command: CreateProviderCommand) -> CreateProviderUseCaseResult:
-        user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.user_id)
+
+        user_id = command.request_context.get().user_id
+        user = await self.user_with_role_query.get_user_with_role_by_id(user_id=user_id)
 
         if user.has_expired:
             return UserExpiredError()
@@ -80,6 +84,7 @@ class CreateProviderUseCase:
             key=command.key,
             timeout=command.timeout,
             model_name=command.model_name,
+            request_context=command.request_context,
         )
         match result:
             case ProviderNotReachableError() as error:

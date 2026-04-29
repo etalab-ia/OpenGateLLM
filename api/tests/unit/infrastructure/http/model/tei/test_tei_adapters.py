@@ -1,9 +1,10 @@
 from http import HTTPMethod
 
-from api.infrastructure.fastapi.schemas.models import Model, ModelsResponse
-from api.infrastructure.http.model.exchanges import FormattedModelRequest, FormattedModelResponse, OriginalModelResponse
-from api.infrastructure.http.model.tei.adapters import TeiModelsAdapter, TeiRerankAdapter
 from api.schemas.rerank import Reranks
+
+from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalResponse
+from api.infrastructure.fastapi.schemas.models import ModelsResponse
+from api.infrastructure.http.model.tei.adapters import TeiModelsAdapter, TeiRerankAdapter
 from api.schemas.usage import Usage
 from api.tests.integration.factories.tei import TeiFormattedModelRequestFactory, TeiModelsResponseFactory, TeiRerankResponseFactory
 from api.tests.unit.infrastructure.http.model.factories import ModelHttpExchangeFactory, OriginalModelRequestFactory
@@ -20,7 +21,7 @@ class TestTeiRerankAdapter:
         result = adapter.format_request(original_request=original_request, method=method, url=url, model_name=model_name)
 
         # Assert
-        assert result == FormattedModelRequest(
+        assert result == ProviderFormattedRequest(
             method=method,
             url=url,
             body={
@@ -38,7 +39,7 @@ class TestTeiRerankAdapter:
         exchange = ModelHttpExchangeFactory(
             original_request=OriginalModelRequestFactory(rerank=True),
             formatted_request=TeiFormattedModelRequestFactory(rerank=True),
-            original_response=OriginalModelResponse(
+            original_response=ProviderOriginalResponse(
                 data=TeiRerankResponseFactory(data=[{"index": 2, "score": 0.95}, {"index": 0, "score": 0.72}]), latency=10
             ),
         )
@@ -49,7 +50,7 @@ class TestTeiRerankAdapter:
         # Act
         result = adapter.format_response(exchange=exchange, request_id=mock_request_id, usage=mock_usage)
         # Assert
-        assert result == FormattedModelResponse(
+        assert result == ProviderFormattedResponse(
             data=Reranks(
                 id=mock_request_id,
                 model="openweight-rerank",
@@ -65,7 +66,7 @@ class TestTeiModelsAdapter:
         exchange = ModelHttpExchangeFactory(
             original_request=OriginalModelRequestFactory(models=True),
             formatted_request=TeiFormattedModelRequestFactory(models=True),
-            original_response=OriginalModelResponse(data=TeiModelsResponseFactory(model_id="tei-model-1234", max_context_length=8192)),
+            original_response=ProviderOriginalResponse(data=TeiModelsResponseFactory(model_id="tei-model-1234", max_context_length=8192)),
         )
         mock_request_id = "request-1234567890"
         mock_usage = Usage()
@@ -75,7 +76,7 @@ class TestTeiModelsAdapter:
         result = adapter.format_response(exchange=exchange, request_id=mock_request_id, usage=mock_usage)
 
         # Assert
-        assert result == FormattedModelResponse(
+        assert result == ProviderFormattedResponse(
             data=ModelsResponse(
                 data=[
                     Model(

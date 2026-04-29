@@ -2,8 +2,6 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from api.utils.variables import EndpointRoute
-
 
 class ModelCosts(BaseModel):
     prompt_tokens: float = 0.0
@@ -26,14 +24,11 @@ class Model(BaseModel):
     created: int
     owned_by: str
     max_context_length: int | None = None
-    costs: ModelCosts
+    costs: ModelCosts = Field(default_factory=ModelCosts)
 
 
-class UserModelRequest(BaseModel):
-    endpoint: EndpointRoute
-    body: dict = Field(default={}, description="The JSON body to use for the request.")
-    form: dict = Field(default={}, description="The form-encoded data to use for the request.")
-    files: dict = Field(default={}, description="The files to use for the request.")
+class Models(BaseModel):
+    data: list[Model]
 
 
 class HealthStatus(StrEnum):

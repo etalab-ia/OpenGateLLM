@@ -4,7 +4,7 @@ import random
 import factory
 from faker import Faker
 
-from api.infrastructure.http.model.exchanges import FormattedModelRequest
+from api.domain.provider.entities import ProviderFormattedRequest
 
 fake = Faker()
 
@@ -12,7 +12,7 @@ fake = Faker()
 # Formatted request factories
 class VllmFormattedModelRequestFactory(factory.DictFactory):
     class Meta:
-        model = FormattedModelRequest
+        model = ProviderFormattedRequest
 
     method = factory.Faker("random_element", elements=list(HTTPMethod))
     url = factory.Faker("url")

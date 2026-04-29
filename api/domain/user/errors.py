@@ -20,3 +20,8 @@ class UserIsNotAdminError:
 @dataclass
 class UserExpiredError:
     pass
+
+
+@dataclass
+class UserHasNoAccessToRouterError:
+    id: int

@@ -1,9 +1,10 @@
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.domain import EntitiesPage
 from api.domain.model.entities import ModelType as RouterType
+from api.schemas.admin.roles import LimitType
 
 
 class RouterLoadBalancingStrategy(StrEnum):
@@ -56,3 +57,47 @@ class Router(BaseModel):
     @property
     def has_no_providers(self) -> bool:
         return self.providers == 0
+
+    @property
+    def is_text_classification(self) -> bool:
+        return self.type == RouterType.TEXT_CLASSIFICATION
+
+
+class TpmRateLimitState(BaseModel):
+    value: int | None = None
+    remaining: int | None = None
+
+
+class TpdRateLimitState(BaseModel):
+    value: int | None = None
+    remaining: int | None = None
+
+
+class RpmRateLimitState(BaseModel):
+    value: int | None = 0
+    remaining: int | None = 0
+
+
+class RpdRateLimitState(BaseModel):
+    value: int | None = 0
+    remaining: int | None = 0
+
+
+class RouterRateLimitState(BaseModel):
+    tpm: TpmRateLimitState = Field(default_factory=TpmRateLimitState)
+    tpd: TpdRateLimitState = Field(default_factory=TpdRateLimitState)
+    rpm: RpmRateLimitState = Field(default_factory=RpmRateLimitState)
+    rpd: RpdRateLimitState = Field(default_factory=RpdRateLimitState)
+
+    @property
+    def exceeded_limits(self) -> list[LimitType]:
+        return [limit.value for limit in LimitType if getattr(self, limit.value).remaining <= 0]
+
+    @classmethod
+    def admin_rate_limit_state(cls) -> "RouterRateLimitState":
+        return cls(
+            tpm=TpmRateLimitState(value=None, remaining=None),
+            tpd=TpdRateLimitState(value=None, remaining=None),
+            rpm=RpmRateLimitState(value=None, remaining=None),
+            rpd=RpdRateLimitState(value=None, remaining=None),
+        )

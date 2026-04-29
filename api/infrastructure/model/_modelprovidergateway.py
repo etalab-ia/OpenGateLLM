@@ -1,25 +1,21 @@
+from contextvars import ContextVar
 import logging
 
+from api.domain.embeddings.entities import CreateEmbeddingsBody
 from api.domain.model.entities import ModelType as RouterType
-from api.domain.model.entities import UserModelRequest
 from api.domain.model.errors import ModelNotFoundError
 from api.domain.provider import ProviderCapabilities, ProviderGateway, ProviderMetricsLogger
-from api.domain.provider.entities import ProviderType
+from api.domain.provider.entities import Provider, ProviderOriginalRequest, ProviderOriginalResponse, ProviderType
 from api.domain.provider.errors import ProviderNotReachableError
-from api.infrastructure.fastapi.context import RequestContextManager
-from api.infrastructure.fastapi.schemas.models import Model
-from api.infrastructure.http.model import ModelHttpClient, ModelUsageComputer
-from api.infrastructure.http.model.albert import AlbertModelHttpClient
-from api.infrastructure.http.model.mistral import MistralModelHttpClient
-from api.infrastructure.http.model.openai import OpenaiModelHttpClient
-from api.infrastructure.http.model.tei import TeiModelHttpClient
-from api.infrastructure.http.model.vllm import VllmModelHttpClient
-from api.utils.exceptions import HTTPException, ModelIsTooBusyException
+from api.infrastructure.fastapi.context import RequestContext, RequestContextManager
+from api.infrastructure.http.adapters import EndpointAdapter
+from api.infrastructure.http.adapters.utils import build_adapter
 from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
 
 
+# TODO: rename
 class ModelProviderGateway(ProviderGateway):
     def __init__(self, provider_metrics_logger: ProviderMetricsLogger, request_manager: RequestContextManager):
         self.provider_metrics_logger = provider_metrics_logger
@@ -33,10 +29,23 @@ class ModelProviderGateway(ProviderGateway):
         key: str | None,
         timeout: int,
         model_name: str,
+        request_context: ContextVar[RequestContext],
     ) -> ProviderCapabilities | ModelNotFoundError | ProviderNotReachableError:
-        client = self._build_client(provider_type=provider_type, url=url, key=key, timeout=timeout, model_name=model_name)
+        provider = Provider(
+            id=0,
+            user_id=0,
+            router_id=0,
+            type=provider_type,
+            url=url,
+            key=key,
+            timeout=timeout,
+            model_name=model_name,
+            created=0,
+            updated=0,
+        )
+        adapter = build_adapter(cost_completion_tokens=0, cost_prompt_tokens=0, endpoint=EndpointRoute.MODELS, provider=provider)
 
-        result = await self._get_max_context_length(client=client)
+        result = await self._get_max_context_length(adapter=adapter, request_context=request_context)
         match result:
             case ProviderNotReachableError() as error:
                 return error
@@ -45,10 +54,10 @@ class ModelProviderGateway(ProviderGateway):
             case _:
                 max_context_length = result
 
-        # vector size
         vector_size = None
         if router_type == RouterType.TEXT_EMBEDDINGS_INFERENCE:
-            result = await self._get_vector_size(client=client)
+            adapter = build_adapter(cost_completion_tokens=0, cost_prompt_tokens=0, endpoint=EndpointRoute.EMBEDDINGS, provider=provider)
+            result = await self._get_vector_size(adapter=adapter, request_context=request_context)
             match result:
                 case ProviderNotReachableError() as error:
                     return error
@@ -57,69 +66,43 @@ class ModelProviderGateway(ProviderGateway):
 
         return ProviderCapabilities(max_context_length=max_context_length, vector_size=vector_size)
 
-    def _build_client(
+    async def _get_max_context_length(
         self,
-        provider_type,
-        url,
-        key,
-        timeout,
-        model_name,
-        usage_computer: ModelUsageComputer | None = None,
-    ) -> ModelHttpClient:
-        provider_class: dict[ProviderType, type[ModelHttpClient]] = {
-            ProviderType.ALBERT: AlbertModelHttpClient,
-            ProviderType.MISTRAL: MistralModelHttpClient,
-            ProviderType.OPENAI: OpenaiModelHttpClient,
-            ProviderType.TEI: TeiModelHttpClient,
-            ProviderType.VLLM: VllmModelHttpClient,
-        }
+        adapter: EndpointAdapter,
+        request_context: ContextVar[RequestContext],
+    ) -> int | None | ModelNotFoundError | ProviderNotReachableError:
 
-        return provider_class[provider_type](
-            url=url,
-            key=key,
-            timeout=timeout,
-            model_name=model_name,
-            provider_metrics_logger=self.provider_metrics_logger,
-            request_manager=self.request_manager,
-            usage_computer=usage_computer,
-        )
+        original_request = ProviderOriginalRequest(endpoint=EndpointRoute.MODELS)
+        formatted_request = adapter.format_request(original_request=original_request)
+        response = await self.client.forward_request(provider=adapter.provider, formatted_request=formatted_request)
+        match response:
+            case ProviderOriginalResponse() as response:
+                pass
+            case error:
+                return ProviderNotReachableError(model_name=adapter.provider.model_name, status_code=error.status_code, detail=error.detail)
 
-    @staticmethod
-    async def _get_max_context_length(client: ModelHttpClient) -> int | None | ModelNotFoundError | ProviderNotReachableError:
-        request = UserModelRequest(endpoint=EndpointRoute.MODELS)
-        try:
-            exchange = client.build_request_exchange(user_request=request)
-            response = await client.forward_request(exchange=exchange)
-        # @TODO: handle exception properly and add integration tests for this case and adapt unit tests
-        except (ModelIsTooBusyException, HTTPException) as e:
-            logger.info(msg=f"Failed to get max context length for {client.model_name}: {e}.")
-            return ProviderNotReachableError(model_name=client.model_name, status_code=500, detail=str(e))
-
-        if response.status_code != 200:
-            return ProviderNotReachableError(model_name=client.model_name, status_code=response.status_code, detail=response.text)
-
-        data = response.json().get("data", [])
-        model = next((Model(**model) for model in data if model["id"] == client.model_name or client.model_name in model["aliases"]), None)
+        formatted_response = adapter.format_response(original_response=response, original_request=original_request, request_context=request_context)
+        model_name = adapter.provider.model_name
+        model = next((model for model in formatted_response.data.data if model.id == model_name or model_name in model.aliases), None)
         if model is None:
-            logger.info(msg=f"Model not found in response of {client.model_name}: {data}.")
-            return ModelNotFoundError(name=client.model_name)
+            return ModelNotFoundError(name=model_name)
 
         return model.max_context_length
 
-    @staticmethod
-    async def _get_vector_size(client: ModelHttpClient) -> int | ProviderNotReachableError:
-        request = UserModelRequest(endpoint=EndpointRoute.EMBEDDINGS, body={"model": client.model_name, "input": "hello world"})
-        try:
-            exchange = client.build_request_exchange(user_request=request)
-            response = await client.forward_request(exchange=exchange)
-        except (ModelIsTooBusyException, HTTPException) as e:
-            logger.info(msg=f"Failed to get vector size for {client.model_name}: {e}.")
-            return ProviderNotReachableError(model_name=client.model_name, status_code=500, detail=str(e))
+    async def _get_vector_size(self, adapter: EndpointAdapter, request_context: ContextVar[RequestContext]) -> int | ProviderNotReachableError:
+        original_request = ProviderOriginalRequest(
+            endpoint=EndpointRoute.EMBEDDINGS,
+            body=CreateEmbeddingsBody(model=adapter.provider.model_name, input="hello world"),
+        )
+        formatted_request = adapter.format_request(original_request=original_request)
+        response = await self.client.forward_request(provider=adapter.provider, formatted_request=formatted_request)
+        match response:
+            case ProviderOriginalResponse() as response:
+                pass
+            case error:
+                return ProviderNotReachableError(model_name=adapter.provider.model_name, status_code=error.status_code, detail=error.detail)
 
-        if response.status_code != 200:
-            return ProviderNotReachableError(model_name=client.model_name, status_code=response.status_code, detail=response.text)
-
-        data = response.json()["data"]
-        vector_size = len(data[0]["embedding"])
+        formatted_response = adapter.format_response(original_response=response, original_request=original_request, request_context=request_context)
+        vector_size = len(formatted_response.data.data[0].embedding)
 
         return vector_size

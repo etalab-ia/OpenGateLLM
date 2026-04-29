@@ -168,6 +168,12 @@ class RoleHasUsersHTTPException(HTTPException):
 
 
 # 422
+class WrongModelTypeHTTPException(HTTPException):
+    status_code = 422
+    detail = "Model need {model_type} type for this endpoint."
+
+    def __init__(self, router_type: str) -> None:
+        super().__init__(status_code=422, detail=f"Model need {router_type} type for this endpoint.")
 
 
 # 424
@@ -180,6 +186,12 @@ class ProviderNotReachableHTTPException(HTTPException):
 
 
 # 429
+class RateLimitExceededHTTPException(HTTPException):
+    status_code = 429
+    detail = "Rate limit exceeded."
+
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)
 
 
 # 500
@@ -192,13 +204,13 @@ class InternalServerHTTPException(HTTPException):
 
 
 # 503
-class ModelIsTooBusyException(HTTPException):
+class ModelIsTooBusyExceptionHTTPException(HTTPException):
     status_code = 503
-    detail = "Model is too busy ({error_type}), please try again later."
+    detail = "Model is too busy, please try again later."
 
-    def __init__(self, error_type: str) -> None:
+    def __init__(self, error_type: str | None = None) -> None:
         super().__init__(
             status_code=self.status_code,
-            detail=f"Model is too busy ({error_type}), please try again later.",
+            detail="Model is too busy, please try again later.",
             headers={"Retry-After": "10"},
         )

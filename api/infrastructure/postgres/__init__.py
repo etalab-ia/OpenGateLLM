@@ -4,8 +4,9 @@ from ._postgrespermissionrepository import PostgresPermissionRepository
 from ._postgresproviderrepository import PostgresProviderRepository
 from ._postgresrolesrepository import PostgresRolesRepository
 from ._postgresrouterrepository import PostgresRouterRepository
+from ._postgresrouterwithprovidersquery import PostgresRouterWithProvidersQuery
 from ._postgresusersrepository import PostgresUserRepository
-from ._postgresuserwithrolerepository import PostgresUserWithRoleQuery
+from ._postgresuserwithrolequery import PostgresUserWithRoleQuery
 
 __all__ = [
     "PostgresKeyRepository",
@@ -14,6 +15,7 @@ __all__ = [
     "PostgresPermissionRepository",
     "PostgresProviderRepository",
     "PostgresRouterRepository",
+    "PostgresRouterWithProvidersQuery",
     "PostgresUserRepository",
     "PostgresUserWithRoleQuery",
 ]

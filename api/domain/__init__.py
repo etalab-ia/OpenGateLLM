@@ -2,6 +2,12 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Generic, TypeVar
 
+from pydantic import BaseModel, ConfigDict
+
+
+class BaseModel(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
 
 class SortField(StrEnum):
     ID = "id"

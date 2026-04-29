@@ -3,10 +3,15 @@ from unittest.mock import Mock
 
 import pytest
 
-from api.domain.provider.entities import ProviderType
-from api.domain.provider.errors import UnsupportedEndpointError
+from api.domain.model.errors import UnsupportedEndpointError
+from api.domain.provider.entities import (
+    ModelHttpExchange,
+    ProviderFormattedRequest,
+    ProviderFormattedResponse,
+    ProviderOriginalResponse,
+    ProviderType,
+)
 from api.infrastructure.http.model._modelhttpclient import ModelHttpClient
-from api.infrastructure.http.model.exchanges import FormattedModelRequest, FormattedModelResponse, ModelHttpExchange, OriginalModelResponse
 from api.schemas.usage import Usage
 from api.tests.unit.infrastructure.http.model.factories import ModelHttpExchangeFactory, OriginalModelRequestFactory, UserModelRequestFactory
 
@@ -47,7 +52,7 @@ def test_build_request_exchange_should_format_request(model_http_client, mocker)
     user_request = UserModelRequestFactory(audio_transcriptions=True)
     method, url = HTTPMethod.POST, "https://test.com/v1/audio/transcriptions"
     mocker.patch.object(type(model_http_client.ENDPOINT_TABLE), "get_method_and_url", return_value=(method, url))
-    formatted_request = FormattedModelRequest(method=method, url=url, body={}, form={}, files={})
+    formatted_request = ProviderFormattedRequest(method=method, url=url, body={}, form={}, files={})
     adapter = model_http_client._adapters[user_request.endpoint]
     mocked_format = mocker.patch.object(adapter, "format_request", return_value=formatted_request)
 
@@ -66,8 +71,8 @@ def test_build_request_exchange_should_format_request(model_http_client, mocker)
 
 def test_complete_response_exchange_should_format_original_response_without_usage_computer(model_http_client, mocker):
     original_request = OriginalModelRequestFactory(audio_transcriptions=True)
-    original_response = OriginalModelResponse(data={"text": "audio"}, latency=10)
-    formatted_response = FormattedModelResponse(data=None)
+    original_response = ProviderOriginalResponse(data={"text": "audio"}, latency=10)
+    formatted_response = ProviderFormattedResponse(data=None)
     exchange = ModelHttpExchangeFactory(original_request=original_request)
     adapter = model_http_client._adapters[original_request.endpoint]
     mocked_format_response = mocker.patch.object(adapter, "format_response", return_value=formatted_response)
@@ -90,8 +95,8 @@ def test_complete_response_exchange_should_format_original_response_without_usag
 def test_complete_response_exchange_should_format_original_response_with_usage_computer(model_http_client, mocker):
     model_http_client.usage_computer = Mock()
     original_request = OriginalModelRequestFactory(audio_transcriptions=True)
-    original_response = OriginalModelResponse(data={"text": "audio"}, latency=10)
-    formatted_response = FormattedModelResponse(data=None)
+    original_response = ProviderOriginalResponse(data={"text": "audio"}, latency=10)
+    formatted_response = ProviderFormattedResponse(data=None)
     exchange = ModelHttpExchangeFactory(original_request=original_request)
     adapter = model_http_client._adapters[original_request.endpoint]
     mocked_format_response = mocker.patch.object(adapter, "format_response", return_value=formatted_response)

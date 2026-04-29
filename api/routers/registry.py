@@ -29,7 +29,7 @@ ROUTER_DEFINITIONS: tuple[RouterDefinition, ...] = (
     RouterDefinition(name=RouterName.MODELS, module_path="api.infrastructure.fastapi.endpoints.models"),
     RouterDefinition(name=RouterName.OCR, module_path="api.endpoints.ocr"),
     RouterDefinition(name=RouterName.PARSE, module_path="api.endpoints.parse"),
-    RouterDefinition(name=RouterName.RERANK, module_path="api.endpoints.rerank"),
+    RouterDefinition(name=RouterName.RERANK, module_path="api.infrastructure.fastapi.endpoints.rerank"),
     RouterDefinition(name=RouterName.SEARCH, module_path="api.endpoints.search"),
     # Me routers
     RouterDefinition(name=RouterName.ME, module_path="api.endpoints.me.info"),

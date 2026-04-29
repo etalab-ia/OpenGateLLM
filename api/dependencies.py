@@ -8,10 +8,12 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.key import KeyRepository
-from api.domain.provider import ProviderMetricsLogger, ProviderRepository
+from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
+from api.domain.provider import ProviderClient, ProviderGateway, ProviderMetricsLogger, ProviderRepository
 from api.domain.role import LimitRepository, PermissionRepository
-from api.infrastructure.fastapi.context import RequestContextManager
-from api.infrastructure.http.model import ModelTokenizerComputer
+from api.domain.router import RouterRateLimiter
+from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
+from api.infrastructure.http import HttpProviderClient
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
     PostgresKeyRepository,
@@ -23,7 +25,8 @@ from api.infrastructure.postgres import (
     PostgresUserRepository,
     PostgresUserWithRoleQuery,
 )
-from api.infrastructure.redis import RedisProviderMetricsLogger
+from api.infrastructure.redis import RedisProviderMetricsLogger, RedisRouterRateLimiter
+from api.infrastructure.tiktoken import TiktokenModelTokenizer
 from api.schemas.core.context import RequestContext
 from api.use_cases.admin.providers import (
     CreateProviderUseCase,
@@ -37,12 +40,12 @@ from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase
 from api.use_cases.admin.users import CreateUserUseCase, GetOneUserUseCase, GetUsersUseCase
 from api.use_cases.health import GetHealthModelsUseCase
 from api.use_cases.models import GetModelsUseCase, GetModelUseCase
+from api.use_cases.reranks import CreateRerankUseCase
 from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context
 
 
 def get_request_context() -> ContextVar[RequestContext]:
-    # @TODO: replace with RequestContextManager.get_request_context()
     return request_context
 
 
@@ -100,28 +103,37 @@ def _provider_repository(session: AsyncSession) -> ProviderRepository:
     return PostgresProviderRepository(postgres_session=session)
 
 
-def get_key_repository(postgres_session: AsyncSession = Depends(get_postgres_session)) -> KeyRepository:
-    return PostgresKeyRepository(postgres_session=postgres_session)
+def _key_repository(session: AsyncSession = Depends(get_postgres_session)) -> KeyRepository:
+    return PostgresKeyRepository(postgres_session=session)
 
 
 # helpers
+def _model_tokenizer() -> ModelTokenizer:
+    return TiktokenModelTokenizer(model=global_context._tokenizer)
+
+
+def _model_environmental_impacts_computer() -> ModelEnvironmentalImpactsComputer:
+    return EcologitModelEnvironmentalImpactsComputer()
+
+
 def _provider_metrics_logger(redis_client: Redis = Depends(get_redis_client)) -> ProviderMetricsLogger:
     return RedisProviderMetricsLogger(redis_client=redis_client)
 
 
-def get_tokenizer_computer() -> ModelTokenizerComputer:
-    return ModelTokenizerComputer(tokenizer=global_context._tokenizer)
+def _provider_client_with_logs(provider_metrics_logger: ProviderMetricsLogger = Depends(_provider_metrics_logger)) -> ProviderClient:
+    return HttpProviderClient(provider_metrics_logger=provider_metrics_logger)
 
 
-def get_request_manager() -> RequestContextManager:
-    return RequestContextManager()
+def _provider_client_without_logs() -> ProviderClient:
+    return HttpProviderClient(provider_metrics_logger=None)
 
 
-def _provider_gateway(
-    provider_metrics_logger: ProviderMetricsLogger = Depends(_provider_metrics_logger),
-    request_manager: RequestContextManager = Depends(get_request_manager),
-) -> ModelProviderGateway:
-    return ModelProviderGateway(provider_metrics_logger=provider_metrics_logger, request_manager=request_manager)
+def _provider_gateway(provider_client: ProviderClient = Depends(_provider_client_with_logs)) -> ProviderGateway:
+    return ModelProviderGateway(provider_client=provider_client)
+
+
+def _router_rate_limiter() -> RouterRateLimiter:
+    return RedisRouterRateLimiter(redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy)
 
 
 # health use cases
@@ -139,7 +151,10 @@ def get_health_models_use_case_factory(
 
 
 # models use cases
-def get_models_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetModelsUseCase:
+def get_models_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    request_context: RequestContext = Depends(get_request_context),
+) -> GetModelsUseCase:
     return GetModelsUseCase(
         router_repository=_router_repository(postgres_session),
         user_with_role_query=_user_with_role_query(postgres_session),
@@ -153,9 +168,12 @@ def get_model_use_case_factory(postgres_session: AsyncSession = Depends(get_post
     )
 
 
-# users use cases
+# user use cases
 def create_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateUserUseCase:
-    return CreateUserUseCase(user_repository=_user_repository(postgres_session), user_with_role_query=_user_with_role_query(postgres_session))
+    return CreateUserUseCase(
+        user_repository=_user_repository(postgres_session),
+        user_with_role_query=_user_with_role_query(postgres_session),
+    )
 
 
 def get_one_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneUserUseCase:
@@ -166,7 +184,23 @@ def get_users_use_case_factory(postgres_session: AsyncSession = Depends(get_post
     return GetUsersUseCase(user_repository=_user_repository(postgres_session), user_with_role_query=_user_with_role_query(postgres_session))
 
 
-# roles use cases
+# rerank use cases
+def create_rerank_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    provider_client: ProviderClient = Depends(_provider_client_with_logs),
+) -> CreateRerankUseCase:
+    return CreateRerankUseCase(
+        router_rate_limiter=_router_rate_limiter(),
+        router_repository=_router_repository(postgres_session),
+        provider_repository=_provider_repository(postgres_session),
+        model_environmental_impacts_computer=_model_environmental_impacts_computer(),
+        model_tokenizer=_model_tokenizer(),
+        provider_gateway=_provider_gateway(provider_client=provider_client),
+        user_with_role_query=_user_with_role_query(session=postgres_session),
+    )
+
+
+# role use cases
 def create_role_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateRoleUseCase:
     return CreateRoleUseCase(
         role_repository=_role_repository(postgres_session),
@@ -208,7 +242,7 @@ def delete_role_use_case_factory(postgres_session: AsyncSession = Depends(get_po
     )
 
 
-# routers use cases
+# router use cases
 def get_one_router_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneRouterUseCase:
     return GetOneRouterUseCase(router_repository=_router_repository(postgres_session), user_with_role_query=_user_with_role_query(postgres_session))
 
@@ -229,16 +263,15 @@ def update_router_use_case_factory(postgres_session: AsyncSession = Depends(get_
     return UpdateRouterUseCase(router_repository=_router_repository(postgres_session), user_with_role_query=_user_with_role_query(postgres_session))
 
 
-# providers use cases
+# provider use cases
 def create_provider_use_case_factory(
-    provider_gateway: ModelProviderGateway = Depends(_provider_gateway),
     postgres_session: AsyncSession = Depends(get_postgres_session),
-    request_manager: RequestContextManager = Depends(get_request_manager),
+    provider_client: ProviderClient = Depends(_provider_client_without_logs),
 ) -> CreateProviderUseCase:
     return CreateProviderUseCase(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
-        provider_gateway=provider_gateway,
+        provider_gateway=_provider_gateway(provider_client=provider_client),
         user_with_role_query=_user_with_role_query(postgres_session),
     )
 

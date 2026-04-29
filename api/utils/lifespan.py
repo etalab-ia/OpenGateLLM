@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from contextvars import ContextVar
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
@@ -9,7 +10,7 @@ import tiktoken
 from tiktoken.core import Encoding
 
 from api.clients.parser import BaseParserClient as ParserClient
-from api.dependencies import get_postgres_session
+from api.dependencies import get_postgres_session, get_request_context
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
@@ -22,7 +23,8 @@ from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
-from api.infrastructure.fastapi.context import RequestContextManager
+from api.infrastructure.fastapi.context import RequestContext
+from api.infrastructure.http import HttpProviderClient
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
     PostgresLimitRepository,
@@ -32,7 +34,6 @@ from api.infrastructure.postgres import (
     PostgresRouterRepository,
     PostgresUserRepository,
 )
-from api.infrastructure.redis import RedisProviderMetricsLogger
 from api.schemas.core.configuration import Configuration, Tokenizer
 from api.use_cases.admin import (
     BootstrapAdminCommand,
@@ -59,7 +60,12 @@ async def lifespan(_: FastAPI):
 
     async for postgres_session in get_postgres_session():
         bootstrap_admin_user_id = await bootstrap_admin_role_and_user(configuration=configuration, postgres_session=postgres_session)
-        await bootstrap_models(configuration=configuration, postgres_session=postgres_session, bootstrap_admin_user_id=bootstrap_admin_user_id)
+        await bootstrap_models(
+            configuration=configuration,
+            postgres_session=postgres_session,
+            bootstrap_admin_user_id=bootstrap_admin_user_id,
+            request_context=get_request_context(),
+        )
 
     global_context.model_registry = await create_model_registry(configuration, global_context.postgres_session_factory)
     global_context.elasticsearch_vector_store = await create_elasticsearch_vector_store(configuration, global_context.elasticsearch_client, global_context.model_registry, global_context.postgres_session_factory)  # fmt: off
@@ -148,20 +154,22 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
             return skipped.user_id
 
 
-async def bootstrap_models(configuration: Configuration, postgres_session: AsyncSession, bootstrap_admin_user_id: int) -> int:
+async def bootstrap_models(
+    configuration: Configuration,
+    postgres_session: AsyncSession,
+    bootstrap_admin_user_id: int,
+    request_context: ContextVar[RequestContext],
+) -> int:
     router_repository = PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title)
     provider_repository = PostgresProviderRepository(postgres_session=postgres_session)
-    # @TODO: remove after make optional metrics logger and request manager in httpmodelclient
-    redis_client = redis.Redis(connection_pool=global_context.redis_pool)
-    provider_metrics_logger = RedisProviderMetricsLogger(redis_client=redis_client)
-    request_manager = RequestContextManager()
-    provider_gateway = ModelProviderGateway(provider_metrics_logger=provider_metrics_logger, request_manager=request_manager)
+    provider_client = HttpProviderClient()
+    provider_gateway = ModelProviderGateway(provider_client=provider_client)
 
     result = await BootstrapModelsUseCase(
         router_repository=router_repository,
         provider_repository=provider_repository,
         provider_gateway=provider_gateway,
-    ).execute(routers_to_create=configuration.models, bootstrap_admin_user_id=bootstrap_admin_user_id)
+    ).execute(routers_to_create=configuration.models, bootstrap_admin_user_id=bootstrap_admin_user_id, request_context=request_context)
 
     match result:
         case BootstrapModelsUseCaseSuccess() as success:
@@ -176,6 +184,8 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
             raise RuntimeError(f"Provider {error.name} are not found.")
         case ProviderAlreadyExistsError() as error:
             raise RuntimeError(f"Provider {error.model_name} already exists ({error.url}) for the same router ({error.router_id}).")
+        case ModelNotFoundError() as error:
+            raise RuntimeError(f"Model {error.name} not found.")
         case ProviderNotReachableError() as error:
             raise RuntimeError(f"Provider {error.model_name} not reachable ({error.status_code}): {error.detail}")
         case InconsistentModelVectorSizeError() as error:
