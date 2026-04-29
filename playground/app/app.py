@@ -1,6 +1,6 @@
 import reflex as rx
 
-from app.core.configuration import configuration
+from app.core.configuration import PlaygroundPages, configuration
 from app.features.account.page import account_page
 from app.features.auth.state import AuthState
 from app.features.chat.page import chat_page_content
@@ -120,7 +120,6 @@ def providers() -> rx.Component:
     )
 
 
-# Create the app with theme configuration
 app = rx.App(
     theme=rx.theme(
         has_background=configuration.settings.playground_theme_has_background,
@@ -135,15 +134,23 @@ app = rx.App(
 )
 
 # Public pages
+
 app.add_page(component=index, route="/")
-app.add_page(component=account, route="/account")
-app.add_page(component=keys, route="/keys", on_load=[KeysState.load_entities])
-app.add_page(component=usage, route="/usage", on_load=[UsageState.load_entities])
+if PlaygroundPages.ACCOUNT not in configuration.settings.playground_disabled_pages:
+    app.add_page(component=account, route="/account")
+if PlaygroundPages.KEYS not in configuration.settings.playground_disabled_pages:
+    app.add_page(component=keys, route="/keys", on_load=[KeysState.load_entities])
+if PlaygroundPages.USAGE not in configuration.settings.playground_disabled_pages:
+    app.add_page(component=usage, route="/usage", on_load=[UsageState.load_entities])
 
 # Admin pages
-if configuration.settings.playground_publish_admin_pages:
+if PlaygroundPages.ROLES not in configuration.settings.playground_disabled_pages:
     app.add_page(component=roles, route="/roles", on_load=[RolesState.load_entities])
+if PlaygroundPages.USERS not in configuration.settings.playground_disabled_pages:
     app.add_page(component=users, route="/users", on_load=[UsersState.load_entities])
+if PlaygroundPages.ORGANIZATIONS not in configuration.settings.playground_disabled_pages:
     app.add_page(component=organizations, route="/organizations", on_load=[OrganizationsState.load_entities])
+if PlaygroundPages.ROUTERS not in configuration.settings.playground_disabled_pages:
     app.add_page(component=routers, route="/routers", on_load=[RoutersState.load_entities])
+if PlaygroundPages.PROVIDERS not in configuration.settings.playground_disabled_pages:
     app.add_page(component=providers, route="/providers", on_load=[ProvidersState.load_entities])
