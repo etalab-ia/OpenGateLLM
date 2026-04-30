@@ -224,4 +224,3 @@ bruno
 docs/.astro
 docs/node_modules
 docs/.cache
-docs/package-lock.json
