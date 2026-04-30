@@ -1,9 +1,9 @@
 name: Release updates
 
 on:
-  workflow_run:
-    workflows: ["Build and deploy"]
-    types: [completed]
+  release:
+    types:
+      - published
   workflow_dispatch:
   workflow_call:
 
