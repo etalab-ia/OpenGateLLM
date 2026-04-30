@@ -1,3 +1,4 @@
+from enum import StrEnum
 from functools import wraps
 import logging
 import os
@@ -62,6 +63,17 @@ def custom_validation_error(url: str | None = None):
     return decorator
 
 
+class PlaygroundPages(StrEnum):
+    ACCOUNT = "account"
+    KEYS = "keys"
+    ORGANIZATIONS = "organizations"
+    PROVIDERS = "providers"
+    ROLES = "roles"
+    ROUTERS = "routers"
+    USAGE = "usage"
+    USERS = "users"
+
+
 class ConfigBaseModel(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -84,6 +96,7 @@ class Settings(ConfigBaseModel):
 
     playground_opengatellm_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
     playground_opengatellm_timeout: int = Field(default=60, description="The timeout in seconds for the OpenGateLLM API.")
+    playground_disabled_pages: list[PlaygroundPages] = Field(default_factory=list, description="List of pages to disable from the navigation bar.")  # fmt: off
     playground_default_model: str | None = Field(default=None, description="The first model selected in chat page.")
     playground_theme_has_background: bool = Field(default=True, description="Whether the theme has a background.")
     playground_theme_accent_color: str = Field(default="purple", description="The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors.")  # fmt: off
@@ -92,10 +105,9 @@ class Settings(ConfigBaseModel):
     playground_theme_panel_background: str = Field(default="solid", description="Whether panel backgrounds are translucent: 'solid' | 'translucent'.")
     playground_theme_radius: str = Field(default="medium", description="The radius of the theme. Can be 'small', 'medium', or 'large'.")
     playground_theme_scaling: str = Field(default="100%", description="The scaling of the theme.")
-
-    swagger_url: str | None = Field(default="http://localhost:8000/docs", pattern=r"^http[s]?://", description="Swagger URL. If not provided, deactivated swagger link in the navigation bar.")  # fmt: off
-    reference_url: str | None = Field(default="http://localhost:8000/redoc", pattern=r"^http[s]?://", description="Reference URL. If not provided, deactivated reference link in the navigation bar.")  # fmt: off
-    documentation_url: str | None = Field(default="https://docs.opengatellm.org", pattern=r"^http[s]?://", description="Documentation URL. If not provided, deactivated documentation link in the navigation bar.")  # fmt: off
+    playground_swagger_url: str | None = Field(default="http://localhost:8000/docs", pattern=r"^http[s]?://", description="Swagger URL. If not provided, deactivated swagger link in the navigation bar.")  # fmt: off
+    playground_reference_url: str | None = Field(default="http://localhost:8000/redoc", pattern=r"^http[s]?://", description="Reference URL. If not provided, deactivated reference link in the navigation bar.")  # fmt: off
+    playground_documentation_url: str | None = Field(default="https://docs.opengatellm.org", pattern=r"^http[s]?://", description="Documentation URL. If not provided, deactivated documentation link in the navigation bar.")  # fmt: off
 
 
 class ConfigFile(ConfigBaseModel):

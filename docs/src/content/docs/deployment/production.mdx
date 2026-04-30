@@ -20,6 +20,7 @@ This guide provides practical defaults and hardening recommendations for running
 
 - Add `GUNICORN_CMD_ARGS` environment variable to the deployment configuration to configure the Gunicorn server.
   We recommend to use the following configuration:
+
   ```bash
   GUNICORN_CMD_ARGS= --workers {{ workers }} --worker-connections 1000 --timeout 240 --keep-alive 75 --graceful-timeout 75
   ```
@@ -29,47 +30,88 @@ This guide provides practical defaults and hardening recommendations for running
 
 ## Security and access control
 
-- Change default `auth_secret_key` to a strong, random string with at least 32 characters.
+- Change default `auth_secret_key` settings parameter to a strong, random string with at least 32 characters.
 
-  <Aside type="caution" title="auth_secret_key rotation impact">
+  <Aside type="caution" title="Secret key rotation impact">
     The `auth_secret_key` is used to encrypt user API keys. If you change it, you need to regenerate all user API keys.
   </Aside>
 
-After you have launched the API for the first time, an administrator account is created with the default values (`admin` and `changeme`).
-This account is intended to let you create your first administrator account. We recommend deleting it after you have created your own admin account.
-On subsequent restarts, the bootstrap administrator account will not be created if an administrator account already exists.
+  After you have launched the API for the first time, an administrator account is created with the default values (`admin` and `changeme`).
+  This account is intended to let you create your first administrator account. We recommend deleting it after you have created your own admin account.
+  On subsequent restarts, the bootstrap administrator account will not be created if an administrator account already exists.
 
-- Limit API key lifetime with `auth_key_max_expiration_days`.
-- Hide sensitive routes `admin` and `auth` from public API docs.
+  **Example:**
+  ```yaml
+  settings:
+    [...]
+    auth_secret_key: "your-strong-secret-key"
 
-**Example:**
+    # delete this account after you have created your own admin account and clean your config file
+    auth_bootsrap_admin_username: "admin@example.com" 
+    auth_bootsrap_admin_password: "your-strong-password"
+  ```
 
-```yaml
-settings:
-  [...]
-  auth_secret_key: "your-strong-secret-key"
+- Limit API key lifetime with `auth_key_max_expiration_days` settings parameter.
 
-  # delete this account after you have created your own admin account and clean your config file
-  auth_bootsrap_admin_username: "admin@example.com" 
-  auth_bootsrap_admin_password: "your-strong-password"
+  **Example:**
+
+  ```yaml
+  settings:
+    [...]
+    auth_key_max_expiration_days: 365 # days
+  ```
+
+- Hide sensitive routes `admin` and `auth` from public API docs with `hidden_routers` settings parameter.
+
+    **Example:**
+
+    ```yaml
+    settings:
+      [...]
+      hidden_routers: ["admin", "auth"]
+    ```
+
+  Moreover, we recommend to not expose the `admin` routes on internet (only accessible from a VPN). 
+  For example with Nginx configuration:
+
+  ```nginx
+  # block admin endpoints on the public api host
+  location ~ ^/v1/admin(/|$) {
+    return 404;
+  }
+
+  # other routes are exposed to the public
+  location / {
+    proxy_pass                                  http://<api_host>:<api_port>;
+    [...]
+  }
+  ```
+
+- Disable admin pages of the Playground UI with `playground_disabled_pages` settings parameter for internet exposed Playground UI.
   
-  session_secret_key: "your-strong-session-secret-key"
-  auth_key_max_expiration_days: 365 # days
-  hidden_routers: ["admin", "auth"]
-```
+  **Example:**
+  
+  ```nginx
+  settings:
+    [...]
+    playground_disabled_pages: ["roles", "users", "organizations", "routers", "providers"]
+  ```
 
+  We recommend to deploy two different Playground UIs, one accessible from a VPN with all pages enabled and one accessible from internet with only non admin pages enabled.
+  
 For more information, see [configuration file documentation](/configuration/configuration_file).
 
 ## Model configuration and routing
 
+- **Do not use configuration file to declare models, prefer to use the API to declare models, by endpoints or on the Playground UI (see [Models configuration](/getting-started/models/)).**
+  
+  The configuration of models in the configuration file is only used for the initial bootstrap of the API.
+  The model section of the configuration is ignored if any models are already registered in the database.
+
 - Add stable aliases to models so applications do not depend on provider-specific names.
 - Tune provider timeouts according to workload (`timeout: 120` is a common production baseline for long generations).
 - If you run multiple providers for one model, choose a load-balancing strategy that matches your objective (`shuffle` for distribution, `least_busy` for latency under load).
-- **Do not use configuration file to declare models, prefer to use the API to declare models, by endpoints or on the Playground UI (see [Models configuration](/getting-started/models/)).**
-  
-  <Aside type="caution" title="Models declaration">
-    Models are persisted in the database. If a router or provider already exists in the database, the API uses the database value and ignores the configuration file value, even when both differ.
-  </Aside>
+
 
 ## API metadata and versioning
 
@@ -187,3 +229,26 @@ settings:
   [...]
   vector_store_model: "my-embeddings-model"
 ```
+
+## Playground UI
+
+- Use Redis as state manager mode. To activate Redis, you need to set the `dependencies.redis` section in the configuration file.
+
+  **Example:**
+
+  ```yaml
+  dependencies:
+    [...]
+    redis:
+      url: "redis://${REDIS_USERNAME}:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}"
+  ```
+
+- Increase the timeout of the OpenGateLLM API with `playground_opengatellm_timeout` settings parameter. 
+
+  **Example:**
+
+  ```yaml
+  settings:
+    [...]
+    playground_opengatellm_timeout: 300
+  ```

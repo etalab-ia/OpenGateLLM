@@ -357,8 +357,8 @@ def run_local_services(console: Console, env: EnvFile, local_api: bool, local_pl
         service_urls = {data["service"]: data["url"] for data in processes.values()}
         service_started_at = {data["service"]: data["started_at"] for data in processes.values()}
         health_status = {service: False for service in healthcheck_targets}
-        healthcheck_timeout_seconds = 120.0
-        healthcheck_interval_seconds = 2.0
+        healthcheck_timeout_seconds = 30
+        healthcheck_interval_seconds = 2
         healthcheck_deadline = time.perf_counter() + healthcheck_timeout_seconds
         next_healthcheck_at = time.perf_counter()
         recent_lines: list[str] = []

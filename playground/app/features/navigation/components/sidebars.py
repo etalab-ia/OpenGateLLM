@@ -1,5 +1,6 @@
 import reflex as rx
 
+from app.core.configuration import PlaygroundPages, configuration
 from app.features.auth.state import AuthState
 from app.shared.components.dark_mode_toggle import dark_mode_toggle
 
@@ -36,32 +37,48 @@ def nav_item(label: str, icon: str, page: str) -> rx.Component:
 
 def navigation_sidebar() -> rx.Component:
     """Left navigation sidebar."""
+    user_items = [
+        (PlaygroundPages.ACCOUNT, nav_item("Account", "user", "/account")),
+        (PlaygroundPages.KEYS, nav_item("API Keys", "key", "/keys")),
+        (PlaygroundPages.USAGE, nav_item("Usage", "bar-chart-3", "/usage")),
+    ]
+    user_items = [item for page, item in user_items if page not in configuration.settings.playground_disabled_pages]
+
+    admin_items = [
+        (PlaygroundPages.ROUTERS, nav_item("Routers", "network", "/routers")),
+        (PlaygroundPages.PROVIDERS, nav_item("Providers", "container", "/providers")),
+        (PlaygroundPages.ROLES, nav_item("Roles", "shield", "/roles")),
+        (PlaygroundPages.ORGANIZATIONS, nav_item("Organizations", "building", "/organizations")),
+        (PlaygroundPages.USERS, nav_item("Users", "users", "/users")),
+    ]
+    admin_items = [item for page, item in admin_items if page not in configuration.settings.playground_disabled_pages]
+
     return rx.box(
         rx.vstack(
             # Navigation items
             rx.vstack(
                 nav_item("Chat", "message-square", "/"),
-                rx.cond(~AuthState.is_master, rx.divider()),
-                rx.cond(
-                    ~AuthState.is_master,
-                    rx.box(
-                        nav_item("Account", "user", "/account"),
-                        nav_item("API Keys", "key", "/keys"),
-                        nav_item("Usage", "bar-chart-3", "/usage"),
-                        width="100%",
-                    ),
+                *(
+                    [
+                        rx.cond(~AuthState.is_master, rx.divider()),
+                        rx.cond(
+                            ~AuthState.is_master,
+                            rx.box(*user_items, width="100%"),
+                        ),
+                    ]
+                    if user_items
+                    else []
                 ),
-                rx.cond(AuthState.is_admin, rx.divider()),
-                rx.cond(
-                    AuthState.is_admin,
-                    rx.box(
-                        nav_item("Routers", "network", "/routers"),
-                        nav_item("Providers", "container", "/providers"),
-                        nav_item("Roles", "shield", "/roles"),
-                        nav_item("Organizations", "building", "/organizations"),
-                        nav_item("Users", "users", "/users"),
-                        width="100%",
-                    ),
+                *(
+                    [
+                        rx.cond(AuthState.is_admin, rx.divider()),
+                        rx.cond(
+                            AuthState.is_admin,
+                            rx.box(*admin_items, width="100%"),
+                        ),
+                    ]
+                    if admin_items
+                    else []
                 ),
                 spacing="2",
                 width="100%",
@@ -123,7 +140,7 @@ def navigation_sidebar() -> rx.Component:
         width="250px",
         height="94%",
         background_color=rx.color("mauve", 2),
-        border_right=f"1px solid {rx.color("mauve", 3)}",
+        border_right=f"1px solid {rx.color('mauve', 3)}",
         position="fixed",
         left="0",
         top="65px",
