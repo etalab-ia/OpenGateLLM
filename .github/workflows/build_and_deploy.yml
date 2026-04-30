@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - protect-admin-playground-pages # RETIRER APRES TESTS
   release:
     types:
       - published

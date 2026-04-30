@@ -64,10 +64,9 @@ settings:
 
   # vector_store_model: my-model
 
-  # search_multi_agents_synthesis_model: my-model
-  # search_multi_agents_reranker_model: my-model
-
   playground_opengatellm_url: ${OPENGATELLM_URL}
+  # playground_opengatellm_timeout: 60
+  # playground_disabled_pages: []
   # playground_default_model: my-model
   # playground_theme_has_background: True
   # playground_theme_accent_color: purple
@@ -76,6 +75,9 @@ settings:
   # playground_theme_panel_background: solid
   # playground_theme_radius: medium
   # playground_theme_scaling: 100%
+  # playground_swagger_url: http://localhost:8000/swagger
+  # playground_reference_url: http://localhost:8000/redoc
+  # playground_documentation_url: https://docs.opengatellm.org
 
 # ----------------------------------- models ------------------------------------
 # models:

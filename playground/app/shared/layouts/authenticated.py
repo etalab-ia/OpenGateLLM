@@ -25,9 +25,9 @@ def authenticated_page(content: rx.Component, margin_left: str | None = "250px",
         AuthState.is_authenticated,
         rx.vstack(
             nav_header(
-                documentation_url=configuration.settings.documentation_url,
-                swagger_url=configuration.settings.swagger_url,
-                reference_url=configuration.settings.reference_url,
+                documentation_url=configuration.settings.playground_documentation_url,
+                swagger_url=configuration.settings.playground_swagger_url,
+                reference_url=configuration.settings.playground_reference_url,
             ),
             rx.box(
                 navigation_sidebar(),

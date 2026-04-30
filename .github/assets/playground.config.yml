@@ -5,10 +5,11 @@ settings:
   playground_default_model: ${PLAYGROUND_DEFAULT_MODEL}
   playground_theme_accent_color: indigo
   playground_disabled_pages: ${PLAYGROUND_DISABLED_PAGES:-[]}
-  swagger_url: https://albert.api.etalab.gouv.fr/swagger
-  reference_url: https://albert.api.etalab.gouv.fr/reference
-  documentation_url: https://docs.opengatellm.org
+  playground_swagger_url: https://albert.api.etalab.gouv.fr/swagger
+  playground_reference_url: https://albert.api.etalab.gouv.fr/reference
+  playground_documentation_url: https://docs.opengatellm.org
   playground_opengatellm_timeout: 300
 
-redis:
-  url: ${REDIS_URL}
+# dependencies:
+#   redis:
+#     url: ${REDIS_URL:-redis://:changeme@localhost:6379}
