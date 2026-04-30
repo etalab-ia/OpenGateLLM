@@ -11,19 +11,19 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.35.3",
-    "@iconify-json/lobe": "npm:@proj-airi/lobe-icons@^1.0.18",
-    "@iconify-json/lucide": "^1.2.90",
-    "@mermaid-js/layout-elk": "^0.2.0",
-    "astro": "^5.17.2",
-    "astro-mermaid": "^1.3.1",
-    "mermaid": "^11.12.3",
-    "sharp": "^0.34.2",
-    "starlight-contributor-list": "^0.3.2",
-    "starlight-giscus": "^0.8.1",
-    "starlight-ion-theme": "^2.3.3",
-    "starlight-links-validator": "^0.19.2",
-    "starlight-scroll-to-top": "^0.4.0"
+    "@astrojs/starlight": "^0.38.4",
+    "@iconify-json/lobe": "npm:@proj-airi/lobe-icons@^1.0.19",
+    "@iconify-json/lucide": "^1.2.105",
+    "@mermaid-js/layout-elk": "^0.2.1",
+    "astro": "^6.2.1",
+    "astro-mermaid": "^2.0.1",
+    "mermaid": "^11.14.0",
+    "sharp": "^0.34.5",
+    "astro-contributors": "^0.8.0",
+    "starlight-giscus": "^0.9.1",
+    "starlight-ion-theme": "^2.4.0",
+    "starlight-links-validator": "^0.24.0",
+    "starlight-scroll-to-top": "^1.0.1"
   },
   "devDependencies": {
     "patch-package": "^8.0.1",

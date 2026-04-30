@@ -1,10 +1,10 @@
 diff --git a/node_modules/@astrojs/starlight/user-components/Icon.astro b/node_modules/@astrojs/starlight/user-components/Icon.astro
-index 16b24de..579a4b1 100644
+index 148c86e..ba35ffc 100644
 --- a/node_modules/@astrojs/starlight/user-components/Icon.astro
 +++ b/node_modules/@astrojs/starlight/user-components/Icon.astro
 @@ -1,8 +1,9 @@
  ---
- import { Icons, type StarlightIcon } from '../components/Icons';
+ import { Icons, type StarlightIcon } from '../components-internals/Icons';
 +import { Icon as AstroIcon } from 'astro-icon/components';
  
  interface Props {
