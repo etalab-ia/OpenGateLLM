@@ -53,8 +53,7 @@ class TestUpdateRouterUseCase:
     ):
         # Arrange
         updated_router = (
-            sample_router
-            .with_name("new-name")
+            sample_router.with_name("new-name")
             .with_type(RouterType.TEXT_EMBEDDINGS_INFERENCE)
             .with_load_balancing_strategy(RouterLoadBalancingStrategy.LEAST_BUSY)
             .with_cost_prompt_tokens(0.005)
