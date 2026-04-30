@@ -34,25 +34,6 @@ models:
 The following is an example of configuration file:
 
 ```yaml
-# ----------------------------------- models ------------------------------------
-models:
-  - name: albert-testbed
-    type: text-generation
-    # aliases: ["model-alias"]
-    # owned_by: Me
-    # load_balancing_strategy: shuffle
-    # cost_prompt_tokens: 0.10
-    # cost_completion_tokens: 0.10
-    providers:
-      - type: vllm
-        url: http://albert-testbed.etalab.gouv.fr:8000
-        # key: sk-xxx
-        model_name: "gemma3:1b"
-        # timeout: 60
-        # model_hosting_zone: FRA
-        # model_total_params: 8
-        # model_active_params: 8
-  
 # -------------------------------- dependencies ---------------------------------
 dependencies:
   postgres: # required
@@ -77,7 +58,6 @@ dependencies:
     index_name: opengatellm
     index_language: english
     number_of_shards: 1
-    index_name: "opengatellm"
     number_of_replicas: 0
     hosts: "http://${ELASTICSEARCH_HOST:-localhost}:${ELASTICSEARCH_PORT:-9200}"
     basic_auth:
@@ -86,6 +66,11 @@ dependencies:
 
   # sentry:
   #   dsn: ${SENTRY_DSN}
+
+  # langfuse:
+  #   public_key: ${LANGFUSE_PUBLIC_KEY}
+  #   secret_key: ${LANGFUSE_SECRET_KEY}
+  #   url: http://localhost:3000
 
 # ---------------------------------- settings -----------------------------------
 settings:
@@ -97,15 +82,13 @@ settings:
   # log_level: INFO
   # log_format: [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s
 
-  swagger_version: 0.4.2
+  swagger_version: 0.4.3
   # swagger_contact_url: https://github.com/etalab-ia/OpenGateLLM
   # swagger_contact_email: john.doe@example.com
   # swagger_docs_url: /docs
   # swagger_redoc_url: /redoc
 
-  auth_master_key: changeme # DEPRECATED, use auth_secret_key instead
   auth_secret_key: changeme
-
   auth_bootsrap_admin_username: admin
   auth_bootsrap_admin_password: changeme
 
@@ -117,10 +100,9 @@ settings:
 
   # vector_store_model: my-model
 
-  # search_multi_agents_synthesis_model: my-model
-  # search_multi_agents_reranker_model: my-model
-
   playground_opengatellm_url: ${OPENGATELLM_URL}
+  # playground_opengatellm_timeout: 60
+  # playground_disabled_pages: []
   # playground_default_model: my-model
   # playground_theme_has_background: True
   # playground_theme_accent_color: purple
@@ -129,7 +111,28 @@ settings:
   # playground_theme_panel_background: solid
   # playground_theme_radius: medium
   # playground_theme_scaling: 100%
+  # playground_swagger_url: http://localhost:8000/swagger
+  # playground_reference_url: http://localhost:8000/redoc
+  # playground_documentation_url: https://docs.opengatellm.org
 
+# ----------------------------------- models ------------------------------------
+# models:
+#   - name: albert-testbed
+#     type: text-generation
+#     # aliases: ["model-alias"]
+#     # owned_by: Me
+#     # load_balancing_strategy: shuffle
+#     # cost_prompt_tokens: 0.10
+#     # cost_completion_tokens: 0.10
+#     providers:
+#       - type: vllm
+#         url: http://albert-testbed.etalab.gouv.fr:8000
+#         # key: sk-xxx
+#         model_name: "gemma3:1b"
+#         # timeout: 60
+#         # model_hosting_zone: FRA
+#         # model_total_params: 8
+#         # model_active_params: 8
 ```
 
 ## API configuration
@@ -158,9 +161,12 @@ General settings configuration fields.
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
 | app_title | string | Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `OpenGateLLM` |  | `My API` |
+| auth_bootsrap_admin_password | string | Password of the admin user created at the first startup. | `changeme` |  |  |
+| auth_bootsrap_admin_username | string | Username of the admin user created at the first startup. | `admin` |  |  |
 | auth_key_max_expiration_days | integer | Maximum number of days for a new API key to be valid. | `None` |  |  |
-| auth_master_key | string | Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. This key is also used to encrypt user tokens, watch out if you modify the master key, you'll need to update all user API keys. | `changeme` |  |  |
+| auth_master_key | string | [DEPRECATED] Master key for the API. It should be a random string with at least 32 characters. This key has all permissions and cannot be modified or deleted. This key is used to create the first role and the first user. | `changeme` |  |  |
 | auth_playground_session_duration | integer | Duration of the playground postgres_session in seconds. | `3600` |  |  |
+| auth_secret_key | string | Secret key for the API. It should be a random string with at least 32 characters. This key is used to encrypt user tokens, watch out if you modify the secret key, you'll need to update all user API keys. If not provided, the master key will be used. | `None` |  |  |
 | disabled_routers | array | Disabled routers to limits services of the API. | `[]` | • `admin`<br></br>• `audio`<br></br>• `auth`<br></br>• `chat`<br></br>• `chunks`<br></br>• `collections`<br></br>• `documents`<br></br>• `embeddings`<br></br>• ... | `['embeddings']` |
 | document_parsing_max_concurrent | integer | Maximum number of concurrent document parsing tasks per worker. | `10` |  |  |
 | front_url | string | Front-end URL for the application. | `http://localhost:8501` |  |  |
@@ -173,7 +179,6 @@ General settings configuration fields.
 | routing_max_priority | integer | Maximum allowed priority in routing tasks. | `4` |  |  |
 | routing_max_retries | integer | Maximum number of retries for routing tasks. | `3` |  |  |
 | routing_retry_countdown | integer | Number of seconds before retrying a failed routing task. | `3` |  |  |
-| session_secret_key | string | Secret key for postgres_session middleware. If not provided, the master key will be used. | `None` |  | `knBnU1foGtBEwnOGTOmszldbSwSYLTcE6bdibC8bPGM` |
 | swagger_contact | object | Contact informations of the API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `None` |  |  |
 | swagger_description | string | Display description of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)` |  | `[See documentation](https://github.com/etalab-ia/opengatellm/blob/main/README.md)` |
 | swagger_docs_url | string | Docs URL of swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information. | `/docs` |  |  |
@@ -190,13 +195,8 @@ General settings configuration fields.
 <br></br>
 
 ### Model
-In the models section, you define a list of models. Each model is a set of API providers for that model. Users will access the models specified in
-this section using their *name*. Load balancing is performed between the different providers of the requested model. All providers in a model must
-serve the same type of model (text-generation or text-embeddings-inference, etc.). We recommend that all providers of a model serve exactly the same
-model, otherwise users may receive responses of varying quality. For embedding models, the API verifies that all providers output vectors of the
-same dimension. You can define the load balancing strategy between the model's providers. By default, it is random.
-
-For more information to configure model providers, see the [ModelProvider section](#modelprovider).
+In the model section, you define a list of models (routers and providers). These models are only used for the initial bootstrap of the API.
+The model section of the configuration is ignored if any models are already registered in the database.
 <br></br>
 
 | Attribute | Type | Description | Default | Values | Examples |
@@ -214,16 +214,16 @@ For more information to configure model providers, see the [ModelProvider sectio
 #### ModelProvider
 | Attribute | Type | Description | Default | Values | Examples |
 | --- | --- | --- | --- | --- | --- |
-| key | string | Model provider API key. | `None` |  | `sk-1234567890` |
-| model_active_params | integer | Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai | `0` |  | `8` |
-| model_hosting_zone | string | Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai | `WOR` | • `ABW`<br></br>• `AFG`<br></br>• `AGO`<br></br>• `AIA`<br></br>• `ALA`<br></br>• `ALB`<br></br>• `AND`<br></br>• `ARE`<br></br>• ... | `WOR` |
-| model_name | string | Model name from the model provider. | **required** |  | `gpt-4o` |
-| model_total_params | integer | Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai | `0` |  | `8` |
-| qos_limit | number | The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc. | `None` |  | `0.5` |
-| qos_metric | string | The metric to use for the quality of service. If not provided, no QoS policy is applied. | `None` | • `ttft`<br></br>• `latency`<br></br>• `inflight`<br></br>• `performance` | `inflight` |
-| timeout | integer | Timeout for the model provider requests, after user receive an 500 error (model is too busy). | `300` |  | `10` |
-| type | string | Model provider type. | **required** | • `albert`<br></br>• `openai`<br></br>• `mistral`<br></br>• `tei`<br></br>• `vllm` | `openai` |
-| url | string | Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI). | `None` |  | `https://api.openai.com` |
+| key | string | Model provider API key. | `None` |  |  |
+| model_active_params | integer | Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai | `0` |  |  |
+| model_hosting_zone | string | Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai | `WOR` | • `ABW`<br></br>• `AFG`<br></br>• `AGO`<br></br>• `AIA`<br></br>• `ALA`<br></br>• `ALB`<br></br>• `AND`<br></br>• `ARE`<br></br>• ... |  |
+| model_name | string | Model name from the model provider. | **required** |  |  |
+| model_total_params | integer | Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai | `0` |  |  |
+| qos_limit | number | The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc. | `None` |  |  |
+| qos_metric | string | The metric to use for the quality of service policy. If not provided, no QoS policy is applied. | `None` | • `ttft`<br></br>• `latency`<br></br>• `inflight`<br></br>• `performance` |  |
+| timeout | integer | Timeout for the model provider requests, after user receive an 503 error (model is too busy). | `300` |  |  |
+| type | string | Model provider type. | **required** | • `albert`<br></br>• `openai`<br></br>• `mistral`<br></br>• `tei`<br></br>• `vllm` |  |
+| url | string | Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI). | `None` |  |  |
 
 <br></br>
 
@@ -233,6 +233,7 @@ For more information to configure model providers, see the [ModelProvider sectio
 | albert | object | **[DEPRECATED]** See the [AlbertDependency section](#albertdependency) for more information. For details of configuration, see the [AlbertDependency section](#albertdependency). | `None` |  |  |
 | celery | object | **[DEPRECATED]** See the [CeleryDependency section](#celerydependency) for more information. For details of configuration, see the [CeleryDependency section](#celerydependency). | `None` |  |  |
 | elasticsearch | object | See the [ElasticsearchDependency section](#elasticsearchdependency) for more information. For details of configuration, see the [ElasticsearchDependency section](#elasticsearchdependency). | `None` |  |  |
+| langfuse | object | See the [LangfuseDependency section](#langfusedependency) for more information. For details of configuration, see the [LangfuseDependency section](#langfusedependency). | `None` |  |  |
 | marker | object | **[DEPRECATED]** See the [MarkerDependency section](#markerdependency) for more information. For details of configuration, see the [MarkerDependency section](#markerdependency). | `None` |  |  |
 | postgres | object | See the [PostgresDependency section](#postgresdependency) for more information. For details of configuration, see the [PostgresDependency section](#postgresdependency). | **required** |  |  |
 | redis | object | See the [RedisDependency section](#redisdependency) for more information. For details of configuration, see the [RedisDependency section](#redisdependency). | **required** |  |  |
@@ -282,6 +283,19 @@ Only the `url` argument is required. The connection URL must use the asynchronou
 
 <br></br>
 
+#### LangfuseDependency
+Langfuse is an optional dependency of OpenGateLLM. Langfuse is used for LLM observability and tracing.
+In this section, you can pass all Langfuse client arguments, see https://python.reference.langfuse.com/langfuse for more information.
+<br></br>
+
+| Attribute | Type | Description | Default | Values | Examples |
+| --- | --- | --- | --- | --- | --- |
+| public_key | string | Langfuse public key. | **required** |  | `pk-lf-...` |
+| secret_key | string | Langfuse secret key. | **required** |  | `sk-lf-...` |
+| url | string | Langfuse server URL. | `http://localhost:3000` |  | `http://localhost:3000` |
+
+<br></br>
+
 #### ElasticsearchDependency
 Elasticsearch is an optional dependency of OpenGateLLM. Elasticsearch is used as a vector store. If this dependency is provided, all documents endpoint are enabled.
 Pass all arguments of `elasticsearch.Elasticsearch` class, see https://elasticsearch-py.readthedocs.io/en/latest/api/elasticsearch.html for more information.
@@ -293,7 +307,7 @@ Other arguments declared below are used to configure the Elasticsearch index.
 | index_language | string | Language of the Elasticsearch index. | `english` | • `english`<br></br>• `french`<br></br>• `german`<br></br>• `italian`<br></br>• `portuguese`<br></br>• `spanish`<br></br>• `swedish` | `english` |
 | index_name | string | Name of the Elasticsearch index. | `opengatellm` |  | `my_index` |
 | number_of_replicas | integer | Number of replicas for the Elasticsearch index. | `1` |  | `1` |
-| number_of_shards | integer | Number of shards for the Elasticsearch index. | `24` |  | `1` |
+| number_of_shards | integer | Number of shards for the Elasticsearch index. | `12` |  | `4` |
 
 <br></br>
 
@@ -342,10 +356,13 @@ For Plagroud deployment, some environment variables are required to be set, like
 | --- | --- | --- | --- | --- | --- |
 | app_title | string | The title of the application. | `OpenGateLLM` |  |  |
 | auth_key_max_expiration_days | integer | Maximum number of days for a token to be valid. | `None` |  |  |
-| documentation_url | string | Documentation URL. If not provided, deactivated documentation link in the navigation bar. | `https://docs.opengatellm.org` |  |  |
 | playground_default_model | string | The first model selected in chat page. | `None` |  |  |
+| playground_disabled_pages | array | List of pages to disable from the navigation bar. | **required** | • `account`<br></br>• `keys`<br></br>• `organizations`<br></br>• `providers`<br></br>• `roles`<br></br>• `routers`<br></br>• `usage`<br></br>• `users` |  |
+| playground_documentation_url | string | Documentation URL. If not provided, deactivated documentation link in the navigation bar. | `https://docs.opengatellm.org` |  |  |
 | playground_opengatellm_timeout | integer | The timeout in seconds for the OpenGateLLM API. | `60` |  |  |
 | playground_opengatellm_url | string | The URL of the OpenGateLLM API. | `http://localhost:8000` |  |  |
+| playground_reference_url | string | Reference URL. If not provided, deactivated reference link in the navigation bar. | `http://localhost:8000/redoc` |  |  |
+| playground_swagger_url | string | Swagger URL. If not provided, deactivated swagger link in the navigation bar. | `http://localhost:8000/docs` |  |  |
 | playground_theme_accent_color | string | The primary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors. | `purple` |  |  |
 | playground_theme_appearance | string | The appearance of the theme. | `light` |  |  |
 | playground_theme_gray_color | string | The secondary color used for default buttons, typography, backgrounds, etc. See available colors at https://www.radix-ui.com/colors. | `gray` |  |  |
@@ -353,9 +370,7 @@ For Plagroud deployment, some environment variables are required to be set, like
 | playground_theme_panel_background | string | Whether panel backgrounds are translucent: 'solid' \| 'translucent'. | `solid` |  |  |
 | playground_theme_radius | string | The radius of the theme. Can be 'small', 'medium', or 'large'. | `medium` |  |  |
 | playground_theme_scaling | string | The scaling of the theme. | `100%` |  |  |
-| reference_url | string | Reference URL. If not provided, deactivated reference link in the navigation bar. | `http://localhost:8000/redoc` |  |  |
 | routing_max_priority | integer | Maximum allowed priority in routing tasks. | `10` |  |  |
-| swagger_url | string | Swagger URL. If not provided, deactivated swagger link in the navigation bar. | `http://localhost:8000/docs` |  |  |
 
 <br></br>
 

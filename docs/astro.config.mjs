@@ -85,7 +85,7 @@ export default defineConfig({
 				},				{
 					label: '[lucide:rocket] Release notes',
 					link: 'https://github.com/etalab-ia/OpenGateLLM/releases',
-					badge: 'v0.4.2',
+					badge: 'v0.4.3',
 					attrs: { target: '_blank', style: 'font-size: 0.875rem;' },
 				},
 				{
