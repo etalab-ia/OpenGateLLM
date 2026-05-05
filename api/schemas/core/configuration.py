@@ -230,7 +230,7 @@ class MarkerDependency(ConfigBaseModel):
 @custom_validation_error()
 class PostgresDependency(ConfigBaseModel):
     """
-    Postgres is a required dependency of OpenGateLLM. In this section, you can pass all postgres python SDK arguments, see https://github.com/etalab-ia/opengatellm/blob/main/docs/dependencies/postgres.md for more information.
+    Postgres is a required dependency of OpenGateLLM. In this section, you can pass all postgres python SDK arguments, see https://docs.sqlalchemy.org/en/21/core/engines.html#sqlalchemy.create_engine for more information.
     Only the `url` argument is required. The connection URL must use the asynchronous scheme, `postgresql+asyncpg://`. If you provide a standard `postgresql://` URL, it will be automatically converted to use asyncpg.
     """
 
