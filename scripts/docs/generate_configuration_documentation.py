@@ -1,4 +1,5 @@
 import argparse
+import html
 import os
 import sys
 
@@ -15,7 +16,7 @@ from app.core.configuration import ConfigFile as PlaygroundConfigFile  # noqa: E
 from api.schemas.core.configuration import ConfigFile as ApiConfigFile  # noqa: E402 # type: ignore
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--output", type=str, default=os.path.join("./docs/src/content/docs/configuration/configuration_file.mdx"))
+parser.add_argument("--output", type=str, default=os.path.join("./docs/src/content/docs/configuration/configuration_file.md"))
 
 
 class Row(BaseModel):
@@ -181,13 +182,11 @@ def format_default(default: str) -> str:
 
 
 def format_values(values: list) -> str:
-    values = [handle_acorn(text=value) for value in values]
-    if len(values) > 10:
-        return "• " + "<br></br>• ".join(values[:8]) + "<br></br>• ..."
-    elif len(values) > 0:
-        return "• " + "<br></br>• ".join(values)
-    else:
+    values = sorted(handle_acorn(text=value) for value in values)
+    if len(values) == 0:
         return ""
+    options = "".join(f'<option value="{html.escape(value, quote=True)}">{value}</option>' for value in values)
+    return f'<select><option value="">---</option>{options}</select>'
 
 
 def format_types(types: list) -> str:
@@ -226,12 +225,8 @@ def convert_to_markdown(table: Table, markdown: str = "", level: int = 1):
     markdown += f"{md_table}{breakline_large}"
 
     if table.tables:
-        markdown += "<Tabs>\n" if len(table.tables) > 1 else ""
         for sub_table in table.tables:
-            markdown += f'<TabItem value="{sub_table.title}" label="{sub_table.title}">\n\n' if len(table.tables) > 1 else ""
             markdown = convert_to_markdown(table=sub_table, markdown=markdown, level=level)
-            markdown += "</TabItem>\n" if len(table.tables) > 1 else ""
-        markdown += f"</Tabs>{breakline_small}" if len(table.tables) > 1 else ""
 
     return markdown
 
@@ -253,7 +248,7 @@ The following is an example of configuration file:
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    assert args.output.endswith(".mdx"), f"Output file must end with .md ({args.output})"
+    assert args.output.endswith(".md"), f"Output file must end with .md ({args.output})"
     assert os.path.exists(os.path.dirname(args.output)), f"Output directory does not exist ({os.path.dirname(args.output)})"
 
     with open(file=os.path.join("./scripts/docs/configuration_header.md")) as f:

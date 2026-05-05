@@ -21,7 +21,7 @@ from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, RouterName
 # utils ----------------------------------------------------------------------------------------------------------------------------------------------
 
 
-def custom_validation_error():
+def custom_validation_error(suffix: str = ""):
     """
     Decorator to override Pydantic ValidationError to change error message.
 
@@ -63,7 +63,7 @@ def custom_validation_error():
                         break
 
                     current_model = next_model
-                    documentation_url = f"{base_url}#{current_model.__name__.lower()}"
+                    documentation_url = f"{base_url}#{current_model.__name__.lower()}{suffix}"
 
                 return documentation_url
 
@@ -230,7 +230,7 @@ class MarkerDependency(ConfigBaseModel):
 @custom_validation_error()
 class PostgresDependency(ConfigBaseModel):
     """
-    Postgres is a required dependency of OpenGateLLM. In this section, you can pass all postgres python SDK arguments, see https://docs.sqlalchemy.org/en/21/core/engines.html#sqlalchemy.create_engine for more information.
+    Postgres is a required dependency of OpenGateLLM. In this section, you can pass all postgres python SDK arguments, see https://docs.sqlalchemy.org/en/21/core/engines.html#engine-creation-apihttps://docs.sqlalchemy.org/en/21/core/engines.html#engine-creation-api for more information.
     Only the `url` argument is required. The connection URL must use the asynchronous scheme, `postgresql+asyncpg://`. If you provide a standard `postgresql://` URL, it will be automatically converted to use asyncpg.
     """
 
@@ -284,14 +284,14 @@ class EmptyDependency(ConfigBaseModel):
 
 @custom_validation_error()
 class Dependencies(ConfigBaseModel):
-    albert: AlbertDependency | None = Field(default=None, description="**[DEPRECATED]** See the [AlbertDependency section](#albertdependency) for more information.")  # fmt: off
-    celery: CeleryDependency | None = Field(default=None, description="**[DEPRECATED]** See the [CeleryDependency section](#celerydependency) for more information.")  # fmt: off
-    elasticsearch: ElasticsearchDependency | None = Field(default=None, description="See the [ElasticsearchDependency section](#elasticsearchdependency) for more information.")  # fmt: off
+    albert: AlbertDependency | None = Field(default=None, json_schema_extra={"deprecated": True})  # fmt: off
+    celery: CeleryDependency | None = Field(default=None, json_schema_extra={"deprecated": True})  # fmt: off
+    elasticsearch: ElasticsearchDependency | None = Field(default=None, description="Elasticsearch is an optional dependency of OpenGateLLM. Elasticsearch is used as a vector store. If this dependency is provided, all documents endpoint are enabled.")  # fmt: off
     langfuse: LangfuseDependency | None = Field(default=None, description="See the [LangfuseDependency section](#langfusedependency) for more information.")  # fmt: off
-    marker: MarkerDependency | None = Field(default=None, description="**[DEPRECATED]** See the [MarkerDependency section](#markerdependency) for more information.")  # fmt: off
-    postgres: PostgresDependency = Field(..., description="See the [PostgresDependency section](#postgresdependency) for more information.")  # fmt: off
-    redis: RedisDependency  = Field(..., description="See the [RedisDependency section](#redisdependency) for more information.")  # fmt: off
-    sentry: SentryDependency | None = Field(default=None, description="See the [SentryDependency section](#sentrydependency) for more information.")  # fmt: off
+    marker: MarkerDependency | None = Field(default=None, json_schema_extra={"deprecated": True})  # fmt: off
+    postgres: PostgresDependency = Field(..., description="Postgres is a required dependency of OpenGateLLM to store API data.")  # fmt: off
+    redis: RedisDependency  = Field(..., description="Redis is a required dependency of OpenGateLLM to store rate limiting counters and performance metrics.")  # fmt: off
+    sentry: SentryDependency | None = Field(default=None, description="Sentry is an optional dependency of OpenGateLLM. Sentry helps you identify, diagnose, and fix errors in real-time.")  # fmt: off
 
     @model_validator(mode="after")
     def complete_celery(self):
@@ -494,6 +494,7 @@ class Configuration(BaseSettings):
         with open(file=self.config_file) as file:
             lines = file.readlines()
 
+        # remove commented lines
         uncommented_lines = [line for line in lines if not line.lstrip().startswith("#")]
 
         # replace environment variables
