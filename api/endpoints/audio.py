@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
 from api.helpers.models import ModelRegistry
-from api.schemas.audio import AudioTranscription, AudioTranscriptionResponseFormat, CreateAudioTranscription
+from api.schemas.audio import (
+    PLAIN_TEXT_SUBTITLE_FORMATS,
+    AudioTranscription,
+    AudioTranscriptionResponseFormat,
+    CreateAudioTranscription,
+)
 from api.schemas.core.context import RequestContext
 from api.schemas.core.models import RequestContent
 from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
@@ -56,7 +61,13 @@ async def audio_transcriptions(
     )
 
     if data.response_format == AudioTranscriptionResponseFormat.TEXT:
-        response = PlainTextResponse(content=response.json()["text"], status_code=response.status_code)
+        response = PlainTextResponse(content=response.text, status_code=response.status_code)
+    elif data.response_format in PLAIN_TEXT_SUBTITLE_FORMATS:
+        response = PlainTextResponse(
+            content=response.text,
+            status_code=response.status_code,
+            media_type=PLAIN_TEXT_SUBTITLE_FORMATS[data.response_format],
+        )
     else:
         response = JSONResponse(content=AudioTranscription(**response.json()).model_dump(), status_code=response.status_code)
 
