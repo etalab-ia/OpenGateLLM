@@ -252,7 +252,7 @@ class UsersState(EntityState):
             "email": self.entity_to_create.email,
             "password": self.entity_to_create.password,
             "role": role_id,
-            "priority": 0 if self.entity_to_create.priority is None else self.entity_to_create.priority,
+            "priority": self.entity_to_create.priority,
         }
 
         if self.entity_to_create.expires:
@@ -329,7 +329,7 @@ class UsersState(EntityState):
             "name": self.entity.name,
             "role": role_id,
             "expires": self.entity.expires,
-            "priority": 0 if self.entity_to_create.priority is None else self.entity_to_create.priority,
+            "priority": self.entity.priority,
         }
         if self.entity.budget == "":
             payload["budget"] = None

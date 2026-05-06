@@ -27,7 +27,7 @@ class Limit(BaseModel):
 
 
 class CreateRoleBody(BaseModel):
-    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(..., description="Name of the role.", examples=["my-role"])]
+    name: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Name of the role.", examples=["my-role"])]  # fmt: off
     permissions: Annotated[list[PermissionType] | None, Field(default=None, description="List of permissions.")]
     limits: Annotated[list[Limit] | None, Field(default=None, description="List of limits.")]
 
