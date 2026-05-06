@@ -22,6 +22,14 @@ class AudioTranscriptionResponseFormat(StrEnum):
     TEXT = "text"
     VERBOSE_JSON = "verbose_json"
     DIARIZED_JSON = "diarized_json"
+    SRT = "srt"
+    VTT = "vtt"
+
+
+PLAIN_TEXT_SUBTITLE_FORMATS = {
+    AudioTranscriptionResponseFormat.SRT: "application/x-subrip",
+    AudioTranscriptionResponseFormat.VTT: "text/vtt",
+}
 
 
 class Segment(BaseModel):
@@ -49,7 +57,7 @@ class CreateAudioTranscription(BaseModel):
         model: str = Form(default=..., description="ID of the model to use. Call `/v1/models` endpoint to get the list of available models, only `automatic-speech-recognition` model type is supported."),
         language: AudioTranscriptionLanguage | None = Form(default=None, description="The language of the output audio. If the output language is different than the audio language, the audio language will be translated into the output language. Output language must be supplied in ISO-639-1 format (e.g. en, fr) format."),
         prompt: str = Form(default="", description="An optional text to tell the model what to do with the input audio."),
-        response_format: AudioTranscriptionResponseFormat = Form(default=AudioTranscriptionResponseFormat.JSON, description="The format of the transcript output: `json` (default), `text`, or `diarized_json` to return per-segment speaker labels."),
+        response_format: AudioTranscriptionResponseFormat = Form(default=AudioTranscriptionResponseFormat.JSON, description="The format of the transcript output: `json` (default), `text`, `diarized_json` to return per-segment speaker labels, `srt` or `vtt` for subtitle formats."),
         temperature: float = Form(default=0.0, ge=0.0, le=1.0, description="The sampling temperature, between 0 and 1. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. If set to 0, the model will use log probability to automatically increase the temperature until certain thresholds are hit."),
     ) -> "CreateAudioTranscription":
         try:
@@ -75,7 +83,6 @@ class CreateAudioTranscription(BaseModel):
     def format_request(provider_type: ProviderType, request_content: RequestContent):
         match provider_type:
             case ProviderType.ALBERT:
-                request_content.form["response_format"] = "json"
                 return request_content
 
             case ProviderType.MISTRAL:
@@ -99,8 +106,6 @@ class CreateAudioTranscription(BaseModel):
                 return request_content
 
             case ProviderType.OPENAI:
-                if request_content.form.get("response_format") == AudioTranscriptionResponseFormat.TEXT.value:
-                    request_content.form["response_format"] = AudioTranscriptionResponseFormat.JSON.value
                 return request_content
 
             case _:
