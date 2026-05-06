@@ -25,6 +25,7 @@ from api.utils.configuration import configuration
 from api.utils.exceptions import (
     DeleteOrganizationWithUsersException,
     DeleteRoleWithUsersException,
+    DeleteUserWithRoutersException,
     InvalidCurrentPasswordException,
     InvalidTokenExpirationException,
     OrganizationAlreadyExistsException,
@@ -274,7 +275,10 @@ class IdentityAccessManager:
         except NoResultFound:
             raise UserNotFoundException()
 
-        await postgres_session.execute(statement=delete(table=UserTable).where(UserTable.id == user_id))
+        try:
+            await postgres_session.execute(statement=delete(table=UserTable).where(UserTable.id == user_id))
+        except IntegrityError:
+            raise DeleteUserWithRoutersException()
         await postgres_session.commit()
 
     async def update_user(
