@@ -83,11 +83,10 @@ class RolesState(EntityState):
         try:
             async with httpx.AsyncClient() as client:
                 offset = 0
-                limit = 100
                 while True:
                     response = await client.get(
                         f"{self.opengatellm_url}/v1/admin/routers",
-                        params={"offset": offset, "limit": limit},
+                        params={"offset": offset, "limit": 100},
                         headers={"Authorization": f"Bearer {self.api_key}"},
                         timeout=configuration.settings.playground_opengatellm_timeout,
                     )
@@ -189,14 +188,12 @@ class RolesState(EntityState):
             if limit["router"] == router:
                 continue
 
-            limits.extend(
-                [
-                    {"router_id": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
-                    {"router_id": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
-                    {"router_id": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
-                    {"router_id": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
-                ]
-            )
+            limits.extend([
+                {"router_id": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
+                {"router_id": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
+                {"router_id": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
+                {"router_id": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
+            ])
 
         yield
 

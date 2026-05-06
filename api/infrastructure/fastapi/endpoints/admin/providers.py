@@ -177,7 +177,7 @@ async def delete_provider(
 @router.patch(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
     dependencies=[Security(dependency=get_current_key)],
-    status_code=201,
+    status_code=200,
     responses=get_documentation_responses([
         InconsistentModelMaxContextLengthHTTPException,
         InconsistentModelVectorSizeHTTPException,

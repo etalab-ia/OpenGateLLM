@@ -36,7 +36,7 @@ class TestUpdateProvider:
             json={"timeout": 120},
         )
 
-        assert response.status_code == 201, response.text
+        assert response.status_code == 200, response.text
         data = response.json()
         assert data["id"] == provider.id
         assert data["object"] == "provider"
