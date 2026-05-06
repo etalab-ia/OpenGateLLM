@@ -33,8 +33,9 @@ jobs:
           format: 'table'
           severity: 'HIGH'
           exit-code: "0"
+          trivyignores: .trivyignore
 
-      # CRITICAL → bloque le pipeline
+      # CRITICAL → stop the pipeline
       - name: Trivy scan (CRITICAL — blocking)
         uses: aquasecurity/trivy-action@v0.35.0
         with:
@@ -42,3 +43,4 @@ jobs:
           format: 'table'
           severity: 'CRITICAL'
           exit-code: "1"
+          trivyignores: .trivyignore

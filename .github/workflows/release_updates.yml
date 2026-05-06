@@ -1,9 +1,10 @@
 name: Release updates
 
 on:
-  release:
+  workflow_run:
+    workflows: ["Build, scan images and deploy"]
     types:
-      - published
+      - completed
   workflow_dispatch:
   workflow_call:
 
@@ -68,7 +69,7 @@ jobs:
           title: "chore(doc): update generated documentation and release versions"
           body: |
             Automated documentation and release version update after `Build and deploy` release workflow completion.
-          branch: "ci/release-update-${{ github.event.workflow_run.id }}"
+          branch: "ci/release-update-${{ github.event.workflow_run.id || github.run_id }}"
           base: "main"
           delete-branch: true
           add-paths: |

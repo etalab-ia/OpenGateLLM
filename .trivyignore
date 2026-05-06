@@ -1,0 +1,3 @@
+# gnutls DTLS zero-length fragment DoS — no upstream Debian fix yet
+# Pulled transitively by nginx in playground image. Re-evaluate after 2026-08-01.
+CVE-2026-33845 exp:2026-08-01
