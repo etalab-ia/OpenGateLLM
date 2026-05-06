@@ -91,47 +91,46 @@ class UsersState(EntityState):
         try:
             async with httpx.AsyncClient() as client:
                 # Load roles
-                if not self.roles_list:
-                    offset = 0
-                    self.roles_list = []
-                    self.roles_dict = {}
-                    while True:
-                        response = await client.get(
-                            url=f"{self.opengatellm_url}/v1/admin/roles",
-                            headers={"Authorization": f"Bearer {self.api_key}"},
-                            timeout=configuration.settings.playground_opengatellm_timeout,
-                        )
+                offset = 0
+                self.roles_list = []
+                self.roles_dict = {}
+                while True:
+                    response = await client.get(
+                        url=f"{self.opengatellm_url}/v1/admin/roles",
+                        params={"offset": offset, "limit": 100},
+                        headers={"Authorization": f"Bearer {self.api_key}"},
+                        timeout=configuration.settings.playground_opengatellm_timeout,
+                    )
 
-                        response.raise_for_status()
-                        data = response.json()
-                        roles_data = data.get("data", [])
-                        self.roles_list.extend([{"id": role["id"], "name": role["name"]} for role in roles_data])
-                        self.roles_dict.update({role["name"]: role["id"] for role in roles_data})
-                        offset += 100
-                        if len(roles_data) < 100:
-                            break
+                    response.raise_for_status()
+                    data = response.json()
+                    roles_data = data.get("data", [])
+                    self.roles_list.extend([{"id": role["id"], "name": role["name"]} for role in roles_data])
+                    self.roles_dict.update({role["name"]: role["id"] for role in roles_data})
+                    offset += 100
+                    if len(roles_data) < 100:
+                        break
 
                 # Load organizations
-                if not self.organizations_list:
-                    offset = 0
-                    self.organizations_list = []
-                    self.organizations_dict = {}
-                    while True:
-                        response = await client.get(
-                            url=f"{self.opengatellm_url}/v1/admin/organizations",
-                            params={"offset": offset, "limit": 100},
-                            headers={"Authorization": f"Bearer {self.api_key}"},
-                            timeout=configuration.settings.playground_opengatellm_timeout,
-                        )
+                offset = 0
+                self.organizations_list = []
+                self.organizations_dict = {}
+                while True:
+                    response = await client.get(
+                        url=f"{self.opengatellm_url}/v1/admin/organizations",
+                        params={"offset": offset, "limit": 100},
+                        headers={"Authorization": f"Bearer {self.api_key}"},
+                        timeout=configuration.settings.playground_opengatellm_timeout,
+                    )
 
-                        response.raise_for_status()
-                        data = response.json()
-                        organizations_data = data.get("data", [])
-                        self.organizations_list.extend([{"id": org["id"], "name": org["name"]} for org in organizations_data])
-                        self.organizations_dict.update({org["name"]: org["id"] for org in organizations_data})
-                        offset += 100
-                        if len(organizations_data) < 100:
-                            break
+                    response.raise_for_status()
+                    data = response.json()
+                    organizations_data = data.get("data", [])
+                    self.organizations_list.extend([{"id": org["id"], "name": org["name"]} for org in organizations_data])
+                    self.organizations_dict.update({org["name"]: org["id"] for org in organizations_data})
+                    offset += 100
+                    if len(organizations_data) < 100:
+                        break
 
                 # Load users
                 response = await client.get(

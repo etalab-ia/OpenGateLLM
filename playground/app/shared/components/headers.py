@@ -127,7 +127,7 @@ def nav_header(documentation_url: str | None, swagger_url: str | None, reference
                 else rx.fragment(),
                 width="100%",
                 padding="1.12em",
-                border_bottom=f"1px solid {rx.color("mauve", 3)}",
+                border_bottom=f"1px solid {rx.color('mauve', 3)}",
                 justify_content="end",
                 align_items="center",
                 spacing="6",

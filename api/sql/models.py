@@ -121,8 +121,8 @@ class User(Base):
     collection: Mapped[list["Collection"]] = relationship(back_populates="user", passive_deletes=True)
     role: Mapped["Role"] = relationship(back_populates="user", passive_deletes=True)
     organization: Mapped["Organization"] = relationship(back_populates="user", passive_deletes=True)
-    router: Mapped[list["Router"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
-    provider: Mapped[list["Provider"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
+    router: Mapped[list["Router"]] = relationship(back_populates="user", passive_deletes=True)
+    provider: Mapped[list["Provider"]] = relationship(back_populates="user", passive_deletes=True)
 
     __table_args__ = (
         UniqueConstraint("sub", "iss", name="unique_user_email_sub_iss"),
@@ -185,7 +185,7 @@ class Router(Base):
     __tablename__ = "router"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="RESTRICT"))
     name: Mapped[str] = mapped_column(unique=True)
     type: Mapped[ModelType]
     load_balancing_strategy: Mapped[RouterLoadBalancingStrategy]
@@ -216,7 +216,7 @@ class Provider(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     router_id: Mapped[int] = mapped_column(ForeignKey(column="router.id", ondelete="CASCADE"))
-    user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="RESTRICT"))
     type: Mapped[ProviderType]
     url: Mapped[str]
     key: Mapped[str | None]
