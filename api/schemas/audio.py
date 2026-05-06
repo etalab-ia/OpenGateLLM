@@ -83,7 +83,6 @@ class CreateAudioTranscription(BaseModel):
     def format_request(provider_type: ProviderType, request_content: RequestContent):
         match provider_type:
             case ProviderType.ALBERT:
-                request_content.form["response_format"] = "json"
                 return request_content
 
             case ProviderType.MISTRAL:
@@ -107,8 +106,6 @@ class CreateAudioTranscription(BaseModel):
                 return request_content
 
             case ProviderType.OPENAI:
-                if request_content.form.get("response_format") == AudioTranscriptionResponseFormat.TEXT.value:
-                    request_content.form["response_format"] = AudioTranscriptionResponseFormat.JSON.value
                 return request_content
 
             case _:

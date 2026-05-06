@@ -61,7 +61,7 @@ async def audio_transcriptions(
     )
 
     if data.response_format == AudioTranscriptionResponseFormat.TEXT:
-        response = PlainTextResponse(content=response.json()["text"], status_code=response.status_code)
+        response = PlainTextResponse(content=response.text, status_code=response.status_code)
     elif data.response_format in PLAIN_TEXT_SUBTITLE_FORMATS:
         response = PlainTextResponse(
             content=response.text,
