@@ -122,7 +122,7 @@ class User(Base):
     role: Mapped["Role"] = relationship(back_populates="user", passive_deletes=True)
     organization: Mapped["Organization"] = relationship(back_populates="user", passive_deletes=True)
     router: Mapped[list["Router"]] = relationship(back_populates="user", passive_deletes=True)
-    provider: Mapped[list["Provider"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
+    provider: Mapped[list["Provider"]] = relationship(back_populates="user", passive_deletes=True)
 
     __table_args__ = (
         UniqueConstraint("sub", "iss", name="unique_user_email_sub_iss"),
@@ -216,7 +216,7 @@ class Provider(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     router_id: Mapped[int] = mapped_column(ForeignKey(column="router.id", ondelete="CASCADE"))
-    user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="RESTRICT"))
     type: Mapped[ProviderType]
     url: Mapped[str]
     key: Mapped[str | None]
