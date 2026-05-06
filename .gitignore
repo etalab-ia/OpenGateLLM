@@ -223,4 +223,5 @@ run.sh
 bruno
 docs/.astro
 docs/node_modules
-docs/.cache
+node_modules/
+.astro/

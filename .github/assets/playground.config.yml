@@ -7,7 +7,7 @@ settings:
   playground_disabled_pages: ${PLAYGROUND_DISABLED_PAGES:-[]}
   playground_swagger_url: https://albert.api.etalab.gouv.fr/swagger
   playground_reference_url: https://albert.api.etalab.gouv.fr/reference
-  playground_documentation_url: https://docs.opengatellm.org
+  playground_documentation_url: https://doc.incubateur.net/alliance/albert-api
   playground_opengatellm_timeout: 300
 
 # dependencies:
