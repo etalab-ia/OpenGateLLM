@@ -33,7 +33,7 @@ PLAIN_TEXT_SUBTITLE_FORMATS = {
 
 
 class Segment(BaseModel):
-    id: str = Field(default=..., description="A unique identifier for the segment.")
+    id: int = Field(default=..., description="A unique identifier for the segment.")
     type: str = Field(default="transcript.text.segment", description="The type of the segment.")
     text: str = Field(default=..., description="The segment text.")
     start: float = Field(default=..., description="Start time of the segment in seconds.")
