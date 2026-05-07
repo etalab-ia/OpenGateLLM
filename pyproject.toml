@@ -38,7 +38,7 @@ api = [
     "pymupdf4llm==0.3.4",
     "PyMuPDF==1.27.1",
     "python-jose==3.5.0",
-    "python-multipart==0.0.22",
+    "python-multipart==0.0.27",
     "redis==7.2.1",
     "sentry-sdk[fastapi]==2.53.0",
     "sqlalchemy-utils==0.42.1",
