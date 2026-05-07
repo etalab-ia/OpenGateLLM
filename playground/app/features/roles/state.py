@@ -27,7 +27,7 @@ class RolesState(EntityState):
         permissions_read_metric = True if "read_metric" in role["permissions"] else False
         permissions_provide_models = True if "provide_models" in role["permissions"] else False
 
-        limits_dict = defaultdict(lambda: {"rpm": None, "rpd": None, "tpm": None, "tpd": None})
+        limits_dict = defaultdict(lambda: {"rpm": 0, "rpd": 0, "tpm": 0, "tpd": 0})
 
         for limit in role["limits"]:
             router_name = router_dict_reverse[limit["router_id"]]
@@ -105,8 +105,8 @@ class RolesState(EntityState):
                     params={
                         "offset": (self.page - 1) * self.per_page,
                         "limit": self.per_page,
-                        "order_by": self.order_by_value,
-                        "order_direction": self.order_direction_value,
+                        "sort_by": self.order_by_value,
+                        "sort_order": self.order_direction_value,
                     },
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=configuration.settings.playground_opengatellm_timeout,

@@ -98,12 +98,12 @@ class ProvidersState(EntityState):
         params = {
             "offset": (self.page - 1) * self.per_page,
             "limit": self.per_page,
-            "order_by": self.order_by_value,
-            "order_direction": self.order_direction_value,
+            "sort_by": self.order_by_value,
+            "sort_order": self.order_direction_value,
         }
 
         if self.filter_router_value != "All routers":
-            params["router"] = self.routers_dict.get(self.filter_router_value, None)
+            params["router_id"] = self.routers_dict.get(self.filter_router_value, None)
 
         response = None
         try:
