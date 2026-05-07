@@ -87,28 +87,28 @@ def role_limits_row(role: Role, limit: dict) -> rx.Component:
         ),
         rx.table.cell(
             rx.cond(
-                limit["rpm"],
+                limit["rpm"] != None,  # noqa: E711
                 rx.text(limit["rpm"].to(str), weight="medium", size=TEXT_SIZE_LABEL),
                 rx.text("Unlimited", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
             ),
         ),
         rx.table.cell(
             rx.cond(
-                limit["rpd"],
+                limit["rpd"] != None,  # noqa: E711
                 rx.text(limit["rpd"].to(str), weight="medium", size=TEXT_SIZE_LABEL),
                 rx.text("Unlimited", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
             ),
         ),
         rx.table.cell(
             rx.cond(
-                limit["tpm"],
+                limit["tpm"] != None,  # noqa: E711
                 rx.text(limit["tpm"].to(str), weight="medium", size=TEXT_SIZE_LABEL),
                 rx.text("Unlimited", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
             ),
         ),
         rx.table.cell(
             rx.cond(
-                limit["tpd"],
+                limit["tpd"] != None,  # noqa: E711
                 rx.text(limit["tpd"].to(str), weight="medium", size=TEXT_SIZE_LABEL),
                 rx.text("Unlimited", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
             ),

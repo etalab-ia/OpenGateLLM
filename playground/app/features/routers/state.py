@@ -77,8 +77,8 @@ class RoutersState(EntityState):
         params = {
             "offset": (self.page - 1) * self.per_page,
             "limit": self.per_page,
-            "order_by": self.order_by_value,
-            "order_direction": self.order_direction_value,
+            "sort_by": self.order_by_value,
+            "sort_order": self.order_direction_value,
         }
 
         response = None
