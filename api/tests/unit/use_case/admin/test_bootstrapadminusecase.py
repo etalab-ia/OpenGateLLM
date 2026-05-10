@@ -6,7 +6,7 @@ from api.domain.role.entities import PermissionType
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.tests.unit.use_case.factories import RoleFactory, UserFactory
-from api.use_cases.admin.bootstrapadminusecase import (
+from api.use_cases.admin import (
     BootstrapAdminCommand,
     BootstrapAdminUseCase,
     BootstrapAdminUseCaseSkipped,

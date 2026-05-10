@@ -5,7 +5,7 @@ from api.domain.role.entities import PermissionType
 from api.schemas.core.configuration import Configuration, Dependencies, Settings
 from api.sql.models import Permission, User
 from api.tests.integration.factories.sql import RoleSQLFactory, UserSQLFactory
-from api.use_cases.admin.bootstrapadminusecase import BootstrapAdminUseCase
+from api.use_cases.admin import BootstrapAdminUseCase
 from api.utils.lifespan import bootstrap_admin_role_and_user
 
 ADMIN_USERNAME = "admin"
