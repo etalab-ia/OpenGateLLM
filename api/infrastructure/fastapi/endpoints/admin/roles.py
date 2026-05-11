@@ -14,12 +14,13 @@ from api.dependencies import (
 from api.domain import SortField, SortOrder
 from api.domain.role.entities import Limit
 from api.domain.role.errors import RoleAlreadyExistsError, RoleHasUsersError, RoleNotFoundError
-from api.domain.userinfo.errors import UserIsNotAdminError
+from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
+    AccountExpiredHTTPException,
     InternalServerHTTPException,
     NotAdminUserHTTPException,
     RoleAlreadyExistsHTTPException,
@@ -86,6 +87,8 @@ async def create_role(
             raise RoleAlreadyExistsHTTPException(name)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
 
 
 @router.patch(
@@ -131,13 +134,15 @@ async def update_role(
             raise RoleAlreadyExistsHTTPException(name)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
 
 
 @router.get(
     path=EndpointRoute.ADMIN_ROLES,
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([]),
+    responses=get_documentation_responses([NotAdminUserHTTPException]),
 )
 async def get_roles(
     offset: int = Query(default=0, ge=0, description="Number of roles to skip."),
@@ -179,13 +184,15 @@ async def get_roles(
             )
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
 
 
 @router.get(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([RoleNotFoundHTTPException, NotAdminUserHTTPException]),
+    responses=get_documentation_responses([NotAdminUserHTTPException, RoleNotFoundHTTPException]),
 )
 async def get_role(
     role_id: int = Path(description="The ID of the role to get."),
@@ -216,13 +223,15 @@ async def get_role(
             raise RoleNotFoundHTTPException(role_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
 
 
 @router.delete(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([RoleNotFoundHTTPException, RoleHasUsersHTTPException, NotAdminUserHTTPException]),
+    responses=get_documentation_responses([NotAdminUserHTTPException, RoleNotFoundHTTPException, RoleHasUsersHTTPException]),
 )
 async def delete_role(
     role_id: int = Path(description="The ID of the role to delete."),
@@ -255,3 +264,5 @@ async def delete_role(
             raise RoleHasUsersHTTPException(role_id=role_id, number_of_users=number_of_users)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()

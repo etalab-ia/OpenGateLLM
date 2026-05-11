@@ -13,12 +13,13 @@ from api.dependencies import (
 )
 from api.domain import SortField, SortOrder
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
-from api.domain.userinfo.errors import UserIsNotAdminError
+from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
+    AccountExpiredHTTPException,
     InternalServerHTTPException,
     NotAdminUserHTTPException,
     RouterAliasAlreadyExistsHTTPException,
@@ -52,11 +53,7 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_ROUTERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses([
-        RouterAliasAlreadyExistsHTTPException,
-        RouterAlreadyExistsHTTPException,
-        NotAdminUserHTTPException,
-    ]),
+    responses=get_documentation_responses([RouterAliasAlreadyExistsHTTPException, RouterAlreadyExistsHTTPException, NotAdminUserHTTPException]),
 )
 async def create_router(
     body: CreateRouterBody = Body(description="The router creation request."),
@@ -94,13 +91,15 @@ async def create_router(
             raise RouterAlreadyExistsHTTPException(name)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
 
 
 @router.get(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([RouterNotFoundHTTPException, NotAdminUserHTTPException]),
+    responses=get_documentation_responses([NotAdminUserHTTPException, RouterNotFoundHTTPException]),
 )
 async def get_router(
     router_id: int = Path(description="The router ID."),
@@ -130,6 +129,8 @@ async def get_router(
             raise RouterNotFoundHTTPException(router_id=not_found_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
 
 
 @router.get(
@@ -174,12 +175,14 @@ async def get_routers(
             )
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
 
 
 @router.delete(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
     dependencies=[Security(dependency=get_current_key)],
-    responses=get_documentation_responses([RouterNotFoundHTTPException, NotAdminUserHTTPException]),
+    responses=get_documentation_responses([NotAdminUserHTTPException, RouterNotFoundHTTPException]),
     status_code=200,
 )
 async def delete_router(
@@ -211,6 +214,8 @@ async def delete_router(
             raise RouterNotFoundHTTPException(not_found_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
 
 
 @router.patch(
@@ -263,3 +268,5 @@ async def update_router(
             raise RouterAliasAlreadyExistsHTTPException(aliases)
         case RouterNameAlreadyExistsError(name):
             raise RouterAlreadyExistsHTTPException(name)
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()

@@ -6,9 +6,9 @@ import pytest_asyncio
 
 from api.dependencies import get_one_router_use_case_factory
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.userinfo.errors import UserIsNotAdminError
+from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
 from api.schemas.models import ModelType
-from api.tests.helpers import create_token
+from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
@@ -20,7 +20,7 @@ class TestGetRouter:
     @pytest_asyncio.fixture(autouse=True)
     async def setup(self, db_session):
         self.admin_user = UserSQLFactory(admin_user=True)
-        self.token = await create_token(db_session, name="admin_token", user=self.admin_user)
+        self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         router = RouterSQLFactory(user=self.admin_user, type=ModelType.TEXT_GENERATION)
@@ -28,7 +28,7 @@ class TestGetRouter:
 
         response = await client.get(
             url=f"{URL}/{router.id}",
-            headers={"Authorization": f"Bearer {self.token.token}"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
         )
 
         assert response.status_code == 200, response.text
@@ -49,6 +49,11 @@ class TestGetRouter:
                 403,
                 "User has no admin rights.",
             ),
+            (
+                UserExpiredError(),
+                403,
+                "Your account has expired. Please contact support to renew your account.",
+            ),
         ],
     )
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
@@ -58,7 +63,7 @@ class TestGetRouter:
 
         response = await client.get(
             url=f"{URL}/1",
-            headers={"Authorization": f"Bearer {self.token.token}"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
         )
 
         assert response.status_code == expected_status
@@ -68,7 +73,8 @@ class TestGetRouter:
         "headers,expected_status,expected_detail",
         [
             ({}, 401, "Not authenticated"),
-            ({"Authorization": "Bearer invalid-token"}, 403, "Invalid API key."),
+            ({"Authorization": "Bearer malformed-token"}, 401, "Invalid API key."),
+            ({"Authorization": f"Bearer {INVALID_API_KEY}"}, 401, "Invalid API key."),
         ],
     )
     async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):

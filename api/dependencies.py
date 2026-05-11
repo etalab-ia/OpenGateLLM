@@ -20,8 +20,8 @@ from api.infrastructure.postgres import (
     PostgresProviderRepository,
     PostgresRolesRepository,
     PostgresRouterRepository,
-    PostgresUserInfoRepository,
     PostgresUserRepository,
+    PostgresUserWithRoleQuery,
 )
 from api.schemas.core.context import RequestContext
 from api.use_cases.admin.providers import (
@@ -81,8 +81,8 @@ def _router_repository(session: AsyncSession) -> PostgresRouterRepository:
     return PostgresRouterRepository(postgres_session=session, app_title=configuration.settings.app_title)
 
 
-def _user_info_repository(session: AsyncSession) -> PostgresUserInfoRepository:
-    return PostgresUserInfoRepository(postgres_session=session)
+def _user_with_role_query(session: AsyncSession) -> PostgresUserWithRoleQuery:
+    return PostgresUserWithRoleQuery(postgres_session=session)
 
 
 def _limit_repository(session: AsyncSession) -> LimitRepository:
@@ -122,20 +122,20 @@ def _provider_gateway(
 
 
 # models use cases
-def get_models_use_case(
+def get_models_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     request_context: RequestContext = Depends(get_request_context),
 ) -> GetModelsUseCase:
     return GetModelsUseCase(
         router_repository=_router_repository(postgres_session),
         user_id=request_context.get().user_id,
-        user_info_repository=_user_info_repository(postgres_session),
+        user_with_role_query=_user_with_role_query(postgres_session),
     )
 
 
 # users use cases
 def create_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateUserUseCase:
-    return CreateUserUseCase(user_repository=_user_repository(postgres_session), user_info_repository=_user_info_repository(postgres_session))
+    return CreateUserUseCase(user_repository=_user_repository(postgres_session), user_with_role_query=_user_with_role_query(postgres_session))
 
 
 # roles use cases
@@ -144,7 +144,7 @@ def create_role_use_case_factory(postgres_session: AsyncSession = Depends(get_po
         role_repository=_role_repository(postgres_session),
         limit_repository=_limit_repository(postgres_session),
         permission_repository=_permission_repository(postgres_session),
-        user_info_repository=_user_info_repository(postgres_session),
+        user_with_role_query=_user_with_role_query(postgres_session),
     )
 
 
@@ -153,7 +153,7 @@ def update_role_use_case_factory(postgres_session: AsyncSession = Depends(get_po
         role_repository=_role_repository(postgres_session),
         limit_repository=_limit_repository(postgres_session),
         permission_repository=_permission_repository(postgres_session),
-        user_info_repository=_user_info_repository(postgres_session),
+        user_with_role_query=_user_with_role_query(postgres_session),
     )
 
 
@@ -162,43 +162,43 @@ def get_roles_use_case_factory(postgres_session: AsyncSession = Depends(get_post
         role_repository=_role_repository(postgres_session),
         limit_repository=_limit_repository(postgres_session),
         permission_repository=_permission_repository(postgres_session),
-        user_info_repository=_user_info_repository(postgres_session),
+        user_with_role_query=_user_with_role_query(postgres_session),
     )
 
 
 def get_role_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetRoleUseCase:
     return GetRoleUseCase(
         role_repository=_role_repository(postgres_session),
-        user_info_repository=_user_info_repository(postgres_session),
+        user_with_role_query=_user_with_role_query(postgres_session),
     )
 
 
 def delete_role_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> DeleteRoleUseCase:
     return DeleteRoleUseCase(
         role_repository=_role_repository(postgres_session),
-        user_info_repository=_user_info_repository(postgres_session),
+        user_with_role_query=_user_with_role_query(postgres_session),
     )
 
 
 # routers use cases
 def get_one_router_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneRouterUseCase:
-    return GetOneRouterUseCase(router_repository=_router_repository(postgres_session), user_info_repository=_user_info_repository(postgres_session))
+    return GetOneRouterUseCase(router_repository=_router_repository(postgres_session), user_with_role_query=_user_with_role_query(postgres_session))
 
 
 def get_routers_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetRoutersUseCase:
-    return GetRoutersUseCase(router_repository=_router_repository(postgres_session), user_info_repository=_user_info_repository(postgres_session))
+    return GetRoutersUseCase(router_repository=_router_repository(postgres_session), user_with_role_query=_user_with_role_query(postgres_session))
 
 
 def create_router_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateRouterUseCase:
-    return CreateRouterUseCase(router_repository=_router_repository(postgres_session), user_info_repository=_user_info_repository(postgres_session))
+    return CreateRouterUseCase(router_repository=_router_repository(postgres_session), user_with_role_query=_user_with_role_query(postgres_session))
 
 
 def delete_router_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> DeleteRouterUseCase:
-    return DeleteRouterUseCase(router_repository=_router_repository(postgres_session), user_info_repository=_user_info_repository(postgres_session))
+    return DeleteRouterUseCase(router_repository=_router_repository(postgres_session), user_with_role_query=_user_with_role_query(postgres_session))
 
 
 def update_router_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateRouterUseCase:
-    return UpdateRouterUseCase(router_repository=_router_repository(postgres_session), user_info_repository=_user_info_repository(postgres_session))
+    return UpdateRouterUseCase(router_repository=_router_repository(postgres_session), user_with_role_query=_user_with_role_query(postgres_session))
 
 
 # providers use cases
@@ -211,7 +211,7 @@ def create_provider_use_case_factory(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
         provider_gateway=_provider_gateway(metrics_logger=metrics_logger, request_manager=request_manager),
-        user_info_repository=_user_info_repository(postgres_session),
+        user_with_role_query=_user_with_role_query(postgres_session),
     )
 
 
@@ -219,26 +219,26 @@ def update_provider_use_case_factory(postgres_session: AsyncSession = Depends(ge
     return UpdateProviderUseCase(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
-        user_info_repository=_user_info_repository(postgres_session),
+        user_with_role_query=_user_with_role_query(postgres_session),
     )
 
 
 def delete_provider_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> DeleteProviderUseCase:
     return DeleteProviderUseCase(
         provider_repository=_provider_repository(postgres_session),
-        user_info_repository=_user_info_repository(postgres_session),
+        user_with_role_query=_user_with_role_query(postgres_session),
     )
 
 
 def get_one_provider_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneProviderUseCase:
     return GetOneProviderUseCase(
         provider_repository=_provider_repository(postgres_session),
-        user_info_repository=_user_info_repository(postgres_session),
+        user_with_role_query=_user_with_role_query(postgres_session),
     )
 
 
 def get_providers_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetProvidersUseCase:
     return GetProvidersUseCase(
         provider_repository=_provider_repository(postgres_session),
-        user_info_repository=_user_info_repository(postgres_session),
+        user_with_role_query=_user_with_role_query(postgres_session),
     )

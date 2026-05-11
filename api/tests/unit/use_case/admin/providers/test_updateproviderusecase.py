@@ -1,3 +1,4 @@
+import datetime as dt
 from unittest.mock import AsyncMock
 
 import pytest
@@ -7,9 +8,9 @@ from api.domain.model.errors import InconsistentModelMaxContextLengthError, Inco
 from api.domain.provider.entities import ProviderCarbonFootprintZone, ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.userinfo.errors import UserIsNotAdminError
+from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
 from api.schemas.core.models import Metric
-from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, UserInfoFactory
+from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, UserWithRoleFactory
 from api.use_cases.admin.providers._updateproviderusecase import UpdateProviderCommand, UpdateProviderUseCase, UpdateProviderUseCaseSuccess
 
 
@@ -24,27 +25,32 @@ def provider_repository():
 
 
 @pytest.fixture
-def user_info_repository():
+def user_with_role_query():
     return AsyncMock()
 
 
 @pytest.fixture
-def use_case(router_repository, provider_repository, user_info_repository):
+def use_case(router_repository, provider_repository, user_with_role_query):
     return UpdateProviderUseCase(
         router_repository=router_repository,
         provider_repository=provider_repository,
-        user_info_repository=user_info_repository,
+        user_with_role_query=user_with_role_query,
     )
 
 
 @pytest.fixture
-def admin_user_info():
-    return UserInfoFactory(id=1, admin=True)
+def admin_user():
+    return UserWithRoleFactory(id=1, admin=True)
 
 
 @pytest.fixture
-def unauthorized_user_info():
-    return UserInfoFactory(id=3, without_permission=True, limits=[])
+def non_admin_user():
+    return UserWithRoleFactory(id=3, without_permission=True, limits=[])
+
+
+@pytest.fixture
+def expired_user():
+    return UserWithRoleFactory(id=1, expires=int((dt.datetime.now() - dt.timedelta(days=1)).timestamp()))
 
 
 @pytest.fixture
@@ -75,10 +81,10 @@ def default_command():
 class TestUpdateProviderUseCase:
     @pytest.mark.asyncio
     async def test_should_return_user_is_not_admin_error_when_user_is_not_admin(
-        self, use_case, provider_repository, router_repository, user_info_repository, unauthorized_user_info, default_command
+        self, use_case, provider_repository, router_repository, user_with_role_query, non_admin_user, default_command
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = unauthorized_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = non_admin_user
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -90,10 +96,10 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_provider_not_found_error_when_provider_does_not_exist(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info, default_command
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, default_command
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = ProviderNotFoundError(id=10)
 
         # Act
@@ -107,10 +113,10 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_router_not_found_error_when_current_router_does_not_exist(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info, sample_provider, default_command
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider, default_command
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.return_value = RouterNotFoundError(id=sample_provider.router_id)
 
@@ -124,10 +130,10 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_router_not_found_error_when_new_router_does_not_exist(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info, sample_provider, sample_router
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider, sample_router
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.side_effect = [sample_router, None]
 
@@ -153,10 +159,10 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_invalid_provider_type_error_when_type_not_compatible_with_new_router(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info, sample_provider
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         current_router = RouterFactory(id=1, type=RouterType.TEXT_GENERATION)
         # TEI provider is not compatible with TEXT_CLASSIFICATION for VLLM type
         new_router = RouterFactory(id=2, type=RouterType.TEXT_CLASSIFICATION, providers=0)
@@ -186,10 +192,10 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_inconsistent_vector_size_error_when_new_router_has_different_vector_size(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.TEI)
         current_router = RouterFactory(id=1, type=RouterType.TEXT_EMBEDDINGS_INFERENCE, vector_size=768, providers=1)
         new_router = RouterFactory(id=2, name="other-router", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, vector_size=384, providers=1)
@@ -220,10 +226,10 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_inconsistent_max_context_length_error_when_new_router_has_different_max_context_length(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.VLLM)
         current_router = RouterFactory(id=1, type=RouterType.TEXT_GENERATION, max_context_length=4096, vector_size=None, providers=1)
         new_router = RouterFactory(id=2, name="other-router", type=RouterType.TEXT_GENERATION, max_context_length=8192, vector_size=None, providers=1)
@@ -254,10 +260,10 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_not_call_update_provider_when_no_fields_are_changed(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info, sample_provider, sample_router, default_command
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider, sample_router, default_command
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.return_value = sample_router
 
@@ -271,11 +277,11 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_timeout_is_changed(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info, sample_provider, sample_router
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider, sample_router
     ):
         # Arrange
         updated_provider = sample_provider.with_timeout(60)
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.return_value = sample_router
         provider_repository.update_provider.return_value = updated_provider
@@ -302,13 +308,13 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_router_is_changed_and_has_provider(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info, sample_provider
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider
     ):
         # Arrange
         current_router = RouterFactory(id=1, type=RouterType.TEXT_GENERATION, providers=0)
         new_router = RouterFactory(id=2, type=RouterType.TEXT_GENERATION, providers=1)
         updated_provider = sample_provider.with_router_id(new_router.id)
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.side_effect = [current_router, new_router]
         provider_repository.update_provider.return_value = updated_provider
@@ -335,13 +341,13 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_router_is_changed_and_has_no_provider(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info, sample_provider
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider
     ):
         # Arrange
         current_router = RouterFactory(id=1, type=RouterType.TEXT_GENERATION, providers=0)
         new_router = RouterFactory(id=2, type=RouterType.TEXT_GENERATION, providers=0)
         updated_provider = sample_provider.with_router_id(new_router.id)
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.side_effect = [current_router, new_router]
         provider_repository.update_provider.return_value = updated_provider
@@ -368,10 +374,10 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_propagate_provider_already_exists_error_from_repository(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info, sample_provider, sample_router
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider, sample_router
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.return_value = sample_router
         provider_repository.update_provider.return_value = ProviderAlreadyExistsError(
@@ -401,12 +407,12 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_model_hosting_zone_is_changed(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info, sample_provider, sample_router
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider, sample_router
     ):
         # Arrange
         new_zone = ProviderCarbonFootprintZone.FRA
         updated_provider = sample_provider.with_model_hosting_zone(new_zone)
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.return_value = sample_router
         provider_repository.update_provider.return_value = updated_provider
@@ -433,11 +439,11 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_model_total_params_is_changed(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info, sample_provider, sample_router
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider, sample_router
     ):
         # Arrange
         updated_provider = sample_provider.with_model_total_params(7)
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.return_value = sample_router
         provider_repository.update_provider.return_value = updated_provider
@@ -464,11 +470,11 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_model_active_params_is_changed(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info, sample_provider, sample_router
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider, sample_router
     ):
         # Arrange
         updated_provider = sample_provider.with_model_active_params(3)
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.return_value = sample_router
         provider_repository.update_provider.return_value = updated_provider
@@ -495,11 +501,11 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_qos_metric_is_changed(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info, sample_provider, sample_router
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider, sample_router
     ):
         # Arrange
         updated_provider = sample_provider.with_qos_metric(Metric.TTFT)
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.return_value = sample_router
         provider_repository.update_provider.return_value = updated_provider
@@ -526,11 +532,11 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_qos_limit_is_changed(
-        self, use_case, provider_repository, router_repository, user_info_repository, admin_user_info, sample_provider, sample_router
+        self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider, sample_router
     ):
         # Arrange
         updated_provider = sample_provider.with_qos_limit(100.0)
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.return_value = sample_router
         provider_repository.update_provider.return_value = updated_provider
@@ -554,3 +560,14 @@ class TestUpdateProviderUseCase:
         assert isinstance(result, UpdateProviderUseCaseSuccess)
         assert result.provider == updated_provider
         provider_repository.update_provider.assert_called_once_with(sample_provider.with_qos_limit(100.0))
+
+    @pytest.mark.asyncio
+    async def test_should_return_user_expired_error_when_user_expired(self, use_case, expired_user, default_command):
+        # Arrange
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = expired_user
+
+        # Act
+        result = await use_case.execute(command=default_command)
+
+        # Assert
+        assert isinstance(result, UserExpiredError)

@@ -11,8 +11,8 @@ from api.domain.model.errors import InconsistentModelMaxContextLengthError, Inco
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.userinfo.errors import UserIsNotAdminError
-from api.tests.helpers import create_token
+from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
+from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_embeddings_responses, mock_models_responses
 from api.tests.integration.factories.albert import AlbertModelResponseFactory, AlbertModelsResponseFactory, AlbertWrongModelTypeResponseFactory
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
@@ -42,7 +42,7 @@ class TestCreateProvider:
     @pytest_asyncio.fixture(autouse=True)
     async def setup(self, db_session):
         self.admin_user = UserSQLFactory(admin_user=True)
-        self.token = await create_token(db_session, name="admin_token", user=self.admin_user)
+        self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
 
     @respx.mock
     async def test_happy_path(self, client: AsyncClient, db_session):
@@ -66,7 +66,7 @@ class TestCreateProvider:
 
         response = await client.post(
             url=URL,
-            headers={"Authorization": f"Bearer {self.token.token}"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
             json=_valid_body(router.id),
         )
 
@@ -111,6 +111,11 @@ class TestCreateProvider:
                 403,
                 "User has no admin rights.",
             ),
+            (
+                UserExpiredError(),
+                403,
+                "Your account has expired. Please contact support to renew your account.",
+            ),
         ],
     )
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
@@ -120,7 +125,7 @@ class TestCreateProvider:
 
         response = await client.post(
             url=URL,
-            headers={"Authorization": f"Bearer {self.token.token}"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
             json=_valid_body(router_id=1),
         )
 
@@ -131,7 +136,8 @@ class TestCreateProvider:
         "headers,expected_status,expected_detail",
         [
             ({}, 401, "Not authenticated"),
-            ({"Authorization": "Bearer invalid-token"}, 403, "Invalid API key."),
+            ({"Authorization": "Bearer malformed-token"}, 401, "Invalid API key."),
+            ({"Authorization": f"Bearer {INVALID_API_KEY}"}, 401, "Invalid API key."),
         ],
     )
     async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):

@@ -1,10 +1,11 @@
+import datetime as dt
 from unittest.mock import AsyncMock
 
 import pytest
 
 from api.domain.role.errors import RoleHasUsersError, RoleNotFoundError
-from api.domain.userinfo.errors import UserIsNotAdminError
-from api.tests.unit.use_case.factories import RoleFactory, UserInfoFactory
+from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
+from api.tests.unit.use_case.factories import RoleFactory, UserWithRoleFactory
 from api.use_cases.admin.roles import DeleteRoleCommand, DeleteRoleUseCase, DeleteRoleUseCaseSuccess
 
 
@@ -14,24 +15,39 @@ def role_repository():
 
 
 @pytest.fixture
-def user_info_repository():
+def user_with_role_query():
     return AsyncMock()
 
 
 @pytest.fixture
-def use_case(role_repository, user_info_repository):
+def admin_user():
+    return UserWithRoleFactory(id=1, admin=True)
+
+
+@pytest.fixture
+def non_admin_user():
+    return UserWithRoleFactory(id=3, without_permission=True, limits=[])
+
+
+@pytest.fixture
+def expired_user():
+    return UserWithRoleFactory(id=1, expires=int((dt.datetime.now() - dt.timedelta(days=1)).timestamp()))
+
+
+@pytest.fixture
+def use_case(role_repository, user_with_role_query):
     return DeleteRoleUseCase(
         role_repository=role_repository,
-        user_info_repository=user_info_repository,
+        user_with_role_query=user_with_role_query,
     )
 
 
 class TestDeleteRoleUseCase:
     @pytest.mark.asyncio
-    async def test_should_return_deleted_role_when_user_is_admin_and_role_exists(self, use_case, role_repository, user_info_repository):
+    async def test_should_return_deleted_role_when_user_is_admin_and_role_exists(self, use_case, role_repository, user_with_role_query, admin_user):
         # Arrange
         role = RoleFactory(id=42, users=0)
-        user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = role
         command = DeleteRoleCommand(user_id=1, role_id=42)
 
@@ -44,9 +60,11 @@ class TestDeleteRoleUseCase:
         role_repository.delete_role.assert_awaited_once_with(role_id=42)
 
     @pytest.mark.asyncio
-    async def test_should_return_user_is_not_admin_error_when_user_is_not_admin(self, use_case, role_repository, user_info_repository):
+    async def test_should_return_user_is_not_admin_error_when_user_is_not_admin(
+        self, use_case, role_repository, user_with_role_query, non_admin_user
+    ):
         # Arrange
-        user_info_repository.get_user_info.return_value = UserInfoFactory(without_permission=True, limits=[])
+        user_with_role_query.get_user_with_role_by_id.return_value = non_admin_user
         command = DeleteRoleCommand(user_id=1, role_id=42)
 
         # Act
@@ -58,9 +76,9 @@ class TestDeleteRoleUseCase:
         role_repository.delete_role.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_role_not_found_error_when_role_does_not_exist(self, use_case, role_repository, user_info_repository):
+    async def test_should_return_role_not_found_error_when_role_does_not_exist(self, use_case, role_repository, user_with_role_query, admin_user):
         # Arrange
-        user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = RoleNotFoundError(id=99)
         command = DeleteRoleCommand(user_id=1, role_id=99)
 
@@ -73,10 +91,10 @@ class TestDeleteRoleUseCase:
         role_repository.delete_role.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_role_has_users_error_when_role_has_users(self, use_case, role_repository, user_info_repository):
+    async def test_should_return_role_has_users_error_when_role_has_users(self, use_case, role_repository, user_with_role_query, admin_user):
         # Arrange
         role = RoleFactory(id=42, users=3)
-        user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = role
         command = DeleteRoleCommand(user_id=1, role_id=42)
 
@@ -87,3 +105,14 @@ class TestDeleteRoleUseCase:
         assert isinstance(result, RoleHasUsersError)
         assert result.id == 42
         role_repository.delete_role.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_should_return_user_expired_error_when_user_expired(self, use_case, expired_user):
+        # Arrange
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = expired_user
+
+        # Act
+        result = await use_case.execute(command=DeleteRoleCommand(user_id=1, role_id=42))
+
+        # Assert
+        assert isinstance(result, UserExpiredError)

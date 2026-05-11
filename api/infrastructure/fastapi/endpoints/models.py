@@ -1,13 +1,17 @@
 from fastapi import APIRouter, Depends, Path, Request, Security
 from fastapi.responses import JSONResponse
 
-from api.dependencies import get_models_use_case
+from api.dependencies import get_models_use_case_factory
+from api.domain.model.errors import ModelNotFoundError
+from api.domain.user.errors import UserExpiredError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.documentation import get_documentation_responses
-from api.infrastructure.fastapi.endpoints.exceptions import ModelNotFoundHTTPException
+from api.infrastructure.fastapi.endpoints.exceptions import (
+    AccountExpiredHTTPException,
+    ModelNotFoundHTTPException,
+)
 from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
-from api.use_cases.models import GetModelsUseCase
-from api.use_cases.models._getmodelsusecase import ModelNotFound, Success
+from api.use_cases.models import GetModelsUseCase, GetModelUseCaseSucess
 from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.MODELS.title()])
@@ -23,7 +27,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.MODELS.title()])
 async def get_model(
     request: Request,
     model: str = Path(description="The name of the model to get."),
-    get_models_use_case: GetModelsUseCase = Depends(get_models_use_case),
+    get_models_use_case: GetModelsUseCase = Depends(get_models_use_case_factory),
 ) -> ModelNotFoundHTTPException | JSONResponse:
     """
     Get a model by name and provide basic information.
@@ -31,12 +35,14 @@ async def get_model(
     result = await get_models_use_case.execute(name=model)
 
     match result:
-        case Success(models):
+        case GetModelUseCaseSucess(models):
             models = [ModelResponse(**model.model_dump()) for model in models]
             model = models[0]
             return JSONResponse(content=model.model_dump(), status_code=200)
-        case ModelNotFound():
+        case ModelNotFoundError():
             raise ModelNotFoundHTTPException()
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
 
 
 @router.get(
@@ -48,13 +54,15 @@ async def get_model(
 )
 async def get_models(
     request: Request,
-    get_models_use_case: GetModelsUseCase = Depends(get_models_use_case),
+    get_models_use_case: GetModelsUseCase = Depends(get_models_use_case_factory),
 ) -> JSONResponse:
     """
     Lists the currently available models and provides basic information.
     """
     result = await get_models_use_case.execute(name=None)
     match result:
-        case Success(models):
+        case GetModelUseCaseSucess(models):
             models = [ModelResponse(**model.model_dump()) for model in models]
             return JSONResponse(content=ModelsResponse(data=models).model_dump(), status_code=200)
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()

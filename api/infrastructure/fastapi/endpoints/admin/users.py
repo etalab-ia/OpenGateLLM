@@ -6,13 +6,13 @@ from fastapi import Body, Depends, Security
 from api.dependencies import create_user_use_case_factory, get_request_context
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user.errors import UserAlreadyExistsError
-from api.domain.userinfo.errors import UserIsNotAdminError
+from api.domain.user.errors import UserAlreadyExistsError, UserExpiredError, UserIsNotAdminError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
+    AccountExpiredHTTPException,
     InternalServerHTTPException,
     NotAdminUserHTTPException,
     OrganizationNotFoundHTTPException,
@@ -77,3 +77,5 @@ async def create_user(
             raise OrganizationNotFoundHTTPException(organization_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()

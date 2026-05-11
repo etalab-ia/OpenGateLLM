@@ -9,7 +9,7 @@ from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, 
 from api.domain.role.entities import Limit, LimitType, PermissionType, Role
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy
 from api.domain.user.entities import User
-from api.domain.userinfo.entities import UserInfo
+from api.domain.user.views import UserWithRoleView
 from api.schemas.core.configuration import Model as ModelConfiguration
 from api.schemas.core.configuration import ModelProvider as ModelProviderConfiguration
 
@@ -114,9 +114,9 @@ class UserFactory(factory.Factory):
     updated = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
 
 
-class UserInfoFactory(factory.Factory):
+class UserWithRoleFactory(factory.Factory):
     class Meta:
-        model = UserInfo
+        model = UserWithRoleView
 
     id = factory.Sequence(lambda n: n + 1)
     email = factory.Faker("email")

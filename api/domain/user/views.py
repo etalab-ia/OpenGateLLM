@@ -1,9 +1,11 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from api.domain.role.entities import Limit, PermissionType
 
 
-class UserInfo(BaseModel):
+class UserWithRoleView(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
     id: int = Field(description="The user ID.")
     email: str = Field(description="The user email.")
     name: str | None = Field(default=None, description="The user name.")

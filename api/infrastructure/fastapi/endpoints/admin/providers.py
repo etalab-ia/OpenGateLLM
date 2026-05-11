@@ -16,12 +16,13 @@ from api.domain.model.errors import InconsistentModelMaxContextLengthError, Inco
 from api.domain.provider.entities import ProviderSortField
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.userinfo.errors import UserIsNotAdminError
+from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
+    AccountExpiredHTTPException,
     InconsistentModelMaxContextLengthHTTPException,
     InconsistentModelVectorSizeHTTPException,
     InternalServerHTTPException,
@@ -134,6 +135,9 @@ async def create_provider(
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
 
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
+
 
 @router.delete(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
@@ -172,6 +176,9 @@ async def delete_provider(
 
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
 
 
 @router.patch(
@@ -243,6 +250,9 @@ async def update_provider(
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
 
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
+
 
 @router.get(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
@@ -277,6 +287,9 @@ async def get_provider(
 
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
 
 
 @router.get(
@@ -330,3 +343,6 @@ async def get_providers(
 
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()

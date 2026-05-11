@@ -2,7 +2,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel, Field
 
 from api.helpers._identityaccessmanager import IdentityAccessManager
-from api.utils.exceptions import InvalidAPIKeyException
+from api.infrastructure.fastapi.endpoints.exceptions import InvalidAPIKeyException
 
 
 class KeyClaims(BaseModel):

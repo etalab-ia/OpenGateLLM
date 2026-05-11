@@ -1,10 +1,11 @@
+import datetime as dt
 from unittest.mock import AsyncMock
 
 import pytest
 
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.userinfo.errors import UserIsNotAdminError
-from api.tests.unit.use_case.factories import RouterFactory, UserInfoFactory
+from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
+from api.tests.unit.use_case.factories import RouterFactory, UserWithRoleFactory
 from api.use_cases.admin.routers import DeleteRouterCommand, DeleteRouterUseCase, DeleteRouterUseCaseSuccess
 
 
@@ -14,23 +15,28 @@ def router_repository():
 
 
 @pytest.fixture
-def user_info_repository():
+def user_with_role_query():
     return AsyncMock()
 
 
 @pytest.fixture
-def use_case(router_repository, user_info_repository):
-    return DeleteRouterUseCase(router_repository=router_repository, user_info_repository=user_info_repository)
+def use_case(router_repository, user_with_role_query):
+    return DeleteRouterUseCase(router_repository=router_repository, user_with_role_query=user_with_role_query)
 
 
 @pytest.fixture
-def admin_user_info():
-    return UserInfoFactory(id=1, admin=True)
+def admin_user():
+    return UserWithRoleFactory(id=1, admin=True)
 
 
 @pytest.fixture
-def unauthorized_user_info():
-    return UserInfoFactory(id=3, without_permission=True, limits=[])
+def non_admin_user():
+    return UserWithRoleFactory(id=3, without_permission=True, limits=[])
+
+
+@pytest.fixture
+def expired_user():
+    return UserWithRoleFactory(id=1, expires=int((dt.datetime.now() - dt.timedelta(days=1)).timestamp()))
 
 
 @pytest.fixture
@@ -41,29 +47,29 @@ def sample_router():
 class TestDeleteRouterUseCase:
     @pytest.mark.asyncio
     async def test_should_return_deleted_router_when_user_is_admin_and_router_exists(
-        self, use_case, router_repository, user_info_repository, admin_user_info, sample_router
+        self, use_case, router_repository, user_with_role_query, admin_user, sample_router
     ):
         # Arrange
-        use_case.user_info_repository.get_user_info.return_value = admin_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         use_case.router_repository.delete_router.return_value = sample_router
 
         # Act
-        result = await use_case.execute(command=DeleteRouterCommand(user_id=admin_user_info.id, router_id=42))
+        result = await use_case.execute(command=DeleteRouterCommand(user_id=admin_user.id, router_id=42))
 
         # Assert
         assert isinstance(result, DeleteRouterUseCaseSuccess)
         assert result.router == sample_router
-        user_info_repository.get_user_info.assert_called_once_with(user_id=admin_user_info.id)
+        user_with_role_query.get_user_with_role_by_id.assert_called_once_with(user_id=admin_user.id)
         router_repository.delete_router.assert_called_once_with(42)
 
     @pytest.mark.asyncio
-    async def test_should_return_router_not_found_error_when_router_does_not_exist(self, use_case, router_repository, admin_user_info):
+    async def test_should_return_router_not_found_error_when_router_does_not_exist(self, use_case, router_repository, admin_user):
         # Arrange
-        use_case.user_info_repository.get_user_info.return_value = admin_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         use_case.router_repository.delete_router.return_value = RouterNotFoundError(id=99)
 
         # Act
-        result = await use_case.execute(command=DeleteRouterCommand(user_id=admin_user_info.id, router_id=99))
+        result = await use_case.execute(command=DeleteRouterCommand(user_id=admin_user.id, router_id=99))
 
         # Assert
         assert isinstance(result, RouterNotFoundError)
@@ -71,13 +77,24 @@ class TestDeleteRouterUseCase:
         router_repository.delete_router.assert_called_once_with(99)
 
     @pytest.mark.asyncio
-    async def test_should_return_user_is_not_admin_error_when_user_is_not_admin(self, use_case, router_repository, unauthorized_user_info):
+    async def test_should_return_user_is_not_admin_error_when_user_is_not_admin(self, use_case, router_repository, non_admin_user):
         # Arrange
-        use_case.user_info_repository.get_user_info.return_value = unauthorized_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = non_admin_user
 
         # Act
-        result = await use_case.execute(command=DeleteRouterCommand(user_id=unauthorized_user_info.id, router_id=42))
+        result = await use_case.execute(command=DeleteRouterCommand(user_id=non_admin_user.id, router_id=42))
 
         # Assert
         assert isinstance(result, UserIsNotAdminError)
         router_repository.delete_router.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_should_return_user_expired_error_when_user_expired(self, use_case, expired_user):
+        # Arrange
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = expired_user
+
+        # Act
+        result = await use_case.execute(command=DeleteRouterCommand(user_id=expired_user.id, router_id=42))
+
+        # Assert
+        assert isinstance(result, UserExpiredError)
