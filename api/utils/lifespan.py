@@ -34,7 +34,7 @@ from api.infrastructure.postgres import (
     PostgresUserRepository,
 )
 from api.schemas.core.configuration import Configuration, Tokenizer
-from api.use_cases.admin.bootstrapadminusecase import (
+from api.use_cases.admin import (
     BootstrapAdminCommand,
     BootstrapAdminUseCase,
     BootstrapAdminUseCaseSkipped,
