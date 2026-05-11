@@ -122,7 +122,7 @@ def _provider_gateway(
 
 
 # models use cases
-def get_models_use_case(
+def get_models_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     request_context: RequestContext = Depends(get_request_context),
 ) -> GetModelsUseCase:

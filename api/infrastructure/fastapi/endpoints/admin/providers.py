@@ -135,6 +135,9 @@ async def create_provider(
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
 
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
+
 
 @router.delete(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",

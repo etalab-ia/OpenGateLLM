@@ -1,3 +1,4 @@
+import datetime as dt
 from unittest.mock import AsyncMock
 
 import pytest
@@ -8,7 +9,7 @@ from api.domain.provider import ProviderCapabilities
 from api.domain.provider.entities import ProviderCarbonFootprintZone, ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.user.errors import UserIsNotAdminError
+from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, UserWithRoleFactory
 from api.use_cases.admin.providers import CreateProviderCommand, CreateProviderUseCase, CreateProviderUseCaseSuccess
 
@@ -34,13 +35,18 @@ def user_with_role_query():
 
 
 @pytest.fixture
-def admin_user_info():
+def admin_user():
     return UserWithRoleFactory(id=1, admin=True)
 
 
 @pytest.fixture
-def unauthorized_user_info():
+def non_admin_user():
     return UserWithRoleFactory(id=3, without_permission=True, limits=[])
+
+
+@pytest.fixture
+def expired_user():
+    return UserWithRoleFactory(id=1, expires=int((dt.datetime.now() - dt.timedelta(days=1)).timestamp()))
 
 
 @pytest.fixture
@@ -137,11 +143,11 @@ def with_provider_type(command: CreateProviderCommand, provider_type: ProviderTy
 class TestCreateProviderUseCase:
     @pytest.mark.asyncio
     async def test_should_create_provider_when_router_exists_without_any_provider(
-        self, use_case, router_repository, provider_repository, provider_gateway, sample_router, sample_provider, default_command, admin_user_info
+        self, use_case, router_repository, provider_repository, provider_gateway, sample_router, sample_provider, default_command, admin_user
     ):
         # Arrange
         router_repository.get_router_by_id.return_value = sample_router
-        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_gateway.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
         provider_repository.create_provider.return_value = sample_provider
 
@@ -187,10 +193,10 @@ class TestCreateProviderUseCase:
         sample_router_with_providers,
         sample_provider,
         default_command,
-        admin_user_info,
+        admin_user,
     ):
         # Arrange
-        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_router_by_id.return_value = sample_router_with_providers
         provider_gateway.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
         provider_repository.create_provider.return_value = sample_provider
@@ -228,10 +234,10 @@ class TestCreateProviderUseCase:
         sample_embedding_router_with_providers,
         sample_provider,
         default_command,
-        admin_user_info,
+        admin_user,
     ):
         # Arrange
-        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_router_by_id.return_value = sample_embedding_router_with_providers
         provider_gateway.get_capabilities.return_value = ProviderCapabilities(max_context_length=512, vector_size=768)
         provider_repository.create_provider.return_value = sample_provider
@@ -261,10 +267,10 @@ class TestCreateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_router_not_found_error_when_router_does_not_exist(
-        self, use_case, router_repository, provider_repository, provider_gateway, default_command, admin_user_info
+        self, use_case, router_repository, provider_repository, provider_gateway, default_command, admin_user
     ):
         # Arrange
-        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_router_by_id.return_value = None
 
         # Act
@@ -278,10 +284,10 @@ class TestCreateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_invalid_provider_type_error_when_type_not_compatible(
-        self, use_case, router_repository, provider_repository, provider_gateway, default_command, admin_user_info
+        self, use_case, router_repository, provider_repository, provider_gateway, default_command, admin_user
     ):
         # Arrange
-        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_router_by_id.return_value = RouterFactory(id=1, name="tei-router", type=RouterType.TEXT_CLASSIFICATION)
 
         # Act
@@ -296,10 +302,10 @@ class TestCreateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_provider_not_reachable_error_when_gateway_fails(
-        self, use_case, router_repository, provider_repository, provider_gateway, sample_router, default_command, admin_user_info
+        self, use_case, router_repository, provider_repository, provider_gateway, sample_router, default_command, admin_user
     ):
         # Arrange
-        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_router_by_id.return_value = sample_router
         provider_gateway.get_capabilities.return_value = ProviderNotReachableError(model_name="my-model", status_code=500, detail="error_detail")
 
@@ -315,10 +321,10 @@ class TestCreateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_inconsistent_max_context_length_error_when_mismatch(
-        self, use_case, router_repository, provider_repository, provider_gateway, sample_router_with_providers, default_command, admin_user_info
+        self, use_case, router_repository, provider_repository, provider_gateway, sample_router_with_providers, default_command, admin_user
     ):
         # Arrange
-        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_router_by_id.return_value = sample_router_with_providers
         provider_gateway.get_capabilities.return_value = ProviderCapabilities(max_context_length=2048, vector_size=None)
 
@@ -340,10 +346,10 @@ class TestCreateProviderUseCase:
         provider_gateway,
         sample_embedding_router_with_providers,
         default_command,
-        admin_user_info,
+        admin_user,
     ):
         # Arrange
-        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_router_by_id.return_value = sample_embedding_router_with_providers
         provider_gateway.get_capabilities.return_value = ProviderCapabilities(max_context_length=512, vector_size=384)
 
@@ -358,10 +364,10 @@ class TestCreateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_provider_already_exists_error(
-        self, use_case, router_repository, provider_repository, provider_gateway, sample_router, default_command, admin_user_info
+        self, use_case, router_repository, provider_repository, provider_gateway, sample_router, default_command, admin_user
     ):
         # Arrange
-        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_router_by_id.return_value = sample_router
         provider_gateway.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
         provider_repository.create_provider.return_value = ProviderAlreadyExistsError(model_name="my-model", url="https://example.com/", router_id=1)
@@ -376,14 +382,23 @@ class TestCreateProviderUseCase:
         assert result.router_id == 1
 
     @pytest.mark.asyncio
-    async def test_should_return_user_is_not_admin_error_when_user_not_admin(
-        self, use_case, user_with_role_query, default_command, unauthorized_user_info
-    ):
+    async def test_should_return_user_is_not_admin_error_when_user_not_admin(self, use_case, default_command, non_admin_user):
         # Arrange
-        use_case.user_with_role_query.get_user_with_role_by_id.return_value = unauthorized_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = non_admin_user
 
         # Act
         result = await use_case.execute(default_command)
 
         # Assert
         assert isinstance(result, UserIsNotAdminError)
+
+    @pytest.mark.asyncio
+    async def test_should_return_user_expired_error_when_user_expired(self, use_case, default_command, expired_user):
+        # Arrange
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = expired_user
+
+        # Act
+        result = await use_case.execute(default_command)
+
+        # Assert
+        assert isinstance(result, UserExpiredError)

@@ -126,8 +126,8 @@ class TokenSQLFactory(BaseSQLFactory):
 
     user_id = None
     user = factory.SubFactory(UserSQLFactory)
-    name = factory.Faker("word")
     token = "tmp"
+    name = factory.Faker("word")
     expires = factory.LazyFunction(lambda: datetime.now() + timedelta(days=30))
     created = factory.LazyFunction(lambda: datetime.now())
 

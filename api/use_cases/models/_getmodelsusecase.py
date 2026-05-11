@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import time
 
 from api.domain.model.entities import Model, ModelCosts
+from api.domain.model.errors import ModelNotFoundError
 from api.domain.role.entities import PermissionType
 from api.domain.router import RouterRepository
 from api.domain.user import UserWithRoleQuery
@@ -9,16 +10,11 @@ from api.domain.user.errors import UserExpiredError
 
 
 @dataclass
-class Success:
+class GetModelUseCaseSucess:
     models: list[Model]
 
 
-@dataclass
-class ModelNotFound:
-    pass
-
-
-type Result = Success | ModelNotFound | UserExpiredError
+type Result = GetModelUseCaseSucess | ModelNotFoundError | UserExpiredError
 
 
 class GetModelsUseCase:
@@ -39,7 +35,7 @@ class GetModelsUseCase:
         if name is not None:
             routers = [router for router in routers if router.name == name or any(alias == name for alias in router.aliases)]
             if not routers:
-                return ModelNotFound()
+                return ModelNotFoundError()
 
         for router in routers:
             if router.providers > 0:
@@ -63,5 +59,5 @@ class GetModelsUseCase:
                     )
 
         if name is not None and len(models) == 0:
-            return ModelNotFound()
-        return Success(models=models)
+            return ModelNotFoundError()
+        return GetModelUseCaseSucess(models=models)

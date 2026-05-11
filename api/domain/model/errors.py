@@ -12,12 +12,18 @@ class InconsistentModelVectorSizeError:
 
 
 @dataclass
+class ModelNotFoundError:
+    pass
+
+
+@dataclass
 class InconsistentModelMaxContextLengthError:
     expected_max_context_length: int
     actual_max_context_length: int
     router_name: str
 
 
+# @TODO: move to provider.errors.py
 @dataclass
 class UnsupportedEndpointError:
     endpoint: EndpointRoute

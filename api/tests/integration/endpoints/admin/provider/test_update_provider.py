@@ -8,8 +8,8 @@ from api.dependencies import update_provider_use_case_factory
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.user.errors import UserIsNotAdminError
-from api.tests.helpers import create_token
+from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
+from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
@@ -23,7 +23,7 @@ class TestUpdateProvider:
     @pytest_asyncio.fixture(autouse=True)
     async def setup(self, db_session):
         self.admin_user = UserSQLFactory(admin_user=True)
-        self.token = await create_token(db_session, name="admin_token", user=self.admin_user)
+        self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         router = RouterSQLFactory(user=self.admin_user)
@@ -32,7 +32,7 @@ class TestUpdateProvider:
 
         response = await client.patch(
             url=f"{URL}/{provider.id}",
-            headers={"Authorization": f"Bearer {self.token.token}"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
             json={"timeout": 120},
         )
 
@@ -80,6 +80,11 @@ class TestUpdateProvider:
                 403,
                 "User has no admin rights.",
             ),
+            (
+                UserExpiredError(),
+                403,
+                "Your account has expired. Please contact support to renew your account.",
+            ),
         ],
     )
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
@@ -89,7 +94,7 @@ class TestUpdateProvider:
 
         response = await client.patch(
             url=f"{URL}/1",
-            headers={"Authorization": f"Bearer {self.token.token}"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
             json={"timeout": 120},
         )
 
@@ -100,7 +105,8 @@ class TestUpdateProvider:
         "headers,expected_status,expected_detail",
         [
             ({}, 401, "Not authenticated"),
-            ({"Authorization": "Bearer invalid-token"}, 403, "Invalid API key."),
+            ({"Authorization": "Bearer malformed-token"}, 401, "Invalid API key."),
+            ({"Authorization": f"Bearer {INVALID_API_KEY}"}, 401, "Invalid API key."),
         ],
     )
     async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):

@@ -46,7 +46,7 @@ class TestGetKeyExpiration:
     async def test_get_key_expiration_should_return_past_epoch_when_token_is_expired(self, repository, db_session):
         # Arrange
         user = UserSQLFactory()
-        expires_at = datetime.now() - timedelta(days=1)
+        expires_at = (datetime.now() - timedelta(days=1)).replace(microsecond=0)
         token = TokenSQLFactory(user=user, expires=expires_at)
         await db_session.flush()
 
