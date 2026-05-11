@@ -214,6 +214,7 @@ class ElasticsearchDependency(ConfigBaseModel):
     index_language: ElasticsearchIndexLanguage = Field(default=ElasticsearchIndexLanguage.ENGLISH, description="Language of the Elasticsearch index.", examples=[ElasticsearchIndexLanguage.ENGLISH.value])  # fmt: off
     number_of_shards: int = Field(default=12, ge=1, le=75, description="Number of shards for the Elasticsearch index.", examples=[4])  # fmt: off
     number_of_replicas: int = Field(default=1, ge=0, description="Number of replicas for the Elasticsearch index.", examples=[1])  # fmt: off
+    refresh_interval: constr(strip_whitespace=True, pattern=r"^(-1|\d+(ms|s|m|h|d))$") = Field(default="1s", description="Refresh interval for the Elasticsearch index", examples=["2s"])  # fmt: off
 
 
 @custom_validation_error()

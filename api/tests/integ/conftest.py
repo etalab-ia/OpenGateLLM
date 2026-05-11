@@ -38,6 +38,7 @@ def setup_elasticsearch_index() -> None:
         kwargs.pop("index_language")
         kwargs.pop("number_of_shards")
         kwargs.pop("number_of_replicas")
+        kwargs.pop("refresh_interval")
         client = AsyncElasticsearch(**kwargs)
         try:
             if await client.indices.exists(index=index_name):
