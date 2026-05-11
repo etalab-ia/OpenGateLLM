@@ -149,7 +149,7 @@ Both factory sets support **traits** for common scenarios (e.g., `admin_user`, `
 ```python
 # tests/unit/use_case/test_getmodelsusecase.py
 from unittest.mock import AsyncMock, Mock
-from api.tests.unit.use_case.factories import RouterFactory, UserInfoFactory
+from api.tests.unit.use_case.factories import RouterFactory, UserWithRoleFactory
 
 @pytest.fixture
 def router_repository():

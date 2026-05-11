@@ -4,9 +4,8 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from api.domain.model.entities import ModelType as RouterType
-from api.domain.role.entities import LimitType, PermissionType
-from api.domain.userinfo.entities import Limit
-from api.tests.unit.use_case.factories import RouterFactory, UserInfoFactory
+from api.domain.role.entities import Limit, LimitType, PermissionType
+from api.tests.unit.use_case.factories import RouterFactory, UserWithRoleFactory
 from api.use_cases.models import GetModelsUseCase
 from api.use_cases.models._getmodelsusecase import ModelNotFound, Success
 
@@ -20,9 +19,9 @@ def router_repository():
 
 
 @pytest.fixture
-def user_info_repository():
+def user_with_role_query():
     repo = Mock()
-    repo.get_user_info = AsyncMock()
+    repo.get_user_with_role_by_id = AsyncMock()
     return repo
 
 
@@ -70,7 +69,7 @@ def sample_routers():
 
 @pytest.fixture
 def user_info_with_access():
-    return UserInfoFactory(
+    return UserWithRoleFactory(
         id=1,
         limits=[
             Limit(router_id=1, value=100, type=LimitType.RPM),
@@ -82,17 +81,17 @@ def user_info_with_access():
 class TestGetModelsUseCase:
     @pytest.mark.asyncio
     async def test_should_return_all_models_the_user_has_access_to_when_no_name_is_given_and_has_limits(
-        self, router_repository, user_info_repository, sample_routers, user_info_with_access
+        self, router_repository, user_with_role_query, sample_routers, user_info_with_access
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = user_info_with_access
+        user_with_role_query.get_user_with_role_by_id.return_value = user_info_with_access
         router_repository.get_all_routers.return_value = sample_routers
         router_repository.get_organization_name.side_effect = ["OpenAI", "Anthropic"]
 
         use_case = GetModelsUseCase(
             user_id=1,
             router_repository=router_repository,
-            user_info_repository=user_info_repository,
+            user_with_role_query=user_with_role_query,
         )
 
         # Act
@@ -114,23 +113,23 @@ class TestGetModelsUseCase:
 
         assert all(model.id != "dall-e-3" for model in result.models)
 
-        user_info_repository.get_user_info.assert_called_once_with(user_id=1)
+        user_with_role_query.get_user_with_role_by_id.assert_called_once_with(user_id=1)
         router_repository.get_all_routers.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_should_return_all_models_the_user_has_access_to_when_no_name_is_given_and_has_limits_and_is_admin(
-        self, router_repository, user_info_repository, sample_routers
+        self, router_repository, user_with_role_query, sample_routers
     ):
         # Arrange
-        user_info_non_admin = UserInfoFactory(user_id=1, limits=[], permissions=[PermissionType.ADMIN])
-        user_info_repository.get_user_info.return_value = user_info_non_admin
+        user_info_non_admin = UserWithRoleFactory(id=1, limits=[], permissions=[PermissionType.ADMIN])
+        user_with_role_query.get_user_with_role_by_id.return_value = user_info_non_admin
         router_repository.get_all_routers.return_value = sample_routers
         router_repository.get_organization_name.side_effect = ["OpenAI", "Anthropic"]
 
         use_case = GetModelsUseCase(
             user_id=1,
             router_repository=router_repository,
-            user_info_repository=user_info_repository,
+            user_with_role_query=user_with_role_query,
         )
 
         # Act
@@ -140,15 +139,15 @@ class TestGetModelsUseCase:
         assert isinstance(result, Success)
         assert len(result.models) == 2
 
-        user_info_repository.get_user_info.assert_called_once_with(user_id=1)
+        user_with_role_query.get_user_with_role_by_id.assert_called_once_with(user_id=1)
         router_repository.get_all_routers.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_should_return_a_list_with_one_model_when_a_name_is_given(
-        self, router_repository, user_info_repository, sample_routers, user_info_with_access
+        self, router_repository, user_with_role_query, sample_routers, user_info_with_access
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = user_info_with_access
+        user_with_role_query.get_user_with_role_by_id.return_value = user_info_with_access
         router_repository.get_all_routers.return_value = sample_routers
         router_repository.get_organization_name.return_value = "Anthropic"
 
@@ -156,7 +155,7 @@ class TestGetModelsUseCase:
         use_case = GetModelsUseCase(
             user_id=1,
             router_repository=router_repository,
-            user_info_repository=user_info_repository,
+            user_with_role_query=user_with_role_query,
         )
 
         # Act
@@ -169,17 +168,17 @@ class TestGetModelsUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_a_list_with_one_model_when_an_alias_is_given(
-        self, router_repository, user_info_repository, sample_routers, user_info_with_access
+        self, router_repository, user_with_role_query, sample_routers, user_info_with_access
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = user_info_with_access
+        user_with_role_query.get_user_with_role_by_id.return_value = user_info_with_access
         router_repository.get_all_routers.return_value = sample_routers
         router_repository.get_organization_name.return_value = "OpenAI"
 
         use_case = GetModelsUseCase(
             user_id=1,
             router_repository=router_repository,
-            user_info_repository=user_info_repository,
+            user_with_role_query=user_with_role_query,
         )
 
         # Act
@@ -193,16 +192,16 @@ class TestGetModelsUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_model_not_found_when_given_a_name_that_does_not_exist(
-        self, router_repository, user_info_repository, sample_routers, user_info_with_access
+        self, router_repository, user_with_role_query, sample_routers, user_info_with_access
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = user_info_with_access
+        user_with_role_query.get_user_with_role_by_id.return_value = user_info_with_access
         router_repository.get_all_routers.return_value = sample_routers
 
         use_case = GetModelsUseCase(
             user_id=1,
             router_repository=router_repository,
-            user_info_repository=user_info_repository,
+            user_with_role_query=user_with_role_query,
         )
 
         # Act
@@ -213,17 +212,17 @@ class TestGetModelsUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_an_empty_list_when_user_has_no_limit_defined_and_no_admin_permission(
-        self, router_repository, user_info_repository, sample_routers
+        self, router_repository, user_with_role_query, sample_routers
     ):
         # Arrange
-        user_info_no_access = UserInfoFactory(user_id=1, limits=[], permissions=[])
-        user_info_repository.get_user_info.return_value = user_info_no_access
+        user_info_no_access = UserWithRoleFactory(id=1, limits=[], permissions=[])
+        user_with_role_query.get_user_with_role_by_id.return_value = user_info_no_access
         router_repository.get_all_routers.return_value = sample_routers
 
         use_case = GetModelsUseCase(
             user_id=1,
             router_repository=router_repository,
-            user_info_repository=user_info_repository,
+            user_with_role_query=user_with_role_query,
         )
 
         # Act
@@ -235,17 +234,17 @@ class TestGetModelsUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_model_not_found_when_given_a_name_and_no_limit_no_admin_permission(
-        self, router_repository, user_info_repository, sample_routers
+        self, router_repository, user_with_role_query, sample_routers
     ):
         # Arrange
-        user_info_no_access = UserInfoFactory(user_id=1, limits=[], permissions=[])
-        user_info_repository.get_user_info.return_value = user_info_no_access
+        user_info_no_access = UserWithRoleFactory(id=1, limits=[], permissions=[])
+        user_with_role_query.get_user_with_role_by_id.return_value = user_info_no_access
         router_repository.get_all_routers.return_value = sample_routers
 
         use_case = GetModelsUseCase(
             user_id=1,
             router_repository=router_repository,
-            user_info_repository=user_info_repository,
+            user_with_role_query=user_with_role_query,
         )
 
         # Act
@@ -255,24 +254,24 @@ class TestGetModelsUseCase:
         assert isinstance(result, ModelNotFound)
 
     @pytest.mark.asyncio
-    async def test_should_not_return_routers_whose_limit_is_zero(self, router_repository, user_info_repository, sample_routers):
+    async def test_should_not_return_routers_whose_limit_is_zero(self, router_repository, user_with_role_query, sample_routers):
         # Arrange
-        user_info_zero_limit = UserInfoFactory(
-            user_id=1,
+        user_info_zero_limit = UserWithRoleFactory(
+            id=1,
             limits=[
                 Limit(router_id=1, value=0, type=LimitType.RPM),
                 Limit(router_id=2, value=10, type=LimitType.RPM),
             ],
             permissions=[],
         )
-        user_info_repository.get_user_info.return_value = user_info_zero_limit
+        user_with_role_query.get_user_with_role_by_id.return_value = user_info_zero_limit
         router_repository.get_all_routers.return_value = sample_routers
         router_repository.get_organization_name.return_value = "Anthropic"
 
         use_case = GetModelsUseCase(
             user_id=1,
             router_repository=router_repository,
-            user_info_repository=user_info_repository,
+            user_with_role_query=user_with_role_query,
         )
 
         # Act
@@ -284,17 +283,17 @@ class TestGetModelsUseCase:
         assert result.models[0].id == "claude-3"
 
     @pytest.mark.asyncio
-    async def test_shoudl_return_the_router_when_associated_limit_value_is_none(self, router_repository, user_info_repository, sample_routers):
+    async def test_shoudl_return_the_router_when_associated_limit_value_is_none(self, router_repository, user_with_role_query, sample_routers):
         # Arrange
-        user_info_unlimited = UserInfoFactory(user_id=1, limits=[Limit(router_id=1, value=None, type=LimitType.RPM)], permissions=[])
-        user_info_repository.get_user_info.return_value = user_info_unlimited
+        user_info_unlimited = UserWithRoleFactory(id=1, limits=[Limit(router_id=1, value=None, type=LimitType.RPM)], permissions=[])
+        user_with_role_query.get_user_with_role_by_id.return_value = user_info_unlimited
         router_repository.get_all_routers.return_value = sample_routers
         router_repository.get_organization_name.return_value = "OpenAI"
 
         use_case = GetModelsUseCase(
             user_id=1,
             router_repository=router_repository,
-            user_info_repository=user_info_repository,
+            user_with_role_query=user_with_role_query,
         )
 
         # Act
@@ -306,16 +305,16 @@ class TestGetModelsUseCase:
         assert result.models[0].id == "gpt-4"
 
     @pytest.mark.asyncio
-    async def test_should_return_model_not_found_when_given_a_name_but_has_no_access(self, router_repository, user_info_repository, sample_routers):
+    async def test_should_return_model_not_found_when_given_a_name_but_has_no_access(self, router_repository, user_with_role_query, sample_routers):
         # Arrange
-        user_info_no_access = UserInfoFactory(user_id=1, limits=[], permissions=[])
-        user_info_repository.get_user_info.return_value = user_info_no_access
+        user_info_no_access = UserWithRoleFactory(id=1, limits=[], permissions=[])
+        user_with_role_query.get_user_with_role_by_id.return_value = user_info_no_access
         router_repository.get_all_routers.return_value = sample_routers
 
         use_case = GetModelsUseCase(
             user_id=1,
             router_repository=router_repository,
-            user_info_repository=user_info_repository,
+            user_with_role_query=user_with_role_query,
         )
 
         # Act

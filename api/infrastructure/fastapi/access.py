@@ -1,3 +1,4 @@
+import time
 from typing import Annotated
 
 from fastapi import Depends, Request
@@ -6,6 +7,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from api.dependencies import get_key_repository, get_request_context, get_secret_key
 from api.domain.key import KeyRepository
 from api.domain.key.entities import Key
+from api.domain.key.errors import KeyNotFoundError
 from api.infrastructure.fastapi.endpoints.exceptions import InvalidAPIKeyException, InvalidAuthenticationSchemeException
 from api.schemas.core.context import RequestContext
 
@@ -26,7 +28,14 @@ async def get_current_key(
         raise InvalidAPIKeyException()
 
     decoded_key = Key(value=api_key.credentials).decode(secret_key=secret_key)
-    await key_repository.check_key_exists(user_id=decoded_key.user_id, key_id=decoded_key.key_id)
+    result = await key_repository.get_key_expiration(user_id=decoded_key.user_id, key_id=decoded_key.key_id)
+
+    match result:
+        case KeyNotFoundError():
+            raise InvalidAPIKeyException()
+        case int():
+            if result is not None and result < time.time():
+                raise InvalidAPIKeyException()
 
     request_context.get().user_id = decoded_key.user_id
     request_context.get().key_id = decoded_key.key_id

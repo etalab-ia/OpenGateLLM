@@ -2,9 +2,13 @@ from fastapi import APIRouter, Depends, Path, Request, Security
 from fastapi.responses import JSONResponse
 
 from api.dependencies import get_models_use_case
+from api.domain.user.errors import UserExpiredError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.documentation import get_documentation_responses
-from api.infrastructure.fastapi.endpoints.exceptions import ModelNotFoundHTTPException
+from api.infrastructure.fastapi.endpoints.exceptions import (
+    AccountExpiredHTTPException,
+    ModelNotFoundHTTPException,
+)
 from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
 from api.use_cases.models import GetModelsUseCase
 from api.use_cases.models._getmodelsusecase import ModelNotFound, Success
@@ -37,6 +41,8 @@ async def get_model(
             return JSONResponse(content=model.model_dump(), status_code=200)
         case ModelNotFound():
             raise ModelNotFoundHTTPException()
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
 
 
 @router.get(
@@ -58,3 +64,5 @@ async def get_models(
         case Success(models):
             models = [ModelResponse(**model.model_dump()) for model in models]
             return JSONResponse(content=ModelsResponse(data=models).model_dump(), status_code=200)
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()

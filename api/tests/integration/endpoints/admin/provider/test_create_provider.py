@@ -11,7 +11,7 @@ from api.domain.model.errors import InconsistentModelMaxContextLengthError, Inco
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.userinfo.errors import UserIsNotAdminError
+from api.domain.user.errors import UserIsNotAdminError
 from api.tests.helpers import create_token
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_embeddings_responses, mock_models_responses
 from api.tests.integration.factories.albert import AlbertModelResponseFactory, AlbertModelsResponseFactory, AlbertWrongModelTypeResponseFactory

@@ -4,8 +4,8 @@ import pytest
 
 from api.domain import SortField, SortOrder
 from api.domain.router.entities import RouterPage
-from api.domain.userinfo.errors import UserIsNotAdminError
-from api.tests.unit.use_case.factories import RouterFactory, UserInfoFactory
+from api.domain.user.errors import UserIsNotAdminError
+from api.tests.unit.use_case.factories import RouterFactory, UserWithRoleFactory
 from api.use_cases.admin.routers import GetRoutersCommand, GetRoutersUseCase, GetRoutersUseCaseSuccess
 
 
@@ -15,23 +15,23 @@ def router_repository():
 
 
 @pytest.fixture
-def user_info_repository():
+def user_with_role_query():
     return AsyncMock()
 
 
 @pytest.fixture
-def use_case(router_repository, user_info_repository):
-    return GetRoutersUseCase(router_repository=router_repository, user_info_repository=user_info_repository)
+def use_case(router_repository, user_with_role_query):
+    return GetRoutersUseCase(router_repository=router_repository, user_with_role_query=user_with_role_query)
 
 
 @pytest.fixture
 def admin_user_info():
-    return UserInfoFactory(id=1, admin=True)
+    return UserWithRoleFactory(id=1, admin=True)
 
 
 @pytest.fixture
 def unauthorized_user_info():
-    return UserInfoFactory(id=3, without_permission=True, limits=[])
+    return UserWithRoleFactory(id=3, without_permission=True, limits=[])
 
 
 @pytest.fixture
@@ -47,10 +47,10 @@ def sample_command():
 class TestGetRoutersUseCase:
     @pytest.mark.asyncio
     async def test_should_return_routers_when_user_is_admin(
-        self, use_case, router_repository, user_info_repository, admin_user_info, sample_routers, sample_command
+        self, use_case, router_repository, user_with_role_query, admin_user_info, sample_routers, sample_command
     ):
         # Arrange
-        use_case.user_info_repository.get_user_info.return_value = admin_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
         use_case.router_repository.get_routers_page.return_value = RouterPage(total=2, data=sample_routers)
 
         # Act
@@ -60,14 +60,14 @@ class TestGetRoutersUseCase:
         assert isinstance(result, GetRoutersUseCaseSuccess)
         assert result.router_page.data == sample_routers
         assert result.router_page.total == 2
-        user_info_repository.get_user_info.assert_called_once_with(user_id=admin_user_info.id)
+        user_with_role_query.get_user_with_role_by_id.assert_called_once_with(user_id=admin_user_info.id)
 
     @pytest.mark.asyncio
     async def test_should_return_cannot_read_routers_error_when_user_is_not_an_admin(
         self, use_case, router_repository, unauthorized_user_info, sample_command
     ):
         # Arrange
-        use_case.user_info_repository.get_user_info.return_value = unauthorized_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = unauthorized_user_info
 
         # Act
         result = await use_case.execute(
@@ -81,7 +81,7 @@ class TestGetRoutersUseCase:
     @pytest.mark.asyncio
     async def test_should_forward_pagination_params_to_repository(self, use_case, router_repository, admin_user_info, sample_routers):
         # Arrange
-        use_case.user_info_repository.get_user_info.return_value = admin_user_info
+        use_case.user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
         use_case.router_repository.get_routers_page.return_value = RouterPage(total=2, data=sample_routers)
         command = GetRoutersCommand(user_id=1, offset=5, limit=20, sort_by=SortField.NAME, sort_order=SortOrder.DESC)
 

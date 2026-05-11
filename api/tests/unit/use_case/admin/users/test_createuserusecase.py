@@ -4,9 +4,8 @@ import pytest
 
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user.errors import UserAlreadyExistsError
-from api.domain.userinfo.errors import UserIsNotAdminError
-from api.tests.unit.use_case.factories import UserFactory, UserInfoFactory
+from api.domain.user.errors import UserAlreadyExistsError, UserIsNotAdminError
+from api.tests.unit.use_case.factories import UserFactory, UserWithRoleFactory
 from api.use_cases.admin.users import CreateUserCommand, CreateUserUseCase, CreateUserUseCaseSuccess
 
 
@@ -16,13 +15,13 @@ def user_repository():
 
 
 @pytest.fixture
-def user_info_repository():
+def user_with_role_query():
     return AsyncMock()
 
 
 @pytest.fixture
-def use_case(user_repository, user_info_repository):
-    return CreateUserUseCase(user_repository=user_repository, user_info_repository=user_info_repository)
+def use_case(user_repository, user_with_role_query):
+    return CreateUserUseCase(user_repository=user_repository, user_with_role_query=user_with_role_query)
 
 
 @pytest.fixture
@@ -37,10 +36,10 @@ def command():
 
 class TestCreateUserUseCase:
     @pytest.mark.asyncio
-    async def test_should_create_user_when_user_is_admin(self, use_case, user_repository, user_info_repository):
+    async def test_should_create_user_when_user_is_admin(self, use_case, user_repository, user_with_role_query):
         # Arrange
         user_id = 1
-        user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
+        user_with_role_query.get_user_with_role_by_id.return_value = UserWithRoleFactory(admin=True)
         user_repository.create_user.return_value = UserFactory(id=user_id, email="newuser@test.com")
         command = CreateUserCommand(
             user_id=user_id,
@@ -74,9 +73,9 @@ class TestCreateUserUseCase:
         }
 
     @pytest.mark.asyncio
-    async def test_should_return_user_is_not_admin_error_when_user_is_not_admin(self, use_case, user_repository, user_info_repository, command):
+    async def test_should_return_user_is_not_admin_error_when_user_is_not_admin(self, use_case, user_repository, user_with_role_query, command):
         # Arrange
-        user_info_repository.get_user_info.return_value = UserInfoFactory(without_permission=True, limits=[])
+        user_with_role_query.get_user_with_role_by_id.return_value = UserWithRoleFactory(without_permission=True, limits=[])
 
         # Act
         result = await use_case.execute(command)
@@ -87,10 +86,10 @@ class TestCreateUserUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_user_already_exists_error_when_a_user_has_the_same_email(
-        self, use_case, user_repository, user_info_repository, command
+        self, use_case, user_repository, user_with_role_query, command
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
+        user_with_role_query.get_user_with_role_by_id.return_value = UserWithRoleFactory(admin=True)
         user_repository.create_user.return_value = UserAlreadyExistsError(email="newuser@test.com")
 
         # Act
@@ -101,9 +100,9 @@ class TestCreateUserUseCase:
         assert result.email == "newuser@test.com"
 
     @pytest.mark.asyncio
-    async def test_should_return_role_not_found_error_when_the_role_id_does_not_exist(self, use_case, user_repository, user_info_repository, command):
+    async def test_should_return_role_not_found_error_when_the_role_id_does_not_exist(self, use_case, user_repository, user_with_role_query, command):
         # Arrange
-        user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
+        user_with_role_query.get_user_with_role_by_id.return_value = UserWithRoleFactory(admin=True)
         user_repository.create_user.return_value = RoleNotFoundError(id=10)
 
         # Act
@@ -115,10 +114,10 @@ class TestCreateUserUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_organization_not_found_error_when_the_organisation_does_not_exist(
-        self, use_case, user_repository, user_info_repository, command
+        self, use_case, user_repository, user_with_role_query, command
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
+        user_with_role_query.get_user_with_role_by_id.return_value = UserWithRoleFactory(admin=True)
         user_repository.create_user.return_value = OrganizationNotFoundError(id=5)
 
         # Act

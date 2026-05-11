@@ -28,17 +28,17 @@ class InvalidAuthenticationSchemeException(HTTPException):
 
 
 # 403
-class NotAdminUserHTTPException(HTTPException):
+class AccountExpiredHTTPException(HTTPException):
     status_code = 403
-    detail = "User has no admin rights."
+    detail = "Your account has expired. Please contact support to renew your account."
 
     def __init__(self) -> None:
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
-class CannotReadRoutersHTTPException(HTTPException):
+class NotAdminUserHTTPException(HTTPException):
     status_code = 403
-    detail = "User has no read rights on routers."
+    detail = "User has no admin rights."
 
     def __init__(self) -> None:
         super().__init__(status_code=self.status_code, detail=self.detail)

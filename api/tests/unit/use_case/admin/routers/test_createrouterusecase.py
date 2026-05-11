@@ -5,8 +5,8 @@ import pytest
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.router.entities import RouterLoadBalancingStrategy
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
-from api.domain.userinfo.errors import UserIsNotAdminError
-from api.tests.unit.use_case.factories import RouterFactory, UserInfoFactory
+from api.domain.user.errors import UserIsNotAdminError
+from api.tests.unit.use_case.factories import RouterFactory, UserWithRoleFactory
 from api.use_cases.admin.routers import CreateRouterCommand, CreateRouterUseCase
 
 
@@ -16,23 +16,23 @@ def router_repository():
 
 
 @pytest.fixture
-def user_info_repository():
+def user_with_role_query():
     return AsyncMock()
 
 
 @pytest.fixture
-def use_case(router_repository, user_info_repository):
-    return CreateRouterUseCase(router_repository=router_repository, user_info_repository=user_info_repository)
+def use_case(router_repository, user_with_role_query):
+    return CreateRouterUseCase(router_repository=router_repository, user_with_role_query=user_with_role_query)
 
 
 @pytest.fixture
 def admin_user_info():
-    return UserInfoFactory(id=1, admin=True)
+    return UserWithRoleFactory(id=1, admin=True)
 
 
 @pytest.fixture
 def non_admin_user_info():
-    return UserInfoFactory(id=2, without_permission=True, limits=[])
+    return UserWithRoleFactory(id=2, without_permission=True, limits=[])
 
 
 @pytest.fixture
@@ -53,10 +53,10 @@ def sample_router_with_aliases():
 class TestCreateRouterUseCase:
     @pytest.mark.asyncio
     async def test_should_create_router_with_aliases_when_aliases_are_given(
-        self, use_case, router_repository, user_info_repository, admin_user_info, sample_router_with_aliases
+        self, use_case, router_repository, user_with_role_query, admin_user_info, sample_router_with_aliases
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
         router_repository.create_router.return_value = sample_router_with_aliases
 
         # Act
@@ -74,7 +74,7 @@ class TestCreateRouterUseCase:
 
         # Assert
         assert result.router == sample_router_with_aliases
-        user_info_repository.get_user_info.assert_called_once_with(user_id=1)
+        user_with_role_query.get_user_with_role_by_id.assert_called_once_with(user_id=1)
         router_repository.create_router.assert_called_once_with(
             name="test-model",
             router_type=RouterType.TEXT_GENERATION,
@@ -87,7 +87,7 @@ class TestCreateRouterUseCase:
 
     @pytest.mark.asyncio
     async def test_should_create_router_without_aliases_if_no_alias_is_given(
-        self, use_case, router_repository, user_info_repository, admin_user_info
+        self, use_case, router_repository, user_with_role_query, admin_user_info
     ):
         # Arrange
         router_without_aliases = RouterFactory(
@@ -97,7 +97,7 @@ class TestCreateRouterUseCase:
             aliases=[],
             user_id=1,
         )
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
         router_repository.create_router.return_value = router_without_aliases
 
         # Act
@@ -127,10 +127,10 @@ class TestCreateRouterUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_user_is_not_admin_error_if_user_not_admin(
-        self, use_case, router_repository, user_info_repository, non_admin_user_info
+        self, use_case, router_repository, user_with_role_query, non_admin_user_info
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = non_admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = non_admin_user_info
 
         # Act
         error = await use_case.execute(
@@ -151,10 +151,10 @@ class TestCreateRouterUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_router_alias_already_exists_when_alias_already_exists(
-        self, use_case, router_repository, user_info_repository, admin_user_info
+        self, use_case, router_repository, user_with_role_query, admin_user_info
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
         router_repository.create_router.return_value = RouterAliasAlreadyExistsError(aliases=["alias1"])
 
         # Act
@@ -184,10 +184,10 @@ class TestCreateRouterUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_router_name_already_exists_when_name_already_exists(
-        self, use_case, router_repository, user_info_repository, admin_user_info
+        self, use_case, router_repository, user_with_role_query, admin_user_info
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
         router_repository.create_router.return_value = RouterNameAlreadyExistsError(name="existing-router")
 
         # Act

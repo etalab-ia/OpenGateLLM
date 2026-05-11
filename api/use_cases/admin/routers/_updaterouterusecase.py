@@ -1,11 +1,12 @@
 from dataclasses import dataclass
+import time
 
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.router import RouterRepository
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
-from api.domain.userinfo import UserInfoRepository
-from api.domain.userinfo.errors import UserIsNotAdminError
+from api.domain.user import UserWithRoleQuery
+from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
 
 
 @dataclass
@@ -26,19 +27,27 @@ class UpdateRouterUseCaseSuccess:
 
 
 type UpdateRouterUseCaseResult = (
-    UpdateRouterUseCaseSuccess | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError | UserIsNotAdminError | RouterNotFoundError
+    UpdateRouterUseCaseSuccess
+    | RouterNameAlreadyExistsError
+    | RouterAliasAlreadyExistsError
+    | UserExpiredError
+    | UserIsNotAdminError
+    | RouterNotFoundError
 )
 
 
 class UpdateRouterUseCase:
-    def __init__(self, router_repository: RouterRepository, user_info_repository: UserInfoRepository):
+    def __init__(self, router_repository: RouterRepository, user_with_role_query: UserWithRoleQuery):
         self.router_repository = router_repository
-        self.user_info_repository = user_info_repository
+        self.user_with_role_query = user_with_role_query
 
     async def execute(self, command: UpdateRouterCommand) -> UpdateRouterUseCaseResult:
-        user_info = await self.user_info_repository.get_user_info(user_id=command.user_id)
+        user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.user_id)
 
-        if not user_info.is_admin:
+        if user.expires is not None and user.expires < time.time():
+            return UserExpiredError()
+
+        if not user.is_admin:
             return UserIsNotAdminError()
 
         router = await self.router_repository.get_router_by_id(router_id=command.router_id)

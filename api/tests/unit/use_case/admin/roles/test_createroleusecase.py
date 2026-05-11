@@ -4,8 +4,8 @@ import pytest
 
 from api.domain.role.entities import PermissionType
 from api.domain.role.errors import RoleAlreadyExistsError
-from api.domain.userinfo.errors import UserIsNotAdminError
-from api.tests.unit.use_case.factories import LimitFactory, RoleFactory, UserInfoFactory
+from api.domain.user.errors import UserIsNotAdminError
+from api.tests.unit.use_case.factories import LimitFactory, RoleFactory, UserWithRoleFactory
 from api.use_cases.admin.roles import CreateRoleCommand, CreateRoleUseCase, CreateRoleUseCaseSuccess
 
 
@@ -25,29 +25,29 @@ def limit_repository():
 
 
 @pytest.fixture
-def user_info_repository():
+def user_with_role_query():
     return AsyncMock()
 
 
 @pytest.fixture
-def use_case(role_repository, user_info_repository, permission_repository, limit_repository):
+def use_case(role_repository, user_with_role_query, permission_repository, limit_repository):
     return CreateRoleUseCase(
         role_repository=role_repository,
         permission_repository=permission_repository,
         limit_repository=limit_repository,
-        user_info_repository=user_info_repository,
+        user_with_role_query=user_with_role_query,
     )
 
 
 class TestCreateRoleUseCase:
     @pytest.mark.asyncio
     async def test_should_create_role_with_limits_and_permissions_when_user_is_admin_and_role_does_not_exist(
-        self, use_case, role_repository, permission_repository, limit_repository, user_info_repository
+        self, use_case, role_repository, permission_repository, limit_repository, user_with_role_query
     ):
         # Arrange
         created_role = RoleFactory(name="created_role")
         limit = LimitFactory()
-        user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
+        user_with_role_query.get_user_with_role_by_id.return_value = UserWithRoleFactory(admin=True)
         role_repository.create_role.return_value = created_role
         permission_repository.create_permissions.return_value = [PermissionType.READ_METRIC]
         limit_repository.create_limits.return_value = [limit]
@@ -66,9 +66,9 @@ class TestCreateRoleUseCase:
         limit_repository.create_limits.assert_awaited_once_with(role_id=created_role.id, limits=[limit])
 
     @pytest.mark.asyncio
-    async def test_returns_user_is_not_admin_error_when_user_is_not_admin(self, use_case, user_info_repository):
+    async def test_returns_user_is_not_admin_error_when_user_is_not_admin(self, use_case, user_with_role_query):
         # Arrange
-        user_info_repository.get_user_info.return_value = UserInfoFactory(without_permission=True, limits=[])
+        user_with_role_query.get_user_with_role_by_id.return_value = UserWithRoleFactory(without_permission=True, limits=[])
         command = CreateRoleCommand(user_id=1, name="new_role", permissions=[], limits=[])
 
         # Act
@@ -78,9 +78,9 @@ class TestCreateRoleUseCase:
         assert isinstance(result, UserIsNotAdminError)
 
     @pytest.mark.asyncio
-    async def test_returns_role_already_exists_error_when_name_conflicts(self, use_case, role_repository, user_info_repository):
+    async def test_returns_role_already_exists_error_when_name_conflicts(self, use_case, role_repository, user_with_role_query):
         # Arrange
-        user_info_repository.get_user_info.return_value = UserInfoFactory(admin=True)
+        user_with_role_query.get_user_with_role_by_id.return_value = UserWithRoleFactory(admin=True)
         role_repository.create_role.return_value = RoleAlreadyExistsError(name="existing_role")
         command = CreateRoleCommand(user_id=1, name="existing_role", permissions=[], limits=[])
 

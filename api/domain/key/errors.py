@@ -1,0 +1,2 @@
+class KeyNotFoundError:
+    id: int

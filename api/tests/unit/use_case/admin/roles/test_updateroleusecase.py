@@ -4,8 +4,8 @@ import pytest
 
 from api.domain.role.entities import LimitType, PermissionType
 from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
-from api.domain.userinfo.errors import UserIsNotAdminError
-from api.tests.unit.use_case.factories import LimitFactory, RoleFactory, UserInfoFactory
+from api.domain.user.errors import UserIsNotAdminError
+from api.tests.unit.use_case.factories import LimitFactory, RoleFactory, UserWithRoleFactory
 from api.use_cases.admin.roles import UpdateRoleCommand, UpdateRoleUseCase, UpdateRoleUseCaseSuccess
 
 
@@ -25,28 +25,28 @@ def limit_repository():
 
 
 @pytest.fixture
-def user_info_repository():
+def user_with_role_query():
     return AsyncMock()
 
 
 @pytest.fixture
-def use_case(role_repository, permission_repository, limit_repository, user_info_repository):
+def use_case(role_repository, permission_repository, limit_repository, user_with_role_query):
     return UpdateRoleUseCase(
         role_repository=role_repository,
         permission_repository=permission_repository,
         limit_repository=limit_repository,
-        user_info_repository=user_info_repository,
+        user_with_role_query=user_with_role_query,
     )
 
 
 @pytest.fixture
 def admin_user_info():
-    return UserInfoFactory(admin=True)
+    return UserWithRoleFactory(admin=True)
 
 
 @pytest.fixture
 def unauthorized_user_info():
-    return UserInfoFactory(without_permission=True, limits=[])
+    return UserWithRoleFactory(without_permission=True, limits=[])
 
 
 @pytest.fixture
@@ -68,10 +68,10 @@ def default_command():
 class TestUpdateRoleUseCase:
     @pytest.mark.asyncio
     async def test_should_return_user_is_not_admin_error_when_user_is_not_admin(
-        self, use_case, role_repository, user_info_repository, unauthorized_user_info, default_command
+        self, use_case, role_repository, user_with_role_query, unauthorized_user_info, default_command
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = unauthorized_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = unauthorized_user_info
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -83,10 +83,10 @@ class TestUpdateRoleUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_role_not_found_error_when_role_does_not_exist(
-        self, use_case, role_repository, user_info_repository, admin_user_info, default_command
+        self, use_case, role_repository, user_with_role_query, admin_user_info, default_command
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = RoleNotFoundError(id=1)
 
         # Act
@@ -100,10 +100,10 @@ class TestUpdateRoleUseCase:
 
     @pytest.mark.asyncio
     async def test_should_not_call_update_role_when_no_fields_are_changed(
-        self, use_case, role_repository, user_info_repository, admin_user_info, sample_role, default_command
+        self, use_case, role_repository, user_with_role_query, admin_user_info, sample_role, default_command
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
 
         # Act
@@ -116,11 +116,11 @@ class TestUpdateRoleUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_updated_role_when_name_is_changed(
-        self, use_case, role_repository, user_info_repository, admin_user_info, sample_role
+        self, use_case, role_repository, user_with_role_query, admin_user_info, sample_role
     ):
         # Arrange
         updated_role = sample_role.with_name("new-name")
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
@@ -136,12 +136,12 @@ class TestUpdateRoleUseCase:
 
     @pytest.mark.asyncio
     async def test_should_replace_limits_when_limits_are_changed(
-        self, use_case, role_repository, limit_repository, user_info_repository, admin_user_info, sample_role
+        self, use_case, role_repository, limit_repository, user_with_role_query, admin_user_info, sample_role
     ):
         # Arrange
         new_limits = [LimitFactory(router_id=1, type=LimitType.TPM, value=1000)]
         updated_role = sample_role.with_limits(new_limits)
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
@@ -157,12 +157,12 @@ class TestUpdateRoleUseCase:
 
     @pytest.mark.asyncio
     async def test_should_replace_permissions_when_permissions_are_changed(
-        self, use_case, role_repository, permission_repository, user_info_repository, admin_user_info, sample_role
+        self, use_case, role_repository, permission_repository, user_with_role_query, admin_user_info, sample_role
     ):
         # Arrange
         new_permissions = [PermissionType.ADMIN, PermissionType.READ_METRIC]
         updated_role = sample_role.with_permissions(new_permissions)
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
@@ -178,13 +178,13 @@ class TestUpdateRoleUseCase:
 
     @pytest.mark.asyncio
     async def test_should_update_all_fields_when_all_fields_are_provided(
-        self, use_case, role_repository, limit_repository, permission_repository, user_info_repository, admin_user_info, sample_role
+        self, use_case, role_repository, limit_repository, permission_repository, user_with_role_query, admin_user_info, sample_role
     ):
         # Arrange
         new_limits = [LimitFactory(router_id=2, type=LimitType.RPD, value=500)]
         new_permissions = [PermissionType.ADMIN]
         updated_role = sample_role.with_name("updated").with_limits(new_limits).with_permissions(new_permissions)
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
@@ -204,10 +204,10 @@ class TestUpdateRoleUseCase:
 
     @pytest.mark.asyncio
     async def test_should_propagate_role_already_exists_error_from_update_role(
-        self, use_case, role_repository, user_info_repository, admin_user_info, sample_role
+        self, use_case, role_repository, user_with_role_query, admin_user_info, sample_role
     ):
         # Arrange
-        user_info_repository.get_user_info.return_value = admin_user_info
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user_info
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = RoleAlreadyExistsError(name="new-name")
 

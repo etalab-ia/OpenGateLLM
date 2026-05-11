@@ -6,7 +6,7 @@ import pytest_asyncio
 
 from api.dependencies import get_one_router_use_case_factory
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.userinfo.errors import UserIsNotAdminError
+from api.domain.user.errors import UserIsNotAdminError
 from api.schemas.models import ModelType
 from api.tests.helpers import create_token
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory

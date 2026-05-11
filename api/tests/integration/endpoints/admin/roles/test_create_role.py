@@ -6,7 +6,7 @@ import pytest_asyncio
 
 from api.dependencies import create_role_use_case_factory
 from api.domain.role.errors import RoleAlreadyExistsError
-from api.domain.userinfo.errors import UserIsNotAdminError
+from api.domain.user.errors import UserIsNotAdminError
 from api.tests.helpers import create_token
 from api.tests.integration.factories.sql import UserSQLFactory
 from api.utils.variables import EndpointRoute

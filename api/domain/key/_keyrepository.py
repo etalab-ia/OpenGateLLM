@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
 
+from api.domain.key.errors import KeyNotFoundError
+
 
 class KeyRepository(ABC):
     @abstractmethod
-    async def check_key_exists(self, user_id: int, key_id: int) -> bool:
+    async def get_key_expiration(self, user_id: int, key_id: int) -> int | KeyNotFoundError:
         pass

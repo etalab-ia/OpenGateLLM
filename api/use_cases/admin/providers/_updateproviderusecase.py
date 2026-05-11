@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import time
 
 from api.domain.model.entities import Metric
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
@@ -7,8 +8,8 @@ from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.userinfo import UserInfoRepository
-from api.domain.userinfo.errors import UserIsNotAdminError
+from api.domain.user import UserWithRoleQuery
+from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
 
 
 @dataclass
@@ -37,6 +38,7 @@ type UpdateProviderUseCaseResult = (
     | RouterNotFoundError
     | ProviderAlreadyExistsError
     | ProviderNotFoundError
+    | UserExpiredError
     | UserIsNotAdminError
 )
 
@@ -46,16 +48,19 @@ class UpdateProviderUseCase:
         self,
         router_repository: RouterRepository,
         provider_repository: ProviderRepository,
-        user_info_repository: UserInfoRepository,
+        user_with_role_query: UserWithRoleQuery,
     ):
         self.router_repository = router_repository
         self.provider_repository = provider_repository
-        self.user_info_repository = user_info_repository
+        self.user_with_role_query = user_with_role_query
 
     async def execute(self, command: UpdateProviderCommand) -> UpdateProviderUseCaseResult:
-        user_info = await self.user_info_repository.get_user_info(user_id=command.user_id)
+        user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.user_id)
 
-        if not user_info.is_admin:
+        if user.expires is not None and user.expires < time.time():
+            return UserExpiredError()
+
+        if not user.is_admin:
             return UserIsNotAdminError()
 
         existing_provider = await self.provider_repository.get_one_provider(provider_id=command.provider_id)
