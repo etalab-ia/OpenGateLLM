@@ -64,7 +64,7 @@ class ModelHttpClient:
         key: str,
         timeout: int,
         model_name: str,
-        metrics_logger: ProviderMetricsLogger,
+        provider_metrics_logger: ProviderMetricsLogger,
         request_manager: RequestContextManager,
         usage_computer: ModelUsageComputer | None = None,
     ):
@@ -75,7 +75,7 @@ class ModelHttpClient:
         - forward_stream: Forward a stream request to a provider model and add model name to the response. Optionally, add additional data to the response.
         - complete_response_exchange: Complete the response exchange by adding the model name, request ID and usage to the response.
         """
-        self.metrics_logger = metrics_logger
+        self.provider_metrics_logger = provider_metrics_logger
         self.request_manager = request_manager
         self.usage_computer = usage_computer
 
@@ -118,7 +118,7 @@ class ModelHttpClient:
         return exchange
 
     async def forward_request(self, exchange: ModelHttpExchange) -> httpx.Response:
-        inflight_is_incremented = await self.metrics_logger.increment_inflight(provider_id=self.provider_id)
+        inflight_is_incremented = await self.provider_metrics_logger.increment_inflight(provider_id=self.provider_id)
 
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as async_client:
@@ -160,7 +160,7 @@ class ModelHttpClient:
                         message = response.text
                     raise HTTPException(status_code=response.status_code, detail=message)
         finally:
-            await self.metrics_logger.decrement_inflight(provider_id=self.provider_id, inflight_is_incremented=inflight_is_incremented)
+            await self.provider_metrics_logger.decrement_inflight(provider_id=self.provider_id, inflight_is_incremented=inflight_is_incremented)
 
         # add additional data to the response
         latency = self._elapsed_ms(start_time=start_time)
@@ -168,7 +168,7 @@ class ModelHttpClient:
         exchange = self.complete_response_exchange(exchange=exchange, response_data=response_data, latency=latency)
         self.request_manager.set_ttft(None)
         self.request_manager.set_latency(latency)
-        await self.metrics_logger.log_performance(provider_id=self.provider_id, ttft=None, latency=latency)
+        await self.provider_metrics_logger.log_performance(provider_id=self.provider_id, ttft=None, latency=latency)
 
         if exchange.formatted_response.data is None:
             response = httpx.Response(
@@ -194,7 +194,7 @@ class ModelHttpClient:
         """
         assert exchange.original_request.endpoint == EndpointRoute.CHAT_COMPLETIONS, "Only chat completions are supported for streaming"
 
-        inflight_is_incremented = await self.metrics_logger.increment_inflight(provider_id=self.provider_id)
+        inflight_is_incremented = await self.provider_metrics_logger.increment_inflight(provider_id=self.provider_id)
 
         async with httpx.AsyncClient(timeout=self.timeout) as async_client:
             try:
@@ -249,7 +249,7 @@ class ModelHttpClient:
                     exchange = self.complete_response_exchange(exchange=exchange, response_data=response_data, latency=latency)
                 self.request_manager.set_ttft(ttft)
                 self.request_manager.set_latency(latency)
-                await self.metrics_logger.log_performance(provider_id=self.provider_id, ttft=ttft, latency=latency)
+                await self.provider_metrics_logger.log_performance(provider_id=self.provider_id, ttft=ttft, latency=latency)
 
             except (
                 httpx.TimeoutException,
@@ -266,7 +266,7 @@ class ModelHttpClient:
                 logger.exception(msg=f"Failed to forward stream request to {self.model_name}: {e}.")
                 yield dumps({"detail": type(e).__name__}), 500
             finally:
-                await self.metrics_logger.decrement_inflight(provider_id=self.provider_id, inflight_is_incremented=inflight_is_incremented)
+                await self.provider_metrics_logger.decrement_inflight(provider_id=self.provider_id, inflight_is_incremented=inflight_is_incremented)
 
     def complete_response_exchange(self, exchange: ModelHttpExchange, response_data: dict, latency: int | None = None) -> ModelHttpExchange:
         exchange.original_response = OriginalModelResponse(data=response_data, latency=latency)

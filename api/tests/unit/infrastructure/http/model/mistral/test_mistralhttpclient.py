@@ -16,7 +16,7 @@ def mistral_model_http_client() -> MistralModelHttpClient:
         key="test-key",
         timeout=120,
         model_name="mistral-test-model",
-        metrics_logger=Mock(),
+        provider_metrics_logger=Mock(),
         request_manager=Mock(),
     )
 

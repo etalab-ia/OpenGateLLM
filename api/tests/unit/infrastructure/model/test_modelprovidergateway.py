@@ -22,7 +22,7 @@ from api.utils.variables import EndpointRoute
 
 @pytest.fixture
 def gateway() -> ModelProviderGateway:
-    return ModelProviderGateway(metrics_logger=Mock(), request_manager=Mock())
+    return ModelProviderGateway(provider_metrics_logger=Mock(), request_manager=Mock())
 
 
 @pytest.fixture
@@ -32,7 +32,7 @@ def client() -> ModelHttpClient:
         key="test-key",
         timeout=120,
         model_name="test-model",
-        metrics_logger=Mock(),
+        provider_metrics_logger=Mock(),
         request_manager=Mock(),
     )
 
@@ -50,7 +50,7 @@ class TestModelProviderGateway:
     )
     def test_should_build_matching_http_client(self, provider_type, provider_class):
         # Arrange
-        gateway = ModelProviderGateway(metrics_logger=Mock(), request_manager=Mock())
+        gateway = ModelProviderGateway(provider_metrics_logger=Mock(), request_manager=Mock())
         # Act
         result = gateway._build_client(
             provider_type=provider_type,

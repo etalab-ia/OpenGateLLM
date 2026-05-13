@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 class ModelProviderGateway(ProviderGateway):
-    def __init__(self, metrics_logger: ProviderMetricsLogger, request_manager: RequestContextManager):
-        self.metrics_logger = metrics_logger
+    def __init__(self, provider_metrics_logger: ProviderMetricsLogger, request_manager: RequestContextManager):
+        self.provider_metrics_logger = provider_metrics_logger
         self.request_manager = request_manager
 
     async def get_capabilities(
@@ -78,7 +78,7 @@ class ModelProviderGateway(ProviderGateway):
             key=key,
             timeout=timeout,
             model_name=model_name,
-            metrics_logger=self.metrics_logger,
+            provider_metrics_logger=self.provider_metrics_logger,
             request_manager=self.request_manager,
             usage_computer=usage_computer,
         )

@@ -117,10 +117,10 @@ def get_request_manager() -> RequestContextManager:
 
 
 def _provider_gateway(
-    metrics_logger: ProviderMetricsLogger = Depends(_provider_metrics_logger),
+    provider_metrics_logger: ProviderMetricsLogger = Depends(_provider_metrics_logger),
     request_manager: RequestContextManager = Depends(get_request_manager),
 ) -> ModelProviderGateway:
-    return ModelProviderGateway(metrics_logger=metrics_logger, request_manager=request_manager)
+    return ModelProviderGateway(provider_metrics_logger=provider_metrics_logger, request_manager=request_manager)
 
 
 # models use cases
@@ -205,14 +205,14 @@ def update_router_use_case_factory(postgres_session: AsyncSession = Depends(get_
 
 # providers use cases
 def create_provider_use_case_factory(
-    metrics_logger: ProviderMetricsLogger = Depends(_provider_metrics_logger),
+    provider_gateway: ModelProviderGateway = Depends(_provider_gateway),
     postgres_session: AsyncSession = Depends(get_postgres_session),
     request_manager: RequestContextManager = Depends(get_request_manager),
 ) -> CreateProviderUseCase:
     return CreateProviderUseCase(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
-        provider_gateway=_provider_gateway(metrics_logger=metrics_logger, request_manager=request_manager),
+        provider_gateway=provider_gateway,
         user_with_role_query=_user_with_role_query(postgres_session),
     )
 

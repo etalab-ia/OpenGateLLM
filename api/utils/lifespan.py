@@ -153,9 +153,9 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
     provider_repository = PostgresProviderRepository(postgres_session=postgres_session)
     # @TODO: remove after make optional metrics logger and request manager in httpmodelclient
     redis_client = redis.Redis(connection_pool=global_context.redis_pool)
-    metrics_logger = RedisProviderMetricsLogger(redis_client=redis_client)
+    provider_metrics_logger = RedisProviderMetricsLogger(redis_client=redis_client)
     request_manager = RequestContextManager()
-    provider_gateway = ModelProviderGateway(metrics_logger=metrics_logger, request_manager=request_manager)
+    provider_gateway = ModelProviderGateway(provider_metrics_logger=provider_metrics_logger, request_manager=request_manager)
 
     result = await BootstrapModelsUseCase(
         router_repository=router_repository,

@@ -17,7 +17,7 @@ DEFAULT_VECTOR_SIZE = 768
 
 
 @pytest.fixture
-def metrics_logger(redis_client) -> ProviderMetricsLogger:
+def provider_metrics_logger(redis_client) -> ProviderMetricsLogger:
     return RedisProviderMetricsLogger(redis_client=redis_client)
 
 
@@ -27,8 +27,8 @@ def request_manager() -> RequestContextManager:
 
 
 @pytest.fixture
-def gateway(metrics_logger: ProviderMetricsLogger, request_manager: RequestContextManager) -> ModelProviderGateway:
-    return ModelProviderGateway(metrics_logger=metrics_logger, request_manager=request_manager)
+def gateway(provider_metrics_logger: ProviderMetricsLogger, request_manager: RequestContextManager) -> ModelProviderGateway:
+    return ModelProviderGateway(provider_metrics_logger=provider_metrics_logger, request_manager=request_manager)
 
 
 @pytest.mark.asyncio(loop_scope="session")
