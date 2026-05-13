@@ -218,10 +218,15 @@ playground/.states
 playground/.gitignore
 playground/requirements.txt
 run.sh
-.claude
-.cursor
 bruno
 docs/.astro
 docs/node_modules
 node_modules/
 .astro/
+
+# Coding assitants
+.kilo/
+kilo.jsonc
+.kilocode/
+.claude
+.cursor
