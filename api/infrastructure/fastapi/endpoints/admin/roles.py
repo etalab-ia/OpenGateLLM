@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_ROLES,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses([NotAdminUserHTTPException, RoleAlreadyExistsHTTPException]),
+    responses=get_documentation_responses([NotAdminUserHTTPException, RoleAlreadyExistsHTTPException, AccountExpiredHTTPException]),
 )
 async def create_role(
     body: CreateRoleBody = Body(description="The role creation request."),
@@ -95,7 +95,9 @@ async def create_role(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException, RoleAlreadyExistsHTTPException, RoleNotFoundHTTPException]),
+    responses=get_documentation_responses(
+        [NotAdminUserHTTPException, RoleAlreadyExistsHTTPException, RoleNotFoundHTTPException, AccountExpiredHTTPException]
+    ),
 )
 async def update_role(
     role_id: int = Path(description="The ID of the role to update."),
@@ -142,7 +144,7 @@ async def update_role(
     path=EndpointRoute.ADMIN_ROLES,
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException]),
+    responses=get_documentation_responses([NotAdminUserHTTPException, AccountExpiredHTTPException]),
 )
 async def get_roles(
     offset: int = Query(default=0, ge=0, description="Number of roles to skip."),
@@ -192,7 +194,7 @@ async def get_roles(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException, RoleNotFoundHTTPException]),
+    responses=get_documentation_responses([NotAdminUserHTTPException, RoleNotFoundHTTPException, AccountExpiredHTTPException]),
 )
 async def get_role(
     role_id: int = Path(description="The ID of the role to get."),
@@ -231,7 +233,9 @@ async def get_role(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException, RoleNotFoundHTTPException, RoleHasUsersHTTPException]),
+    responses=get_documentation_responses(
+        [NotAdminUserHTTPException, RoleNotFoundHTTPException, RoleHasUsersHTTPException, AccountExpiredHTTPException]
+    ),
 )
 async def delete_role(
     role_id: int = Path(description="The ID of the role to delete."),

@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
             RoleNotFoundHTTPException,
             OrganizationNotFoundHTTPException,
             NotAdminUserHTTPException,
+            AccountExpiredHTTPException,
         ]
     ),
 )

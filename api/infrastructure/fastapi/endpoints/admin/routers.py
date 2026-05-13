@@ -53,11 +53,9 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_ROUTERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses([
-        RouterAliasAlreadyExistsHTTPException,
-        RouterAlreadyExistsHTTPException,
-        NotAdminUserHTTPException,
-    ]),
+    responses=get_documentation_responses(
+        [RouterAliasAlreadyExistsHTTPException, RouterAlreadyExistsHTTPException, NotAdminUserHTTPException, AccountExpiredHTTPException]
+    ),
 )
 async def create_router(
     body: CreateRouterBody = Body(description="The router creation request."),
@@ -103,7 +101,7 @@ async def create_router(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException, RouterNotFoundHTTPException]),
+    responses=get_documentation_responses([NotAdminUserHTTPException, RouterNotFoundHTTPException, AccountExpiredHTTPException]),
 )
 async def get_router(
     router_id: int = Path(description="The router ID."),
@@ -141,7 +139,7 @@ async def get_router(
     path=EndpointRoute.ADMIN_ROUTERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException]),
+    responses=get_documentation_responses([NotAdminUserHTTPException, AccountExpiredHTTPException]),
 )
 async def get_routers(
     offset: int = Query(default=0, ge=0, description="Number of routers to skip."),
@@ -186,7 +184,7 @@ async def get_routers(
 @router.delete(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
     dependencies=[Security(dependency=get_current_key)],
-    responses=get_documentation_responses([NotAdminUserHTTPException, RouterNotFoundHTTPException]),
+    responses=get_documentation_responses([NotAdminUserHTTPException, RouterNotFoundHTTPException, AccountExpiredHTTPException]),
     status_code=200,
 )
 async def delete_router(
@@ -225,12 +223,15 @@ async def delete_router(
 @router.patch(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
     dependencies=[Security(dependency=get_current_key)],
-    responses=get_documentation_responses([
-        RouterNotFoundHTTPException,
-        NotAdminUserHTTPException,
-        RouterAliasAlreadyExistsHTTPException,
-        RouterAlreadyExistsHTTPException,
-    ]),
+    responses=get_documentation_responses(
+        [
+            RouterNotFoundHTTPException,
+            NotAdminUserHTTPException,
+            RouterAliasAlreadyExistsHTTPException,
+            RouterAlreadyExistsHTTPException,
+            AccountExpiredHTTPException,
+        ]
+    ),
     status_code=200,
 )
 async def update_router(
