@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, StringConstraints
 
 from api.domain.model.entities import UserModelRequest
 from api.domain.model.errors import UnsupportedEndpointError
+from api.domain.provider import ProviderMetricsLogger
 from api.domain.provider.entities import ProviderType
 from api.infrastructure.fastapi.context import RequestContextManager
 from api.infrastructure.fastapi.endpoints.exceptions import ModelIsTooBusyException
@@ -30,7 +31,6 @@ from api.infrastructure.http.model.exchanges import ModelHttpExchange, OriginalM
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk
 from api.utils.variables import EndpointRoute
 
-from ._modelmetricslogger import ModelMetricsLogger
 from ._modelusagecomputer import ModelUsageComputer
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ class ModelHttpClient:
         key: str,
         timeout: int,
         model_name: str,
-        metrics_logger: ModelMetricsLogger,
+        metrics_logger: ProviderMetricsLogger,
         request_manager: RequestContextManager,
         usage_computer: ModelUsageComputer | None = None,
     ):

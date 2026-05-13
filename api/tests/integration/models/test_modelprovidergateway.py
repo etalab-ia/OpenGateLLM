@@ -2,11 +2,11 @@ import pytest
 import respx
 
 from api.domain.model.entities import ModelType as RouterType
-from api.domain.provider import ProviderCapabilities
+from api.domain.provider import ProviderCapabilities, ProviderMetricsLogger
 from api.domain.provider.entities import ProviderType
 from api.infrastructure.fastapi.context import RequestContextManager
-from api.infrastructure.http.model import ModelMetricsLogger
 from api.infrastructure.model import ModelProviderGateway
+from api.infrastructure.redis import RedisProviderMetricsLogger
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_embeddings_responses, mock_models_responses
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory, TeiModelsResponseFactory
 from api.tests.integration.factories.vllm import VllmModelsResponseFactory, VllmNotFoundResponseFactory
@@ -17,8 +17,8 @@ DEFAULT_VECTOR_SIZE = 768
 
 
 @pytest.fixture
-def metrics_logger(redis_client) -> ModelMetricsLogger:
-    return ModelMetricsLogger(redis_client=redis_client)
+def metrics_logger(redis_client) -> ProviderMetricsLogger:
+    return RedisProviderMetricsLogger(redis_client=redis_client)
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def request_manager() -> RequestContextManager:
 
 
 @pytest.fixture
-def gateway(metrics_logger: ModelMetricsLogger, request_manager: RequestContextManager) -> ModelProviderGateway:
+def gateway(metrics_logger: ProviderMetricsLogger, request_manager: RequestContextManager) -> ModelProviderGateway:
     return ModelProviderGateway(metrics_logger=metrics_logger, request_manager=request_manager)
 
 

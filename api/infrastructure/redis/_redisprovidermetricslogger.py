@@ -4,13 +4,14 @@ import time
 from redis.asyncio import Redis as AsyncRedis
 
 from api.domain.model.entities import Metric
+from api.domain.provider import ProviderMetricsLogger
 from api.utils.redis import redis_retry, safe_redis_reset
 from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE, PREFIX__REDIS_METRIC_TIMESERIE, REDIS__TIMESERIE_RETENTION_SECONDS
 
 logger = logging.getLogger(__name__)
 
 
-class ModelMetricsLogger:
+class RedisProviderMetricsLogger(ProviderMetricsLogger):
     def __init__(self, redis_client: AsyncRedis):
         self.redis_client = redis_client
 

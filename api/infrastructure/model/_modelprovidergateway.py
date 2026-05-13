@@ -2,12 +2,12 @@ import logging
 
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.entities import UserModelRequest
-from api.domain.provider import ProviderCapabilities, ProviderGateway
+from api.domain.provider import ProviderCapabilities, ProviderGateway, ProviderMetricsLogger
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import ModelProviderNotFoundError, ProviderNotReachableError
 from api.infrastructure.fastapi.context import RequestContextManager
 from api.infrastructure.fastapi.schemas.models import ModelResponse
-from api.infrastructure.http.model import ModelHttpClient, ModelMetricsLogger, ModelUsageComputer
+from api.infrastructure.http.model import ModelHttpClient, ModelUsageComputer
 from api.infrastructure.http.model.albert import AlbertModelHttpClient
 from api.infrastructure.http.model.mistral import MistralModelHttpClient
 from api.infrastructure.http.model.openai import OpenaiModelHttpClient
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class ModelProviderGateway(ProviderGateway):
-    def __init__(self, metrics_logger: ModelMetricsLogger, request_manager: RequestContextManager):
+    def __init__(self, metrics_logger: ProviderMetricsLogger, request_manager: RequestContextManager):
         self.metrics_logger = metrics_logger
         self.request_manager = request_manager
 
