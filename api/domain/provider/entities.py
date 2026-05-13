@@ -6,11 +6,17 @@ from api.domain import EntitiesPage
 from api.domain.model.entities import ModelType
 from api.domain.router.entities import Router
 from api.schemas import BaseModel
-from api.schemas.core.models import Metric
 
 # Add world as a country code, default value of the carbon footprint computation framework
 country_codes = [country.alpha_3 for country in pycountry.countries] + ["WOR"]
-ProviderCarbonFootprintZone = StrEnum("ProviderCarbonFootprintZone", {str(code).upper(): str(code) for code in sorted(set(country_codes))})
+HostingZone = StrEnum("HostingZone", {str(code).upper(): str(code) for code in sorted(set(country_codes))})
+
+
+class QoSMetric(StrEnum):
+    TTFT = "ttft"  # time to first token
+    LATENCY = "latency"  # requests latency
+    INFLIGHT = "inflight"  # requests concurrency
+    PERFORMANCE = "performance"  # custom performance metric
 
 
 class ProviderType(StrEnum):
@@ -77,10 +83,10 @@ class Provider(BaseModel):
     key: str | None = None
     timeout: int
     model_name: str
-    model_hosting_zone: ProviderCarbonFootprintZone = ProviderCarbonFootprintZone.WOR
+    model_hosting_zone: HostingZone = HostingZone.WOR
     model_total_params: int = 0
     model_active_params: int = 0
-    qos_metric: Metric | None = None
+    qos_metric: QoSMetric | None = None
     qos_limit: float | None = None
     created: int
     updated: int
@@ -91,7 +97,7 @@ class Provider(BaseModel):
     def with_timeout(self, timeout: int) -> "Provider":
         return self.model_copy(update={"timeout": timeout})
 
-    def with_model_hosting_zone(self, model_hosting_zone: ProviderCarbonFootprintZone) -> "Provider":
+    def with_model_hosting_zone(self, model_hosting_zone: HostingZone) -> "Provider":
         return self.model_copy(update={"model_hosting_zone": model_hosting_zone})
 
     def with_model_total_params(self, model_total_params: int) -> "Provider":
@@ -100,7 +106,7 @@ class Provider(BaseModel):
     def with_model_active_params(self, model_active_params: int) -> "Provider":
         return self.model_copy(update={"model_active_params": model_active_params})
 
-    def with_qos_metric(self, qos_metric: Metric | None) -> "Provider":
+    def with_qos_metric(self, qos_metric: QoSMetric | None) -> "Provider":
         return self.model_copy(update={"qos_metric": qos_metric})
 
     def with_qos_limit(self, qos_limit: float | None) -> "Provider":

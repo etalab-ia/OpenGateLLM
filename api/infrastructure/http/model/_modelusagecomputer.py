@@ -3,7 +3,7 @@ import logging
 from ecologits.electricity_mix_repository import ElectricityMix
 from ecologits.tracers.utils import compute_llm_impacts, electricity_mixes
 
-from api.domain.provider.entities import ProviderCarbonFootprintZone
+from api.domain.provider.entities import HostingZone
 from api.infrastructure.http.model.exchanges import ModelHttpExchange
 from api.schemas.usage import EnvironmentalImpacts, Usage
 
@@ -16,7 +16,7 @@ class ModelUsageComputer:
     def __init__(
         self,
         tokenizer_computer: ModelTokenizerComputer,
-        model_hosting_zone: ProviderCarbonFootprintZone,
+        model_hosting_zone: HostingZone,
         model_total_params: int | None,
         model_active_params: int | None,
     ):
@@ -81,7 +81,7 @@ class ModelUsageComputer:
     def _get_carbon_footprint(
         active_params: int,
         total_params: int,
-        model_zone: ProviderCarbonFootprintZone,
+        model_zone: HostingZone,
         token_count: int,
         request_latency: int | None = None,
     ) -> EnvironmentalImpacts:

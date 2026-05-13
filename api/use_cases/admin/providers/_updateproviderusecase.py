@@ -4,7 +4,7 @@ import time
 from api.domain.model.entities import Metric
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider import ProviderRepository
-from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone
+from api.domain.provider.entities import HostingZone, Provider
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError
@@ -18,7 +18,7 @@ class UpdateProviderCommand:
     router_id: int | None
     user_id: int
     timeout: int | None
-    model_hosting_zone: ProviderCarbonFootprintZone | None
+    model_hosting_zone: HostingZone | None
     model_total_params: int | None
     model_active_params: int | None
     qos_metric: Metric | None

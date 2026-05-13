@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, Select, asc, cast, delete, desc, func, insert, select, update
+from sqlalchemy import Integer, Select, asc, cast, delete, desc, func, insert, literal, null, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -153,6 +153,9 @@ class PostgresRouterRepository(RouterRepository):
                     RouterTable.load_balancing_strategy,
                     RouterTable.cost_prompt_tokens,
                     RouterTable.cost_completion_tokens,
+                    cast(null(), Integer).label("vector_size"),
+                    cast(null(), Integer).label("max_context_length"),
+                    cast(literal(0), Integer).label("providers"),
                     cast(func.extract("epoch", RouterTable.created), Integer).label("created"),
                     cast(func.extract("epoch", RouterTable.updated), Integer).label("updated"),
                 )
@@ -175,21 +178,7 @@ class PostgresRouterRepository(RouterRepository):
                 return RouterAliasAlreadyExistsError(aliases=duplicate_aliases)
             raise
 
-        return Router(
-            id=row.id,
-            name=row.name,
-            user_id=user_id,
-            type=RouterType(row.type),
-            aliases=aliases,
-            load_balancing_strategy=RouterLoadBalancingStrategy(row.load_balancing_strategy),
-            vector_size=None,
-            max_context_length=None,
-            cost_prompt_tokens=row.cost_prompt_tokens or 0.0,
-            cost_completion_tokens=row.cost_completion_tokens or 0.0,
-            providers=0,
-            created=row.created,
-            updated=row.updated,
-        )
+        return self._row_to_router_with_aliases(row=row, aliases=aliases)
 
     async def get_aliases(self, filtered_aliases: list[str] | None = None) -> list[str]:
         query = select(RouterAliasTable.value)

@@ -33,7 +33,7 @@ class GetHealthModelsUseCase:
         self.provider_metrics_logger = router_repository
         self.user_with_role_query = user_with_role_query
 
-    def execute(self, command: GetHealthModelsCommand):
+    async def execute(self, command: GetHealthModelsCommand) -> GetHealthModelsUseCaseResult:
         user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.user_id)
 
         if user.expires is not None and user.expires < time.time():
