@@ -8,7 +8,7 @@ PREFIX__CELERY_QUEUE_ROUTING: str = "ogl_qr"
 PREFIX__REDIS_METRIC_GAUGE: str = "ogl_mg"
 PREFIX__REDIS_METRIC_TIMESERIE: str = "ogl_ts"
 PREFIX__REDIS_RATE_LIMIT: str = "ogl_rt"
-REDIS__TIMESERIE_RETENTION_SECONDS: int = 120
+METRICS__TIMESERIE_RETENTION_SECONDS: int = 60 * 30  # 30 minutes
 
 
 class RouterName(StrEnum):
@@ -22,7 +22,7 @@ class RouterName(StrEnum):
     EMBEDDINGS = ("embeddings", "api.endpoints.embeddings")
     ME = ("me", "api.endpoints.me")
     MODELS = ("models", "api.infrastructure.fastapi.endpoints.models")
-    MONITORING = ("monitoring", None)
+    MONITORING = ("monitoring", "api.infrastructure.fastapi.endpoints.health")
     OCR = ("ocr", "api.endpoints.ocr")
     PARSE = ("parse", "api.endpoints.parse")
     RERANK = ("rerank", "api.endpoints.rerank")
@@ -50,6 +50,8 @@ class EndpointRoute(StrEnum):
     COLLECTIONS = f"/{RouterName.COLLECTIONS}"
     DOCUMENTS = f"/{RouterName.DOCUMENTS}"
     EMBEDDINGS = f"/{RouterName.EMBEDDINGS}"
+    HEALTH = "/health"
+    HEALTH_MODELS = "/health/models"
     ME_INFO = f"/{RouterName.ME}/info"
     ME_KEYS = f"/{RouterName.ME}/keys"
     ME_USAGE = f"/{RouterName.ME}/usage"

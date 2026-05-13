@@ -3,9 +3,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain import SortOrder
-from api.domain.model.entities import Metric
 from api.domain.provider import ProviderRepository
-from api.domain.provider.entities import HostingZone, Provider, ProviderPage, ProviderSortField, ProviderType, QoSMetric
+from api.domain.provider.entities import HostingZone, Metric, Provider, ProviderPage, ProviderSortField, ProviderType, QoSMetric
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Provider as ProviderTable
@@ -87,9 +86,7 @@ class PostgresProviderRepository(ProviderRepository):
             model_hosting_zone=HostingZone[row.model_hosting_zone],
             model_total_params=row.model_total_params,
             model_active_params=row.model_active_params,
-            qos_metric=None
-            if row.qos_metric is None
-            else QoSMetric(row.qos_metric.value if hasattr(row.qos_metric, "value") else row.qos_metric),
+            qos_metric=None if row.qos_metric is None else QoSMetric(row.qos_metric.value if hasattr(row.qos_metric, "value") else row.qos_metric),
             qos_limit=row.qos_limit,
             max_context_length=row.max_context_length,
             vector_size=row.vector_size,

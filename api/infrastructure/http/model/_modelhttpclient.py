@@ -168,7 +168,7 @@ class ModelHttpClient:
         exchange = self.complete_response_exchange(exchange=exchange, response_data=response_data, latency=latency)
         self.request_manager.set_ttft(None)
         self.request_manager.set_latency(latency)
-        await self.provider_metrics_logger.log_performance(provider_id=self.provider_id, ttft=None, latency=latency)
+        await self.provider_metrics_logger.log_performance(provider_id=self.provider_id, ttft=None, latency=latency, completion_tokens=1)
 
         if exchange.formatted_response.data is None:
             response = httpx.Response(
@@ -249,7 +249,7 @@ class ModelHttpClient:
                     exchange = self.complete_response_exchange(exchange=exchange, response_data=response_data, latency=latency)
                 self.request_manager.set_ttft(ttft)
                 self.request_manager.set_latency(latency)
-                await self.provider_metrics_logger.log_performance(provider_id=self.provider_id, ttft=ttft, latency=latency)
+                await self.provider_metrics_logger.log_performance(provider_id=self.provider_id, ttft=ttft, latency=latency, completion_tokens=1)
 
             except (
                 httpx.TimeoutException,

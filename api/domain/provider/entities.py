@@ -12,6 +12,13 @@ country_codes = [country.alpha_3 for country in pycountry.countries] + ["WOR"]
 HostingZone = StrEnum("HostingZone", {str(code).upper(): str(code) for code in sorted(set(country_codes))})
 
 
+class Metric(StrEnum):
+    INFLIGHT = "inflight"  # requests concurrency
+    LATENCY = "latency"  # requests latency
+    TTFT = "ttft"  # time to first token
+    NORMALIZED_LATENCY = "normalized_latency"  # requests latency normalized by the completion tokens
+
+
 class QoSMetric(StrEnum):
     TTFT = "ttft"  # time to first token
     LATENCY = "latency"  # requests latency

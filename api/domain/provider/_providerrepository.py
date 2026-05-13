@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 
 from api.domain import SortOrder
-from api.domain.model.entities import Metric
-from api.domain.provider.entities import HostingZone, Provider, ProviderPage, ProviderSortField, ProviderType
+from api.domain.provider.entities import HostingZone, Metric, Provider, ProviderPage, ProviderSortField, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 
 

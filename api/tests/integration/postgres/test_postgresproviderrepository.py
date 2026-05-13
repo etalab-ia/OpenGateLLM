@@ -4,8 +4,8 @@ import pytest
 from sqlalchemy import select
 
 from api.domain import SortOrder
-from api.domain.model.entities import Metric, ModelType
-from api.domain.provider.entities import HostingZone, Provider, ProviderSortField, ProviderType
+from api.domain.model.entities import ModelType
+from api.domain.provider.entities import HostingZone, Metric, Provider, ProviderSortField, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.infrastructure.postgres import PostgresProviderRepository
 from api.sql.models import Provider as ProviderTable

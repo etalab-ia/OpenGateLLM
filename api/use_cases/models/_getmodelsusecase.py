@@ -53,5 +53,5 @@ class GetModelsUseCase:
                     )
 
         if name is not None and len(models) == 0:
-            return ModelNotFoundError()
+            return ModelNotFoundError()  # TODO: create a dedicated use case
         return GetModelUseCaseSucess(models=models)

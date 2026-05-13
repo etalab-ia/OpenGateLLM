@@ -35,6 +35,7 @@ from api.use_cases.admin.providers import (
 from api.use_cases.admin.roles import CreateRoleUseCase, DeleteRoleUseCase, GetRolesUseCase, GetRoleUseCase, UpdateRoleUseCase
 from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
 from api.use_cases.admin.users import CreateUserUseCase
+from api.use_cases.health import GetHealthModelsUseCase
 from api.use_cases.models import GetModelsUseCase
 from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context
@@ -121,6 +122,20 @@ def _provider_gateway(
     request_manager: RequestContextManager = Depends(get_request_manager),
 ) -> ModelProviderGateway:
     return ModelProviderGateway(provider_metrics_logger=provider_metrics_logger, request_manager=request_manager)
+
+
+# health use cases
+def get_health_models_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    redis_client: Redis = Depends(get_redis_client),
+    request_context: RequestContext = Depends(get_request_context),
+) -> GetHealthModelsUseCase:
+    return GetHealthModelsUseCase(
+        provider_metrics_logger=_provider_metrics_logger(redis_client=redis_client),
+        router_repository=_router_repository(postgres_session),
+        provider_repository=_provider_repository(postgres_session),
+        user_with_role_query=_user_with_role_query(postgres_session),
+    )
 
 
 # models use cases

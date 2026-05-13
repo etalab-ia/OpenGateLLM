@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 import time
 
-from api.domain.model.entities import Metric
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider import ProviderGateway, ProviderRepository
-from api.domain.provider.entities import HostingZone, Provider, ProviderType
+from api.domain.provider.entities import HostingZone, Metric, Provider, ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError

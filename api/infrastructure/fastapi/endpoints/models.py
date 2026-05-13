@@ -50,7 +50,7 @@ async def get_model(
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
     response_model=ModelsResponse,
-    responses=get_documentation_responses([ModelNotFoundHTTPException]),
+    responses=get_documentation_responses([]),
 )
 async def get_models(
     request: Request,

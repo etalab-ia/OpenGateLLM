@@ -1,3 +1,3 @@
-from ._gethealthmodelsusecase import GetHealthModelsUseCase
+from ._gethealthmodelsusecase import GetHealthModelsCommand, GetHealthModelsUseCase, GetHealthModelsUseCaseSuccess
 
-__all__ = ["GetHealthModelsUseCase"]
+__all__ = ["GetHealthModelsUseCase", "GetHealthModelsUseCaseSuccess", "GetHealthModelsCommand"]
