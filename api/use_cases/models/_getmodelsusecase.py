@@ -3,7 +3,6 @@ import time
 
 from api.domain.model.entities import Model, ModelCosts
 from api.domain.model.errors import ModelNotFoundError
-from api.domain.role.entities import PermissionType
 from api.domain.router import RouterRepository
 from api.domain.user import UserWithRoleQuery
 from api.domain.user.errors import UserExpiredError
@@ -38,14 +37,9 @@ class GetModelsUseCase:
                 return ModelNotFoundError()
 
         for router in routers:
-            if router.providers > 0:
-                router_limit = next((limit for limit in user.limits if limit.router_id == router.id), None)
-                has_access = (router_limit is not None and (router_limit.value is None or router_limit.value > 0)) or (
-                    PermissionType.ADMIN in user.permissions
-                )
-                if has_access:
+            if router.has_providers:
+                if user.has_access_to_router(router_id=router.id):
                     organization_name = await self.router_repository.get_organization_name(router.user_id)
-
                     models.append(
                         Model(
                             id=router.name,

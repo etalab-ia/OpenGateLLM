@@ -52,3 +52,7 @@ class Router(BaseModel):
 
     def max_context_length_is_consistent(self, max_context_length) -> bool:
         return self.max_context_length == max_context_length
+
+    @property
+    def has_providers(self) -> bool:
+        return self.providers > 0
