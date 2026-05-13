@@ -254,7 +254,7 @@ class LangfuseDependency(ConfigBaseModel):
 
     public_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., description="Langfuse public key.", examples=["pk-lf-..."])  # fmt: off
     secret_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(..., description="Langfuse secret key.", examples=["sk-lf-..."])  # fmt: off
-    url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="http://localhost:3000", description="Langfuse server URL.", examples=["http://localhost:3000"])  # fmt: off
+    base_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="http://localhost:3000", description="Langfuse server URL.", examples=["http://localhost:3000"])  # fmt: off
 
 
 @custom_validation_error()
