@@ -9,3 +9,7 @@ CVE-2026-42010 exp:2026-09-01
 # libssh2 integer overflow with large username/password — no upstream Debian fix yet
 # Reported in libssh2-1t64 from base image. Re-evaluate after 2026-09-01.
 CVE-2026-7598 exp:2026-09-01
+
+# Python XML Expat hash-flooding protection weakness — full fix needs libexpat >= 2.8.0 and a Python patch
+# Reported from Python/base image stack. Re-evaluate after 2026-09-01.
+CVE-2026-7210 exp:2026-09-01
