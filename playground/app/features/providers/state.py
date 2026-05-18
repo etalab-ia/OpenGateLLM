@@ -86,98 +86,113 @@ class ProvidersState(EntityState):
         """Get providers list with correct typing for Reflex."""
         return self.entities
 
-    @rx.event
+    @rx.event(background=True)
     async def load_entities(self):
         """Load entities."""
-        if not self.is_authenticated or not self.api_key:
-            return
-
-        self.entities_loading = True
-        yield
+        async with self:
+            if not self.is_authenticated or not self.api_key:
+                return
+            self.entities_loading = True
+            url = self.opengatellm_url
+            api_key = self.api_key
+            page = self.page
+            per_page = self.per_page
+            order_by = self.order_by_value
+            order_direction = self.order_direction_value
+            filter_router = self.filter_router_value
+            local_routers_list = list(self.routers_list)
+            local_routers_dict = dict(self.routers_dict)
+            local_provider_owners = dict(self.provider_owners)
+            yield
 
         params = {
-            "offset": (self.page - 1) * self.per_page,
-            "limit": self.per_page,
-            "sort_by": self.order_by_value,
-            "sort_order": self.order_direction_value,
+            "offset": (page - 1) * per_page,
+            "limit": per_page,
+            "order_by": order_by,
+            "order_direction": order_direction,
         }
 
-        if self.filter_router_value != "All routers":
-            params["router_id"] = self.routers_dict.get(self.filter_router_value, None)
-
         response = None
+        raw_providers = []
         try:
             async with httpx.AsyncClient() as client:
-                # Load routers
-                offset = 0
-                self.routers_list = []
-                self.routers_dict = {}
-                while True:
-                    response = await client.get(
-                        url=f"{self.opengatellm_url}/v1/admin/routers",
-                        params={"offset": offset, "limit": 100},
-                        headers={"Authorization": f"Bearer {self.api_key}"},
-                        timeout=configuration.settings.playground_opengatellm_timeout,
-                    )
+                if not local_routers_list:
+                    offset = 0
+                    local_routers_list = []
+                    local_routers_dict = {}
+                    while True:
+                        response = await client.get(
+                            url=f"{url}/v1/admin/routers",
+                            params={"offset": offset, "limit": 100},
+                            headers={"Authorization": f"Bearer {api_key}"},
+                            timeout=configuration.settings.playground_opengatellm_timeout,
+                        )
+                        response.raise_for_status()
+                        data = response.json()
+                        routers_data = data.get("data", [])
+                        local_routers_list.extend([{"id": r["id"], "name": r["name"]} for r in routers_data])
+                        local_routers_dict.update({r["name"]: r["id"] for r in routers_data})
+                        offset += 100
+                        if len(routers_data) < 100:
+                            break
 
-                    response.raise_for_status()
-                    data = response.json()
-                    routers_data = data.get("data", [])
-                    self.routers_list.extend([{"id": router["id"], "name": router["name"]} for router in routers_data])
-                    self.routers_dict.update({router["name"]: router["id"] for router in routers_data})
-                    offset += 100
-                    if len(routers_data) < 100:
-                        break
+                if filter_router != "All routers" and filter_router in local_routers_dict:
+                    params["router"] = local_routers_dict[filter_router]
 
                 response = await client.get(
-                    f"{self.opengatellm_url}/v1/admin/providers",
+                    f"{url}/v1/admin/providers",
                     params=params,
-                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    headers={"Authorization": f"Bearer {api_key}"},
                     timeout=configuration.settings.playground_opengatellm_timeout,
                 )
-
                 response.raise_for_status()
                 data = response.json()
-                self.entities = []
+                raw_providers = data.get("data", [])
 
-                for provider in data.get("data", []):
-                    if provider["user_id"] not in self.provider_owners:
+                for provider in raw_providers:
+                    if provider["user_id"] not in local_provider_owners:
                         response = await client.get(
-                            url=f"{self.opengatellm_url}/v1/admin/users/{provider['user_id']}",
-                            headers={"Authorization": f"Bearer {self.api_key}"},
+                            url=f"{url}/v1/admin/users/{provider['user_id']}",
+                            headers={"Authorization": f"Bearer {api_key}"},
                             timeout=configuration.settings.playground_opengatellm_timeout,
                         )
                         if response.status_code == 404:
-                            self.provider_owners[provider["user_id"]] = "Master"
+                            local_provider_owners[provider["user_id"]] = "Master"
                         elif response.status_code == 200:
                             data = response.json()
-                            self.provider_owners[provider["user_id"]] = data.get("email", "Unknown")
+                            local_provider_owners[provider["user_id"]] = data.get("email", "Unknown")
                         else:
-                            self.provider_owners[provider["user_id"]] = "Unknown"
+                            local_provider_owners[provider["user_id"]] = "Unknown"
 
-                    if provider["router_id"] not in self.routers_dict.values():
+                    if provider["router_id"] not in local_routers_dict.values():
                         response = await client.get(
-                            url=f"{self.opengatellm_url}/v1/admin/routers/{provider['router_id']}",
-                            headers={"Authorization": f"Bearer {self.api_key}"},
+                            url=f"{url}/v1/admin/routers/{provider['router_id']}",
+                            headers={"Authorization": f"Bearer {api_key}"},
                             timeout=configuration.settings.playground_opengatellm_timeout,
                         )
-
                         if response.status_code == 200:
                             data = response.json()
-                            self.routers_dict[data["name"]] = provider["router_id"]
+                            local_routers_dict[data["name"]] = provider["router_id"]
                         else:
-                            self.routers_dict["Unknown"] = provider["router_id"]
+                            local_routers_dict["Unknown"] = provider["router_id"]
 
-                    self.routers_list = [{"id": router_id, "name": router_name} for router_name, router_id in self.routers_dict.items()]  # fmt: off
+                local_routers_list = [{"id": router_id, "name": router_name} for router_name, router_id in local_routers_dict.items()]
 
-                    self.entities.append(self._format_provider(provider))
-
-            self.has_more_page = len(self.entities) == self.per_page
+            async with self:
+                self.routers_list = local_routers_list
+                self.routers_dict = local_routers_dict
+                self.provider_owners = local_provider_owners
+                entities = [self._format_provider(provider) for provider in raw_providers]
+                self.entities = entities
+                self.has_more_page = len(entities) == per_page
+                yield
         except Exception as e:
-            yield httpx_error_toast(exception=e, response=response)
+            async with self:
+                yield httpx_error_toast(exception=e, response=response)
         finally:
-            self.entities_loading = False
-            yield
+            async with self:
+                self.entities_loading = False
+                yield
 
     ############################################################
     # Delete entity
@@ -218,8 +233,7 @@ class ProvidersState(EntityState):
 
                 self.handle_delete_entity_dialog_change(is_open=False)
                 yield rx.toast.success("Provider deleted successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                yield type(self).load_entities()
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -289,8 +303,7 @@ class ProvidersState(EntityState):
                 response.raise_for_status()
 
                 yield rx.toast.success("Provider created successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                yield type(self).load_entities()
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -357,8 +370,7 @@ class ProvidersState(EntityState):
             self.handle_settings_entity_dialog_change(is_open=False)
             yield rx.toast.success("Provider updated successfully", position="bottom-right")
 
-            async for _ in self.load_entities():
-                yield
+            yield type(self).load_entities()
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -377,49 +389,44 @@ class ProvidersState(EntityState):
     order_direction_value: str = "asc"
     order_by_options: list[str] = ["id", "model_name", "created"]
 
-    @rx.event
+    @rx.event(background=True)
     async def set_order_by(self, value: str):
         """Set order by field and reload."""
-        self.order_by_value = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        async with self:
+            self.order_by_value = value
+            self.page = 1
+            self.has_more_page = False
+            yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def set_order_direction(self, value: str):
         """Set order direction and reload."""
-        self.order_direction_value = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        async with self:
+            self.order_direction_value = value
+            self.page = 1
+            self.has_more_page = False
+            yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def prev_page(self):
-        if self.page > 1:
-            self.page -= 1
-            yield
-            async for _ in self.load_entities():
-                yield
+        async with self:
+            if self.page > 1:
+                self.page -= 1
+                yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def next_page(self):
-        if self.has_more_page:
-            self.page += 1
-            yield
-            async for _ in self.load_entities():
-                yield
+        async with self:
+            if self.has_more_page:
+                self.page += 1
+                yield type(self).load_entities()
 
     filter_router_value: str = "All routers"
 
-    @rx.event
+    @rx.event(background=True)
     async def set_filter_router(self, value: str):
-        self.filter_router_value = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        async with self:
+            self.filter_router_value = value
+            self.page = 1
+            self.has_more_page = False
+            yield type(self).load_entities()

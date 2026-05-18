@@ -64,95 +64,116 @@ class UsersState(EntityState):
         """Get users list with correct typing for Reflex."""
         return self.entities
 
-    @rx.event
+    @rx.event(background=True)
     async def load_entities(self):
         """Load entities."""
-        if not self.is_authenticated or not self.api_key:
-            return
-
-        self.entities_loading = True
-        yield
+        async with self:
+            if not self.is_authenticated or not self.api_key:
+                return
+            self.entities_loading = True
+            url = self.opengatellm_url
+            api_key = self.api_key
+            page = self.page
+            per_page = self.per_page
+            order_by = self.order_by_value
+            order_direction = self.order_direction_value
+            filter_role = self.filter_role_value
+            filter_organization = self.filter_organization_value
+            search_email = self.search_email_value
+            existing_roles_list = list(self.roles_list)
+            existing_roles_dict = dict(self.roles_dict)
+            existing_organizations_list = list(self.organizations_list)
+            existing_organizations_dict = dict(self.organizations_dict)
+            yield
 
         params = {
-            "offset": (self.page - 1) * self.per_page,
-            "limit": self.per_page,
-            "order_by": self.order_by_value,
-            "order_direction": self.order_direction_value,
+            "offset": (page - 1) * per_page,
+            "limit": per_page,
+            "order_by": order_by,
+            "order_direction": order_direction,
         }
 
-        if self.filter_role_value != "All roles":
-            params["role"] = self.roles_dict[self.filter_role_value]
-        if self.filter_organization_value != "All organizations":
-            params["organization"] = self.organizations_dict[self.filter_organization_value]
-        if self.search_email_value:
-            params["email"] = self.search_email_value
+        local_roles_list = existing_roles_list
+        local_roles_dict = existing_roles_dict
+        local_organizations_list = existing_organizations_list
+        local_organizations_dict = existing_organizations_dict
 
         response = None
+        raw_users = []
         try:
             async with httpx.AsyncClient() as client:
-                # Load roles
-                offset = 0
-                self.roles_list = []
-                self.roles_dict = {}
-                while True:
-                    response = await client.get(
-                        url=f"{self.opengatellm_url}/v1/admin/roles",
-                        params={"offset": offset, "limit": 100},
-                        headers={"Authorization": f"Bearer {self.api_key}"},
-                        timeout=configuration.settings.playground_opengatellm_timeout,
-                    )
+                if not local_roles_list:
+                    offset = 0
+                    local_roles_list = []
+                    local_roles_dict = {}
+                    while True:
+                        response = await client.get(
+                            url=f"{url}/v1/admin/roles",
+                            headers={"Authorization": f"Bearer {api_key}"},
+                            timeout=configuration.settings.playground_opengatellm_timeout,
+                        )
+                        response.raise_for_status()
+                        data = response.json()
+                        roles_data = data.get("data", [])
+                        local_roles_list.extend([{"id": role["id"], "name": role["name"]} for role in roles_data])
+                        local_roles_dict.update({role["name"]: role["id"] for role in roles_data})
+                        offset += 100
+                        if len(roles_data) < 100:
+                            break
 
-                    response.raise_for_status()
-                    data = response.json()
-                    roles_data = data.get("data", [])
-                    self.roles_list.extend([{"id": role["id"], "name": role["name"]} for role in roles_data])
-                    self.roles_dict.update({role["name"]: role["id"] for role in roles_data})
-                    offset += 100
-                    if len(roles_data) < 100:
-                        break
+                if not local_organizations_list:
+                    offset = 0
+                    local_organizations_list = []
+                    local_organizations_dict = {}
+                    while True:
+                        response = await client.get(
+                            url=f"{url}/v1/admin/organizations",
+                            params={"offset": offset, "limit": 100},
+                            headers={"Authorization": f"Bearer {api_key}"},
+                            timeout=configuration.settings.playground_opengatellm_timeout,
+                        )
+                        response.raise_for_status()
+                        data = response.json()
+                        organizations_data = data.get("data", [])
+                        local_organizations_list.extend([{"id": org["id"], "name": org["name"]} for org in organizations_data])
+                        local_organizations_dict.update({org["name"]: org["id"] for org in organizations_data})
+                        offset += 100
+                        if len(organizations_data) < 100:
+                            break
 
-                # Load organizations
-                offset = 0
-                self.organizations_list = []
-                self.organizations_dict = {}
-                while True:
-                    response = await client.get(
-                        url=f"{self.opengatellm_url}/v1/admin/organizations",
-                        params={"offset": offset, "limit": 100},
-                        headers={"Authorization": f"Bearer {self.api_key}"},
-                        timeout=configuration.settings.playground_opengatellm_timeout,
-                    )
+                if filter_role != "All roles" and filter_role in local_roles_dict:
+                    params["role"] = local_roles_dict[filter_role]
+                if filter_organization != "All organizations" and filter_organization in local_organizations_dict:
+                    params["organization"] = local_organizations_dict[filter_organization]
+                if search_email:
+                    params["email"] = search_email
 
-                    response.raise_for_status()
-                    data = response.json()
-                    organizations_data = data.get("data", [])
-                    self.organizations_list.extend([{"id": org["id"], "name": org["name"]} for org in organizations_data])
-                    self.organizations_dict.update({org["name"]: org["id"] for org in organizations_data})
-                    offset += 100
-                    if len(organizations_data) < 100:
-                        break
-
-                # Load users
                 response = await client.get(
-                    url=f"{self.opengatellm_url}/v1/admin/users",
+                    url=f"{url}/v1/admin/users",
                     params=params,
-                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    headers={"Authorization": f"Bearer {api_key}"},
                     timeout=configuration.settings.playground_opengatellm_timeout,
                 )
-
                 response.raise_for_status()
                 data = response.json()
-                self.entities = []
-                for user in data.get("data", []):
-                    self.entities.append(self._format_user(user))
+                raw_users = data.get("data", [])
 
-            self.has_more_page = len(self.entities) == self.per_page
-
+            async with self:
+                self.roles_list = local_roles_list
+                self.roles_dict = local_roles_dict
+                self.organizations_list = local_organizations_list
+                self.organizations_dict = local_organizations_dict
+                entities = [self._format_user(user) for user in raw_users]
+                self.entities = entities
+                self.has_more_page = len(entities) == per_page
+                yield
         except Exception as e:
-            yield httpx_error_toast(exception=e, response=response)
+            async with self:
+                yield httpx_error_toast(exception=e, response=response)
         finally:
-            self.entities_loading = False
-            yield
+            async with self:
+                self.entities_loading = False
+                yield
 
     ############################################################
     # Delete entity
@@ -192,8 +213,7 @@ class UsersState(EntityState):
 
                 self.handle_delete_entity_dialog_change(is_open=False)
                 yield rx.toast.success("User deleted successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                yield type(self).load_entities()
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -276,8 +296,7 @@ class UsersState(EntityState):
                 response.raise_for_status()
 
                 yield rx.toast.success("User created successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                yield type(self).load_entities()
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -353,8 +372,7 @@ class UsersState(EntityState):
             self.handle_settings_entity_dialog_change(is_open=False)
             yield rx.toast.success("User updated successfully", position="bottom-right")
 
-            async for _ in self.load_entities():
-                yield
+            yield type(self).load_entities()
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -379,63 +397,55 @@ class UsersState(EntityState):
         self.search_email_value = value
         self.page = 1
         self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def set_order_by(self, value: str):
         """Set order by field and reload."""
-        self.order_by_value = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        async with self:
+            self.order_by_value = value
+            self.page = 1
+            self.has_more_page = False
+            yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def set_order_direction(self, value: str):
         """Set order direction and reload."""
-        self.order_direction_value = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        async with self:
+            self.order_direction_value = value
+            self.page = 1
+            self.has_more_page = False
+            yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def prev_page(self):
-        if self.page > 1:
-            self.page -= 1
-            yield
-            async for _ in self.load_entities():
-                yield
+        async with self:
+            if self.page > 1:
+                self.page -= 1
+                yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def next_page(self):
-        if self.has_more_page:
-            self.page += 1
-            yield
-            async for _ in self.load_entities():
-                yield
+        async with self:
+            if self.has_more_page:
+                self.page += 1
+                yield type(self).load_entities()
 
     filter_role_value: str = "All roles"
     filter_organization_value: str = "All organizations"
 
-    @rx.event
+    @rx.event(background=True)
     async def set_filter_role(self, value: str):
-        self.filter_role_value = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        async with self:
+            self.filter_role_value = value
+            self.page = 1
+            self.has_more_page = False
+            yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def set_filter_organization(self, value: str):
-        self.filter_organization_value = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        async with self:
+            self.filter_organization_value = value
+            self.page = 1
+            self.has_more_page = False
+            yield type(self).load_entities()

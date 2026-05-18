@@ -33,45 +33,61 @@ class OrganizationsState(EntityState):
         """Get organizations list with correct typing for Reflex."""
         return self.entities
 
-    @rx.event
+    @rx.event(background=True)
     async def load_entities(self):
         """Load entities."""
-        if not self.is_authenticated or not self.api_key:
-            return
-
-        self.entities_loading = True
-        yield
+        async with self:
+            if not self.is_authenticated or not self.api_key:
+                return
+            self.entities_loading = True
+            url = self.opengatellm_url
+            api_key = self.api_key
+            page = self.page
+            per_page = self.per_page
+            order_by = self.order_by_value
+            order_direction = self.order_direction_value
+            yield
 
         params = {
-            "offset": (self.page - 1) * self.per_page,
-            "limit": self.per_page,
-            "order_by": self.order_by_value,
-            "order_direction": self.order_direction_value,
+            "offset": (page - 1) * per_page,
+            "limit": per_page,
+            "order_by": order_by,
+            "order_direction": order_direction,
         }
 
         response = None
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    url=f"{self.opengatellm_url}/v1/admin/organizations",
+                    url=f"{url}/v1/admin/organizations",
                     params=params,
-                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    headers={"Authorization": f"Bearer {api_key}"},
                     timeout=configuration.settings.playground_opengatellm_timeout,
                 )
-
                 response.raise_for_status()
                 data = response.json()
-                self.entities = []
-                for organization in data.get("data", []):
-                    self.entities.append(self._format_organization(organization))
-
-            self.has_more_page = len(self.entities) == self.per_page
-
+                entities = [
+                    Organization(
+                        id=o["id"],
+                        name=o["name"],
+                        users=o["users"],
+                        created=dt.datetime.fromtimestamp(o["created"]).strftime("%Y-%m-%d %H:%M"),
+                        updated=dt.datetime.fromtimestamp(o["updated"]).strftime("%Y-%m-%d %H:%M"),
+                    )
+                    for o in data.get("data", [])
+                ]
+            has_more = len(entities) == per_page
+            async with self:
+                self.entities = entities
+                self.has_more_page = has_more
+                yield
         except Exception as e:
-            yield httpx_error_toast(exception=e, response=response)
+            async with self:
+                yield httpx_error_toast(exception=e, response=response)
         finally:
-            self.entities_loading = False
-            yield
+            async with self:
+                self.entities_loading = False
+                yield
 
     ############################################################
     # Delete entity
@@ -111,8 +127,7 @@ class OrganizationsState(EntityState):
 
                 self.handle_delete_entity_dialog_change(is_open=False)
                 yield rx.toast.success("Organization deleted successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                yield type(self).load_entities()
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -157,8 +172,7 @@ class OrganizationsState(EntityState):
                 response.raise_for_status()
 
                 yield rx.toast.success("Organization created successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                yield type(self).load_entities()
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -217,8 +231,7 @@ class OrganizationsState(EntityState):
             self.handle_settings_entity_dialog_change(is_open=False)
             yield rx.toast.success("Organization updated successfully", position="bottom-right")
 
-            async for _ in self.load_entities():
-                yield
+            yield type(self).load_entities()
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -237,38 +250,34 @@ class OrganizationsState(EntityState):
     order_direction_value: str = "asc"
     order_by_options: list[str] = ["id", "name", "created", "updated"]
 
-    @rx.event
+    @rx.event(background=True)
     async def set_order_by(self, value: str):
         """Set order by field and reload."""
-        self.order_by_value = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        async with self:
+            self.order_by_value = value
+            self.page = 1
+            self.has_more_page = False
+            yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def set_order_direction(self, value: str):
         """Set order direction and reload."""
-        self.order_direction_value = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        async with self:
+            self.order_direction_value = value
+            self.page = 1
+            self.has_more_page = False
+            yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def prev_page(self):
-        if self.page > 1:
-            self.page -= 1
-            yield
-            async for _ in self.load_entities():
-                yield
+        async with self:
+            if self.page > 1:
+                self.page -= 1
+                yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def next_page(self):
-        if self.has_more_page:
-            self.page += 1
-            yield
-            async for _ in self.load_entities():
-                yield
+        async with self:
+            if self.has_more_page:
+                self.page += 1
+                yield type(self).load_entities()

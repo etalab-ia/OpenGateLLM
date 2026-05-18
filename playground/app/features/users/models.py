@@ -11,7 +11,7 @@ class User(Entity):
     role: str | None = None
     organization: str | None = None
     budget: float | None = None
-    priority: int = 0
+    priority: int | None = None
     expires: str | None = None
     created: str | None = None
     updated: str | None = None

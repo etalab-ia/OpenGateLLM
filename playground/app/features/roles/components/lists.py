@@ -45,6 +45,18 @@ def role_row_content(role: Role) -> rx.Component:
                 variant="soft",
                 color_scheme="green",
             ),
+            rx.cond(
+                role.permissions_admin,
+                rx.tooltip(
+                    rx.badge(
+                        rx.icon("shield-check", size=12),
+                        "Admin",
+                        variant="soft",
+                        color_scheme="amber",
+                    ),
+                    content="This role has admin permissions",
+                ),
+            ),
             spacing=SPACING_SMALL,
         ),
         spacing=SPACING_SMALL,
@@ -87,28 +99,28 @@ def role_limits_row(role: Role, limit: dict) -> rx.Component:
         ),
         rx.table.cell(
             rx.cond(
-                limit["rpm"] != None,  # noqa: E711
+                limit["rpm"],
                 rx.text(limit["rpm"].to(str), weight="medium", size=TEXT_SIZE_LABEL),
                 rx.text("Unlimited", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
             ),
         ),
         rx.table.cell(
             rx.cond(
-                limit["rpd"] != None,  # noqa: E711
+                limit["rpd"],
                 rx.text(limit["rpd"].to(str), weight="medium", size=TEXT_SIZE_LABEL),
                 rx.text("Unlimited", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
             ),
         ),
         rx.table.cell(
             rx.cond(
-                limit["tpm"] != None,  # noqa: E711
+                limit["tpm"],
                 rx.text(limit["tpm"].to(str), weight="medium", size=TEXT_SIZE_LABEL),
                 rx.text("Unlimited", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
             ),
         ),
         rx.table.cell(
             rx.cond(
-                limit["tpd"] != None,  # noqa: E711
+                limit["tpd"],
                 rx.text(limit["tpd"].to(str), weight="medium", size=TEXT_SIZE_LABEL),
                 rx.text("Unlimited", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
             ),

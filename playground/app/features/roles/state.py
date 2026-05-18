@@ -27,10 +27,10 @@ class RolesState(EntityState):
         permissions_read_metric = True if "read_metric" in role["permissions"] else False
         permissions_provide_models = True if "provide_models" in role["permissions"] else False
 
-        limits_dict = defaultdict(lambda: {"rpm": 0, "rpd": 0, "tpm": 0, "tpd": 0})
+        limits_dict = defaultdict(lambda: {"rpm": None, "rpd": None, "tpm": None, "tpd": None})
 
         for limit in role["limits"]:
-            router_name = router_dict_reverse[limit["router_id"]]
+            router_name = router_dict_reverse[limit["router"]]
             limits_dict[router_name][limit["type"]] = limit["value"]
 
         # Ensure limits are returned sorted by router name for consistent UI ordering
@@ -52,10 +52,10 @@ class RolesState(EntityState):
     def _format_limit(self, limit: dict[str, str | int]) -> list[dict[str, str | int]]:
         """Format limit from Playground format to OpenGateLLM format."""
         return [
-            {"router_id": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
-            {"router_id": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
-            {"router_id": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
-            {"router_id": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
+            {"router": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
+            {"router": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
+            {"router": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
+            {"router": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
         ]
 
     ############################################################
@@ -70,61 +70,73 @@ class RolesState(EntityState):
         """Get roles list with correct typing for Reflex."""
         return self.entities
 
-    @rx.event
+    @rx.event(background=True)
     async def load_entities(self):
         """Load entities."""
-        if not self.is_authenticated or not self.api_key:
-            return
-
-        self.entities_loading = True
-        yield
+        async with self:
+            if not self.is_authenticated or not self.api_key:
+                return
+            self.entities_loading = True
+            url = self.opengatellm_url
+            api_key = self.api_key
+            page = self.page
+            per_page = self.per_page
+            order_by = self.order_by_value
+            order_direction = self.order_direction_value
+            yield
 
         response = None
+        local_routers_list = []
+        local_routers_dict = {}
+        raw_roles = []
         try:
             async with httpx.AsyncClient() as client:
                 offset = 0
                 while True:
                     response = await client.get(
-                        f"{self.opengatellm_url}/v1/admin/routers",
+                        f"{url}/v1/admin/routers",
                         params={"offset": offset, "limit": 100},
-                        headers={"Authorization": f"Bearer {self.api_key}"},
+                        headers={"Authorization": f"Bearer {api_key}"},
                         timeout=configuration.settings.playground_opengatellm_timeout,
                     )
-
                     response.raise_for_status()
                     data = response.json()
                     routers_data = data.get("data", [])
-                    self.routers_list = [{"id": router["id"], "name": router["name"]} for router in routers_data]
-                    self.routers_dict = {router["name"]: router["id"] for router in routers_data}
+                    local_routers_list.extend([{"id": r["id"], "name": r["name"]} for r in routers_data])
+                    local_routers_dict.update({r["name"]: r["id"] for r in routers_data})
                     offset += 100
                     if len(routers_data) < 100:
                         break
 
                 response = await client.get(
-                    f"{self.opengatellm_url}/v1/admin/roles",
+                    f"{url}/v1/admin/roles",
                     params={
-                        "offset": (self.page - 1) * self.per_page,
-                        "limit": self.per_page,
-                        "sort_by": self.order_by_value,
-                        "sort_order": self.order_direction_value,
+                        "offset": (page - 1) * per_page,
+                        "limit": per_page,
+                        "order_by": order_by,
+                        "order_direction": order_direction,
                     },
-                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    headers={"Authorization": f"Bearer {api_key}"},
                     timeout=configuration.settings.playground_opengatellm_timeout,
                 )
-
                 response.raise_for_status()
                 data = response.json()
-                self.entities = []
-                for role in data.get("data", []):
-                    self.entities.append(self._format_role(role))
+                raw_roles = data.get("data", [])
 
-            self.has_more_page = len(self.entities) == self.per_page
-
+            async with self:
+                self.routers_list = local_routers_list
+                self.routers_dict = local_routers_dict
+                entities = [self._format_role(role) for role in raw_roles]
+                self.entities = entities
+                self.has_more_page = len(entities) == per_page
+                yield
         except Exception as e:
-            yield httpx_error_toast(exception=e, response=response)
+            async with self:
+                yield httpx_error_toast(exception=e, response=response)
         finally:
-            self.entities_loading = False
-            yield
+            async with self:
+                self.entities_loading = False
+                yield
 
     ############################################################
     # Delete entity
@@ -165,8 +177,7 @@ class RolesState(EntityState):
 
                 self.handle_delete_entity_dialog_change(is_open=False)
                 yield rx.toast.success("Role deleted successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                yield type(self).load_entities()
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -188,12 +199,14 @@ class RolesState(EntityState):
             if limit["router"] == router:
                 continue
 
-            limits.extend([
-                {"router_id": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
-                {"router_id": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
-                {"router_id": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
-                {"router_id": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
-            ])
+            limits.extend(
+                [
+                    {"router": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
+                    {"router": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
+                    {"router": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
+                    {"router": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
+                ]
+            )
 
         yield
 
@@ -210,8 +223,7 @@ class RolesState(EntityState):
                 response.raise_for_status()
 
                 yield rx.toast.success("Limit deleted successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                yield type(self).load_entities()
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -288,8 +300,7 @@ class RolesState(EntityState):
                 response.raise_for_status()
 
                 yield rx.toast.success("Role created successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                yield type(self).load_entities()
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -329,8 +340,7 @@ class RolesState(EntityState):
 
                 self.new_limit = {"router": None, "rpm": None, "rpd": None, "tpm": None, "tpd": None}
                 yield rx.toast.success("Limits added successfully", position="bottom-right")
-                async for _ in self.load_entities():
-                    yield
+                yield type(self).load_entities()
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -420,8 +430,7 @@ class RolesState(EntityState):
             self.handle_settings_entity_dialog_change(is_open=False)
             yield rx.toast.success("Role updated successfully", position="bottom-right")
 
-            async for _ in self.load_entities():
-                yield
+            yield type(self).load_entities()
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -440,38 +449,34 @@ class RolesState(EntityState):
     order_direction_value: str = "asc"
     order_by_options: list[str] = ["id", "name", "created", "updated"]
 
-    @rx.event
+    @rx.event(background=True)
     async def set_order_by(self, value: str):
         """Set order by field and reload."""
-        self.order_by_value = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        async with self:
+            self.order_by_value = value
+            self.page = 1
+            self.has_more_page = False
+            yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def set_order_direction(self, value: str):
         """Set order direction and reload."""
-        self.order_direction_value = value
-        self.page = 1
-        self.has_more_page = False
-        yield
-        async for _ in self.load_entities():
-            yield
+        async with self:
+            self.order_direction_value = value
+            self.page = 1
+            self.has_more_page = False
+            yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def prev_page(self):
-        if self.page > 1:
-            self.page -= 1
-            yield
-            async for _ in self.load_entities():
-                yield
+        async with self:
+            if self.page > 1:
+                self.page -= 1
+                yield type(self).load_entities()
 
-    @rx.event
+    @rx.event(background=True)
     async def next_page(self):
-        if self.has_more_page:
-            self.page += 1
-            yield
-            async for _ in self.load_entities():
-                yield
+        async with self:
+            if self.has_more_page:
+                self.page += 1
+                yield type(self).load_entities()
