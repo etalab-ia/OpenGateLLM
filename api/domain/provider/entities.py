@@ -13,7 +13,6 @@ HostingZone = StrEnum("HostingZone", {str(code).upper(): str(code) for code in s
 
 
 class Metric(StrEnum):
-    INFLIGHT = "inflight"  # requests concurrency
     LATENCY = "latency"  # requests latency
     TTFT = "ttft"  # time to first token
     NORMALIZED_LATENCY = "normalized_latency"  # requests latency normalized by the completion tokens

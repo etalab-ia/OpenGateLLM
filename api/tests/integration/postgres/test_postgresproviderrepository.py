@@ -304,7 +304,7 @@ class TestUpdateProvider:
             .with_model_hosting_zone(HostingZone.USA)
             .with_model_total_params(2_000_000)
             .with_model_active_params(1_000_000)
-            .with_qos_metric(Metric.INFLIGHT)
+            .with_qos_metric(Metric.LATENCY)
             .with_qos_limit(0.99)
         )
 
@@ -315,7 +315,7 @@ class TestUpdateProvider:
         assert result.model_hosting_zone == HostingZone.USA
         assert result.model_total_params == 2_000_000
         assert result.model_active_params == 1_000_000
-        assert result.qos_metric == Metric.INFLIGHT
+        assert result.qos_metric == Metric.LATENCY
         assert result.qos_limit == 0.99
         persisted = (await db_session.execute(select(ProviderTable).where(ProviderTable.id == provider.id))).scalar_one()
         assert persisted.router_id == router_2.id
@@ -323,7 +323,7 @@ class TestUpdateProvider:
         assert persisted.model_hosting_zone == HostingZone.USA
         assert persisted.model_total_params == 2_000_000
         assert persisted.model_active_params == 1_000_000
-        assert persisted.qos_metric == Metric.INFLIGHT.value
+        assert persisted.qos_metric == Metric.LATENCY.value
         assert persisted.qos_limit == 0.99
 
     async def test_update_provider_should_return_provider_already_exists_when_moving_to_router_with_duplicate_url_and_model_name(

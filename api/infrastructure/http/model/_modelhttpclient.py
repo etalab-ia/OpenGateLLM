@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field, StringConstraints
 from api.domain.model.entities import UserModelRequest
 from api.domain.model.errors import UnsupportedEndpointError
 from api.domain.provider import ProviderMetricsLogger
-from api.domain.provider.entities import ProviderType
+from api.domain.provider.entities import Metric, ProviderType
 from api.infrastructure.fastapi.context import RequestContextManager
 from api.infrastructure.fastapi.endpoints.exceptions import ModelIsTooBusyException
 from api.infrastructure.http.model.adapters import (
@@ -168,7 +168,9 @@ class ModelHttpClient:
         exchange = self.complete_response_exchange(exchange=exchange, response_data=response_data, latency=latency)
         self.request_manager.set_ttft(None)
         self.request_manager.set_latency(latency)
-        await self.provider_metrics_logger.log_performance(provider_id=self.provider_id, ttft=None, latency=latency, completion_tokens=1)
+        await self.provider_metrics_logger.log_metric(provider_id=self.provider_id, metric=Metric.LATENCY, value=latency)
+        # TODO: replace by normalized latency
+        await self.provider_metrics_logger.log_metric(provider_id=self.provider_id, metric=Metric.NORMALIZED_LATENCY, value=latency)
 
         if exchange.formatted_response.data is None:
             response = httpx.Response(
@@ -247,9 +249,14 @@ class ModelHttpClient:
                     latency = self._elapsed_ms(start_time=start_time)
                     response_data = ChatCompletion(model=self.model_name, choices=[{"index": 0, "message": " ".join(buffer)}]).model_dump()
                     exchange = self.complete_response_exchange(exchange=exchange, response_data=response_data, latency=latency)
+
                 self.request_manager.set_ttft(ttft)
                 self.request_manager.set_latency(latency)
-                await self.provider_metrics_logger.log_performance(provider_id=self.provider_id, ttft=ttft, latency=latency, completion_tokens=1)
+
+                await self.provider_metrics_logger.log_metric(provider_id=self.provider_id, metric=Metric.TTFT, value=ttft)
+                await self.provider_metrics_logger.log_metric(provider_id=self.provider_id, metric=Metric.LATENCY, value=latency)
+                # TODO: replace by normalized latency
+                await self.provider_metrics_logger.log_metric(provider_id=self.provider_id, metric=Metric.NORMALIZED_LATENCY, value=latency)
 
             except (
                 httpx.TimeoutException,

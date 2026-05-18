@@ -1,21 +1,23 @@
 from abc import ABC, abstractmethod
 
+from api.domain.provider.entities import Metric
+
 
 class ProviderMetricsLogger(ABC):
     @abstractmethod
-    async def log_performance(self, provider_id: int | None, ttft: int | None, latency: int | None) -> None:
+    async def log_metric(self, provider_id: int, metric: Metric, value: float):
         pass
 
     @abstractmethod
-    async def increment_inflight(self, provider_id: int | None) -> bool:
+    async def increment_inflight(self, provider_id: int) -> bool:
         pass
 
     @abstractmethod
-    async def decrement_inflight(self, provider_id: int | None, inflight_is_incremented: bool) -> None:
+    async def decrement_inflight(self, provider_id: int) -> None:
         pass
 
     @abstractmethod
-    async def get_historical_normalized_latencies(self, provider_id: int, from_time: int | None = None) -> list[float]:
+    async def get_metric_history(self, provider_id: int, metric: Metric, from_time: int | None = None) -> list[float]:
         pass
 
     @abstractmethod
