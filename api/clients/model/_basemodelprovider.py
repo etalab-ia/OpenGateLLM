@@ -275,6 +275,16 @@ class BaseModelProvider(ABC):
             logger.error(f"Failed to log request metrics (latency) in redis (id: {self.id})", exc_info=True)
             await safe_redis_reset(redis_client)
 
+        try:
+            if latency is not None:
+                key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{Metric.NORMALIZED_LATENCY.value}:{self.id}"
+                await self._ensure_timeseries_exists(redis_client, key)
+                # Use milliseconds timestamp to avoid collisions
+                await redis_client.ts().add(key=key, timestamp=int(time.time() * 1000), value=latency)
+        except Exception:
+            logger.error(f"Failed to log request metrics (latency) in redis (id: {self.id})", exc_info=True)
+            await safe_redis_reset(redis_client)
+
     def _start_langfuse_observation(self, request_content: RequestContent) -> Any | None:
         langfuse_obs = None
         if global_context.langfuse_client is not None:
