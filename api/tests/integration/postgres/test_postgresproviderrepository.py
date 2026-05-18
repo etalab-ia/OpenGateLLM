@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from api.domain import SortOrder
 from api.domain.model.entities import ModelType
-from api.domain.provider.entities import HostingZone, Metric, Provider, ProviderSortField, ProviderType
+from api.domain.provider.entities import HostingZone, Metric, Provider, ProviderSortField, ProviderType, QoSMetric
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.infrastructure.postgres import PostgresProviderRepository
 from api.sql.models import Provider as ProviderTable
@@ -290,7 +290,7 @@ class TestUpdateProvider:
             model_hosting_zone=HostingZone.FRA,
             model_total_params=1_000_000,
             model_active_params=500_000,
-            qos_metric=Metric.TTFT,
+            qos_metric=QoSMetric.TTFT,
             qos_limit=0.5,
         )
         await db_session.flush()
@@ -304,7 +304,7 @@ class TestUpdateProvider:
             .with_model_hosting_zone(HostingZone.USA)
             .with_model_total_params(2_000_000)
             .with_model_active_params(1_000_000)
-            .with_qos_metric(Metric.LATENCY)
+            .with_qos_metric(QoSMetric.LATENCY)
             .with_qos_limit(0.99)
         )
 

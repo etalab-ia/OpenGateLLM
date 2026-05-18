@@ -7,6 +7,7 @@ from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import AccountExpiredHTTPException
+from api.infrastructure.fastapi.schemas.health import ModelHealthStatus, ModelsHealthResponse
 from api.use_cases.health import GetHealthModelsCommand, GetHealthModelsUseCase, GetHealthModelsUseCaseSuccess
 from api.utils.variables import EndpointRoute, RouterName
 
@@ -37,6 +38,8 @@ async def get_health_models(
 
     match result:
         case GetHealthModelsUseCaseSuccess():
-            return JSONResponse(content=[model.model_dump() for model in result.models], status_code=200)
+            return ModelsHealthResponse(
+                data=[ModelHealthStatus.model_validate(model, from_attributes=True) for model in result.models],
+            )
         case UserExpiredError():
             raise AccountExpiredHTTPException()
