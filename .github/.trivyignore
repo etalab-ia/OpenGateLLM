@@ -1,0 +1,11 @@
+# gnutls DTLS zero-length fragment DoS — no upstream Debian fix yet
+# Pulled transitively by nginx in playground image. Re-evaluate after 2026-08-01.
+CVE-2026-33845 exp:2026-08-01
+
+# gnutls authentication bypass via NUL character in username — no upstream Debian fix yet
+# Reported in libgnutls30t64 from base image. Re-evaluate after 2026-09-01.
+CVE-2026-42010 exp:2026-09-01
+
+# libssh2 integer overflow with large username/password — no upstream Debian fix yet
+# Reported in libssh2-1t64 from base image. Re-evaluate after 2026-09-01.
+CVE-2026-7598 exp:2026-09-01
