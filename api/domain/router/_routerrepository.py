@@ -30,7 +30,7 @@ class RouterRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_aliases_by_router_id(self, router_id: int) -> list[str]:
+    async def get_router_by_name_or_alias(self, name_or_alias: str) -> Router | RouterNotFoundError:
         pass
 
     @abstractmethod

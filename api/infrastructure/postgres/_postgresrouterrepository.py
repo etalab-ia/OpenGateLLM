@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, Select, asc, cast, delete, desc, func, insert, literal, null, select, update
+from sqlalchemy import Integer, Select, asc, cast, delete, desc, func, insert, literal, null, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,14 +15,31 @@ from api.sql.models import RouterAlias as RouterAliasTable
 from api.sql.models import User as UserTable
 
 
+def _unix_timestamp(column):
+    return cast(func.extract("epoch", column), Integer)
+
+
 class PostgresRouterRepository(RouterRepository):
     def __init__(self, postgres_session: AsyncSession, app_title: str):
         self.postgres_session = postgres_session
         self.app_title = app_title
 
     @staticmethod
-    def _select_routers_with_provider_stats() -> Select:
-        provider_count = func.count(ProviderTable.id).over(partition_by=RouterTable.id).label("providers")
+    def _select_providers_statement() -> Select:
+        return func.count(ProviderTable.id).over(partition_by=RouterTable.id).label("providers")
+
+    @staticmethod
+    def _select_aliases_statement() -> list[str]:
+        return (
+            select(func.coalesce(func.array_agg(RouterAliasTable.value), text("'{}'::text[]")))
+            .where(RouterAliasTable.router_id == RouterTable.id)
+            .correlate(RouterTable)
+            .scalar_subquery()
+            .label("aliases")
+        )
+
+    @staticmethod
+    def _select_all_routers_statement() -> Select:
         return select(
             RouterTable.id,
             RouterTable.name,
@@ -33,19 +50,50 @@ class PostgresRouterRepository(RouterRepository):
             RouterTable.cost_completion_tokens,
             ProviderTable.max_context_length,
             ProviderTable.vector_size,
-            provider_count,
-            cast(func.extract("epoch", RouterTable.created), Integer).label("created"),
-            cast(func.extract("epoch", RouterTable.updated), Integer).label("updated"),
+            PostgresRouterRepository._select_providers_statement(),
+            PostgresRouterRepository._select_aliases_statement(),
+            _unix_timestamp(RouterTable.created).label("created"),
+            _unix_timestamp(RouterTable.updated).label("updated"),
         ).join(ProviderTable, ProviderTable.router_id == RouterTable.id, isouter=True)
 
     @staticmethod
-    def _row_to_router_with_aliases(row, aliases: list[str]) -> Router:
+    def _select_router_by_name_or_alias_statement(name_or_alias: str):
+        matched_subquery = (
+            select(RouterTable.id.label("matched_id"))
+            .outerjoin(RouterAliasTable, RouterAliasTable.router_id == RouterTable.id)
+            .where(or_(RouterTable.name == name_or_alias, RouterAliasTable.value == name_or_alias))
+            .group_by(RouterTable.id)
+            .limit(1)
+            .subquery()
+        )
+        return (
+            select(
+                RouterTable.id,
+                RouterTable.name,
+                RouterTable.user_id,
+                RouterTable.type,
+                RouterTable.load_balancing_strategy,
+                RouterTable.cost_prompt_tokens,
+                RouterTable.cost_completion_tokens,
+                ProviderTable.max_context_length,
+                ProviderTable.vector_size,
+                PostgresRouterRepository._select_providers_statement(),
+                PostgresRouterRepository._select_aliases_statement(),
+                _unix_timestamp(RouterTable.created).label("created"),
+                _unix_timestamp(RouterTable.updated).label("updated"),
+            )
+            .select_from(matched_subquery.join(RouterTable, RouterTable.id == matched_subquery.c.matched_id))
+            .join(ProviderTable, ProviderTable.router_id == RouterTable.id, isouter=True)
+        )
+
+    @staticmethod
+    def _row_to_router_with_aliases(row, aliases: list[str] | None = None) -> Router:
         return Router(
             id=row.id,
             name=row.name,
             user_id=row.user_id,
             type=RouterType(row.type),
-            aliases=aliases,
+            aliases=row.aliases if aliases is None else aliases,
             load_balancing_strategy=RouterLoadBalancingStrategy(row.load_balancing_strategy),
             vector_size=row.vector_size,
             max_context_length=row.max_context_length,
@@ -56,19 +104,31 @@ class PostgresRouterRepository(RouterRepository):
             updated=row.updated,
         )
 
-    async def get_aliases_by_router_id(self, router_id: int) -> list[str]:
-        query = select(RouterAliasTable.value).where(RouterAliasTable.router_id == router_id)
-        result = await self.postgres_session.execute(query)
-        return [row[0] for row in result.all()]
-
     async def get_router_by_id(self, router_id: int) -> Router | RouterNotFoundError:
-        query = self._select_routers_with_provider_stats().where(RouterTable.id == router_id).limit(1)
+        query = (
+            self._select_all_routers_statement()
+            .where(RouterTable.id == router_id)
+            .distinct(RouterTable.id)
+            .order_by(RouterTable.id, ProviderTable.id)
+            .limit(1)
+        )
         result = await self.postgres_session.execute(query)
         row = result.one_or_none()
         if row is None:
             return RouterNotFoundError(id=router_id)
-        aliases = await self.get_aliases_by_router_id(router_id)
-        return self._row_to_router_with_aliases(row, aliases)
+
+        return self._row_to_router_with_aliases(row)
+
+    async def get_router_by_name_or_alias(self, name_or_alias: str) -> Router | RouterNotFoundError:
+        query = (
+            self._select_router_by_name_or_alias_statement(name_or_alias).distinct(RouterTable.id).order_by(RouterTable.id, ProviderTable.id).limit(1)
+        )
+        result = await self.postgres_session.execute(query)
+        row = result.one_or_none()
+        if row is None:
+            return RouterNotFoundError(name=name_or_alias)
+
+        return self._row_to_router_with_aliases(row)
 
     async def get_organization_name(self, user_id: int) -> str:
         query = (
@@ -81,10 +141,10 @@ class PostgresRouterRepository(RouterRepository):
         return owned_by if owned_by else self.app_title
 
     async def get_all_routers(self) -> list[Router]:
-        query = self._select_routers_with_provider_stats().distinct(RouterTable.id).order_by(RouterTable.id, ProviderTable.id)
+        query = self._select_all_routers_statement().distinct(RouterTable.id).order_by(RouterTable.id, ProviderTable.id)
         result = await self.postgres_session.execute(query)
-        aliases_by_router = await self.get_aliases_grouped_by_router()
-        return [self._row_to_router_with_aliases(row, aliases_by_router.get(row.id, [])) for row in result.all()]
+
+        return [self._row_to_router_with_aliases(row) for row in result.all()]
 
     async def get_routers_page(
         self,
@@ -93,7 +153,7 @@ class PostgresRouterRepository(RouterRepository):
         sort_by: SortField = SortField.ID,
         sort_order: SortOrder = SortOrder.ASC,
     ) -> RouterPage:
-        distinct_routers = (self._select_routers_with_provider_stats().distinct(RouterTable.id).order_by(RouterTable.id, ProviderTable.id)).subquery()
+        distinct_routers = (self._select_all_routers_statement().distinct(RouterTable.id).order_by(RouterTable.id, ProviderTable.id)).subquery()
 
         count_query = select(func.count()).select_from(distinct_routers)
         total = (await self.postgres_session.execute(count_query)).scalar_one()
@@ -104,22 +164,9 @@ class PostgresRouterRepository(RouterRepository):
         routers_query = select(distinct_routers, func.count().over().label("total")).order_by(sort_order_clause).limit(limit).offset(offset)
         result = await self.postgres_session.execute(routers_query)
 
-        rows = result.all()
-        router_ids = [row.id for row in rows]
-        aliases_by_router = await self.get_aliases_grouped_by_router(router_ids)
-        routers = [self._row_to_router_with_aliases(row, aliases_by_router.get(row.id, [])) for row in rows]
+        routers = [self._row_to_router_with_aliases(row) for row in result.all()]
 
         return RouterPage(total=total, data=routers)
-
-    async def get_aliases_grouped_by_router(self, router_ids: list[int] | None = None) -> dict[int, list[str]]:
-        query = select(RouterAliasTable.router_id, RouterAliasTable.value)
-        if router_ids is not None:
-            query = query.where(RouterAliasTable.router_id.in_(router_ids))
-        result = await self.postgres_session.execute(query)
-        aliases: dict[int, list[str]] = {}
-        for row in result.all():
-            aliases.setdefault(row.router_id, []).append(row.value)
-        return aliases
 
     @with_lock(namespace="router", key="name")
     async def create_router(
@@ -156,8 +203,8 @@ class PostgresRouterRepository(RouterRepository):
                     cast(null(), Integer).label("vector_size"),
                     cast(null(), Integer).label("max_context_length"),
                     cast(literal(0), Integer).label("providers"),
-                    cast(func.extract("epoch", RouterTable.created), Integer).label("created"),
-                    cast(func.extract("epoch", RouterTable.updated), Integer).label("updated"),
+                    _unix_timestamp(RouterTable.created).label("created"),
+                    _unix_timestamp(RouterTable.updated).label("updated"),
                 )
             )
             result = await self.postgres_session.execute(insert_router_query)
@@ -200,7 +247,6 @@ class PostgresRouterRepository(RouterRepository):
         await self.postgres_session.execute(delete(RouterTable).where(RouterTable.id.in_([router.id for router in routers])))
         return routers
 
-    @with_lock(namespace="router", key="router.id")
     async def update_router(self, router: Router) -> Router | RouterNameAlreadyExistsError:
         try:
             update_query = (
@@ -222,8 +268,8 @@ class PostgresRouterRepository(RouterRepository):
                     RouterTable.load_balancing_strategy,
                     RouterTable.cost_prompt_tokens,
                     RouterTable.cost_completion_tokens,
-                    cast(func.extract("epoch", RouterTable.created), Integer).label("created"),
-                    cast(func.extract("epoch", RouterTable.updated), Integer).label("updated"),
+                    _unix_timestamp(RouterTable.created).label("created"),
+                    _unix_timestamp(RouterTable.updated).label("updated"),
                 )
             )
             result = await self.postgres_session.execute(update_query)

@@ -1,8 +1,5 @@
 from dataclasses import dataclass
 
-from api.domain.provider.entities import ProviderType
-from api.utils.variables import EndpointRoute
-
 
 @dataclass
 class InconsistentModelVectorSizeError:
@@ -21,10 +18,3 @@ class InconsistentModelMaxContextLengthError:
     expected_max_context_length: int
     actual_max_context_length: int
     router_name: str
-
-
-# @TODO: move to provider.errors.py
-@dataclass
-class UnsupportedEndpointError:
-    endpoint: EndpointRoute
-    provider_type: ProviderType | None = None

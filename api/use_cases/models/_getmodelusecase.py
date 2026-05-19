@@ -4,6 +4,8 @@ import time
 from api.domain.model.entities import Model, ModelCosts
 from api.domain.model.errors import ModelNotFoundError
 from api.domain.router import RouterRepository
+from api.domain.router.entities import Router
+from api.domain.router.errors import RouterNotFoundError
 from api.domain.user import UserWithRoleQuery
 from api.domain.user.errors import UserExpiredError
 
@@ -32,13 +34,14 @@ class GetModelUseCase:
         if user.expires is not None and user.expires < time.time():
             return UserExpiredError()
 
-        routers = await self.router_repository.get_all_routers()
+        result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=command.name)
+        match result:
+            case Router() as router:
+                pass
+            case RouterNotFoundError():
+                return ModelNotFoundError(name=command.name)
 
-        router = next(
-            (router for router in routers if router.name == command.name or any(alias == command.name for alias in router.aliases)),
-            None,
-        )
-        if router is None or router.has_no_providers or user.cannot_access_router(router_id=router.id):
+        if router.has_no_providers or user.cannot_access_router(router_id=router.id):
             return ModelNotFoundError(name=command.name)
 
         organization_name = await self.router_repository.get_organization_name(router.user_id)
