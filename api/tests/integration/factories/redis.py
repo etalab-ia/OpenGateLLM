@@ -27,10 +27,3 @@ class RedisMetricsFactory:
             await redis_client.ts().add(key=key, timestamp=timestamp, value=value)
 
         return key
-
-    @staticmethod
-    async def create_redis_client(redis_module, redis_url: str):
-        pool = redis_module.ConnectionPool.from_url(url=redis_url)
-        pool.url = redis_url
-        client = redis_module.Redis(connection_pool=pool)
-        return client, pool

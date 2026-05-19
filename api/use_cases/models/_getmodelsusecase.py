@@ -37,20 +37,23 @@ class GetModelsUseCase:
                 return ModelNotFoundError()
 
         for router in routers:
-            if router.has_providers:
-                if user.has_access_to_router(router_id=router.id):
-                    organization_name = await self.router_repository.get_organization_name(router.user_id)
-                    models.append(
-                        Model(
-                            id=router.name,
-                            type=router.type,
-                            owned_by=organization_name,
-                            aliases=router.aliases,
-                            created=router.created,
-                            max_context_length=router.max_context_length,
-                            costs=ModelCosts(prompt_tokens=router.cost_prompt_tokens, completion_tokens=router.cost_completion_tokens),
-                        )
-                    )
+            if router.has_no_providers:
+                continue
+            if user.cannot_access_router(router_id=router.id):
+                continue
+
+            organization_name = await self.router_repository.get_organization_name(router.user_id)
+            models.append(
+                Model(
+                    id=router.name,
+                    type=router.type,
+                    owned_by=organization_name,
+                    aliases=router.aliases,
+                    created=router.created,
+                    max_context_length=router.max_context_length,
+                    costs=ModelCosts(prompt_tokens=router.cost_prompt_tokens, completion_tokens=router.cost_completion_tokens),
+                )
+            )
 
         if name is not None and len(models) == 0:
             return ModelNotFoundError()  # TODO: create a dedicated use case

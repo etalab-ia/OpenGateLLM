@@ -22,15 +22,15 @@ class UserWithRoleView(BaseModel):
     def is_admin(self) -> bool:
         return PermissionType.ADMIN in self.permissions
 
-    def has_access_to_router(self, router_id: int) -> bool:
+    def cannot_access_router(self, router_id: int) -> bool:
         if PermissionType.ADMIN in self.permissions:
-            return True
+            return False
 
         router_limits = [limit for limit in self.limits if limit.router_id == router_id]
         if len(router_limits) == 0:
-            return False
+            return True
 
         if 0 in [limit.value for limit in router_limits]:
-            return False
+            return True
 
-        return True
+        return False

@@ -54,5 +54,5 @@ class Router(BaseModel):
         return self.max_context_length == max_context_length
 
     @property
-    def has_providers(self) -> bool:
-        return self.providers > 0
+    def has_no_providers(self) -> bool:
+        return self.providers == 0
