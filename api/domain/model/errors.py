@@ -13,7 +13,7 @@ class InconsistentModelVectorSizeError:
 
 @dataclass
 class ModelNotFoundError:
-    pass
+    name: str
 
 
 @dataclass

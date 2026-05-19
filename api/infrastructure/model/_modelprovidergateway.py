@@ -6,7 +6,7 @@ from api.domain.provider import ProviderCapabilities, ProviderGateway, ProviderM
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import ModelProviderNotFoundError, ProviderNotReachableError
 from api.infrastructure.fastapi.context import RequestContextManager
-from api.infrastructure.fastapi.schemas.models import ModelResponse
+from api.infrastructure.fastapi.schemas.models import Model
 from api.infrastructure.http.model import ModelHttpClient, ModelUsageComputer
 from api.infrastructure.http.model.albert import AlbertModelHttpClient
 from api.infrastructure.http.model.mistral import MistralModelHttpClient
@@ -98,7 +98,7 @@ class ModelProviderGateway(ProviderGateway):
             return ProviderNotReachableError(model_name=client.model_name, status_code=response.status_code, detail=response.text)
 
         data = response.json().get("data", [])
-        model = next((ModelResponse(**model) for model in data if model["id"] == client.model_name or client.model_name in model["aliases"]), None)
+        model = next((Model(**model) for model in data if model["id"] == client.model_name or client.model_name in model["aliases"]), None)
         if model is None:
             logger.info(msg=f"Model not found in response of {client.model_name}: {data}.")
             return ModelProviderNotFoundError(model_name=client.model_name)

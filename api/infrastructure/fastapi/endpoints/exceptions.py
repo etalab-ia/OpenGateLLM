@@ -69,10 +69,10 @@ class InconsistentModelVectorSizeHTTPException(HTTPException):
 # 404
 class ModelNotFoundHTTPException(HTTPException):
     status_code = 404
-    detail = "Model not found."
+    detail = "Model {name} not found."
 
-    def __init__(self) -> None:
-        super().__init__(status_code=self.status_code, detail=self.detail)
+    def __init__(self, name: str) -> None:
+        super().__init__(status_code=self.status_code, detail=f"Model {name} not found.")
 
 
 class RoleNotFoundHTTPException(HTTPException):
