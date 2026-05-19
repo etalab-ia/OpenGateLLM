@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from contextlib import aclosing
 import json
 import logging
 import traceback
@@ -22,46 +23,51 @@ class StreamingResponseWithStatusCode(StreamingResponse):
 
     async def stream_response(self, send: Send) -> None:
         more_body = True
-        try:
-            first_chunk = await self.body_iterator.__anext__()
-            if isinstance(first_chunk, tuple):
-                first_chunk_content, self.status_code = first_chunk
-            else:
-                first_chunk_content, self.status_code = first_chunk, 200
-
-            if isinstance(first_chunk_content, str):
-                first_chunk_content = first_chunk_content.encode(self.charset)
-
-            await send({"type": "http.response.start", "status": self.status_code, "headers": self.raw_headers})
-
-            self.response_started = True
-            await send({"type": "http.response.body", "body": first_chunk_content, "more_body": more_body})
-
-            async for chunk in self.body_iterator:
-                if isinstance(chunk, tuple):
-                    content, status_code = chunk
-                    if status_code // 100 != 2:
-                        # an error occurred mid-stream
-                        if not isinstance(content, bytes):
-                            content = content.encode(self.charset)
-                        more_body = False
-                        await send({"type": "http.response.body", "body": content, "more_body": more_body})
-                        return
+        # aclosing guarantees aclose() is called on the body iterator when this method exits
+        # for any reason (including CancelledError from client disconnect). Without it, the
+        # iterator stays open and the asyncio GC schedules a concurrent aclose() task that
+        # races with the normal cleanup path → RuntimeError("already running").
+        async with aclosing(self.body_iterator) as body_iterator:
+            try:
+                first_chunk = await body_iterator.__anext__()
+                if isinstance(first_chunk, tuple):
+                    first_chunk_content, self.status_code = first_chunk
                 else:
-                    content = chunk
+                    first_chunk_content, self.status_code = first_chunk, 200
 
-                if isinstance(content, str):
-                    content = content.encode(self.charset)
-                more_body = True
-                await send({"type": "http.response.body", "body": content, "more_body": more_body})
+                if isinstance(first_chunk_content, str):
+                    first_chunk_content = first_chunk_content.encode(self.charset)
 
-        except Exception:
-            logger.error(traceback.format_exc())
-            more_body = False
-            error_resp = {"error": {"message": "Internal Server Error"}}
-            error_event = f"event: error\ndata: {json.dumps(error_resp)}\n\n".encode(self.charset)
-            if not self.response_started:
-                await send({"type": "http.response.start", "status": 500, "headers": self.raw_headers})
-            await send({"type": "http.response.body", "body": error_event, "more_body": more_body})
+                await send({"type": "http.response.start", "status": self.status_code, "headers": self.raw_headers})
+
+                self.response_started = True
+                await send({"type": "http.response.body", "body": first_chunk_content, "more_body": more_body})
+
+                async for chunk in body_iterator:
+                    if isinstance(chunk, tuple):
+                        content, status_code = chunk
+                        if status_code // 100 != 2:
+                            # an error occurred mid-stream
+                            if not isinstance(content, bytes):
+                                content = content.encode(self.charset)
+                            more_body = False
+                            await send({"type": "http.response.body", "body": content, "more_body": more_body})
+                            return
+                    else:
+                        content = chunk
+
+                    if isinstance(content, str):
+                        content = content.encode(self.charset)
+                    more_body = True
+                    await send({"type": "http.response.body", "body": content, "more_body": more_body})
+
+            except Exception:
+                logger.error(traceback.format_exc())
+                more_body = False
+                error_resp = {"error": {"message": "Internal Server Error"}}
+                error_event = f"event: error\ndata: {json.dumps(error_resp)}\n\n".encode(self.charset)
+                if not self.response_started:
+                    await send({"type": "http.response.start", "status": 500, "headers": self.raw_headers})
+                await send({"type": "http.response.body", "body": error_event, "more_body": more_body})
         if more_body:
             await send({"type": "http.response.body", "body": b"", "more_body": False})
