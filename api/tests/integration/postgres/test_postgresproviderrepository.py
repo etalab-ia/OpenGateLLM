@@ -4,8 +4,8 @@ import pytest
 from sqlalchemy import select
 
 from api.domain import SortOrder
-from api.domain.model.entities import Metric, ModelType
-from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderSortField, ProviderType
+from api.domain.model.entities import ModelType
+from api.domain.provider.entities import HostingZone, Metric, Provider, ProviderSortField, ProviderType, QoSMetric
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.infrastructure.postgres import PostgresProviderRepository
 from api.sql.models import Provider as ProviderTable
@@ -23,7 +23,7 @@ def _create_provider_args(user, router, **overrides):
         "key": "model-key",
         "timeout": 60,
         "model_name": "my-model",
-        "model_hosting_zone": ProviderCarbonFootprintZone.FRA,
+        "model_hosting_zone": HostingZone.FRA,
         "model_total_params": 1000,
         "model_active_params": 2000,
         "qos_metric": Metric.TTFT,
@@ -60,7 +60,7 @@ class TestCreateProvider:
             key="model-key",
             timeout=60,
             model_name="my-model",
-            model_hosting_zone=ProviderCarbonFootprintZone.FRA,
+            model_hosting_zone=HostingZone.FRA,
             model_total_params=1000,
             model_active_params=2000,
             qos_metric=Metric.TTFT,
@@ -117,6 +117,54 @@ class TestGetOneProvider:
         # Assert
         assert isinstance(result, ProviderNotFoundError)
         assert result.id == 999999
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestGetAllProviders:
+    async def test_get_all_providers_should_return_all_providers(self, repository, db_session):
+        # Arrange
+        user_1 = UserSQLFactory()
+        user_2 = UserSQLFactory()
+
+        router_1 = RouterSQLFactory(user=user_1, name="router_1")
+        router_2 = RouterSQLFactory(user=user_1, name="router_2")
+        RouterSQLFactory(user=user_2, name="router_3_no_providers")
+
+        provider_1 = ProviderSQLFactory(router=router_1, model_name="provider_r1_a", url="https://r1-a.example.com")
+        provider_2 = ProviderSQLFactory(router=router_1, model_name="provider_r1_b", url="https://r1-b.example.com")
+        provider_3 = ProviderSQLFactory(router=router_2, model_name="provider_r2_a", url="https://r2-a.example.com")
+
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_all_providers()
+
+        # Assert
+        assert len(result) == 3
+        model_names = {p.model_name for p in result}
+        assert model_names == {provider_1.model_name, provider_2.model_name, provider_3.model_name}
+
+        r1_providers = [p for p in result if p.router_id == router_1.id]
+        assert len(r1_providers) == 2
+
+        r1_first = next(p for p in result if p.id == provider_1.id)
+        assert r1_first.type.value == provider_1.type.value
+        assert r1_first.url == provider_1.url
+        assert r1_first.router_id == router_1.id
+        assert r1_first.user_id == user_1.id
+        assert r1_first.max_context_length == provider_1.max_context_length
+        assert r1_first.vector_size == provider_1.vector_size
+
+    async def test_get_all_providers_should_return_empty_list_when_no_providers(self, repository, db_session):
+        # Arrange
+        RouterSQLFactory()
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_all_providers()
+
+        # Assert
+        assert result == []
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -239,10 +287,10 @@ class TestUpdateProvider:
         provider = ProviderSQLFactory(
             router=router_1,
             timeout=30,
-            model_hosting_zone=ProviderCarbonFootprintZone.FRA,
+            model_hosting_zone=HostingZone.FRA,
             model_total_params=1_000_000,
             model_active_params=500_000,
-            qos_metric=Metric.TTFT,
+            qos_metric=QoSMetric.TTFT,
             qos_limit=0.5,
         )
         await db_session.flush()
@@ -253,10 +301,10 @@ class TestUpdateProvider:
             domain_provider
             .with_router_id(router_2.id)
             .with_timeout(120)
-            .with_model_hosting_zone(ProviderCarbonFootprintZone.USA)
+            .with_model_hosting_zone(HostingZone.USA)
             .with_model_total_params(2_000_000)
             .with_model_active_params(1_000_000)
-            .with_qos_metric(Metric.INFLIGHT)
+            .with_qos_metric(QoSMetric.LATENCY)
             .with_qos_limit(0.99)
         )
 
@@ -264,18 +312,18 @@ class TestUpdateProvider:
         assert isinstance(result, Provider)
         assert result.router_id == router_2.id
         assert result.timeout == 120
-        assert result.model_hosting_zone == ProviderCarbonFootprintZone.USA
+        assert result.model_hosting_zone == HostingZone.USA
         assert result.model_total_params == 2_000_000
         assert result.model_active_params == 1_000_000
-        assert result.qos_metric == Metric.INFLIGHT
+        assert result.qos_metric == Metric.LATENCY
         assert result.qos_limit == 0.99
         persisted = (await db_session.execute(select(ProviderTable).where(ProviderTable.id == provider.id))).scalar_one()
         assert persisted.router_id == router_2.id
         assert persisted.timeout == 120
-        assert persisted.model_hosting_zone == ProviderCarbonFootprintZone.USA
+        assert persisted.model_hosting_zone == HostingZone.USA
         assert persisted.model_total_params == 2_000_000
         assert persisted.model_active_params == 1_000_000
-        assert persisted.qos_metric == Metric.INFLIGHT.value
+        assert persisted.qos_metric == Metric.LATENCY.value
         assert persisted.qos_limit == 0.99
 
     async def test_update_provider_should_return_provider_already_exists_when_moving_to_router_with_duplicate_url_and_model_name(

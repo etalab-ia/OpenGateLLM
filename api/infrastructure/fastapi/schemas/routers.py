@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 from pydantic import Field, StringConstraints
 
 from api.domain.router.entities import RouterLoadBalancingStrategy
-from api.schemas import BaseModel
+from api.infrastructure.fastapi.schemas import BaseModel
 from api.schemas.models import ModelType
 
 

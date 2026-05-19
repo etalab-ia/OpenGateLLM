@@ -2,10 +2,9 @@ from typing import Annotated, Literal
 
 from pydantic import Field, StringConstraints, model_validator
 
-from api.domain.provider.entities import ProviderCarbonFootprintZone, ProviderType
-from api.schemas import BaseModel
+from api.domain.provider.entities import HostingZone, ProviderType, QoSMetric
+from api.infrastructure.fastapi.schemas import BaseModel
 from api.schemas.core.configuration import ModelProvider
-from api.schemas.core.models import Metric
 
 
 class CreateProviderBody(ModelProvider):
@@ -21,10 +20,10 @@ class CreateProviderResponse(BaseModel):
     key: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Provider API key.")]  # fmt: off
     timeout: Annotated[int, Field(..., ge=1, le=3600, description="Timeout for the provider requests, after user receive an 500 error (model is too busy).")]  # fmt: off
     model_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(..., description="Model name from the model provider.")]  # fmt: off
-    model_hosting_zone: Annotated[ProviderCarbonFootprintZone, Field(default=ProviderCarbonFootprintZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])]  # fmt: off
+    model_hosting_zone: Annotated[HostingZone, Field(default=HostingZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])]  # fmt: off
     model_total_params: Annotated[int, Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
     model_active_params: Annotated[int, Field(default=0, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
-    qos_metric: Annotated[Metric | None, Field(default=None, description="The metric to use for the QoS policy. If not provided, no QoS policy is applied.")]  # fmt: off
+    qos_metric: Annotated[QoSMetric | None, Field(default=None, description="The metric to use for the QoS policy. If not provided, no QoS policy is applied.")]  # fmt: off
     qos_limit: Annotated[float | None, Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")]  # fmt: off
     created: Annotated[int | None, Field(default=None, description="Time of creation, as Unix timestamp.")]  # fmt: off
     updated: Annotated[int | None, Field(default=None, description="Time of last update, as Unix timestamp.")]  # fmt: off
@@ -33,10 +32,10 @@ class CreateProviderResponse(BaseModel):
 class UpdateProviderBody(BaseModel):
     router_id: int | None = Field(default=None, description="The ID of the new router to assign to the provider.")  # fmt: off
     timeout: int | None = Field(default=None, description="Timeout for the model provider requests, after user receive an 500 error (model is too busy).")  # fmt: off
-    model_hosting_zone: Annotated[ProviderCarbonFootprintZone | None, Field(default=None, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")]  # fmt: off
+    model_hosting_zone: Annotated[HostingZone | None, Field(default=None, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")]  # fmt: off
     model_total_params: Annotated[int | None, Field(default=None, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
     model_active_params: Annotated[int | None, Field(default=None, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
-    qos_metric: Annotated[Metric | None, Field(default=None, description="The metric to use for the quality of service policy. If not provided, no QoS policy is applied.")]  # fmt: off
+    qos_metric: Annotated[QoSMetric | None, Field(default=None, description="The metric to use for the quality of service policy. If not provided, no QoS policy is applied.")]  # fmt: off
     qos_limit: Annotated[float | None, Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")]  # fmt: off
 
     @model_validator(mode="after")
@@ -57,10 +56,10 @@ class ProviderResponse(BaseModel):
     key: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="provider API key.")]
     timeout: Annotated[int, Field(description="Timeout for the provider requests, after user receive an 500 error (model is too busy).")]
     model_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="Model name from the model provider.")]
-    model_hosting_zone: Annotated[ProviderCarbonFootprintZone, Field(default=ProviderCarbonFootprintZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])]  # fmt: off
+    model_hosting_zone: Annotated[HostingZone, Field(default=HostingZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])]  # fmt: off
     model_total_params: Annotated[int, Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
     model_active_params: Annotated[int, Field(default=0, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
-    qos_metric: Annotated[Metric | None, Field(description="The metric to use for the QoS policy. If not provided, no QoS policy is applied.")]
+    qos_metric: Annotated[QoSMetric | None, Field(description="The metric to use for the QoS policy. If not provided, no QoS policy is applied.")]
     qos_limit: Annotated[float | None, Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")]  # fmt: off
     created: Annotated[int | None, Field(default=None, description="Time of creation, as Unix timestamp.")]
     updated: Annotated[int | None, Field(default=None, description="Time of last update, as Unix timestamp.")]

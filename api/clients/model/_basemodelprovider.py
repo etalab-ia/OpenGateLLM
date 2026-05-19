@@ -23,7 +23,7 @@ from api.utils.carbon import get_carbon_footprint
 from api.utils.context import generate_request_id, global_context, request_context
 from api.utils.exceptions import ModelIsTooBusyException, RequestFormatFailedException, ResponseFormatFailedException
 from api.utils.redis import redis_retry, safe_redis_reset
-from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE, PREFIX__REDIS_METRIC_TIMESERIE, REDIS__TIMESERIE_RETENTION_SECONDS, EndpointRoute
+from api.utils.variables import METRICS__TIMESERIE_RETENTION_SECONDS, PREFIX__REDIS_METRIC_GAUGE, PREFIX__REDIS_METRIC_TIMESERIE, EndpointRoute
 
 logger = logging.getLogger(__name__)
 
@@ -240,7 +240,7 @@ class BaseModelProvider(ABC):
             await redis_client.ts().info(key)
         except Exception:
             try:
-                await redis_client.ts().create(key, retention_msecs=REDIS__TIMESERIE_RETENTION_SECONDS * 1000, duplicate_policy="LAST")
+                await redis_client.ts().create(key, retention_msecs=METRICS__TIMESERIE_RETENTION_SECONDS * 1000, duplicate_policy="LAST")
             except Exception:
                 pass
 
@@ -268,6 +268,16 @@ class BaseModelProvider(ABC):
         try:
             if latency is not None:
                 key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{Metric.LATENCY.value}:{self.id}"
+                await self._ensure_timeseries_exists(redis_client, key)
+                # Use milliseconds timestamp to avoid collisions
+                await redis_client.ts().add(key=key, timestamp=int(time.time() * 1000), value=latency)
+        except Exception:
+            logger.error(f"Failed to log request metrics (latency) in redis (id: {self.id})", exc_info=True)
+            await safe_redis_reset(redis_client)
+
+        try:
+            if latency is not None:
+                key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{Metric.NORMALIZED_LATENCY.value}:{self.id}"
                 await self._ensure_timeseries_exists(redis_client, key)
                 # Use milliseconds timestamp to avoid collisions
                 await redis_client.ts().add(key=key, timestamp=int(time.time() * 1000), value=latency)

@@ -6,7 +6,7 @@ import pytest
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider import ProviderCapabilities
-from api.domain.provider.entities import ProviderCarbonFootprintZone, ProviderType
+from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
@@ -115,7 +115,7 @@ def default_command():
         key=None,
         timeout=30,
         model_name="my-model",
-        model_hosting_zone=ProviderCarbonFootprintZone.WOR,
+        model_hosting_zone=HostingZone.WOR,
         model_total_params=0,
         model_active_params=0,
         qos_metric=None,
@@ -174,7 +174,7 @@ class TestCreateProviderUseCase:
             key=None,
             timeout=30,
             model_name="my-model",
-            model_hosting_zone=ProviderCarbonFootprintZone.WOR,
+            model_hosting_zone=HostingZone.WOR,
             model_total_params=0,
             model_active_params=0,
             qos_metric=None,
@@ -215,7 +215,7 @@ class TestCreateProviderUseCase:
             key=None,
             timeout=30,
             model_name="my-model",
-            model_hosting_zone=ProviderCarbonFootprintZone.WOR,
+            model_hosting_zone=HostingZone.WOR,
             model_total_params=0,
             model_active_params=0,
             qos_metric=None,
@@ -256,7 +256,7 @@ class TestCreateProviderUseCase:
             key=None,
             timeout=30,
             model_name="my-model",
-            model_hosting_zone=ProviderCarbonFootprintZone.WOR,
+            model_hosting_zone=HostingZone.WOR,
             model_total_params=0,
             model_active_params=0,
             qos_metric=None,

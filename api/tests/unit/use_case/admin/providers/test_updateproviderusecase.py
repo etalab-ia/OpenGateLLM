@@ -5,11 +5,10 @@ import pytest
 
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
-from api.domain.provider.entities import ProviderCarbonFootprintZone, ProviderType
+from api.domain.provider.entities import HostingZone, ProviderType, QoSMetric
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
-from api.schemas.core.models import Metric
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, UserWithRoleFactory
 from api.use_cases.admin.providers._updateproviderusecase import UpdateProviderCommand, UpdateProviderUseCase, UpdateProviderUseCaseSuccess
 
@@ -410,7 +409,7 @@ class TestUpdateProviderUseCase:
         self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider, sample_router
     ):
         # Arrange
-        new_zone = ProviderCarbonFootprintZone.FRA
+        new_zone = HostingZone.FRA
         updated_provider = sample_provider.with_model_hosting_zone(new_zone)
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = sample_provider
@@ -504,7 +503,7 @@ class TestUpdateProviderUseCase:
         self, use_case, provider_repository, router_repository, user_with_role_query, admin_user, sample_provider, sample_router
     ):
         # Arrange
-        updated_provider = sample_provider.with_qos_metric(Metric.TTFT)
+        updated_provider = sample_provider.with_qos_metric(QoSMetric.TTFT)
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.return_value = sample_router
@@ -518,7 +517,7 @@ class TestUpdateProviderUseCase:
             model_hosting_zone=None,
             model_total_params=None,
             model_active_params=None,
-            qos_metric=Metric.TTFT,
+            qos_metric=QoSMetric.TTFT,
             qos_limit=None,
         )
 
@@ -528,7 +527,7 @@ class TestUpdateProviderUseCase:
         # Assert
         assert isinstance(result, UpdateProviderUseCaseSuccess)
         assert result.provider == updated_provider
-        provider_repository.update_provider.assert_called_once_with(sample_provider.with_qos_metric(Metric.TTFT))
+        provider_repository.update_provider.assert_called_once_with(sample_provider.with_qos_metric(QoSMetric.TTFT))
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_qos_limit_is_changed(

@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 
 from api.domain import SortOrder
-from api.domain.model.entities import Metric
-from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderPage, ProviderSortField, ProviderType
+from api.domain.provider.entities import HostingZone, Metric, Provider, ProviderPage, ProviderSortField, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 
 
@@ -17,7 +16,7 @@ class ProviderRepository(ABC):
         key: str | None,
         timeout: int,
         model_name: str,
-        model_hosting_zone: ProviderCarbonFootprintZone,
+        model_hosting_zone: HostingZone,
         model_total_params: int,
         model_active_params: int,
         qos_metric: Metric | None,
@@ -48,4 +47,8 @@ class ProviderRepository(ABC):
 
     @abstractmethod
     async def update_provider(self, provider: Provider) -> Provider | ProviderAlreadyExistsError:
+        pass
+
+    @abstractmethod
+    async def get_all_providers(self) -> list[Provider]:
         pass

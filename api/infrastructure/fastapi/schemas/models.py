@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 from pydantic import Field
 
 from api.domain.model.entities import ModelType
-from api.schemas import BaseModel
+from api.infrastructure.fastapi.schemas import BaseModel
 
 
 class ModelCosts(BaseModel):

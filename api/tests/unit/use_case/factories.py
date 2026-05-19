@@ -5,7 +5,7 @@ import factory
 from factory import fuzzy
 
 from api.domain.model.entities import ModelType as RouterType
-from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderType
+from api.domain.provider.entities import HostingZone, Provider, ProviderType
 from api.domain.role.entities import Limit, LimitType, PermissionType, Role
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy
 from api.domain.user.entities import User
@@ -87,7 +87,7 @@ class ProviderFactory(factory.Factory):
     key = None
     timeout = 30
     model_name = factory.Faker("bothify", text="model-????")
-    model_hosting_zone = ProviderCarbonFootprintZone.WOR
+    model_hosting_zone = HostingZone.WOR
     model_total_params = 0
     model_active_params = 0
     qos_metric = None
@@ -148,7 +148,7 @@ class ModelProviderConfigurationFactory(factory.Factory):
     key = None
     timeout = 30
     model_name = factory.Faker("bothify", text="model-????")
-    model_hosting_zone = ProviderCarbonFootprintZone.WOR
+    model_hosting_zone = HostingZone.WOR
     model_total_params = 0
     model_active_params = 0
     qos_metric = None

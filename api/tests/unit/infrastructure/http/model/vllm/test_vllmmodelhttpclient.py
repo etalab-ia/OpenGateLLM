@@ -16,7 +16,7 @@ def vllm_model_http_client() -> VllmModelHttpClient:
         key="test-key",
         timeout=120,
         model_name="vllm-test-model",
-        metrics_logger=Mock(),
+        provider_metrics_logger=Mock(),
         request_manager=Mock(),
     )
 

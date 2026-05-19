@@ -3,7 +3,6 @@ import time
 
 from api.domain.model.entities import Model, ModelCosts
 from api.domain.model.errors import ModelNotFoundError
-from api.domain.role.entities import PermissionType
 from api.domain.router import RouterRepository
 from api.domain.user import UserWithRoleQuery
 from api.domain.user.errors import UserExpiredError
@@ -38,26 +37,24 @@ class GetModelsUseCase:
                 return ModelNotFoundError()
 
         for router in routers:
-            if router.providers > 0:
-                router_limit = next((limit for limit in user.limits if limit.router_id == router.id), None)
-                has_access = (router_limit is not None and (router_limit.value is None or router_limit.value > 0)) or (
-                    PermissionType.ADMIN in user.permissions
-                )
-                if has_access:
-                    organization_name = await self.router_repository.get_organization_name(router.user_id)
+            if router.has_no_providers:
+                continue
+            if user.cannot_access_router(router_id=router.id):
+                continue
 
-                    models.append(
-                        Model(
-                            id=router.name,
-                            type=router.type,
-                            owned_by=organization_name,
-                            aliases=router.aliases,
-                            created=router.created,
-                            max_context_length=router.max_context_length,
-                            costs=ModelCosts(prompt_tokens=router.cost_prompt_tokens, completion_tokens=router.cost_completion_tokens),
-                        )
-                    )
+            organization_name = await self.router_repository.get_organization_name(router.user_id)
+            models.append(
+                Model(
+                    id=router.name,
+                    type=router.type,
+                    owned_by=organization_name,
+                    aliases=router.aliases,
+                    created=router.created,
+                    max_context_length=router.max_context_length,
+                    costs=ModelCosts(prompt_tokens=router.cost_prompt_tokens, completion_tokens=router.cost_completion_tokens),
+                )
+            )
 
         if name is not None and len(models) == 0:
-            return ModelNotFoundError()
+            return ModelNotFoundError()  # TODO: create a dedicated use case
         return GetModelUseCaseSucess(models=models)

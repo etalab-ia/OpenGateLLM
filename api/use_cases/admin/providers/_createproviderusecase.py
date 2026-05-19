@@ -1,10 +1,9 @@
 from dataclasses import dataclass
 import time
 
-from api.domain.model.entities import Metric
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider import ProviderGateway, ProviderRepository
-from api.domain.provider.entities import Provider, ProviderCarbonFootprintZone, ProviderType
+from api.domain.provider.entities import HostingZone, Metric, Provider, ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError
@@ -21,7 +20,7 @@ class CreateProviderCommand:
     key: str | None
     timeout: int
     model_name: str
-    model_hosting_zone: ProviderCarbonFootprintZone
+    model_hosting_zone: HostingZone
     model_total_params: int
     model_active_params: int
     qos_metric: Metric | None

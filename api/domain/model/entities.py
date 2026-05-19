@@ -5,13 +5,6 @@ from pydantic import BaseModel, Field
 from api.utils.variables import EndpointRoute
 
 
-class Metric(StrEnum):
-    TTFT = "ttft"  # time to first token
-    LATENCY = "latency"  # requests latency
-    INFLIGHT = "inflight"  # requests concurrency
-    PERFORMANCE = "performance"  # custom performance metric
-
-
 class ModelCosts(BaseModel):
     prompt_tokens: float = 0.0
     completion_tokens: float = 0.0
@@ -41,3 +34,14 @@ class UserModelRequest(BaseModel):
     body: dict = Field(default={}, description="The JSON body to use for the request.")
     form: dict = Field(default={}, description="The form-encoded data to use for the request.")
     files: dict = Field(default={}, description="The files to use for the request.")
+
+
+class HealthStatus(StrEnum):
+    GREEN = "green"
+    YELLOW = "yellow"
+    RED = "red"
+
+
+class ModelHealthStatus(BaseModel):
+    id: str
+    status: HealthStatus

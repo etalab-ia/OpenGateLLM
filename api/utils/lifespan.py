@@ -23,7 +23,6 @@ from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
 from api.infrastructure.fastapi.context import RequestContextManager
-from api.infrastructure.http.model import ModelMetricsLogger
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
     PostgresLimitRepository,
@@ -33,6 +32,7 @@ from api.infrastructure.postgres import (
     PostgresRouterRepository,
     PostgresUserRepository,
 )
+from api.infrastructure.redis import RedisProviderMetricsLogger
 from api.schemas.core.configuration import Configuration, Tokenizer
 from api.use_cases.admin import (
     BootstrapAdminCommand,
@@ -153,9 +153,9 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
     provider_repository = PostgresProviderRepository(postgres_session=postgres_session)
     # @TODO: remove after make optional metrics logger and request manager in httpmodelclient
     redis_client = redis.Redis(connection_pool=global_context.redis_pool)
-    metrics_logger = ModelMetricsLogger(redis_client=redis_client)
+    provider_metrics_logger = RedisProviderMetricsLogger(redis_client=redis_client)
     request_manager = RequestContextManager()
-    provider_gateway = ModelProviderGateway(metrics_logger=metrics_logger, request_manager=request_manager)
+    provider_gateway = ModelProviderGateway(provider_metrics_logger=provider_metrics_logger, request_manager=request_manager)
 
     result = await BootstrapModelsUseCase(
         router_repository=router_repository,

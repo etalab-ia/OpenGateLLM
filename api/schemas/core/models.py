@@ -54,6 +54,7 @@ class Metric(str, Enum):
     LATENCY = "latency"  # requests latency
     INFLIGHT = "inflight"  # requests concurrency
     PERFORMANCE = "performance"  # custom performance metric
+    NORMALIZED_LATENCY = "normalized_latency"  # requests latency normalized by the completion tokens
 
 
 # TEI

@@ -5,6 +5,8 @@ sidebar:
 ---
 import { LinkButton } from '@astrojs/starlight/components';
 
+## Request usage logging
+
 OpenGateLLM tracks inference activity by storing usage data for each API request. This monitoring helps you analyze model usage over time, identify consumption patterns, and support reporting needs. 
 Usage monitoring is backed by PostgreSQL and can be enabled through the configuration file. Once activated, requests are recorded in the `usage` table and can be explored from the Playground *Usage* page or queried directly from the database.
 
@@ -21,7 +23,7 @@ The logs contain the following information:
 
 Sensitive information such as the prompt or response content is not included in the logs.
 
-## Configuration
+### Configuration
 
 To logs requests for usage monitoring, set `monitoring_postgres_enabled` to `true` in settings (enabled by default).
 
@@ -32,3 +34,30 @@ settings:
 ```
 
 <LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>
+
+## Model health monitoring
+
+OpenGateLLM provides a health check endpoint to monitor the health of the models. This endpoint is available at `/health/models` and returns a JSON response with the health status of the models.
+
+```json
+{
+  "data": [
+    {
+      "id": "model_name",
+      "status": "green" | "yellow" | "red"
+    }
+  ]
+}
+```
+
+The health status is calculated based on the Little's law indicator. The indicator is calculated as the ratio of the current inflight requests to the 
+expected inflight requests. The expected inflight requests are calculated as the mean latency multiplied by the request per millisecond.
+
+The health status is:
+| Indicator | Status |
+|-----------|--------|
+| < 0.8     | <span style="color: green;">**green**</span>  |
+| 0.8 - 1.1 | <span style="color: orange;">**yellow**</span> |
+| > 1.1     | <span style="color: red;">**red**</span>    |
+
+The health status is calculated for each model. The model health status is the worst status of the providers of the model.

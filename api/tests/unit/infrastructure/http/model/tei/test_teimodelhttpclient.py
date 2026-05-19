@@ -16,7 +16,7 @@ def tei_model_http_client() -> TeiModelHttpClient:
         key="test-key",
         timeout=120,
         model_name="test-model",
-        metrics_logger=Mock(),
+        provider_metrics_logger=Mock(),
         request_manager=Mock(),
     )
 
