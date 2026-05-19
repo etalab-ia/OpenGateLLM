@@ -1,6 +1,5 @@
 from abc import ABC
 import ast
-import asyncio
 import importlib
 from json import JSONDecodeError, dumps, loads
 import logging
@@ -27,13 +26,6 @@ from api.utils.redis import redis_retry, safe_redis_reset
 from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE, PREFIX__REDIS_METRIC_TIMESERIE, REDIS__TIMESERIE_RETENTION_SECONDS, EndpointRoute
 
 logger = logging.getLogger(__name__)
-
-
-async def _decrement_inflight(redis_client: AsyncRedis, inflight_key: str) -> None:
-    try:
-        await redis_retry(redis_client.decr, name=inflight_key, max_retries=2)
-    except Exception:
-        logger.error("Unable to decrement redis requests inflight key")
 
 
 class BaseModelProvider(ABC):
@@ -516,6 +508,9 @@ class BaseModelProvider(ABC):
                 yield dumps({"detail": type(e).__name__}), 500
             finally:
                 if inflight_incremented:
-                    asyncio.create_task(_decrement_inflight(redis_client=redis_client, inflight_key=inflight_key))
+                    try:
+                        await redis_retry(redis_client.decr, name=inflight_key, max_retries=2)
+                    except Exception:
+                        logger.error("Unable to decrement redis requests inflight key")
                 if global_context.langfuse_client is not None and langfuse_obs is not None:
                     global_context.langfuse_client.end_observation(langfuse_obs)
