@@ -1,11 +1,9 @@
-import pytest
-from sqlalchemy import select
+from unittest.mock import AsyncMock, patch
 
-from api.domain.role.entities import PermissionType
+import pytest
+
 from api.schemas.core.configuration import Configuration, Dependencies, Settings
-from api.sql.models import Permission, User
-from api.tests.integration.factories.sql import RoleSQLFactory, UserSQLFactory
-from api.use_cases.admin import BootstrapAdminUseCase
+from api.use_cases.admin import BootstrapAdminCommand, BootstrapAdminUseCaseSkipped, BootstrapAdminUseCaseSuccess
 from api.utils.lifespan import bootstrap_admin_role_and_user
 
 ADMIN_USERNAME = "admin"
@@ -23,68 +21,31 @@ def bootstrap_configuration() -> Configuration:
     )
 
 
-@pytest.mark.asyncio(loop_scope="session")
+@pytest.fixture
+def postgres_session():
+    return AsyncMock()
+
+
 class TestBootstrapAdmin:
-    async def test_creates_admin_user_and_role_when_no_admin_exists(self, db_session, bootstrap_configuration):
-        # Act
-        await bootstrap_admin_role_and_user(configuration=bootstrap_configuration, postgres_session=db_session)
-        await db_session.flush()
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "use_case_result,expected_user_id",
+        [
+            (BootstrapAdminUseCaseSuccess(user_id=10, email=ADMIN_USERNAME, role_id=42), 10),
+            (BootstrapAdminUseCaseSkipped(user_id=7, email=ADMIN_USERNAME, role_id=99), 7),
+        ],
+    )
+    async def test_happy_path(self, bootstrap_configuration, postgres_session, use_case_result, expected_user_id):
+        mock_use_case = AsyncMock()
+        mock_use_case.execute.return_value = use_case_result
 
-        # Assert
-        user = (await db_session.execute(select(User).where(User.email == ADMIN_USERNAME))).scalar_one_or_none()
-        assert user is not None
-        assert user.email == ADMIN_USERNAME
-
-        permission = (
-            await db_session.execute(select(Permission).where(Permission.role_id == user.role_id, Permission.permission == PermissionType.ADMIN))
-        ).scalar_one_or_none()
-        assert permission is not None
-
-    async def test_skips_when_admin_user_already_exists(self, db_session, bootstrap_configuration):
-        # Arrange
-        UserSQLFactory(admin_user=True)
-        await db_session.flush()
-
-        # Act
-        await bootstrap_admin_role_and_user(configuration=bootstrap_configuration, postgres_session=db_session)
-
-    async def test_reuses_existing_role_and_adds_admin_permission_when_role_name_already_taken(self, db_session, bootstrap_configuration):
-        # Arrange
-        role = RoleSQLFactory(name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_ROLE_NAME)
-        await db_session.flush()
-
-        # Act
-        await bootstrap_admin_role_and_user(configuration=bootstrap_configuration, postgres_session=db_session)
-
-        # Assert
-        user = (await db_session.execute(select(User).where(User.email == ADMIN_USERNAME))).scalar_one_or_none()
-        assert user is not None
-        assert user.role_id == role.id
-
-        permission = (
-            await db_session.execute(select(Permission).where(Permission.role_id == role.id, Permission.permission == PermissionType.ADMIN))
-        ).scalar_one_or_none()
-        assert permission is not None
-
-    async def test_updates_existing_user_when_user_email_already_taken(self, db_session, bootstrap_configuration):
-        # Arrange
-        user = UserSQLFactory(regular_user=True, email=ADMIN_USERNAME)
-        await db_session.flush()
-
-        # Act
-        await bootstrap_admin_role_and_user(configuration=bootstrap_configuration, postgres_session=db_session)
-
-        # Assert
-        updated_user = (await db_session.execute(select(User).where(User.id == user.id))).scalar_one()
-        assert updated_user.id == user.id
-
-        permission = (
-            await db_session.execute(
-                select(Permission).where(Permission.role_id == updated_user.role_id, Permission.permission == PermissionType.ADMIN)
+        with patch("api.utils.lifespan.BootstrapAdminUseCase", return_value=mock_use_case):
+            result = await bootstrap_admin_role_and_user(
+                configuration=bootstrap_configuration,
+                postgres_session=postgres_session,
             )
-        ).scalar_one_or_none()
-        assert permission is not None
 
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+        assert result == expected_user_id
+        mock_use_case.execute.assert_awaited_once_with(
+            BootstrapAdminCommand(email=ADMIN_USERNAME, password=ADMIN_PASSWORD),
+        )

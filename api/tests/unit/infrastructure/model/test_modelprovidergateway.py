@@ -3,9 +3,10 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from api.domain.model.entities import ModelType as RouterType
+from api.domain.model.errors import ModelNotFoundError
 from api.domain.provider import ProviderCapabilities
 from api.domain.provider.entities import ProviderType
-from api.domain.provider.errors import ModelProviderNotFoundError, ProviderNotReachableError
+from api.domain.provider.errors import ProviderNotReachableError
 from api.infrastructure.http.model import ModelHttpClient
 from api.infrastructure.http.model.albert import AlbertModelHttpClient
 from api.infrastructure.http.model.mistral import MistralModelHttpClient
@@ -116,10 +117,7 @@ class TestModelProviderGateway:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "error",
-        [
-            ProviderNotReachableError(model_name="test-model", status_code=500, detail="error_detail"),
-            ModelProviderNotFoundError(model_name="test-model"),
-        ],
+        [ProviderNotReachableError(model_name="test-model", status_code=500, detail="error_detail"), ModelNotFoundError(name="test-model")],
     )
     async def test_should_return_max_context_error(self, gateway, client, error, mocker):
         # Arrange
@@ -233,7 +231,7 @@ class TestModelProviderGateway:
         result = await ModelProviderGateway._get_max_context_length(client)
 
         # Assert
-        assert result == ModelProviderNotFoundError(model_name="test-model")
+        assert result == ModelNotFoundError(name="test-model")
 
     @pytest.mark.asyncio
     async def test_should_return_model_not_found_when_model_is_missing_in_models_response(self, client, mocker):
@@ -246,7 +244,7 @@ class TestModelProviderGateway:
         result = await ModelProviderGateway._get_max_context_length(client)
 
         # Assert
-        assert result == ModelProviderNotFoundError(model_name="test-model")
+        assert result == ModelNotFoundError(name="test-model")
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("error", [ModelIsTooBusyException(), HTTPException(status_code=500, detail="boom")])
