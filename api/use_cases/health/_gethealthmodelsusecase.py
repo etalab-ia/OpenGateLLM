@@ -50,7 +50,7 @@ class GetHealthModelsUseCase:
         for router in routers:
             if router.has_no_providers:
                 continue
-            if not user.cannot_access_router(router_id=router.id):
+            if user.cannot_access_router(router_id=router.id):
                 continue
 
             health = ModelHealthStatus(id=router.name, status=HealthStatus.GREEN)
