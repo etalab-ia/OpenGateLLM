@@ -58,10 +58,6 @@ class Router(BaseModel):
     def has_no_providers(self) -> bool:
         return self.providers == 0
 
-    @property
-    def is_text_classification(self) -> bool:
-        return self.type == RouterType.TEXT_CLASSIFICATION
-
 
 class TpmRateLimitState(BaseModel):
     value: int | None = None

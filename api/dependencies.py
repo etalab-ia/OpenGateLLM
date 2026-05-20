@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.key import KeyRepository
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.provider import ProviderClient, ProviderGateway, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider import ProviderClient, ProviderGateway, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
 from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
@@ -25,7 +25,7 @@ from api.infrastructure.postgres import (
     PostgresUserRepository,
     PostgresUserWithRoleQuery,
 )
-from api.infrastructure.redis import RedisProviderMetricsLogger, RedisRouterRateLimiter
+from api.infrastructure.redis import RedisProviderLoadBalancer, RedisProviderMetricsLogger, RedisRouterRateLimiter
 from api.infrastructure.tiktoken import TiktokenModelTokenizer
 from api.schemas.core.context import RequestContext
 from api.use_cases.admin.providers import (
@@ -132,6 +132,10 @@ def _provider_gateway(provider_client: ProviderClient = Depends(_provider_client
     return ModelProviderGateway(provider_client=provider_client)
 
 
+def _provider_load_balancer(redis_client: Redis = Depends(get_redis_client)) -> ProviderLoadBalancer:
+    return RedisProviderLoadBalancer(redis_client=redis_client)
+
+
 def _router_rate_limiter() -> RouterRateLimiter:
     return RedisRouterRateLimiter(redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy)
 
@@ -188,14 +192,16 @@ def get_users_use_case_factory(postgres_session: AsyncSession = Depends(get_post
 def create_rerank_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     provider_client: ProviderClient = Depends(_provider_client_with_logs),
+    redis_client: Redis = Depends(get_redis_client),
 ) -> CreateRerankUseCase:
     return CreateRerankUseCase(
-        router_rate_limiter=_router_rate_limiter(),
-        router_repository=_router_repository(postgres_session),
-        provider_repository=_provider_repository(postgres_session),
         model_environmental_impacts_computer=_model_environmental_impacts_computer(),
         model_tokenizer=_model_tokenizer(),
         provider_gateway=_provider_gateway(provider_client=provider_client),
+        provider_load_balancer=_provider_load_balancer(redis_client=redis_client),
+        provider_repository=_provider_repository(postgres_session),
+        router_rate_limiter=_router_rate_limiter(),
+        router_repository=_router_repository(postgres_session),
         user_with_role_query=_user_with_role_query(session=postgres_session),
     )
 

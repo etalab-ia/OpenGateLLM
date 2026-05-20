@@ -5,8 +5,9 @@ import time
 from pydantic import ConfigDict
 
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
+from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider import ProviderGateway, ProviderRepository
+from api.domain.provider import ProviderGateway, ProviderLoadBalancer, ProviderRepository
 from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.rerank.entities import CreateRerankBody, Rerank
@@ -53,20 +54,22 @@ type CreateRerankUseCaseResult = (
 class CreateRerankUseCase:
     def __init__(
         self,
-        router_rate_limiter: RouterRateLimiter,
-        router_repository: RouterRepository,
         model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer,
         model_tokenizer: ModelTokenizer,
         provider_gateway: ProviderGateway,
+        provider_load_balancer: ProviderLoadBalancer,
         provider_repository: ProviderRepository,
+        router_rate_limiter: RouterRateLimiter,
+        router_repository: RouterRepository,
         user_with_role_query: UserWithRoleQuery,
-    ):
+    ) -> None:
+        self.model_environmental_impacts_computer = model_environmental_impacts_computer
+        self.model_tokenizer = model_tokenizer
+        self.provider_gateway = provider_gateway
+        self.provider_load_balancer = provider_load_balancer
+        self.provider_repository = provider_repository
         self.router_rate_limiter = router_rate_limiter
         self.router_repository = router_repository
-        self.model_environmental_impacts_computer = model_environmental_impacts_computer
-        self.provider_gateway = provider_gateway
-        self.provider_repository = router_repository
-        self.model_tokenizer = model_tokenizer
         self.user_with_role_query = user_with_role_query
 
     async def execute(self, command: CreateRerankCommand) -> CreateRerankUseCaseResult:
@@ -81,21 +84,16 @@ class CreateRerankUseCase:
             case error:
                 return error
 
-        if not router.has_providers:
+        if router.has_no_providers:
             return RouterHasNoProvidersError(id=router.id)
-        if not router.is_text_classification:
+        if router.type != RouterType.TEXT_CLASSIFICATION:
             return RouterHasWrongTypeError(id=router.id, type=router.type)
-        if not user.has_access_to_router(router_id=router.id):
+        if not user.is_admin or user.cannot_access_router(router_id=router.id):
             return UserHasNoAccessToRouterError(id=router.id)
 
-        result = await self.provider_gateway.get_best_provider_id(router_id=router.id, providers=router.providers)
-        match result:
-            case int() as provider_id:
-                pass
-            case NoAvailableProviderError() as error:
-                return error
+        provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=router.providers)
 
-        provider = [provider for provider in router.providers if provider.id == provider_id][0]
+        providers = await self.provider_repository.get_all_provider_of_router(router_id=router.id)
 
         adapter = build_adapter(
             cost_completion_tokens=router.cost_completion_tokens,
