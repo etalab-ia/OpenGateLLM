@@ -2,7 +2,6 @@ from typing import Literal
 
 import bcrypt
 from sqlalchemy import Integer, cast, func, insert, select, update
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,9 +12,7 @@ from api.domain.user import UserRepository
 from api.domain.user.entities import User
 from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
 from api.infrastructure.postgres.decorators import with_lock
-from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Permission as PermissionTable
-from api.sql.models import Role as RoleTable
 from api.sql.models import User as UserTable
 from api.utils.exceptions import UserNotFoundException
 
@@ -45,6 +42,7 @@ class PostgresUserRepository(UserRepository):
             updated=row.updated,
         )
 
+    @with_lock(namespace="user", key="email")
     async def create_user(
         self,
         email: str,
@@ -58,17 +56,6 @@ class PostgresUserRepository(UserRepository):
         expires: int | None = None,
         priority: int = 0,
     ) -> User | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError:
-        role_result = (await self.postgres_session.execute(select(RoleTable.id).where(RoleTable.id == role_id))).scalar_one_or_none()
-        if role_result is None:
-            return RoleNotFoundError(id=role_id)
-
-        if organization_id is not None:
-            organisation_result = (
-                await self.postgres_session.execute(select(OrganizationTable.id).where(OrganizationTable.id == organization_id))
-            ).scalar_one_or_none()
-            if organisation_result is None:
-                return OrganizationNotFoundError(id=organization_id)
-
         hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
         expires_value = func.to_timestamp(expires) if expires is not None else None
 
@@ -103,37 +90,14 @@ class PostgresUserRepository(UserRepository):
                 )
             )
             row = result.one()
-        except IntegrityError:
+        except IntegrityError as e:
+            if "user_organization_id_fkey" in str(e.orig):
+                return OrganizationNotFoundError(id=organization_id)
+            if "user_role_id_fkey" in str(e.orig):
+                return RoleNotFoundError(id=role_id)
             return UserAlreadyExistsError(email=email)
 
         return self._row_to_user(row)
-
-    async def get_or_create_user(
-        self,
-        email: str,
-        password: str,
-        role_id: int,
-        name: str | None = None,
-    ) -> User:
-        hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-        stmt = pg_insert(UserTable).values(email=email, name=name, password=hashed_password, role_id=role_id)
-        result = await self.postgres_session.execute(
-            stmt.on_conflict_do_update(index_elements=["email"], set_={"email": stmt.excluded.email}).returning(
-                UserTable.id,
-                UserTable.email,
-                UserTable.name,
-                UserTable.sub,
-                UserTable.iss,
-                UserTable.role_id.label("role"),
-                UserTable.organization_id.label("organization"),
-                UserTable.budget,
-                _unix_timestamp(UserTable.expires).label("expires"),
-                _unix_timestamp(UserTable.created).label("created"),
-                _unix_timestamp(UserTable.updated).label("updated"),
-                UserTable.priority,
-            )
-        )
-        return self._row_to_user(result.one())
 
     async def get_first_admin_user(self) -> User | UserNotFoundError:
         result = await self.postgres_session.execute(

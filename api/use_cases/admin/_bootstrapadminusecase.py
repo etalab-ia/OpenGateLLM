@@ -71,7 +71,7 @@ class BootstrapAdminUseCase:
                 if user.role != role.id:
                     await self.user_repository.update_user(user=user.model_copy(update={"role": role.id}))
             case UserNotFoundError():
-                user = await self.user_repository.get_or_create_user(
+                user = await self.user_repository.create_user(
                     email=command.email,
                     password=command.password,
                     role_id=role.id,

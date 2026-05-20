@@ -299,7 +299,7 @@ async def get_provider(
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
     response_model=ProvidersResponse,
-    responses=get_documentation_responses(),
+    responses=get_documentation_responses([]),
 )
 async def get_providers(
     router_id: int | None = Query(default=None, description="Filter providers by router ID."),

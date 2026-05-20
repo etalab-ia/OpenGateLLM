@@ -159,46 +159,6 @@ class TestCreateUser:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-class TestGetOrCreateUser:
-    async def test_creates_user_when_email_does_not_exist(self, repository, db_session):
-        # Arrange
-        role = RoleSQLFactory()
-        await db_session.flush()
-
-        # Act
-        result = await repository.get_or_create_user(email="new@test.com", password="s3cr3t", role_id=role.id, name="New User")
-
-        # Assert
-        assert isinstance(result, User)
-        assert result.email == "new@test.com"
-        assert result.name == "New User"
-        assert result.role == role.id
-        assert isinstance(result.id, int)
-        row = (await db_session.execute(select(UserTable.password).where(UserTable.email == "new@test.com"))).scalar_one()
-        assert row != "s3cr3t"
-        assert bcrypt.checkpw(b"s3cr3t", row.encode("utf-8"))
-
-    async def test_returns_existing_user_when_email_already_exists(self, repository, db_session):
-        # Arrange
-        UserSQLFactory(email="existing@test.com")
-        await db_session.flush()
-        existing = await repository.get_user_by_email(email="existing@test.com")
-        assert isinstance(existing, User)
-        role = RoleSQLFactory()
-        await db_session.flush()
-
-        # Act
-        result = await repository.get_or_create_user(email="existing@test.com", password="newpassword", role_id=role.id)
-
-        # Assert
-        assert isinstance(result, User)
-        assert result.id == existing.id
-        assert result.email == "existing@test.com"
-        assert result.created == existing.created
-        assert result.updated == existing.updated
-
-
-@pytest.mark.asyncio(loop_scope="session")
 class TestGetUsers:
     async def test_returns_all_users_when_no_filter_given(self, repository, db_session):
         # Arrange

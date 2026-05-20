@@ -25,16 +25,6 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_or_create_user(
-        self,
-        email: str,
-        password: str,
-        role_id: int,
-        name: str | None = None,
-    ) -> User:
-        pass
-
-    @abstractmethod
     async def get_first_admin_user(self) -> User | UserNotFoundError:
         pass
 

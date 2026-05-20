@@ -56,7 +56,7 @@ class TestBootstrapAdminUserUseCase:
         )
         role_repository.create_role.return_value = role
         user_repository.get_user_by_email.return_value = UserNotFoundError(email=command.email)
-        user_repository.get_or_create_user.return_value = user
+        user_repository.create_user.return_value = user
 
         # Act
         result = await use_case.execute(command)
@@ -66,7 +66,7 @@ class TestBootstrapAdminUserUseCase:
 
         role_repository.create_role.assert_awaited_once_with(name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_ROLE_NAME)
         permission_repository.create_permissions.assert_awaited_once_with(role_id=42, permissions=[PermissionType.ADMIN])
-        user_repository.get_or_create_user.assert_awaited_once_with(
+        user_repository.create_user.assert_awaited_once_with(
             email=command.email,
             password=command.password,
             role_id=42,
@@ -86,7 +86,7 @@ class TestBootstrapAdminUserUseCase:
         assert result == BootstrapAdminUseCaseSkipped(user_id=7, email="admin@opengatellm.org", role_id=99)
         role_repository.get_role_with_permissions_and_limits_by_name.assert_not_awaited()
         role_repository.create_role.assert_not_awaited()
-        user_repository.get_or_create_user.assert_not_awaited()
+        user_repository.create_user.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_reuses_existing_role_when_role_name_conflicts(self, use_case, user_repository, role_repository, permission_repository, command):
@@ -100,7 +100,7 @@ class TestBootstrapAdminUserUseCase:
         user_repository.get_first_admin_user.return_value = UserNotFoundError()
         role_repository.get_role_with_permissions_and_limits_by_name.return_value = existing_role
         user_repository.get_user_by_email.return_value = UserNotFoundError(email=command.email)
-        user_repository.get_or_create_user.return_value = user
+        user_repository.create_user.return_value = user
 
         # Act
         result = await use_case.execute(command)
@@ -109,7 +109,7 @@ class TestBootstrapAdminUserUseCase:
         assert result == BootstrapAdminUseCaseSuccess(user_id=11, email="admin@opengatellm.org", role_id=5)
         role_repository.create_role.assert_not_awaited()
         permission_repository.create_permissions.assert_not_awaited()
-        user_repository.get_or_create_user.assert_awaited_once_with(
+        user_repository.create_user.assert_awaited_once_with(
             email=command.email,
             password=command.password,
             role_id=5,
@@ -134,6 +134,6 @@ class TestBootstrapAdminUserUseCase:
 
         # Assert
         assert result == BootstrapAdminUseCaseSuccess(user_id=20, email="admin@opengatellm.org", role_id=3)
-        user_repository.get_or_create_user.assert_not_awaited()
+        user_repository.create_user.assert_not_awaited()
         user_repository.update_user.assert_awaited_once()
         assert user_repository.update_user.await_args.kwargs["user"] == updated_user

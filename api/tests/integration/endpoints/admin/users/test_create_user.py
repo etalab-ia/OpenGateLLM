@@ -7,9 +7,8 @@ import pytest_asyncio
 from api.dependencies import create_user_use_case_factory
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user.errors import UserAlreadyExistsError
-from api.domain.userinfo.errors import UserIsNotAdminError
-from api.tests.helpers import create_token
+from api.domain.user.errors import UserAlreadyExistsError, UserIsNotAdminError
+from api.tests.helpers import create_key
 from api.tests.integration.factories.sql import RoleSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
@@ -31,7 +30,7 @@ class TestCreateUser:
     @pytest_asyncio.fixture(autouse=True)
     async def setup(self, db_session):
         self.admin_user = UserSQLFactory(admin_user=True)
-        self.token = await create_token(db_session, name="admin_token", user=self.admin_user)
+        self.token = await create_key(db_session, name="admin_token", user=self.admin_user)
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         role = RoleSQLFactory()
@@ -92,7 +91,7 @@ class TestCreateUser:
         "headers,expected_status,expected_detail",
         [
             ({}, 401, "Not authenticated"),
-            ({"Authorization": "Bearer invalid-token"}, 403, "Invalid API key."),
+            ({"Authorization": "Bearer invalid-token"}, 401, "Invalid API key."),
         ],
     )
     async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):

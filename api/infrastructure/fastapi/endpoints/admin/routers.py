@@ -137,7 +137,7 @@ async def get_router(
     path=EndpointRoute.ADMIN_ROUTERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses(),
+    responses=get_documentation_responses([]),
 )
 async def get_routers(
     offset: int = Query(default=0, ge=0, description="Number of routers to skip."),
