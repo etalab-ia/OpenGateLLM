@@ -4,10 +4,10 @@ import logging
 from api.domain.embeddings.entities import CreateEmbeddingsBody
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import ModelNotFoundError
-from api.domain.provider import ProviderCapabilities, ProviderGateway, ProviderMetricsLogger
+from api.domain.provider import ProviderCapabilities, ProviderClient, ProviderGateway
 from api.domain.provider.entities import Provider, ProviderOriginalRequest, ProviderOriginalResponse, ProviderType
-from api.domain.provider.errors import ProviderNotReachableError
-from api.infrastructure.fastapi.context import RequestContext, RequestContextManager
+from api.domain.provider.errors import NoAvailableProviderError, ProviderNotReachableError
+from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters import EndpointAdapter
 from api.infrastructure.http.adapters.utils import build_adapter
 from api.utils.variables import EndpointRoute
@@ -17,9 +17,13 @@ logger = logging.getLogger(__name__)
 
 # TODO: rename
 class ModelProviderGateway(ProviderGateway):
-    def __init__(self, provider_metrics_logger: ProviderMetricsLogger, request_manager: RequestContextManager):
-        self.provider_metrics_logger = provider_metrics_logger
-        self.request_manager = request_manager
+    def __init__(self, provider_client: ProviderClient):
+        self.client = provider_client
+
+    async def get_best_provider_id(self, router_id: int, providers: list[Provider]) -> int | NoAvailableProviderError:
+        # raise NotImplementedError()
+        # TODO: Implement the best provider selection logic
+        return providers[0].id
 
     async def get_capabilities(
         self,
@@ -71,7 +75,6 @@ class ModelProviderGateway(ProviderGateway):
         adapter: EndpointAdapter,
         request_context: ContextVar[RequestContext],
     ) -> int | None | ModelNotFoundError | ProviderNotReachableError:
-
         original_request = ProviderOriginalRequest(endpoint=EndpointRoute.MODELS)
         formatted_request = adapter.format_request(original_request=original_request)
         response = await self.client.forward_request(provider=adapter.provider, formatted_request=formatted_request)

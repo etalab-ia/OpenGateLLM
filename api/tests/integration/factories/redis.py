@@ -5,7 +5,7 @@ from api.infrastructure.redis import RedisProviderMetricsLogger
 from api.utils.variables import METRICS__TIMESERIE_RETENTION_SECONDS
 
 
-class RedisMetricsFactory:
+class MetricsRedisFactory:
     @classmethod
     async def set_inflight(cls, redis_client, provider_id: int, value: int = 1) -> str:
         key = f"{RedisProviderMetricsLogger.PREFIX_REDIS_METRIC_GAUGE}:inflight:{provider_id}"

@@ -3,7 +3,7 @@ from redis.asyncio import Redis as AsyncRedis
 
 from api.domain.provider.entities import Metric
 from api.infrastructure.redis._redisprovidermetricslogger import RedisProviderMetricsLogger
-from api.tests.integration.factories.redis import RedisMetricsFactory
+from api.tests.integration.factories.redis import MetricsRedisFactory
 from api.utils.variables import PREFIX__REDIS_METRIC_TIMESERIE
 
 
@@ -35,7 +35,7 @@ class TestRedisProviderMetricsLogger:
         # Arrange
         provider_id = 43
 
-        await RedisMetricsFactory.set_metric(redis_client=redis_client, provider_id=provider_id, metric=metric, values=[100, 200.0])
+        await MetricsRedisFactory.set_metric(redis_client=redis_client, provider_id=provider_id, metric=metric, values=[100, 200.0])
         # Act
         result = await repository.get_metric_history(provider_id=provider_id, metric=metric)
 
@@ -52,7 +52,7 @@ class TestRedisProviderMetricsLogger:
     async def test_increment_inflight(self, repository: RedisProviderMetricsLogger, redis_client: AsyncRedis):
         # Arrange
         provider_id = 44
-        key = await RedisMetricsFactory.set_inflight(redis_client=redis_client, provider_id=provider_id, value=10)
+        key = await MetricsRedisFactory.set_inflight(redis_client=redis_client, provider_id=provider_id, value=10)
 
         # Act
         incremented = await repository.increment_inflight(provider_id=provider_id)
@@ -65,7 +65,7 @@ class TestRedisProviderMetricsLogger:
     async def test_decrement_inflight(self, repository, redis_client: AsyncRedis):
         # Arrange
         provider_id = 44
-        key = await RedisMetricsFactory.set_inflight(redis_client=redis_client, provider_id=provider_id, value=4)
+        key = await MetricsRedisFactory.set_inflight(redis_client=redis_client, provider_id=provider_id, value=4)
 
         # Act
         decremented = await repository.decrement_inflight(provider_id=provider_id, inflight_is_incremented=True)
