@@ -23,19 +23,18 @@ router = APIRouter(prefix="/v1", tags=[RouterName.MODELS.title()])
     responses=get_documentation_responses([]),
 )
 async def get_models(
-    model: str = Path(description="The name of the model to get."),
     get_models_use_case: GetModelsUseCase = Depends(get_models_use_case_factory),
     request_context: RequestContext = Depends(get_request_context),
 ) -> ModelNotFoundHTTPException | JSONResponse:
     """
     Lists the currently available models and provides basic information.
     """
-    command = GetModelsCommand(user_id=request_context.get().user_id, name=model)
+    command = GetModelsCommand(user_id=request_context.get().user_id)
     result = await get_models_use_case.execute(command=command)
 
     match result:
         case GetModelsUseCaseSucess(models):
-            return JSONResponse(content=ModelsResponse.model_validate(data=models, from_attributes=True).model_dump(), status_code=200)
+            return JSONResponse(content=ModelsResponse.model_validate({"data": models}, from_attributes=True).model_dump(), status_code=200)
         case UserExpiredError():
             raise AccountExpiredHTTPException()
 
@@ -48,13 +47,14 @@ async def get_models(
     responses=get_documentation_responses([ModelNotFoundHTTPException]),
 )
 async def get_model(
+    model: str = Path(description="The name of the model to get."),
     get_model_use_case: GetModelUseCase = Depends(get_model_use_case_factory),
     request_context: RequestContext = Depends(get_request_context),
 ) -> JSONResponse:
     """
     Get a model by name and provide basic information.
     """
-    command = GetModelCommand(user_id=request_context.get().user_id, name=None)
+    command = GetModelCommand(user_id=request_context.get().user_id, name=model)
     result = await get_model_use_case.execute(command=command)
 
     match result:
