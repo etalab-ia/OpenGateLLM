@@ -10,7 +10,14 @@ logger = logging.getLogger(__name__)
 
 
 class UsageTokenizer:
-    USAGE_ENDPOINTS = [EndpointRoute.AUDIO_TRANSCRIPTIONS, EndpointRoute.CHAT_COMPLETIONS, EndpointRoute.EMBEDDINGS, EndpointRoute.OCR, EndpointRoute.RERANK, EndpointRoute.SEARCH]
+    USAGE_ENDPOINTS = [
+        EndpointRoute.AUDIO_TRANSCRIPTIONS,
+        EndpointRoute.CHAT_COMPLETIONS,
+        EndpointRoute.EMBEDDINGS,
+        EndpointRoute.OCR,
+        EndpointRoute.RERANK,
+        EndpointRoute.SEARCH,
+    ]
 
     def __init__(self, tokenizer: Tokenizer):
         if tokenizer == Tokenizer.TIKTOKEN_O200K_BASE:

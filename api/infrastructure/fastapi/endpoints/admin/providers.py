@@ -74,8 +74,6 @@ logger = logging.getLogger(__name__)
             ProviderNotReachableHTTPException,
             ProviderAlreadyExistsHTTPException,
             RouterNotFoundHTTPException,
-            NotAdminUserHTTPException,
-            AccountExpiredHTTPException,
         ]
     ),
 )
@@ -146,7 +144,7 @@ async def create_provider(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException, ProviderNotFoundHTTPException, AccountExpiredHTTPException]),
+    responses=get_documentation_responses([ProviderNotFoundHTTPException]),
 )
 async def delete_provider(
     provider_id: int = Path(description="The ID of the provider to delete."),
@@ -196,8 +194,6 @@ async def delete_provider(
             ProviderAlreadyExistsHTTPException,
             RouterNotFoundHTTPException,
             ProviderNotFoundHTTPException,
-            NotAdminUserHTTPException,
-            AccountExpiredHTTPException,
         ]
     ),
 )
@@ -264,7 +260,7 @@ async def update_provider(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException, ProviderNotFoundHTTPException, AccountExpiredHTTPException]),
+    responses=get_documentation_responses([ProviderNotFoundHTTPException]),
 )
 async def get_provider(
     provider_id: int = Path(description="The ID of the provider to get."),
@@ -303,7 +299,7 @@ async def get_provider(
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
     response_model=ProvidersResponse,
-    responses=get_documentation_responses([NotAdminUserHTTPException, AccountExpiredHTTPException]),
+    responses=get_documentation_responses(),
 )
 async def get_providers(
     router_id: int | None = Query(default=None, description="Filter providers by router ID."),

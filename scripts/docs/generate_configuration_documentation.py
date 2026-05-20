@@ -11,9 +11,8 @@ sys.path.insert(0, PROJECT_ROOT)
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "playground"))
 os.environ["CONFIG_FILE"] = os.path.join(PROJECT_ROOT, "config.example.yml")
 
-from app.core.configuration import ConfigFile as PlaygroundConfigFile  # noqa: E402 # type: ignore
-
 from api.schemas.core.configuration import ConfigFile as ApiConfigFile  # noqa: E402 # type: ignore
+from app.core.configuration import ConfigFile as PlaygroundConfigFile  # noqa: E402 # type: ignore
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--output", type=str, default=os.path.join("./docs/src/content/docs/configuration/configuration_file.md"))

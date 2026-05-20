@@ -53,9 +53,7 @@ class TestGetCurrentKey:
         key_repository.get_key_expiration.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_should_raise_invalid_api_key_when_credentials_are_empty(
-        self, request_obj: Mock, key_repository: AsyncMock, request_context: Mock
-    ):
+    async def test_should_raise_invalid_api_key_when_credentials_are_empty(self, request_obj: Mock, key_repository: AsyncMock, request_context: Mock):
         # Arrange
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials="")
 
