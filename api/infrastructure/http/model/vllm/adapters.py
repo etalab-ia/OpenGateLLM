@@ -1,7 +1,7 @@
 from http import HTTPMethod
 
 from api.domain.provider.entities import ProviderType
-from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
+from api.infrastructure.fastapi.schemas.models import Model, ModelsResponse
 from api.infrastructure.http.model import ModelHttpClient, ModelHttpClientEndpoints
 from api.infrastructure.http.model.adapters import ModelsAdapter
 from api.infrastructure.http.model.exchanges import FormattedModelResponse, ModelHttpExchange
@@ -14,7 +14,7 @@ class VllmModelsAdapter(ModelsAdapter):
         return FormattedModelResponse(
             data=ModelsResponse(
                 data=[
-                    ModelResponse(
+                    Model(
                         id=model["id"],
                         created=model["created"],
                         owned_by=model["owned_by"],

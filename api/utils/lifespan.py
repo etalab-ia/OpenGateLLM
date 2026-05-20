@@ -10,7 +10,7 @@ from tiktoken.core import Encoding
 
 from api.clients.parser import BaseParserClient as ParserClient
 from api.dependencies import get_postgres_session
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.helpers._documentmanager import DocumentManager
@@ -172,6 +172,8 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
             return skipped.number_of_routers
         case RouterNameAlreadyExistsError() as error:
             raise RuntimeError(f"Router name or alias is already taken ({error.name}) by another router.")
+        case ModelNotFoundError() as error:
+            raise RuntimeError(f"Provider {error.name} are not found.")
         case ProviderAlreadyExistsError() as error:
             raise RuntimeError(f"Provider {error.model_name} already exists ({error.url}) for the same router ({error.router_id}).")
         case ProviderNotReachableError() as error:
@@ -180,8 +182,6 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
             raise RuntimeError(f"Inconsistent model vector size ({error.router_name}).")
         case InconsistentModelMaxContextLengthError() as error:
             raise RuntimeError(f"Inconsistent model max context length ({error.router_name}).")
-        case error:
-            return error
 
 
 async def create_model_registry(

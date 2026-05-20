@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from api.domain.model.entities import ModelType as RouterType
+from api.domain.model.errors import ModelNotFoundError
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import ProviderNotReachableError
 
@@ -22,5 +23,5 @@ class ProviderGateway(ABC):
         key: str | None,
         timeout: int,
         model_name: str,
-    ) -> ProviderCapabilities | ProviderNotReachableError:
+    ) -> ProviderCapabilities | ModelNotFoundError | ProviderNotReachableError:
         pass

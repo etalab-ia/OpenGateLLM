@@ -36,7 +36,7 @@ from api.use_cases.admin.roles import CreateRoleUseCase, DeleteRoleUseCase, GetR
 from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
 from api.use_cases.admin.users import CreateUserUseCase
 from api.use_cases.health import GetHealthModelsUseCase
-from api.use_cases.models import GetModelsUseCase
+from api.use_cases.models import GetModelsUseCase, GetModelUseCase
 from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context
 
@@ -139,13 +139,16 @@ def get_health_models_use_case_factory(
 
 
 # models use cases
-def get_models_use_case_factory(
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-    request_context: RequestContext = Depends(get_request_context),
-) -> GetModelsUseCase:
+def get_models_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetModelsUseCase:
     return GetModelsUseCase(
         router_repository=_router_repository(postgres_session),
-        user_id=request_context.get().user_id,
+        user_with_role_query=_user_with_role_query(postgres_session),
+    )
+
+
+def get_model_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetModelUseCase:
+    return GetModelUseCase(
+        router_repository=_router_repository(postgres_session),
         user_with_role_query=_user_with_role_query(postgres_session),
     )
 

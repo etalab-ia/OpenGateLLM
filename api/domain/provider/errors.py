@@ -1,5 +1,14 @@
 from dataclasses import dataclass
 
+from api.domain.provider.entities import ProviderType
+from api.utils.variables import EndpointRoute
+
+
+@dataclass
+class UnsupportedEndpointError:
+    endpoint: EndpointRoute
+    provider_type: ProviderType | None = None
+
 
 @dataclass
 class InvalidProviderTypeError:
@@ -12,11 +21,6 @@ class ProviderNotReachableError:
     model_name: str
     status_code: int
     detail: str
-
-
-@dataclass
-class ModelProviderNotFoundError:
-    model_name: str
 
 
 @dataclass

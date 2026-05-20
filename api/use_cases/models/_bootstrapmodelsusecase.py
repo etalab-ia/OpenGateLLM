@@ -2,7 +2,7 @@ from collections import Counter
 from dataclasses import dataclass
 import logging
 
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider import ProviderGateway, ProviderRepository
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router import RouterRepository
@@ -25,11 +25,12 @@ class BootstrapModelsUseCaseSkipped:
 type BootstrapModelsUseCaseResult = (
     BootstrapModelsUseCaseSuccess
     | BootstrapModelsUseCaseSkipped
-    | RouterNameAlreadyExistsError
-    | ProviderAlreadyExistsError
-    | ProviderNotReachableError
     | InconsistentModelVectorSizeError
     | InconsistentModelMaxContextLengthError
+    | ModelNotFoundError
+    | ProviderAlreadyExistsError
+    | ProviderNotReachableError
+    | RouterNameAlreadyExistsError
 )
 
 
@@ -85,6 +86,9 @@ class BootstrapModelsUseCase:
                 )
                 match result:
                     case ProviderNotReachableError() as error:
+                        await self.router_repository.delete_all_routers()
+                        return error
+                    case ModelNotFoundError() as error:
                         await self.router_repository.delete_all_routers()
                         return error
                     case provider_capabilities:

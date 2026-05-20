@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, Security
+from fastapi import APIRouter, Depends, Security
 from fastapi.responses import JSONResponse
 
 from api.dependencies import get_health_models_use_case_factory, get_request_context
@@ -16,6 +16,9 @@ router = APIRouter(tags=[RouterName.MONITORING.title()])
 
 @router.get(path=EndpointRoute.HEALTH, status_code=200)
 def get_health() -> JSONResponse:
+    """
+    Get the health of the API.
+    """
     return JSONResponse(content={"status": "ok"}, status_code=200)
 
 
@@ -26,20 +29,20 @@ def get_health() -> JSONResponse:
     responses=get_documentation_responses([]),
 )
 async def get_health_models(
-    request: Request,
     get_health_models_use_case: GetHealthModelsUseCase = Depends(get_health_models_use_case_factory),
     request_context: RequestContext = Depends(get_request_context),
 ) -> JSONResponse:
     """
-    Get a model by name and provide basic information.
+    Get the health of the models.
     """
 
     result = await get_health_models_use_case.execute(command=GetHealthModelsCommand(user_id=request_context.get().user_id))
 
     match result:
-        case GetHealthModelsUseCaseSuccess():
-            return ModelsHealthResponse(
-                data=[ModelHealthStatus.model_validate(model, from_attributes=True) for model in result.models],
+        case GetHealthModelsUseCaseSuccess(models):
+            return JSONResponse(
+                content=ModelsHealthResponse(data=[ModelHealthStatus.model_validate(model, from_attributes=True) for model in models]).model_dump(),
+                status_code=200,
             )
         case UserExpiredError():
             raise AccountExpiredHTTPException()

@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
+from api.infrastructure.fastapi.schemas.models import Model, ModelsResponse
 from api.infrastructure.http.model.adapters import ModelsAdapter, RerankAdapter
 from api.infrastructure.http.model.exchanges import FormattedModelRequest, FormattedModelResponse, ModelHttpExchange, OriginalModelRequest
 from api.schemas.rerank import RerankResult, Reranks
@@ -42,7 +42,7 @@ class TeiModelsAdapter(ModelsAdapter):
         return FormattedModelResponse(
             data=ModelsResponse(
                 data=[
-                    ModelResponse(
+                    Model(
                         id=exchange.original_response.data["model_id"],
                         created=0,
                         owned_by="tei",

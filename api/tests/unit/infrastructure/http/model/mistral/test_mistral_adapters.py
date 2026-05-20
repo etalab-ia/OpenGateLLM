@@ -1,7 +1,7 @@
 import base64
 from http import HTTPMethod
 
-from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
+from api.infrastructure.fastapi.schemas.models import Model, ModelsResponse
 from api.infrastructure.http.model.exchanges import FormattedModelRequest, FormattedModelResponse, OriginalModelResponse
 from api.infrastructure.http.model.mistral.adapters import MistralAudioTranscriptionAdapter, MistralChatCompletionAdapter, MistralModelsAdapter
 from api.schemas.audio import AudioTranscription, AudioTranscriptionResponseFormat
@@ -188,14 +188,14 @@ class TestMistralModelsAdapter:
         assert result == FormattedModelResponse(
             data=ModelsResponse(
                 data=[
-                    ModelResponse(
+                    Model(
                         id="mistral-medium-2508",
                         aliases=["mistral-medium-latest"],
                         created=1773667856,
                         owned_by="mistralai",
                         max_context_length=131072,
                     ),
-                    ModelResponse(
+                    Model(
                         id="mistral-ocr-2512",
                         aliases=["mistral-ocr-latest"],
                         created=1773667856,

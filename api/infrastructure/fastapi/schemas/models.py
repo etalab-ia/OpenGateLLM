@@ -11,7 +11,7 @@ class ModelCosts(BaseModel):
     completion_tokens: float = Field(default=0.0, ge=0.0, description="Cost of a million completion tokens (decrease user budget)")
 
 
-class ModelResponse(BaseModel):
+class Model(BaseModel):
     object: Annotated[Literal["model"], Field("model", description="Type of the object.")]
     id: Annotated[str, Field(..., description="The model identifier, which can be referenced in the API endpoints.")]
     type: Annotated[ModelType | None, Field(default=None, description="The type of the model, which can be used to identify the model type.", examples=["text-generation"])]  # fmt: off
@@ -24,4 +24,4 @@ class ModelResponse(BaseModel):
 
 class ModelsResponse(BaseModel):
     object: Annotated[Literal["list"], Field("list", description="Type of the object.")]
-    data: Annotated[list[ModelResponse], Field(..., description="List of models.")]
+    data: Annotated[list[Model], Field(..., description="List of models.")]

@@ -13,9 +13,9 @@ import httpx
 from pydantic import BaseModel, Field, StringConstraints
 
 from api.domain.model.entities import UserModelRequest
-from api.domain.model.errors import UnsupportedEndpointError
 from api.domain.provider import ProviderMetricsLogger
 from api.domain.provider.entities import Metric, ProviderType
+from api.domain.provider.errors import UnsupportedEndpointError
 from api.infrastructure.fastapi.context import RequestContextManager
 from api.infrastructure.fastapi.endpoints.exceptions import ModelIsTooBusyException
 from api.infrastructure.http.model.adapters import (

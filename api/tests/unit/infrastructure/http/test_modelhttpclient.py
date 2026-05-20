@@ -3,8 +3,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from api.domain.model.errors import UnsupportedEndpointError
 from api.domain.provider.entities import ProviderType
+from api.domain.provider.errors import UnsupportedEndpointError
 from api.infrastructure.http.model._modelhttpclient import ModelHttpClient
 from api.infrastructure.http.model.exchanges import FormattedModelRequest, FormattedModelResponse, ModelHttpExchange, OriginalModelResponse
 from api.schemas.usage import Usage

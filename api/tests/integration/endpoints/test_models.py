@@ -4,7 +4,7 @@ from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import get_models_use_case_factory
+from api.dependencies import get_model_use_case_factory, get_models_use_case_factory
 from api.domain.model.errors import ModelNotFoundError
 from api.domain.user.errors import UserExpiredError
 from api.schemas.models import ModelType
@@ -156,16 +156,16 @@ class TestGetModel:
                 "Your account has expired. Please contact support to renew your account.",
             ),
             (
-                ModelNotFoundError(),
+                ModelNotFoundError(name="non_existent_model"),
                 404,
-                "Model not found.",
+                "Model non_existent_model not found.",
             ),
         ],
     )
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
         mock_use_case = AsyncMock()
         mock_use_case.execute.return_value = use_case_result
-        app.dependency_overrides[get_models_use_case_factory] = lambda: mock_use_case
+        app.dependency_overrides[get_model_use_case_factory] = lambda: mock_use_case
 
         response = await client.get(
             url=f"{URL}/non_existent_model",

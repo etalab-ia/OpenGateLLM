@@ -1,4 +1,4 @@
-from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
+from api.infrastructure.fastapi.schemas.models import Model, ModelsResponse
 from api.infrastructure.http.model.exchanges import FormattedModelResponse, OriginalModelResponse
 from api.infrastructure.http.model.vllm.adapters import VllmModelsAdapter
 from api.schemas.usage import Usage
@@ -25,7 +25,7 @@ class TestVllmModelsAdapter:
         assert result == FormattedModelResponse(
             data=ModelsResponse(
                 data=[
-                    ModelResponse(
+                    Model(
                         id="openai/gpt-oss-120b",
                         created=1773657692,
                         owned_by="vllm",

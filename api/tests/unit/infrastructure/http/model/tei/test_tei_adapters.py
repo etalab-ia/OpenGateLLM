@@ -1,6 +1,6 @@
 from http import HTTPMethod
 
-from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
+from api.infrastructure.fastapi.schemas.models import Model, ModelsResponse
 from api.infrastructure.http.model.exchanges import FormattedModelRequest, FormattedModelResponse, OriginalModelResponse
 from api.infrastructure.http.model.tei.adapters import TeiModelsAdapter, TeiRerankAdapter
 from api.schemas.rerank import Reranks
@@ -78,7 +78,7 @@ class TestTeiModelsAdapter:
         assert result == FormattedModelResponse(
             data=ModelsResponse(
                 data=[
-                    ModelResponse(
+                    Model(
                         id="tei-model-1234",
                         created=0,
                         owned_by="tei",

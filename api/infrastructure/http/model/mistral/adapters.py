@@ -3,7 +3,7 @@ from http import HTTPMethod
 
 from mistralai.client.models import AudioChunk, ChatCompletionRequest, TextChunk, UserMessage
 
-from api.infrastructure.fastapi.schemas.models import ModelResponse, ModelsResponse
+from api.infrastructure.fastapi.schemas.models import Model, ModelsResponse
 from api.infrastructure.http.model.adapters import AudioTranscriptionAdapter, ChatCompletionAdapter, ModelsAdapter
 from api.infrastructure.http.model.exchanges import FormattedModelRequest, FormattedModelResponse, ModelHttpExchange, OriginalModelRequest
 from api.schemas.audio import AudioTranscription, AudioTranscriptionResponseFormat
@@ -75,7 +75,7 @@ class MistralModelsAdapter(ModelsAdapter):
         return FormattedModelResponse(
             data=ModelsResponse(
                 data=[
-                    ModelResponse(
+                    Model(
                         id=model["id"],
                         created=model["created"],
                         owned_by=model["owned_by"],

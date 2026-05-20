@@ -59,14 +59,26 @@ class TestGetAllRouters:
             alias=["alias1", "alias2"],
         )
         router_2 = RouterSQLFactory(
-            user=user_1, name="router_2", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, cost_prompt_tokens=0.0, cost_completion_tokens=0.0, providers=1
+            user=user_1,
+            name="router_2",
+            type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
+            cost_prompt_tokens=0.0,
+            cost_completion_tokens=0.0,
+            providers=1,
+            alias=["alias3", "alias4"],
         )
         router_3 = RouterSQLFactory(
-            user=user_2, name="router_3", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, cost_prompt_tokens=0.0, cost_completion_tokens=0.0, providers=1
+            user=user_2,
+            name="router_3",
+            type=RouterType.TEXT_CLASSIFICATION,
+            cost_prompt_tokens=0.0,
+            cost_completion_tokens=0.0,
+            providers=1,
         )
 
         # Act
         await db_session.flush()
+        first_provider_router_1 = min(router_1.provider, key=lambda p: p.id)
         result_routers = await repository.get_all_routers()
 
         # Assert
@@ -74,8 +86,7 @@ class TestGetAllRouters:
         router_names = {r.name for r in result_routers}
         assert router_names == {router_1.name, router_2.name, router_3.name}
         result_router_1 = next(r for r in result_routers if r.name == router_1.name)
-
-        first_provider_router_1 = router_1.provider[0]
+        result_router_2 = next(r for r in result_routers if r.name == router_2.name)
         assert result_router_1.type == RouterType.TEXT_GENERATION
         assert result_router_1.providers == 2
         assert result_router_1.cost_prompt_tokens == 0.001
@@ -84,37 +95,9 @@ class TestGetAllRouters:
         assert result_router_1.vector_size == first_provider_router_1.vector_size
         assert result_router_1.aliases == ["alias1", "alias2"]
 
-
-@pytest.mark.asyncio(loop_scope="session")
-class TestGetAllAliases:
-    async def test_get_all_aliases_should_return_all_aliases(self, repository, db_session):
-        # Arrange
-        organization = OrganizationSQLFactory(name="DINUM")
-        user_1 = UserSQLFactory(organization=organization)
-        user_2 = UserSQLFactory(organization=organization)
-        user_3 = UserSQLFactory()
-
-        router_1 = RouterSQLFactory(
-            user=user_1,
-            alias=[
-                "alias1_m1",
-                "alias2_m1",
-            ],
-        )
-        router_2 = RouterSQLFactory(user=user_1, alias=["alias1_m2"])
-        router_3 = RouterSQLFactory(user=user_2, alias=["alias1_m3"])
-        router_4 = RouterSQLFactory(user=user_3, alias=["alias1_m4", "alias2_m4"])
-
-        # Act
-        await db_session.flush()
-        aliases = await repository.get_aliases_grouped_by_router()
-        # Assert
-        assert aliases == {
-            router_1.id: ["alias1_m1", "alias2_m1"],
-            router_2.id: ["alias1_m2"],
-            router_3.id: ["alias1_m3"],
-            router_4.id: ["alias1_m4", "alias2_m4"],
-        }
+        assert result_router_2.type == RouterType.TEXT_EMBEDDINGS_INFERENCE
+        assert result_router_2.providers == 1
+        assert result_router_2.aliases == ["alias3", "alias4"]
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -389,8 +372,8 @@ class TestGetRouterById:
             providers=2,
             alias=["alias1", "alias2"],
         )
-        first_provider = router.provider[0]
         await db_session.flush()
+        first_provider = min(router.provider, key=lambda p: p.id)
 
         # Act
         result = await repository.get_router_by_id(router.id)
@@ -422,6 +405,72 @@ class TestGetRouterById:
 
         # Act
         result = await repository.get_router_by_id(router.id)
+
+        # Assert
+        assert isinstance(result, Router)
+        assert result.id == router.id
+        assert result.aliases == []
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestGetRouterByNameOrAlias:
+    async def test_get_router_by_name_or_alias_should_return_router_when_lookup_by_name(self, repository, db_session):
+        # Arrange
+        router = RouterSQLFactory(
+            name="router_by_name",
+            type=RouterType.TEXT_GENERATION,
+            cost_prompt_tokens=0.001,
+            cost_completion_tokens=0.002,
+            providers=2,
+            alias=["alias1", "alias2"],
+        )
+        await db_session.flush()
+        first_provider = min(router.provider, key=lambda p: p.id)
+
+        # Act
+        result = await repository.get_router_by_name_or_alias("router_by_name")
+
+        # Assert
+        assert isinstance(result, Router)
+        assert result.id == router.id
+        assert result.name == "router_by_name"
+        assert result.type == RouterType.TEXT_GENERATION
+        assert result.cost_prompt_tokens == 0.001
+        assert result.cost_completion_tokens == 0.002
+        assert result.providers == 2
+        assert result.aliases == ["alias1", "alias2"]
+        assert result.max_context_length == first_provider.max_context_length
+        assert result.vector_size == first_provider.vector_size
+
+    async def test_get_router_by_name_or_alias_should_return_router_when_lookup_by_alias(self, repository, db_session):
+        # Arrange
+        router = RouterSQLFactory(name="router_by_alias", alias=["lookup_alias", "other_alias"])
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_router_by_name_or_alias("lookup_alias")
+
+        # Assert
+        assert isinstance(result, Router)
+        assert result.id == router.id
+        assert result.name == "router_by_alias"
+        assert result.aliases == ["lookup_alias", "other_alias"]
+
+    async def test_get_router_by_name_or_alias_should_return_router_not_found_when_name_or_alias_does_not_exist(self, repository, db_session):
+        # Act
+        result = await repository.get_router_by_name_or_alias("unknown-router")
+
+        # Assert
+        assert isinstance(result, RouterNotFoundError)
+        assert result.name == "unknown-router"
+
+    async def test_get_router_by_name_or_alias_should_return_router_without_aliases_when_none_set(self, repository, db_session):
+        # Arrange
+        router = RouterSQLFactory(name="router_no_alias_lookup", alias=[])
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_router_by_name_or_alias("router_no_alias_lookup")
 
         # Assert
         assert isinstance(result, Router)

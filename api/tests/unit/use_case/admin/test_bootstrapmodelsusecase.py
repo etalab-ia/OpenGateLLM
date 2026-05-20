@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from api.domain.model.entities import ModelType as RouterType
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider import ProviderCapabilities
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
@@ -251,6 +251,23 @@ class TestBootstrapModelsUseCase:
 
         # Assert
         assert result == ProviderNotReachableError(model_name="my-model", status_code=500, detail="error_detail")
+        provider_repository.create_provider.assert_not_awaited()
+        router_repository.delete_all_routers.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_returns_model_not_found_error_and_rolls_back(self, use_case, router_repository, provider_repository, provider_gateway):
+        # Arrange
+        model_configuration = ModelConfigurationFactory()
+        router = RouterFactory(id=1, name=model_configuration.name, type=RouterType.TEXT_GENERATION)
+        router_repository.get_all_routers.return_value = []
+        router_repository.create_router.return_value = router
+        provider_gateway.get_capabilities.return_value = ModelNotFoundError(name="my-model")
+
+        # Act
+        result = await use_case.execute(routers_to_create=[model_configuration], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID)
+
+        # Assert
+        assert result == ModelNotFoundError(name="my-model")
         provider_repository.create_provider.assert_not_awaited()
         router_repository.delete_all_routers.assert_awaited_once()
 
