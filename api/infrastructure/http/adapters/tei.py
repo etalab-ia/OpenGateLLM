@@ -50,7 +50,8 @@ class TeiModelsAdapter(ModelsAdapter):
                         type=ModelType.TEXT_GENERATION,  # dummy value, not used
                     )
                 ]
-            )
+            ),
+            latency=original_response.latency,
         )
 
 

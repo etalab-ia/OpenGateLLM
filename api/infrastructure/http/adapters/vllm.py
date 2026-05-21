@@ -26,7 +26,8 @@ class VllmModelsAdapter(ModelsAdapter):
                     )
                     for model in original_response.data.get("data", [])
                 ]
-            )
+            ),
+            latency=original_response.latency,
         )
 
 

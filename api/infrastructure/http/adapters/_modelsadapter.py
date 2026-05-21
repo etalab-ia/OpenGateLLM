@@ -29,7 +29,7 @@ class ModelsAdapter(EndpointAdapter):
         request_context: ContextVar[RequestContext],
         prompt_tokens: int = 0,
     ) -> ProviderFormattedResponse:
-        formatted_response = ProviderFormattedResponse(
+        return ProviderFormattedResponse(
             data=Models(
                 data=[
                     Model(
@@ -41,10 +41,9 @@ class ModelsAdapter(EndpointAdapter):
                     )
                     for model in original_response.data["data"]
                 ]
-            )
+            ),
+            latency=original_response.latency,
         )
-
-        return formatted_response
 
     def compute_prompt_tokens(self, original_request: ProviderOriginalRequest) -> int:
         return 0

@@ -64,7 +64,7 @@ class EndpointAdapter:
         prompt_tokens: int = 0,
     ) -> ProviderFormattedResponse | ProviderAdapterValidationResponseError:
         try:
-            formatted_response = ProviderFormattedResponse(data=self.RESPONSE_TYPE(**original_response.data))
+            formatted_response = ProviderFormattedResponse(data=self.RESPONSE_TYPE(**original_response.data), latency=original_response.latency)
 
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
