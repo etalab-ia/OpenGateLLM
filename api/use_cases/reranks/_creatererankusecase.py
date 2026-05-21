@@ -18,7 +18,6 @@ from api.domain.user import UserWithRoleQuery
 from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters.utils import build_adapter
-from api.schemas.admin.roles import LimitType
 from api.schemas.core.models import Metric
 from api.utils.variables import EndpointRoute
 
@@ -31,8 +30,8 @@ class CreateRerankCommand(CreateRerankBody):
 
 @dataclass
 class CreateRerankUseCaseSuccess:
-    rerank: Rerank
-    rate_limit_state: RouterRateLimitState
+    data: Rerank
+    headers: dict[str, str]
 
 
 type CreateRerankUseCaseResult = (
@@ -92,8 +91,8 @@ class CreateRerankUseCase:
         if router.has_no_providers:
             return RouterHasNoProvidersError(id=router.id)
         if router.type != RouterType.TEXT_CLASSIFICATION:
-            return RouterHasWrongTypeError(id=router.id, type=router.type)
-        if not user.is_admin or user.cannot_access_router(router_id=router.id):
+            return RouterHasWrongTypeError(id=router.id, actual_type=router.type, expected_type=RouterType.TEXT_CLASSIFICATION)
+        if user.cannot_access_router(router_id=router.id):
             return UserHasNoAccessToRouterError(id=router.id)
 
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
@@ -121,17 +120,10 @@ class CreateRerankUseCase:
                 router_id=router.id,
                 prompt_tokens=prompt_tokens,
             )
-            exceeded_limits = rate_limit_state.exceeded_limits()
+            exceeded_limits = rate_limit_state.exceeded_limits
             if exceeded_limits:
-                first_key = exceeded_limits[0]
-                limit_type = LimitType(first_key) if isinstance(first_key, str) else first_key
-                bucket = getattr(rate_limit_state, limit_type.value)
-                return RouterRateLimitExceededError(
-                    id=router.id,
-                    limit_type=limit_type,
-                    limit_value=bucket.value,
-                    rate_limit_state=rate_limit_state,
-                )
+                limit_type = exceeded_limits[0]
+                return RouterRateLimitExceededError(id=router.id, limit_type=limit_type, headers=rate_limit_state.build_limit_headers)
             await self.router_rate_limiter.update_rate_limit_state(
                 user_id=user.id,
                 router_limits=limits,
@@ -154,7 +146,7 @@ class CreateRerankUseCase:
 
         match result:
             case ProviderOriginalResponse() as original_response:
-                await self.provider_metrics_logger.log_metric(provider_id=provider.id, metric=Metric.LATENCY, value=original_response.latency)
+                pass
             case error:
                 return error
 
@@ -166,8 +158,17 @@ class CreateRerankUseCase:
         )
         match result:
             case ProviderFormattedResponse() as formatted_response:
-                pass
+                await self.provider_metrics_logger.log_metric(
+                    provider_id=provider.id,
+                    metric=Metric.LATENCY,
+                    value=original_response.metrics.latency,
+                )
+                await self.provider_metrics_logger.log_metric(
+                    provider_id=provider.id,
+                    metric=Metric.NORMALIZED_LATENCY,
+                    value=formatted_response.metrics.latency,
+                )
             case ProviderAdapterValidationResponseError() as error:
                 return error
 
-        return CreateRerankUseCaseSuccess(rerank=formatted_response.data, rate_limit_state=rate_limit_state)
+        return CreateRerankUseCaseSuccess(data=formatted_response.data, headers=rate_limit_state.build_limit_headers)

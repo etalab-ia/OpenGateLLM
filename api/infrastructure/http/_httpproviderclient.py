@@ -7,7 +7,7 @@ import httpx
 
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider import ProviderClient, ProviderClientResponse
-from api.domain.provider.entities import Provider, ProviderFormattedRequest, ProviderOriginalResponse
+from api.domain.provider.entities import Provider, ProviderFormattedRequest, ProviderOriginalResponse, ResponseMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ class HttpProviderClient(ProviderClient):
         else:
             data, text = None, response.text
 
-        return ProviderOriginalResponse(data=data, text=text, latency=latency, ttft=None)
+        return ProviderOriginalResponse(data=data, text=text, metrics=ResponseMetrics(latency=latency, ttft=None))
 
     async def forward_stream(self, provider: Provider, formatted_request: ProviderFormattedRequest):
         raise NotImplementedError()

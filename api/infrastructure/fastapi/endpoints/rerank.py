@@ -35,12 +35,14 @@ router = APIRouter(prefix="/v1", tags=[RouterName.RERANK.title()])
     path=EndpointRoute.RERANK,
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([
-        ModelIsTooBusyExceptionHTTPException,
-        ModelNotFoundHTTPException,
-        RateLimitExceededHTTPException,
-        WrongModelTypeHTTPException,
-    ]),
+    responses=get_documentation_responses(
+        [
+            ModelIsTooBusyExceptionHTTPException,
+            ModelNotFoundHTTPException,
+            RateLimitExceededHTTPException,
+            WrongModelTypeHTTPException,
+        ]
+    ),
     response_model=RerankResponse,
 )
 async def create_rerank(
@@ -69,36 +71,26 @@ async def create_rerank(
         raise InternalServerHTTPException()
 
     match result:
-        case CreateRerankUseCaseSuccess(rerank=rerank, rate_limit_state=rate_limit_state):
-            return JSONResponse(
-                content=RerankResponse.model_validate(rerank.model_dump()).model_dump(),
-                status_code=200,
-                headers={
-                    # TODO: implémenter logique tpd / rpd
-                    "x-ratelimit-limit-request": str(rate_limit_state.rpm.value),
-                    "x-ratelimit-remaining-request": str(rate_limit_state.rpm.remaining),
-                    "x-ratelimit-limit-token": str(rate_limit_state.tpm.value),
-                    "x-ratelimit-remaining-token": str(rate_limit_state.tpm.remaining),
-                },
-            )
+        case CreateRerankUseCaseSuccess(data=data, headers=headers):
+            return JSONResponse(content=RerankResponse.model_validate(data.model_dump()).model_dump(), status_code=200, headers=headers)
         case NoAvailableProviderError():
             raise ModelIsTooBusyExceptionHTTPException()
         case ProviderAdapterValidationRequestError(errors=errors):
             raise HTTPException(status_code=422, detail=jsonable_encoder(errors))
         case ProviderAdapterValidationResponseError(errors=errors):
             raise HTTPException(status_code=422, detail=jsonable_encoder(errors))
-        case RouterRateLimitExceededError(limit_type=limit_type, limit_value=limit_value):
-            raise RateLimitExceededHTTPException()
+        case RouterRateLimitExceededError(id=_, limit_type=limit_type, headers=headers):
+            raise RateLimitExceededHTTPException(limit_type=limit_type, headers=headers)
         case RouterNotFoundError():
-            raise ModelNotFoundHTTPException()
+            raise ModelNotFoundHTTPException(name=body.model)
         case RouterHasNoProvidersError():
-            raise ModelNotFoundHTTPException()
-        case RouterHasWrongTypeError(type=router_type):
-            raise WrongModelTypeHTTPException(router_type=router_type)
+            raise ModelNotFoundHTTPException(name=body.model)
+        case RouterHasWrongTypeError(actual_type=actual_type, expected_type=expected_type):
+            raise WrongModelTypeHTTPException(expected_type=expected_type, actual_type=actual_type)
         case UserExpiredError():
             raise AccountExpiredHTTPException()
         case UserHasNoAccessToRouterError():
-            raise ModelNotFoundHTTPException()
+            raise ModelNotFoundHTTPException(name=body.model)
         case TooBusyModelError(detail=detail):
             raise ModelIsTooBusyExceptionHTTPException()
         case StatusCodeModelError(status_code=status_code, detail=detail):

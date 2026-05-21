@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from api.domain.router.entities import RouterRateLimitState, RouterType
+from api.domain.router.entities import RouterType
 from api.schemas.admin.roles import LimitType
 
 
@@ -28,12 +28,12 @@ class RouterHasNoProvidersError:
 @dataclass
 class RouterHasWrongTypeError:
     id: int
-    type: RouterType
+    actual_type: RouterType
+    expected_type: RouterType
 
 
 @dataclass
 class RouterRateLimitExceededError:
     id: int
     limit_type: LimitType
-    limit_value: int
-    rate_limit_state: RouterRateLimitState
+    headers: dict[str, str]

@@ -1,5 +1,7 @@
 from fastapi import HTTPException
 
+from api.schemas.admin.roles import LimitType
+
 
 # 400
 class InvalidProviderTypeHTTPException(HTTPException):
@@ -186,10 +188,10 @@ class DeleteUserWithProvidersHTTPException(HTTPException):
 # 422
 class WrongModelTypeHTTPException(HTTPException):
     status_code = 422
-    detail = "Model need {model_type} type for this endpoint."
+    detail = "Model has wrong type. Expected: {expected_type}. Actual: {actual_type}."
 
-    def __init__(self, router_type: str) -> None:
-        super().__init__(status_code=422, detail=f"Model need {router_type} type for this endpoint.")
+    def __init__(self, actual_type: str, expected_type: str) -> None:
+        super().__init__(status_code=422, detail=f"Model has wrong type. Expected: {expected_type}. Actual: {actual_type}.")
 
 
 # 424
@@ -204,10 +206,19 @@ class ProviderNotReachableHTTPException(HTTPException):
 # 429
 class RateLimitExceededHTTPException(HTTPException):
     status_code = 429
-    detail = "Rate limit exceeded."
+    detail = "Token/request limit per minute/day exceeded."
 
-    def __init__(self) -> None:
-        super().__init__(status_code=self.status_code, detail=self.detail)
+    def __init__(self, limit_type: LimitType, headers: dict[str, str]) -> None:
+        match limit_type:
+            case LimitType.TPM:
+                detail = "Token limit per minute exceeded."
+            case LimitType.TPD:
+                detail = "Token limit per day exceeded."
+            case LimitType.RPM:
+                detail = "Request limit per minute exceeded."
+            case LimitType.RPD:
+                detail = "Request limit per day exceeded."
+        super().__init__(status_code=self.status_code, detail=detail, headers=headers)
 
 
 # 500

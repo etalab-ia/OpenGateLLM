@@ -274,11 +274,12 @@ def update_router_use_case_factory(postgres_session: AsyncSession = Depends(get_
 # provider use cases
 def create_provider_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
+    provider_client: ProviderClient = Depends(_provider_client),
 ) -> CreateProviderUseCase:
     return CreateProviderUseCase(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
-        provider_gateway=_provider_gateway(),
+        provider_gateway=_provider_gateway(provider_client),
         user_with_role_query=_user_with_role_query(postgres_session),
     )
 
