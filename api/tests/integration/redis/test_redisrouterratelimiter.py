@@ -1,3 +1,5 @@
+import time
+
 import pytest
 from redis.asyncio import Redis as AsyncRedis
 
@@ -43,6 +45,7 @@ class TestRedisRouterRateLimiter:
         # Assert
         assert result.rpm.value == 10
         assert result.rpm.remaining == 10
+        assert result.rpm.reset > time.time()
 
     async def test_get_rate_limit_state_skips_zero_value_limits(self, rate_limiter: RedisRouterRateLimiter):
         # Arrange
@@ -56,8 +59,12 @@ class TestRedisRouterRateLimiter:
         # Assert
         assert result.rpm.value == 0
         assert result.rpm.remaining == 0
+        assert result.rpm.reset == 0
         assert result.tpm.value == 50
         assert result.tpm.remaining == 50
+        assert result.tpm.reset > time.time()
+        assert LimitType.RPM.value in result.exceeded_limits
+        assert LimitType.TPM.value not in result.exceeded_limits
 
     async def test_update_rate_limit_state_decrements_rpm_remaining(self, rate_limiter: RedisRouterRateLimiter):
         # Arrange
@@ -71,6 +78,7 @@ class TestRedisRouterRateLimiter:
 
         # Assert
         assert result.rpm.remaining == 4
+        assert result.rpm.reset > time.time()
 
     async def test_update_rate_limit_state_without_prompt_tokens_does_not_hit_tpm(self, rate_limiter: RedisRouterRateLimiter):
         # Arrange
@@ -84,7 +92,9 @@ class TestRedisRouterRateLimiter:
 
         # Assert
         assert result.rpm.remaining == 9
+        assert result.rpm.reset > time.time()
         assert result.tpm.remaining == 100
+        assert result.tpm.reset > time.time()
 
     async def test_update_rate_limit_state_with_prompt_tokens_decrements_tpm_remaining(self, rate_limiter: RedisRouterRateLimiter):
         # Arrange
@@ -98,6 +108,7 @@ class TestRedisRouterRateLimiter:
 
         # Assert
         assert result.tpm.remaining == 38
+        assert result.tpm.reset > time.time()
 
     async def test_multiple_updates_rate_limit_state_decrements_rpm_remaining(self, rate_limiter: RedisRouterRateLimiter):
         # Arrange
@@ -112,7 +123,8 @@ class TestRedisRouterRateLimiter:
 
         # Assert
         assert result.rpm.remaining == 0
-        assert LimitType.RPM in result.exceeded_limits
+        assert result.rpm.reset > time.time()
+        assert LimitType.RPM.value in result.exceeded_limits
 
     async def test_reset_clears_rate_limit_state(self, rate_limiter: RedisRouterRateLimiter, redis_client: AsyncRedis):
         # Arrange
@@ -129,3 +141,4 @@ class TestRedisRouterRateLimiter:
         # Assert
         assert await redis_client.keys("LIMITS*") == []
         assert result.rpm.remaining == 5
+        assert result.rpm.reset > time.time()

@@ -2,6 +2,7 @@ import logging
 
 from limits import RateLimitItemPerDay, RateLimitItemPerMinute
 from limits.aio import storage, strategies
+from limits.util import WindowStats
 from redis.asyncio import ConnectionPool, Redis, RedisError
 
 from api.domain.role.entities import Limit
@@ -29,12 +30,7 @@ class RedisRouterRateLimiter(RouterRateLimiter):
                 self.strategy = strategies.SlidingWindowCounterRateLimiter(storage=self.redis_storage)
 
     async def get_rate_limit_state(self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int) -> RouterRateLimitState:
-        state = RouterRateLimitState(
-            rpm=RpmRateLimitState(value=0, remaining=0),
-            rpd=RpdRateLimitState(value=0, remaining=0),
-            tpm=TpmRateLimitState(value=0, remaining=0),
-            tpd=TpdRateLimitState(value=0, remaining=0),
-        )
+        state = RouterRateLimitState(rpm=RpmRateLimitState(), rpd=RpdRateLimitState(), tpm=TpmRateLimitState(), tpd=TpdRateLimitState())
 
         for limit in router_limits:
             match limit.type:
@@ -42,23 +38,33 @@ class RedisRouterRateLimiter(RouterRateLimiter):
                     state.rpm.value = limit.value
                     if not limit.value:
                         continue
-                    remaining = await self._get_window_stats(user_id=user_id, router_id=router_id, type=LimitType.RPM, value=limit.value)
-                    state.rpm.remaining = remaining
+                    window = await self._get_window_stats(user_id=user_id, router_id=router_id, type=LimitType.RPM, value=limit.value)
+                    state.rpm.remaining = window.remaining
+                    state.rpm.reset = window.reset_time
+
                 case LimitType.RPD:
                     state.rpd.value = limit.value
                     if not limit.value:
                         continue
-                    state.rpd.remaining = await self._get_window_stats(user_id=user_id, router_id=router_id, type=LimitType.RPD, value=limit.value)
+                    window = await self._get_window_stats(user_id=user_id, router_id=router_id, type=LimitType.RPD, value=limit.value)
+                    state.rpd.remaining = window.remaining
+                    state.rpd.reset = window.reset_time
+
                 case LimitType.TPM:
                     state.tpm.value = limit.value
                     if not limit.value:
                         continue
-                    state.tpm.remaining = await self._get_window_stats(user_id=user_id, router_id=router_id, type=LimitType.TPM, value=limit.value)
+                    window = await self._get_window_stats(user_id=user_id, router_id=router_id, type=LimitType.TPM, value=limit.value)
+                    state.tpm.remaining = window.remaining
+                    state.tpm.reset = window.reset_time
+
                 case LimitType.TPD:
                     state.tpd.value = limit.value
                     if not limit.value:
                         continue
-                    state.tpd.remaining = await self._get_window_stats(user_id=user_id, router_id=router_id, type=LimitType.TPD, value=limit.value)
+                    window = await self._get_window_stats(user_id=user_id, router_id=router_id, type=LimitType.TPD, value=limit.value)
+                    state.tpd.remaining = window.remaining
+                    state.tpd.reset = window.reset_time
 
         return state
 
@@ -97,7 +103,7 @@ class RedisRouterRateLimiter(RouterRateLimiter):
             case LimitType.TPD | LimitType.RPD:
                 return RateLimitItemPerDay(amount=value)
 
-    async def _get_window_stats(self, user_id: int, router_id: int, type: LimitType, value: int | None = None) -> int | None:
+    async def _get_window_stats(self, user_id: int, router_id: int, type: LimitType, value: int | None = None) -> WindowStats:
         try:
             limit = await self._get_limit(type=type, value=value)
             if limit is None:
@@ -105,7 +111,7 @@ class RedisRouterRateLimiter(RouterRateLimiter):
 
             key = f"{PREFIX__REDIS_RATE_LIMIT}:{type.value}:{user_id}:{router_id}"
             window = await self.strategy.get_window_stats(limit, key)
-            return window.remaining
+            return window
 
         except Exception:
             logger.error(msg=f"Error during rate limit window stats on key {key}.", exc_info=True)
