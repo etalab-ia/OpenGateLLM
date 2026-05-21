@@ -1,12 +1,12 @@
 from contextvars import ContextVar
 import logging
 
-from fastapi import Body, Depends, Security
+from fastapi import Body, Depends, Path, Security
 
-from api.dependencies import create_user_use_case_factory, get_request_context
+from api.dependencies import create_user_use_case_factory, get_one_user_use_case_factory, get_request_context
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user.errors import UserAlreadyExistsError, UserExpiredError, UserIsNotAdminError
+from api.domain.user.errors import UserAlreadyExistsError, UserExpiredError, UserIsNotAdminError, UserNotFoundError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
@@ -18,9 +18,17 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     OrganizationNotFoundHTTPException,
     RoleNotFoundHTTPException,
     UserAlreadyExistsHTTPException,
+    UserNotFoundHTTPException,
 )
 from api.infrastructure.fastapi.schemas.users import CreateUserBody, UserResponse
-from api.use_cases.admin.users import CreateUserCommand, CreateUserUseCase, CreateUserUseCaseSuccess
+from api.use_cases.admin.users import (
+    CreateUserCommand,
+    CreateUserUseCase,
+    CreateUserUseCaseSuccess,
+    GetOneUserCommand,
+    GetOneUserUseCase,
+    GetOneUserUseCaseSuccess,
+)
 from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
@@ -77,6 +85,41 @@ async def create_user(
             raise RoleNotFoundHTTPException(role_id)
         case OrganizationNotFoundError(id=organization_id):
             raise OrganizationNotFoundHTTPException(organization_id)
+        case UserIsNotAdminError():
+            raise NotAdminUserHTTPException()
+        case UserExpiredError():
+            raise AccountExpiredHTTPException()
+
+
+@router.get(
+    path=EndpointRoute.ADMIN_USERS + "/{user_id}",
+    dependencies=[Security(dependency=get_current_key)],
+    status_code=200,
+    responses=get_documentation_responses([UserNotFoundHTTPException]),
+)
+async def get_user(
+    user_id: int = Path(description="The ID of the user to get."),
+    get_one_user_use_case: GetOneUserUseCase = Depends(get_one_user_use_case_factory),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+) -> UserResponse:
+    command = GetOneUserCommand(authenticated_user_id=request_context.get().user_id, user_id=user_id)
+    try:
+        result = await get_one_user_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing get_router use case",
+            extra={
+                "authenticated_user_id": command.user_id,
+                "user_id": command.user_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
+    match result:
+        case GetOneUserUseCaseSuccess(returned_user):
+            return UserResponse.model_validate(returned_user, from_attributes=True)
+        case UserNotFoundError(id=not_found_id):
+            raise UserNotFoundHTTPException(user_id=not_found_id)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
         case UserExpiredError():

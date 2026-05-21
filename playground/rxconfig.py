@@ -1,7 +1,8 @@
 import os
 
-from app.core.configuration import configuration
 import reflex as rx
+
+from app.core.configuration import configuration
 
 redis_url = None
 state_manager_mode = rx.constants.StateManagerMode.DISK

@@ -53,3 +53,7 @@ class UserRepository(ABC):
     @abstractmethod
     async def delete_user(self, user_id: int) -> User | UserNotFoundError:
         pass
+
+    @abstractmethod
+    async def get_user_by_id(self, user_id: int) -> User | UserNotFoundError:
+        pass

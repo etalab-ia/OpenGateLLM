@@ -107,6 +107,14 @@ class ProviderNotFoundHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=f"Model provider {provider_id} not found.")
 
 
+class UserNotFoundHTTPException(HTTPException):
+    status_code = 404
+    detail = "User {user_id} not found."
+
+    def __init__(self, user_id: int) -> None:
+        super().__init__(status_code=self.status_code, detail=f"User {user_id} not found.")
+
+
 # 409
 class UserAlreadyExistsHTTPException(HTTPException):
     status_code = 409

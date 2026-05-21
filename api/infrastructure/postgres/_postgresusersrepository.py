@@ -46,6 +46,28 @@ class PostgresUserRepository(UserRepository):
     def _hash_password(password: str) -> str:
         return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
+    async def get_user_by_id(self, user_id: int) -> User | UserNotFoundError:
+        result = await self.postgres_session.execute(
+            select(
+                UserTable.id,
+                UserTable.email,
+                UserTable.name,
+                UserTable.sub,
+                UserTable.iss,
+                UserTable.role_id.label("role"),
+                UserTable.organization_id.label("organization"),
+                UserTable.budget,
+                _unix_timestamp(UserTable.expires).label("expires"),
+                _unix_timestamp(UserTable.created).label("created"),
+                _unix_timestamp(UserTable.updated).label("updated"),
+                UserTable.priority,
+            ).where(UserTable.id == user_id)
+        )
+        row = result.one_or_none()
+        if row is None:
+            return UserNotFoundError(id=user_id)
+        return self._row_to_user(row)
+
     @with_lock(namespace="user", key="email")
     async def create_user(
         self,

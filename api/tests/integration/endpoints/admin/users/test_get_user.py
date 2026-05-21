@@ -4,67 +4,50 @@ from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import get_health_models_use_case_factory
-from api.domain.user.errors import UserExpiredError
-from api.schemas.models import ModelType
+from api.dependencies import get_one_user_use_case_factory
+from api.domain.user.errors import UserExpiredError, UserIsNotAdminError, UserNotFoundError
 from api.tests.helpers import INVALID_API_KEY, create_key
-from api.tests.integration.factories.sql import LimitSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import UserSQLFactory
 from api.utils.variables import EndpointRoute
 
-HEALTH_URL = EndpointRoute.HEALTH
-HEALTH_MODELS_URL = EndpointRoute.HEALTH_MODELS
-
-LATENCY_HISTORY_COUNT = 1800
-MEDIAN_LATENCY_MS = 1000.0
-HISTORICAL_LATENCIES_MS = [MEDIAN_LATENCY_MS] * LATENCY_HISTORY_COUNT
+URL = f"/v1{EndpointRoute.ADMIN_USERS}"
 
 
 @pytest.mark.asyncio(loop_scope="session")
-class TestGetHealth:
-    async def test_happy_path(self, client: AsyncClient):
-        response = await client.get(url=HEALTH_URL)
-
-        assert response.status_code == 200, response.text
-        assert response.json() == {"status": "ok"}
-
-
-@pytest.mark.asyncio(loop_scope="session")
-class TestGetHealthModels:
+class TestGetUser:
     @pytest_asyncio.fixture(autouse=True)
     async def setup(self, db_session):
-        self.user = UserSQLFactory(name="Alice", email="alice@example.com")
-        self.key = await create_key(db_session, name="user_key", user=self.user)
-        self.router_owner = UserSQLFactory(name="Bob", email="bob@example.com", admin_user=True)
+        self.admin_user = UserSQLFactory(admin_user=True)
+        self.key = await create_key(db_session, name="admin_key", user=self.admin_user)
 
     async def test_happy_path(self, client: AsyncClient, db_session):
-        router = RouterSQLFactory(
-            user=self.router_owner,
-            name="router_1",
-            type=ModelType.TEXT_GENERATION,
-            providers=1,
-            providers__qos_metric=None,
-        )
-        RouterSQLFactory(
-            user=self.router_owner,
-            name="router_no_access",
-            type=ModelType.TEXT_GENERATION,
-            providers=1,
-            providers__qos_metric=None,
-        )
-        LimitSQLFactory(role=self.user.role, router=router)
+        target_user = UserSQLFactory()
         await db_session.flush()
 
         response = await client.get(
-            url=HEALTH_MODELS_URL,
+            url=f"{URL}/{target_user.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
         )
 
         assert response.status_code == 200, response.text
-        assert response.json() == {"data": [{"id": "router_1", "status": "green"}]}
+        data = response.json()
+        assert data["id"] == target_user.id
+        assert data["object"] == "user"
+        assert data["email"] == target_user.email
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
         [
+            (
+                UserNotFoundError(id=1),
+                404,
+                "User 1 not found.",
+            ),
+            (
+                UserIsNotAdminError(),
+                403,
+                "User has no admin rights.",
+            ),
             (
                 UserExpiredError(),
                 403,
@@ -75,10 +58,10 @@ class TestGetHealthModels:
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
         mock_use_case = AsyncMock()
         mock_use_case.execute.return_value = use_case_result
-        app.dependency_overrides[get_health_models_use_case_factory] = lambda: mock_use_case
+        app.dependency_overrides[get_one_user_use_case_factory] = lambda: mock_use_case
 
         response = await client.get(
-            url=HEALTH_MODELS_URL,
+            url=f"{URL}/1",
             headers={"Authorization": f"Bearer {self.key.token}"},
         )
 
@@ -94,7 +77,7 @@ class TestGetHealthModels:
         ],
     )
     async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):
-        response = await client.get(url=HEALTH_MODELS_URL, headers=headers)
+        response = await client.get(url=f"{URL}/1", headers=headers)
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail
