@@ -184,8 +184,6 @@ async def bootstrap_models(
             raise RuntimeError(f"Provider {error.name} are not found.")
         case ProviderAlreadyExistsError() as error:
             raise RuntimeError(f"Provider {error.model_name} already exists ({error.url}) for the same router ({error.router_id}).")
-        case ModelNotFoundError() as error:
-            raise RuntimeError(f"Model {error.name} not found.")
         case ProviderNotReachableError() as error:
             raise RuntimeError(f"Provider {error.model_name} not reachable ({error.status_code}): {error.detail}")
         case InconsistentModelVectorSizeError() as error:

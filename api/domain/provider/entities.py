@@ -103,6 +103,8 @@ class Provider(BaseModel):
     model_active_params: int = 0
     qos_metric: QoSMetric | None = None
     qos_limit: float | None = None
+    max_context_length: int | None = None
+    vector_size: int | None = None
     created: int
     updated: int
 
@@ -126,6 +128,12 @@ class Provider(BaseModel):
 
     def with_qos_limit(self, qos_limit: float | None) -> "Provider":
         return self.model_copy(update={"qos_limit": qos_limit})
+
+    def with_max_context_length(self, max_context_length: int | None) -> "Provider":
+        return self.model_copy(update={"max_context_length": max_context_length})
+
+    def with_vector_size(self, vector_size: int | None) -> "Provider":
+        return self.model_copy(update={"vector_size": vector_size})
 
     def is_compatible_with(self, router: Router) -> bool:
         return self.type.is_compatible_with(router.type)
