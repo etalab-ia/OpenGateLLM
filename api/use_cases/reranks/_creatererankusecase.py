@@ -7,7 +7,7 @@ from pydantic import ConfigDict
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider import ProviderGateway, ProviderLoadBalancer, ProviderRepository
+from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
 from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.rerank.entities import CreateRerankBody, Rerank
@@ -19,6 +19,7 @@ from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterErro
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters.utils import build_adapter
 from api.schemas.admin.roles import LimitType
+from api.schemas.core.models import Metric
 from api.utils.variables import EndpointRoute
 
 
@@ -56,8 +57,9 @@ class CreateRerankUseCase:
         self,
         model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer,
         model_tokenizer: ModelTokenizer,
-        provider_gateway: ProviderGateway,
+        provider_client: ProviderClient,
         provider_load_balancer: ProviderLoadBalancer,
+        provider_metrics_logger: ProviderMetricsLogger,
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
@@ -65,9 +67,12 @@ class CreateRerankUseCase:
     ) -> None:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
         self.model_tokenizer = model_tokenizer
-        self.provider_gateway = provider_gateway
+
+        self.provider_client = provider_client
         self.provider_load_balancer = provider_load_balancer
+        self.provider_metrics_logger = provider_metrics_logger
         self.provider_repository = provider_repository
+
         self.router_rate_limiter = router_rate_limiter
         self.router_repository = router_repository
         self.user_with_role_query = user_with_role_query
@@ -91,9 +96,8 @@ class CreateRerankUseCase:
         if not user.is_admin or user.cannot_access_router(router_id=router.id):
             return UserHasNoAccessToRouterError(id=router.id)
 
-        provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=router.providers)
-
-        providers = await self.provider_repository.get_all_provider_of_router(router_id=router.id)
+        providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
+        provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
 
         adapter = build_adapter(
             cost_completion_tokens=router.cost_completion_tokens,
@@ -143,10 +147,14 @@ class CreateRerankUseCase:
             case ProviderAdapterValidationRequestError() as error:
                 return error
 
-        result = await self.provider_gateway.client.forward_request(provider=provider, formatted_request=formatted_request)
+        inflight_is_incremented = await self.provider_metrics_logger.increment_inflight(provider_id=provider.id)
+        result = await self.provider_client.forward_request(provider=provider, formatted_request=formatted_request)
+        if inflight_is_incremented:
+            await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
+
         match result:
             case ProviderOriginalResponse() as original_response:
-                pass
+                await self.provider_metrics_logger.log_metric(provider_id=provider.id, metric=Metric.LATENCY, value=original_response.latency)
             case error:
                 return error
 

@@ -1,7 +1,11 @@
 import time
 
 from api.domain.provider.entities import Metric
-from api.utils.variables import METRICS__TIMESERIE_RETENTION_SECONDS, PREFIX__REDIS_METRIC_GAUGE, PREFIX__REDIS_METRIC_TIMESERIE
+from api.utils.variables import (
+    METRICS__TIMESERIE_RETENTION_SECONDS,
+    PREFIX__REDIS_METRIC_GAUGE,
+    PREFIX__REDIS_METRIC_TIMESERIE,
+)
 
 
 class MetricsRedisFactory:

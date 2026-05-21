@@ -157,8 +157,8 @@ class ProviderFormattedRequest(BaseModel):
 class ProviderOriginalResponse(BaseModel):
     data: Annotated[dict | list, Field(default={}, description="The JSON data to use for the response.")]
     text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
-    ttft: Annotated[int | None, Field(default=None, description="The time to first byte of the response.")]
     latency: Annotated[int | None, Field(default=None, description="The latency of the response.")]
+    ttft: Annotated[int | None, Field(default=None, description="The time to first byte of the response.")]
 
 
 class ProviderFormattedResponse(BaseModel):

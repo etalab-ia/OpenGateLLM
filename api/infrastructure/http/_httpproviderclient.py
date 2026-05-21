@@ -6,40 +6,14 @@ import time
 import httpx
 
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider import ProviderClient, ProviderMetricsLogger
+from api.domain.provider import ProviderClient, ProviderClientResponse
 from api.domain.provider.entities import Provider, ProviderFormattedRequest, ProviderOriginalResponse
 
 logger = logging.getLogger(__name__)
 
-type HttpProviderClientResponse = ProviderOriginalResponse | TooBusyModelError | UnknownModelError | StatusCodeModelError
-
 
 class HttpProviderClient(ProviderClient):
-    def __init__(self, provider_metrics_logger: ProviderMetricsLogger | None = None):
-        self.provider_metrics_logger = provider_metrics_logger
-
-    def log_metrics(func):
-        async def wrapper(self, *args, **kwargs):
-            if self.provider_metrics_logger is None:
-                return await func(self, *args, **kwargs)
-
-            provider = kwargs.get("provider")
-            inflight_is_incremented = await self.provider_metrics_logger.increment_inflight(provider_id=provider.id)
-            try:
-                response = await func(self, *args, **kwargs)
-                return response
-            finally:
-                match response:
-                    case ProviderOriginalResponse() as response:
-                        await self.provider_metrics_logger.log_latency(provider_id=provider.id, latency=response.latency)
-                    case TooBusyModelError() | UnknownModelError():
-                        await self.provider_metrics_logger.log_error(provider_id=provider.id)
-                await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id, inflight_is_incremented=inflight_is_incremented)
-
-        return wrapper
-
-    @log_metrics
-    async def forward_request(self, provider: Provider, formatted_request: ProviderFormattedRequest) -> HttpProviderClientResponse:
+    async def forward_request(self, provider: Provider, formatted_request: ProviderFormattedRequest) -> ProviderClientResponse:
         async with httpx.AsyncClient(timeout=provider.timeout) as async_client:
             start_time = time.perf_counter()
             try:
@@ -86,9 +60,8 @@ class HttpProviderClient(ProviderClient):
         else:
             data, text = None, response.text
 
-        return ProviderOriginalResponse(data=data, text=text, latency=latency)
+        return ProviderOriginalResponse(data=data, text=text, latency=latency, ttft=None)
 
-    @log_metrics
     async def forward_stream(self, provider: Provider, formatted_request: ProviderFormattedRequest):
         raise NotImplementedError()
 
