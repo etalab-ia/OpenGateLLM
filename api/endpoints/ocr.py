@@ -23,7 +23,6 @@ from api.utils.variables import EndpointRoute, RouterName
 router = APIRouter(prefix="/v1", tags=[RouterName.OCR.upper()])
 
 
-@hooks
 @router.post(
     path=EndpointRoute.OCR,
     dependencies=[Security(dependency=AccessController())],
@@ -35,6 +34,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.OCR.upper()])
     },
     response_model=OCR,
 )
+@hooks
 async def ocr(
     request: Request,
     body: CreateOCR,
