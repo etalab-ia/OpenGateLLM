@@ -221,12 +221,14 @@ async def delete_router(
 @router.patch(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
     dependencies=[Security(dependency=get_current_key)],
-    responses=get_documentation_responses([
-        RouterNotFoundHTTPException,
-        NotAdminUserHTTPException,
-        RouterAliasAlreadyExistsHTTPException,
-        RouterAlreadyExistsHTTPException,
-    ]),
+    responses=get_documentation_responses(
+        [
+            NotAdminUserHTTPException,
+            RouterNotFoundHTTPException,
+            RouterAliasAlreadyExistsHTTPException,
+            RouterAlreadyExistsHTTPException,
+        ]
+    ),
     status_code=200,
 )
 async def update_router(

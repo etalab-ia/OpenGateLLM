@@ -66,15 +66,17 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_PROVIDERS,
     dependencies=[Security(dependency=get_current_key)],
     status_code=201,
-    responses=get_documentation_responses([
-        InconsistentModelMaxContextLengthHTTPException,
-        InconsistentModelVectorSizeHTTPException,
-        InvalidProviderTypeHTTPException,
-        ProviderNotReachableHTTPException,
-        ProviderAlreadyExistsHTTPException,
-        RouterNotFoundHTTPException,
-        NotAdminUserHTTPException,
-    ]),
+    responses=get_documentation_responses(
+        exceptions=[
+            InconsistentModelMaxContextLengthHTTPException,
+            InconsistentModelVectorSizeHTTPException,
+            InvalidProviderTypeHTTPException,
+            ProviderNotReachableHTTPException,
+            ProviderAlreadyExistsHTTPException,
+            RouterNotFoundHTTPException,
+            NotAdminUserHTTPException,
+        ]
+    ),
 )
 async def create_provider(
     body: CreateProviderBody,
@@ -143,7 +145,7 @@ async def create_provider(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([NotAdminUserHTTPException, ProviderNotFoundHTTPException]),
+    responses=get_documentation_responses([ProviderNotFoundHTTPException, NotAdminUserHTTPException]),
 )
 async def delete_provider(
     provider_id: int = Path(description="The ID of the provider to delete."),
@@ -185,15 +187,17 @@ async def delete_provider(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
     dependencies=[Security(dependency=get_current_key)],
     status_code=200,
-    responses=get_documentation_responses([
-        InconsistentModelMaxContextLengthHTTPException,
-        InconsistentModelVectorSizeHTTPException,
-        InvalidProviderTypeHTTPException,
-        ProviderAlreadyExistsHTTPException,
-        RouterNotFoundHTTPException,
-        ProviderNotFoundHTTPException,
-        NotAdminUserHTTPException,
-    ]),
+    responses=get_documentation_responses(
+        [
+            InconsistentModelMaxContextLengthHTTPException,
+            InconsistentModelVectorSizeHTTPException,
+            InvalidProviderTypeHTTPException,
+            ProviderAlreadyExistsHTTPException,
+            RouterNotFoundHTTPException,
+            ProviderNotFoundHTTPException,
+            NotAdminUserHTTPException,
+        ]
+    ),
 )
 async def update_provider(
     provider_id: int = Path(description="The ID of the provider to update."),

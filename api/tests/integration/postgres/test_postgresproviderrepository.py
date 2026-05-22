@@ -298,8 +298,7 @@ class TestUpdateProvider:
 
         # Act
         result = await repository.update_provider(
-            domain_provider
-            .with_router_id(router_2.id)
+            domain_provider.with_router_id(router_2.id)
             .with_timeout(120)
             .with_model_hosting_zone(HostingZone.USA)
             .with_model_total_params(2_000_000)
