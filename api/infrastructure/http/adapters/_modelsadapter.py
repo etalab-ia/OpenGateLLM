@@ -42,7 +42,7 @@ class ModelsAdapter(EndpointAdapter):
                     for model in original_response.data["data"]
                 ]
             ),
-            latency=original_response.latency,
+            metrics=original_response.metrics,
         )
 
     def compute_prompt_tokens(self, original_request: ProviderOriginalRequest) -> int:

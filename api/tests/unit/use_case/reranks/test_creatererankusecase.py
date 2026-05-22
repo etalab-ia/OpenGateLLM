@@ -7,7 +7,7 @@ import pytest
 
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import TooBusyModelError
-from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalResponse, ProviderType
+from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalResponse, ProviderType, ResponseMetrics
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.rerank.entities import Rerank, RerankResult
 from api.domain.role.entities import Limit, LimitType
@@ -187,7 +187,7 @@ def _mock_adapter(*, prompt_tokens: int = 10, formatted_request=None, formatted_
     )
     adapter.format_response.return_value = response_error or ProviderFormattedResponse(
         data=formatted_response,
-        latency=120,
+        metrics=ResponseMetrics(latency=120),
     )
     if request_error is not None:
         adapter.format_request.return_value = request_error
@@ -214,7 +214,7 @@ def configure_successful_execute(
     provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
     provider_load_balancer.find_best_provider.return_value = rerank_provider
     provider_metrics_logger.increment_inflight.return_value = True
-    provider_client.forward_request.return_value = ProviderOriginalResponse(data={}, latency=120)
+    provider_client.forward_request.return_value = ProviderOriginalResponse(data={}, metrics=ResponseMetrics(latency=120))
     router_rate_limiter.get_rate_limit_state.return_value = _rate_limit_state(
         rpm_value=100,
         rpm_remaining=100,
@@ -446,7 +446,7 @@ class TestCreateRerankUseCase:
         provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
         provider_load_balancer.find_best_provider.return_value = rerank_provider
         provider_metrics_logger.increment_inflight.return_value = False
-        provider_client.forward_request.return_value = ProviderOriginalResponse(data={}, latency=80)
+        provider_client.forward_request.return_value = ProviderOriginalResponse(data={}, metrics=ResponseMetrics(latency=80))
         validation_error = ProviderAdapterValidationResponseError(provider_type=ProviderType.TEI, errors=[{"msg": "invalid"}])
         mock_adapter = _mock_adapter(response_error=validation_error)
 
@@ -533,7 +533,7 @@ class TestCreateRerankUseCase:
         provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
         provider_load_balancer.find_best_provider.return_value = rerank_provider
         provider_metrics_logger.increment_inflight.return_value = True
-        provider_client.forward_request.return_value = ProviderOriginalResponse(data={}, latency=50)
+        provider_client.forward_request.return_value = ProviderOriginalResponse(data={}, metrics=ResponseMetrics(latency=50))
         rate_limit_state = _rate_limit_state(
             rpm_value=100,
             rpm_remaining=99,

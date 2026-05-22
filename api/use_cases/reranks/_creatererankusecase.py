@@ -146,7 +146,7 @@ class CreateRerankUseCase:
 
         match result:
             case ProviderOriginalResponse() as original_response:
-                await self.provider_metrics_logger.log_metric(provider_id=provider.id, metric=Metric.LATENCY, value=original_response.latency)
+                pass
             case error:
                 return error
 
@@ -160,8 +160,13 @@ class CreateRerankUseCase:
             case ProviderFormattedResponse() as formatted_response:
                 await self.provider_metrics_logger.log_metric(
                     provider_id=provider.id,
+                    metric=Metric.LATENCY,
+                    value=original_response.metrics.latency,
+                )
+                await self.provider_metrics_logger.log_metric(
+                    provider_id=provider.id,
                     metric=Metric.NORMALIZED_LATENCY,
-                    value=formatted_response.latency,
+                    value=formatted_response.metrics.latency,
                 )
             case ProviderAdapterValidationResponseError() as error:
                 return error

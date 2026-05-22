@@ -23,16 +23,18 @@ class AudioTranscriptionsAdapter(EndpointAdapter):
         request_context: ContextVar[RequestContext],
         prompt_tokens: int = 0,
     ) -> ProviderFormattedResponse:
-        # @TODO: handle vtt, srt response formats
         if original_response.text is not None:
-            return ProviderFormattedResponse(text=original_response.data["text"])
+            return ProviderFormattedResponse(text=original_response.text, metrics=original_response.metrics)
 
-        formatted_response = ProviderFormattedResponse(data=self.RESPONSE_TYPE(**original_response.data))
+        formatted_response = ProviderFormattedResponse(
+            data=self.RESPONSE_TYPE(**original_response.data),
+            metrics=original_response.metrics,
+        )
         request_id = self._extract_request_id(original_response=original_response)
         request_context.get().id = request_id
         formatted_response.data.id = request_id
         formatted_response.data.model = original_request.form.model
-        formatted_response.latency = original_response.latency
+
         usage = self._compute_usage(formatted_response=formatted_response, prompt_tokens=prompt_tokens)
         request_context.get().usage = usage
         formatted_response.data.usage = usage

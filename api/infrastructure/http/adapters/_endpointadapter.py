@@ -64,7 +64,7 @@ class EndpointAdapter:
         prompt_tokens: int = 0,
     ) -> ProviderFormattedResponse | ProviderAdapterValidationResponseError:
         try:
-            formatted_response = ProviderFormattedResponse(data=self.RESPONSE_TYPE(**original_response.data), latency=original_response.latency)
+            formatted_response = ProviderFormattedResponse(data=self.RESPONSE_TYPE(**original_response.data), metrics=original_response.metrics)
 
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
@@ -73,7 +73,7 @@ class EndpointAdapter:
         request_context.get().id = request_id
         formatted_response.data.id = request_id
         formatted_response.data.model = original_request.body.model
-        formatted_response.latency = original_response.latency
+
         usage = self._compute_usage(formatted_response=formatted_response, prompt_tokens=prompt_tokens)
         request_context.get().usage = usage
         formatted_response.data.usage = usage
@@ -92,7 +92,7 @@ class EndpointAdapter:
                 model_total_params=self.provider.model_total_params,
                 model_zone=self.provider.model_hosting_zone,
                 completion_tokens=completion_tokens,
-                request_latency=formatted_response.latency,
+                request_latency=formatted_response.metrics.latency,
             )
         cost = self._compute_request_cost(
             prompt_tokens=prompt_tokens,

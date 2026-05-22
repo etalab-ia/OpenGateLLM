@@ -82,15 +82,15 @@ async def create_rerank(
         case RouterRateLimitExceededError(id=_, limit_type=limit_type, headers=headers):
             raise RateLimitExceededHTTPException(limit_type=limit_type, headers=headers)
         case RouterNotFoundError():
-            raise ModelNotFoundHTTPException()
+            raise ModelNotFoundHTTPException(name=body.model)
         case RouterHasNoProvidersError():
-            raise ModelNotFoundHTTPException()
+            raise ModelNotFoundHTTPException(name=body.model)
         case RouterHasWrongTypeError(actual_type=actual_type, expected_type=expected_type):
             raise WrongModelTypeHTTPException(expected_type=expected_type, actual_type=actual_type)
         case UserExpiredError():
             raise AccountExpiredHTTPException()
         case UserHasNoAccessToRouterError():
-            raise ModelNotFoundHTTPException()
+            raise ModelNotFoundHTTPException(name=body.model)
         case TooBusyModelError(detail=detail):
             raise ModelIsTooBusyExceptionHTTPException()
         case StatusCodeModelError(status_code=status_code, detail=detail):

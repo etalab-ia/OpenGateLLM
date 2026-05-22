@@ -21,6 +21,10 @@ EMBEDDINGS_ENDPOINT_BY_PROVIDER = {
     ProviderType.TEI: "/v1/embeddings",
     ProviderType.VLLM: "/v1/embeddings",
 }
+RERANK_ENDPOINT_BY_PROVIDER = {
+    ProviderType.TEI: "/rerank",
+    ProviderType.VLLM: "/v2/rerank",
+}
 
 
 def mock_models_responses(respx_mock, provider_type: ProviderType, body: factory.DictFactory, status_code: int) -> None:
@@ -30,4 +34,9 @@ def mock_models_responses(respx_mock, provider_type: ProviderType, body: factory
 
 def mock_embeddings_responses(respx_mock, provider_type: ProviderType, body: factory.DictFactory, status_code: int) -> None:
     url = urljoin(DEFAULT_PROVIDER_URL, url=EMBEDDINGS_ENDPOINT_BY_PROVIDER[provider_type])
+    respx_mock.post(url=url).mock(return_value=httpx.Response(status_code=status_code, json=body))
+
+
+def mock_rerank_responses(respx_mock, provider_type: ProviderType, body: list | factory.Factory, status_code: int) -> None:
+    url = urljoin(DEFAULT_PROVIDER_URL, RERANK_ENDPOINT_BY_PROVIDER[provider_type])
     respx_mock.post(url=url).mock(return_value=httpx.Response(status_code=status_code, json=body))

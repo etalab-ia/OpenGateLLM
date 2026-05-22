@@ -51,7 +51,7 @@ class TeiModelsAdapter(ModelsAdapter):
                     )
                 ]
             ),
-            latency=original_response.latency,
+            metrics=original_response.metrics,
         )
 
 
@@ -89,9 +89,10 @@ class TeiRerankAdapter(RerankAdapter):
                 id=request_id,
                 model=original_request.body.model,
                 results=results,
-            )
+            ),
+            metrics=original_response.metrics,
         )
-        formatted_response.latency = original_response.latency
+
         usage = self._compute_usage(formatted_response=formatted_response, prompt_tokens=prompt_tokens)
         request_context.get().usage = usage
         formatted_response.data.usage = usage
