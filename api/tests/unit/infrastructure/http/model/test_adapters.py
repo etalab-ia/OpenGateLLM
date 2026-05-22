@@ -1,5 +1,7 @@
 from http import HTTPMethod
 
+from api.domain.provider.entities import ModelHttpExchange, ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalResponse
+from api.infrastructure.fastapi.schemas.models import ModelsResponse
 from api.infrastructure.http.model.adapters import (
     AudioTranscriptionAdapter,
     ChatCompletionAdapter,
@@ -8,9 +10,6 @@ from api.infrastructure.http.model.adapters import (
     OcrAdapter,
     RerankAdapter,
 )
-
-from api.domain.provider.entities import ModelHttpExchange, ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalResponse
-from api.infrastructure.fastapi.schemas.models import ModelsResponse
 from api.schemas.audio import AudioTranscription, AudioTranscriptionResponseFormat
 from api.schemas.chat import ChatCompletion
 from api.schemas.embeddings import Embeddings
