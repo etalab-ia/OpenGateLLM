@@ -42,6 +42,10 @@ class PostgresUserRepository(UserRepository):
             updated=row.updated,
         )
 
+    @staticmethod
+    def _hash_password(password: str) -> str:
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
     @with_lock(namespace="user", key="email")
     async def create_user(
         self,
@@ -56,7 +60,7 @@ class PostgresUserRepository(UserRepository):
         expires: int | None = None,
         priority: int = 0,
     ) -> User | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError:
-        hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+        hashed_password = self._hash_password(password=password)
         expires_value = func.to_timestamp(expires) if expires is not None else None
 
         try:
