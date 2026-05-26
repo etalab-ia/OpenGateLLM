@@ -142,10 +142,17 @@ class ChatCompletion(ChatCompletion):
             choice = choices[0]
             message = choice.get("message") or {}
             content = message.get("content") or ""
-            reasoning_content = message.get("reasoning_content") or ""
 
-            result += f"{content.strip()}\n" if content else ""
-            result += f"{reasoning_content.strip()}\n" if reasoning_content else ""
+            if isinstance(content, list):  # for Mistral API
+                content_str = ""
+                for item in content:
+                    if item.get("type") == "text":
+                        content_str += item.get("text") or ""
+                content = content_str
+
+            reasoning_content = message.get("reasoning_content") or ""
+            result += f"{content.strip()}\n" if isinstance(content, str) else ""
+            result += f"{reasoning_content.strip()}\n" if isinstance(reasoning_content, str) else ""
 
         return result.strip()
 
@@ -186,9 +193,17 @@ class ChatCompletionChunk(ChatCompletionChunk):
         for choice in choices:
             delta = choice.get("delta") or {}
             content = delta.get("content") or ""
+
+            if isinstance(content, list):  # for Mistral API
+                content_str = ""
+                for item in content:
+                    if item.get("type") == "text":
+                        content_str += item.get("text") or ""
+                content = content_str
+
             reasoning_content = delta.get("reasoning_content") or ""
 
-            result += f"{content.strip()}\n" if content else ""
-            result += f"{reasoning_content.strip()}\n" if reasoning_content else ""
+            result += f"{content.strip()}\n" if isinstance(content, str) else ""
+            result += f"{reasoning_content.strip()}\n" if isinstance(reasoning_content, str) else ""
 
         return result.strip()
