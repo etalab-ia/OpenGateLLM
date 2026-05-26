@@ -34,7 +34,7 @@ from api.use_cases.admin.providers import (
 )
 from api.use_cases.admin.roles import CreateRoleUseCase, DeleteRoleUseCase, GetRolesUseCase, GetRoleUseCase, UpdateRoleUseCase
 from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
-from api.use_cases.admin.users import CreateUserUseCase, GetOneUserUseCase
+from api.use_cases.admin.users import CreateUserUseCase, GetOneUserUseCase, GetUsersUseCase
 from api.use_cases.health import GetHealthModelsUseCase
 from api.use_cases.models import GetModelsUseCase, GetModelUseCase
 from api.utils.configuration import configuration
@@ -160,6 +160,10 @@ def create_user_use_case_factory(postgres_session: AsyncSession = Depends(get_po
 
 def get_one_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneUserUseCase:
     return GetOneUserUseCase(user_repository=_user_repository(postgres_session), user_with_role_query=_user_with_role_query(postgres_session))
+
+
+def get_users_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetUsersUseCase:
+    return GetUsersUseCase(user_repository=_user_repository(postgres_session), user_with_role_query=_user_with_role_query(postgres_session))
 
 
 # roles use cases

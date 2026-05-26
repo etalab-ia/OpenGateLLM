@@ -1,13 +1,11 @@
-from typing import Literal
-
-from fastapi import Body, Depends, Path, Query, Request, Security
-from fastapi.responses import JSONResponse, Response
+from fastapi import Body, Depends, Path, Request, Security
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.role.entities import PermissionType
 from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
-from api.schemas.admin.users import Users, UserUpdateRequest
+from api.schemas.admin.users import UserUpdateRequest
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
 from api.utils.variables import EndpointRoute
@@ -60,56 +58,3 @@ async def update_user(
     )
 
     return Response(status_code=204)
-
-
-@router.get(
-    path=EndpointRoute.ADMIN_USERS + "/{user}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
-    status_code=200,
-)
-async def get_user(
-    request: Request,
-    user: int = Path(description="The ID of the user to get."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-) -> JSONResponse:
-    """
-    Get a user by id.
-    """
-
-    users = await global_context.identity_access_manager.get_users(postgres_session=postgres_session, user_id=user)
-
-    return JSONResponse(content=users[0].model_dump(), status_code=200)
-
-
-@router.get(
-    path=EndpointRoute.ADMIN_USERS,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
-    status_code=200,
-)
-async def get_users(
-    request: Request,
-    role: int | None = Query(default=None, description="The ID of the role to filter the users by."),
-    organization: int | None = Query(default=None, description="The ID of the organization to filter the users by."),
-    email: str | None = Query(default=None, description="The email of the user to filter the users by."),
-    offset: int = Query(default=0, ge=0, description="The offset of the users to get."),
-    limit: int = Query(default=10, ge=1, le=100, description="The limit of the users to get."),
-    order_by: Literal["id", "name", "created", "updated"] = Query(default="id", description="The field to order the users by."),
-    order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the users by."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-) -> JSONResponse:
-    """
-    Get all users.
-    """
-
-    data = await global_context.identity_access_manager.get_users(
-        postgres_session=postgres_session,
-        role_id=role,
-        organization_id=organization,
-        email=email,
-        offset=offset,
-        limit=limit,
-        order_by=order_by,
-        order_direction=order_direction,
-    )
-
-    return JSONResponse(content=Users(data=data).model_dump(), status_code=200)
