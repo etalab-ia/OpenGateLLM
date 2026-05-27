@@ -1,8 +1,11 @@
+from http import HTTPMethod
+from urllib.parse import urljoin
+
 import factory
 from faker import Faker
 
 from api.domain.embeddings.entities import CreateEmbeddingsBody
-from api.domain.provider.entities import ProviderOriginalRequest
+from api.domain.provider.entities import ProviderFormattedRequest, ProviderOriginalRequest
 from api.domain.rerank.entities import CreateRerankBody
 from api.utils.variables import EndpointRoute
 
@@ -40,5 +43,36 @@ class ProviderOriginalRequestFactory(factory.Factory):
                     documents=fake.sentences(nb=3),
                     top_n=2,
                 )
+            ),
+        )
+
+
+class ProviderFormattedRequestFactory(factory.Factory):
+    class Meta:
+        model = ProviderFormattedRequest
+        exclude = ["base_url"]
+
+    base_url = "https://provider.test/"
+
+    method = factory.Faker("random_element", elements=list(HTTPMethod))
+    url = factory.LazyAttribute(lambda self: urljoin(self.base_url, "/"))
+    body = factory.LazyFunction(dict)
+    form = factory.LazyFunction(dict)
+    files = factory.LazyFunction(dict)
+
+    class Params:
+        vllm_models = factory.Trait(
+            method=HTTPMethod.GET,
+            url=factory.LazyAttribute(lambda self: urljoin(self.base_url, "/v1/models")),
+            body=factory.LazyFunction(dict),
+        )
+        vllm_embeddings = factory.Trait(
+            method=HTTPMethod.POST,
+            url=factory.LazyAttribute(lambda self: urljoin(self.base_url, "/v1/embeddings")),
+            body=factory.LazyFunction(
+                lambda: {
+                    "model": "openweight-embeddings",
+                    "input": ["hello world"],
+                }
             ),
         )

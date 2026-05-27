@@ -7,7 +7,7 @@ class RequestContext(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     # request identifiers
-    id: str | None = None
+    id: str | None = None  # @TODO: add request id to usage table
     method: str | None = None
     endpoint: str | None = None
 
