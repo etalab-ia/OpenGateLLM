@@ -4,7 +4,7 @@ import logging
 from fastapi import Body, Depends, Path, Query, Security
 
 from api.dependencies import create_user_use_case_factory, get_one_user_use_case_factory, get_request_context, get_users_use_case_factory
-from api.domain import SortField, SortOrder
+from api.domain import SortOrder
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.entities import UserSortField
@@ -112,16 +112,16 @@ async def get_user(
         result = await get_one_user_use_case.execute(command)
     except Exception as e:
         logger.exception(
-            "Unexpected error while executing get_router use case",
+            "Unexpected error while executing get_user use case",
             extra={
-                "authenticated_user_id": command.user_id,
+                "authenticated_user_id": command.authenticated_user_id,
                 "user_id": command.user_id,
                 "error_type": type(e).__name__,
             },
         )
         raise InternalServerHTTPException()
     match result:
-        case GetOneUserUseCaseSuccess(returned_user):
+        case GetOneUserUseCaseSuccess(user=returned_user):
             return UserResponse.model_validate(returned_user, from_attributes=True)
         case UserNotFoundError(id=not_found_id):
             raise UserNotFoundHTTPException(user_id=not_found_id)
@@ -140,9 +140,9 @@ async def get_user(
 async def get_users(
     role_id: int | None = Query(default=None, description="The ID of the role to filter the users by."),
     organization_id: int | None = Query(default=None, description="The ID of the organization to filter the users by."),
-    offset: int = Query(default=0, ge=0, description="Number of routers to skip."),
-    limit: int = Query(default=10, ge=1, le=100, description="Maximum number of routers to return."),
-    sort_by: UserSortField = Query(default=SortField.ID, description="Field to sort by."),
+    offset: int = Query(default=0, ge=0, description="Number of users to skip."),
+    limit: int = Query(default=10, ge=1, le=100, description="Maximum number of users to return."),
+    sort_by: UserSortField = Query(default=UserSortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_users_use_case: GetUsersUseCase = Depends(get_users_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),

@@ -24,14 +24,6 @@ class CreateUserBody(BaseModel):
         return expires
 
 
-class UsersResponse(BaseModel):
-    object: Annotated[Literal["list"], Field("list", description="Type of the object.")]
-    total: Annotated[int, Field(..., description="Total number of users matching the query.")]
-    offset: Annotated[int, Field(..., description="Number of users skipped.")]
-    limit: Annotated[int, Field(..., description="Maximum number of users returned.")]
-    data: Annotated[list["UserResponse"], Field(..., description="List of users.")]
-
-
 class UserResponse(BaseModel):
     object: Annotated[Literal["user"], Field("user", description="Type of the object.")]
     id: Annotated[int, Field(..., description="ID of the user.")]
@@ -46,3 +38,11 @@ class UserResponse(BaseModel):
     created: Annotated[int, Field(..., description="Time of creation, as Unix timestamp.")]
     updated: Annotated[int, Field(..., description="Time of last update, as Unix timestamp.")]
     priority: Annotated[int, Field(..., description="Priority of the user. Higher value means higher priority.")]
+
+
+class UsersResponse(BaseModel):
+    object: Annotated[Literal["list"], Field("list", description="Type of the object.")]
+    total: Annotated[int, Field(..., description="Total number of users matching the query.")]
+    offset: Annotated[int, Field(..., description="Number of users skipped.")]
+    limit: Annotated[int, Field(..., description="Maximum number of users returned.")]
+    data: Annotated[list[UserResponse], Field(..., description="List of users.")]

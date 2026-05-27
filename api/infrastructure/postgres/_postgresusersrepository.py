@@ -19,6 +19,22 @@ def _unix_timestamp(column):
     return cast(func.extract("epoch", column), Integer)
 
 
+_USER_COLUMNS = (
+    UserTable.id,
+    UserTable.email,
+    UserTable.name,
+    UserTable.sub,
+    UserTable.iss,
+    UserTable.role_id.label("role"),
+    UserTable.organization_id.label("organization"),
+    UserTable.budget,
+    _unix_timestamp(UserTable.expires).label("expires"),
+    _unix_timestamp(UserTable.created).label("created"),
+    _unix_timestamp(UserTable.updated).label("updated"),
+    UserTable.priority,
+)
+
+
 class PostgresUserRepository(UserRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
@@ -45,22 +61,7 @@ class PostgresUserRepository(UserRepository):
         return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     async def get_user_by_id(self, user_id: int) -> User | UserNotFoundError:
-        result = await self.postgres_session.execute(
-            select(
-                UserTable.id,
-                UserTable.email,
-                UserTable.name,
-                UserTable.sub,
-                UserTable.iss,
-                UserTable.role_id.label("role"),
-                UserTable.organization_id.label("organization"),
-                UserTable.budget,
-                _unix_timestamp(UserTable.expires).label("expires"),
-                _unix_timestamp(UserTable.created).label("created"),
-                _unix_timestamp(UserTable.updated).label("updated"),
-                UserTable.priority,
-            ).where(UserTable.id == user_id)
-        )
+        result = await self.postgres_session.execute(select(*_USER_COLUMNS).where(UserTable.id == user_id))
         row = result.one_or_none()
         if row is None:
             return UserNotFoundError(id=user_id)
@@ -125,20 +126,7 @@ class PostgresUserRepository(UserRepository):
 
     async def get_first_admin_user(self) -> User | UserNotFoundError:
         result = await self.postgres_session.execute(
-            select(
-                UserTable.id,
-                UserTable.email,
-                UserTable.name,
-                UserTable.sub,
-                UserTable.iss,
-                UserTable.role_id.label("role"),
-                UserTable.organization_id.label("organization"),
-                UserTable.budget,
-                _unix_timestamp(UserTable.expires).label("expires"),
-                _unix_timestamp(UserTable.created).label("created"),
-                _unix_timestamp(UserTable.updated).label("updated"),
-                UserTable.priority,
-            )
+            select(*_USER_COLUMNS)
             .join(PermissionTable, UserTable.role_id == PermissionTable.role_id)
             .where(PermissionTable.permission == PermissionType.ADMIN)
             .order_by(UserTable.id.asc())
@@ -150,22 +138,7 @@ class PostgresUserRepository(UserRepository):
         return self._row_to_user(row)
 
     async def get_user_by_email(self, email: str) -> User | UserNotFoundError:
-        result = await self.postgres_session.execute(
-            select(
-                UserTable.id,
-                UserTable.email,
-                UserTable.name,
-                UserTable.sub,
-                UserTable.iss,
-                UserTable.role_id.label("role"),
-                UserTable.organization_id.label("organization"),
-                UserTable.budget,
-                _unix_timestamp(UserTable.expires).label("expires"),
-                _unix_timestamp(UserTable.created).label("created"),
-                _unix_timestamp(UserTable.updated).label("updated"),
-                UserTable.priority,
-            ).where(UserTable.email == email)
-        )
+        result = await self.postgres_session.execute(select(*_USER_COLUMNS).where(UserTable.email == email))
         row = result.one_or_none()
         if row is None:
             return UserNotFoundError(email=email)
@@ -192,25 +165,7 @@ class PostgresUserRepository(UserRepository):
 
         count_query = select(func.count()).select_from(UserTable)
 
-        statement = (
-            select(
-                UserTable.id,
-                UserTable.email,
-                UserTable.name,
-                UserTable.sub,
-                UserTable.iss,
-                UserTable.role_id.label("role"),
-                UserTable.organization_id.label("organization"),
-                UserTable.budget,
-                _unix_timestamp(UserTable.expires).label("expires"),
-                _unix_timestamp(UserTable.created).label("created"),
-                _unix_timestamp(UserTable.updated).label("updated"),
-                UserTable.priority,
-            )
-            .offset(offset=offset)
-            .limit(limit=limit)
-            .order_by(order_clause)
-        )
+        statement = select(*_USER_COLUMNS).offset(offset=offset).limit(limit=limit).order_by(order_clause)
         conditions = []
         if role_id is not None:
             conditions.append(UserTable.role_id == role_id)
