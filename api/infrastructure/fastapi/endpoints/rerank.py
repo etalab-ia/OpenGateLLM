@@ -12,6 +12,7 @@ from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTy
 from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.access import get_current_key
 from api.infrastructure.fastapi.context import RequestContext
+from api.infrastructure.fastapi.decorators import hooks
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
     AccountExpiredHTTPException,
@@ -23,14 +24,12 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
 )
 from api.infrastructure.fastapi.schemas.rerank import CreateRerankBody, RerankResponse
 from api.use_cases.reranks import CreateRerankCommand, CreateRerankUseCase, CreateRerankUseCaseSuccess
-from api.utils.hooks_decorator import hooks
 from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=[RouterName.RERANK.title()])
 
 
-@hooks
 @router.post(
     path=EndpointRoute.RERANK,
     dependencies=[Security(dependency=get_current_key)],
@@ -45,6 +44,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.RERANK.title()])
     ),
     response_model=RerankResponse,
 )
+@hooks
 async def create_rerank(
     body: CreateRerankBody = Body(description="The rerank creation request."),
     create_rerank_use_case: CreateRerankUseCase = Depends(create_rerank_use_case_factory),

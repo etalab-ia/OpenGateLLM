@@ -78,6 +78,8 @@ class CreateRerankUseCase:
 
     async def execute(self, command: CreateRerankCommand) -> CreateRerankUseCaseResult:
         user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.request_context.get().user_id)
+        command.request_context.get().user_email = user.email
+
         if user.expires is not None and user.expires < time.time():
             return UserExpiredError()
 
@@ -95,8 +97,14 @@ class CreateRerankUseCase:
         if user.cannot_access_router(router_id=router.id):
             return UserHasNoAccessToRouterError(id=router.id)
 
+        command.request_context.get().router_id = router.id
+        command.request_context.get().router_name = router.name
+
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
         provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
+
+        command.request_context.get().provider_id = provider.id
+        command.request_context.get().provider_model_name = provider.model_name
 
         adapter = build_adapter(
             cost_completion_tokens=router.cost_completion_tokens,
@@ -170,5 +178,9 @@ class CreateRerankUseCase:
                 )
             case ProviderAdapterValidationResponseError() as error:
                 return error
+
+        command.request_context.get().prompt_tokens = prompt_tokens
+        command.request_context.get().total_tokens = prompt_tokens
+        command.request_context.get().cost = formatted_response.data.usage.cost
 
         return CreateRerankUseCaseSuccess(data=formatted_response.data, headers=rate_limit_state.build_limit_headers)
