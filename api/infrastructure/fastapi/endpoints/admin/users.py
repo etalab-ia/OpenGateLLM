@@ -1,5 +1,6 @@
 from contextvars import ContextVar
 import logging
+from typing import assert_never
 
 from fastapi import Body, Depends, Path, Query, Security
 
@@ -129,6 +130,8 @@ async def get_user(
             raise NotAdminUserHTTPException()
         case UserExpiredError():
             raise AccountExpiredHTTPException()
+        case _ as unreachable:
+            assert_never(unreachable)
 
 
 @router.get(
@@ -179,3 +182,5 @@ async def get_users(
             raise NotAdminUserHTTPException()
         case UserExpiredError():
             raise AccountExpiredHTTPException()
+        case _ as unreachable:
+            assert_never(unreachable)
