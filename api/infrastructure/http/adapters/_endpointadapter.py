@@ -65,7 +65,6 @@ class EndpointAdapter:
     ) -> ProviderFormattedResponse | ProviderAdapterValidationResponseError:
         try:
             formatted_response = ProviderFormattedResponse(data=self.RESPONSE_TYPE(**original_response.data), metrics=original_response.metrics)
-
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 
@@ -114,7 +113,7 @@ class EndpointAdapter:
             return 0
 
         prompts = original_request.body.get_prompts()
-        prompt_tokens = len(self.model_tokenizer.encode(" ".join(prompts)))
+        prompt_tokens = len(self.model_tokenizer.encode(" ".join(prompts).strip()))
 
         return prompt_tokens
 
@@ -123,7 +122,7 @@ class EndpointAdapter:
             return 0
 
         completions = self.RESPONSE_TYPE.get_completions(formatted_response=formatted_response)
-        completion_tokens = len(self.model_tokenizer.encode(" ".join(completions)))
+        completion_tokens = len(self.model_tokenizer.encode(" ".join(completions).strip()))
 
         return completion_tokens
 
