@@ -13,6 +13,7 @@ from api.domain.provider import ProviderClient, ProviderGateway, ProviderLoadBal
 from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
+from api.infrastructure.fastapi.context import request_context
 from api.infrastructure.http import HttpProviderClient
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
@@ -42,7 +43,7 @@ from api.use_cases.health import GetHealthModelsUseCase
 from api.use_cases.models import GetModelsUseCase, GetModelUseCase
 from api.use_cases.reranks import CreateRerankUseCase
 from api.utils.configuration import configuration
-from api.utils.context import global_context, request_context
+from api.utils.context import global_context
 
 
 def get_request_context() -> ContextVar[RequestContext]:

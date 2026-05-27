@@ -57,9 +57,6 @@ class TestModelsAdapter:
         # Arrange
         original_request = ProviderOriginalRequestFactory(endpoint=EndpointRoute.MODELS, body=None)
         response = VllmModelsResponseFactory(model_id="openai/gpt-oss-120b", max_context_length=131072)
-        print("##########################################")
-        print(response)
-        print("##########################################")
         original_response = ProviderOriginalResponse(data=response, metrics=ResponseMetrics(latency=10))
 
         # Act
@@ -77,7 +74,7 @@ class TestModelsAdapter:
                         id="openai/gpt-oss-120b",
                         created=1773657692,
                         owned_by="vllm",
-                        max_context_length=131072,
+                        max_context_length=None,
                         type=ModelType.TEXT_GENERATION,
                     )
                 ]

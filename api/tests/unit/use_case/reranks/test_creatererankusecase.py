@@ -18,6 +18,7 @@ from api.domain.router.errors import (
     RouterNotFoundError,
     RouterRateLimitExceededError,
 )
+from api.domain.usage.entities import Usage
 from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.context import RequestContext
 from api.schemas.admin.roles import LimitType as SchemaLimitType
@@ -160,6 +161,7 @@ def sample_rerank():
         id="rerank-1",
         model="rerank-router",
         results=[RerankResult(relevance_score=0.9, index=0)],
+        usage=Usage(cost=3.14),
     )
 
 
@@ -509,6 +511,56 @@ class TestCreateRerankUseCase:
             ]
         )
         provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=rerank_provider.id)
+
+    @pytest.mark.asyncio
+    async def test_should_enrich_request_context_when_flow_succeeds(
+        self,
+        use_case,
+        user_with_role_query,
+        router_repository,
+        provider_repository,
+        provider_load_balancer,
+        provider_metrics_logger,
+        provider_client,
+        admin_user,
+        rerank_router,
+        rerank_provider,
+        sample_rerank,
+        default_command,
+    ):
+        # Arrange
+        mock_adapter = configure_successful_execute(
+            user_with_role_query=user_with_role_query,
+            router_repository=router_repository,
+            provider_repository=provider_repository,
+            provider_load_balancer=provider_load_balancer,
+            provider_metrics_logger=provider_metrics_logger,
+            provider_client=provider_client,
+            router_rate_limiter=AsyncMock(),
+            admin_user=admin_user,
+            rerank_router=rerank_router,
+            rerank_provider=rerank_provider,
+            sample_rerank=sample_rerank,
+            prompt_tokens=42,
+        )
+
+        # Act
+        with patch("api.use_cases.reranks._creatererankusecase.build_adapter", return_value=mock_adapter):
+            result = await use_case.execute(command=default_command)
+
+        # Assert
+        assert isinstance(result, CreateRerankUseCaseSuccess)
+
+        ctx = default_command.request_context.get()
+        assert ctx.user_id == admin_user.id
+        assert ctx.user_email == admin_user.email
+        assert ctx.router_id == rerank_router.id
+        assert ctx.router_name == rerank_router.name
+        assert ctx.provider_id == rerank_provider.id
+        assert ctx.provider_model_name == rerank_provider.model_name
+        assert ctx.prompt_tokens == 42
+        assert ctx.total_tokens == 42
+        assert ctx.cost == sample_rerank.usage.cost
 
     @pytest.mark.asyncio
     async def test_should_update_rate_limits_for_non_admin_user_with_router_access(
