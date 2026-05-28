@@ -52,7 +52,7 @@ class TestCreateProvider:
             respx_mock=respx,
             provider_type=ProviderType.ALBERT,
             body=AlbertModelsResponseFactory(
-                data=[AlbertModelResponseFactory(model_id=DEFAULT_MODEL_ID, max_context_length=DEFAULT_MAX_CONTEXT_LENGTH)],
+                data=[AlbertModelResponseFactory(model=DEFAULT_MODEL_ID, max_context_length=DEFAULT_MAX_CONTEXT_LENGTH)],
                 count=3,
             ),
             status_code=AlbertModelsResponseFactory._status_code,

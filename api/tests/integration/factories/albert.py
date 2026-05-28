@@ -1,7 +1,7 @@
 import factory
 from faker import Faker
 
-from api.domain.model.entities import ModelCosts
+from api.domain.model.entities import ModelCosts, ModelType
 
 fake = Faker()
 
@@ -9,19 +9,20 @@ fake = Faker()
 # Response factories
 class AlbertModelResponseFactory(factory.DictFactory):
     class Meta:
-        exclude = ["model_id"]
+        exclude = ["model"]
 
     _status_code = 200
 
     # parameters
-    model_id = factory.Faker("bothify", text="????/???-?#")
+    model = factory.Faker("bothify", text="????/???-?#")
 
     # body
     created = factory.LazyFunction(lambda: int(fake.unix_time()))
-    id = factory.LazyAttribute(lambda self: self.model_id)
+    id = factory.LazyAttribute(lambda self: self.model)
     aliases = factory.LazyFunction(lambda: [fake.bothify(text="????/???-?#")])
     object = "model"
     owned_by = "albert"
+    type = factory.Faker("random_element", elements=list(ModelType))
     max_context_length = factory.Faker("random_int", min=1024, max=8192)
     costs = factory.LazyFunction(
         lambda: ModelCosts(
@@ -33,16 +34,20 @@ class AlbertModelResponseFactory(factory.DictFactory):
 
 class AlbertModelsResponseFactory(factory.DictFactory):
     class Meta:
-        exclude = ["count"]
+        exclude = ["count", "max_context_length", "model"]
 
     _status_code = 200
 
     # parameters
     count: int = 1
+    model = factory.Faker("bothify", text="????/???-?#")
+    max_context_length = factory.Faker("random_int", min=1024, max=8192)
 
     # body
     object = "list"
-    data = factory.LazyAttribute(lambda self: [AlbertModelResponseFactory() for _ in range(self.count)])
+    data = factory.LazyAttribute(
+        lambda self: [AlbertModelResponseFactory(model=self.model, max_context_length=self.max_context_length) for _ in range(self.count)]
+    )
 
     @classmethod
     def _adjust_kwargs(cls, **kwargs):

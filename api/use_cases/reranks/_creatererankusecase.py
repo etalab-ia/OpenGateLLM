@@ -1,6 +1,7 @@
 from contextvars import ContextVar
 from dataclasses import dataclass
 import time
+from typing import Any
 
 from pydantic import ConfigDict
 
@@ -26,6 +27,9 @@ class CreateRerankCommand(CreateRerankBody):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     request_context: ContextVar[RequestContext]
+
+    def set_value_in_request_context(self, key: str, value: Any) -> None:
+        setattr(self.request_context.get(), key, value)
 
 
 @dataclass
@@ -78,7 +82,7 @@ class CreateRerankUseCase:
 
     async def execute(self, command: CreateRerankCommand) -> CreateRerankUseCaseResult:
         user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.request_context.get().user_id)
-        command.request_context.get().user_email = user.email
+        command.set_value_in_request_context(key="user_email", value=user.email)
 
         if user.expires is not None and user.expires < time.time():
             return UserExpiredError()
@@ -90,6 +94,9 @@ class CreateRerankUseCase:
             case error:
                 return error
 
+        command.set_value_in_request_context(key="router_id", value=router.id)
+        command.set_value_in_request_context(key="router_name", value=router.name)
+
         if router.has_no_providers:
             return RouterHasNoProvidersError(id=router.id)
         if router.type != RouterType.TEXT_CLASSIFICATION:
@@ -97,14 +104,11 @@ class CreateRerankUseCase:
         if user.cannot_access_router(router_id=router.id):
             return UserHasNoAccessToRouterError(id=router.id)
 
-        command.request_context.get().router_id = router.id
-        command.request_context.get().router_name = router.name
-
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
         provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
 
-        command.request_context.get().provider_id = provider.id
-        command.request_context.get().provider_model_name = provider.model_name
+        command.set_value_in_request_context(key="provider_id", value=provider.id)
+        command.set_value_in_request_context(key="provider_model_name", value=provider.model_name)
 
         adapter = build_adapter(
             cost_completion_tokens=router.cost_completion_tokens,
@@ -148,7 +152,11 @@ class CreateRerankUseCase:
                 return error
 
         inflight_is_incremented = await self.provider_metrics_logger.increment_inflight(provider_id=provider.id)
+
+        start_time = time.perf_counter()
         result = await self.provider_client.forward_request(provider=provider, formatted_request=formatted_request)
+        latency = int((time.perf_counter() - start_time) * 1000)  # ms
+
         if inflight_is_incremented:
             await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
 
@@ -161,26 +169,27 @@ class CreateRerankUseCase:
         result = adapter.format_response(
             original_request=original_request,
             original_response=original_response,
-            request_context=command.request_context,
             prompt_tokens=prompt_tokens,
+            latency=latency,
         )
         match result:
             case ProviderFormattedResponse() as formatted_response:
                 await self.provider_metrics_logger.log_metric(
                     provider_id=provider.id,
                     metric=Metric.LATENCY,
-                    value=original_response.metrics.latency,
+                    value=latency,
                 )
                 await self.provider_metrics_logger.log_metric(
                     provider_id=provider.id,
                     metric=Metric.NORMALIZED_LATENCY,
-                    value=formatted_response.metrics.latency,
+                    value=latency,  # normalized = latency because rerank has no completion tokens
                 )
             case ProviderAdapterValidationResponseError() as error:
                 return error
 
-        command.request_context.get().prompt_tokens = prompt_tokens
-        command.request_context.get().total_tokens = prompt_tokens
-        command.request_context.get().cost = formatted_response.data.usage.cost
+        command.set_value_in_request_context(key="id", value=formatted_response.data.id)
+        command.set_value_in_request_context(key="prompt_tokens", value=prompt_tokens)
+        command.set_value_in_request_context(key="total_tokens", value=prompt_tokens)
+        command.set_value_in_request_context(key="cost", value=formatted_response.data.usage.cost)
 
         return CreateRerankUseCaseSuccess(data=formatted_response.data, headers=rate_limit_state.build_limit_headers)

@@ -1,72 +1,69 @@
 import asyncio
+from collections.abc import AsyncGenerator, Callable, Coroutine
 from datetime import datetime
 import functools
 import logging
+from typing import Any
 
-from fastapi import HTTPException, Response
+from fastapi import HTTPException
 from sqlalchemy import func, select, update
-from starlette.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 from api.infrastructure.fastapi.context import request_context
 from api.sql.models import Usage, User
 from api.utils.configuration import configuration
-from api.utils.context import global_context
-from api.utils.dependencies import get_postgres_session
 
 logger = logging.getLogger(__name__)
+PostgresSessionProvider = Callable[[], AsyncGenerator[AsyncSession | Any, Any]]
 
 
-def hooks(func):
-    """
-    Extracts usage information from the request and response and logs it to the database.
-    This decorator is designed to be used with FastAPI endpoints.
-    It captures the request method, endpoint, user ID, token ID, model name, prompt tokens,
-    completion tokens, and the duration of the request.
-    """
+def _log_background_task_failure(task: asyncio.Task) -> None:
+    if task.cancelled():
+        return
 
-    @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
-        usage = Usage(created=datetime.now(), endpoint="N/A")
+    error = task.exception()
+    if error is not None:
+        logger.exception("Background hook task '%s' failed.", task.get_name(), exc_info=error)
 
-        # get the request context (initial values)
-        context = request_context.get()
-        if context.user_id is None:
-            logger.info(f"No user ID found in request context, skipping usage logging ({context.endpoint}).")
-            return await func(*args, **kwargs)
 
-        # use start_observation (not context manager) so the span survives the streaming lifecycle
-        langfuse_obs = None
-        if global_context.langfuse_client is not None:
+def _schedule_background_task(coroutine: Coroutine, task_name: str) -> None:
+    task = asyncio.create_task(coroutine, name=task_name)
+    task.add_done_callback(_log_background_task_failure)
+
+
+def hooks(*, postgres_session_provider: PostgresSessionProvider):
+    def decorator(endpoint_func):
+        @functools.wraps(endpoint_func)
+        async def wrapper(*args, **kwargs):
+            usage = Usage(created=datetime.now(), endpoint="N/A")
+            context = request_context.get()
+            if context.user_id is None:
+                logger.info(f"No user ID found in request context, skipping usage logging ({context.endpoint}).")
+                return await endpoint_func(*args, **kwargs)
+
             try:
-                langfuse_obs = global_context.langfuse_client.start_observation(as_type="span")
-                context.langfuse_trace_id = langfuse_obs.trace_id
-                context.langfuse_parent_span_id = langfuse_obs.id
-            except Exception:
-                logger.debug("Failed to start Langfuse root observation", exc_info=True)
+                response = await endpoint_func(*args, **kwargs)
+                usage.status = response.status_code
+                return response
 
-        try:
-            # call the endpoint
-            response = await func(*args, **kwargs)
+            except HTTPException as e:
+                usage.status = e.status_code
+                raise e
 
-            if isinstance(response, StreamingResponse):
-                return wrap_streaming_response(response=response, usage=usage, langfuse_obs=langfuse_obs)
-            else:
-                return wrap_unstreaming_response(response=response, usage=usage, langfuse_obs=langfuse_obs)
-
-        except HTTPException as e:
-            usage = set_usage_from_context(usage=usage)
-            usage.status = e.status_code
-            asyncio.create_task(log_usage(usage=usage))
-            if global_context.langfuse_client is not None and langfuse_obs is not None:
-                global_context.langfuse_client.update_observation(
-                    langfuse_obs,
-                    metadata={"status": e.status_code, "error": e.detail},
+            finally:
+                usage = set_usage_from_context(usage=usage)
+                _schedule_background_task(
+                    coroutine=log_usage(usage=usage, postgres_session_provider=postgres_session_provider),
+                    task_name="hooks-log-usage",
                 )
-                global_context.langfuse_client.end_observation(langfuse_obs)
-            raise e  # Re-raise the exception for FastAPI to handle
+                _schedule_background_task(
+                    coroutine=update_budget(usage=usage, postgres_session_provider=postgres_session_provider),
+                    task_name="hooks-update-budget",
+                )
 
-    return wrapper
+        return wrapper
+
+    return decorator
 
 
 def set_usage_from_context(usage: Usage):
@@ -91,81 +88,25 @@ def set_usage_from_context(usage: Usage):
     return usage
 
 
-def wrap_unstreaming_response(response: Response, usage: Usage, langfuse_obs=None) -> Response:
-    """
-    Wrap a non-streaming response to capture the final status code and log usage.
-    Usage data is already populated from request_context, so no parsing is needed.
-    """
-
-    usage = set_usage_from_context(usage=usage)
-    usage.status = response.status_code
-
-    asyncio.create_task(log_usage(usage=usage))
-    asyncio.create_task(update_budget(usage=usage))
-
-    if global_context.langfuse_client is not None and langfuse_obs is not None:
-        global_context.langfuse_client.end_root_observation(langfuse_obs=langfuse_obs, status=response.status_code)
-
-    return response
-
-
-def wrap_streaming_response(response: StreamingResponse, usage: Usage, langfuse_obs=None) -> StreamingResponseWithStatusCode:
-    """
-    Wrap a streaming response to capture the final status code and log usage.
-    Usage data is already populated from request_context, so no parsing is needed.
-    """
-    original_stream = response.body_iterator
-
-    async def wrapped_stream():
-        nonlocal usage
-        response_status_code = None
-
-        try:
-            async for chunk in original_stream:
-                if isinstance(chunk, tuple):
-                    response_status_code = chunk[1]
-
-                yield chunk
-        finally:
-            if response_status_code is not None:
-                usage.status = response_status_code
-
-            usage = set_usage_from_context(usage=usage)
-
-            asyncio.create_task(log_usage(usage=usage))
-            asyncio.create_task(update_budget(usage=usage))
-
-            if global_context.langfuse_client is not None and langfuse_obs is not None:
-                global_context.langfuse_client.end_root_observation(langfuse_obs=langfuse_obs, status=response_status_code)
-
-    return StreamingResponseWithStatusCode(wrapped_stream(), media_type=response.media_type)
-
-
-async def log_usage(usage: Usage):
-    """
-    Logs the usage information to the database.
-    This function captures the duration of the request and sets the status code of the response if available.
-    """
-
+async def log_usage(usage: Usage, postgres_session_provider: PostgresSessionProvider):
     if configuration.settings.monitoring_postgres_enabled is False:
         return
 
-    async for postgres_session in get_postgres_session():
-        postgres_session.add(usage)
-        try:
-            await postgres_session.commit()
-        except Exception as e:
-            logger.error(f"Failed to log usage: {e}")
-            await postgres_session.rollback()
+    try:
+        async for postgres_session in postgres_session_provider():
+            postgres_session.add(usage)
+            try:
+                await postgres_session.commit()
+            except Exception as e:
+                logger.error(f"Failed to log usage: {e}")
+                await postgres_session.rollback()
+    except RuntimeError as e:
+        logger.warning("Skipping usage logging because postgres session is unavailable: %s", e)
+    except Exception:
+        logger.exception("Unexpected failure during usage logging.")
 
 
-async def update_budget(usage: Usage):
-    """
-    Updates the budget of the user by decreasing it by the calculated cost.
-    Retrieves the current user budget, and decreases it by min(usage.budget, current_budget_value).
-    Uses row-level locking to prevent concurrency issues.
-    """
-    # Check if there's a budget cost to deduct
+async def update_budget(usage: Usage, postgres_session_provider: PostgresSessionProvider):
     if usage.cost is None or usage.cost == 0:
         return
 
@@ -175,28 +116,29 @@ async def update_budget(usage: Usage):
     if not user_id:
         logger.warning("No user_id found in usage object for budget update")
         return
+    try:
+        async for postgres_session in postgres_session_provider():
+            try:
+                async with postgres_session.begin():
+                    # Use SELECT FOR UPDATE to lock the user row during the transaction. This prevents concurrent modifications to the budget
+                    select_stmt = select(User.budget).where(User.id == user_id).with_for_update()
+                    result = await postgres_session.execute(select_stmt)
+                    current_budget = result.scalar_one_or_none()
 
-    # Decrease the user's budget by the calculated cost with proper locking
-    async for postgres_session in get_postgres_session():
-        try:
-            async with postgres_session.begin():
-                # Use SELECT FOR UPDATE to lock the user row during the transaction. This prevents concurrent modifications to the budget
-                select_stmt = select(User.budget).where(User.id == user_id).with_for_update()
-                result = await postgres_session.execute(select_stmt)
-                current_budget = result.scalar_one_or_none()
+                    if current_budget is None or current_budget == 0:
+                        return
 
-                if current_budget is None or current_budget == 0:
-                    return
+                    actual_cost = min(cost, current_budget)
+                    new_budget = round(current_budget - actual_cost, ndigits=6)
 
-                # Calculate the actual cost to deduct (minimum of requested cost and available budget)
-                actual_cost = min(cost, current_budget)
-                new_budget = round(current_budget - actual_cost, ndigits=6)
+                    update_stmt = update(User).where(User.id == user_id).values(budget=new_budget, updated=func.now()).returning(User.budget)
 
-                # Update the budget
-                update_stmt = update(User).where(User.id == user_id).values(budget=new_budget, updated=func.now()).returning(User.budget)
+                    await postgres_session.execute(update_stmt)
 
-                await postgres_session.execute(update_stmt)
-
-        except Exception as e:
-            logger.exception(f"Failed to update budget for user {user_id}: {e}")
-            return
+            except Exception as e:
+                logger.exception(f"Failed to update budget for user {user_id}: {e}")
+                return
+    except RuntimeError as e:
+        logger.warning("Skipping budget update because postgres session is unavailable: %s", e)
+    except Exception:
+        logger.exception("Unexpected failure during budget update for user %s.", user_id)

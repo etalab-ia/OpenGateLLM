@@ -6,8 +6,8 @@ import sentry_sdk
 from starlette.middleware.sessions import SessionMiddleware
 
 from api.endpoints.monitoring import setup_prometheus
-from api.infrastructure.fastapi.context import request_context
-from api.schemas.core.context import RequestContext
+from api.infrastructure.fastapi.context import RequestContext, request_context
+from api.schemas.core.context import RequestContext as LegacyRequestContext
 from api.schemas.usage import Usage
 from api.utils.configuration import Configuration, get_configuration
 from api.utils.context import request_context as legacy_request_context
@@ -58,7 +58,7 @@ def _setup_middleware(app: FastAPI, configuration: Configuration) -> None:
 
     @app.middleware("http")
     async def set_request_context(request: Request, call_next):
-        legacy_request_context.set(RequestContext(method=request.method, endpoint=request.url.path, usage=Usage()))
+        legacy_request_context.set(LegacyRequestContext(method=request.method, endpoint=request.url.path, usage=Usage()))
         request_context.set(RequestContext(method=request.method, endpoint=request.url.path))
         return await call_next(request)
 
@@ -74,6 +74,11 @@ def _register_routers(app: FastAPI, configuration: Configuration) -> None:
             raise AttributeError(f"Module {enabled_router.module_path} has no 'router' attribute")
         include_in_schema = enabled_router not in hidden_routers
         app.include_router(router=router, include_in_schema=include_in_schema)
+
+    # @TODO: legacy import, remove after total clean archi migration
+    if RouterName.ADMIN not in disabled_routers:
+        module = import_module("api.endpoints.admin")
+        app.include_router(router=module.router, include_in_schema=RouterName.ADMIN not in hidden_routers)
 
 
 def _setup_monitoring(app: FastAPI, configuration: Configuration) -> None:

@@ -81,13 +81,12 @@ class VllmChatCompletionsResponseFactory(factory.DictFactory):
 
 class VllmEmbeddingsResponseFactory(factory.DictFactory):
     class Meta:
-        exclude = ["dimensions", "model_id"]
+        exclude = ["dimensions"]
 
     _status_code = 200
 
     # parameters
     dimensions: int = 1024
-    model_id = factory.Faker("bothify", text="????/???-?#")
 
     # body
     data = factory.LazyAttribute(
@@ -99,14 +98,14 @@ class VllmEmbeddingsResponseFactory(factory.DictFactory):
             }
         ]
     )
-    model = factory.LazyAttribute(lambda self: self.model_id)
+    model = factory.Faker("bothify", text="????/???-?#")
     object = "list"
     usage = {"prompt_tokens": 6, "total_tokens": 6}
 
 
 class VllmModelsResponseFactory(factory.DictFactory):
     class Meta:
-        exclude = ["max_context_length", "model_id"]
+        exclude = ["max_context_length", "model_id", "extra_fields"]
 
     _status_code = 200
 
@@ -148,21 +147,31 @@ class VllmModelsResponseFactory(factory.DictFactory):
 
 class VllmRerankResponseFactory(factory.DictFactory):
     class Meta:
-        exclude = ["count", "indices", "relevance_scores"]
+        exclude = ["count", "top_n", "indices", "relevance_scores", "documents"]
 
     _status_code = 200
 
     # parameters
     count = 3
-
+    top_n = None
+    documents = factory.LazyAttribute(lambda self: [fake.sentence() for _ in range(self.count)])
+    relevance_scores = factory.LazyAttribute(lambda self: [fake.pyfloat(min_value=0, max_value=1, right_digits=9) for _ in range(self.count)])
     indices = factory.LazyAttribute(lambda self: random.sample(range(self.count), self.count))
-    relevance_scores = factory.LazyAttribute(lambda self: [fake.pyfloat(min_value=0, max_value=1, right_digits=6) for _ in self.indices])
 
     # body
+    id = factory.Faker("bothify", text="score-?????")
+    model = factory.Faker("bothify", text="????/???-?#")
+    usage = factory.LazyAttribute(lambda self: {"prompt_tokens": fake.random_int(min=0, max=100), "total_tokens": fake.random_int(min=0, max=100)})
     results = factory.LazyAttribute(
-        lambda self: [{"index": idx, "relevance_score": score} for idx, score in zip(self.indices, self.relevance_scores)]
+        lambda self: sorted(
+            [
+                {"index": idx, "document": {"text": doc, "multi_modal": None}, "relevance_score": score}
+                for idx, doc, score in zip(self.indices, self.documents, self.relevance_scores)
+            ],
+            key=lambda x: x["relevance_score"],
+            reverse=True,
+        )[: self.top_n]
     )
-    id = factory.LazyFunction(lambda: fake.uuid4())
 
 
 # Error response factories

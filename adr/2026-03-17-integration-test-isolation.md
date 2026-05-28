@@ -1,9 +1,9 @@
 # ADR - 2026-03-17 - Integration Test Isolation via Transaction Rollback
 
-**Status:** Accepted
-**Date:** 2026-03-17
-**Authors:** Development Team
-**Decision Outcome:** Isolate each integration test by rolling back an external Postgres transaction
+* **Status:** Accepted
+* **Date:** 2026-03-17
+* **Authors:** Development Team
+* **Decision Outcome:** Isolate each integration test by rolling back an external Postgres transaction
 
 ---
 

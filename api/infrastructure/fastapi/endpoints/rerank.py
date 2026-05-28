@@ -24,6 +24,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
 )
 from api.infrastructure.fastapi.schemas.rerank import CreateRerankBody, RerankResponse
 from api.use_cases.reranks import CreateRerankCommand, CreateRerankUseCase, CreateRerankUseCaseSuccess
+from api.utils.dependencies import get_postgres_session
 from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.RERANK.title()])
     ),
     response_model=RerankResponse,
 )
-@hooks
+@hooks(postgres_session_provider=get_postgres_session)
 async def create_rerank(
     body: CreateRerankBody = Body(description="The rerank creation request."),
     create_rerank_use_case: CreateRerankUseCase = Depends(create_rerank_use_case_factory),

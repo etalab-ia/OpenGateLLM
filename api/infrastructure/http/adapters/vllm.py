@@ -1,9 +1,25 @@
-from contextvars import ContextVar
-
 from api.domain.model.entities import Model, Models, ModelType
 from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
-from api.infrastructure.fastapi.context import RequestContext
-from api.infrastructure.http.adapters import ModelsAdapter, OcrAdapter, RerankAdapter
+from api.infrastructure.http.adapters import (
+    AudioTranscriptionsAdapter,
+    ChatCompletionsAdapter,
+    EmbeddingsAdapter,
+    ModelsAdapter,
+    OcrAdapter,
+    RerankAdapter,
+)
+
+
+class VllmAudioTranscriptionAdapter(AudioTranscriptionsAdapter):
+    pass
+
+
+class VllmChatCompletionAdapter(ChatCompletionsAdapter):
+    pass
+
+
+class VllmEmbeddingsAdapter(EmbeddingsAdapter):
+    pass
 
 
 class VllmModelsAdapter(ModelsAdapter):
@@ -11,8 +27,8 @@ class VllmModelsAdapter(ModelsAdapter):
         self,
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
-        request_context: ContextVar[RequestContext],
         prompt_tokens: int = 0,
+        latency: int = 0,
     ) -> ProviderFormattedResponse:
         return ProviderFormattedResponse(
             data=Models(
@@ -27,7 +43,6 @@ class VllmModelsAdapter(ModelsAdapter):
                     for model in original_response.data.get("data", [])
                 ]
             ),
-            metrics=original_response.metrics,
         )
 
 
@@ -36,4 +51,4 @@ class VllmOcrAdapter(OcrAdapter):
 
 
 class VllmRerankAdapter(RerankAdapter):
-    TARGET_ENDPOINT_ROUTE = "/v2/reranks"
+    TARGET_ENDPOINT_ROUTE = "/v2/rerank"

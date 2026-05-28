@@ -1,5 +1,4 @@
 from collections import Counter
-from contextvars import ContextVar
 from dataclasses import dataclass
 import logging
 
@@ -8,7 +7,6 @@ from api.domain.provider import ProviderGateway, ProviderRepository
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNameAlreadyExistsError
-from api.infrastructure.fastapi.context import RequestContext
 from api.schemas.core.configuration import Model as ModelConfiguration
 
 logger = logging.getLogger(__name__)
@@ -46,7 +44,6 @@ class BootstrapModelsUseCase:
         self,
         routers_to_create: list[ModelConfiguration],
         bootstrap_admin_user_id: int,
-        request_context: ContextVar[RequestContext],
     ) -> BootstrapModelsUseCaseResult:
         routers = await self.router_repository.get_all_routers()
         if len(routers) > 0:
@@ -90,7 +87,6 @@ class BootstrapModelsUseCase:
                     key=provider_to_create.key,
                     timeout=provider_to_create.timeout,
                     model_name=provider_to_create.model_name,
-                    request_context=request_context,
                 )
                 match result:
                     case ProviderNotReachableError() as error:

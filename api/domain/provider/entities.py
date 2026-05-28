@@ -6,13 +6,12 @@ import pycountry
 from pydantic import BaseModel, Field
 
 from api.domain import EntitiesPage
-from api.domain.embeddings.entities import CreateEmbeddingsBody
+from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
 from api.domain.model.entities import Models, ModelType
 from api.domain.rerank.entities import CreateRerankBody, Rerank
 from api.domain.router.entities import Router
 from api.schemas.audio import AudioTranscription
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk
-from api.schemas.embeddings import Embeddings
 from api.schemas.ocr import OCR
 from api.utils.variables import EndpointRoute
 
@@ -162,10 +161,8 @@ class ResponseMetrics(BaseModel):
 class ProviderOriginalResponse(BaseModel):
     data: Annotated[dict | list, Field(default={}, description="The JSON data to use for the response.")]
     text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
-    metrics: Annotated[ResponseMetrics, Field(default_factory=ResponseMetrics, description="The metrics of the response.")]
 
 
 class ProviderFormattedResponse(BaseModel):
     data: Annotated[AudioTranscription | ChatCompletion | ChatCompletionChunk | Embeddings | Models | OCR | Rerank | None, Field(default=None, description="The JSON data to use for the response.")]  # fmt: off
     text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
-    metrics: Annotated[ResponseMetrics, Field(default_factory=ResponseMetrics, description="The metrics of the response.")]

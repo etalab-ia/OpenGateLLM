@@ -7,32 +7,33 @@ fake = Faker()
 # Response factories
 class OpenaiModelResponseFactory(factory.DictFactory):
     class Meta:
-        exclude = ["model_id"]
+        exclude = ["model"]
 
     _status_code = 200
 
     # parameters
-    model_id = factory.Faker("bothify", text="model-????-####")
+    model = factory.Faker("bothify", text="model-????-####")
 
     # body
     created = factory.LazyFunction(lambda: int(fake.unix_time()))
-    id = factory.LazyAttribute(lambda self: self.model_id)
+    id = factory.LazyAttribute(lambda self: self.model)
     object = "model"
     owned_by = "openai"
 
 
 class OpenaiModelsResponseFactory(factory.DictFactory):
     class Meta:
-        exclude = ["count"]
+        exclude = ["count", "max_context_length"]
 
     _status_code = 200
 
     # parameters
     count: int = 1
+    model = factory.Faker("bothify", text="model-????-####")
 
     # body
     object = "list"
-    data = factory.LazyAttribute(lambda self: [OpenaiModelResponseFactory() for _ in range(self.count)])
+    data = factory.LazyAttribute(lambda self: [OpenaiModelResponseFactory(model=self.model) for _ in range(self.count)])
 
     @classmethod
     def _adjust_kwargs(cls, **kwargs):

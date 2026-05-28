@@ -1,9 +1,9 @@
 # ADR - 2026-01-30 - Elasticsearch Scaling
 
-**Status:** Accepted
-**Date:** 2026-01-30
-**Authors:** Development Team
-**Decision Outcome:** Merge Elasticsearch indices into a single index
+* **Status:** Accepted
+* **Date:** 2026-01-30
+* **Authors:** Development Team
+* **Decision Outcome:** Merge Elasticsearch indices into a single index
 
 ---
 

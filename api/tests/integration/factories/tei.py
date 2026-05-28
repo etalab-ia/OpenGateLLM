@@ -71,7 +71,7 @@ class TeiEmbeddingsResponseFactory(factory.DictFactory):
     _status_code = 200
 
     # parameters
-    dimensions: int = 1024
+    dimensions = factory.Faker("random_int", min=1, max=1024)
     model_id = factory.Faker("bothify", text="????/???-?#")
 
     # body
@@ -92,31 +92,39 @@ class TeiEmbeddingsResponseFactory(factory.DictFactory):
 class TeiRerankResponseFactory(factory.Factory):
     class Meta:
         model = list
-        inline_args = ("data",)
-        exclude = ["raw_scores", "return_text", "count", "indices", "raw_data", "model_id"]
+        exclude = ["raw_scores", "return_text", "count", "indices", "relevance_scores", "sentences", "model_id", "_status_code"]
 
     _status_code = 200
 
     # parameters
+    count = 3
     raw_scores = False
     return_text = False
-    count = 3
 
     indices = factory.LazyAttribute(lambda self: random.sample(range(self.count), self.count))
-    raw_data = factory.LazyAttribute(
+    relevance_scores = factory.LazyAttribute(
         lambda self: [
-            (idx, fake.pyfloat(min_value=0, max_value=1, right_digits=2), fake.pyfloat(min_value=0, max_value=10, right_digits=1), fake.sentence())
-            for idx in self.indices
+            fake.pyfloat(
+                min_value=0,
+                max_value=1 if self.raw_scores else 10,
+                right_digits=1,
+            )
+            for _ in range(self.count)
         ]
     )
+    sentences = factory.LazyAttribute(lambda self: [fake.sentence() for _ in range(self.count)])
 
     # body
     data = factory.LazyAttribute(
         lambda self: [
-            {"index": idx, "score": raw_score if self.raw_scores else score, **({"text": text} if self.return_text else {})}
-            for idx, score, raw_score, text in self.raw_data
+            {"index": idx, "score": relevance_score, **({"text": text} if self.return_text else {})}
+            for idx, relevance_score, text in zip(self.indices, self.relevance_scores, self.sentences)
         ]
     )
+
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        return kwargs["data"]
 
 
 # Error response factories

@@ -1,15 +1,12 @@
-from contextvars import ContextVar
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
-from api.infrastructure.fastapi.context import RequestContext
 from api.schemas.core.configuration import Configuration, Dependencies, Settings
 from api.use_cases.models import BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
-from api.utils.context import global_context
 from api.utils.lifespan import bootstrap_models
 
 BOOTSTRAP_ADMIN_USER_ID = 1
@@ -29,23 +26,6 @@ def postgres_session():
     return AsyncMock()
 
 
-@pytest.fixture
-def request_context() -> ContextVar[RequestContext]:
-    context = ContextVar("request_context")
-    context.set(RequestContext())
-    return context
-
-
-@pytest.fixture(autouse=True)
-def _set_global_redis_pool():
-    previous = global_context.redis_pool
-    global_context.redis_pool = MagicMock()
-    try:
-        yield
-    finally:
-        global_context.redis_pool = previous
-
-
 class TestBootstrapModels:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -56,7 +36,7 @@ class TestBootstrapModels:
             (BootstrapModelsUseCaseSuccess(number_of_routers=0), 0),
         ],
     )
-    async def test_happy_path(self, bootstrap_configuration, postgres_session, request_context, use_case_result, expected_count):
+    async def test_happy_path(self, bootstrap_configuration, postgres_session, use_case_result, expected_count):
         mock_use_case = AsyncMock()
         mock_use_case.execute.return_value = use_case_result
 
@@ -65,14 +45,12 @@ class TestBootstrapModels:
                 configuration=bootstrap_configuration,
                 postgres_session=postgres_session,
                 bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID,
-                request_context=request_context,
             )
 
         assert result == expected_count
         mock_use_case.execute.assert_awaited_once_with(
             routers_to_create=bootstrap_configuration.models,
             bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID,
-            request_context=request_context,
         )
 
     @pytest.mark.asyncio
@@ -109,7 +87,7 @@ class TestBootstrapModels:
             ),
         ],
     )
-    async def test_error_maps_to_runtime_error(self, bootstrap_configuration, postgres_session, request_context, use_case_result, expected_message):
+    async def test_error_maps_to_runtime_error(self, bootstrap_configuration, postgres_session, use_case_result, expected_message):
         mock_use_case = AsyncMock()
         mock_use_case.execute.return_value = use_case_result
 
@@ -119,7 +97,6 @@ class TestBootstrapModels:
                     configuration=bootstrap_configuration,
                     postgres_session=postgres_session,
                     bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID,
-                    request_context=request_context,
                 )
 
         assert str(exc_info.value) == expected_message

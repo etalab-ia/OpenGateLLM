@@ -1,18 +1,24 @@
-from contextvars import ContextVar
 from http import HTTPMethod
+from unittest.mock import Mock
 
 import pytest
 
-from api.domain.model.entities import Model, Models, ModelType
+from api.domain.model.entities import ModelCosts, Models, ModelType
 from api.domain.provider.entities import (
-    ProviderFormattedRequest,
     ProviderFormattedResponse,
     ProviderOriginalResponse,
     ProviderType,
-    ResponseMetrics,
 )
-from api.infrastructure.fastapi.context import RequestContext
-from api.infrastructure.http.adapters._modelsadapter import ModelsAdapter
+from api.domain.usage.entities import EnvironmentalImpacts
+from api.infrastructure.http.adapters.albert import AlbertModelsAdapter
+from api.infrastructure.http.adapters.mistral import MistralModelsAdapter
+from api.infrastructure.http.adapters.openai import OpenaiModelsAdapter
+from api.infrastructure.http.adapters.tei import TeiModelsAdapter
+from api.infrastructure.http.adapters.vllm import VllmModelsAdapter
+from api.tests.integration.factories.albert import AlbertModelsResponseFactory
+from api.tests.integration.factories.mistral import MistralModelsResponseFactory
+from api.tests.integration.factories.openai import OpenaiModelsResponseFactory
+from api.tests.integration.factories.tei import TeiModelsResponseFactory
 from api.tests.integration.factories.vllm import VllmModelsResponseFactory
 from api.tests.unit.infrastructure.factories import ProviderOriginalRequestFactory
 from api.tests.unit.use_case.factories import ProviderFactory
@@ -20,96 +26,444 @@ from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture
-def provider():
-    return ProviderFactory(type=ProviderType.OPENAI, url="https://provider.test", model_name="test-model")
+def albert_provider():
+    return ProviderFactory(
+        type=ProviderType.ALBERT, url="https://albert.test", model_name="test-albert-model", model_total_params=10, model_active_params=5
+    )
 
 
 @pytest.fixture
-def request_context() -> ContextVar[RequestContext]:
-    context = ContextVar("request_context")
-    context.set(RequestContext())
-    return context
+def mistral_provider():
+    return ProviderFactory(
+        type=ProviderType.MISTRAL, url="https://mistral.test", model_name="test-mistral-model", model_total_params=10, model_active_params=5
+    )
 
 
 @pytest.fixture
-def models_adapter(provider) -> ModelsAdapter:
-    return ModelsAdapter(cost_completion_tokens=0, cost_prompt_tokens=0, provider=provider)
+def openai_provider():
+    return ProviderFactory(
+        type=ProviderType.OPENAI, url="https://openai.test", model_name="test-openai-model", model_total_params=10, model_active_params=5
+    )
+
+
+@pytest.fixture
+def tei_provider():
+    return ProviderFactory(type=ProviderType.TEI, url="https://tei.test", model_name="test-tei-model", model_total_params=10, model_active_params=5)
+
+
+@pytest.fixture
+def vllm_provider():
+    return ProviderFactory(type=ProviderType.VLLM, url="https://vllm.test", model_name="test-vllm-model", model_total_params=10, model_active_params=5)  # fmt: off
+
+
+@pytest.fixture
+def model_tokenizer():
+    return Mock()
+
+
+@pytest.fixture
+def model_environmental_impacts_computer():
+    return Mock()
+
+
+@pytest.fixture
+def albert_models_adapter(albert_provider, model_tokenizer, model_environmental_impacts_computer) -> AlbertModelsAdapter:
+    adapter = AlbertModelsAdapter(
+        cost_completion_tokens=0,
+        cost_prompt_tokens=0,
+        provider=albert_provider,
+        model_tokenizer=model_tokenizer,
+        model_environmental_impacts_computer=model_environmental_impacts_computer,
+    )
+    adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
+    adapter.model_environmental_impacts_computer.compute = Mock(return_value=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
+
+    return adapter
+
+
+@pytest.fixture
+def mistral_models_adapter(mistral_provider, model_tokenizer, model_environmental_impacts_computer) -> MistralModelsAdapter:
+    adapter = MistralModelsAdapter(
+        cost_completion_tokens=0,
+        cost_prompt_tokens=0,
+        provider=mistral_provider,
+        model_tokenizer=model_tokenizer,
+        model_environmental_impacts_computer=model_environmental_impacts_computer,
+    )
+    adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
+    adapter.model_environmental_impacts_computer.compute = Mock(return_value=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
+
+    return adapter
+
+
+@pytest.fixture
+def openai_models_adapter(openai_provider, model_tokenizer, model_environmental_impacts_computer) -> OpenaiModelsAdapter:
+    adapter = OpenaiModelsAdapter(
+        cost_completion_tokens=0,
+        cost_prompt_tokens=0,
+        provider=openai_provider,
+        model_tokenizer=model_tokenizer,
+        model_environmental_impacts_computer=model_environmental_impacts_computer,
+    )
+    adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
+    adapter.model_environmental_impacts_computer.compute = Mock(return_value=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
+
+    return adapter
+
+
+@pytest.fixture
+def tei_models_adapter(tei_provider, model_tokenizer, model_environmental_impacts_computer) -> TeiModelsAdapter:
+    adapter = TeiModelsAdapter(
+        cost_completion_tokens=0,
+        cost_prompt_tokens=0,
+        provider=tei_provider,
+        model_tokenizer=model_tokenizer,
+        model_environmental_impacts_computer=model_environmental_impacts_computer,
+    )
+    adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
+    adapter.model_environmental_impacts_computer.compute = Mock(return_value=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
+
+    return adapter
+
+
+@pytest.fixture
+def vllm_models_adapter(vllm_provider, model_tokenizer, model_environmental_impacts_computer) -> VllmModelsAdapter:
+    adapter = VllmModelsAdapter(
+        cost_completion_tokens=0,
+        cost_prompt_tokens=0,
+        provider=vllm_provider,
+        model_tokenizer=model_tokenizer,
+        model_environmental_impacts_computer=model_environmental_impacts_computer,
+    )
+    adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
+    adapter.model_environmental_impacts_computer.compute = Mock(return_value=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
+
+    return adapter
+
+
+@pytest.fixture
+def adapter(request):
+    return request.getfixturevalue(request.param)
 
 
 class TestModelsAdapter:
-    def test_should_use_v1_models_target_route(self, models_adapter: ModelsAdapter):
+    @pytest.mark.parametrize(
+        argnames=("adapter", "target_endpoint_route"),
+        argvalues=[
+            ("albert_models_adapter", "/v1/models"),
+            ("mistral_models_adapter", "/v1/models"),
+            ("openai_models_adapter", "/v1/models"),
+            ("tei_models_adapter", "/info"),
+            ("vllm_models_adapter", "/v1/models"),
+        ],
+        indirect=["adapter"],
+    )
+    def test_adapter_have_correct_target_endpoint_route(self, adapter, target_endpoint_route):
         # Assert
-        assert models_adapter.TARGET_ENDPOINT_ROUTE == "/v1/models"
-        assert models_adapter.TARGET_ENDPOINT_METHOD == HTTPMethod.GET
-        assert models_adapter.SOURCE_ENDPOINT == EndpointRoute.MODELS
+        assert adapter.TARGET_ENDPOINT_ROUTE == target_endpoint_route
 
-    def test_should_format_models_request_with_v1_models_route(self, models_adapter: ModelsAdapter):
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["albert_models_adapter", "mistral_models_adapter", "openai_models_adapter", "tei_models_adapter", "vllm_models_adapter"],
+        indirect=["adapter"],
+    )
+    def test_build_target_url_with_none_endpoint_route(self, adapter):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(endpoint=EndpointRoute.MODELS, body=None)
+        base_url = "https://provider.test/"
+        target_endpoint_route = None
 
         # Act
-        result = models_adapter.format_request(original_request)
+        result = adapter._build_target_url(base_url=base_url, target_endpoint_route=target_endpoint_route)
 
         # Assert
-        assert result == ProviderFormattedRequest(method=HTTPMethod.GET, url="https://provider.test/v1/models")
+        assert result == "https://provider.test/"
 
-    def test_should_format_models_response_from_data_list(self, models_adapter: ModelsAdapter, request_context: ContextVar[RequestContext]):
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["albert_models_adapter", "mistral_models_adapter", "openai_models_adapter", "tei_models_adapter", "vllm_models_adapter"],
+        indirect=["adapter"],
+    )
+    def test_build_target_url_with_subdomain(self, adapter):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(endpoint=EndpointRoute.MODELS, body=None)
-        response = VllmModelsResponseFactory(model_id="openai/gpt-oss-120b", max_context_length=131072)
-        original_response = ProviderOriginalResponse(data=response, metrics=ResponseMetrics(latency=10))
+        base_url = "https://provider.test/provider"
+        target_endpoint_route = "/v1/endpoint"
 
         # Act
-        result = models_adapter.format_response(
-            original_response=original_response,
-            original_request=original_request,
-            request_context=request_context,
-        )
+        result = adapter._build_target_url(base_url=base_url, target_endpoint_route=target_endpoint_route)
 
         # Assert
-        assert result == ProviderFormattedResponse(
-            data=Models(
-                data=[
-                    Model(
-                        id="openai/gpt-oss-120b",
-                        created=1773657692,
-                        owned_by="vllm",
-                        max_context_length=None,
-                        type=ModelType.TEXT_GENERATION,
-                    )
-                ]
-            ),
-            metrics=ResponseMetrics(latency=10),
-        )
+        assert result == "https://provider.test/provider/v1/endpoint"
 
-    def test_should_apply_defaults_for_missing_model_fields(self, models_adapter: ModelsAdapter, request_context: ContextVar[RequestContext]):
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["albert_models_adapter", "mistral_models_adapter", "openai_models_adapter", "tei_models_adapter", "vllm_models_adapter"],
+        indirect=["adapter"],
+    )
+    def test_build_target_url_with_trailing_slash(self, adapter):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(endpoint=EndpointRoute.MODELS, body=None)
-        response_data = VllmModelsResponseFactory(data=[{"id": "minimal-model"}])
-        original_response = ProviderOriginalResponse(data=response_data, metrics=ResponseMetrics(latency=5))
+        base_url = "https://provider.test/"
+        target_endpoint_route = "/v1/endpoint"
 
         # Act
-        result = models_adapter.format_response(
-            original_response=original_response,
-            original_request=original_request,
-            request_context=request_context,
-        )
+        result = adapter._build_target_url(base_url=base_url, target_endpoint_route=target_endpoint_route)
 
         # Assert
-        assert result.data.data == [
-            Model(
-                id="minimal-model",
-                created=0,
-                owned_by="unknown",
-                max_context_length=None,
-                type=ModelType.TEXT_GENERATION,
-            )
-        ]
+        assert result == "https://provider.test/v1/endpoint"
 
-    def test_should_return_zero_prompt_and_completion_tokens(self, models_adapter: ModelsAdapter):
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["albert_models_adapter", "mistral_models_adapter", "openai_models_adapter", "tei_models_adapter", "vllm_models_adapter"],
+        indirect=["adapter"],
+    )
+    def test_build_target_url_without_trailing_slash(self, adapter):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(endpoint=EndpointRoute.MODELS, body=None)
+        base_url = "https://provider.test"
+        target_endpoint_route = "/v1/endpoint"
 
-        # Act / Assert
-        assert models_adapter.compute_prompt_tokens(original_request) == 0
-        assert models_adapter.compute_completion_tokens(formatted_response=None) == 0
+        # Act
+        result = adapter._build_target_url(base_url=base_url, target_endpoint_route=target_endpoint_route)
+
+        # Assert
+        assert result == "https://provider.test/v1/endpoint"
+
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["albert_models_adapter", "mistral_models_adapter", "openai_models_adapter", "tei_models_adapter", "vllm_models_adapter"],
+        indirect=["adapter"],
+    )
+    def test_format_request_not_preserve_body(self, adapter):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(models=True)
+        original_request.body = {"model": "test-model"}
+
+        # Act
+        result = adapter.format_request(original_request)
+
+        # Assert
+        assert result.body == {}
+
+    @pytest.mark.parametrize(
+        argnames=("adapter", "method"),
+        argvalues=[
+            ("albert_models_adapter", HTTPMethod.GET),
+            ("mistral_models_adapter", HTTPMethod.GET),
+            ("openai_models_adapter", HTTPMethod.GET),
+            ("tei_models_adapter", HTTPMethod.GET),
+            ("vllm_models_adapter", HTTPMethod.GET),
+        ],
+        indirect=["adapter"],
+    )
+    def test_format_request_return_correct_method(self, adapter, method):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(models=True)
+
+        # Act
+        result = adapter.format_request(original_request)
+
+        # Assert
+        assert result.method == method
+
+    @pytest.mark.parametrize(
+        argnames=("adapter", "url"),
+        argvalues=[
+            ("albert_models_adapter", "https://albert.test/v1/models"),
+            ("mistral_models_adapter", "https://mistral.test/v1/models"),
+            ("openai_models_adapter", "https://openai.test/v1/models"),
+            ("tei_models_adapter", "https://tei.test/info"),
+            ("vllm_models_adapter", "https://vllm.test/v1/models"),
+        ],
+        indirect=["adapter"],
+    )
+    def test_format_request_return_correct_url(self, adapter, url):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(models=True)
+
+        # Act
+        result = adapter.format_request(original_request)
+
+        # Assert
+        assert result.url == url
+
+    @pytest.mark.parametrize(
+        argnames=("adapter", "response_data"),
+        argvalues=[
+            ("albert_models_adapter", AlbertModelsResponseFactory()),
+            ("mistral_models_adapter", MistralModelsResponseFactory()),
+            ("openai_models_adapter", OpenaiModelsResponseFactory()),
+            ("tei_models_adapter", TeiModelsResponseFactory()),
+            ("vllm_models_adapter", VllmModelsResponseFactory()),
+        ],
+        indirect=["adapter"],
+    )
+    def test_format_response_compute_usage_not_called(self, adapter, response_data):
+        # Arrange
+        adapter._compute_usage = Mock()
+        original_response = ProviderOriginalResponse(data=response_data)
+        original_request = ProviderOriginalRequestFactory(models=True)
+
+        # Act
+        result = adapter.format_response(original_response=original_response, original_request=original_request)
+
+        # Assert
+        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result.data, Models)
+        assert getattr(result.data, "usage", "not found") == "not found"
+        adapter._compute_usage.assert_not_called()
+
+    def test_format_response_correctly_when_provider_is_albert(self, albert_models_adapter: AlbertModelsAdapter):
+        # Arrange
+        response_data = AlbertModelsResponseFactory(count=3)
+        original_request = ProviderOriginalRequestFactory(models=True)
+        original_response = ProviderOriginalResponse(data=response_data)
+
+        # Act
+        result = albert_models_adapter.format_response(original_response=original_response, original_request=original_request)
+
+        # Assert
+        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result.data, Models)
+        assert len(result.data.data) == 3
+        assert result.data.data[0].id == response_data["data"][0]["id"]
+        assert result.data.data[0].type is ModelType.TEXT_GENERATION
+        assert result.data.data[0].max_context_length == response_data["data"][0]["max_context_length"]
+        assert result.data.data[0].aliases == []
+        assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
+
+    def test_format_response_correctly_when_provider_is_openai(self, openai_models_adapter: OpenaiModelsAdapter):
+        # Arrange
+        response_data = OpenaiModelsResponseFactory(count=3)
+        original_request = ProviderOriginalRequestFactory(models=True)
+        original_response = ProviderOriginalResponse(data=response_data)
+
+        # Act
+        result = openai_models_adapter.format_response(original_response=original_response, original_request=original_request)
+
+        # Assert
+        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result.data, Models)
+        assert len(result.data.data) == 3
+        assert result.data.data[0].id == response_data["data"][0]["id"]
+        assert result.data.data[0].type is ModelType.TEXT_GENERATION
+        assert result.data.data[0].owned_by == response_data["data"][0]["owned_by"]
+        assert result.data.data[0].max_context_length is None
+        assert result.data.data[0].aliases == []
+        assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
+
+    def test_format_response_correctly_when_provider_is_mistral(self, mistral_models_adapter: MistralModelsAdapter):
+        # Arrange
+        response_data = MistralModelsResponseFactory(count=3)
+        original_request = ProviderOriginalRequestFactory(models=True)
+        original_response = ProviderOriginalResponse(data=response_data)
+
+        # Act
+        result = mistral_models_adapter.format_response(original_response=original_response, original_request=original_request)
+
+        # Assert
+        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result.data, Models)
+        assert len(result.data.data) == 3
+        assert result.data.data[0].id == response_data["data"][0]["id"]
+        assert result.data.data[0].type is ModelType.TEXT_GENERATION
+        assert result.data.data[0].max_context_length == response_data["data"][0]["max_context_length"]
+        assert result.data.data[0].owned_by == response_data["data"][0]["owned_by"]
+        assert result.data.data[0].aliases == []
+        assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
+
+    def test_format_response_correctly_when_provider_is_tei(self, tei_models_adapter: TeiModelsAdapter):
+        # Arrange
+        response_data = TeiModelsResponseFactory(count=1)
+        original_request = ProviderOriginalRequestFactory(models=True)
+        original_response = ProviderOriginalResponse(data=response_data)
+
+        # Act
+        result = tei_models_adapter.format_response(original_response=original_response, original_request=original_request)
+
+        # Assert
+        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result.data, Models)
+        assert len(result.data.data) == 1
+        assert result.data.data[0].id == response_data["model_id"]
+        assert result.data.data[0].type is ModelType.TEXT_GENERATION
+        assert result.data.data[0].max_context_length == response_data["max_input_length"]
+        assert result.data.data[0].owned_by == "tei"
+        assert result.data.data[0].aliases == []
+        assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
+
+    def test_format_response_correctly_when_provider_is_vllm(self, vllm_models_adapter: VllmModelsAdapter):
+        # Arrange
+        response_data = VllmModelsResponseFactory(count=1)
+        original_request = ProviderOriginalRequestFactory(models=True)
+        original_response = ProviderOriginalResponse(data=response_data)
+
+        # Act
+        result = vllm_models_adapter.format_response(original_response=original_response, original_request=original_request)
+
+        # Assert
+        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result.data, Models)
+        assert len(result.data.data) == 1
+        assert result.data.data[0].id == response_data["data"][0]["id"]
+        assert result.data.data[0].type is ModelType.TEXT_GENERATION
+        assert result.data.data[0].max_context_length == response_data["data"][0]["max_model_len"]
+        assert result.data.data[0].owned_by == response_data["data"][0]["owned_by"]
+        assert result.data.data[0].aliases == []
+        assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
+
+    @pytest.mark.parametrize(
+        argnames=("adapter", "response_data"),
+        argvalues=[
+            ("albert_models_adapter", AlbertModelsResponseFactory()),
+            ("mistral_models_adapter", MistralModelsResponseFactory()),
+            ("openai_models_adapter", OpenaiModelsResponseFactory()),
+            ("tei_models_adapter", TeiModelsResponseFactory()),
+            ("vllm_models_adapter", VllmModelsResponseFactory()),
+        ],
+        indirect=["adapter"],
+    )
+    def test_format_response_extract_request_id_not_called(self, adapter, response_data):
+        # Arrange
+        adapter._extract_request_id = Mock()
+        original_response = ProviderOriginalResponse(data=response_data)
+        original_request = ProviderOriginalRequestFactory(models=True)
+
+        # Act
+        result = adapter.format_response(original_response=original_response, original_request=original_request)
+
+        # Assert
+        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result.data, Models)
+        assert getattr(result.data, "id", "not found") == "not found"
+        adapter._extract_request_id.assert_not_called()
+
+    @pytest.mark.parametrize(
+        argnames=("adapter", "response_data"),
+        argvalues=[
+            ("albert_models_adapter", AlbertModelsResponseFactory()),
+            ("mistral_models_adapter", MistralModelsResponseFactory()),
+            ("openai_models_adapter", OpenaiModelsResponseFactory()),
+            ("tei_models_adapter", TeiModelsResponseFactory()),
+            ("vllm_models_adapter", VllmModelsResponseFactory()),
+        ],
+        indirect=["adapter"],
+    )
+    def test_format_response_compute_request_cost_not_called(self, adapter, response_data):
+        # Arrange
+        adapter._compute_request_cost = Mock()
+        original_response = ProviderOriginalResponse(data=response_data)
+        original_request = ProviderOriginalRequestFactory(models=True)
+
+        # Act
+        result = adapter.format_response(original_response=original_response, original_request=original_request)
+
+        # Assert
+        assert isinstance(result, ProviderFormattedResponse)
+        adapter._compute_request_cost.assert_not_called()
+
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["albert_models_adapter", "mistral_models_adapter", "openai_models_adapter", "tei_models_adapter", "vllm_models_adapter"],
+        indirect=["adapter"],
+    )
+    def test_source_endpoint_is_models(self, adapter):
+        # Assert
+        assert adapter.SOURCE_ENDPOINT == EndpointRoute.MODELS

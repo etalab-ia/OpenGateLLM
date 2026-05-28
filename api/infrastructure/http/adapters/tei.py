@@ -1,15 +1,20 @@
-from contextvars import ContextVar
 from typing import Literal
-from uuid import uuid4
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import Field, ValidationError
 
+from api.domain import BaseModel
 from api.domain.model.entities import Model, Models, ModelType
 from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
-from api.domain.provider.errors import ProviderAdapterValidationRequestError
+from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.rerank.entities import Rerank, RerankResult
-from api.infrastructure.fastapi.context import RequestContext
-from api.infrastructure.http.adapters import AudioTranscriptionsAdapter, ChatCompletionsAdapter, ModelsAdapter, OcrAdapter, RerankAdapter
+from api.infrastructure.http.adapters import (
+    AudioTranscriptionsAdapter,
+    ChatCompletionsAdapter,
+    EmbeddingsAdapter,
+    ModelsAdapter,
+    OcrAdapter,
+    RerankAdapter,
+)
 
 
 class TeiCreateRerankBody(BaseModel):
@@ -29,6 +34,10 @@ class TeiChatCompletionAdapter(ChatCompletionsAdapter):
     TARGET_ENDPOINT_ROUTE = None
 
 
+class TeiEmbeddingsAdapter(EmbeddingsAdapter):
+    pass
+
+
 class TeiModelsAdapter(ModelsAdapter):
     TARGET_ENDPOINT_ROUTE = "/info"
 
@@ -36,8 +45,8 @@ class TeiModelsAdapter(ModelsAdapter):
         self,
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
-        request_context: ContextVar[RequestContext],
         prompt_tokens: int = 0,
+        latency: int = 0,
     ) -> ProviderFormattedResponse:
         return ProviderFormattedResponse(
             data=Models(
@@ -51,7 +60,6 @@ class TeiModelsAdapter(ModelsAdapter):
                     )
                 ]
             ),
-            metrics=original_response.metrics,
         )
 
 
@@ -64,7 +72,13 @@ class TeiRerankAdapter(RerankAdapter):
 
     def format_request(self, original_request: ProviderOriginalRequest) -> ProviderFormattedRequest | ProviderAdapterValidationRequestError:
         try:
-            body = TeiCreateRerankBody.model_validate({"query": original_request.body.query, "texts": original_request.body.documents})
+            body = TeiCreateRerankBody.model_validate(
+                {
+                    "query": original_request.body.query,
+                    "texts": original_request.body.documents,
+                    **original_request.body.model_dump(),
+                }
+            )
         except ValidationError as e:
             return ProviderAdapterValidationRequestError(provider_type=self.provider.type, errors=e.errors())
 
@@ -76,25 +90,24 @@ class TeiRerankAdapter(RerankAdapter):
         self,
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
-        request_context: ContextVar[RequestContext],
         prompt_tokens: int = 0,
+        latency: int = 0,
     ) -> ProviderFormattedResponse:
         results = sorted(original_response.data, key=lambda x: x["score"], reverse=True)[: original_request.body.top_n]
-        results = [RerankResult(relevance_score=rank["score"], index=rank["index"]) for rank in results]
-        request_id = f"request-{str(uuid4()).replace('-', '')}"
-        request_context.get().id = request_id
+        for result in results:
+            result["relevance_score"] = result.pop("score")
 
-        formatted_response = ProviderFormattedResponse(
-            data=Rerank(
-                id=request_id,
-                model=original_request.body.model,
-                results=results,
-            ),
-            metrics=original_response.metrics,
-        )
+        results = [RerankResult(**result) for result in results]
+        request_id = self._extract_request_id(original_response=original_response)
+        data = Rerank(id=request_id, model=original_request.body.model, results=results)
 
-        usage = self._compute_usage(formatted_response=formatted_response, prompt_tokens=prompt_tokens)
-        request_context.get().usage = usage
+        try:
+            data = self.RESPONSE_TYPE.model_validate(data)
+        except ValidationError as e:
+            return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
+
+        formatted_response = ProviderFormattedResponse(data=data)
+        usage = self._compute_usage(prompt_tokens=prompt_tokens, completion_tokens=0, latency=latency)
         formatted_response.data.usage = usage
 
         return formatted_response

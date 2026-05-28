@@ -1,5 +1,4 @@
 import base64
-from contextvars import ContextVar
 from typing import Literal
 
 from mistralai.client.models import AudioChunk, ChatCompletionRequest, TextChunk, UserMessage
@@ -15,8 +14,14 @@ from api.domain.provider.entities import (
     ProviderOriginalResponse,
 )
 from api.domain.provider.errors import ProviderAdapterValidationRequestError
-from api.infrastructure.fastapi.context import RequestContext
-from api.infrastructure.http.adapters import AudioTranscriptionsAdapter, ChatCompletionsAdapter, ModelsAdapter, RerankAdapter
+from api.infrastructure.http.adapters import (
+    AudioTranscriptionsAdapter,
+    ChatCompletionsAdapter,
+    EmbeddingsAdapter,
+    ModelsAdapter,
+    OcrAdapter,
+    RerankAdapter,
+)
 from api.schemas.audio import AudioTranscriptionLanguage
 
 
@@ -59,21 +64,20 @@ class MistralAudioTranscriptionAdapter(AudioTranscriptionsAdapter):
         self,
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
-        request_context: ContextVar[RequestContext],
         prompt_tokens: int = 0,
+        latency: int = 0,
     ) -> ProviderFormattedResponse:
         text = original_response.data["choices"][0]["message"]["content"]
         if original_request.form.response_format == AudioTranscriptionResponseFormat.TEXT:
-            return ProviderFormattedResponse(text=text, metrics=original_response.metrics)
+            return ProviderFormattedResponse(text=text)
 
-        formatted_response = ProviderFormattedResponse(data=AudioTranscription(text=text), metrics=original_response.metrics)
+        formatted_response = ProviderFormattedResponse(data=AudioTranscription(text=text))
         request_id = self._extract_request_id(original_response=original_response)
-        request_context.get().id = request_id
         formatted_response.data.id = request_id
         formatted_response.data.model = original_request.form.model
 
-        usage = self._compute_usage(formatted_response=formatted_response, prompt_tokens=prompt_tokens)
-        request_context.get().usage = usage
+        completion_tokens = self._compute_completion_tokens(formatted_response=formatted_response)
+        usage = self._compute_usage(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, latency=latency)
         formatted_response.data.usage = usage
 
         return formatted_response
@@ -108,13 +112,17 @@ class MistralChatCompletionAdapter(ChatCompletionsAdapter):
         return ProviderFormattedRequest(method=self.TARGET_ENDPOINT_METHOD, url=target_url, body=body)
 
 
+class MistralEmbeddingsAdapter(EmbeddingsAdapter):
+    pass
+
+
 class MistralModelsAdapter(ModelsAdapter):
     def format_response(
         self,
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
-        request_context: ContextVar[RequestContext],
         prompt_tokens: int = 0,
+        latency: int = 0,
     ) -> ProviderFormattedResponse:
         return ProviderFormattedResponse(
             data=Models(
@@ -129,8 +137,11 @@ class MistralModelsAdapter(ModelsAdapter):
                     for model in original_response.data.get("data", [])
                 ]
             ),
-            metrics=original_response.metrics,
         )
+
+
+class MistralOcrAdapter(OcrAdapter):
+    pass
 
 
 class MistralRerankAdapter(RerankAdapter):

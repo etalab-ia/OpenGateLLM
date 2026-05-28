@@ -1,5 +1,4 @@
 from contextlib import asynccontextmanager
-from contextvars import ContextVar
 
 from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
@@ -10,7 +9,7 @@ import tiktoken
 from tiktoken.core import Encoding
 
 from api.clients.parser import BaseParserClient as ParserClient
-from api.dependencies import get_postgres_session, get_request_context
+from api.dependencies import get_postgres_session
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
@@ -23,7 +22,6 @@ from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http import HttpProviderClient
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
@@ -60,12 +58,7 @@ async def lifespan(_: FastAPI):
 
     async for postgres_session in get_postgres_session():
         bootstrap_admin_user_id = await bootstrap_admin_role_and_user(configuration=configuration, postgres_session=postgres_session)
-        await bootstrap_models(
-            configuration=configuration,
-            postgres_session=postgres_session,
-            bootstrap_admin_user_id=bootstrap_admin_user_id,
-            request_context=get_request_context(),
-        )
+        await bootstrap_models(configuration=configuration, postgres_session=postgres_session, bootstrap_admin_user_id=bootstrap_admin_user_id)
 
     global_context.model_registry = await create_model_registry(configuration, global_context.postgres_session_factory)
     global_context.elasticsearch_vector_store = await create_elasticsearch_vector_store(configuration, global_context.elasticsearch_client, global_context.model_registry, global_context.postgres_session_factory)  # fmt: off
@@ -155,12 +148,7 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
             return skipped.user_id
 
 
-async def bootstrap_models(
-    configuration: Configuration,
-    postgres_session: AsyncSession,
-    bootstrap_admin_user_id: int,
-    request_context: ContextVar[RequestContext],
-) -> int:
+async def bootstrap_models(configuration: Configuration, postgres_session: AsyncSession, bootstrap_admin_user_id: int) -> int:
     router_repository = PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title)
     provider_repository = PostgresProviderRepository(postgres_session=postgres_session)
     provider_client = HttpProviderClient()
@@ -170,7 +158,7 @@ async def bootstrap_models(
         router_repository=router_repository,
         provider_repository=provider_repository,
         provider_gateway=provider_gateway,
-    ).execute(routers_to_create=configuration.models, bootstrap_admin_user_id=bootstrap_admin_user_id, request_context=request_context)
+    ).execute(routers_to_create=configuration.models, bootstrap_admin_user_id=bootstrap_admin_user_id)
 
     match result:
         case BootstrapModelsUseCaseSuccess() as success:

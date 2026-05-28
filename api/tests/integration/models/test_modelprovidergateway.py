@@ -1,4 +1,3 @@
-from contextvars import ContextVar
 from urllib.parse import urljoin
 
 import httpx
@@ -8,7 +7,6 @@ import respx
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.provider import ProviderCapabilities
 from api.domain.provider.entities import ProviderType
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http import HttpProviderClient
 from api.infrastructure.model import ModelProviderGateway
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory, TeiModelsResponseFactory
@@ -34,13 +32,6 @@ def _mock_embeddings_response(respx_mock, body: dict, status_code: int) -> None:
 
 
 @pytest.fixture
-def request_context() -> ContextVar[RequestContext]:
-    context = ContextVar("request_context")
-    context.set(RequestContext())
-    return context
-
-
-@pytest.fixture
 def gateway() -> ModelProviderGateway:
     return ModelProviderGateway(provider_client=HttpProviderClient())
 
@@ -48,11 +39,7 @@ def gateway() -> ModelProviderGateway:
 @pytest.mark.asyncio(loop_scope="session")
 class TestModelProviderGateway:
     @respx.mock
-    async def test_get_capabilities_of_non_embeddings_providers(
-        self,
-        gateway: ModelProviderGateway,
-        request_context: ContextVar[RequestContext],
-    ):
+    async def test_get_capabilities_of_non_embeddings_providers(self, gateway: ModelProviderGateway):
         _mock_models_response(
             respx_mock=respx,
             provider_type=ProviderType.VLLM,
@@ -67,7 +54,6 @@ class TestModelProviderGateway:
             key="test-key",
             timeout=1,
             model_name=DEFAULT_MODEL_ID,
-            request_context=request_context,
         )
 
         assert result == ProviderCapabilities(max_context_length=DEFAULT_MAX_CONTEXT_LENGTH, vector_size=None)
@@ -76,7 +62,6 @@ class TestModelProviderGateway:
     async def test_get_capabilities_of_embeddings_providers(
         self,
         gateway: ModelProviderGateway,
-        request_context: ContextVar[RequestContext],
     ):
         _mock_models_response(
             respx_mock=respx,
@@ -97,7 +82,6 @@ class TestModelProviderGateway:
             key="test-key",
             timeout=1,
             model_name=DEFAULT_MODEL_ID,
-            request_context=request_context,
         )
 
         assert result == ProviderCapabilities(max_context_length=DEFAULT_MAX_CONTEXT_LENGTH, vector_size=DEFAULT_VECTOR_SIZE)

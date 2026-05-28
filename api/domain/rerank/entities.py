@@ -11,7 +11,7 @@ class CreateRerankBody(BaseModel):
     top_n: int | None
 
     def get_prompts(self) -> list[str]:
-        return [" ".join(self.documents + [self.query])]
+        return [self.query] + self.documents
 
 
 class RerankResult(BaseModel):
