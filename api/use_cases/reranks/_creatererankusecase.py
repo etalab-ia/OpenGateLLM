@@ -158,12 +158,7 @@ class CreateRerankUseCase:
             case error:
                 return error
 
-        result = adapter.format_response(
-            original_request=original_request,
-            original_response=original_response,
-            request_context=command.request_context,
-            prompt_tokens=prompt_tokens,
-        )
+        result = adapter.format_response(original_request=original_request, original_response=original_response, prompt_tokens=prompt_tokens)
         match result:
             case ProviderFormattedResponse() as formatted_response:
                 await self.provider_metrics_logger.log_metric(
@@ -179,6 +174,7 @@ class CreateRerankUseCase:
             case ProviderAdapterValidationResponseError() as error:
                 return error
 
+        command.request_context.get().id = formatted_response.data.id
         command.request_context.get().prompt_tokens = prompt_tokens
         command.request_context.get().total_tokens = prompt_tokens
         command.request_context.get().cost = formatted_response.data.usage.cost

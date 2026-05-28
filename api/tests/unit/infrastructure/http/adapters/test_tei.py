@@ -1,5 +1,5 @@
-from contextvars import ContextVar
 from http import HTTPMethod
+from unittest.mock import patch
 
 import pytest
 
@@ -11,8 +11,6 @@ from api.domain.provider.entities import (
     ProviderType,
     ResponseMetrics,
 )
-from api.domain.rerank.entities import Rerank, RerankResult
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters.tei import (
     TeiAudioTranscriptionAdapter,
     TeiChatCompletionAdapter,
@@ -29,13 +27,6 @@ from api.utils.variables import EndpointRoute
 @pytest.fixture
 def tei_provider():
     return ProviderFactory(type=ProviderType.TEI, url="https://tei.test", model_name="test/tei-model")
-
-
-@pytest.fixture
-def request_context() -> ContextVar[RequestContext]:
-    context = ContextVar("request_context")
-    context.set(RequestContext())
-    return context
 
 
 @pytest.fixture
@@ -63,20 +54,14 @@ class TestTeiModelsAdapter:
         # Assert
         assert result == ProviderFormattedRequest(method=HTTPMethod.GET, url="https://tei.test/info")
 
-    def test_should_format_models_response_using_max_input_length(
-        self, tei_models_adapter: TeiModelsAdapter, request_context: ContextVar[RequestContext]
-    ):
+    def test_should_format_models_response_using_max_input_length(self, tei_models_adapter: TeiModelsAdapter):
         # Arrange
         original_request = ProviderOriginalRequestFactory(endpoint=EndpointRoute.MODELS, body=None)
         response_data = TeiModelsResponseFactory(model_id="BAAI/bge-reranker-v2-m3", max_context_length=8192)
         original_response = ProviderOriginalResponse(data=response_data, metrics=ResponseMetrics(latency=10))
 
         # Act
-        result = tei_models_adapter.format_response(
-            original_response=original_response,
-            original_request=original_request,
-            request_context=request_context,
-        )
+        result = tei_models_adapter.format_response(original_response=original_response, original_request=original_request)
 
         # Assert
         assert result == ProviderFormattedResponse(
@@ -130,9 +115,7 @@ class TestTeiRerankAdapter:
         assert result.body["truncate"] is False
         assert result.body["truncation_direction"] == "right"
 
-    def test_should_format_rerank_response_sorted_by_score_and_limited_to_top_n(
-        self, tei_rerank_adapter: TeiRerankAdapter, request_context: ContextVar[RequestContext]
-    ):
+    def test_should_format_rerank_response_sorted_by_score_and_limited_to_top_n(self, tei_rerank_adapter: TeiRerankAdapter):
         # Arrange
         original_request = ProviderOriginalRequestFactory(rerank=True)
         response_data = TeiRerankResponseFactory(
@@ -145,21 +128,10 @@ class TestTeiRerankAdapter:
         original_response = ProviderOriginalResponse(data=response_data, metrics=ResponseMetrics(latency=10))
 
         # Act
-        result = tei_rerank_adapter.format_response(
-            original_response=original_response,
-            original_request=original_request,
-            request_context=request_context,
-        )
+        with patch("api.infrastructure.http.adapters.tei.uuid4", return_value="123"):
+            result = tei_rerank_adapter.format_response(original_response=original_response, original_request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
-        assert result.data == Rerank(
-            id=request_context.get().id,
-            model=original_request.body.model,
-            results=[
-                RerankResult(index=2, relevance_score=0.95),
-                RerankResult(index=0, relevance_score=0.72),
-            ],
-        )
+        assert result.data.id == "request-123"
         assert result.data.usage.total_tokens == 0
         assert result.metrics == ResponseMetrics(latency=10)

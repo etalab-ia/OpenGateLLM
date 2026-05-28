@@ -1,4 +1,3 @@
-from contextvars import ContextVar
 from http import HTTPMethod
 
 import pytest
@@ -12,7 +11,6 @@ from api.domain.provider.entities import (
     ResponseMetrics,
 )
 from api.domain.rerank.entities import Rerank, RerankResult
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters.vllm import VllmModelsAdapter, VllmOcrAdapter, VllmRerankAdapter
 from api.tests.integration.factories.vllm import VllmModelsResponseFactory, VllmRerankResponseFactory
 from api.tests.unit.infrastructure.factories import ProviderOriginalRequestFactory
@@ -23,13 +21,6 @@ from api.utils.variables import EndpointRoute
 @pytest.fixture
 def vllm_provider():
     return ProviderFactory(type=ProviderType.VLLM, url="https://vllm.test", model_name="test/vllm-model")
-
-
-@pytest.fixture
-def request_context() -> ContextVar[RequestContext]:
-    context = ContextVar("request_context")
-    context.set(RequestContext())
-    return context
 
 
 @pytest.fixture
@@ -53,20 +44,14 @@ class TestVllmModelsAdapter:
         # Assert
         assert result == ProviderFormattedRequest(method=HTTPMethod.GET, url="https://vllm.test/v1/models")
 
-    def test_should_format_models_response_using_max_model_len(
-        self, vllm_models_adapter: VllmModelsAdapter, request_context: ContextVar[RequestContext]
-    ):
+    def test_should_format_models_response_using_max_model_len(self, vllm_models_adapter: VllmModelsAdapter):
         # Arrange
         original_request = ProviderOriginalRequestFactory(endpoint=EndpointRoute.MODELS, body=None)
         response_data = VllmModelsResponseFactory(model_id="openai/gpt-oss-120b", max_context_length=131072)
         original_response = ProviderOriginalResponse(data=response_data, metrics=ResponseMetrics(latency=10))
 
         # Act
-        result = vllm_models_adapter.format_response(
-            original_response=original_response,
-            original_request=original_request,
-            request_context=request_context,
-        )
+        result = vllm_models_adapter.format_response(original_response=original_response, original_request=original_request)
 
         # Assert
         assert result == ProviderFormattedResponse(
@@ -114,18 +99,14 @@ class TestVllmRerankAdapter:
         assert result.body["documents"] == original_request.body.documents
         assert result.body["top_n"] == original_request.body.top_n
 
-    def test_should_format_rerank_response(self, vllm_rerank_adapter: VllmRerankAdapter, request_context: ContextVar[RequestContext]):
+    def test_should_format_rerank_response(self, vllm_rerank_adapter: VllmRerankAdapter):
         # Arrange
         original_request = ProviderOriginalRequestFactory(rerank=True)
         response_data = {**VllmRerankResponseFactory(count=3), "model": original_request.body.model}
         original_response = ProviderOriginalResponse(data=response_data, metrics=ResponseMetrics(latency=10))
 
         # Act
-        result = vllm_rerank_adapter.format_response(
-            original_response=original_response,
-            original_request=original_request,
-            request_context=request_context,
-        )
+        result = vllm_rerank_adapter.format_response(original_response=original_response, original_request=original_request)
 
         # Assert
         assert isinstance(result, ProviderFormattedResponse)

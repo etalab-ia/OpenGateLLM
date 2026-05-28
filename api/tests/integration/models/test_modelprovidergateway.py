@@ -48,11 +48,7 @@ def gateway() -> ModelProviderGateway:
 @pytest.mark.asyncio(loop_scope="session")
 class TestModelProviderGateway:
     @respx.mock
-    async def test_get_capabilities_of_non_embeddings_providers(
-        self,
-        gateway: ModelProviderGateway,
-        request_context: ContextVar[RequestContext],
-    ):
+    async def test_get_capabilities_of_non_embeddings_providers(self, gateway: ModelProviderGateway):
         _mock_models_response(
             respx_mock=respx,
             provider_type=ProviderType.VLLM,
@@ -67,7 +63,6 @@ class TestModelProviderGateway:
             key="test-key",
             timeout=1,
             model_name=DEFAULT_MODEL_ID,
-            request_context=request_context,
         )
 
         assert result == ProviderCapabilities(max_context_length=DEFAULT_MAX_CONTEXT_LENGTH, vector_size=None)
@@ -76,7 +71,6 @@ class TestModelProviderGateway:
     async def test_get_capabilities_of_embeddings_providers(
         self,
         gateway: ModelProviderGateway,
-        request_context: ContextVar[RequestContext],
     ):
         _mock_models_response(
             respx_mock=respx,
@@ -97,7 +91,6 @@ class TestModelProviderGateway:
             key="test-key",
             timeout=1,
             model_name=DEFAULT_MODEL_ID,
-            request_context=request_context,
         )
 
         assert result == ProviderCapabilities(max_context_length=DEFAULT_MAX_CONTEXT_LENGTH, vector_size=DEFAULT_VECTOR_SIZE)

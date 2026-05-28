@@ -1,4 +1,3 @@
-from contextvars import ContextVar
 from http import HTTPMethod
 from typing import Annotated
 from urllib.parse import urljoin
@@ -16,7 +15,6 @@ from api.domain.provider.entities import (
 )
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
-from api.infrastructure.fastapi.context import RequestContext
 from api.utils.variables import EndpointRoute
 
 
@@ -60,7 +58,6 @@ class EndpointAdapter:
         self,
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
-        request_context: ContextVar[RequestContext],
         prompt_tokens: int = 0,
     ) -> ProviderFormattedResponse | ProviderAdapterValidationResponseError:
         try:
@@ -69,12 +66,10 @@ class EndpointAdapter:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 
         request_id = self._extract_request_id(original_response=original_response)
-        request_context.get().id = request_id
         formatted_response.data.id = request_id
         formatted_response.data.model = original_request.body.model
 
         usage = self._compute_usage(formatted_response=formatted_response, prompt_tokens=prompt_tokens)
-        request_context.get().usage = usage
         formatted_response.data.usage = usage
 
         return formatted_response

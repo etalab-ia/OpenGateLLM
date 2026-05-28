@@ -1,12 +1,10 @@
 from abc import ABC, abstractmethod
-from contextvars import ContextVar
 from dataclasses import dataclass
 
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import ModelNotFoundError
 from api.domain.provider.entities import Provider, ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderNotReachableError
-from api.infrastructure.fastapi.context import RequestContext
 
 
 @dataclass
@@ -25,7 +23,6 @@ class ProviderGateway(ABC):
         key: str | None,
         timeout: int,
         model_name: str,
-        request_context: ContextVar[RequestContext],
     ) -> ProviderCapabilities | ModelNotFoundError | ProviderNotReachableError:
         pass
 

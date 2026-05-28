@@ -1,4 +1,3 @@
-from contextvars import ContextVar
 import datetime as dt
 from unittest.mock import AsyncMock
 
@@ -11,7 +10,6 @@ from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
-from api.infrastructure.fastapi.context import RequestContext
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, UserWithRoleFactory
 from api.use_cases.admin.providers import CreateProviderCommand, CreateProviderUseCase, CreateProviderUseCaseSuccess
 
@@ -49,13 +47,6 @@ def non_admin_user():
 @pytest.fixture
 def expired_user():
     return UserWithRoleFactory(id=1, expires=int((dt.datetime.now() - dt.timedelta(days=1)).timestamp()))
-
-
-@pytest.fixture
-def request_context() -> ContextVar:
-    context = ContextVar("request_context")
-    context.set(RequestContext(user_id=1))
-    return context
 
 
 @pytest.fixture
@@ -115,9 +106,10 @@ def sample_provider():
 
 
 @pytest.fixture
-def default_command(request_context):
+def default_command():
     return CreateProviderCommand(
         router_id=1,
+        user_id=1,
         provider_type=ProviderType.VLLM,
         url="https://example.com/",
         key=None,
@@ -128,13 +120,13 @@ def default_command(request_context):
         model_active_params=0,
         qos_metric=None,
         qos_limit=None,
-        request_context=request_context,
     )
 
 
 def with_provider_type(command: CreateProviderCommand, provider_type: ProviderType) -> CreateProviderCommand:
     return CreateProviderCommand(
         router_id=command.router_id,
+        user_id=command.user_id,
         provider_type=provider_type,
         url=command.url,
         key=command.key,
@@ -145,23 +137,13 @@ def with_provider_type(command: CreateProviderCommand, provider_type: ProviderTy
         model_active_params=command.model_active_params,
         qos_metric=command.qos_metric,
         qos_limit=command.qos_limit,
-        request_context=command.request_context,
     )
 
 
 class TestCreateProviderUseCase:
     @pytest.mark.asyncio
     async def test_should_create_provider_when_router_exists_without_any_provider(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_gateway,
-        sample_router,
-        sample_provider,
-        default_command,
-        admin_user,
-        request_context,
+        self, use_case, router_repository, provider_repository, provider_gateway, sample_router, sample_provider, default_command, admin_user
     ):
         # Arrange
         router_repository.get_router_by_id.return_value = sample_router
@@ -183,7 +165,6 @@ class TestCreateProviderUseCase:
             key=None,
             timeout=30,
             model_name="my-model",
-            request_context=request_context,
         )
         provider_repository.create_provider.assert_called_once_with(
             router_id=1,

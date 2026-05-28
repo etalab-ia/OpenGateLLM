@@ -1,9 +1,7 @@
-from contextvars import ContextVar
 from http import HTTPMethod
 
 from api.domain.model.entities import Model, Models, ModelType
 from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
-from api.infrastructure.fastapi.context import RequestContext
 from api.utils.variables import EndpointRoute
 
 from ._endpointadapter import EndpointAdapter
@@ -26,7 +24,6 @@ class ModelsAdapter(EndpointAdapter):
         self,
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
-        request_context: ContextVar[RequestContext],
         prompt_tokens: int = 0,
     ) -> ProviderFormattedResponse:
         return ProviderFormattedResponse(

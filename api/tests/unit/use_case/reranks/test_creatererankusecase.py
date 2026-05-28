@@ -1,7 +1,7 @@
 from contextvars import ContextVar
 import datetime as dt
 from http import HTTPMethod
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, call, create_autospec, patch
 
 import pytest
 
@@ -21,6 +21,7 @@ from api.domain.router.errors import (
 from api.domain.usage.entities import Usage
 from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.context import RequestContext
+from api.infrastructure.http.adapters import EndpointAdapter
 from api.schemas.admin.roles import LimitType as SchemaLimitType
 from api.schemas.core.models import Metric
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, UserWithRoleFactory
@@ -180,7 +181,7 @@ def _rate_limit_state(
 
 
 def _mock_adapter(*, prompt_tokens: int = 10, formatted_request=None, formatted_response=None, request_error=None, response_error=None):
-    adapter = MagicMock()
+    adapter = create_autospec(EndpointAdapter, instance=True, spec_set=True)  # Autospec mock: unexpected kwargs / wrong signature should fail tests.
     adapter.compute_prompt_tokens.return_value = prompt_tokens
     adapter.format_request.return_value = formatted_request or ProviderFormattedRequest(
         method=HTTPMethod.POST,
@@ -552,6 +553,7 @@ class TestCreateRerankUseCase:
         assert isinstance(result, CreateRerankUseCaseSuccess)
 
         ctx = default_command.request_context.get()
+        assert ctx.id == sample_rerank.id
         assert ctx.user_id == admin_user.id
         assert ctx.user_email == admin_user.email
         assert ctx.router_id == rerank_router.id

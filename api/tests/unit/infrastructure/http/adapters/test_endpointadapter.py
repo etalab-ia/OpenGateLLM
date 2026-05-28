@@ -1,4 +1,3 @@
-from contextvars import ContextVar
 from http import HTTPMethod
 from unittest.mock import Mock, patch
 
@@ -16,7 +15,6 @@ from api.domain.provider.entities import (
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
 from api.domain.rerank.entities import CreateRerankBody, Rerank
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters._endpointadapter import EndpointAdapter
 from api.schemas.admin.providers import ProviderCarbonFootprintZone
 from api.tests.unit.use_case.factories import ProviderFactory
@@ -49,13 +47,6 @@ def adapter(provider):
     adapter.model_environmental_impacts_computer.compute = Mock(return_value=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
 
     return adapter
-
-
-@pytest.fixture
-def request_context() -> ContextVar[RequestContext]:
-    ctx = ContextVar("request_context")
-    ctx.set(RequestContext())
-    return ctx
 
 
 class TestEndpointAdapter:
@@ -93,7 +84,7 @@ class TestEndpointAdapter:
         assert result.files == {}
         assert result.body["model"] == "keep-me"
 
-    def test_format_response_returns_validation_error_on_bad_data(self, adapter, request_context):
+    def test_format_response_returns_validation_error_on_bad_data(self, adapter):
         class _InvalidResponsePayload(BaseModel):
             id: int
 
@@ -104,18 +95,13 @@ class TestEndpointAdapter:
         )
         original_response = ProviderOriginalResponse(data={"id": "req-1"}, metrics=ResponseMetrics(latency=10))
 
-        result = adapter.format_response(
-            original_response=original_response,
-            original_request=original_request,
-            request_context=request_context,
-            prompt_tokens=0,
-        )
+        result = adapter.format_response(original_response=original_response, original_request=original_request, prompt_tokens=0)
 
         assert result.provider_type == adapter.provider.type
         assert isinstance(result, ProviderAdapterValidationResponseError)
         assert len(result.errors) == 1
 
-    def test_format_response_sets_request_id_and_usage(self, adapter, request_context):
+    def test_format_response_correctly(self, adapter):
         # Arrange
         adapter._extract_request_id = Mock(return_value="req-123")
         mock_usage = Usage(prompt_tokens=3, completion_tokens=0, total_tokens=3, cost=0.0003, impacts=EnvironmentalImpacts(kgCO2eq=0.1, kWh=10.0))
@@ -130,12 +116,7 @@ class TestEndpointAdapter:
         )
 
         # Act
-        result = adapter.format_response(
-            original_response=original_response,
-            original_request=original_request,
-            request_context=request_context,
-            prompt_tokens=3,
-        )
+        result = adapter.format_response(original_response=original_response, original_request=original_request, prompt_tokens=3)
 
         # Assert
         assert isinstance(result, ProviderFormattedResponse)
@@ -149,8 +130,6 @@ class TestEndpointAdapter:
             cost=0.0003,
             impacts=EnvironmentalImpacts(kgCO2eq=0.1, kWh=10.0),
         )
-        assert request_context.get().id == "req-123"
-        assert request_context.get().usage == result.data.usage
 
     def test_compute_usage_when_environmental_impacts_computer_is_present(self, adapter):
         # Arrange

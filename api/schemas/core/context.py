@@ -47,33 +47,26 @@ class GlobalContext(BaseModel):
 class RequestContext(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    # legacy (remove after refactoring)
-    user_info: UserInfo | None = None
-    ttft: int | None = None
-    latency: int | None = None
-    usage: Usage | None = None
-
     # request identifiers
     id: str | None = None
     method: str | None = None
     endpoint: str | None = None
 
     # request context
-    user_id: int | None = None
+    user_info: UserInfo | None = None
     key_id: int | None = None
-    key_name: str | None = None  # TODO: refactor key repository
+    key_name: str | None = None
     router_id: int | None = None
     provider_id: int | None = None
+
+    # request body
     router_name: str | None = None
     provider_model_name: str | None = None
 
-    # usage
-    prompt_tokens: int | None = None
-    completion_tokens: int | None = None
-    total_tokens: int | None = None
-    cost: float | None = None
-    kwh: float | None = None
-    kgco2eq: float | None = None
+    # response
+    usage: Usage | None = None
+    ttft: int | None = None
+    latency: int | None = None
 
     # tracing
     langfuse_trace_id: str | None = None

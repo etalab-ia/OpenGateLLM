@@ -1,4 +1,3 @@
-from contextvars import ContextVar
 from http import HTTPMethod
 
 import pytest
@@ -11,7 +10,6 @@ from api.domain.provider.entities import (
     ProviderType,
     ResponseMetrics,
 )
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters._modelsadapter import ModelsAdapter
 from api.tests.integration.factories.vllm import VllmModelsResponseFactory
 from api.tests.unit.infrastructure.factories import ProviderOriginalRequestFactory
@@ -22,13 +20,6 @@ from api.utils.variables import EndpointRoute
 @pytest.fixture
 def provider():
     return ProviderFactory(type=ProviderType.OPENAI, url="https://provider.test", model_name="test-model")
-
-
-@pytest.fixture
-def request_context() -> ContextVar[RequestContext]:
-    context = ContextVar("request_context")
-    context.set(RequestContext())
-    return context
 
 
 @pytest.fixture
@@ -53,18 +44,14 @@ class TestModelsAdapter:
         # Assert
         assert result == ProviderFormattedRequest(method=HTTPMethod.GET, url="https://provider.test/v1/models")
 
-    def test_should_format_models_response_from_data_list(self, models_adapter: ModelsAdapter, request_context: ContextVar[RequestContext]):
+    def test_should_format_models_response_from_data_list(self, models_adapter: ModelsAdapter):
         # Arrange
         original_request = ProviderOriginalRequestFactory(endpoint=EndpointRoute.MODELS, body=None)
         response = VllmModelsResponseFactory(model_id="openai/gpt-oss-120b", max_context_length=131072)
         original_response = ProviderOriginalResponse(data=response, metrics=ResponseMetrics(latency=10))
 
         # Act
-        result = models_adapter.format_response(
-            original_response=original_response,
-            original_request=original_request,
-            request_context=request_context,
-        )
+        result = models_adapter.format_response(original_response=original_response, original_request=original_request)
 
         # Assert
         assert result == ProviderFormattedResponse(
@@ -82,18 +69,14 @@ class TestModelsAdapter:
             metrics=ResponseMetrics(latency=10),
         )
 
-    def test_should_apply_defaults_for_missing_model_fields(self, models_adapter: ModelsAdapter, request_context: ContextVar[RequestContext]):
+    def test_should_apply_defaults_for_missing_model_fields(self, models_adapter: ModelsAdapter):
         # Arrange
         original_request = ProviderOriginalRequestFactory(endpoint=EndpointRoute.MODELS, body=None)
         response_data = VllmModelsResponseFactory(data=[{"id": "minimal-model"}])
         original_response = ProviderOriginalResponse(data=response_data, metrics=ResponseMetrics(latency=5))
 
         # Act
-        result = models_adapter.format_response(
-            original_response=original_response,
-            original_request=original_request,
-            request_context=request_context,
-        )
+        result = models_adapter.format_response(original_response=original_response, original_request=original_request)
 
         # Assert
         assert result.data.data == [

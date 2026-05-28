@@ -1,5 +1,4 @@
 import base64
-from contextvars import ContextVar
 from typing import Literal
 
 from mistralai.client.models import AudioChunk, ChatCompletionRequest, TextChunk, UserMessage
@@ -15,7 +14,6 @@ from api.domain.provider.entities import (
     ProviderOriginalResponse,
 )
 from api.domain.provider.errors import ProviderAdapterValidationRequestError
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters import AudioTranscriptionsAdapter, ChatCompletionsAdapter, ModelsAdapter, RerankAdapter
 from api.schemas.audio import AudioTranscriptionLanguage
 
@@ -59,7 +57,6 @@ class MistralAudioTranscriptionAdapter(AudioTranscriptionsAdapter):
         self,
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
-        request_context: ContextVar[RequestContext],
         prompt_tokens: int = 0,
     ) -> ProviderFormattedResponse:
         text = original_response.data["choices"][0]["message"]["content"]
@@ -68,12 +65,10 @@ class MistralAudioTranscriptionAdapter(AudioTranscriptionsAdapter):
 
         formatted_response = ProviderFormattedResponse(data=AudioTranscription(text=text), metrics=original_response.metrics)
         request_id = self._extract_request_id(original_response=original_response)
-        request_context.get().id = request_id
         formatted_response.data.id = request_id
         formatted_response.data.model = original_request.form.model
 
         usage = self._compute_usage(formatted_response=formatted_response, prompt_tokens=prompt_tokens)
-        request_context.get().usage = usage
         formatted_response.data.usage = usage
 
         return formatted_response
@@ -113,7 +108,6 @@ class MistralModelsAdapter(ModelsAdapter):
         self,
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
-        request_context: ContextVar[RequestContext],
         prompt_tokens: int = 0,
     ) -> ProviderFormattedResponse:
         return ProviderFormattedResponse(

@@ -1,8 +1,5 @@
-from contextvars import ContextVar
-
 from api.domain.model.entities import Model, Models, ModelType
 from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters import ModelsAdapter, OcrAdapter, RerankAdapter
 
 
@@ -11,7 +8,6 @@ class VllmModelsAdapter(ModelsAdapter):
         self,
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
-        request_context: ContextVar[RequestContext],
         prompt_tokens: int = 0,
     ) -> ProviderFormattedResponse:
         return ProviderFormattedResponse(
