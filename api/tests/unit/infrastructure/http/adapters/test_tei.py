@@ -14,11 +14,13 @@ from api.domain.provider.entities import (
 from api.infrastructure.http.adapters.tei import (
     TeiAudioTranscriptionAdapter,
     TeiChatCompletionAdapter,
+    TeiEmbeddingsAdapter,
     TeiModelsAdapter,
     TeiOcrAdapter,
     TeiRerankAdapter,
 )
-from api.tests.integration.factories.tei import TeiModelsResponseFactory, TeiRerankResponseFactory
+from api.schemas.embeddings import Embeddings
+from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory, TeiModelsResponseFactory, TeiRerankResponseFactory
 from api.tests.unit.infrastructure.factories import ProviderOriginalRequestFactory
 from api.tests.unit.use_case.factories import ProviderFactory
 from api.utils.variables import EndpointRoute
@@ -30,13 +32,83 @@ def tei_provider():
 
 
 @pytest.fixture
+def tei_audio_transcription_adapter(tei_provider) -> TeiAudioTranscriptionAdapter:
+    return TeiAudioTranscriptionAdapter(cost_completion_tokens=0, cost_prompt_tokens=0, provider=tei_provider)
+
+
+@pytest.fixture
+def tei_chat_completion_adapter(tei_provider) -> TeiChatCompletionAdapter:
+    return TeiChatCompletionAdapter(cost_completion_tokens=0, cost_prompt_tokens=0, provider=tei_provider)
+
+
+@pytest.fixture
+def tei_embeddings_adapter(tei_provider) -> TeiEmbeddingsAdapter:
+    return TeiEmbeddingsAdapter(cost_completion_tokens=0, cost_prompt_tokens=0, provider=tei_provider)
+
+
+@pytest.fixture
 def tei_models_adapter(tei_provider) -> TeiModelsAdapter:
     return TeiModelsAdapter(cost_completion_tokens=0, cost_prompt_tokens=0, provider=tei_provider)
 
 
 @pytest.fixture
+def tei_ocr_adapter(tei_provider) -> TeiOcrAdapter:
+    return TeiOcrAdapter(cost_completion_tokens=0, cost_prompt_tokens=0, provider=tei_provider)
+
+
+@pytest.fixture
 def tei_rerank_adapter(tei_provider) -> TeiRerankAdapter:
     return TeiRerankAdapter(cost_completion_tokens=0, cost_prompt_tokens=0, provider=tei_provider)
+
+
+class TestTeiAudioTranscriptionAdapter:
+    def test_should_have_no_target_endpoint_route(self, tei_audio_transcription_adapter: TeiAudioTranscriptionAdapter):
+        # Assert
+        assert tei_audio_transcription_adapter.TARGET_ENDPOINT_ROUTE is None
+
+
+class TestTeiChatCompletionAdapter:
+    def test_should_have_no_target_endpoint_route(self, tei_chat_completion_adapter: TeiChatCompletionAdapter):
+        # Assert
+        assert tei_chat_completion_adapter.TARGET_ENDPOINT_ROUTE is None
+
+
+class TestTeiEmbeddingsAdapter:
+    def test_should_have_embeddings_target_endpoint_route(self, tei_embeddings_adapter: TeiEmbeddingsAdapter):
+        # Assert
+        assert tei_embeddings_adapter.TARGET_ENDPOINT_ROUTE == "/v1/embeddings"
+
+    def test_should_format_embeddings_request_with_embeddings_route(self, tei_embeddings_adapter: TeiEmbeddingsAdapter):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(embeddings=True)
+
+        # Act
+        result = tei_embeddings_adapter.format_request(original_request)
+
+        # Assert
+        assert result == ProviderFormattedRequest(method=HTTPMethod.POST, url="https://tei.test/v1/embeddings", body=original_request.body)
+
+    def test_should_format_embeddings_response_using_max_input_length(self, tei_embeddings_adapter: TeiEmbeddingsAdapter):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(endpoint=EndpointRoute.EMBEDDINGS, body=None)
+        response_data = TeiEmbeddingsResponseFactory(model_id="BAAI/bge-reranker-v2-m3", dimensions=8192)
+        original_response = ProviderOriginalResponse(data=response_data, metrics=ResponseMetrics(latency=10))
+
+        # Act
+        with patch("api.infrastructure.http.adapters._endpointadapter.uuid4", return_value="123"):
+            result = tei_embeddings_adapter.format_response(original_response=original_response, original_request=original_request)
+
+        # Assert
+        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result.data, Embeddings)
+        assert result.data.id == "request-123"
+        assert result.data.model == "BAAI/bge-reranker-v2-m3"
+        assert len(result.data.data) == 1
+        assert result.data.data[0].embedding == response_data["data"][0]["embedding"]
+        assert result.data.data[0].index == 0
+        assert result.data.data[0].object == "embedding"
+        assert result.data.usage.total_tokens == 0
+        assert result.metrics == ResponseMetrics(latency=10)
 
 
 class TestTeiModelsAdapter:

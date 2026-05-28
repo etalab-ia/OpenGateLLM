@@ -7,7 +7,14 @@ from api.domain.model.entities import Model, Models, ModelType
 from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
 from api.domain.provider.errors import ProviderAdapterValidationRequestError
 from api.domain.rerank.entities import Rerank, RerankResult
-from api.infrastructure.http.adapters import AudioTranscriptionsAdapter, ChatCompletionsAdapter, ModelsAdapter, OcrAdapter, RerankAdapter
+from api.infrastructure.http.adapters import (
+    AudioTranscriptionsAdapter,
+    ChatCompletionsAdapter,
+    EmbeddingsAdapter,
+    ModelsAdapter,
+    OcrAdapter,
+    RerankAdapter,
+)
 
 
 class TeiCreateRerankBody(BaseModel):
@@ -25,6 +32,10 @@ class TeiAudioTranscriptionAdapter(AudioTranscriptionsAdapter):
 
 class TeiChatCompletionAdapter(ChatCompletionsAdapter):
     TARGET_ENDPOINT_ROUTE = None
+
+
+class TeiEmbeddingsAdapter(EmbeddingsAdapter):
+    pass
 
 
 class TeiModelsAdapter(ModelsAdapter):

@@ -67,7 +67,8 @@ class EndpointAdapter:
 
         request_id = self._extract_request_id(original_response=original_response)
         formatted_response.data.id = request_id
-        formatted_response.data.model = original_request.body.model
+        if original_request.body is not None and hasattr(original_request.body, "model"):
+            formatted_response.data.model = original_request.body.model
 
         usage = self._compute_usage(formatted_response=formatted_response, prompt_tokens=prompt_tokens)
         formatted_response.data.usage = usage
