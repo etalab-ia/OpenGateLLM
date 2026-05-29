@@ -26,11 +26,26 @@ def keys_created_dialog() -> rx.Component:
             ),
             rx.vstack(
                 rx.vstack(
-                    rx.text(
-                        "Your API Key:",
-                        size=TEXT_SIZE_LABEL,
-                        weight="bold",
-                        color=rx.color("mauve", 11),
+                    rx.hstack(
+                        rx.text(
+                            "Your API Key:",
+                            size=TEXT_SIZE_LABEL,
+                            weight="bold",
+                            color=rx.color("mauve", 11),
+                        ),
+                        rx.spacer(),
+                        rx.button(
+                            rx.icon("copy", size=ICON_SIZE_MEDIUM),
+                            "Copy",
+                            on_click=[
+                                rx.set_clipboard(KeysState.created_key),
+                                rx.toast.success("API key copied to clipboard", position="bottom-right"),
+                            ],
+                            variant="soft",
+                            size=SIZE_MEDIUM,
+                        ),
+                        width="100%",
+                        align="center",
                     ),
                     rx.text_area(
                         value=KeysState.created_key,
