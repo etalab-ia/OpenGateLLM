@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 import statistics
-import time
 
 from api.domain.model.entities import HealthStatus, ModelHealthStatus
 from api.domain.provider import ProviderMetricsLogger, ProviderRepository
@@ -40,7 +39,7 @@ class GetHealthModelsUseCase:
     async def execute(self, command: GetHealthModelsCommand) -> GetHealthModelsUseCaseResult:
         user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.user_id)
 
-        if user.expires is not None and user.expires < time.time():
+        if user.has_expired:
             return UserExpiredError()
 
         models = []

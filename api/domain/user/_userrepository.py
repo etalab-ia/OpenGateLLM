@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Literal
 
+from api.domain import SortOrder
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user.entities import User
+from api.domain.user.entities import User, UserPage, UserSortField
 from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
 
 
@@ -35,15 +35,13 @@ class UserRepository(ABC):
     @abstractmethod
     async def get_users(
         self,
-        email: str | None = None,
-        user_id: int | None = None,
         role_id: int | None = None,
         organization_id: int | None = None,
         offset: int = 0,
         limit: int = 10,
-        order_by: Literal["id", "email", "created", "updated"] = "id",
-        order_direction: Literal["asc", "desc"] = "asc",
-    ) -> list[User]:
+        sort_by: UserSortField = UserSortField.ID,
+        sort_order: SortOrder = SortOrder.ASC,
+    ) -> UserPage:
         pass
 
     @abstractmethod
@@ -52,4 +50,8 @@ class UserRepository(ABC):
 
     @abstractmethod
     async def delete_user(self, user_id: int) -> User | UserNotFoundError:
+        pass
+
+    @abstractmethod
+    async def get_user_by_id(self, user_id: int) -> User | UserNotFoundError:
         pass

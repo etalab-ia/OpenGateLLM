@@ -1,4 +1,18 @@
+from enum import StrEnum
+
 from pydantic import BaseModel, Field
+
+from api.domain import EntitiesPage
+
+
+class UserSortField(StrEnum):
+    ID = "id"
+    EMAIL = "email"
+    CREATED = "created"
+    UPDATED = "updated"
+
+
+UserPage = EntitiesPage["User"]
 
 
 class User(BaseModel):

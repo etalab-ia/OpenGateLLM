@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-import time
 
 from api.domain.role import LimitRepository, PermissionRepository, RoleRepository
 from api.domain.role.entities import Limit, PermissionType, Role
@@ -40,7 +39,7 @@ class CreateRoleUseCase:
     async def execute(self, command: CreateRoleCommand) -> CreateRoleUseCaseResult:
         user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.user_id)
 
-        if user.expires is not None and user.expires < time.time():
+        if user.has_expired:
             return UserExpiredError()
 
         if not user.is_admin:

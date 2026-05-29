@@ -1,3 +1,5 @@
+import time
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from api.domain.role.entities import Limit, PermissionType
@@ -21,6 +23,10 @@ class UserWithRoleView(BaseModel):
     @property
     def is_admin(self) -> bool:
         return PermissionType.ADMIN in self.permissions
+
+    @property
+    def has_expired(self) -> bool:
+        return self.expires is not None and self.expires < time.time()
 
     def cannot_access_router(self, router_id: int) -> bool:
         if PermissionType.ADMIN in self.permissions:

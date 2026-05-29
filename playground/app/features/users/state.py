@@ -76,16 +76,14 @@ class UsersState(EntityState):
         params = {
             "offset": (self.page - 1) * self.per_page,
             "limit": self.per_page,
-            "order_by": self.order_by_value,
-            "order_direction": self.order_direction_value,
+            "sort_by": self.order_by_value,
+            "sort_order": self.order_direction_value,
         }
 
         if self.filter_role_value != "All roles":
-            params["role"] = self.roles_dict[self.filter_role_value]
+            params["role_id"] = self.roles_dict[self.filter_role_value]
         if self.filter_organization_value != "All organizations":
-            params["organization"] = self.organizations_dict[self.filter_organization_value]
-        if self.search_email_value:
-            params["email"] = self.search_email_value
+            params["organization_id"] = self.organizations_dict[self.filter_organization_value]
 
         response = None
         try:
