@@ -1,4 +1,5 @@
 from http import HTTPMethod
+import random
 from urllib.parse import urljoin
 
 import factory
@@ -10,6 +11,17 @@ from api.domain.rerank.entities import CreateRerankBody
 from api.utils.variables import EndpointRoute
 
 fake = Faker()
+
+
+def _random_embeddings_input() -> list[int] | list[list[int]] | str | list[str]:
+    return random.choice(
+        [
+            fake.sentences(nb=random.randint(1, 10)),
+            fake.sentence(),
+            fake.pylist(value_types=int, variable_nb_elements=True),
+            [fake.pylist(value_types=int, variable_nb_elements=True) for _ in range(random.randint(1, 3))],
+        ]
+    )
 
 
 class ProviderOriginalRequestFactory(factory.Factory):
@@ -25,9 +37,9 @@ class ProviderOriginalRequestFactory(factory.Factory):
         embeddings = factory.Trait(
             endpoint=EndpointRoute.EMBEDDINGS,
             body=factory.LazyAttribute(
-                CreateEmbeddingsBody(
+                lambda self: CreateEmbeddingsBody(
                     model="openweight-embeddings",
-                    input=fake.sentences(nb=3),
+                    input=_random_embeddings_input(),
                     dimensions=1536,
                     encoding_format="float",
                 )

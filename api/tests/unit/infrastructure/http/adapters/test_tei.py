@@ -1,8 +1,9 @@
 from http import HTTPMethod
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
+from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
 from api.domain.model.entities import Model, Models, ModelType
 from api.domain.provider.entities import (
     ProviderFormattedRequest,
@@ -11,6 +12,7 @@ from api.domain.provider.entities import (
     ProviderType,
     ResponseMetrics,
 )
+from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.infrastructure.http.adapters.tei import (
     TeiAudioTranscriptionAdapter,
     TeiChatCompletionAdapter,
@@ -19,7 +21,6 @@ from api.infrastructure.http.adapters.tei import (
     TeiOcrAdapter,
     TeiRerankAdapter,
 )
-from api.schemas.embeddings import Embeddings
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory, TeiModelsResponseFactory, TeiRerankResponseFactory
 from api.tests.unit.infrastructure.factories import ProviderOriginalRequestFactory
 from api.tests.unit.use_case.factories import ProviderFactory
@@ -43,7 +44,11 @@ def tei_chat_completion_adapter(tei_provider) -> TeiChatCompletionAdapter:
 
 @pytest.fixture
 def tei_embeddings_adapter(tei_provider) -> TeiEmbeddingsAdapter:
-    return TeiEmbeddingsAdapter(cost_completion_tokens=0, cost_prompt_tokens=0, provider=tei_provider)
+    adapter = TeiEmbeddingsAdapter(cost_completion_tokens=0, cost_prompt_tokens=0, provider=tei_provider)
+    adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
+    adapter.model_environmental_impacts_computer.compute = Mock(return_value=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
+
+    return adapter
 
 
 @pytest.fixture
@@ -78,20 +83,86 @@ class TestTeiEmbeddingsAdapter:
         # Assert
         assert tei_embeddings_adapter.TARGET_ENDPOINT_ROUTE == "/v1/embeddings"
 
-    def test_should_format_embeddings_request_with_embeddings_route(self, tei_embeddings_adapter: TeiEmbeddingsAdapter):
+    @pytest.mark.parametrize(
+        "input",
+        ["Hello, this is a test.", ["Hello, this is a test.", "This is another test."], [1, 2, 3, 4, 5], [[1, 2, 3], [4, 5, 6]]],
+    )
+    def test_compute_prompt_tokens_with_string_input(self, tei_embeddings_adapter: TeiEmbeddingsAdapter):
         # Arrange
         original_request = ProviderOriginalRequestFactory(embeddings=True)
+        original_request.body.input = "Hello, this is a test."
+        tei_embeddings_adapter.model_tokenizer = Mock()
+        tei_embeddings_adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
+
+        # Act
+        result = tei_embeddings_adapter.compute_prompt_tokens(original_request)
+
+        # Assert
+        tei_embeddings_adapter.model_tokenizer.encode.assert_called_with("Hello, this is a test.")
+        assert result == 2
+
+    def test_compute_prompt_tokens_with_list_of_strings_input(self, tei_embeddings_adapter: TeiEmbeddingsAdapter):  # Arrange
+        original_request = ProviderOriginalRequestFactory(embeddings=True)
+        original_request.body.input = ["Hello, this is a test.", "This is another test."]
+        tei_embeddings_adapter.model_tokenizer = Mock()
+        tei_embeddings_adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
+
+        # Act
+        result = tei_embeddings_adapter.compute_prompt_tokens(original_request)
+
+        # Assert
+        tei_embeddings_adapter.model_tokenizer.encode.assert_called_with("Hello, this is a test. This is another test.")
+        assert result == 2
+
+    def test_compute_prompt_tokens_with_list_of_integers_input(self, tei_embeddings_adapter: TeiEmbeddingsAdapter):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(embeddings=True)
+        original_request.body.input = [1, 2, 3, 4, 5]
+        tei_embeddings_adapter.model_tokenizer = Mock()
+        tei_embeddings_adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
+
+        # Act
+        result = tei_embeddings_adapter.compute_prompt_tokens(original_request)
+
+        # Assert
+        tei_embeddings_adapter.model_tokenizer.encode.assert_called_with("1 2 3 4 5")
+        assert result == 2
+
+    def test_compute_prompt_tokens_with_list_of_lists_of_integers_input(self, tei_embeddings_adapter: TeiEmbeddingsAdapter):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(embeddings=True)
+        original_request.body.input = [[1, 2, 3], [4, 5, 6]]
+        tei_embeddings_adapter.model_tokenizer = Mock()
+        tei_embeddings_adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
+
+        # Act
+        result = tei_embeddings_adapter.compute_prompt_tokens(original_request)
+
+        # Assert
+        tei_embeddings_adapter.model_tokenizer.encode.assert_called_with("1 2 3 4 5 6")
+        assert result == 2
+
+    def test_should_format_embeddings_request_preserve_body(self, tei_embeddings_adapter: TeiEmbeddingsAdapter):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(
+            endpoint=EndpointRoute.EMBEDDINGS,
+            body=CreateEmbeddingsBody(input="Hello, this is a test.", model="test-model", dimensions=1536, encoding_format="float"),
+        )
 
         # Act
         result = tei_embeddings_adapter.format_request(original_request)
 
         # Assert
-        assert result == ProviderFormattedRequest(method=HTTPMethod.POST, url="https://tei.test/v1/embeddings", body=original_request.body)
+        assert result == ProviderFormattedRequest(
+            method=HTTPMethod.POST,
+            url="https://tei.test/v1/embeddings",
+            body={"model": "test-model", "input": "Hello, this is a test.", "dimensions": 1536, "encoding_format": "float"},
+        )
 
-    def test_should_format_embeddings_response_using_max_input_length(self, tei_embeddings_adapter: TeiEmbeddingsAdapter):
+    def test_should_format_embeddings_response_correctly(self, tei_embeddings_adapter: TeiEmbeddingsAdapter):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(endpoint=EndpointRoute.EMBEDDINGS, body=None)
-        response_data = TeiEmbeddingsResponseFactory(model_id="BAAI/bge-reranker-v2-m3", dimensions=8192)
+        original_request = ProviderOriginalRequestFactory(embeddings=True)
+        response_data = TeiEmbeddingsResponseFactory(dimensions=3)
         original_response = ProviderOriginalResponse(data=response_data, metrics=ResponseMetrics(latency=10))
 
         # Act
@@ -99,16 +170,15 @@ class TestTeiEmbeddingsAdapter:
             result = tei_embeddings_adapter.format_response(original_response=original_response, original_request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
-        assert isinstance(result.data, Embeddings)
-        assert result.data.id == "request-123"
-        assert result.data.model == "BAAI/bge-reranker-v2-m3"
-        assert len(result.data.data) == 1
-        assert result.data.data[0].embedding == response_data["data"][0]["embedding"]
-        assert result.data.data[0].index == 0
-        assert result.data.data[0].object == "embedding"
-        assert result.data.usage.total_tokens == 0
-        assert result.metrics == ResponseMetrics(latency=10)
+        assert result == ProviderFormattedResponse(
+            data=Embeddings(
+                id="request-123",
+                model="openweight-embeddings",
+                data=[{"embedding": response_data["data"][0]["embedding"], "index": 0, "object": "embedding"}],
+                usage=Usage(total_tokens=0),
+            ),
+            metrics=ResponseMetrics(latency=10),
+        )
 
 
 class TestTeiModelsAdapter:

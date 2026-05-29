@@ -1,7 +1,7 @@
 from http import HTTPMethod
 
+from api.domain.embeddings.entities import Embeddings
 from api.domain.provider.entities import ProviderFormattedResponse
-from api.schemas.embeddings import Embeddings
 from api.utils.variables import EndpointRoute
 
 from ._endpointadapter import EndpointAdapter

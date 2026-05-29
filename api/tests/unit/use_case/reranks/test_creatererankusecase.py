@@ -7,7 +7,14 @@ import pytest
 
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import TooBusyModelError
-from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalResponse, ProviderType, ResponseMetrics
+from api.domain.provider.entities import (
+    Metric,
+    ProviderFormattedRequest,
+    ProviderFormattedResponse,
+    ProviderOriginalResponse,
+    ProviderType,
+    ResponseMetrics,
+)
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.rerank.entities import Rerank, RerankResult
 from api.domain.role.entities import Limit, LimitType
@@ -22,8 +29,6 @@ from api.domain.usage.entities import Usage
 from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters import EndpointAdapter
-from api.schemas.admin.roles import LimitType as SchemaLimitType
-from api.schemas.core.models import Metric
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, UserWithRoleFactory
 from api.use_cases.reranks import CreateRerankCommand, CreateRerankUseCase, CreateRerankUseCaseSuccess
 
@@ -166,18 +171,45 @@ def sample_rerank():
     )
 
 
-def _rate_limit_state(
-    *,
-    rpm_value: int | None = None,
-    rpm_remaining: int = 0,
-    rpm_reset: int = 0,
-) -> RouterRateLimitState:
-    return RouterRateLimitState(
-        rpm=RpmRateLimitState(value=rpm_value, remaining=rpm_remaining, reset=rpm_reset),
-        rpd=RpdRateLimitState(value=None),
-        tpm=TpmRateLimitState(value=None),
-        tpd=TpdRateLimitState(value=None),
-    )
+def rate_limit_state_factory(tpm_exceeded: bool = False, tpd_exceeded: bool = False, rpm_exceeded: bool = False, rpd_exceeded: bool = False):
+    reset_time = int(dt.datetime.now(dt.UTC).timestamp()) + 30
+    limit_state = RouterRateLimitState.admin_rate_limit_state()
+    if tpm_exceeded:
+        limit_state.tpm = TpmRateLimitState(value=10, remaining=0, reset=reset_time)
+    if tpd_exceeded:
+        limit_state.tpd = TpdRateLimitState(value=10, remaining=0, reset=reset_time)
+    if rpm_exceeded:
+        limit_state.rpm = RpmRateLimitState(value=10, remaining=0, reset=reset_time)
+    if rpd_exceeded:
+        limit_state.rpd = RpdRateLimitState(value=10, remaining=0, reset=reset_time)
+    return limit_state
+
+
+def assert_request_context(
+    ctx,
+    user_email: str | None = None,
+    request_id: str | None = None,
+    router_id: int | None = None,
+    router_name: str | None = None,
+    provider_id: int | None = None,
+    provider_model_name: str | None = None,
+    prompt_tokens: int | None = None,
+    total_tokens: int | None = None,
+    cost: float | None = None,
+    kwh: float | None = None,
+    kgco2eq: float | None = None,
+):
+    assert ctx.user_email == user_email
+    assert ctx.id == request_id
+    assert ctx.router_id == router_id
+    assert ctx.router_name == router_name
+    assert ctx.provider_id == provider_id
+    assert ctx.provider_model_name == provider_model_name
+    assert ctx.prompt_tokens == prompt_tokens
+    assert ctx.total_tokens == total_tokens
+    assert ctx.cost == cost
+    assert ctx.kwh == kwh
+    assert ctx.kgco2eq == kgco2eq
 
 
 def _mock_adapter(*, prompt_tokens: int = 10, formatted_request=None, formatted_response=None, request_error=None, response_error=None):
@@ -195,35 +227,6 @@ def _mock_adapter(*, prompt_tokens: int = 10, formatted_request=None, formatted_
     if request_error is not None:
         adapter.format_request.return_value = request_error
     return adapter
-
-
-def configure_successful_execute(
-    *,
-    user_with_role_query,
-    router_repository,
-    provider_repository,
-    provider_load_balancer,
-    provider_metrics_logger,
-    provider_client,
-    router_rate_limiter,
-    admin_user,
-    rerank_router,
-    rerank_provider,
-    sample_rerank,
-    prompt_tokens: int = 10,
-):
-    user_with_role_query.get_user_with_role_by_id.return_value = admin_user
-    router_repository.get_router_by_name_or_alias.return_value = rerank_router
-    provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
-    provider_load_balancer.find_best_provider.return_value = rerank_provider
-    provider_metrics_logger.increment_inflight.return_value = True
-    provider_client.forward_request.return_value = ProviderOriginalResponse(data={}, metrics=ResponseMetrics(latency=120))
-    router_rate_limiter.get_rate_limit_state.return_value = _rate_limit_state(
-        rpm_value=100,
-        rpm_remaining=100,
-        rpm_reset=int(dt.datetime.now(dt.UTC).timestamp()) + 60,
-    )
-    return _mock_adapter(prompt_tokens=prompt_tokens, formatted_response=sample_rerank)
 
 
 class TestCreateRerankUseCase:
@@ -248,6 +251,9 @@ class TestCreateRerankUseCase:
         router_repository.get_router_by_name_or_alias.assert_not_called()
         provider_repository.get_all_providers_of_router.assert_not_called()
 
+        ctx = default_command.request_context.get()
+        assert_request_context(ctx, user_email=expired_user.email)
+
     @pytest.mark.asyncio
     async def test_should_return_router_not_found_error_when_router_does_not_exist(
         self,
@@ -267,6 +273,9 @@ class TestCreateRerankUseCase:
         # Assert
         assert isinstance(result, RouterNotFoundError)
 
+        ctx = default_command.request_context.get()
+        assert_request_context(ctx, user_email=admin_user.email)
+
     @pytest.mark.asyncio
     async def test_should_return_router_has_no_providers_error_when_router_has_no_providers(
         self,
@@ -278,12 +287,8 @@ class TestCreateRerankUseCase:
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
-        router_repository.get_router_by_name_or_alias.return_value = RouterFactory(
-            id=1,
-            name="rerank-router",
-            type=RouterType.TEXT_CLASSIFICATION,
-            providers=0,
-        )
+        rerank_router = RouterFactory(id=1, name="rerank-router", type=RouterType.TEXT_CLASSIFICATION, providers=0)
+        router_repository.get_router_by_name_or_alias.return_value = rerank_router
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -292,18 +297,22 @@ class TestCreateRerankUseCase:
         assert isinstance(result, RouterHasNoProvidersError)
         assert result.id == 1
 
+        ctx = default_command.request_context.get()
+        assert_request_context(ctx, user_email=admin_user.email, router_id=rerank_router.id, router_name=rerank_router.name)
+
     @pytest.mark.asyncio
     async def test_should_return_router_has_wrong_type_error_when_router_is_not_text_classification(
-        self, use_case, user_with_role_query, admin_user, router_repository, default_command
+        self,
+        use_case,
+        user_with_role_query,
+        admin_user,
+        router_repository,
+        default_command,
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
-        router_repository.get_router_by_name_or_alias.return_value = RouterFactory(
-            id=1,
-            name="rerank-router",
-            type=RouterType.TEXT_GENERATION,
-            providers=1,
-        )
+        rerank_router = RouterFactory(id=1, name="rerank-router", type=RouterType.TEXT_GENERATION, providers=1)
+        router_repository.get_router_by_name_or_alias.return_value = rerank_router
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -313,9 +322,18 @@ class TestCreateRerankUseCase:
         assert result.actual_type == RouterType.TEXT_GENERATION
         assert result.expected_type == RouterType.TEXT_CLASSIFICATION
 
+        ctx = default_command.request_context.get()
+        assert_request_context(ctx, user_email=admin_user.email, router_id=rerank_router.id, router_name=rerank_router.name)
+
     @pytest.mark.asyncio
     async def test_should_return_user_has_no_access_error_when_user_cannot_access_router(
-        self, use_case, user_with_role_query, user_without_router_access, router_repository, rerank_router, default_command
+        self,
+        use_case,
+        user_with_role_query,
+        user_without_router_access,
+        router_repository,
+        rerank_router,
+        default_command,
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = user_without_router_access
@@ -328,8 +346,21 @@ class TestCreateRerankUseCase:
         assert isinstance(result, UserHasNoAccessToRouterError)
         assert result.id == rerank_router.id
 
+        ctx = default_command.request_context.get()
+        assert_request_context(ctx, user_email=user_without_router_access.email, router_id=rerank_router.id, router_name=rerank_router.name)
+
     @pytest.mark.asyncio
-    async def test_should_return_router_rate_limit_exceeded_error_when_limits_are_exceeded(
+    @pytest.mark.parametrize(
+        "limit_type,rate_limit_state",
+        [
+            (LimitType.RPM, rate_limit_state_factory(rpm_exceeded=True)),
+            (LimitType.RPD, rate_limit_state_factory(rpd_exceeded=True)),
+            (LimitType.TPM, rate_limit_state_factory(tpm_exceeded=True)),
+            (LimitType.TPD, rate_limit_state_factory(tpd_exceeded=True)),
+            (LimitType.TPM, rate_limit_state_factory(tpm_exceeded=True, tpd_exceeded=True, rpm_exceeded=True, rpd_exceeded=True)),
+        ],
+    )
+    async def test_should_return_router_rate_limit_exceeded_error_when_one_limit_is_exceeded(
         self,
         use_case,
         user_with_role_query,
@@ -341,17 +372,14 @@ class TestCreateRerankUseCase:
         rerank_router,
         rerank_provider,
         default_command,
+        limit_type,
+        rate_limit_state,
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = user_with_router_access
         router_repository.get_router_by_name_or_alias.return_value = rerank_router
         provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
         provider_load_balancer.find_best_provider.return_value = rerank_provider
-        rate_limit_state = _rate_limit_state(
-            rpm_value=10,
-            rpm_remaining=0,
-            rpm_reset=int(dt.datetime.now(dt.UTC).timestamp()) + 30,
-        )
         router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
         mock_adapter = _mock_adapter()
 
@@ -362,10 +390,20 @@ class TestCreateRerankUseCase:
         # Assert
         assert isinstance(result, RouterRateLimitExceededError)
         assert result.id == rerank_router.id
-        assert result.limit_type == SchemaLimitType.RPM
+        assert result.limit_type == limit_type
         assert result.headers == rate_limit_state.build_limit_headers
         router_rate_limiter.update_rate_limit_state.assert_not_called()
         provider_load_balancer.find_best_provider.assert_called_once()
+
+        ctx = default_command.request_context.get()
+        assert_request_context(
+            ctx,
+            user_email=user_with_router_access.email,
+            router_id=rerank_router.id,
+            router_name=rerank_router.name,
+            provider_id=rerank_provider.id,
+            provider_model_name=rerank_provider.model_name,
+        )
 
     @pytest.mark.asyncio
     async def test_should_return_provider_adapter_validation_request_error_when_request_is_invalid(
@@ -394,6 +432,16 @@ class TestCreateRerankUseCase:
 
         # Assert
         assert result == validation_error
+
+        ctx = default_command.request_context.get()
+        assert_request_context(
+            ctx,
+            user_email=admin_user.email,
+            router_id=rerank_router.id,
+            router_name=rerank_router.name,
+            provider_id=rerank_provider.id,
+            provider_model_name=rerank_provider.model_name,
+        )
 
     @pytest.mark.asyncio
     async def test_should_return_error_when_provider_forward_request_fails(
@@ -428,6 +476,16 @@ class TestCreateRerankUseCase:
         assert result == provider_error
         provider_metrics_logger.decrement_inflight.assert_called_once_with(provider_id=rerank_provider.id)
 
+        ctx = default_command.request_context.get()
+        assert_request_context(
+            ctx,
+            user_email=admin_user.email,
+            router_id=rerank_router.id,
+            router_name=rerank_router.name,
+            provider_id=rerank_provider.id,
+            provider_model_name=rerank_provider.model_name,
+        )
+
     @pytest.mark.asyncio
     async def test_should_return_provider_adapter_validation_response_error_when_response_is_invalid(
         self,
@@ -461,6 +519,16 @@ class TestCreateRerankUseCase:
         assert result == validation_error
         provider_metrics_logger.decrement_inflight.assert_not_called()
 
+        ctx = default_command.request_context.get()
+        assert_request_context(
+            ctx,
+            user_email=admin_user.email,
+            router_id=rerank_router.id,
+            router_name=rerank_router.name,
+            provider_id=rerank_provider.id,
+            provider_model_name=rerank_provider.model_name,
+        )
+
     @pytest.mark.asyncio
     async def test_should_return_rerank_when_admin_user_and_flow_succeeds(
         self,
@@ -475,22 +543,17 @@ class TestCreateRerankUseCase:
         rerank_router,
         rerank_provider,
         sample_rerank,
+        router_rate_limiter,
         default_command,
     ):
         # Arrange
-        mock_adapter = configure_successful_execute(
-            user_with_role_query=user_with_role_query,
-            router_repository=router_repository,
-            provider_repository=provider_repository,
-            provider_load_balancer=provider_load_balancer,
-            provider_metrics_logger=provider_metrics_logger,
-            provider_client=provider_client,
-            router_rate_limiter=AsyncMock(),
-            admin_user=admin_user,
-            rerank_router=rerank_router,
-            rerank_provider=rerank_provider,
-            sample_rerank=sample_rerank,
-        )
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
+        router_repository.get_router_by_name_or_alias.return_value = rerank_router
+        provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
+        provider_load_balancer.find_best_provider.return_value = rerank_provider
+        provider_metrics_logger.increment_inflight.return_value = True
+        provider_client.forward_request.return_value = ProviderOriginalResponse(data={}, metrics=ResponseMetrics(latency=120))
+        mock_adapter = _mock_adapter(prompt_tokens=10, formatted_response=sample_rerank)
 
         # Act
         with patch("api.use_cases.reranks._creatererankusecase.build_adapter", return_value=mock_adapter):
@@ -513,59 +576,26 @@ class TestCreateRerankUseCase:
         )
         provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=rerank_provider.id)
 
-    @pytest.mark.asyncio
-    async def test_should_enrich_request_context_when_flow_succeeds(
-        self,
-        use_case,
-        user_with_role_query,
-        router_repository,
-        provider_repository,
-        provider_load_balancer,
-        provider_metrics_logger,
-        provider_client,
-        admin_user,
-        rerank_router,
-        rerank_provider,
-        sample_rerank,
-        default_command,
-    ):
-        # Arrange
-        mock_adapter = configure_successful_execute(
-            user_with_role_query=user_with_role_query,
-            router_repository=router_repository,
-            provider_repository=provider_repository,
-            provider_load_balancer=provider_load_balancer,
-            provider_metrics_logger=provider_metrics_logger,
-            provider_client=provider_client,
-            router_rate_limiter=AsyncMock(),
-            admin_user=admin_user,
-            rerank_router=rerank_router,
-            rerank_provider=rerank_provider,
-            sample_rerank=sample_rerank,
-            prompt_tokens=42,
-        )
-
-        # Act
-        with patch("api.use_cases.reranks._creatererankusecase.build_adapter", return_value=mock_adapter):
-            result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, CreateRerankUseCaseSuccess)
+        assert result.headers == rate_limit_state_factory().build_limit_headers
+        router_rate_limiter.get_rate_limit_state.assert_not_awaited()
+        router_rate_limiter.update_rate_limit_state.assert_not_awaited()
 
         ctx = default_command.request_context.get()
-        assert ctx.id == sample_rerank.id
-        assert ctx.user_id == admin_user.id
-        assert ctx.user_email == admin_user.email
-        assert ctx.router_id == rerank_router.id
-        assert ctx.router_name == rerank_router.name
-        assert ctx.provider_id == rerank_provider.id
-        assert ctx.provider_model_name == rerank_provider.model_name
-        assert ctx.prompt_tokens == 42
-        assert ctx.total_tokens == 42
-        assert ctx.cost == sample_rerank.usage.cost
+        assert_request_context(
+            ctx,
+            user_email=admin_user.email,
+            request_id=sample_rerank.id,
+            router_id=rerank_router.id,
+            router_name=rerank_router.name,
+            provider_id=rerank_provider.id,
+            provider_model_name=rerank_provider.model_name,
+            prompt_tokens=10,
+            total_tokens=10,
+            cost=sample_rerank.usage.cost,
+        )
 
     @pytest.mark.asyncio
-    async def test_should_update_rate_limits_for_non_admin_user_with_router_access(
+    async def test_should_enrich_when_non_admin_user_and_flow_succeeds(
         self,
         use_case,
         user_with_role_query,
@@ -588,10 +618,11 @@ class TestCreateRerankUseCase:
         provider_load_balancer.find_best_provider.return_value = rerank_provider
         provider_metrics_logger.increment_inflight.return_value = True
         provider_client.forward_request.return_value = ProviderOriginalResponse(data={}, metrics=ResponseMetrics(latency=50))
-        rate_limit_state = _rate_limit_state(
-            rpm_value=100,
-            rpm_remaining=99,
-            rpm_reset=int(dt.datetime.now(dt.UTC).timestamp()) + 45,
+        rate_limit_state = rate_limit_state_factory()
+        rate_limit_state.rpm = RpmRateLimitState(
+            value=100,
+            remaining=99,
+            reset=int(dt.datetime.now(dt.UTC).timestamp()) + 30,
         )
         router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
         mock_adapter = _mock_adapter(prompt_tokens=15, formatted_response=sample_rerank)
@@ -604,6 +635,20 @@ class TestCreateRerankUseCase:
         assert isinstance(result, CreateRerankUseCaseSuccess)
         assert result.data == sample_rerank
         assert result.headers == rate_limit_state.build_limit_headers
+        provider_repository.get_all_providers_of_router.assert_awaited_once_with(router_id=rerank_router.id)
+        provider_load_balancer.find_best_provider.assert_awaited_once_with(
+            strategy=rerank_router.load_balancing_strategy,
+            providers=[rerank_provider],
+        )
+        provider_metrics_logger.log_metric.assert_has_awaits(
+            [
+                call(provider_id=rerank_provider.id, metric=Metric.LATENCY, value=50),
+                call(provider_id=rerank_provider.id, metric=Metric.NORMALIZED_LATENCY, value=120),
+            ]
+        )
+        provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=rerank_provider.id)
+
+        assert result.headers == rate_limit_state.build_limit_headers
         router_rate_limiter.get_rate_limit_state.assert_awaited_once_with(
             user_id=user_with_router_access.id,
             router_limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
@@ -615,4 +660,18 @@ class TestCreateRerankUseCase:
             router_limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
             router_id=rerank_router.id,
             prompt_tokens=15,
+        )
+
+        ctx = default_command.request_context.get()
+        assert_request_context(
+            ctx,
+            user_email=user_with_router_access.email,
+            request_id=sample_rerank.id,
+            router_id=rerank_router.id,
+            router_name=rerank_router.name,
+            provider_id=rerank_provider.id,
+            provider_model_name=rerank_provider.model_name,
+            prompt_tokens=15,
+            total_tokens=15,
+            cost=sample_rerank.usage.cost,
         )

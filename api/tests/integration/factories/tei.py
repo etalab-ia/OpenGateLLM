@@ -71,7 +71,7 @@ class TeiEmbeddingsResponseFactory(factory.DictFactory):
     _status_code = 200
 
     # parameters
-    dimensions: int = 1024
+    dimensions = factory.Faker("random_int", min=1, max=1024)
     model_id = factory.Faker("bothify", text="????/???-?#")
 
     # body

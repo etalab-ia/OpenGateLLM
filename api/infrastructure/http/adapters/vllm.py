@@ -1,6 +1,10 @@
 from api.domain.model.entities import Model, Models, ModelType
 from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
-from api.infrastructure.http.adapters import ModelsAdapter, OcrAdapter, RerankAdapter
+from api.infrastructure.http.adapters import EmbeddingsAdapter, ModelsAdapter, OcrAdapter, RerankAdapter
+
+
+class VllmEmbeddingsAdapter(EmbeddingsAdapter):
+    pass
 
 
 class VllmModelsAdapter(ModelsAdapter):

@@ -91,11 +91,7 @@ class TeiRerankAdapter(RerankAdapter):
         request_id = f"request-{str(uuid4()).replace('-', '')}"
 
         formatted_response = ProviderFormattedResponse(
-            data=Rerank(
-                id=request_id,
-                model=original_request.body.model,
-                results=results,
-            ),
+            data=Rerank(id=request_id, model=original_request.body.model, results=results),
             metrics=original_response.metrics,
         )
 

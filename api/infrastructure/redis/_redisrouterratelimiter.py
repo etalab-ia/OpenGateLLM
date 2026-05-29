@@ -5,10 +5,9 @@ from limits.aio import storage, strategies
 from limits.util import WindowStats
 from redis.asyncio import ConnectionPool, Redis, RedisError
 
-from api.domain.role.entities import Limit
+from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter
 from api.domain.router.entities import RouterRateLimitState, RpdRateLimitState, RpmRateLimitState, TpdRateLimitState, TpmRateLimitState
-from api.schemas.admin.roles import LimitType
 from api.schemas.core.configuration import LimitingStrategy
 from api.utils.variables import PREFIX__REDIS_RATE_LIMIT
 
@@ -72,18 +71,15 @@ class RedisRouterRateLimiter(RouterRateLimiter):
         rpm = next((limit.value for limit in router_limits if limit.type == LimitType.RPM), 0)
         await self._hit(user_id=user_id, router_id=router_id, type=LimitType.RPM, value=rpm)
 
-        # RPD
         rpd = next((limit.value for limit in router_limits if limit.type == LimitType.RPD), 0)
         await self._hit(user_id=user_id, router_id=router_id, type=LimitType.RPD, value=rpd)
 
         if not prompt_tokens:
             return
 
-        # TPM
         tpm = next((limit.value for limit in router_limits if limit.type == LimitType.TPM), 0)
         await self._hit(user_id=user_id, router_id=router_id, type=LimitType.TPM, value=tpm, cost=prompt_tokens)
 
-        # TPD
         tpd = next((limit.value for limit in router_limits if limit.type == LimitType.TPD), 0)
         await self._hit(user_id=user_id, router_id=router_id, type=LimitType.TPD, value=tpd, cost=prompt_tokens)
 
