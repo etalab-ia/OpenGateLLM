@@ -61,3 +61,7 @@ class RouterRepository(ABC):
     @abstractmethod
     async def update_router(self, router: Router) -> Router | RouterNameAlreadyExistsError:
         pass
+
+    @abstractmethod
+    async def get_router_ids_by_user_id(self, user_id: int) -> list[int]:
+        pass

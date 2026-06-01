@@ -383,3 +383,25 @@ class TestDeleteProvider:
         await db_session.flush()
         provider_after_delete = (await db_session.execute(select(ProviderTable).where(ProviderTable.id == provider.id))).scalar_one_or_none()
         assert provider_after_delete is None
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestGetProviderIdsByUserId:
+    async def test_should_return_ids_of_providers_owned_by_user(self, repository, db_session):
+        # Arrange
+        user_a = UserSQLFactory()
+        user_b = UserSQLFactory()
+
+        router_a = RouterSQLFactory(user=user_a)
+        router_b = RouterSQLFactory(user=user_b)
+
+        provider_1 = ProviderSQLFactory(router=router_a, user=user_a, model_name="provider_1")
+        provider_2 = ProviderSQLFactory(router=router_a, user=user_a, model_name="provider_2")
+        ProviderSQLFactory(router=router_b, user=user_b, model_name="other_user_provider")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_provider_ids_by_user_id(user_id=user_a.id)
+
+        # Assert
+        assert sorted(result) == sorted([provider_1.id, provider_2.id])

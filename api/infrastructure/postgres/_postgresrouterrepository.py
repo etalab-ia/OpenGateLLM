@@ -302,3 +302,7 @@ class PostgresRouterRepository(RouterRepository):
             created=row.created,
             updated=row.updated,
         )
+
+    async def get_router_ids_by_user_id(self, user_id: int) -> list[int]:
+        result = await self.postgres_session.execute(statement=select(RouterTable.id).where(RouterTable.user_id == user_id))
+        return list(result.scalars().all())

@@ -1,5 +1,5 @@
 import bcrypt
-from sqlalchemy import Integer, cast, func, insert, select, update
+from sqlalchemy import Integer, cast, delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,7 +9,7 @@ from api.domain.role.entities import PermissionType
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserRepository
 from api.domain.user.entities import User, UserPage, UserSortField
-from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
+from api.domain.user.errors import DeleteUserWithProvidersError, DeleteUserWithRoutersError, UserAlreadyExistsError, UserNotFoundError
 from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Permission as PermissionTable
 from api.sql.models import User as UserTable
@@ -227,5 +227,19 @@ class PostgresUserRepository(UserRepository):
             return UserNotFoundError(user_id=user.id)
         return self._row_to_user(row)
 
-    async def delete_user(self, user_id: int) -> User | UserNotFoundError:
-        raise NotImplementedError
+    async def delete_user(self, user_id: int) -> User | UserNotFoundError | DeleteUserWithRoutersError | DeleteUserWithProvidersError:
+        try:
+            async with self.postgres_session.begin_nested():
+                result = await self.postgres_session.execute(statement=delete(UserTable).where(UserTable.id == user_id).returning(*_USER_COLUMNS))
+        except IntegrityError as e:
+            if "router_user_id_fkey" in str(e.orig):
+                return DeleteUserWithRoutersError(user_id=user_id, routers_ids=None)
+            if "provider_user_id_fkey" in str(e.orig):
+                return DeleteUserWithProvidersError(user_id=user_id, providers_ids=None)
+            raise
+
+        row = result.one_or_none()
+        if row is None:
+            return UserNotFoundError(id=user_id)
+
+        return self._row_to_user(row)

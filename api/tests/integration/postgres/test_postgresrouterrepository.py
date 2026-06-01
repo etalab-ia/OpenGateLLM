@@ -621,3 +621,22 @@ class TestUpdateRouter:
         # Assert
         assert isinstance(result, RouterNameAlreadyExistsError)
         assert result.name == "taken-name"
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestGetRouterIdsByUserId:
+    async def test_should_return_ids_of_routers_owned_by_user(self, repository, db_session):
+        # Arrange
+        user_a = UserSQLFactory()
+        user_b = UserSQLFactory()
+
+        router_1 = RouterSQLFactory(user=user_a, name="router_user_a_1")
+        router_2 = RouterSQLFactory(user=user_a, name="router_user_a_2")
+        RouterSQLFactory(user=user_b, name="router_user_b")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_router_ids_by_user_id(user_id=user_a.id)
+
+        # Assert
+        assert sorted(result) == sorted([router_1.id, router_2.id])
