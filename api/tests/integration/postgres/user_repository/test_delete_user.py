@@ -27,17 +27,6 @@ class TestDeleteUser:
         assert isinstance(result, User)
         assert result.id == user.id
         assert result.email == user.email
-
-    async def test_should_remove_user_from_database_after_deletion(self, repository, db_session):
-        # Arrange
-        user = UserSQLFactory()
-        await db_session.flush()
-
-        # Act
-        await repository.delete_user(user_id=user.id)
-        await db_session.flush()
-
-        # Assert
         row = (await db_session.execute(select(UserTable).where(UserTable.id == user.id))).scalar_one_or_none()
         assert row is None
 
@@ -52,7 +41,7 @@ class TestDeleteUser:
     async def test_should_return_delete_user_with_routers_error_when_user_owns_routers(self, repository, db_session):
         # Arrange
         user = UserSQLFactory()
-        RouterSQLFactory(user=user, name="blocking-router")
+        RouterSQLFactory(user=user, id=1, name="blocking-router")
         await db_session.flush()
 
         # Act
@@ -61,27 +50,15 @@ class TestDeleteUser:
         # Assert
         assert isinstance(result, DeleteUserWithRoutersError)
         assert result.user_id == user.id
-        assert result.routers_ids is None
-
-    async def test_should_not_delete_user_from_database_when_user_owns_routers(self, repository, db_session):
-        # Arrange
-        user = UserSQLFactory()
-        RouterSQLFactory(user=user, name="still-blocking-router")
-        await db_session.flush()
-
-        # Act
-        await repository.delete_user(user_id=user.id)
-        await db_session.flush()
-
-        # Assert
+        assert result.router_ids is None
         row = (await db_session.execute(select(UserTable).where(UserTable.id == user.id))).scalar_one_or_none()
         assert row is not None
 
     async def test_should_return_delete_user_with_providers_error_when_user_owns_providers_on_another_users_router(self, repository, db_session):
         # Arrange
         user = UserSQLFactory()
-        other_router = RouterSQLFactory()  # owned by a different user
-        ProviderSQLFactory(router=other_router, user=user)
+        other_router = RouterSQLFactory()
+        ProviderSQLFactory(router=other_router, id=1, user=user)
         await db_session.flush()
 
         # Act
@@ -90,4 +67,4 @@ class TestDeleteUser:
         # Assert
         assert isinstance(result, DeleteUserWithProvidersError)
         assert result.user_id == user.id
-        assert result.providers_ids is None
+        assert result.provider_ids is None

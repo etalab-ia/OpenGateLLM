@@ -224,18 +224,19 @@ class PostgresUserRepository(UserRepository):
                 return UserAlreadyExistsError(email=user.email)
 
         if row is None:
-            return UserNotFoundError(user_id=user.id)
+            return UserNotFoundError(id=user.id)
         return self._row_to_user(row)
 
     async def delete_user(self, user_id: int) -> User | UserNotFoundError | DeleteUserWithRoutersError | DeleteUserWithProvidersError:
+        # Safety net for the TOCTOU race with the use case ownership checks; savepoint keeps the outer tx usable.
         try:
             async with self.postgres_session.begin_nested():
                 result = await self.postgres_session.execute(statement=delete(UserTable).where(UserTable.id == user_id).returning(*_USER_COLUMNS))
         except IntegrityError as e:
             if "router_user_id_fkey" in str(e.orig):
-                return DeleteUserWithRoutersError(user_id=user_id, routers_ids=None)
+                return DeleteUserWithRoutersError(user_id=user_id, router_ids=None)
             if "provider_user_id_fkey" in str(e.orig):
-                return DeleteUserWithProvidersError(user_id=user_id, providers_ids=None)
+                return DeleteUserWithProvidersError(user_id=user_id, provider_ids=None)
             raise
 
         row = result.one_or_none()

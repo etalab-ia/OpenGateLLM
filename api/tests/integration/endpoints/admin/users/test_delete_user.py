@@ -52,12 +52,12 @@ class TestDeleteUser:
                 "Your account has expired. Please contact support to renew your account.",
             ),
             (
-                DeleteUserWithRoutersError(user_id=1, routers_ids=[10, 20]),
+                DeleteUserWithRoutersError(user_id=1, router_ids=[10, 20]),
                 409,
                 "User cannot be deleted because the user owns routers: [10, 20].",
             ),
             (
-                DeleteUserWithProvidersError(user_id=1, providers_ids=[30, 40]),
+                DeleteUserWithProvidersError(user_id=1, provider_ids=[30, 40]),
                 409,
                 "User cannot be deleted because the user owns providers: [30, 40].",
             ),

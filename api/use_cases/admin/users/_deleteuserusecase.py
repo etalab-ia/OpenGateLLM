@@ -45,16 +45,18 @@ class DeleteUserUseCase:
         if not authenticated_user.is_admin:
             return UserIsNotAdminError()
 
+        router_ids = await self.router_repository.get_router_ids_by_user_id(user_id=command.user_id)
+        if router_ids:
+            return DeleteUserWithRoutersError(user_id=command.user_id, router_ids=router_ids)
+
+        provider_ids = await self.provider_repository.get_provider_ids_by_user_id(user_id=command.user_id)
+        if provider_ids:
+            return DeleteUserWithProvidersError(user_id=command.user_id, provider_ids=provider_ids)
+
         result = await self.user_repository.delete_user(user_id=command.user_id)
 
         match result:
             case User() as user:
                 return DeleteUserUseCaseSuccess(user)
-            case UserNotFoundError(id=user_id):
-                return UserNotFoundError(id=user_id)
-            case DeleteUserWithRoutersError(user_id=user_id):
-                router_ids = await self.router_repository.get_router_ids_by_user_id(user_id=user_id)
-                return DeleteUserWithRoutersError(user_id=user_id, routers_ids=router_ids)
-            case DeleteUserWithProvidersError(user_id=user_id):
-                provider_ids = await self.provider_repository.get_provider_ids_by_user_id(user_id=user_id)
-                return DeleteUserWithProvidersError(user_id=user_id, providers_ids=provider_ids)
+            case error:
+                return error

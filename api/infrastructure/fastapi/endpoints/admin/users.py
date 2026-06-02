@@ -242,10 +242,10 @@ async def delete_user(
             return UserResponse.model_validate(user, from_attributes=True)
         case UserNotFoundError(id=not_found_id):
             raise UserNotFoundHTTPException(user_id=not_found_id)
-        case DeleteUserWithRoutersError(routers_ids=routers_ids):
-            raise DeleteUserWithRoutersHTTPException(routers_ids=routers_ids)
-        case DeleteUserWithProvidersError(providers_ids=providers_ids):
-            raise DeleteUserWithProvidersHTTPException(providers_ids=providers_ids)
+        case DeleteUserWithRoutersError(router_ids=router_ids):
+            raise DeleteUserWithRoutersHTTPException(router_ids=router_ids)
+        case DeleteUserWithProvidersError(provider_ids=provider_ids):
+            raise DeleteUserWithProvidersHTTPException(provider_ids=provider_ids)
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
         case UserExpiredError():

@@ -61,10 +61,12 @@ def sample_user():
 class TestDeleteUserUseCase:
     @pytest.mark.asyncio
     async def test_should_return_deleted_user_when_admin_and_user_exists(
-        self, use_case, user_repository, user_with_role_query, admin_user, sample_user
+        self, use_case, user_repository, router_repository, provider_repository, user_with_role_query, admin_user, sample_user
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
+        router_repository.get_router_ids_by_user_id.return_value = []
+        provider_repository.get_provider_ids_by_user_id.return_value = []
         user_repository.delete_user.return_value = sample_user
 
         # Act
@@ -77,9 +79,13 @@ class TestDeleteUserUseCase:
         user_repository.delete_user.assert_called_once_with(user_id=sample_user.id)
 
     @pytest.mark.asyncio
-    async def test_should_return_user_not_found_error_when_user_does_not_exist(self, use_case, user_repository, user_with_role_query, admin_user):
+    async def test_should_return_user_not_found_error_when_user_does_not_exist(
+        self, use_case, user_repository, router_repository, provider_repository, user_with_role_query, admin_user
+    ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
+        router_repository.get_router_ids_by_user_id.return_value = []
+        provider_repository.get_provider_ids_by_user_id.return_value = []
         user_repository.delete_user.return_value = UserNotFoundError(id=99)
 
         # Act
@@ -118,11 +124,10 @@ class TestDeleteUserUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_delete_user_with_routers_error_with_ids_when_user_has_routers(
-        self, use_case, user_repository, router_repository, user_with_role_query, admin_user
+        self, use_case, user_repository, router_repository, provider_repository, user_with_role_query, admin_user
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
-        user_repository.delete_user.return_value = DeleteUserWithRoutersError(user_id=42, routers_ids=None)
         router_repository.get_router_ids_by_user_id.return_value = [1, 2, 3]
 
         # Act
@@ -130,16 +135,18 @@ class TestDeleteUserUseCase:
 
         # Assert
         assert isinstance(result, DeleteUserWithRoutersError)
-        assert result.routers_ids == [1, 2, 3]
+        assert result.router_ids == [1, 2, 3]
         router_repository.get_router_ids_by_user_id.assert_called_once_with(user_id=42)
+        provider_repository.get_provider_ids_by_user_id.assert_not_called()
+        user_repository.delete_user.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_delete_user_with_providers_error_with_ids_when_user_has_providers(
-        self, use_case, user_repository, provider_repository, user_with_role_query, admin_user
+        self, use_case, user_repository, router_repository, provider_repository, user_with_role_query, admin_user
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
-        user_repository.delete_user.return_value = DeleteUserWithProvidersError(user_id=42, providers_ids=None)
+        router_repository.get_router_ids_by_user_id.return_value = []
         provider_repository.get_provider_ids_by_user_id.return_value = [10, 20]
 
         # Act
@@ -147,5 +154,6 @@ class TestDeleteUserUseCase:
 
         # Assert
         assert isinstance(result, DeleteUserWithProvidersError)
-        assert result.providers_ids == [10, 20]
+        assert result.provider_ids == [10, 20]
         provider_repository.get_provider_ids_by_user_id.assert_called_once_with(user_id=42)
+        user_repository.delete_user.assert_not_called()

@@ -176,16 +176,6 @@ class DeleteRoleWithUsersException(HTTPException):
         super().__init__(status_code=409, detail=detail)
 
 
-class DeleteUserWithRoutersException(HTTPException):
-    def __init__(self, detail: str = "Delete user with routers is not allowed.") -> None:
-        super().__init__(status_code=409, detail=detail)
-
-
-class DeleteUserWithProvidersException(HTTPException):
-    def __init__(self, detail: str = "Delete user with providers is not allowed.") -> None:
-        super().__init__(status_code=409, detail=detail)
-
-
 class DeleteOrganizationWithUsersException(HTTPException):
     def __init__(self, detail: str = "Delete organization with users is not allowed.") -> None:
         super().__init__(status_code=409, detail=detail)

@@ -25,10 +25,10 @@ class UserExpiredError:
 @dataclass
 class DeleteUserWithProvidersError:
     user_id: int
-    providers_ids: list[int] | None
+    provider_ids: list[int] | None
 
 
 @dataclass
 class DeleteUserWithRoutersError:
     user_id: int
-    routers_ids: list[int] | None
+    router_ids: list[int] | None
