@@ -12,6 +12,11 @@ class InsufficientBudgetException(HTTPException):
         super().__init__(status_code=400, detail=detail)
 
 
+class InsufficientStorageLimitException(HTTPException):
+    def __init__(self, detail: str = "Insufficient upload size limit.") -> None:
+        super().__init__(status_code=400, detail=detail)
+
+
 class InvalidTokenExpirationException(HTTPException):
     def __init__(self, detail: str = "Invalid token expiration.") -> None:
         super().__init__(status_code=400, detail=detail)

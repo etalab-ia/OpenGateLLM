@@ -24,11 +24,13 @@ from api.schemas.documents import Document, PresetSeparators
 from api.schemas.search import ComparisonFilter, CompoundFilter, Search, SearchMethod
 from api.sql.models import Collection as CollectionTable
 from api.sql.models import Document as DocumentTable
+from api.sql.models import Role as RoleTable
 from api.sql.models import User as UserTable
 from api.utils.exceptions import (
     ChunkingFailedException,
     CollectionNotFoundException,
     DocumentNotFoundException,
+    InsufficientStorageLimitException,
     ParsingDocumentFailedException,
     VectorizationFailedException,
 )
@@ -129,6 +131,7 @@ class DocumentManager:
                 CollectionTable.visibility,
                 CollectionTable.description,
                 func.count(distinct(DocumentTable.id)).label("documents"),
+                func.coalesce(func.sum(DocumentTable.size), 0).label("size"),
                 cast(func.extract("epoch", CollectionTable.created), Integer).label("created"),
                 cast(func.extract("epoch", CollectionTable.updated), Integer).label("updated"),
             )
@@ -192,14 +195,26 @@ class DocumentManager:
 
         # get document name
         document_name = name or file.filename.strip() if file else name
+        document_size = 0
 
         if file:
             # parse the file
             try:
                 content = await self.parser_manager.parse(file=file)
+                document_size = len(content.encode(encoding="utf-8"))
             except Exception as e:
                 logger.exception(f"failed to parse {document_name} ({e}).")
                 raise ParsingDocumentFailedException()
+
+            # get storage consumption
+            storage_limit, storage_consumption = await self._get_storage_limit_and_consumption(
+                postgres_session=postgres_session,
+                user_id=request_context.get().user_info.id,
+            )
+            if storage_limit is not None and storage_consumption > storage_limit:
+                raise InsufficientStorageLimitException(
+                    detail=f"Upload size limit exceeded. Limit: {storage_limit} bytes. Current: {storage_consumption} bytes."
+                )
 
             # split the content into chunks
             if disable_chunking:
@@ -223,6 +238,7 @@ class DocumentManager:
                 statement=insert(table=DocumentTable)
                 .values(
                     name=document_name,
+                    size=document_size,
                     collection_id=collection_id,
                 )
                 .returning(DocumentTable.id)
@@ -289,6 +305,7 @@ class DocumentManager:
                 DocumentTable.id,
                 DocumentTable.name,
                 DocumentTable.collection_id,
+                DocumentTable.size,
                 cast(func.extract("epoch", DocumentTable.created), Integer).label("created"),
             )
             .offset(offset=offset)
@@ -381,6 +398,14 @@ class DocumentManager:
             )
             for i, chunk in enumerate(chunks, start=start)
         ]
+
+        chunks_size = sum(len(chunk.content.encode(encoding="utf-8")) for chunk in chunks)
+        storage_limit, storage_consumption = await self._get_storage_limit_and_consumption(postgres_session=postgres_session, user_id=user_id)
+        if storage_limit is not None and storage_consumption > storage_limit:
+            raise InsufficientStorageLimitException(
+                detail=f"Upload size limit exceeded. Limit: {storage_limit} bytes. Current: {storage_consumption} bytes."
+            )
+
         try:
             await self._upsert_document_chunks(
                 chunks=chunks,
@@ -395,6 +420,14 @@ class DocumentManager:
             raise VectorizationFailedException(detail=f"Vectorization failed: {e}")
 
         chunk_ids = [chunk.id for chunk in chunks]
+
+        # update the document size
+        await postgres_session.execute(
+            statement=update(table=DocumentTable)
+            .values(size=func.coalesce(DocumentTable.size, 0) + chunks_size)
+            .where(DocumentTable.id == document_id)
+        )
+        await postgres_session.commit()
 
         return chunk_ids
 
@@ -419,6 +452,13 @@ class DocumentManager:
         except NoResultFound:
             raise DocumentNotFoundException()
 
+        chunk_size = await elasticsearch_vector_store.get_chunk_size(client=elasticsearch_client, document_id=document_id, chunk_id=chunk_id)
+
+        await postgres_session.execute(
+            statement=update(table=DocumentTable)
+            .values(size=func.coalesce(DocumentTable.size, 0) - chunk_size)
+            .where(DocumentTable.id == document_id)
+        )
         await elasticsearch_vector_store.delete_chunk(client=elasticsearch_client, document_id=document_id, chunk_id=chunk_id)
 
         await postgres_session.commit()
@@ -597,3 +637,22 @@ class DocumentManager:
                     )
                 )
             await elasticsearch_vector_store.upsert(client=elasticsearch_client, chunks=batch_chunks)
+
+    async def _get_storage_limit_and_consumption(self, postgres_session: AsyncSession, user_id: int) -> tuple[int | None, int]:
+        statement = (
+            select(
+                RoleTable.storage_limit,
+                func.coalesce(func.sum(DocumentTable.size), 0).label("storage_consumption"),
+            )
+            .select_from(UserTable)
+            .join(RoleTable, UserTable.role_id == RoleTable.id, isouter=True)
+            .join(CollectionTable, CollectionTable.user_id == UserTable.id, isouter=True)
+            .join(DocumentTable, DocumentTable.collection_id == CollectionTable.id, isouter=True)
+            .where(UserTable.id == user_id)
+            .group_by(RoleTable.storage_limit)
+        )
+        result = await postgres_session.execute(statement=statement)
+        row = result.one_or_none()
+        if row is None:
+            return None, 0
+        return row.storage_limit, row.storage_consumption

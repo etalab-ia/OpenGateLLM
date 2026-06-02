@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import Field, constr
@@ -6,7 +6,7 @@ from pydantic import Field, constr
 from api.schemas import BaseModel
 
 
-class CollectionVisibility(str, Enum):
+class CollectionVisibility(StrEnum):
     PRIVATE = "private"
     PUBLIC = "public"
 
@@ -33,6 +33,7 @@ class Collection(BaseModel):
     created: int
     updated: int
     documents: int = 0
+    size: int = 0
 
 
 class Collections(BaseModel):

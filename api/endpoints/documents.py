@@ -24,6 +24,7 @@ from api.utils.dependencies import (
     get_redis_client,
     get_request_context,
 )
+from api.utils.exceptions import ChunkNotFoundException
 from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.DOCUMENTS.title()])
@@ -255,5 +256,7 @@ async def get_document_chunk(
         document_id=document_id,
         chunk_id=chunk_id,
     )
+    if not chunks:
+        raise ChunkNotFoundException()
 
     return JSONResponse(content=chunks[0].model_dump(), status_code=200)

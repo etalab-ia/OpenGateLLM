@@ -64,6 +64,7 @@ class Role(Base):
     name: Mapped[str] = mapped_column(unique=True, index=True)
     created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
     updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
+    storage_limit: Mapped[int | None] = mapped_column(default=None)
 
     user: Mapped[list["User"]] = relationship(back_populates="role", passive_deletes=True)
     limits: Mapped[list["Limit"]] = relationship(back_populates="role", cascade="all, delete-orphan", passive_deletes=True)
@@ -114,7 +115,7 @@ class User(Base):
     expires: Mapped[dt.datetime | None]
     created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
     updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
-    priority: Mapped[int] = mapped_column(default=0)  # User priority: higher value means higher priority for rate limiting / scheduling (0 = default)
+    priority: Mapped[int] = mapped_column(default=0)
 
     usage: Mapped[list["Usage"]] = relationship(back_populates="user", passive_deletes=True)
     token: Mapped[list["Token"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
@@ -176,6 +177,7 @@ class Document(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     collection_id: Mapped[int] = mapped_column(ForeignKey(column="collection.id", ondelete="CASCADE"))
     name: Mapped[str]
+    size: Mapped[int] = mapped_column(default=0)
     created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
 
     collection: Mapped["Collection"] = relationship(back_populates="document", passive_deletes=True)
