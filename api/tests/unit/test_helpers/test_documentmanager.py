@@ -344,6 +344,7 @@ async def test_create_document_success(monkeypatch):
     mock_session.execute.side_effect = [check_collection, insert_document]
 
     document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+    document_manager._get_storage_limit_and_consumption = AsyncMock(return_value=(None, 0))
 
     chunks = ["chunk-1", "chunk-2"]
     document_manager._split = MagicMock(return_value=chunks)
@@ -948,6 +949,7 @@ async def test_create_document_empty_chunks():
     mock_session.execute.return_value = collection_result
 
     document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+    document_manager._get_storage_limit_and_consumption = AsyncMock(return_value=(None, 0))
 
     # Mock _split to return empty chunks
     document_manager._split = MagicMock(return_value=[])
@@ -1018,6 +1020,7 @@ async def test_create_document_vectorization_fails(monkeypatch):
     mock_session.execute.side_effect = [collection_result, insert_document, select_for_delete, delete_result]
 
     document_manager = DocumentManager(vector_store_model="test-model", parser_manager=mock_parser)
+    document_manager._get_storage_limit_and_consumption = AsyncMock(return_value=(None, 0))
 
     # Mock _split to return chunks
     chunks = ["chunk-1", "chunk-2"]
