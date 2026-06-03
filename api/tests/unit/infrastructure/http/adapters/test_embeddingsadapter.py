@@ -4,25 +4,23 @@ from unittest.mock import Mock, patch
 from pydantic import BaseModel
 import pytest
 
-from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
+from api.domain.embeddings.entities import Embeddings
 from api.domain.provider.entities import (
+    HostingZone,
     ProviderFormattedRequest,
     ProviderFormattedResponse,
-    ProviderOriginalRequest,
     ProviderOriginalResponse,
     ProviderType,
     ResponseMetrics,
 )
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
-from api.infrastructure.http.adapters._endpointadapter import EndpointAdapter
 from api.infrastructure.http.adapters.tei import TeiEmbeddingsAdapter
 from api.infrastructure.http.adapters.vllm import VllmEmbeddingsAdapter
-from api.schemas.admin.providers import ProviderCarbonFootprintZone
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory
+from api.tests.integration.factories.vllm import VllmEmbeddingsResponseFactory
 from api.tests.unit.infrastructure.factories import ProviderOriginalRequestFactory
 from api.tests.unit.use_case.factories import ProviderFactory
-from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture
@@ -76,160 +74,187 @@ def vllm_embeddings_adapter(vllm_provider, model_tokenizer, model_environmental_
 
 
 @pytest.fixture
-def adapter_fixture(request):
+def adapter(request):
     return request.getfixturevalue(request.param)
-
-
-@pytest.fixture
-def adapter(tei_embeddings_adapter):
-    return tei_embeddings_adapter
 
 
 class TestEmbeddingsAdapter:
     @pytest.mark.parametrize(
-        ("adapter_fixture", "method"),
-        [("tei_embeddings_adapter", HTTPMethod.POST), ("vllm_embeddings_adapter", HTTPMethod.POST)],
-        indirect=["adapter_fixture"],
+        argnames=("adapter", "target_endpoint_route"),
+        argvalues=[("tei_embeddings_adapter", "/v1/embeddings"), ("vllm_embeddings_adapter", "/v1/embeddings")],
+        indirect=["adapter"],
     )
-    def test_format_request_return_correct_method(self, adapter_fixture, method):
-        # Arrange
-        original_request = ProviderOriginalRequestFactory(embeddings=True)
-        del original_request.body.model
-        # Act
-        result = adapter_fixture.format_request(original_request)
-
+    def test_adapter_have_correct_target_endpoint_route(self, adapter, target_endpoint_route):
         # Assert
-        assert result.method == method
+        assert adapter.TARGET_ENDPOINT_ROUTE == target_endpoint_route
 
     @pytest.mark.parametrize(
-        "adapter_fixture,url",
-        [("tei_embeddings_adapter", "https://tei.test/v1/embeddings"), ("vllm_embeddings_adapter", "https://vllm.test/v1/embeddings")],
-        indirect=True,
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
+        indirect=["adapter"],
     )
-    def test_format_request_return_correct_url(self, adapter_fixture, url):
+    def test_build_target_url_with_none_endpoint_route(self, adapter):
         # Arrange
+        base_url = "https://provider.test/"
+        target_endpoint_route = None
+
+        # Act
+        result = adapter._build_target_url(base_url=base_url, target_endpoint_route=target_endpoint_route)
+
+        # Assert
+        assert result == "https://provider.test/"
+
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
+        indirect=["adapter"],
+    )
+    def test_build_target_url_with_subdomain(self, adapter):
+        # Arrange
+        base_url = "https://provider.test/provider"
+        target_endpoint_route = "/v1/endpoint"
+
+        # Act
+        result = adapter._build_target_url(base_url=base_url, target_endpoint_route=target_endpoint_route)
+
+        # Assert
+        assert result == "https://provider.test/provider/v1/endpoint"
+
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
+        indirect=["adapter"],
+    )
+    def test_build_target_url_with_trailing_slash(self, adapter):
+        # Arrange
+        base_url = "https://provider.test/"
+        target_endpoint_route = "/v1/endpoint"
+
+        # Act
+        result = adapter._build_target_url(base_url=base_url, target_endpoint_route=target_endpoint_route)
+
+        # Assert
+        assert result == "https://provider.test/v1/endpoint"
+
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
+        indirect=["adapter"],
+    )
+    def test_build_target_url_without_trailing_slash(self, adapter):
+        # Arrange
+        base_url = "https://provider.test"
+        target_endpoint_route = "/v1/endpoint"
+
+        # Act
+        result = adapter._build_target_url(base_url=base_url, target_endpoint_route=target_endpoint_route)
+
+        # Assert
+        assert result == "https://provider.test/v1/endpoint"
+
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
+        indirect=["adapter"],
+    )
+    def test_compute_prompt_returns_zero_when_tokenizer_is_not_present(self, adapter):
+        # Arrange
+        adapter.model_tokenizer = None
         original_request = ProviderOriginalRequestFactory(embeddings=True)
 
         # Act
-        result = adapter_fixture.format_request(original_request)
-
+        result = adapter.compute_prompt_tokens(original_request)
         # Assert
-        assert result.url == url
+        assert result == 0
 
-    @pytest.mark.parametrize("adapter_fixture", ["tei_embeddings_adapter", "vllm_embeddings_adapter"], indirect=True)
-    def test_format_request_adds_model_if_missing(self, adapter_fixture):
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
+        indirect=["adapter"],
+    )
+    def test_compute_prompt_when_tokenizer_is_present_and_input_is_a_list_of_lists_of_integers(self, adapter):
         # Arrange
         original_request = ProviderOriginalRequestFactory(embeddings=True)
-        del original_request.body.model
+        original_request.body.input = [[1, 2, 3], [4, 5, 6]]
+
         # Act
-        result = adapter_fixture.format_request(original_request)
+        result = adapter.compute_prompt_tokens(original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedRequest)
-        assert "model" in result.body
-        assert result.body["model"] == adapter_fixture.provider.model_name
+        assert result == 2
+        adapter.model_tokenizer.encode.assert_called_once_with("1 2 3 4 5 6")
 
-    @pytest.mark.parametrize("adapter_fixture", ["tei_embeddings_adapter", "vllm_embeddings_adapter"], indirect=True)
-    def test_format_request_keeps_model_if_present(self, adapter_fixture):
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
+        indirect=["adapter"],
+    )
+    def test_compute_prompt_when_tokenizer_is_present_and_input_is_a_list_of_integers(self, adapter):
         # Arrange
         original_request = ProviderOriginalRequestFactory(embeddings=True)
-        original_request.body.model = "keep-me"
-        expected_url = EndpointAdapter._build_target_url(
-            base_url=adapter_fixture.provider.url,
-            target_endpoint_route=adapter_fixture.TARGET_ENDPOINT_ROUTE,
-        )
+        original_request.body.input = [1, 2, 3, 4, 5]
+
         # Act
-        result = adapter_fixture.format_request(original_request)
+        result = adapter.compute_prompt_tokens(original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedRequest)
-        assert result.method == HTTPMethod.POST
-        assert result.url == expected_url
-        assert result.body["model"] == "keep-me"
+        assert result == 2
+        adapter.model_tokenizer.encode.assert_called_once_with("1 2 3 4 5")
 
-    @pytest.mark.parametrize("adapter_fixture", ["tei_embeddings_adapter", "vllm_embeddings_adapter"], indirect=True)
-    def test_format_response_returns_validation_error_on_bad_data(self, adapter_fixture):
-        class _InvalidResponsePayload(BaseModel):
-            id: int
-
-        adapter_fixture.RESPONSE_TYPE = _InvalidResponsePayload
-        original_request = ProviderOriginalRequestFactory(embeddings=True)
-        original_response = ProviderOriginalResponse(data={"id": "req-1"}, metrics=ResponseMetrics(latency=10))
-
-        result = adapter_fixture.format_response(original_response=original_response, original_request=original_request, prompt_tokens=0)
-
-        assert result.provider_type == adapter_fixture.provider.type
-        assert isinstance(result, ProviderAdapterValidationResponseError)
-        assert len(result.errors) == 1
-
-    def test_format_response_correctly(self, adapter):
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
+        indirect=["adapter"],
+    )
+    def test_compute_prompt_when_tokenizer_is_present_and_input_is_a_list_of_strings(self, adapter):
         # Arrange
-        adapter._extract_request_id = Mock(return_value="req-123")
-        mock_usage = Usage(prompt_tokens=3, completion_tokens=0, total_tokens=3, cost=0.0003, impacts=EnvironmentalImpacts(kgCO2eq=0.1, kWh=10.0))
-        adapter._compute_usage = Mock(return_value=mock_usage)
         original_request = ProviderOriginalRequestFactory(embeddings=True)
-        original_request.body.model = "m"
-        original_response = ProviderOriginalResponse(
-            data={**TeiEmbeddingsResponseFactory(dimensions=2), "id": "req-123"},
-            metrics=ResponseMetrics(latency=10),
-        )
+        original_request.body.input = ["q ", "d1  "]
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request, prompt_tokens=3)
+        result = adapter.compute_prompt_tokens(original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
-        assert isinstance(result.data, Embeddings)
-        assert result.metrics == ResponseMetrics(latency=10)
-        assert result.data.id == "req-123"
-        assert result.data.model == "m"
-        assert result.data.usage == Usage(
-            prompt_tokens=3,
-            completion_tokens=0,
-            total_tokens=3,
-            cost=0.0003,
-            impacts=EnvironmentalImpacts(kgCO2eq=0.1, kWh=10.0),
-        )
+        assert result == 2
+        adapter.model_tokenizer.encode.assert_called_once_with("q  d1")
 
-    def test_compute_usage_when_environmental_impacts_computer_is_present(self, adapter):
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
+        indirect=["adapter"],
+    )
+    def test_compute_request_cost_correctly(self, adapter):
         # Arrange
-        adapter.compute_completion_tokens = Mock(return_value=10)
-
-        adapter._compute_request_cost = Mock(return_value=0.0003)
-        formatted_response = ProviderFormattedResponse(
-            data=Embeddings(**TeiEmbeddingsResponseFactory(dimensions=2)),
-            metrics=ResponseMetrics(latency=20),
-        )
-        prompt_tokens = 3
+        prompt_tokens = 100
+        completion_tokens = 100
+        cost_prompt_tokens = 1.0
+        cost_completion_tokens = 2.0
 
         # Act
-        result = adapter._compute_usage(formatted_response=formatted_response, prompt_tokens=prompt_tokens)
+        result = adapter._compute_request_cost(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cost_prompt_tokens=cost_prompt_tokens,
+            cost_completion_tokens=cost_completion_tokens,
+        )
 
         # Assert
-        adapter.model_environmental_impacts_computer.compute.assert_called_once_with(
-            model_active_params=5,
-            model_total_params=10,
-            model_zone=ProviderCarbonFootprintZone.WOR,
-            completion_tokens=10,
-            request_latency=20,
-        )
-        assert result == Usage(
-            prompt_tokens=3,
-            completion_tokens=10,
-            total_tokens=13,
-            cost=0.0003,
-            impacts=EnvironmentalImpacts(kgCO2eq=1, kWh=2),
-        )
+        assert result == 0.0003
 
-    def test_compute_usage_when_environmental_impacts_computer_is_not_present(self, adapter):
+    @pytest.mark.parametrize(
+        argnames=("adapter", "response_data"),
+        argvalues=[
+            ("tei_embeddings_adapter", TeiEmbeddingsResponseFactory(dimensions=2)),
+            ("vllm_embeddings_adapter", VllmEmbeddingsResponseFactory(dimensions=2)),
+        ],
+        indirect=["adapter"],
+    )
+    def test_compute_usage_when_environmental_impacts_computer_is_not_present(self, adapter, response_data):
         # Arrange
         adapter.model_environmental_impacts_computer = None
         adapter.compute_completion_tokens = Mock(return_value=10)
         adapter._compute_request_cost = Mock(return_value=0.0003)
-        formatted_response = ProviderFormattedResponse(
-            data=Embeddings(**TeiEmbeddingsResponseFactory(dimensions=2)),
-            metrics=ResponseMetrics(latency=20),
-        )
+        formatted_response = ProviderFormattedResponse(data=Embeddings(**response_data), metrics=ResponseMetrics(latency=20))
         prompt_tokens = 3
 
         # Act
@@ -244,120 +269,205 @@ class TestEmbeddingsAdapter:
             impacts=EnvironmentalImpacts(kgCO2eq=0, kWh=0),
         )
 
-    def test_compute_prompt_when_tokenizer_is_present(self, adapter):
+    @pytest.mark.parametrize(
+        argnames=("adapter", "response_data"),
+        argvalues=[
+            ("tei_embeddings_adapter", TeiEmbeddingsResponseFactory(dimensions=2)),
+            ("vllm_embeddings_adapter", VllmEmbeddingsResponseFactory(dimensions=2)),
+        ],
+        indirect=["adapter"],
+    )
+    def test_compute_usage_when_environmental_impacts_computer_is_present(self, adapter, response_data):
         # Arrange
-        body = CreateEmbeddingsBody(model="m", input=["q", "d1"])
-        original_request = ProviderOriginalRequest(endpoint=EndpointRoute.EMBEDDINGS, body=body)
+        adapter.compute_completion_tokens = Mock(return_value=10)
+        adapter._compute_request_cost = Mock(return_value=0.0003)
+        formatted_response = ProviderFormattedResponse(data=Embeddings(**response_data), metrics=ResponseMetrics(latency=20))
+        prompt_tokens = 3
 
         # Act
-        result = adapter.compute_prompt_tokens(original_request)
+        result = adapter._compute_usage(formatted_response=formatted_response, prompt_tokens=prompt_tokens)
 
         # Assert
-        assert result == 2
-        adapter.model_tokenizer.encode.assert_called_once_with("q d1")
-
-    def test_compute_prompt_returns_zero_when_tokenizer_is_not_present(self, adapter):
-        # Arrange
-        adapter.model_tokenizer = None
-        body = CreateEmbeddingsBody(model="m", input="q")
-        original_request = ProviderOriginalRequest(endpoint=EndpointRoute.EMBEDDINGS, body=body)
-
-        # Act
-        result = adapter.compute_prompt_tokens(original_request)
-
-        # Assert
-        assert result == 0
-
-    # @TODO: add after implement /v1/chat/completions clean architecture refactoring
-    # def test_compute_completion_tokens_returns_zero_without_tokenizer(self, provider):
-    #     # Arrange
-    #     adapter = _DummyAdapter(cost_completion_tokens=0, cost_prompt_tokens=0, provider=provider, model_tokenizer=None)
-    #     formatted_response = ProviderFormattedResponse(data=None)
-
-    #     # Act
-    #     result = adapter.compute_completion_tokens(formatted_response=formatted_response)
-    #     assert result == 0
-    #     adapter.RESPONSE_TYPE.get_completions.assert_not_called()
-
-    def test_compute_request_cost_correctly(self):
-        # Arrange
-        prompt_tokens = 100
-        completion_tokens = 100
-        cost_prompt_tokens = 1.0
-        cost_completion_tokens = 2.0
-
-        # Act
-        result = EndpointAdapter._compute_request_cost(
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            cost_prompt_tokens=cost_prompt_tokens,
-            cost_completion_tokens=cost_completion_tokens,
+        adapter.model_environmental_impacts_computer.compute.assert_called_once_with(
+            model_active_params=5,
+            model_total_params=10,
+            model_zone=HostingZone.WOR,
+            completion_tokens=10,
+            request_latency=20,
         )
+        assert result == Usage(prompt_tokens=3, completion_tokens=10, total_tokens=13, cost=0.0003, impacts=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
 
-        # Assert
-        assert result == 0.0003
-
-    def test_build_target_url_without_trailing_slash(self):
-        # Arrange
-        base_url = "https://provider.test"
-        target_endpoint_route = "/v1/models"
-
-        # Act
-        result = EndpointAdapter._build_target_url(base_url=base_url, target_endpoint_route=target_endpoint_route)
-
-        # Assert
-        assert result == "https://provider.test/v1/models"
-
-    def test_build_target_url_with_trailing_slash(self):
-        # Arrange
-        base_url = "https://provider.test/"
-        target_endpoint_route = "/v1/models"
-
-        # Act
-        result = EndpointAdapter._build_target_url(base_url=base_url, target_endpoint_route=target_endpoint_route)
-
-        # Assert
-        assert result == "https://provider.test/v1/models"
-
-    def test_build_target_url_with_none_endpoint_route(self):
-        # Arrange
-        base_url = "https://provider.test/"
-        target_endpoint_route = None
-
-        # Act
-        result = EndpointAdapter._build_target_url(base_url=base_url, target_endpoint_route=target_endpoint_route)
-
-        # Assert
-        assert result == "https://provider.test/"
-
-    def test_build_target_url_with_subdomain(self):
-        # Arrange
-        base_url = "https://provider.test/provider"
-        target_endpoint_route = "/v1/models"
-
-        # Act
-        result = EndpointAdapter._build_target_url(base_url=base_url, target_endpoint_route=target_endpoint_route)
-
-        # Assert
-        assert result == "https://provider.test/provider/v1/models"
-
-    def test_extract_request_id_with_id(self):
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
+        indirect=["adapter"],
+    )
+    def test_extract_request_id_with_id(self, adapter):
         # Arrange
         original_response = ProviderOriginalResponse(data={"id": "abc"}, metrics=ResponseMetrics(latency=0))
 
         # Act
-        result = EndpointAdapter._extract_request_id(original_response)
+        result = adapter._extract_request_id(original_response)
 
         # Assert
         assert result == "abc"
 
-    def test_extract_request_id_without_id(self):
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
+        indirect=["adapter"],
+    )
+    def test_extract_request_id_without_id(self, adapter):
         # Arrange
         original_response = ProviderOriginalResponse(data={}, metrics=ResponseMetrics(latency=0))
 
         # Act
         with patch("api.infrastructure.http.adapters._endpointadapter.uuid4", return_value="123-456-789"):
-            result = EndpointAdapter._extract_request_id(original_response)
+            result = adapter._extract_request_id(original_response)
 
         # Assert
         assert result == "request-123456789"
+
+    @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
+        indirect=["adapter"],
+    )
+    def test_format_request_preserve_extra_fields(self, adapter):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(embeddings=True)
+        original_request.body.extra_field = "extra_value"
+
+        # Act
+        result = adapter.format_request(original_request)
+
+        # Assert
+        assert result.body["extra_field"] == "extra_value"
+        assert "model" in result.body
+
+    @pytest.mark.parametrize(
+        argnames=("adapter", "provider_model_name"),
+        argvalues=[("tei_embeddings_adapter", "test-tei-model"), ("vllm_embeddings_adapter", "test-vllm-model")],
+        indirect=["adapter"],
+    )
+    def test_format_request_replace_model_by_provider_model_name(self, adapter, provider_model_name):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(embeddings=True)
+
+        # Act
+        result = adapter.format_request(original_request)
+
+        # Assert
+        assert isinstance(result, ProviderFormattedRequest)
+        assert "model" in result.body
+        assert result.body["model"] == provider_model_name
+
+    @pytest.mark.parametrize(
+        argnames=("adapter", "method"),
+        argvalues=[("tei_embeddings_adapter", HTTPMethod.POST), ("vllm_embeddings_adapter", HTTPMethod.POST)],
+        indirect=["adapter"],
+    )
+    def test_format_request_return_correct_method(self, adapter, method):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(embeddings=True)
+        del original_request.body.model
+        # Act
+        result = adapter.format_request(original_request)
+
+        # Assert
+        assert result.method == method
+
+    @pytest.mark.parametrize(
+        argnames=("adapter", "url"),
+        argvalues=[("tei_embeddings_adapter", "https://tei.test/v1/embeddings"), ("vllm_embeddings_adapter", "https://vllm.test/v1/embeddings")],
+        indirect=["adapter"],
+    )
+    def test_format_request_return_correct_url(self, adapter, url):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(embeddings=True)
+
+        # Act
+        result = adapter.format_request(original_request)
+
+        # Assert
+        assert result.url == url
+
+    @pytest.mark.parametrize(
+        argnames=("adapter", "response_data"),
+        argvalues=[
+            ("tei_embeddings_adapter", TeiEmbeddingsResponseFactory(dimensions=2)),
+            ("vllm_embeddings_adapter", VllmEmbeddingsResponseFactory(dimensions=2)),
+        ],
+        indirect=["adapter"],
+    )
+    def test_format_response_correctly(self, adapter, response_data):
+        # Arrange
+        adapter._extract_request_id = Mock(return_value="req-123")
+        mock_usage = Usage(prompt_tokens=3, completion_tokens=0, total_tokens=3, cost=0.0003, impacts=EnvironmentalImpacts(kgCO2eq=0.1, kWh=10.0))
+        adapter._compute_usage = Mock(return_value=mock_usage)
+        original_request = ProviderOriginalRequestFactory(embeddings=True)
+        mock_metrics = ResponseMetrics(latency=10)
+        original_response = ProviderOriginalResponse(data=response_data, metrics=mock_metrics)
+
+        # Act
+        result = adapter.format_response(original_response=original_response, original_request=original_request, prompt_tokens=3)
+
+        # Assert
+        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result.data, Embeddings)
+        assert len(result.data.data) == 1
+        assert result.data.data[0].embedding == response_data["data"][0]["embedding"]
+        assert result.data.id == "req-123"
+        assert result.data.model == "openweight-embeddings"
+        assert result.data.data
+        assert result.data.usage == mock_usage
+        assert result.metrics == mock_metrics
+
+    @pytest.mark.parametrize(
+        argnames=("adapter", "response_data"),
+        argvalues=[
+            ("tei_embeddings_adapter", TeiEmbeddingsResponseFactory(dimensions=2, extra_field="extra_value")),
+            ("vllm_embeddings_adapter", VllmEmbeddingsResponseFactory(dimensions=2, extra_field="extra_value")),
+        ],
+        indirect=["adapter"],
+    )
+    def test_format_response_preserve_extra_fields(self, adapter, response_data):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(embeddings=True)
+        original_response = ProviderOriginalResponse(data=response_data, metrics=ResponseMetrics(latency=10))
+
+        # Act
+        result = adapter.format_response(original_response=original_response, original_request=original_request, prompt_tokens=0)
+
+        # Assert
+        assert result.data.extra_field == "extra_value"
+
+    @pytest.mark.parametrize(
+        argnames=("adapter", "response_data"),
+        argvalues=[("tei_embeddings_adapter", TeiEmbeddingsResponseFactory()), ("vllm_embeddings_adapter", VllmEmbeddingsResponseFactory())],
+        indirect=["adapter"],
+    )
+    def test_format_response_returns_validation_error_on_bad_data(self, adapter, response_data):
+        class _InvalidResponsePayload(BaseModel):
+            id: int
+
+        adapter.RESPONSE_TYPE = _InvalidResponsePayload
+        original_request = ProviderOriginalRequestFactory(embeddings=True)
+        original_response = ProviderOriginalResponse(data=response_data, metrics=ResponseMetrics(latency=10))
+
+        result = adapter.format_response(original_response=original_response, original_request=original_request, prompt_tokens=0)
+
+        assert result.provider_type == adapter.provider.type
+        assert isinstance(result, ProviderAdapterValidationResponseError)
+        assert len(result.errors) == 1
+
+    # # @TODO: add after implement /v1/chat/completions clean architecture refactoring
+    # # def test_compute_completion_tokens_returns_zero_without_tokenizer(self, provider):
+    # #     # Arrange
+    # #     adapter = _DummyAdapter(cost_completion_tokens=0, cost_prompt_tokens=0, provider=provider, model_tokenizer=None)
+    # #     formatted_response = ProviderFormattedResponse(data=None)
+
+    # #     # Act
+    # #     result = adapter.compute_completion_tokens(formatted_response=formatted_response)
+    # #     assert result == 0
+    # #     adapter.RESPONSE_TYPE.get_completions.assert_not_called()

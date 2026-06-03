@@ -49,7 +49,7 @@ class EndpointAdapter:
             files=original_request.files if original_request.files else {},
         )
 
-        if "model" not in formatted_request.body:
+        if "model" in formatted_request.body:
             formatted_request.body["model"] = self.provider.model_name
 
         return formatted_request
