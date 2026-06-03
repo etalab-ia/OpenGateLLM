@@ -85,6 +85,7 @@ jobs:
     name: Build and push Albert playground image
     runs-on: ubuntu-latest
     env:
+      GITHUB_PLAYGROUND_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/playground
       GITLAB_PLAYGROUND_IMAGE_NAME: registry.gitlab.com/${{ secrets.GITLAB_PROJECT_PATH }}/playground
       IMAGE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || 'latest' }}
     strategy:
