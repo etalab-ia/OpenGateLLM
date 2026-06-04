@@ -30,6 +30,7 @@ from api.utils.exceptions import (
     ChunkingFailedException,
     CollectionNotFoundException,
     DocumentNotFoundException,
+    FileSizeLimitExceededException,
     InsufficientStorageLimitException,
     ParsingDocumentFailedException,
     VectorizationFailedException,
@@ -201,7 +202,7 @@ class DocumentManager:
             # parse the file
             try:
                 content = await self.parser_manager.parse(file=file)
-                document_size = len(content.encode(encoding="utf-8"))
+                document_size = len(content)
             except Exception as e:
                 logger.exception(f"failed to parse {document_name} ({e}).")
                 raise ParsingDocumentFailedException()
@@ -399,12 +400,25 @@ class DocumentManager:
             for i, chunk in enumerate(chunks, start=start)
         ]
 
-        chunks_size = sum(len(chunk.content.encode(encoding="utf-8")) for chunk in chunks)
+        chunks_size = sum(len(chunk.content) for chunk in chunks)
         storage_limit, storage_consumption = await self._get_storage_limit_and_consumption(postgres_session=postgres_session, user_id=user_id)
         if storage_limit is not None and storage_consumption > storage_limit:
             raise InsufficientStorageLimitException(
                 detail=f"Upload size limit exceeded. Limit: {storage_limit} bytes. Current: {storage_consumption} bytes."
             )
+
+        # update the document size
+        result = await postgres_session.execute(
+            statement=update(table=DocumentTable)
+            .values(size=func.coalesce(DocumentTable.size, 0) + chunks_size)
+            .where(DocumentTable.id == document_id)
+            .returning(DocumentTable.size)
+        )
+        new_size = result.scalar_one()
+
+        if new_size > FileSizeLimitExceededException.MAX_CONTENT_SIZE:
+            await postgres_session.rollback()
+            raise FileSizeLimitExceededException()
 
         try:
             await self._upsert_document_chunks(
@@ -417,17 +431,11 @@ class DocumentManager:
                 request_context=request_context,
             )
         except Exception as e:
+            await postgres_session.rollback()
             raise VectorizationFailedException(detail=f"Vectorization failed: {e}")
 
-        chunk_ids = [chunk.id for chunk in chunks]
-
-        # update the document size
-        await postgres_session.execute(
-            statement=update(table=DocumentTable)
-            .values(size=func.coalesce(DocumentTable.size, 0) + chunks_size)
-            .where(DocumentTable.id == document_id)
-        )
         await postgres_session.commit()
+        chunk_ids = [chunk.id for chunk in chunks]
 
         return chunk_ids
 
@@ -478,7 +486,7 @@ class DocumentManager:
             statement=select(DocumentTable)
             .join(CollectionTable, DocumentTable.collection_id == CollectionTable.id)
             .where(DocumentTable.id == document_id)
-            .where(CollectionTable.user_id == user_id)
+            .where(or_(CollectionTable.user_id == user_id, CollectionTable.visibility == CollectionVisibility.PUBLIC))
         )
         try:
             result.scalar_one()
