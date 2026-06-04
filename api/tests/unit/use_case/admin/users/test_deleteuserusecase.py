@@ -65,8 +65,6 @@ class TestDeleteUserUseCase:
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
-        router_repository.get_router_ids_by_user_id.return_value = []
-        provider_repository.get_provider_ids_by_user_id.return_value = []
         user_repository.delete_user.return_value = sample_user
 
         # Act
@@ -84,8 +82,6 @@ class TestDeleteUserUseCase:
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
-        router_repository.get_router_ids_by_user_id.return_value = []
-        provider_repository.get_provider_ids_by_user_id.return_value = []
         user_repository.delete_user.return_value = UserNotFoundError(id=99)
 
         # Act
@@ -128,6 +124,7 @@ class TestDeleteUserUseCase:
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
+        user_repository.delete_user.return_value = DeleteUserWithRoutersError(user_id=42, router_ids=None)
         router_repository.get_router_ids_by_user_id.return_value = [1, 2, 3]
 
         # Act
@@ -136,9 +133,9 @@ class TestDeleteUserUseCase:
         # Assert
         assert isinstance(result, DeleteUserWithRoutersError)
         assert result.router_ids == [1, 2, 3]
+        user_repository.delete_user.assert_called_once_with(user_id=42)
         router_repository.get_router_ids_by_user_id.assert_called_once_with(user_id=42)
         provider_repository.get_provider_ids_by_user_id.assert_not_called()
-        user_repository.delete_user.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_delete_user_with_providers_error_with_ids_when_user_has_providers(
@@ -146,7 +143,7 @@ class TestDeleteUserUseCase:
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
-        router_repository.get_router_ids_by_user_id.return_value = []
+        user_repository.delete_user.return_value = DeleteUserWithProvidersError(user_id=42, provider_ids=None)
         provider_repository.get_provider_ids_by_user_id.return_value = [10, 20]
 
         # Act
@@ -155,5 +152,6 @@ class TestDeleteUserUseCase:
         # Assert
         assert isinstance(result, DeleteUserWithProvidersError)
         assert result.provider_ids == [10, 20]
+        user_repository.delete_user.assert_called_once_with(user_id=42)
         provider_repository.get_provider_ids_by_user_id.assert_called_once_with(user_id=42)
-        user_repository.delete_user.assert_not_called()
+        router_repository.get_router_ids_by_user_id.assert_not_called()

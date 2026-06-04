@@ -228,7 +228,6 @@ class PostgresUserRepository(UserRepository):
         return self._row_to_user(row)
 
     async def delete_user(self, user_id: int) -> User | UserNotFoundError | DeleteUserWithRoutersError | DeleteUserWithProvidersError:
-        # Safety net for the TOCTOU race with the use case ownership checks; savepoint keeps the outer tx usable.
         try:
             async with self.postgres_session.begin_nested():
                 result = await self.postgres_session.execute(statement=delete(UserTable).where(UserTable.id == user_id).returning(*_USER_COLUMNS))
