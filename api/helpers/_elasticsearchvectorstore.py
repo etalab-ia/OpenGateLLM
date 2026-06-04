@@ -357,3 +357,29 @@ class ElasticsearchVectorStore:
         searches = reranked_searches[:limit]
 
         return searches
+
+    async def get_chunk_size(self, client: AsyncElasticsearch, document_id: int, chunk_id: int) -> int:
+        body = {
+            "size": 0,
+            "query": {"bool": {"filter": [{"term": {"document_id": document_id}}, {"term": {"id": chunk_id}}]}},
+            "aggs": {
+                "content_size_stats": {
+                    "stats": {
+                        "script": {
+                            "lang": "painless",
+                            "source": """
+                                    def src = params._source;
+                                    if (src == null) return 0;
+                                    def val = src['content'];
+                                    if (val == null) return 0;
+                                    return val.toString().length();
+                                """,
+                        }
+                    }
+                }
+            },
+        }
+        result = await client.search(index=self.index_name, body=body, error_trace=True)
+        size = int(result["aggregations"]["content_size_stats"]["sum"])
+
+        return size

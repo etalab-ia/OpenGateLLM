@@ -12,6 +12,11 @@ class InsufficientBudgetException(HTTPException):
         super().__init__(status_code=400, detail=detail)
 
 
+class InsufficientStorageLimitException(HTTPException):
+    def __init__(self, detail: str = "Insufficient upload size limit.") -> None:
+        super().__init__(status_code=400, detail=detail)
+
+
 class InvalidTokenExpirationException(HTTPException):
     def __init__(self, detail: str = "Invalid token expiration.") -> None:
         super().__init__(status_code=400, detail=detail)
@@ -203,14 +208,14 @@ class UpdateLastAdminUserRoleException(HTTPException):
 
 # 413
 class FileSizeLimitExceededException(HTTPException):
-    MAX_CONTENT_SIZE = 20 * 1024 * 1024  # 20MB
+    MAX_CONTENT_SIZE = 20_000_000  # 20MB
 
     def __init__(self, detail: str = f"File size limit exceeded (max: {MAX_CONTENT_SIZE} bytes).") -> None:
         super().__init__(status_code=413, detail=detail)
 
 
 class ChunksContentSizeLimitExceededException(HTTPException):
-    MAX_CONTENT_SIZE = 20 * 1024 * 1024  # 20MB
+    MAX_CONTENT_SIZE = 20_000_000  # 20MB
 
     def __init__(self, detail: str = f"Total chunks content size limit exceeded (max: {MAX_CONTENT_SIZE} bytes).") -> None:
         super().__init__(status_code=413, detail=detail)

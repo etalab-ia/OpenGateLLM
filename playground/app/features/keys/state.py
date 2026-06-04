@@ -33,11 +33,22 @@ class KeysState(EntityState):
         """Get keys list with correct typing for Reflex."""
         return self.entities
 
+    def _default_expiry_date(self) -> str:
+        """Default expiry date: today + 1 year, capped at the configured maximum if any."""
+        default = dt.datetime.now() + dt.timedelta(days=365)
+        if configuration.settings.auth_key_max_expiration_days is not None:
+            max_date = dt.datetime.now() + dt.timedelta(days=configuration.settings.auth_key_max_expiration_days - 1)
+            default = min(default, max_date)
+        return default.strftime("%Y-%m-%d")
+
     @rx.event
     async def load_entities(self):
         """Load entities."""
         if not self.is_authenticated or not self.api_key:
             return
+
+        if not self.entity_to_create.expires:
+            self.entity_to_create.expires = self._default_expiry_date()
 
         self.entities_loading = True
         yield
@@ -192,6 +203,9 @@ class KeysState(EntityState):
                 # Store the created key to display in dialog
                 self.created_key = data.get("key", "")
                 self.is_created_dialog_open = True
+
+                # Reset the create form, keeping the default 1-year expiry
+                self.entity_to_create = Key(expires=self._default_expiry_date())
 
                 yield rx.toast.success("Key created successfully", position="bottom-right")
                 async for _ in self.load_entities():
