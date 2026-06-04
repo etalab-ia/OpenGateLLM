@@ -13,30 +13,9 @@ from app.core.variables import (
     SPACING_SMALL,
     SPACING_TINY,
     TEXT_SIZE_LABEL,
-    TEXT_SIZE_MEDIUM,
 )
 from app.features.keys.state import KeysState
 from app.shared.components.dialogs import entity_delete_dialog
-
-
-def _api_key_panel() -> rx.Component:
-    """Tinted, bordered panel displaying the key on a single, horizontally-scrollable line."""
-    return rx.scroll_area(
-        rx.text(
-            KeysState.created_key,
-            font_family="monospace",
-            size=TEXT_SIZE_MEDIUM,
-            white_space="nowrap",
-            user_select="none",
-        ),
-        scrollbars="horizontal",
-        type="auto",
-        width="100%",
-        padding=PADDING_MEDIUM,
-        background_color=rx.color("mauve", 2),
-        border=f"1px solid {rx.color('mauve', 6)}",
-        border_radius="0.5rem",
-    )
 
 
 def keys_created_dialog() -> rx.Component:
@@ -49,11 +28,6 @@ def keys_created_dialog() -> rx.Component:
                     rx.icon("circle_check", size=ICON_SIZE_XL, color=rx.color("green", 9)),
                     rx.vstack(
                         rx.dialog.title("API key created", margin="0"),
-                        rx.dialog.description(
-                            "Your new API key is ready to use.",
-                            color=rx.color("mauve", 11),
-                            size=TEXT_SIZE_LABEL,
-                        ),
                         spacing=SPACING_TINY,
                         align="start",
                     ),
@@ -78,7 +52,13 @@ def keys_created_dialog() -> rx.Component:
                         weight="bold",
                         color=rx.color("mauve", 11),
                     ),
-                    _api_key_panel(),
+                    rx.text_area(
+                        value=KeysState.created_key,
+                        read_only=True,
+                        width="100%",
+                        min_height="120px",
+                        size=SIZE_MEDIUM,
+                    ),
                     spacing=SPACING_SMALL,
                     width="100%",
                 ),
