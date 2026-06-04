@@ -94,21 +94,6 @@ async def test_create_user_unique_violation_to_400(postgres_session: AsyncSessio
 
 
 @pytest.mark.asyncio
-async def test_delete_user_not_found(postgres_session: AsyncSession, iam: IdentityAccessManager):
-    postgres_session.execute = AsyncMock(return_value=_Result(scalar_one=NoResultFound()))
-
-    with pytest.raises(UserNotFoundException):
-        await iam.delete_user(postgres_session, user_id=404)
-
-
-@pytest.mark.asyncio
-async def test_delete_user_success(postgres_session: AsyncSession, iam: IdentityAccessManager):
-    postgres_session.execute = AsyncMock(side_effect=[_Result(scalar_one=1), None])
-    await iam.delete_user(postgres_session, user_id=1)
-    postgres_session.commit.assert_awaited()
-
-
-@pytest.mark.asyncio
 async def test_update_user_success_all_fields(postgres_session: AsyncSession, iam: IdentityAccessManager):
     # select user with join role
     postgres_session.execute = AsyncMock(

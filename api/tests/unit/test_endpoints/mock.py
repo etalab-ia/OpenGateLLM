@@ -92,47 +92,6 @@ class MockIdentityAccessManagerSuccess:
             updated=self.GET_USER_UPDATED_AT,
         )
 
-    # users
-    async def create_user(self, postgres_session, email, password, name, role_id, organization_id, budget, expires) -> int:
-        return self.CREATE_USER_ID
-
-    async def update_user(
-        self,
-        postgres_session,
-        user_id,
-        email=None,
-        name=None,
-        current_password=None,
-        password=None,
-        role_id=None,
-        organization_id=None,
-        budget=None,
-        expires=None,
-    ):
-        return None
-
-    async def delete_user(self, postgres_session, user_id):
-        return None
-
-    async def get_users(
-        self, postgres_session, user_id=None, role_id=None, organization_id=None, offset=0, limit=10, order_by="id", order_direction="asc"
-    ) -> list[User]:
-        return [
-            User(
-                id=self.CREATE_USER_ID,
-                email=self.GET_USER_EMAIL,
-                name=self.GET_USER_NAME,
-                sub=self.GET_USER_SUB,
-                iss=self.GET_USER_ISS,
-                role=self.GET_USER_ROLE,
-                organization=self.GET_USER_ORGANIZATION,
-                budget=self.GET_USER_BUDGET,
-                expires=self.GET_USER_EXPIRES_AT,
-                created=self.GET_USER_CREATED_AT,
-                updated=self.GET_USER_UPDATED_AT,
-            )
-        ]
-
     # tokens
     async def create_token(self, postgres_session, user_id, name, expires) -> tuple[int, str]:
         return self.CREATE_TOKEN_ID, "token-string"

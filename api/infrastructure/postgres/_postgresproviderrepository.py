@@ -158,3 +158,7 @@ class PostgresProviderRepository(ProviderRepository):
         select_query = select(ProviderTable)
         rows = (await self.postgres_session.execute(select_query)).scalars().all()
         return [self._row_to_provider(row) for row in rows]
+
+    async def get_provider_ids_by_user_id(self, user_id: int) -> list[int]:
+        result = await self.postgres_session.execute(statement=select(ProviderTable.id).where(ProviderTable.user_id == user_id))
+        return list(result.scalars().all())

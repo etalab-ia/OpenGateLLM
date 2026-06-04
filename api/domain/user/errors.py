@@ -20,3 +20,15 @@ class UserIsNotAdminError:
 @dataclass
 class UserExpiredError:
     pass
+
+
+@dataclass
+class DeleteUserWithProvidersError:
+    user_id: int
+    provider_ids: list[int] | None
+
+
+@dataclass
+class DeleteUserWithRoutersError:
+    user_id: int
+    router_ids: list[int] | None
