@@ -169,8 +169,10 @@ class ModelHttpClient:
         self.request_manager.set_ttft(None)
         self.request_manager.set_latency(latency)
         await self.provider_metrics_logger.log_metric(provider_id=self.provider_id, metric=Metric.LATENCY, value=latency)
-        # TODO: replace by normalized latency
-        await self.provider_metrics_logger.log_metric(provider_id=self.provider_id, metric=Metric.NORMALIZED_LATENCY, value=latency)
+        completion_tokens = exchange.formatted_response.data.usage.completion_tokens if exchange.formatted_response.data else 0
+        await self.provider_metrics_logger.log_metric(
+            provider_id=self.provider_id, metric=Metric.NORMALIZED_LATENCY, value=latency / max(1, completion_tokens)
+        )
 
         if exchange.formatted_response.data is None:
             response = httpx.Response(
@@ -255,8 +257,10 @@ class ModelHttpClient:
 
                 await self.provider_metrics_logger.log_metric(provider_id=self.provider_id, metric=Metric.TTFT, value=ttft)
                 await self.provider_metrics_logger.log_metric(provider_id=self.provider_id, metric=Metric.LATENCY, value=latency)
-                # TODO: replace by normalized latency
-                await self.provider_metrics_logger.log_metric(provider_id=self.provider_id, metric=Metric.NORMALIZED_LATENCY, value=latency)
+                completion_tokens = exchange.formatted_response.data.usage.completion_tokens if exchange.formatted_response.data else 0
+                await self.provider_metrics_logger.log_metric(
+                    provider_id=self.provider_id, metric=Metric.NORMALIZED_LATENCY, value=latency / max(1, completion_tokens)
+                )
 
             except (
                 httpx.TimeoutException,

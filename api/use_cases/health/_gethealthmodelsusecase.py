@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-import statistics
 
 from api.domain.model.entities import HealthStatus, ModelHealthStatus
 from api.domain.provider import ProviderMetricsLogger, ProviderRepository
@@ -57,18 +56,19 @@ class GetHealthModelsUseCase:
                 if provider.router_id != router.id:
                     continue
 
-                historical_latencies_ms = await self.provider_metrics_logger.get_metric_history(
+                historical_normalized_latencies_ms = await self.provider_metrics_logger.get_metric_history(
                     provider_id=provider.id,
                     metric=Metric.NORMALIZED_LATENCY,
                 )
-                if len(historical_latencies_ms) == 0:
+                if len(historical_normalized_latencies_ms) == 0:
                     continue
 
                 current_inflight = await self.provider_metrics_logger.get_current_inflight(provider_id=provider.id)
-                request_per_ms = len(historical_latencies_ms) / (METRICS__TIMESERIE_RETENTION_SECONDS * 1000)
+                request_per_ms = len(historical_normalized_latencies_ms) / (METRICS__TIMESERIE_RETENTION_SECONDS * 1000)
 
-                mean_latency_ms = statistics.median(data=historical_latencies_ms)
-                expected_inflight = mean_latency_ms * request_per_ms
+                sorted_latencies_ms = sorted(historical_normalized_latencies_ms)
+                p95_latency_ms = sorted_latencies_ms[int(0.95 * len(sorted_latencies_ms))]
+                expected_inflight = p95_latency_ms * request_per_ms
 
                 health_indicator = current_inflight / max(expected_inflight, 0.1)  # Little's law indicator
 

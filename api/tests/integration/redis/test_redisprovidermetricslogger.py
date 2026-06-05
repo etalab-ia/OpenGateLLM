@@ -21,8 +21,8 @@ class TestRedisProviderMetricsLogger:
         key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{metric.value}:{provider_id}"
 
         # Act
-        await repository.log_metric(provider_id=provider_id, metric=metric.TTFT, value=120)
-        await repository.log_metric(provider_id=provider_id, metric=metric.TTFT, value=240)
+        await repository.log_metric(provider_id=provider_id, metric=metric, value=120)
+        await repository.log_metric(provider_id=provider_id, metric=metric, value=240)
 
         # Assert
         values = await redis_client.ts().range(key=key, from_time="-", to_time="+")

@@ -11,8 +11,8 @@ from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, Us
 from api.use_cases.health import GetHealthModelsCommand, GetHealthModelsUseCase, GetHealthModelsUseCaseSuccess
 
 LATENCY_HISTORY_COUNT = 1800
-MEDIAN_LATENCY_MS = 1000.0
-HISTORICAL_LATENCIES_MS = [MEDIAN_LATENCY_MS] * LATENCY_HISTORY_COUNT
+UNIFORM_LATENCY_MS = 1000.0
+HISTORICAL_LATENCIES_MS = [UNIFORM_LATENCY_MS] * LATENCY_HISTORY_COUNT
 
 
 @pytest.fixture
