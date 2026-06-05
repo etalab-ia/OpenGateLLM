@@ -106,6 +106,7 @@ async def create_elasticsearch_client(configuration: Configuration) -> AsyncElas
     kwargs.pop("index_language")
     kwargs.pop("number_of_shards")
     kwargs.pop("number_of_replicas")
+    kwargs.pop("refresh_interval")
 
     client = AsyncElasticsearch(**kwargs)
     if not await client.ping():
@@ -230,6 +231,7 @@ async def create_elasticsearch_vector_store(
         number_of_shards=es_config.number_of_shards,
         number_of_replicas=es_config.number_of_replicas,
         vector_size=vector_size,
+        refresh_interval=es_config.refresh_interval,
     )
     return vector_store
 
