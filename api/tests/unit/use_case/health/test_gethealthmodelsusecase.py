@@ -150,7 +150,7 @@ class TestGetHealthModelsUseCase:
         assert result.models[0].status == HealthStatus.GREEN
         provider_metrics_logger.get_metric_history.assert_called_once_with(
             provider_id=1,
-            metric=Metric.NORMALIZED_LATENCY,
+            metric=Metric.LATENCY,
         )
 
     @pytest.mark.asyncio
@@ -267,6 +267,6 @@ class TestGetHealthModelsUseCase:
         # Assert
         provider_metrics_logger.get_metric_history.assert_called_once_with(
             provider_id=1,
-            metric=Metric.NORMALIZED_LATENCY,
+            metric=Metric.LATENCY,
         )
         provider_metrics_logger.get_current_inflight.assert_called_once_with(provider_id=1)
