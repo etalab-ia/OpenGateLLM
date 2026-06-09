@@ -1,5 +1,5 @@
 from http import HTTPMethod
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
 import pytest
 
@@ -9,9 +9,11 @@ from api.domain.model.errors import ModelNotFoundError, StatusCodeModelError
 from api.domain.provider import ProviderCapabilities
 from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalResponse, ProviderType
 from api.domain.provider.errors import ProviderNotReachableError
-from api.infrastructure.http.adapters import EmbeddingsAdapter, ModelsAdapter
-from api.infrastructure.http.adapters.albert import AlbertModelsAdapter
-from api.infrastructure.http.adapters.tei import TeiEmbeddingsAdapter
+from api.infrastructure.http import HttpProviderAdapterBuilder
+from api.infrastructure.http.adapters.embeddings import EmbeddingsAdapter
+from api.infrastructure.http.adapters.embeddings.tei import TeiEmbeddingsAdapter
+from api.infrastructure.http.adapters.models import ModelsAdapter
+from api.infrastructure.http.adapters.models.albert import AlbertModelsAdapter
 from api.infrastructure.model._modelprovidergateway import ModelProviderGateway
 from api.tests.integration.factories.albert import AlbertModelResponseFactory, AlbertModelsResponseFactory
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory
@@ -29,8 +31,13 @@ def provider_client() -> Mock:
 
 
 @pytest.fixture
-def gateway(provider_client: Mock) -> ModelProviderGateway:
-    return ModelProviderGateway(provider_client=provider_client)
+def provider_adapter_builder() -> HttpProviderAdapterBuilder:
+    return MagicMock()
+
+
+@pytest.fixture
+def gateway(provider_client: Mock, provider_adapter_builder: HttpProviderAdapterBuilder) -> ModelProviderGateway:
+    return ModelProviderGateway(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
 
 
 def provider_factory(provider_type: ProviderType = ProviderType.ALBERT, model_name: str = DEFAULT_MODEL_ID):

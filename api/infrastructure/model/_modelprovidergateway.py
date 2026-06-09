@@ -3,18 +3,19 @@ import logging
 from api.domain.embeddings.entities import CreateEmbeddingsBody
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import ModelNotFoundError
-from api.domain.provider import ProviderCapabilities, ProviderClient, ProviderGateway
+from api.domain.provider import ProviderAdapterBuilder, ProviderCapabilities, ProviderClient, ProviderGateway
 from api.domain.provider.entities import Provider, ProviderOriginalRequest, ProviderOriginalResponse, ProviderType
 from api.domain.provider.errors import ProviderNotReachableError
-from api.infrastructure.http.adapters import EndpointAdapter
-from api.infrastructure.http.adapters.utils import build_adapter
+from api.infrastructure.http.adapters.embeddings import EmbeddingsAdapter
+from api.infrastructure.http.adapters.models import ModelsAdapter
 from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
 
 
 class ModelProviderGateway(ProviderGateway):
-    def __init__(self, provider_client: ProviderClient):
+    def __init__(self, provider_client: ProviderClient, provider_adapter_builder: ProviderAdapterBuilder):
+        self.provider_adapter_builder = provider_adapter_builder
         self.client = provider_client
 
     async def get_capabilities(
@@ -38,7 +39,9 @@ class ModelProviderGateway(ProviderGateway):
             created=0,
             updated=0,
         )
-        adapter = build_adapter(cost_completion_tokens=0, cost_prompt_tokens=0, endpoint=EndpointRoute.MODELS, provider=provider)
+        adapter = self.provider_adapter_builder.build(
+            cost_completion_tokens=0, cost_prompt_tokens=0, endpoint=EndpointRoute.MODELS, provider=provider
+        )
 
         result = await self._get_max_context_length(adapter=adapter)
         match result:
@@ -51,7 +54,9 @@ class ModelProviderGateway(ProviderGateway):
 
         vector_size = None
         if router_type == RouterType.TEXT_EMBEDDINGS_INFERENCE:
-            adapter = build_adapter(cost_completion_tokens=0, cost_prompt_tokens=0, endpoint=EndpointRoute.EMBEDDINGS, provider=provider)
+            adapter = self.provider_adapter_builder.build(
+                cost_completion_tokens=0, cost_prompt_tokens=0, endpoint=EndpointRoute.EMBEDDINGS, provider=provider
+            )
             result = await self._get_vector_size(adapter=adapter)
             match result:
                 case ProviderNotReachableError() as error:
@@ -61,7 +66,7 @@ class ModelProviderGateway(ProviderGateway):
 
         return ProviderCapabilities(max_context_length=max_context_length, vector_size=vector_size)
 
-    async def _get_max_context_length(self, adapter: EndpointAdapter) -> int | None | ModelNotFoundError | ProviderNotReachableError:
+    async def _get_max_context_length(self, adapter: ModelsAdapter) -> int | None | ModelNotFoundError | ProviderNotReachableError:
         original_request = ProviderOriginalRequest(endpoint=EndpointRoute.MODELS)
         formatted_request = adapter.format_request(original_request=original_request)
         response = await self.client.forward_request(provider=adapter.provider, formatted_request=formatted_request)
@@ -79,7 +84,7 @@ class ModelProviderGateway(ProviderGateway):
 
         return model.max_context_length
 
-    async def _get_vector_size(self, adapter: EndpointAdapter) -> int | ProviderNotReachableError:
+    async def _get_vector_size(self, adapter: EmbeddingsAdapter) -> int | ProviderNotReachableError:
         original_request = ProviderOriginalRequest(
             endpoint=EndpointRoute.EMBEDDINGS,
             body=CreateEmbeddingsBody(model=adapter.provider.model_name, input="hello world"),

@@ -28,7 +28,7 @@ from api.domain.router.errors import (
 from api.domain.usage.entities import Usage
 from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.context import RequestContext
-from api.infrastructure.http.adapters import EndpointAdapter
+from api.infrastructure.http.adapters import BaseAdapter
 from api.tests.integration.factories.vllm import VllmRerankResponseFactory
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, UserWithRoleFactory
 from api.use_cases.reranks import CreateRerankCommand, CreateRerankUseCase, CreateRerankUseCaseSuccess
@@ -41,6 +41,11 @@ def model_environmental_impacts_computer():
 
 @pytest.fixture
 def model_tokenizer():
+    return MagicMock()
+
+
+@pytest.fixture
+def provider_adapter_builder():
     return MagicMock()
 
 
@@ -83,6 +88,7 @@ def user_with_role_query():
 def use_case(
     model_environmental_impacts_computer,
     model_tokenizer,
+    provider_adapter_builder,
     provider_client,
     provider_load_balancer,
     provider_metrics_logger,
@@ -94,6 +100,7 @@ def use_case(
     return CreateRerankUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
+        provider_adapter_builder=provider_adapter_builder,
         provider_client=provider_client,
         provider_load_balancer=provider_load_balancer,
         provider_metrics_logger=provider_metrics_logger,
@@ -214,7 +221,7 @@ def assert_request_context(
 
 
 def _mock_adapter(*, prompt_tokens: int = 10, formatted_request=None, formatted_response=None, request_error=None, response_error=None):
-    adapter = create_autospec(EndpointAdapter, instance=True, spec_set=True)  # Autospec mock: unexpected kwargs / wrong signature should fail tests.
+    adapter = create_autospec(BaseAdapter, instance=True, spec_set=True)  # Autospec mock: unexpected kwargs / wrong signature should fail tests.
     adapter.compute_prompt_tokens.return_value = prompt_tokens
     adapter.format_request.return_value = formatted_request or ProviderFormattedRequest(
         method=HTTPMethod.POST,
@@ -369,6 +376,7 @@ class TestCreateRerankUseCase:
         router_repository,
         provider_repository,
         provider_load_balancer,
+        provider_adapter_builder,
         router_rate_limiter,
         rerank_router,
         rerank_provider,
@@ -383,12 +391,10 @@ class TestCreateRerankUseCase:
         provider_load_balancer.find_best_provider.return_value = rerank_provider
         router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
         mock_adapter = _mock_adapter()
+        provider_adapter_builder.build.return_value = mock_adapter
 
         # Act
-        with (
-            patch("api.use_cases.reranks._creatererankusecase.build_adapter", return_value=mock_adapter),
-            patch("api.use_cases.reranks._creatererankusecase.time.perf_counter", side_effect=[0, 0.12]),
-        ):
+        with patch("api.use_cases.reranks._creatererankusecase.time.perf_counter", side_effect=[0, 0.12]):
             result = await use_case.execute(command=default_command)
 
         # Assert
@@ -418,6 +424,7 @@ class TestCreateRerankUseCase:
         router_repository,
         provider_repository,
         provider_load_balancer,
+        provider_adapter_builder,
         rerank_router,
         rerank_provider,
         default_command,
@@ -429,12 +436,10 @@ class TestCreateRerankUseCase:
         provider_load_balancer.find_best_provider.return_value = rerank_provider
         validation_error = ProviderAdapterValidationRequestError(provider_type=ProviderType.TEI, errors=[{"msg": "invalid"}])
         mock_adapter = _mock_adapter(request_error=validation_error)
+        provider_adapter_builder.build.return_value = mock_adapter
 
         # Act
-        with (
-            patch("api.use_cases.reranks._creatererankusecase.build_adapter", return_value=mock_adapter),
-            patch("api.use_cases.reranks._creatererankusecase.time.perf_counter", side_effect=[10, 10.12]),
-        ):
+        with patch("api.use_cases.reranks._creatererankusecase.time.perf_counter", side_effect=[10, 10.12]):
             result = await use_case.execute(command=default_command)
 
         # Assert
@@ -461,6 +466,7 @@ class TestCreateRerankUseCase:
         provider_load_balancer,
         provider_metrics_logger,
         provider_client,
+        provider_adapter_builder,
         rerank_router,
         rerank_provider,
         default_command,
@@ -474,10 +480,10 @@ class TestCreateRerankUseCase:
         provider_error = TooBusyModelError(status_code=503, detail="busy")
         provider_client.forward_request.return_value = provider_error
         mock_adapter = _mock_adapter()
+        provider_adapter_builder.build.return_value = mock_adapter
 
         # Act
-        with patch("api.use_cases.reranks._creatererankusecase.build_adapter", return_value=mock_adapter):
-            result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command=default_command)
 
         # Assert
         assert result == provider_error
@@ -504,6 +510,7 @@ class TestCreateRerankUseCase:
         provider_load_balancer,
         provider_metrics_logger,
         provider_client,
+        provider_adapter_builder,
         rerank_router,
         rerank_provider,
         default_command,
@@ -517,10 +524,10 @@ class TestCreateRerankUseCase:
         provider_client.forward_request.return_value = ProviderOriginalResponse(data={}, metrics=ResponseMetrics(latency=80))
         validation_error = ProviderAdapterValidationResponseError(provider_type=ProviderType.TEI, errors=[{"msg": "invalid"}])
         mock_adapter = _mock_adapter(response_error=validation_error)
+        provider_adapter_builder.build.return_value = mock_adapter
 
         # Act
-        with patch("api.use_cases.reranks._creatererankusecase.build_adapter", return_value=mock_adapter):
-            result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command=default_command)
 
         # Assert
         assert result == validation_error
@@ -546,6 +553,7 @@ class TestCreateRerankUseCase:
         provider_load_balancer,
         provider_metrics_logger,
         provider_client,
+        provider_adapter_builder,
         admin_user,
         rerank_router,
         rerank_provider,
@@ -561,12 +569,10 @@ class TestCreateRerankUseCase:
         provider_metrics_logger.increment_inflight.return_value = True
         provider_client.forward_request.return_value = ProviderOriginalResponse(data=VllmRerankResponseFactory())
         mock_adapter = _mock_adapter(prompt_tokens=10, formatted_response=sample_rerank)
+        provider_adapter_builder.build.return_value = mock_adapter
 
         # Act
-        with (
-            patch("api.use_cases.reranks._creatererankusecase.build_adapter", return_value=mock_adapter),
-            patch("api.use_cases.reranks._creatererankusecase.time.perf_counter", side_effect=[0, 0.12]),
-        ):
+        with patch("api.use_cases.reranks._creatererankusecase.time.perf_counter", side_effect=[0, 0.12]):
             result = await use_case.execute(command=default_command)
 
         # Assert
@@ -614,6 +620,7 @@ class TestCreateRerankUseCase:
         provider_load_balancer,
         provider_metrics_logger,
         provider_client,
+        provider_adapter_builder,
         router_rate_limiter,
         user_with_router_access,
         rerank_router,
@@ -636,12 +643,10 @@ class TestCreateRerankUseCase:
         )
         router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
         mock_adapter = _mock_adapter(prompt_tokens=15, formatted_response=sample_rerank)
+        provider_adapter_builder.build.return_value = mock_adapter
 
         # Act
-        with (
-            patch("api.use_cases.reranks._creatererankusecase.build_adapter", return_value=mock_adapter),
-            patch("api.use_cases.reranks._creatererankusecase.time.perf_counter", side_effect=[10, 10.05]),
-        ):
+        with patch("api.use_cases.reranks._creatererankusecase.time.perf_counter", side_effect=[10, 10.05]):
             result = await use_case.execute(command=default_command)
 
         # Assert

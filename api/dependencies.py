@@ -9,12 +9,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.key import KeyRepository
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.provider import ProviderClient, ProviderGateway, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider import (
+    ProviderAdapterBuilder,
+    ProviderClient,
+    ProviderGateway,
+    ProviderLoadBalancer,
+    ProviderMetricsLogger,
+    ProviderRepository,
+)
 from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
 from api.infrastructure.fastapi.context import request_context
-from api.infrastructure.http import HttpProviderClient
+from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
     PostgresKeyRepository,
@@ -121,13 +128,22 @@ def _provider_metrics_logger(redis_client: Redis = Depends(get_redis_client)) ->
     return RedisProviderMetricsLogger(redis_client=redis_client)
 
 
+def _provider_adapter_builder(
+    model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
+    model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
+) -> ProviderAdapterBuilder:
+    return HttpProviderAdapterBuilder(model_environmental_impacts_computer=model_environmental_impacts_computer, model_tokenizer=model_tokenizer)
+
+
 def _provider_client() -> ProviderClient:
     return HttpProviderClient()
 
 
-# TODO: delete model provider gateway class
-def _provider_gateway(provider_client: ProviderClient = Depends(_provider_client)) -> ProviderGateway:
-    return ModelProviderGateway(provider_client=provider_client)
+def _provider_gateway(
+    provider_client: ProviderClient = Depends(_provider_client),
+    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
+) -> ProviderGateway:
+    return ModelProviderGateway(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
 
 
 def _provider_load_balancer(redis_client: Redis = Depends(get_redis_client)) -> ProviderLoadBalancer:
@@ -186,11 +202,16 @@ def delete_user_use_case_factory(postgres_session: AsyncSession = Depends(get_po
 def create_rerank_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     redis_client: Redis = Depends(get_redis_client),
+    model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
+    model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
+    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
+    provider_client: ProviderClient = Depends(_provider_client),
 ) -> CreateRerankUseCase:
     return CreateRerankUseCase(
-        model_environmental_impacts_computer=_model_environmental_impacts_computer(),
-        model_tokenizer=_model_tokenizer(),
-        provider_client=_provider_client(),
+        model_environmental_impacts_computer=model_environmental_impacts_computer,
+        model_tokenizer=model_tokenizer,
+        provider_adapter_builder=provider_adapter_builder,
+        provider_client=provider_client,
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
         provider_repository=_provider_repository(postgres_session),
@@ -271,7 +292,7 @@ def create_provider_use_case_factory(
     return CreateProviderUseCase(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
-        provider_gateway=_provider_gateway(provider_client),
+        provider_gateway=_provider_gateway(provider_client=provider_client, provider_adapter_builder=HttpProviderAdapterBuilder()),
         user_with_role_query=_user_with_role_query(postgres_session),
     )
 

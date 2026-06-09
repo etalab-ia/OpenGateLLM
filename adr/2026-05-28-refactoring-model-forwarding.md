@@ -131,6 +131,7 @@ subgraph DL[**Domain layer**]
         router_rate_limiter[RouterRateLimiter]
     end
     subgraph Provider
+        provider_adapter_builder[ProviderAdapterBuilder]
         provider_repository[ProviderRepository]
         provider_gateway[ProviderGateway]
         provider_load_balancer[ProviderLoadBalancer]
@@ -151,9 +152,9 @@ subgraph IL[**Infrastructure layer**]
         request_manager[RequestContextManager]
     end
     subgraph HTTP
+        http_provider_adapter_builder[HttpProviderAdapterBuilder]
         http_provider_client[HttpProviderClient]
-        build_adapter([build_adapter])
-        endpoint_adapter@{ shape: procs, label: EndpointAdapter}
+        adapter@{ shape: procs, label: Endpoint / Provider specific adapter}
     end
 
 
@@ -177,9 +178,11 @@ subgraph IL[**Infrastructure layer**]
     end
 end
 
+use_case --> request_manager
 use_case --> router_repository
 use_case --> router_rate_limiter
 use_case --> provider_repository
+use_case --> provider_adapter_builder
 use_case --> provider_gateway
 use_case --> provider_load_balancer
 use_case --> provider_client
@@ -188,12 +191,11 @@ use_case --> model_environmental_impacts_computer
 use_case --> model_tokenizer
 use_case --> user_with_role_query
 
-use_case --> request_manager
-use_case --> build_adapter
 
 
+provider_adapter_builder --> http_provider_adapter_builder
 provider_client --> http_provider_client
-build_adapter --VLLM, Mistral, TEI...<br>Chat completions, OCR, Rerank...--> endpoint_adapter
+http_provider_adapter_builder --VLLM, Mistral, TEI...<br>Chat completions, OCR, Rerank...--> adapter
 model_environmental_impacts_computer --> ecologit_model_environmental_impacts_computer
 model_tokenizer --> tiktoken_model_tokenizer
 provider_metrics_logger --> redis_provider_metrics_logger

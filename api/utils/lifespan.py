@@ -22,7 +22,7 @@ from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
-from api.infrastructure.http import HttpProviderClient
+from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
     PostgresLimitRepository,
@@ -152,7 +152,8 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
     router_repository = PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title)
     provider_repository = PostgresProviderRepository(postgres_session=postgres_session)
     provider_client = HttpProviderClient()
-    provider_gateway = ModelProviderGateway(provider_client=provider_client)
+    provider_adapter_builder = HttpProviderAdapterBuilder()
+    provider_gateway = ModelProviderGateway(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
 
     result = await BootstrapModelsUseCase(
         router_repository=router_repository,

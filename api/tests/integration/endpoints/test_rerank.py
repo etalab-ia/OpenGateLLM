@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from httpx import AsyncClient
 import pytest
@@ -51,15 +51,17 @@ class TestCreateRerank:
         self.key = await create_key(db_session, name="user_key", user=self.user)
         self.router_owner = UserSQLFactory(name="Bob", email="bob@example.com", admin_user=True)
         previous_redis_pool = global_context.redis_pool
+        previous_tokenizer = getattr(global_context, "_tokenizer", None)
         global_context.redis_pool = test_redis_pool
 
         mock_tokenizer = MagicMock()
         mock_tokenizer.encode.return_value = [0] * 10
+        global_context._tokenizer = mock_tokenizer
 
-        with patch("api.dependencies._model_tokenizer", return_value=mock_tokenizer):
-            yield
+        yield
 
         global_context.redis_pool = previous_redis_pool
+        global_context._tokenizer = previous_tokenizer
 
     @respx.mock
     async def test_happy_path(self, client: AsyncClient, db_session):

@@ -8,8 +8,8 @@ from api.domain.provider.entities import HostingZone, ProviderFormattedRequest, 
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
 from api.domain.rerank.entities import Rerank
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
-from api.infrastructure.http.adapters.tei import TeiRerankAdapter
-from api.infrastructure.http.adapters.vllm import VllmRerankAdapter
+from api.infrastructure.http.adapters.rerank.tei import TeiRerankAdapter
+from api.infrastructure.http.adapters.rerank.vllm import VllmRerankAdapter
 from api.tests.integration.factories.tei import TeiRerankResponseFactory
 from api.tests.integration.factories.vllm import VllmRerankResponseFactory
 from api.tests.unit.infrastructure.factories import ProviderOriginalRequestFactory, ProviderRerankFormattedResponseFactory
@@ -306,7 +306,7 @@ class TestRerankAdapter:
         original_response = ProviderOriginalResponse(data={})
 
         # Act
-        with patch("api.infrastructure.http.adapters._endpointadapter.uuid4", return_value="123-456-789"):
+        with patch("api.infrastructure.http.adapters._baseadapter.uuid4", return_value="123-456-789"):
             result = adapter._extract_request_id(original_response)
 
         # Assert

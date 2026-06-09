@@ -10,11 +10,11 @@ from api.domain.provider.entities import (
     ProviderType,
 )
 from api.domain.usage.entities import EnvironmentalImpacts
-from api.infrastructure.http.adapters.albert import AlbertModelsAdapter
-from api.infrastructure.http.adapters.mistral import MistralModelsAdapter
-from api.infrastructure.http.adapters.openai import OpenaiModelsAdapter
-from api.infrastructure.http.adapters.tei import TeiModelsAdapter
-from api.infrastructure.http.adapters.vllm import VllmModelsAdapter
+from api.infrastructure.http.adapters.models.albert import AlbertModelsAdapter
+from api.infrastructure.http.adapters.models.mistral import MistralModelsAdapter
+from api.infrastructure.http.adapters.models.openai import OpenaiModelsAdapter
+from api.infrastructure.http.adapters.models.tei import TeiModelsAdapter
+from api.infrastructure.http.adapters.models.vllm import VllmModelsAdapter
 from api.tests.integration.factories.albert import AlbertModelsResponseFactory
 from api.tests.integration.factories.mistral import MistralModelsResponseFactory
 from api.tests.integration.factories.openai import OpenaiModelsResponseFactory

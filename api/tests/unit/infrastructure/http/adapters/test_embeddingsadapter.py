@@ -8,8 +8,8 @@ from api.domain.embeddings.entities import Embeddings
 from api.domain.provider.entities import HostingZone, ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
-from api.infrastructure.http.adapters.tei import TeiEmbeddingsAdapter
-from api.infrastructure.http.adapters.vllm import VllmEmbeddingsAdapter
+from api.infrastructure.http.adapters.embeddings.tei import TeiEmbeddingsAdapter
+from api.infrastructure.http.adapters.embeddings.vllm import VllmEmbeddingsAdapter
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory
 from api.tests.integration.factories.vllm import VllmEmbeddingsResponseFactory
 from api.tests.unit.infrastructure.factories import ProviderEmbeddingsFormattedResponseFactory, ProviderOriginalRequestFactory
@@ -355,7 +355,7 @@ class TestEmbeddingsAdapter:
         original_response = ProviderOriginalResponse(data={})
 
         # Act
-        with patch("api.infrastructure.http.adapters._endpointadapter.uuid4", return_value="123-456-789"):
+        with patch("api.infrastructure.http.adapters._baseadapter.uuid4", return_value="123-456-789"):
             result = adapter._extract_request_id(original_response)
 
         # Assert

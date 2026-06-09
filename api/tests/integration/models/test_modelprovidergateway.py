@@ -7,7 +7,7 @@ import respx
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.provider import ProviderCapabilities
 from api.domain.provider.entities import ProviderType
-from api.infrastructure.http import HttpProviderClient
+from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.model import ModelProviderGateway
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory, TeiModelsResponseFactory
 from api.tests.integration.factories.vllm import VllmModelsResponseFactory
@@ -33,7 +33,7 @@ def _mock_embeddings_response(respx_mock, body: dict, status_code: int) -> None:
 
 @pytest.fixture
 def gateway() -> ModelProviderGateway:
-    return ModelProviderGateway(provider_client=HttpProviderClient())
+    return ModelProviderGateway(provider_client=HttpProviderClient(), provider_adapter_builder=HttpProviderAdapterBuilder())
 
 
 @pytest.mark.asyncio(loop_scope="session")

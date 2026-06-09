@@ -60,6 +60,7 @@ COMPATIBLE_PROVIDER_TYPES: dict[ModelType, list[str]] = {
     ModelType.TEXT_EMBEDDINGS_INFERENCE: [
         ProviderType.ALBERT.value,
         ProviderType.OPENAI.value,
+        ProviderType.MISTRAL.value,
         ProviderType.TEI.value,
         ProviderType.VLLM.value,
     ],
