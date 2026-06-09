@@ -6,7 +6,12 @@ from api.domain.provider.entities import Metric
 from api.domain.router import RouterRepository
 from api.domain.user import UserWithRoleQuery
 from api.domain.user.errors import UserExpiredError
-from api.utils.variables import METRICS__TIMESERIE_RETENTION_SECONDS
+
+#   - SATURATION:  ~20 tok/s (queue formed, preemptions active)
+# A model is considered saturated when 95% of recent requests have throughput
+# below RED_THROUGHPUT_TOK_PER_SEC.
+RED_THROUGHPUT_TOK_PER_SEC = 20
+YELLOW_THROUGHPUT_TOK_PER_SEC = 60
 
 
 @dataclass
@@ -56,25 +61,20 @@ class GetHealthModelsUseCase:
                 if provider.router_id != router.id:
                     continue
 
-                historical_latencies_ms = await self.provider_metrics_logger.get_metric_history(
+                historical_normalized_latencies_ms = await self.provider_metrics_logger.get_metric_history(
                     provider_id=provider.id,
-                    metric=Metric.LATENCY,
+                    metric=Metric.NORMALIZED_LATENCY,
                 )
-                if len(historical_latencies_ms) == 0:
+                throughputs_tok_per_sec = [1000.0 / x for x in historical_normalized_latencies_ms if x > 0]
+                if not throughputs_tok_per_sec:
                     continue
 
-                current_inflight = await self.provider_metrics_logger.get_current_inflight(provider_id=provider.id)
-                request_per_ms = len(historical_latencies_ms) / (METRICS__TIMESERIE_RETENTION_SECONDS * 1000)
+                sorted_throughputs = sorted(throughputs_tok_per_sec)
+                p95_throughput_tok_per_sec = sorted_throughputs[int(0.95 * len(sorted_throughputs))]
 
-                sorted_latencies_ms = sorted(historical_latencies_ms)
-                p95_latency_ms = sorted_latencies_ms[int(0.95 * len(sorted_latencies_ms))]
-                expected_inflight = p95_latency_ms * request_per_ms
-
-                health_indicator = current_inflight / max(expected_inflight, 0.1)  # Little's law indicator
-
-                if health_indicator >= 1.1:
+                if p95_throughput_tok_per_sec < RED_THROUGHPUT_TOK_PER_SEC:
                     health.status = HealthStatus.RED
-                elif health_indicator >= 0.8 and health.status != HealthStatus.RED:
+                elif p95_throughput_tok_per_sec < YELLOW_THROUGHPUT_TOK_PER_SEC and health.status != HealthStatus.RED:
                     health.status = HealthStatus.YELLOW
 
             models.append(health)

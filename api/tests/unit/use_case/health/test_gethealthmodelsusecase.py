@@ -10,9 +10,11 @@ from api.domain.user.errors import UserExpiredError
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, UserWithRoleFactory
 from api.use_cases.health import GetHealthModelsCommand, GetHealthModelsUseCase, GetHealthModelsUseCaseSuccess
 
-LATENCY_HISTORY_COUNT = 1800
-UNIFORM_LATENCY_MS = 1000.0
-HISTORICAL_LATENCIES_MS = [UNIFORM_LATENCY_MS] * LATENCY_HISTORY_COUNT
+TPOT_HISTORY_COUNT = 1800
+
+HEALTHY_TPOT_MS = [10.0] * TPOT_HISTORY_COUNT
+ELEVATED_TPOT_MS = [25.0] * TPOT_HISTORY_COUNT
+SATURATED_TPOT_MS = [100.0] * TPOT_HISTORY_COUNT
 
 
 @pytest.fixture
@@ -74,9 +76,8 @@ def default_command():
     return GetHealthModelsCommand(user_id=1)
 
 
-def configure_provider_metrics(provider_metrics_logger, *, inflight: int, history: list[float] | None = None):
-    provider_metrics_logger.get_metric_history.return_value = history if history is not None else HISTORICAL_LATENCIES_MS
-    provider_metrics_logger.get_current_inflight.return_value = inflight
+def configure_provider_metrics(provider_metrics_logger, *, history: list[float] | None = None):
+    provider_metrics_logger.get_metric_history.return_value = history if history is not None else HEALTHY_TPOT_MS
 
 
 class TestGetHealthModelsUseCase:
@@ -132,14 +133,14 @@ class TestGetHealthModelsUseCase:
         assert [model.id for model in result.models] == ["with-providers"]
 
     @pytest.mark.asyncio
-    async def test_should_return_green_status_when_inflight_is_low(
+    async def test_should_return_green_status_when_throughput_is_healthy(
         self, use_case, user_with_role_query, router_repository, provider_repository, admin_user, provider_metrics_logger, default_command
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
         provider_repository.get_all_providers.return_value = [ProviderFactory(id=1, router_id=1)]
-        configure_provider_metrics(provider_metrics_logger, inflight=0)
+        configure_provider_metrics(provider_metrics_logger, history=HEALTHY_TPOT_MS)
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -150,18 +151,18 @@ class TestGetHealthModelsUseCase:
         assert result.models[0].status == HealthStatus.GREEN
         provider_metrics_logger.get_metric_history.assert_called_once_with(
             provider_id=1,
-            metric=Metric.LATENCY,
+            metric=Metric.NORMALIZED_LATENCY,
         )
 
     @pytest.mark.asyncio
-    async def test_should_return_yellow_status_when_inflight_is_elevated(
+    async def test_should_return_yellow_status_when_throughput_is_elevated(
         self, use_case, user_with_role_query, router_repository, provider_repository, admin_user, provider_metrics_logger, default_command
     ):
-        # Arrange
+        # Arrange — 40 tok/s : between YELLOW (60) and RED (20) thresholds
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
         provider_repository.get_all_providers.return_value = [ProviderFactory(id=1, router_id=1)]
-        configure_provider_metrics(provider_metrics_logger, inflight=1)
+        configure_provider_metrics(provider_metrics_logger, history=ELEVATED_TPOT_MS)
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -171,14 +172,14 @@ class TestGetHealthModelsUseCase:
         assert result.models[0].status == HealthStatus.YELLOW
 
     @pytest.mark.asyncio
-    async def test_should_return_red_status_when_inflight_is_high(
+    async def test_should_return_red_status_when_throughput_is_below_red_threshold(
         self, use_case, user_with_role_query, router_repository, provider_repository, admin_user, provider_metrics_logger, default_command
     ):
-        # Arrange
+        # Arrange — 10 tok/s : below RED threshold (20)
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
         provider_repository.get_all_providers.return_value = [ProviderFactory(id=1, router_id=1)]
-        configure_provider_metrics(provider_metrics_logger, inflight=2)
+        configure_provider_metrics(provider_metrics_logger, history=SATURATED_TPOT_MS)
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -203,21 +204,19 @@ class TestGetHealthModelsUseCase:
         # Assert
         assert isinstance(result, GetHealthModelsUseCaseSuccess)
         assert result.models[0].status == HealthStatus.GREEN
-        provider_metrics_logger.get_current_inflight.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_red_status_when_one_provider_is_overloaded(
         self, use_case, user_with_role_query, router_repository, provider_repository, admin_user, provider_metrics_logger, default_command
     ):
-        # Arrange
+        # Arrange — first provider healthy, second saturated
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=2)]
         provider_repository.get_all_providers.return_value = [
             ProviderFactory(id=1, router_id=1),
             ProviderFactory(id=2, router_id=1),
         ]
-        provider_metrics_logger.get_metric_history.return_value = HISTORICAL_LATENCIES_MS
-        provider_metrics_logger.get_current_inflight.side_effect = [0, 2]
+        provider_metrics_logger.get_metric_history.side_effect = [HEALTHY_TPOT_MS, SATURATED_TPOT_MS]
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -259,7 +258,7 @@ class TestGetHealthModelsUseCase:
             ProviderFactory(id=1, router_id=1),
             ProviderFactory(id=2, router_id=99),
         ]
-        configure_provider_metrics(provider_metrics_logger, inflight=0)
+        configure_provider_metrics(provider_metrics_logger, history=HEALTHY_TPOT_MS)
 
         # Act
         await use_case.execute(command=default_command)
@@ -267,6 +266,5 @@ class TestGetHealthModelsUseCase:
         # Assert
         provider_metrics_logger.get_metric_history.assert_called_once_with(
             provider_id=1,
-            metric=Metric.LATENCY,
+            metric=Metric.NORMALIZED_LATENCY,
         )
-        provider_metrics_logger.get_current_inflight.assert_called_once_with(provider_id=1)
