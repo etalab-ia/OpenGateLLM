@@ -25,6 +25,7 @@ class ElasticsearchVectorStore:
         number_of_shards: int,
         number_of_replicas: int,
         vector_size: int,
+        refresh_interval: str,
     ) -> None:
         """
         Create the index with the correct settings and mappings.
@@ -35,11 +36,13 @@ class ElasticsearchVectorStore:
             number_of_shards(int): The number of shards for the index
             number_of_replicas(int): The number of replicas for the index
             vector_size(int): The size of the vector to be used for the index
+            refresh_interval(str): The Elasticsearch index refresh interval (e.g. "1s", "30s", "-1" to disable)
         """
 
         settings = {
             "number_of_shards": number_of_shards,
             "number_of_replicas": number_of_replicas,
+            "refresh_interval": refresh_interval,
             "similarity": {"default": {"type": "BM25"}},
             "analysis": {
                 "filter": {
