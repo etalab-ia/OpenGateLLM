@@ -51,8 +51,6 @@ class MistralAudioTranscriptionsAdapter(AudioTranscriptionsAdapter):
         self,
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
-        prompt_tokens: int = 0,
-        latency: int = 0,
     ) -> ProviderFormattedResponse:
         text = original_response.data["choices"][0]["message"]["content"]
         if original_request.form.response_format == AudioTranscriptionResponseFormat.TEXT:
@@ -62,9 +60,5 @@ class MistralAudioTranscriptionsAdapter(AudioTranscriptionsAdapter):
         request_id = self._extract_request_id(original_response=original_response)
         formatted_response.data.id = request_id
         formatted_response.data.model = original_request.form.model
-
-        completion_tokens = self._compute_completion_tokens(formatted_response=formatted_response)
-        usage = self._compute_usage(prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, latency=latency)
-        formatted_response.data.usage = usage
 
         return formatted_response

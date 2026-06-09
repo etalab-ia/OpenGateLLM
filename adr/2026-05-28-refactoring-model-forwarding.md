@@ -132,6 +132,7 @@ subgraph DL[**Domain layer**]
     end
     subgraph Provider
         provider_adapter_builder[ProviderAdapterBuilder]
+        provider_adapter[ProviderAdapter]
         provider_repository[ProviderRepository]
         provider_gateway[ProviderGateway]
         provider_load_balancer[ProviderLoadBalancer]
@@ -145,6 +146,9 @@ subgraph DL[**Domain layer**]
     subgraph User
         user_with_role_query[UserWithRoleQuery]
     end
+    subgraph Usage
+        usage_computer[UsageComputer]
+    end
 end
 
 subgraph IL[**Infrastructure layer**]
@@ -154,9 +158,8 @@ subgraph IL[**Infrastructure layer**]
     subgraph HTTP
         http_provider_adapter_builder[HttpProviderAdapterBuilder]
         http_provider_client[HttpProviderClient]
-        adapter@{ shape: procs, label: Endpoint / Provider specific adapter}
+        http_provider_adapter@{ shape: procs, label: HttpProviderAdapter}
     end
-
 
     subgraph Ecologit
         ecologit_model_environmental_impacts_computer[EcologitModelEnvironmentalImpactsComputer]
@@ -183,6 +186,7 @@ use_case --> router_repository
 use_case --> router_rate_limiter
 use_case --> provider_repository
 use_case --> provider_adapter_builder
+use_case --> provider_adapter
 use_case --> provider_gateway
 use_case --> provider_load_balancer
 use_case --> provider_client
@@ -190,12 +194,15 @@ use_case --> provider_metrics_logger
 use_case --> model_environmental_impacts_computer
 use_case --> model_tokenizer
 use_case --> user_with_role_query
+use_case --> usage_computer
+usage_computer --> model_environmental_impacts_computer
+usage_computer --> model_tokenizer
 
 
 
 provider_adapter_builder --> http_provider_adapter_builder
 provider_client --> http_provider_client
-http_provider_adapter_builder --VLLM, Mistral, TEI...<br>Chat completions, OCR, Rerank...--> adapter
+http_provider_adapter_builder --VLLM, Mistral, TEI...<br>Chat completions, OCR, Rerank...--> http_provider_adapter
 model_environmental_impacts_computer --> ecologit_model_environmental_impacts_computer
 model_tokenizer --> tiktoken_model_tokenizer
 provider_metrics_logger --> redis_provider_metrics_logger

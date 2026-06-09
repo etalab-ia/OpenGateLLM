@@ -5,14 +5,13 @@ from pydantic import BaseModel
 import pytest
 
 from api.domain.embeddings.entities import Embeddings
-from api.domain.provider.entities import HostingZone, ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalResponse, ProviderType
+from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
-from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.infrastructure.http.adapters.embeddings.tei import TeiEmbeddingsAdapter
 from api.infrastructure.http.adapters.embeddings.vllm import VllmEmbeddingsAdapter
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory
 from api.tests.integration.factories.vllm import VllmEmbeddingsResponseFactory
-from api.tests.unit.infrastructure.factories import ProviderEmbeddingsFormattedResponseFactory, ProviderOriginalRequestFactory
+from api.tests.unit.infrastructure.factories import ProviderOriginalRequestFactory
 from api.tests.unit.use_case.factories import ProviderFactory
 from api.utils.variables import EndpointRoute
 
@@ -28,43 +27,13 @@ def vllm_provider():
 
 
 @pytest.fixture
-def model_tokenizer():
-    return Mock()
+def tei_embeddings_adapter(tei_provider) -> TeiEmbeddingsAdapter:
+    return TeiEmbeddingsAdapter(provider=tei_provider)
 
 
 @pytest.fixture
-def model_environmental_impacts_computer():
-    return Mock()
-
-
-@pytest.fixture
-def tei_embeddings_adapter(tei_provider, model_tokenizer, model_environmental_impacts_computer) -> TeiEmbeddingsAdapter:
-    adapter = TeiEmbeddingsAdapter(
-        cost_completion_tokens=0,
-        cost_prompt_tokens=0,
-        provider=tei_provider,
-        model_tokenizer=model_tokenizer,
-        model_environmental_impacts_computer=model_environmental_impacts_computer,
-    )
-    adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
-    adapter.model_environmental_impacts_computer.compute = Mock(return_value=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
-
-    return adapter
-
-
-@pytest.fixture
-def vllm_embeddings_adapter(vllm_provider, model_tokenizer, model_environmental_impacts_computer) -> VllmEmbeddingsAdapter:
-    adapter = VllmEmbeddingsAdapter(
-        cost_completion_tokens=0,
-        cost_prompt_tokens=0,
-        provider=vllm_provider,
-        model_tokenizer=model_tokenizer,
-        model_environmental_impacts_computer=model_environmental_impacts_computer,
-    )
-    adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
-    adapter.model_environmental_impacts_computer.compute = Mock(return_value=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
-
-    return adapter
+def vllm_embeddings_adapter(vllm_provider) -> VllmEmbeddingsAdapter:
+    return VllmEmbeddingsAdapter(provider=vllm_provider)
 
 
 @pytest.fixture
@@ -151,190 +120,6 @@ class TestEmbeddingsAdapter:
         argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
         indirect=["adapter"],
     )
-    def test_compute_completion_tokens_returns_zero_when_tokenizer_is_not_present(self, adapter):
-        # Arrange
-        formatted_response = ProviderEmbeddingsFormattedResponseFactory(dimensions=2)
-        adapter.model_tokenizer = None
-
-        # Act
-        result = adapter._compute_completion_tokens(formatted_response=formatted_response)
-
-        # Assert
-        assert result == 0
-
-    @pytest.mark.parametrize(
-        argnames=("adapter"),
-        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
-        indirect=["adapter"],
-    )
-    def test_compute_completion_tokens_returns_zero_when_tokenizer_is_present(self, adapter):
-        # Arrange
-        formatted_response = ProviderEmbeddingsFormattedResponseFactory(dimensions=2)
-
-        # Act
-        result = adapter._compute_completion_tokens(formatted_response=formatted_response)
-
-        # Assert
-        assert result == 0
-
-    @pytest.mark.parametrize(
-        argnames=("adapter"),
-        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
-        indirect=["adapter"],
-    )
-    def test_compute_prompt_tokens_returns_zero_when_tokenizer_is_not_present(self, adapter):
-        # Arrange
-        adapter.model_tokenizer = None
-        original_request = ProviderOriginalRequestFactory(embeddings=True)
-
-        # Act
-        result = adapter.compute_prompt_tokens(original_request)
-        # Assert
-        assert result == 0
-
-    @pytest.mark.parametrize(
-        argnames=("adapter"),
-        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
-        indirect=["adapter"],
-    )
-    def test_compute_prompt_tokens_when_tokenizer_is_present_and_input_is_a_list_of_lists_of_integers(self, adapter):
-        # Arrange
-        original_request = ProviderOriginalRequestFactory(embeddings=True)
-        original_request.body.input = [[1, 2, 3], [4, 5, 6]]
-
-        # Act
-        result = adapter.compute_prompt_tokens(original_request)
-
-        # Assert
-        assert result == 2
-        adapter.model_tokenizer.encode.assert_called_once_with("1 2 3 4 5 6")
-
-    @pytest.mark.parametrize(
-        argnames=("adapter"),
-        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
-        indirect=["adapter"],
-    )
-    def test_compute_prompt_tokens_when_tokenizer_is_present_and_input_is_a_list_of_integers(self, adapter):
-        # Arrange
-        original_request = ProviderOriginalRequestFactory(embeddings=True)
-        original_request.body.input = [1, 2, 3, 4, 5]
-
-        # Act
-        result = adapter.compute_prompt_tokens(original_request)
-
-        # Assert
-        assert result == 2
-        adapter.model_tokenizer.encode.assert_called_once_with("1 2 3 4 5")
-
-    @pytest.mark.parametrize(
-        argnames=("adapter"),
-        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
-        indirect=["adapter"],
-    )
-    def test_compute_prompt_tokens_when_tokenizer_is_present_and_input_is_a_list_of_strings(self, adapter):
-        # Arrange
-        original_request = ProviderOriginalRequestFactory(embeddings=True)
-        original_request.body.input = ["q ", "d1  "]
-
-        # Act
-        result = adapter.compute_prompt_tokens(original_request)
-
-        # Assert
-        assert result == 2
-        adapter.model_tokenizer.encode.assert_called_once_with("q  d1")
-
-    @pytest.mark.parametrize(
-        argnames=("adapter"),
-        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
-        indirect=["adapter"],
-    )
-    def test_compute_prompt_tokens_when_tokenizer_is_present_and_input_is_a_string(self, adapter):
-        # Arrange
-        original_request = ProviderOriginalRequestFactory(embeddings=True)
-        original_request.body.input = "q  d1 "
-
-        # Act
-        result = adapter.compute_prompt_tokens(original_request)
-
-        # Assert
-        assert result == 2
-        adapter.model_tokenizer.encode.assert_called_once_with("q  d1")
-
-    @pytest.mark.parametrize(
-        argnames=("adapter"),
-        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
-        indirect=["adapter"],
-    )
-    def test_compute_request_cost_correctly(self, adapter):
-        # Arrange
-        prompt_tokens = 100
-        completion_tokens = 100
-        cost_prompt_tokens = 1.0
-        cost_completion_tokens = 2.0
-
-        # Act
-        result = adapter._compute_request_cost(
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            cost_prompt_tokens=cost_prompt_tokens,
-            cost_completion_tokens=cost_completion_tokens,
-        )
-
-        # Assert
-        assert result == 0.0003
-
-    @pytest.mark.parametrize(
-        argnames=("adapter"),
-        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
-        indirect=["adapter"],
-    )
-    def test_compute_usage_when_environmental_impacts_computer_is_not_present(self, adapter):
-        # Arrange
-        adapter.model_environmental_impacts_computer = None
-        adapter._compute_request_cost = Mock(return_value=0.0003)
-
-        # Act
-        result = adapter._compute_usage(completion_tokens=10, prompt_tokens=3, latency=20)
-
-        # Assert
-        assert result == Usage(
-            prompt_tokens=3,
-            completion_tokens=10,
-            total_tokens=13,
-            cost=0.0003,
-            impacts=EnvironmentalImpacts(kgCO2eq=0, kWh=0),
-        )
-
-    @pytest.mark.parametrize(
-        argnames=("adapter", "response_data"),
-        argvalues=[
-            ("tei_embeddings_adapter", TeiEmbeddingsResponseFactory(dimensions=2)),
-            ("vllm_embeddings_adapter", VllmEmbeddingsResponseFactory(dimensions=2)),
-        ],
-        indirect=["adapter"],
-    )
-    def test_compute_usage_when_environmental_impacts_computer_is_present(self, adapter, response_data):
-        # Arrange
-        adapter._compute_request_cost = Mock(return_value=0.0003)
-
-        # Act
-        result = adapter._compute_usage(completion_tokens=0, prompt_tokens=3, latency=20)
-
-        # Assert
-        adapter.model_environmental_impacts_computer.compute.assert_called_once_with(
-            model_active_params=5,
-            model_total_params=10,
-            model_zone=HostingZone.WOR,
-            completion_tokens=0,
-            request_latency=20,
-        )
-        assert result == Usage(prompt_tokens=3, completion_tokens=0, total_tokens=3, cost=0.0003, impacts=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
-
-    @pytest.mark.parametrize(
-        argnames=("adapter"),
-        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
-        indirect=["adapter"],
-    )
     def test_extract_request_id_with_id(self, adapter):
         # Arrange
         original_response = ProviderOriginalResponse(data={"id": "abc"})
@@ -355,7 +140,7 @@ class TestEmbeddingsAdapter:
         original_response = ProviderOriginalResponse(data={})
 
         # Act
-        with patch("api.infrastructure.http.adapters._baseadapter.uuid4", return_value="123-456-789"):
+        with patch("api.infrastructure.http.adapters._httpprovideradapter.uuid4", return_value="123-456-789"):
             result = adapter._extract_request_id(original_response)
 
         # Assert
@@ -436,13 +221,11 @@ class TestEmbeddingsAdapter:
     def test_format_response_correctly(self, adapter, response_data):
         # Arrange
         adapter._extract_request_id = Mock(return_value="req-123")
-        mock_usage = Usage(prompt_tokens=3, completion_tokens=0, total_tokens=3, cost=0.0003, impacts=EnvironmentalImpacts(kgCO2eq=0.1, kWh=10.0))
-        adapter._compute_usage = Mock(return_value=mock_usage)
         original_request = ProviderOriginalRequestFactory(embeddings=True)
         original_response = ProviderOriginalResponse(data=response_data)
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request, prompt_tokens=3, latency=10)
+        result = adapter.format_response(original_response=original_response, original_request=original_request)
 
         # Assert
         assert isinstance(result, ProviderFormattedResponse)
@@ -451,8 +234,6 @@ class TestEmbeddingsAdapter:
         assert result.data.data[0].embedding == response_data["data"][0]["embedding"]
         assert result.data.id == "req-123"
         assert result.data.model == "openweight-embeddings"
-        assert result.data.usage == mock_usage
-        adapter._compute_usage.assert_called_once_with(completion_tokens=0, prompt_tokens=3, latency=10)
 
     @pytest.mark.parametrize(
         argnames=("adapter", "response_data"),
@@ -465,13 +246,11 @@ class TestEmbeddingsAdapter:
     def test_format_response_preserve_extra_fields(self, adapter, response_data):
         # Arrange
         adapter._extract_request_id = Mock(return_value="req-123")
-        mock_usage = Usage(prompt_tokens=3, completion_tokens=0, total_tokens=3, cost=0.0003, impacts=EnvironmentalImpacts(kgCO2eq=0.1, kWh=10.0))
-        adapter._compute_usage = Mock(return_value=mock_usage)
         original_request = ProviderOriginalRequestFactory(embeddings=True)
         original_response = ProviderOriginalResponse(data=response_data)
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request, prompt_tokens=0)
+        result = adapter.format_response(original_response=original_response, original_request=original_request)
 
         # Assert
         assert result.data.extra_field == "extra_value"
@@ -489,7 +268,7 @@ class TestEmbeddingsAdapter:
         original_request = ProviderOriginalRequestFactory(embeddings=True)
         original_response = ProviderOriginalResponse(data=response_data)
 
-        result = adapter.format_response(original_response=original_response, original_request=original_request, prompt_tokens=0)
+        result = adapter.format_response(original_response=original_response, original_request=original_request)
 
         assert result.provider_type == adapter.provider.type
         assert isinstance(result, ProviderAdapterValidationResponseError)

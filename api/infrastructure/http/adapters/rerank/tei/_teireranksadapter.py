@@ -41,8 +41,6 @@ class TeiRerankAdapter(RerankAdapter):
         self,
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
-        prompt_tokens: int = 0,
-        latency: int = 0,
     ) -> ProviderFormattedResponse:
         results = sorted(original_response.data, key=lambda x: x["score"], reverse=True)[: original_request.body.top_n]
         for result in results:
@@ -57,8 +55,4 @@ class TeiRerankAdapter(RerankAdapter):
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 
-        formatted_response = ProviderFormattedResponse(data=data)
-        usage = self._compute_usage(prompt_tokens=prompt_tokens, completion_tokens=0, latency=latency)
-        formatted_response.data.usage = usage
-
-        return formatted_response
+        return ProviderFormattedResponse(data=data)

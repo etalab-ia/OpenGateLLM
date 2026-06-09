@@ -9,7 +9,6 @@ from api.domain.provider.entities import (
     ProviderOriginalResponse,
     ProviderType,
 )
-from api.domain.usage.entities import EnvironmentalImpacts
 from api.infrastructure.http.adapters.models.albert import AlbertModelsAdapter
 from api.infrastructure.http.adapters.models.mistral import MistralModelsAdapter
 from api.infrastructure.http.adapters.models.openai import OpenaiModelsAdapter
@@ -57,88 +56,28 @@ def vllm_provider():
 
 
 @pytest.fixture
-def model_tokenizer():
-    return Mock()
+def albert_models_adapter(albert_provider) -> AlbertModelsAdapter:
+    return AlbertModelsAdapter(provider=albert_provider)
 
 
 @pytest.fixture
-def model_environmental_impacts_computer():
-    return Mock()
+def mistral_models_adapter(mistral_provider) -> MistralModelsAdapter:
+    return MistralModelsAdapter(provider=mistral_provider)
 
 
 @pytest.fixture
-def albert_models_adapter(albert_provider, model_tokenizer, model_environmental_impacts_computer) -> AlbertModelsAdapter:
-    adapter = AlbertModelsAdapter(
-        cost_completion_tokens=0,
-        cost_prompt_tokens=0,
-        provider=albert_provider,
-        model_tokenizer=model_tokenizer,
-        model_environmental_impacts_computer=model_environmental_impacts_computer,
-    )
-    adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
-    adapter.model_environmental_impacts_computer.compute = Mock(return_value=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
-
-    return adapter
+def openai_models_adapter(openai_provider) -> OpenaiModelsAdapter:
+    return OpenaiModelsAdapter(provider=openai_provider)
 
 
 @pytest.fixture
-def mistral_models_adapter(mistral_provider, model_tokenizer, model_environmental_impacts_computer) -> MistralModelsAdapter:
-    adapter = MistralModelsAdapter(
-        cost_completion_tokens=0,
-        cost_prompt_tokens=0,
-        provider=mistral_provider,
-        model_tokenizer=model_tokenizer,
-        model_environmental_impacts_computer=model_environmental_impacts_computer,
-    )
-    adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
-    adapter.model_environmental_impacts_computer.compute = Mock(return_value=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
-
-    return adapter
+def tei_models_adapter(tei_provider) -> TeiModelsAdapter:
+    return TeiModelsAdapter(provider=tei_provider)
 
 
 @pytest.fixture
-def openai_models_adapter(openai_provider, model_tokenizer, model_environmental_impacts_computer) -> OpenaiModelsAdapter:
-    adapter = OpenaiModelsAdapter(
-        cost_completion_tokens=0,
-        cost_prompt_tokens=0,
-        provider=openai_provider,
-        model_tokenizer=model_tokenizer,
-        model_environmental_impacts_computer=model_environmental_impacts_computer,
-    )
-    adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
-    adapter.model_environmental_impacts_computer.compute = Mock(return_value=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
-
-    return adapter
-
-
-@pytest.fixture
-def tei_models_adapter(tei_provider, model_tokenizer, model_environmental_impacts_computer) -> TeiModelsAdapter:
-    adapter = TeiModelsAdapter(
-        cost_completion_tokens=0,
-        cost_prompt_tokens=0,
-        provider=tei_provider,
-        model_tokenizer=model_tokenizer,
-        model_environmental_impacts_computer=model_environmental_impacts_computer,
-    )
-    adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
-    adapter.model_environmental_impacts_computer.compute = Mock(return_value=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
-
-    return adapter
-
-
-@pytest.fixture
-def vllm_models_adapter(vllm_provider, model_tokenizer, model_environmental_impacts_computer) -> VllmModelsAdapter:
-    adapter = VllmModelsAdapter(
-        cost_completion_tokens=0,
-        cost_prompt_tokens=0,
-        provider=vllm_provider,
-        model_tokenizer=model_tokenizer,
-        model_environmental_impacts_computer=model_environmental_impacts_computer,
-    )
-    adapter.model_tokenizer.encode = Mock(return_value=[100, 200])
-    adapter.model_environmental_impacts_computer.compute = Mock(return_value=EnvironmentalImpacts(kgCO2eq=1, kWh=2))
-
-    return adapter
+def vllm_models_adapter(vllm_provider) -> VllmModelsAdapter:
+    return VllmModelsAdapter(provider=vllm_provider)
 
 
 @pytest.fixture
@@ -295,9 +234,8 @@ class TestModelsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_format_response_compute_usage_not_called(self, adapter, response_data):
+    def test_format_response_has_no_usage(self, adapter, response_data):
         # Arrange
-        adapter._compute_usage = Mock()
         original_response = ProviderOriginalResponse(data=response_data)
         original_request = ProviderOriginalRequestFactory(models=True)
 
@@ -308,7 +246,6 @@ class TestModelsAdapter:
         assert isinstance(result, ProviderFormattedResponse)
         assert isinstance(result.data, Models)
         assert getattr(result.data, "usage", "not found") == "not found"
-        adapter._compute_usage.assert_not_called()
 
     def test_format_response_correctly_when_provider_is_albert(self, albert_models_adapter: AlbertModelsAdapter):
         # Arrange
@@ -434,30 +371,6 @@ class TestModelsAdapter:
         assert isinstance(result.data, Models)
         assert getattr(result.data, "id", "not found") == "not found"
         adapter._extract_request_id.assert_not_called()
-
-    @pytest.mark.parametrize(
-        argnames=("adapter", "response_data"),
-        argvalues=[
-            ("albert_models_adapter", AlbertModelsResponseFactory()),
-            ("mistral_models_adapter", MistralModelsResponseFactory()),
-            ("openai_models_adapter", OpenaiModelsResponseFactory()),
-            ("tei_models_adapter", TeiModelsResponseFactory()),
-            ("vllm_models_adapter", VllmModelsResponseFactory()),
-        ],
-        indirect=["adapter"],
-    )
-    def test_format_response_compute_request_cost_not_called(self, adapter, response_data):
-        # Arrange
-        adapter._compute_request_cost = Mock()
-        original_response = ProviderOriginalResponse(data=response_data)
-        original_request = ProviderOriginalRequestFactory(models=True)
-
-        # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request)
-
-        # Assert
-        assert isinstance(result, ProviderFormattedResponse)
-        adapter._compute_request_cost.assert_not_called()
 
     @pytest.mark.parametrize(
         argnames=("adapter"),

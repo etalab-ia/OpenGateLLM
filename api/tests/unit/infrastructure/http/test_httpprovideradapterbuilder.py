@@ -1,5 +1,3 @@
-from unittest.mock import Mock
-
 import pytest
 
 from api.domain.provider.entities import ProviderType
@@ -23,60 +21,21 @@ from api.utils.variables import EndpointRoute
 
 
 @pytest.fixture
-def cost_completion_tokens() -> float:
-    return 0.5
-
-
-@pytest.fixture
-def cost_prompt_tokens() -> float:
-    return 0.1
-
-
-@pytest.fixture
-def model_environmental_impacts_computer() -> Mock:
-    return Mock()
-
-
-@pytest.fixture
-def model_tokenizer() -> Mock:
-    return Mock()
-
-
-@pytest.fixture
-def http_provider_adapter_builder(model_environmental_impacts_computer: Mock, model_tokenizer: Mock) -> HttpProviderAdapterBuilder:
-    return HttpProviderAdapterBuilder(
-        model_environmental_impacts_computer=model_environmental_impacts_computer,
-        model_tokenizer=model_tokenizer,
-    )
+def http_provider_adapter_builder() -> HttpProviderAdapterBuilder:
+    return HttpProviderAdapterBuilder()
 
 
 class TestHttpProviderAdapterBuilder:
-    def test_should_pass_provider_and_costs_to_adapter(
-        self,
-        http_provider_adapter_builder: HttpProviderAdapterBuilder,
-        cost_completion_tokens: float,
-        cost_prompt_tokens: float,
-        model_environmental_impacts_computer: Mock,
-        model_tokenizer: Mock,
-    ):
+    def test_should_pass_provider_to_adapter(self, http_provider_adapter_builder: HttpProviderAdapterBuilder):
         # Arrange
         provider = ProviderFactory(type=ProviderType.VLLM, url="https://vllm.test")
 
         # Act
-        result = http_provider_adapter_builder.build(
-            cost_completion_tokens=cost_completion_tokens,
-            cost_prompt_tokens=cost_prompt_tokens,
-            endpoint=EndpointRoute.RERANK,
-            provider=provider,
-        )
+        result = http_provider_adapter_builder.build(endpoint=EndpointRoute.RERANK, provider=provider)
 
         # Assert
         assert isinstance(result, VllmRerankAdapter)
         assert result.provider == provider
-        assert result.cost_completion_tokens == cost_completion_tokens
-        assert result.cost_prompt_tokens == cost_prompt_tokens
-        assert result.model_environmental_impacts_computer == model_environmental_impacts_computer
-        assert result.model_tokenizer == model_tokenizer
 
     def test_should_return_default_audio_transcriptions_adapter_for_albert_provider(self, http_provider_adapter_builder: HttpProviderAdapterBuilder):
         # Arrange
@@ -84,8 +43,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.AUDIO_TRANSCRIPTIONS,
             provider=provider,
         )
@@ -99,8 +56,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.CHAT_COMPLETIONS,
             provider=provider,
         )
@@ -114,8 +69,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.EMBEDDINGS,
             provider=provider,
         )
@@ -129,8 +82,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.MODELS,
             provider=provider,
         )
@@ -144,8 +95,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.OCR,
             provider=provider,
         )
@@ -159,8 +108,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.RERANK,
             provider=provider,
         )
@@ -174,8 +121,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.AUDIO_TRANSCRIPTIONS,
             provider=provider,
         )
@@ -189,8 +134,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.CHAT_COMPLETIONS,
             provider=provider,
         )
@@ -204,8 +147,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.MODELS,
             provider=provider,
         )
@@ -219,8 +160,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.EMBEDDINGS,
             provider=provider,
         )
@@ -234,8 +173,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.OCR,
             provider=provider,
         )
@@ -249,8 +186,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.AUDIO_TRANSCRIPTIONS,
             provider=provider,
         )
@@ -264,8 +199,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.CHAT_COMPLETIONS,
             provider=provider,
         )
@@ -279,8 +212,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.EMBEDDINGS,
             provider=provider,
         )
@@ -294,8 +225,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.MODELS,
             provider=provider,
         )
@@ -309,8 +238,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.MODELS,
             provider=provider,
         )
@@ -324,8 +251,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.RERANK,
             provider=provider,
         )
@@ -339,8 +264,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.EMBEDDINGS,
             provider=provider,
         )
@@ -354,8 +277,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.MODELS,
             provider=provider,
         )
@@ -369,8 +290,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.RERANK,
             provider=provider,
         )
@@ -384,8 +303,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.CHAT_COMPLETIONS,
             provider=provider,
         )
@@ -399,8 +316,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=EndpointRoute.EMBEDDINGS,
             provider=provider,
         )
@@ -431,8 +346,6 @@ class TestHttpProviderAdapterBuilder:
 
         # Act
         result = http_provider_adapter_builder.build(
-            cost_completion_tokens=0,
-            cost_prompt_tokens=0,
             endpoint=endpoint,
             provider=provider,
         )

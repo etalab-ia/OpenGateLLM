@@ -1,7 +1,7 @@
-from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
+from api.domain.provider import ProviderAdapterBuilder
 from api.domain.provider.entities import Provider, ProviderType
 from api.domain.provider.errors import UnsupportedProviderEndpointError
-from api.infrastructure.http.adapters import BaseAdapter
+from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.infrastructure.http.adapters.audio.albert import AlbertAudioTranscriptionsAdapter
 from api.infrastructure.http.adapters.audio.mistral import MistralAudioTranscriptionsAdapter
 from api.infrastructure.http.adapters.audio.openai import OpenaiAudioTranscriptionsAdapter
@@ -28,7 +28,7 @@ from api.infrastructure.http.adapters.rerank.vllm import VllmRerankAdapter
 from api.utils.variables import EndpointRoute
 
 
-class HttpProviderAdapterBuilder:
+class HttpProviderAdapterBuilder(ProviderAdapterBuilder):
     ADAPTER_REGISTRY = {
         EndpointRoute.AUDIO_TRANSCRIPTIONS: {
             ProviderType.ALBERT: AlbertAudioTranscriptionsAdapter,
@@ -67,29 +67,9 @@ class HttpProviderAdapterBuilder:
         },
     }
 
-    def __init__(
-        self,
-        model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer | None = None,
-        model_tokenizer: ModelTokenizer | None = None,
-    ):
-        self.model_environmental_impacts_computer = model_environmental_impacts_computer
-        self.model_tokenizer = model_tokenizer
-
-    def build(
-        self,
-        cost_completion_tokens: float,
-        cost_prompt_tokens: float,
-        endpoint: EndpointRoute,
-        provider: Provider,
-    ) -> BaseAdapter | UnsupportedProviderEndpointError:
+    def build(self, endpoint: EndpointRoute, provider: Provider) -> HttpProviderAdapter | UnsupportedProviderEndpointError:
         adapter = self.ADAPTER_REGISTRY.get(endpoint, {}).get(provider.type)
         if adapter is None:
             return UnsupportedProviderEndpointError(endpoint=endpoint, provider_type=provider.type)
 
-        return adapter(
-            cost_completion_tokens=cost_completion_tokens,
-            cost_prompt_tokens=cost_prompt_tokens,
-            provider=provider,
-            model_environmental_impacts_computer=self.model_environmental_impacts_computer,
-            model_tokenizer=self.model_tokenizer,
-        )
+        return adapter(provider=provider)

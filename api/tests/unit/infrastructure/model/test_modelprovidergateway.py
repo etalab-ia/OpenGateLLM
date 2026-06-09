@@ -1,5 +1,5 @@
 from http import HTTPMethod
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -32,7 +32,7 @@ def provider_client() -> Mock:
 
 @pytest.fixture
 def provider_adapter_builder() -> HttpProviderAdapterBuilder:
-    return MagicMock()
+    return HttpProviderAdapterBuilder()
 
 
 @pytest.fixture
@@ -45,11 +45,11 @@ def provider_factory(provider_type: ProviderType = ProviderType.ALBERT, model_na
 
 
 def models_adapter(model_name: str = DEFAULT_MODEL_ID) -> AlbertModelsAdapter:
-    return AlbertModelsAdapter(cost_completion_tokens=0, cost_prompt_tokens=0, provider=provider_factory(model_name=model_name))
+    return AlbertModelsAdapter(provider=provider_factory(model_name=model_name))
 
 
 def embeddings_adapter() -> TeiEmbeddingsAdapter:
-    return TeiEmbeddingsAdapter(cost_completion_tokens=0, cost_prompt_tokens=0, provider=provider_factory(provider_type=ProviderType.TEI))
+    return TeiEmbeddingsAdapter(provider=provider_factory(provider_type=ProviderType.TEI))
 
 
 class TestModelProviderGateway:

@@ -39,9 +39,7 @@ class ModelProviderGateway(ProviderGateway):
             created=0,
             updated=0,
         )
-        adapter = self.provider_adapter_builder.build(
-            cost_completion_tokens=0, cost_prompt_tokens=0, endpoint=EndpointRoute.MODELS, provider=provider
-        )
+        adapter = self.provider_adapter_builder.build(endpoint=EndpointRoute.MODELS, provider=provider)
 
         result = await self._get_max_context_length(adapter=adapter)
         match result:
@@ -54,9 +52,7 @@ class ModelProviderGateway(ProviderGateway):
 
         vector_size = None
         if router_type == RouterType.TEXT_EMBEDDINGS_INFERENCE:
-            adapter = self.provider_adapter_builder.build(
-                cost_completion_tokens=0, cost_prompt_tokens=0, endpoint=EndpointRoute.EMBEDDINGS, provider=provider
-            )
+            adapter = self.provider_adapter_builder.build(endpoint=EndpointRoute.EMBEDDINGS, provider=provider)
             result = await self._get_vector_size(adapter=adapter)
             match result:
                 case ProviderNotReachableError() as error:

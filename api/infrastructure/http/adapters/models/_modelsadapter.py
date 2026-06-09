@@ -2,11 +2,11 @@ from http import HTTPMethod
 
 from api.domain.model.entities import Model, Models, ModelType
 from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
-from api.infrastructure.http.adapters._baseadapter import BaseAdapter
+from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.utils.variables import EndpointRoute
 
 
-class ModelsAdapter(BaseAdapter):
+class ModelsAdapter(HttpProviderAdapter):
     SOURCE_ENDPOINT = EndpointRoute.MODELS
     TARGET_ENDPOINT_ROUTE = "/v1/models"
     TARGET_ENDPOINT_METHOD = HTTPMethod.GET
@@ -22,7 +22,6 @@ class ModelsAdapter(BaseAdapter):
         self,
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
-        prompt_tokens: int = 0,
     ) -> ProviderFormattedResponse:
         return ProviderFormattedResponse(
             data=Models(
@@ -38,9 +37,3 @@ class ModelsAdapter(BaseAdapter):
                 ]
             )
         )
-
-    def compute_prompt_tokens(self, original_request: ProviderOriginalRequest) -> int:
-        return 0
-
-    def _compute_completion_tokens(self, formatted_response: ProviderFormattedResponse) -> int:
-        return 0

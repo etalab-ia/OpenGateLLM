@@ -1,3 +1,3 @@
-from ._baseadapter import BaseAdapter
+from ._httpprovideradapter import HttpProviderAdapter
 
-__all__ = ["BaseAdapter"]
+__all__ = ["HttpProviderAdapter"]

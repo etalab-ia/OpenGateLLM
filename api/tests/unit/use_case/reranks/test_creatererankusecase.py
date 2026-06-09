@@ -28,20 +28,18 @@ from api.domain.router.errors import (
 from api.domain.usage.entities import Usage
 from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.context import RequestContext
-from api.infrastructure.http.adapters import BaseAdapter
+from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.tests.integration.factories.vllm import VllmRerankResponseFactory
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, UserWithRoleFactory
 from api.use_cases.reranks import CreateRerankCommand, CreateRerankUseCase, CreateRerankUseCaseSuccess
 
 
 @pytest.fixture
-def model_environmental_impacts_computer():
-    return MagicMock()
-
-
-@pytest.fixture
-def model_tokenizer():
-    return MagicMock()
+def usage_computer():
+    computer = MagicMock()
+    computer.compute_tokens.return_value = 10
+    computer.compute_usage.return_value = Usage(cost=3.14)
+    return computer
 
 
 @pytest.fixture
@@ -86,8 +84,6 @@ def user_with_role_query():
 
 @pytest.fixture
 def use_case(
-    model_environmental_impacts_computer,
-    model_tokenizer,
     provider_adapter_builder,
     provider_client,
     provider_load_balancer,
@@ -95,11 +91,10 @@ def use_case(
     provider_repository,
     router_rate_limiter,
     router_repository,
+    usage_computer,
     user_with_role_query,
 ) -> CreateRerankUseCase:
     return CreateRerankUseCase(
-        model_environmental_impacts_computer=model_environmental_impacts_computer,
-        model_tokenizer=model_tokenizer,
         provider_adapter_builder=provider_adapter_builder,
         provider_client=provider_client,
         provider_load_balancer=provider_load_balancer,
@@ -107,6 +102,7 @@ def use_case(
         provider_repository=provider_repository,
         router_rate_limiter=router_rate_limiter,
         router_repository=router_repository,
+        usage_computer=usage_computer,
         user_with_role_query=user_with_role_query,
     )
 
@@ -220,9 +216,10 @@ def assert_request_context(
     assert ctx.kgco2eq == kgco2eq
 
 
-def _mock_adapter(*, prompt_tokens: int = 10, formatted_request=None, formatted_response=None, request_error=None, response_error=None):
-    adapter = create_autospec(BaseAdapter, instance=True, spec_set=True)  # Autospec mock: unexpected kwargs / wrong signature should fail tests.
-    adapter.compute_prompt_tokens.return_value = prompt_tokens
+def _mock_adapter(*, formatted_request=None, formatted_response=None, request_error=None, response_error=None):
+    adapter = create_autospec(
+        HttpProviderAdapter, instance=True, spec_set=True
+    )  # Autospec mock: unexpected kwargs / wrong signature should fail tests.
     adapter.format_request.return_value = formatted_request or ProviderFormattedRequest(
         method=HTTPMethod.POST,
         url="https://provider.example/rerank",
@@ -559,6 +556,7 @@ class TestCreateRerankUseCase:
         rerank_provider,
         sample_rerank,
         router_rate_limiter,
+        usage_computer,
         default_command,
     ):
         # Arrange
@@ -568,7 +566,7 @@ class TestCreateRerankUseCase:
         provider_load_balancer.find_best_provider.return_value = rerank_provider
         provider_metrics_logger.increment_inflight.return_value = True
         provider_client.forward_request.return_value = ProviderOriginalResponse(data=VllmRerankResponseFactory())
-        mock_adapter = _mock_adapter(prompt_tokens=10, formatted_response=sample_rerank)
+        mock_adapter = _mock_adapter(formatted_response=sample_rerank)
         provider_adapter_builder.build.return_value = mock_adapter
 
         # Act
@@ -591,6 +589,16 @@ class TestCreateRerankUseCase:
             ]
         )
         provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=rerank_provider.id)
+        usage_computer.compute_usage.assert_called_once_with(
+            prompt_tokens=10,
+            completion_tokens=0,
+            cost_prompt_tokens=rerank_router.cost_prompt_tokens,
+            cost_completion_tokens=rerank_router.cost_completion_tokens,
+            latency=120,
+            model_active_params=rerank_provider.model_active_params,
+            model_total_params=rerank_provider.model_total_params,
+            model_hosting_zone=rerank_provider.model_hosting_zone,
+        )
 
         assert result.headers == rate_limit_state_factory().build_limit_headers
         router_rate_limiter.get_rate_limit_state.assert_not_awaited()
@@ -622,6 +630,7 @@ class TestCreateRerankUseCase:
         provider_client,
         provider_adapter_builder,
         router_rate_limiter,
+        usage_computer,
         user_with_router_access,
         rerank_router,
         rerank_provider,
@@ -642,7 +651,8 @@ class TestCreateRerankUseCase:
             reset=int(dt.datetime.now(dt.UTC).timestamp()) + 30,
         )
         router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
-        mock_adapter = _mock_adapter(prompt_tokens=15, formatted_response=sample_rerank)
+        usage_computer.compute_tokens.return_value = 15
+        mock_adapter = _mock_adapter(formatted_response=sample_rerank)
         provider_adapter_builder.build.return_value = mock_adapter
 
         # Act

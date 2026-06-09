@@ -19,6 +19,7 @@ from api.domain.provider import (
 )
 from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
+from api.domain.usage import UsageComputer
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
 from api.infrastructure.fastapi.context import request_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
@@ -128,11 +129,15 @@ def _provider_metrics_logger(redis_client: Redis = Depends(get_redis_client)) ->
     return RedisProviderMetricsLogger(redis_client=redis_client)
 
 
-def _provider_adapter_builder(
+def _usage_computer(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
-) -> ProviderAdapterBuilder:
-    return HttpProviderAdapterBuilder(model_environmental_impacts_computer=model_environmental_impacts_computer, model_tokenizer=model_tokenizer)
+) -> UsageComputer:
+    return UsageComputer(model_environmental_impacts_computer=model_environmental_impacts_computer, model_tokenizer=model_tokenizer)
+
+
+def _provider_adapter_builder() -> ProviderAdapterBuilder:
+    return HttpProviderAdapterBuilder()
 
 
 def _provider_client() -> ProviderClient:
@@ -202,14 +207,11 @@ def delete_user_use_case_factory(postgres_session: AsyncSession = Depends(get_po
 def create_rerank_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     redis_client: Redis = Depends(get_redis_client),
-    model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
-    model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
+    usage_computer: UsageComputer = Depends(_usage_computer),
     provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
     provider_client: ProviderClient = Depends(_provider_client),
 ) -> CreateRerankUseCase:
     return CreateRerankUseCase(
-        model_environmental_impacts_computer=model_environmental_impacts_computer,
-        model_tokenizer=model_tokenizer,
         provider_adapter_builder=provider_adapter_builder,
         provider_client=provider_client,
         provider_load_balancer=_provider_load_balancer(redis_client),
@@ -217,6 +219,7 @@ def create_rerank_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
+        usage_computer=usage_computer,
         user_with_role_query=_user_with_role_query(session=postgres_session),
     )
 
