@@ -277,7 +277,8 @@ class BaseModelProvider(ABC):
 
         try:
             if latency is not None:
-                completion_tokens = request_context.get().usage.completion_tokens
+                usage = request_context.get().usage
+                completion_tokens = usage.completion_tokens if usage else 0
                 normalized_latency = latency / max(1, completion_tokens)
                 key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{Metric.NORMALIZED_LATENCY.value}:{self.id}"
                 await self._ensure_timeseries_exists(redis_client, key)

@@ -169,7 +169,8 @@ class ModelHttpClient:
         self.request_manager.set_ttft(None)
         self.request_manager.set_latency(latency)
         await self.provider_metrics_logger.log_metric(provider_id=self.provider_id, metric=Metric.LATENCY, value=latency)
-        completion_tokens = exchange.formatted_response.data.usage.completion_tokens if exchange.formatted_response.data else 0
+        usage = getattr(exchange.formatted_response.data, "usage", None)
+        completion_tokens = usage.completion_tokens if usage else 0
         await self.provider_metrics_logger.log_metric(
             provider_id=self.provider_id, metric=Metric.NORMALIZED_LATENCY, value=latency / max(1, completion_tokens)
         )
@@ -257,7 +258,8 @@ class ModelHttpClient:
 
                 await self.provider_metrics_logger.log_metric(provider_id=self.provider_id, metric=Metric.TTFT, value=ttft)
                 await self.provider_metrics_logger.log_metric(provider_id=self.provider_id, metric=Metric.LATENCY, value=latency)
-                completion_tokens = exchange.formatted_response.data.usage.completion_tokens if exchange.formatted_response.data else 0
+                usage = getattr(exchange.formatted_response.data, "usage", None)
+                completion_tokens = usage.completion_tokens if usage else 0
                 await self.provider_metrics_logger.log_metric(
                     provider_id=self.provider_id, metric=Metric.NORMALIZED_LATENCY, value=latency / max(1, completion_tokens)
                 )
