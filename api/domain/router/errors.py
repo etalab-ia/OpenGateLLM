@@ -15,7 +15,7 @@ class RouterNameAlreadyExistsError:
 
 
 @dataclass
-class RouterNotFoundError:  # TODO: récupérer name dans exception http
+class RouterNotFoundError:
     id: int | None = None
     name: str | None = None
 

@@ -44,10 +44,6 @@ class RequestContent(BaseModel):
     files: dict = Field(default={}, description="The files to use for the request.")
     additional_data: dict = Field(default={}, description="The additional data to add to the response.")
 
-    # @TODO: add a build method to build the request content from a request (after clean architecture refactor)
-    # @TODO: build body with model_fields_set to exclude unset fields
-    # @TODO: set auto method
-
 
 class Metric(str, Enum):
     TTFT = "ttft"  # time to first token

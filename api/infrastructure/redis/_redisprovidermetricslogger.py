@@ -59,7 +59,6 @@ class RedisProviderMetricsLogger(ProviderMetricsLogger):
             await self._redis_retry(self.redis_client.decr, name=inflight_key, max_retries=2)
             return True
         except Exception as e:
-            # TODO: add a logic to reset inflight after a certain amount of time
             logger.error(msg=f"Failed to decrement inflight key {inflight_key} for provider {provider_id}: {e}")
             return False
 
