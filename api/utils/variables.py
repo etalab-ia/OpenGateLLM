@@ -20,6 +20,7 @@ class RouterName(StrEnum):
     COLLECTIONS = ("collections", "api.endpoints.collections")
     DOCUMENTS = ("documents", "api.endpoints.documents")
     EMBEDDINGS = ("embeddings", "api.endpoints.embeddings")
+    HEALTH = ("health", "api.infrastructure.fastapi.endpoints.health")
     ME = ("me", "api.endpoints.me")
     MODELS = ("models", "api.infrastructure.fastapi.endpoints.models")
     MONITORING = ("monitoring", "api.infrastructure.fastapi.endpoints.health")
@@ -50,8 +51,9 @@ class EndpointRoute(StrEnum):
     COLLECTIONS = f"/{RouterName.COLLECTIONS}"
     DOCUMENTS = f"/{RouterName.DOCUMENTS}"
     EMBEDDINGS = f"/{RouterName.EMBEDDINGS}"
-    HEALTH = "/health"
-    HEALTH_MODELS = "/health/models"
+    HEALTH = f"/{RouterName.HEALTH}"
+    HEALTH_MODELS = f"/{RouterName.HEALTH}/models"
+    METRICS = "/metrics"
     ME_INFO = f"/{RouterName.ME}/info"
     ME_KEYS = f"/{RouterName.ME}/keys"
     ME_USAGE = f"/{RouterName.ME}/usage"

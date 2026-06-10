@@ -3,6 +3,7 @@ from json import JSONDecodeError, loads
 import logging
 
 import httpx
+from httpx import BasicAuth
 
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider import ProviderClient, ProviderClientResponse
@@ -13,10 +14,14 @@ logger = logging.getLogger(__name__)
 
 class HttpProviderClient(ProviderClient):
     async def forward_request(self, provider: Provider, formatted_request: ProviderFormattedRequest) -> ProviderClientResponse:
+        # TEMPORARY PATCH FOR MISTRAL METRICS ENDPOINT
+        auth = BasicAuth(username=formatted_request.auth.username, password=formatted_request.auth.password) if formatted_request.auth else None
+
         async with httpx.AsyncClient(timeout=provider.timeout) as async_client:
             try:
                 response = await async_client.request(
                     headers={"Authorization": f"Bearer {provider.key}"} if provider.key else {},
+                    auth=auth,
                     method=formatted_request.method,
                     url=formatted_request.url,
                     json=formatted_request.body,

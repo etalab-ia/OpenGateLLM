@@ -1,13 +1,13 @@
 from dataclasses import dataclass
-import statistics
 
 from api.domain.model.entities import HealthStatus, ModelHealthStatus
-from api.domain.provider import ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import Metric
+from api.domain.provider import ProviderAdapter, ProviderAdapterBuilder, ProviderClient, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
+from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
 from api.domain.router import RouterRepository
 from api.domain.user import UserWithRoleQuery
 from api.domain.user.errors import UserExpiredError
-from api.utils.variables import METRICS__TIMESERIE_RETENTION_SECONDS
+from api.utils.variables import EndpointRoute
 
 
 @dataclass
@@ -24,13 +24,20 @@ type GetHealthModelsUseCaseResult = GetHealthModelsUseCaseSuccess | UserExpiredE
 
 
 class GetHealthModelsUseCase:
+    WAITING_REQUESTS_THRESHOLD = 10
+    RUNNING_REQUESTS_THRESHOLD = 100
+
     def __init__(
         self,
+        provider_adapter_builder: ProviderAdapterBuilder,
+        provider_client: ProviderClient,
         provider_metrics_logger: ProviderMetricsLogger,
         provider_repository: ProviderRepository,
         router_repository: RouterRepository,
         user_with_role_query: UserWithRoleQuery,
     ):
+        self.provider_adapter_builder = provider_adapter_builder
+        self.provider_client = provider_client
         self.provider_metrics_logger = provider_metrics_logger
         self.provider_repository = provider_repository
         self.router_repository = router_repository
@@ -57,24 +64,49 @@ class GetHealthModelsUseCase:
                 if provider.router_id != router.id:
                     continue
 
-                historical_latencies_ms = await self.provider_metrics_logger.get_metric_history(
-                    provider_id=provider.id,
-                    metric=Metric.NORMALIZED_LATENCY,
-                )
-                if len(historical_latencies_ms) == 0:
-                    continue
+                result = self.provider_adapter_builder.build(endpoint=EndpointRoute.METRICS, provider=provider)
 
-                current_inflight = await self.provider_metrics_logger.get_current_inflight(provider_id=provider.id)
-                request_per_ms = len(historical_latencies_ms) / (METRICS__TIMESERIE_RETENTION_SECONDS * 1000)
+                match result:
+                    case ProviderAdapter() as adapter:
+                        pass
+                    case UnsupportedProviderEndpointError():
+                        adapter = self.provider_adapter_builder.build(endpoint=EndpointRoute.MODELS, provider=provider)
+                        original_request = ProviderOriginalRequest(endpoint=EndpointRoute.MODELS)
+                        formatted_request = adapter.format_request(original_request=original_request)
+                        response = await self.provider_client.forward_request(provider=provider, formatted_request=formatted_request)
+                        match response:
+                            case ProviderOriginalResponse() as response:
+                                continue
+                            case _:
+                                health.status = HealthStatus.RED
+                                continue
 
-                mean_latency_ms = statistics.median(data=historical_latencies_ms)
-                expected_inflight = mean_latency_ms * request_per_ms
+                original_request = ProviderOriginalRequest(endpoint=EndpointRoute.METRICS)
+                formatted_request = adapter.format_request(original_request=original_request)
+                response = await self.provider_client.forward_request(provider=provider, formatted_request=formatted_request)
 
-                health_indicator = current_inflight / max(expected_inflight, 0.1)  # Little's law indicator
+                match response:
+                    case ProviderOriginalResponse() as response:
+                        pass
+                    case _:
+                        # @TODO: if another provider is healthy, we should not set the health to red
+                        # @TODO: connect load balancing strategy to the health status
+                        print(response)
+                        health.status = HealthStatus.RED
+                        continue
 
-                if health_indicator >= 1.1:
-                    health.status = HealthStatus.RED
-                elif health_indicator >= 0.8 and health.status != HealthStatus.RED:
+                result = adapter.format_response(original_request=original_request, original_response=response)
+                print(f"formatted response: {result}")
+                match result:
+                    case ProviderFormattedResponse() as formatted_response:
+                        pass
+                    case ProviderAdapterValidationResponseError():
+                        health.status = HealthStatus.RED
+                        continue
+
+                if formatted_response.data.waiting_requests > self.WAITING_REQUESTS_THRESHOLD and health.status != HealthStatus.RED:
+                    health.status = HealthStatus.YELLOW
+                elif formatted_response.data.running_requests > self.RUNNING_REQUESTS_THRESHOLD and health.status != HealthStatus.RED:
                     health.status = HealthStatus.YELLOW
 
             models.append(health)

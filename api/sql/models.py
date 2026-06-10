@@ -4,6 +4,7 @@ from typing import Optional
 
 from sqlalchemy import ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
+from sqlalchemy.types import JSON
 
 from api.domain.role.entities import LimitType, PermissionType
 from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
@@ -222,6 +223,7 @@ class Provider(Base):
     type: Mapped[ProviderType]
     url: Mapped[str]
     key: Mapped[str | None]
+    basic_auth: Mapped[dict[str, str] | None] = mapped_column(JSON, nullable=True)
     timeout: Mapped[int] = mapped_column(default=DEFAULT_TIMEOUT)
     model_name: Mapped[str]
     model_hosting_zone: Mapped[ProviderCarbonFootprintZone | None]

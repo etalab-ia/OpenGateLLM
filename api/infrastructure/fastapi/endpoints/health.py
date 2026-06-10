@@ -11,7 +11,7 @@ from api.infrastructure.fastapi.schemas.health import ModelHealthStatus, ModelsH
 from api.use_cases.health import GetHealthModelsCommand, GetHealthModelsUseCase, GetHealthModelsUseCaseSuccess
 from api.utils.variables import EndpointRoute, RouterName
 
-router = APIRouter(tags=[RouterName.MONITORING.title()])
+router = APIRouter(tags=[RouterName.HEALTH.title()])
 
 
 @router.get(path=EndpointRoute.HEALTH, status_code=200)
