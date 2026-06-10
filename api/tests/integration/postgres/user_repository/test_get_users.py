@@ -71,6 +71,20 @@ class TestGetUsers:
         result_ids = {u.id for u in result.data}
         assert result_ids == {user_1.id, user_2.id}
 
+    async def test_filters_by_email(self, repository, db_session):
+        # Arrange
+        role = RoleSQLFactory()
+        user = UserSQLFactory(role=role, email="target@test.com")
+        UserSQLFactory(role=role, email="other@test.com")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_users(email="target@test.com")
+
+        # Assert
+        assert result.total == 1
+        assert [u.id for u in result.data] == [user.id]
+
     async def test_total_reflects_role_filter(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()

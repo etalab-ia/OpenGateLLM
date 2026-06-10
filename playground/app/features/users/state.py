@@ -84,6 +84,8 @@ class UsersState(EntityState):
             params["role_id"] = self.roles_dict[self.filter_role_value]
         if self.filter_organization_value != "All organizations":
             params["organization_id"] = self.organizations_dict[self.filter_organization_value]
+        if self.search_email_value:
+            params["email"] = self.search_email_value
 
         response = None
         try:

@@ -161,6 +161,7 @@ async def get_user(
 async def get_users(
     role_id: int | None = Query(default=None, description="The ID of the role to filter the users by."),
     organization_id: int | None = Query(default=None, description="The ID of the organization to filter the users by."),
+    email: str | None = Query(default=None, description="The email of the user to filter the users by."),
     offset: int = Query(default=0, ge=0, description="Number of users to skip."),
     limit: int = Query(default=10, ge=1, le=100, description="Maximum number of users to return."),
     sort_by: UserSortField = Query(default=UserSortField.ID, description="Field to sort by."),
@@ -172,6 +173,7 @@ async def get_users(
         authenticated_user_id=request_context.get().user_id,
         role_id=role_id,
         organization_id=organization_id,
+        email=email,
         offset=offset,
         limit=limit,
         sort_by=sort_by,

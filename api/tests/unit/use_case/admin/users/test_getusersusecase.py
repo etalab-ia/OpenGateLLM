@@ -118,6 +118,7 @@ class TestGetUsersUseCase:
             authenticated_user_id=admin_user.id,
             role_id=5,
             organization_id=3,
+            email="target@test.com",
             offset=20,
             limit=50,
             sort_by=UserSortField.EMAIL,
@@ -131,6 +132,7 @@ class TestGetUsersUseCase:
         user_repository.get_users.assert_called_once_with(
             role_id=5,
             organization_id=3,
+            email="target@test.com",
             offset=20,
             limit=50,
             sort_by=UserSortField.EMAIL,

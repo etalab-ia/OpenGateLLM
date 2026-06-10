@@ -148,6 +148,7 @@ class PostgresUserRepository(UserRepository):
         self,
         role_id: int | None = None,
         organization_id: int | None = None,
+        email: str | None = None,
         offset: int = 0,
         limit: int = 10,
         sort_by: UserSortField = UserSortField.ID,
@@ -171,6 +172,8 @@ class PostgresUserRepository(UserRepository):
             conditions.append(UserTable.role_id == role_id)
         if organization_id is not None:
             conditions.append(UserTable.organization_id == organization_id)
+        if email is not None:
+            conditions.append(UserTable.email == email)
 
         total = (await self.postgres_session.execute(count_query.where(*conditions))).scalar_one()
 
