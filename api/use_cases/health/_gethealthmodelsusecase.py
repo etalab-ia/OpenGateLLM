@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import time
 
 from api.domain.model.entities import HealthStatus, ModelHealthStatus
 from api.domain.provider import ProviderMetricsLogger, ProviderRepository
@@ -7,9 +8,14 @@ from api.domain.router import RouterRepository
 from api.domain.user import UserWithRoleQuery
 from api.domain.user.errors import UserExpiredError
 
-#   - SATURATION:  ~20 tok/s (queue formed, preemptions active)
-# A model is considered saturated when 95% of recent requests have throughput
-# below RED_THROUGHPUT_TOK_PER_SEC.
+# Health is based on the 95th percentile of provider throughput
+# (derived from normalized latency per token) over the last HEALTH_WINDOW_SECONDS.
+#
+# RED    if p95 throughput < 20 tok/s
+# YELLOW if p95 throughput < 60 tok/s
+# GREEN  otherwise
+
+HEALTH_WINDOW_SECONDS = 5 * 60
 RED_THROUGHPUT_TOK_PER_SEC = 20
 YELLOW_THROUGHPUT_TOK_PER_SEC = 60
 
@@ -49,6 +55,7 @@ class GetHealthModelsUseCase:
         models = []
         routers = await self.router_repository.get_all_routers()
         providers = await self.provider_repository.get_all_providers()
+        from_time_ms = int(time.time() * 1000) - HEALTH_WINDOW_SECONDS * 1000
 
         for router in routers:
             if router.has_no_providers:
@@ -64,6 +71,7 @@ class GetHealthModelsUseCase:
                 historical_normalized_latencies_ms = await self.provider_metrics_logger.get_metric_history(
                     provider_id=provider.id,
                     metric=Metric.NORMALIZED_LATENCY,
+                    from_time=from_time_ms,
                 )
                 throughputs_tok_per_sec = [1000.0 / x for x in historical_normalized_latencies_ms if x > 0]
                 if not throughputs_tok_per_sec:

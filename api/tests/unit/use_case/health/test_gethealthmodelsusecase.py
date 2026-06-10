@@ -1,5 +1,5 @@
 import datetime as dt
-from unittest.mock import AsyncMock
+from unittest.mock import ANY, AsyncMock
 
 import pytest
 
@@ -152,6 +152,7 @@ class TestGetHealthModelsUseCase:
         provider_metrics_logger.get_metric_history.assert_called_once_with(
             provider_id=1,
             metric=Metric.NORMALIZED_LATENCY,
+            from_time=ANY,
         )
 
     @pytest.mark.asyncio
@@ -267,4 +268,5 @@ class TestGetHealthModelsUseCase:
         provider_metrics_logger.get_metric_history.assert_called_once_with(
             provider_id=1,
             metric=Metric.NORMALIZED_LATENCY,
+            from_time=ANY,
         )
