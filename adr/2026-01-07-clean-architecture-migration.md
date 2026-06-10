@@ -1,9 +1,9 @@
 # ADR- 2026-01-07 - Migration to Clean Architecture
 
-**Status:** In Progress
-**Date:** 2026-01-07
-**Authors:** Development Team
-**Decision Outcome:** Migrate OpenGateLLM codebase to Clean Architecture pattern
+* **Status:** In Progress
+* **Date:** 2026-01-07
+* **Authors:** Development Team
+* **Decision Outcome:** Migrate OpenGateLLM codebase to Clean Architecture pattern
 
 ---
 

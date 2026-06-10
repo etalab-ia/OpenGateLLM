@@ -5,12 +5,6 @@ from api.utils.variables import EndpointRoute
 
 
 @dataclass
-class UnsupportedEndpointError:
-    endpoint: EndpointRoute
-    provider_type: ProviderType | None = None
-
-
-@dataclass
 class InvalidProviderTypeError:
     provider_type: str
     router_type: str
@@ -33,3 +27,26 @@ class ProviderAlreadyExistsError:
 @dataclass
 class ProviderNotFoundError:
     id: int
+
+
+@dataclass
+class NoAvailableProviderError:
+    router_id: int
+
+
+@dataclass
+class ProviderAdapterValidationRequestError:
+    provider_type: ProviderType
+    errors: list[dict]
+
+
+@dataclass
+class ProviderAdapterValidationResponseError:
+    provider_type: ProviderType
+    errors: list[dict]
+
+
+@dataclass
+class UnsupportedProviderEndpointError:
+    endpoint: EndpointRoute
+    provider_type: ProviderType | None = None

@@ -40,7 +40,11 @@ class BootstrapModelsUseCase:
         self.provider_repository = provider_repository
         self.provider_gateway = provider_gateway
 
-    async def execute(self, routers_to_create: list[ModelConfiguration], bootstrap_admin_user_id: int) -> BootstrapModelsUseCaseResult:
+    async def execute(
+        self,
+        routers_to_create: list[ModelConfiguration],
+        bootstrap_admin_user_id: int,
+    ) -> BootstrapModelsUseCaseResult:
         routers = await self.router_repository.get_all_routers()
         if len(routers) > 0:
             return BootstrapModelsUseCaseSkipped(number_of_routers=len(routers))

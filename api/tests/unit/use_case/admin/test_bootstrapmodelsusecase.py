@@ -35,11 +35,7 @@ def provider_gateway():
 
 @pytest.fixture
 def use_case(router_repository, provider_repository, provider_gateway):
-    return BootstrapModelsUseCase(
-        router_repository=router_repository,
-        provider_repository=provider_repository,
-        provider_gateway=provider_gateway,
-    )
+    return BootstrapModelsUseCase(router_repository=router_repository, provider_repository=provider_repository, provider_gateway=provider_gateway)
 
 
 class TestBootstrapModelsUseCase:
@@ -148,7 +144,10 @@ class TestBootstrapModelsUseCase:
         ]
 
         # Act
-        result = await use_case.execute(routers_to_create=[first_model, second_model], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID)
+        result = await use_case.execute(
+            routers_to_create=[first_model, second_model],
+            bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID,
+        )
 
         # Assert
         assert result == BootstrapModelsUseCaseSuccess(number_of_routers=2)
@@ -169,7 +168,10 @@ class TestBootstrapModelsUseCase:
         router_repository.get_all_routers.return_value = []
 
         # Act
-        result = await use_case.execute(routers_to_create=routers_to_create, bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID)
+        result = await use_case.execute(
+            routers_to_create=routers_to_create,
+            bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID,
+        )
 
         # Assert
         assert result == RouterNameAlreadyExistsError(name="duplicate")
@@ -178,9 +180,7 @@ class TestBootstrapModelsUseCase:
         provider_repository.create_provider.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_returns_router_name_already_exists_error_when_duplicate_alias(
-        self, use_case, router_repository, provider_repository, provider_gateway
-    ):
+    async def test_returns_router_name_already_exists_error_when_duplicate_alias(self, use_case, router_repository):
         # Arrange
         routers_to_create = [
             ModelConfigurationFactory(name="router-a", aliases=["shared-alias"]),
@@ -196,9 +196,7 @@ class TestBootstrapModelsUseCase:
         router_repository.create_router.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_returns_router_name_already_exists_error_when_alias_clashes_with_name(
-        self, use_case, router_repository, provider_repository, provider_gateway
-    ):
+    async def test_returns_router_name_already_exists_error_when_alias_clashes_with_name(self, use_case, router_repository):
         # Arrange
         routers_to_create = [
             ModelConfigurationFactory(name="router-a"),
@@ -215,7 +213,11 @@ class TestBootstrapModelsUseCase:
 
     @pytest.mark.asyncio
     async def test_returns_provider_already_exists_error_when_duplicate_within_router(
-        self, use_case, router_repository, provider_repository, provider_gateway
+        self,
+        use_case,
+        router_repository,
+        provider_repository,
+        provider_gateway,
     ):
         # Arrange
         model_configuration = ModelConfigurationFactory(
@@ -273,7 +275,11 @@ class TestBootstrapModelsUseCase:
 
     @pytest.mark.asyncio
     async def test_returns_inconsistent_max_context_length_error_and_rolls_back(
-        self, use_case, router_repository, provider_repository, provider_gateway
+        self,
+        use_case,
+        router_repository,
+        provider_repository,
+        provider_gateway,
     ):
         # Arrange
         model_configuration = ModelConfigurationFactory(
@@ -296,9 +302,7 @@ class TestBootstrapModelsUseCase:
 
         # Assert
         assert result == InconsistentModelMaxContextLengthError(
-            actual_max_context_length=2048,
-            expected_max_context_length=4096,
-            router_name=router.name,
+            actual_max_context_length=2048, expected_max_context_length=4096, router_name=router.name
         )
         provider_repository.create_provider.assert_awaited_once()
         router_repository.delete_all_routers.assert_awaited_once()
@@ -314,11 +318,7 @@ class TestBootstrapModelsUseCase:
             ],
         )
         router = RouterFactory(
-            id=1,
-            name=model_configuration.name,
-            type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
-            max_context_length=512,
-            vector_size=768,
+            id=1, name=model_configuration.name, type=RouterType.TEXT_EMBEDDINGS_INFERENCE, max_context_length=512, vector_size=768
         )
         router_repository.get_all_routers.return_value = []
         router_repository.create_router.return_value = router
@@ -329,7 +329,10 @@ class TestBootstrapModelsUseCase:
         provider_repository.create_provider.return_value = ProviderFactory(id=10, router_id=1)
 
         # Act
-        result = await use_case.execute(routers_to_create=[model_configuration], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID)
+        result = await use_case.execute(
+            routers_to_create=[model_configuration],
+            bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID,
+        )
 
         # Assert
         assert result == InconsistentModelVectorSizeError(

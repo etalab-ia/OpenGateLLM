@@ -22,7 +22,7 @@ from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
-from api.infrastructure.fastapi.context import RequestContextManager
+from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
     PostgresLimitRepository,
@@ -32,7 +32,6 @@ from api.infrastructure.postgres import (
     PostgresRouterRepository,
     PostgresUserRepository,
 )
-from api.infrastructure.redis import RedisProviderMetricsLogger
 from api.schemas.core.configuration import Configuration, Tokenizer
 from api.use_cases.admin import (
     BootstrapAdminCommand,
@@ -152,11 +151,9 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
 async def bootstrap_models(configuration: Configuration, postgres_session: AsyncSession, bootstrap_admin_user_id: int) -> int:
     router_repository = PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title)
     provider_repository = PostgresProviderRepository(postgres_session=postgres_session)
-    # @TODO: remove after make optional metrics logger and request manager in httpmodelclient
-    redis_client = redis.Redis(connection_pool=global_context.redis_pool)
-    provider_metrics_logger = RedisProviderMetricsLogger(redis_client=redis_client)
-    request_manager = RequestContextManager()
-    provider_gateway = ModelProviderGateway(provider_metrics_logger=provider_metrics_logger, request_manager=request_manager)
+    provider_client = HttpProviderClient()
+    provider_adapter_builder = HttpProviderAdapterBuilder()
+    provider_gateway = ModelProviderGateway(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
 
     result = await BootstrapModelsUseCase(
         router_repository=router_repository,

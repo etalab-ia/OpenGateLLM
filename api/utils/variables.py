@@ -25,7 +25,7 @@ class RouterName(StrEnum):
     MONITORING = ("monitoring", "api.infrastructure.fastapi.endpoints.health")
     OCR = ("ocr", "api.endpoints.ocr")
     PARSE = ("parse", "api.endpoints.parse")
-    RERANK = ("rerank", "api.endpoints.rerank")
+    RERANK = ("rerank", "api.infrastructure.fastapi.endpoints.rerank")
     SEARCH = ("search", "api.endpoints.search")
 
     def __new__(cls, value: str, module_path: str):

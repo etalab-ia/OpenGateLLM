@@ -17,7 +17,6 @@ from api.schemas.admin.providers import ProviderType
 from api.schemas.audio import AudioTranscription, CreateAudioTranscription
 from api.schemas.chat import ChatCompletionChunk, CreateChatCompletion
 from api.schemas.core.models import Metric, ProviderEndpoints, RequestContent
-from api.schemas.rerank import CreateRerank, Reranks
 from api.schemas.usage import Usage
 from api.utils.carbon import get_carbon_footprint
 from api.utils.context import generate_request_id, global_context, request_context
@@ -172,9 +171,6 @@ class BaseModelProvider(ABC):
             if request_content.endpoint == EndpointRoute.CHAT_COMPLETIONS:
                 request_content = CreateChatCompletion.format_request(provider_type=self.type, request_content=request_content)
 
-            if request_content.endpoint == EndpointRoute.RERANK:
-                request_content = CreateRerank.format_request(provider_type=self.type, request_content=request_content)
-
         except Exception as e:
             logger.error(f"Failed to format request for {self.model_name}: {e}.", exc_info=True)
             raise RequestFormatFailedException()
@@ -204,13 +200,6 @@ class BaseModelProvider(ABC):
             try:
                 if request_content.endpoint == EndpointRoute.AUDIO_TRANSCRIPTIONS:
                     response_data = AudioTranscription.build_from(
-                        provider_type=self.type,
-                        request_content=request_content,
-                        response_data=response_data,
-                    ).model_dump()
-
-                elif request_content.endpoint == EndpointRoute.RERANK:
-                    response_data = Reranks.build_from(
                         provider_type=self.type,
                         request_content=request_content,
                         response_data=response_data,

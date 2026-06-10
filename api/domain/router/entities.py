@@ -1,9 +1,11 @@
+from datetime import UTC, datetime
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.domain import EntitiesPage
 from api.domain.model.entities import ModelType as RouterType
+from api.schemas.admin.roles import LimitType
 
 
 class RouterLoadBalancingStrategy(StrEnum):
@@ -56,3 +58,84 @@ class Router(BaseModel):
     @property
     def has_no_providers(self) -> bool:
         return self.providers == 0
+
+
+class TpmRateLimitState(BaseModel):
+    value: int | None = None
+    remaining: int = 0
+    reset: int = 0
+
+
+class TpdRateLimitState(BaseModel):
+    value: int | None = None
+    remaining: int = 0
+    reset: int = 0
+
+
+class RpmRateLimitState(BaseModel):
+    value: int | None = 0
+    remaining: int = 0
+    reset: int = 0
+
+
+class RpdRateLimitState(BaseModel):
+    value: int | None = 0
+    remaining: int = 0
+    reset: int = 0
+
+
+class RouterRateLimitState(BaseModel):
+    tpm: TpmRateLimitState = Field(default_factory=TpmRateLimitState)
+    tpd: TpdRateLimitState = Field(default_factory=TpdRateLimitState)
+    rpm: RpmRateLimitState = Field(default_factory=RpmRateLimitState)
+    rpd: RpdRateLimitState = Field(default_factory=RpdRateLimitState)
+
+    @property
+    def exceeded_limits(self) -> list[LimitType]:
+        return [limit.value for limit in LimitType if getattr(self, limit.value).remaining <= 0 and getattr(self, limit.value).value is not None]
+
+    @classmethod
+    def admin_rate_limit_state(cls) -> "RouterRateLimitState":
+        return cls(
+            tpm=TpmRateLimitState(value=None),
+            tpd=TpdRateLimitState(value=None),
+            rpm=RpmRateLimitState(value=None),
+            rpd=RpdRateLimitState(value=None),
+        )
+
+    @property
+    def build_limit_headers(self) -> dict[str, str]:
+        def seconds_until_reset(reset_epoch: float) -> int:
+            return max(0, int(reset_epoch - datetime.now(UTC).timestamp()))
+
+        def format_duration(seconds: int) -> str:
+            minutes, secs = divmod(seconds, 60)
+            hours, minutes = divmod(minutes, 60)
+            if hours:
+                return f"{hours}h{minutes}m{secs}s"
+
+            if minutes:
+                return f"{minutes}m{secs}s"
+
+            return f"{secs}s"
+
+        headers = {}
+        if self.tpd.value == 0:
+            headers["x-ratelimit-limit-token"] = str(self.tpm.value)
+            headers["x-ratelimit-remaining-token"] = str(self.tpm.remaining)
+            headers["x-ratelimit-reset-token"] = format_duration(seconds_until_reset(self.tpm.reset))
+        else:
+            headers["x-ratelimit-limit-token"] = str(self.tpd.value)
+            headers["x-ratelimit-remaining-token"] = str(self.tpd.remaining)
+            headers["x-ratelimit-reset-token"] = format_duration(seconds_until_reset(self.tpd.reset))
+
+        if self.rpm.value == 0:
+            headers["x-ratelimit-limit-request"] = str(self.rpm.value)
+            headers["x-ratelimit-remaining-request"] = str(self.rpm.remaining)
+            headers["x-ratelimit-reset-requests"] = format_duration(seconds_until_reset(self.rpm.reset))
+        else:
+            headers["x-ratelimit-limit-request"] = str(self.rpm.value)
+            headers["x-ratelimit-remaining-request"] = str(self.rpm.remaining)
+            headers["x-ratelimit-reset-requests"] = format_duration(seconds_until_reset(self.rpm.reset))
+
+        return headers

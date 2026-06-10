@@ -26,7 +26,7 @@ def _create_provider_args(user, router, **overrides):
         "model_hosting_zone": HostingZone.FRA,
         "model_total_params": 1000,
         "model_active_params": 2000,
-        "qos_metric": Metric.TTFT,
+        "qos_metric": QoSMetric.TTFT,
         "qos_limit": 12,
         "vector_size": 10,
         "max_context_length": 20,
@@ -63,7 +63,7 @@ class TestCreateProvider:
             model_hosting_zone=HostingZone.FRA,
             model_total_params=1000,
             model_active_params=2000,
-            qos_metric=Metric.TTFT,
+            qos_metric=QoSMetric.TTFT,
             qos_limit=12,
             vector_size=10,
             max_context_length=20,
@@ -162,6 +162,49 @@ class TestGetAllProviders:
 
         # Act
         result = await repository.get_all_providers()
+
+        # Assert
+        assert result == []
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestGetAllProvidersOfRouter:
+    async def test_get_all_providers_of_router_should_return_only_providers_for_that_router(self, repository, db_session):
+        # Arrange
+        router_1 = RouterSQLFactory(name="router_1")
+        router_2 = RouterSQLFactory(name="router_2")
+
+        provider_1 = ProviderSQLFactory(router=router_1, model_name="provider_r1_a", url="https://r1-a.example.com")
+        provider_2 = ProviderSQLFactory(router=router_1, model_name="provider_r1_b", url="https://r1-b.example.com")
+        ProviderSQLFactory(router=router_2, model_name="provider_r2_a", url="https://r2-a.example.com")
+
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_all_providers_of_router(router_1.id)
+
+        # Assert
+        assert len(result) == 2
+        model_names = {p.model_name for p in result}
+        assert model_names == {provider_1.model_name, provider_2.model_name}
+        assert all(p.router_id == router_1.id for p in result)
+
+        first = next(p for p in result if p.id == provider_1.id)
+        assert first.type.value == provider_1.type.value
+        assert first.url == provider_1.url
+        assert first.user_id == provider_1.user_id
+        assert first.max_context_length == provider_1.max_context_length
+        assert first.vector_size == provider_1.vector_size
+
+    async def test_get_all_providers_of_router_should_return_empty_list_when_router_has_no_providers(self, repository, db_session):
+        # Arrange
+        router_with_providers = RouterSQLFactory()
+        router_without_providers = RouterSQLFactory()
+        ProviderSQLFactory(router=router_with_providers)
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_all_providers_of_router(router_without_providers.id)
 
         # Assert
         assert result == []

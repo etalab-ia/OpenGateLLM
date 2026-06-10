@@ -13,8 +13,8 @@ from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlready
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
 from api.tests.helpers import INVALID_API_KEY, create_key
-from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_embeddings_responses, mock_models_responses
-from api.tests.integration.factories.albert import AlbertModelResponseFactory, AlbertModelsResponseFactory, AlbertWrongModelTypeResponseFactory
+from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_models_responses
+from api.tests.integration.factories.albert import AlbertModelResponseFactory, AlbertModelsResponseFactory
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
@@ -52,16 +52,10 @@ class TestCreateProvider:
             respx_mock=respx,
             provider_type=ProviderType.ALBERT,
             body=AlbertModelsResponseFactory(
-                data=[AlbertModelResponseFactory(model_id=DEFAULT_MODEL_ID, max_context_length=DEFAULT_MAX_CONTEXT_LENGTH)],
+                data=[AlbertModelResponseFactory(model=DEFAULT_MODEL_ID, max_context_length=DEFAULT_MAX_CONTEXT_LENGTH)],
                 count=3,
             ),
             status_code=AlbertModelsResponseFactory._status_code,
-        )
-        mock_embeddings_responses(
-            respx_mock=respx,
-            provider_type=ProviderType.ALBERT,
-            body=AlbertWrongModelTypeResponseFactory(),
-            status_code=AlbertWrongModelTypeResponseFactory._status_code,
         )
 
         response = await client.post(

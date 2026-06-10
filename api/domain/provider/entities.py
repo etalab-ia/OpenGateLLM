@@ -1,11 +1,19 @@
 from enum import StrEnum
+from http import HTTPMethod
+from typing import Annotated
 
 import pycountry
+from pydantic import BaseModel, Field
 
 from api.domain import EntitiesPage
-from api.domain.model.entities import ModelType
+from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
+from api.domain.model.entities import Models, ModelType
+from api.domain.rerank.entities import CreateRerankBody, Rerank
 from api.domain.router.entities import Router
-from api.schemas import BaseModel
+from api.schemas.audio import AudioTranscription
+from api.schemas.chat import ChatCompletion, ChatCompletionChunk
+from api.schemas.ocr import OCR
+from api.utils.variables import EndpointRoute
 
 # Add world as a country code, default value of the carbon footprint computation framework
 country_codes = [country.alpha_3 for country in pycountry.countries] + ["WOR"]
@@ -52,6 +60,7 @@ COMPATIBLE_PROVIDER_TYPES: dict[ModelType, list[str]] = {
     ModelType.TEXT_EMBEDDINGS_INFERENCE: [
         ProviderType.ALBERT.value,
         ProviderType.OPENAI.value,
+        ProviderType.MISTRAL.value,
         ProviderType.TEI.value,
         ProviderType.VLLM.value,
     ],
@@ -94,6 +103,8 @@ class Provider(BaseModel):
     model_active_params: int = 0
     qos_metric: QoSMetric | None = None
     qos_limit: float | None = None
+    max_context_length: int | None = None
+    vector_size: int | None = None
     created: int
     updated: int
 
@@ -118,5 +129,41 @@ class Provider(BaseModel):
     def with_qos_limit(self, qos_limit: float | None) -> "Provider":
         return self.model_copy(update={"qos_limit": qos_limit})
 
+    def with_max_context_length(self, max_context_length: int | None) -> "Provider":
+        return self.model_copy(update={"max_context_length": max_context_length})
+
+    def with_vector_size(self, vector_size: int | None) -> "Provider":
+        return self.model_copy(update={"vector_size": vector_size})
+
     def is_compatible_with(self, router: Router) -> bool:
         return self.type.is_compatible_with(router.type)
+
+
+class ProviderOriginalRequest(BaseModel):
+    endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
+    body: Annotated[CreateEmbeddingsBody | CreateRerankBody | None, Field(default=None, description="The JSON body to use for the request.")]
+    form: Annotated[dict | None, Field(default=None, description="The form-encoded data to use for the request.")]
+    files: Annotated[dict | None, Field(default=None, description="The files to use for the request.")]
+
+
+class ProviderFormattedRequest(BaseModel):
+    method: Annotated[HTTPMethod, Field(description="The HTTP method to build the request.")]
+    url: Annotated[str, Field(description="The model API URL to build the request.")]
+    body: Annotated[dict, Field(default={}, description="The JSON body to use for the request.")]
+    form: Annotated[dict, Field(default={}, description="The form-encoded data to use for the request.")]
+    files: Annotated[dict, Field(default={}, description="The files to use for the request.")]
+
+
+class ResponseMetrics(BaseModel):
+    latency: Annotated[int, Field(default=0, description="The latency of the response.")]
+    ttft: Annotated[int | None, Field(default=None, description="The time to first byte of the response.")]
+
+
+class ProviderOriginalResponse(BaseModel):
+    data: Annotated[dict | list, Field(default={}, description="The JSON data to use for the response.")]
+    text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
+
+
+class ProviderFormattedResponse(BaseModel):
+    data: Annotated[AudioTranscription | ChatCompletion | ChatCompletionChunk | Embeddings | Models | OCR | Rerank | None, Field(default=None, description="The JSON data to use for the response.")]  # fmt: off
+    text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]

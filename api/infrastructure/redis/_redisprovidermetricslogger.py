@@ -14,10 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 class RedisProviderMetricsLogger(ProviderMetricsLogger):
-    PREFIX_CELERY_QUEUE_ROUTING: str = "ogl_qr"
-    PREFIX_REDIS_METRIC_GAUGE: str = PREFIX__REDIS_METRIC_GAUGE
-    PREFIX_REDIS_METRIC_TIMESERIE: str = PREFIX__REDIS_METRIC_TIMESERIE
-
     def __init__(self, redis_client: AsyncRedis):
         self.redis_client = redis_client
 
@@ -26,7 +22,7 @@ class RedisProviderMetricsLogger(ProviderMetricsLogger):
             timestamp = int(time.time() * 1000)
             # Maintain all metric series aligned per provider.
             for series_metric in (Metric.TTFT, Metric.LATENCY, Metric.NORMALIZED_LATENCY):
-                series_key = f"{self.PREFIX_REDIS_METRIC_TIMESERIE}:{series_metric.value}:{provider_id}"
+                series_key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{series_metric.value}:{provider_id}"
                 await self._ensure_timeseries_exists(series_key)
                 await self.redis_client.ts().add(key=series_key, timestamp=timestamp, value=value)
         except Exception:
@@ -34,7 +30,7 @@ class RedisProviderMetricsLogger(ProviderMetricsLogger):
             await self._safe_redis_reset()
 
     async def get_metric_history(self, provider_id: int, metric: Metric, from_time: int | None = None) -> list[float]:
-        key = f"{self.PREFIX_REDIS_METRIC_TIMESERIE}:{metric.value}:{provider_id}"
+        key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{metric.value}:{provider_id}"
         if not await self.redis_client.exists(key):
             return []
 
@@ -47,7 +43,7 @@ class RedisProviderMetricsLogger(ProviderMetricsLogger):
         return values
 
     async def increment_inflight(self, provider_id: int) -> bool:
-        inflight_key = f"{self.PREFIX_REDIS_METRIC_GAUGE}:inflight:{provider_id}"
+        inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:inflight:{provider_id}"
         try:
             await self._redis_retry(self.redis_client.incr, name=inflight_key, max_retries=2)
             return True
@@ -58,17 +54,16 @@ class RedisProviderMetricsLogger(ProviderMetricsLogger):
         if not inflight_is_incremented:
             return True
 
-        inflight_key = f"{self.PREFIX_REDIS_METRIC_GAUGE}:inflight:{provider_id}"
+        inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:inflight:{provider_id}"
         try:
             await self._redis_retry(self.redis_client.decr, name=inflight_key, max_retries=2)
             return True
         except Exception as e:
-            # TODO: add a logic to reset inflight after a certain amount of time
             logger.error(msg=f"Failed to decrement inflight key {inflight_key} for provider {provider_id}: {e}")
             return False
 
     async def get_current_inflight(self, provider_id: int) -> int:
-        key = f"{self.PREFIX_REDIS_METRIC_GAUGE}:inflight:{provider_id}"
+        key = f"{PREFIX__REDIS_METRIC_GAUGE}:inflight:{provider_id}"
         if not await self.redis_client.exists(key):
             return 0
 

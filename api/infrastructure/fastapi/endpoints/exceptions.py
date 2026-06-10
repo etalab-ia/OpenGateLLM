@@ -1,5 +1,7 @@
 from fastapi import HTTPException
 
+from api.schemas.admin.roles import LimitType
+
 
 # 400
 class InvalidProviderTypeHTTPException(HTTPException):
@@ -184,6 +186,12 @@ class DeleteUserWithProvidersHTTPException(HTTPException):
 
 
 # 422
+class WrongModelTypeHTTPException(HTTPException):
+    status_code = 422
+    detail = "Model has wrong type. Expected: {expected_type}. Actual: {actual_type}."
+
+    def __init__(self, actual_type: str, expected_type: str) -> None:
+        super().__init__(status_code=422, detail=f"Model has wrong type. Expected: {expected_type}. Actual: {actual_type}.")
 
 
 # 424
@@ -196,6 +204,21 @@ class ProviderNotReachableHTTPException(HTTPException):
 
 
 # 429
+class RateLimitExceededHTTPException(HTTPException):
+    status_code = 429
+    detail = "Token/request limit per minute/day exceeded."
+
+    def __init__(self, limit_type: LimitType, headers: dict[str, str]) -> None:
+        match limit_type:
+            case LimitType.TPM:
+                detail = "Token limit per minute exceeded."
+            case LimitType.TPD:
+                detail = "Token limit per day exceeded."
+            case LimitType.RPM:
+                detail = "Request limit per minute exceeded."
+            case LimitType.RPD:
+                detail = "Request limit per day exceeded."
+        super().__init__(status_code=self.status_code, detail=detail, headers=headers)
 
 
 # 500
@@ -208,13 +231,13 @@ class InternalServerHTTPException(HTTPException):
 
 
 # 503
-class ModelIsTooBusyException(HTTPException):
+class ModelIsTooBusyExceptionHTTPException(HTTPException):
     status_code = 503
-    detail = "Model is too busy ({error_type}), please try again later."
+    detail = "Model is too busy, please try again later."
 
-    def __init__(self, error_type: str) -> None:
+    def __init__(self, error_type: str | None = None) -> None:
         super().__init__(
             status_code=self.status_code,
-            detail=f"Model is too busy ({error_type}), please try again later.",
+            detail="Model is too busy, please try again later.",
             headers={"Retry-After": "10"},
         )

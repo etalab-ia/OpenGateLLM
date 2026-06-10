@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -7,7 +7,6 @@ from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotRe
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.schemas.core.configuration import Configuration, Dependencies, Settings
 from api.use_cases.models import BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
-from api.utils.context import global_context
 from api.utils.lifespan import bootstrap_models
 
 BOOTSTRAP_ADMIN_USER_ID = 1
@@ -25,16 +24,6 @@ def bootstrap_configuration() -> Configuration:
 @pytest.fixture
 def postgres_session():
     return AsyncMock()
-
-
-@pytest.fixture(autouse=True)
-def _set_global_redis_pool():
-    previous = global_context.redis_pool
-    global_context.redis_pool = MagicMock()
-    try:
-        yield
-    finally:
-        global_context.redis_pool = previous
 
 
 class TestBootstrapModels:

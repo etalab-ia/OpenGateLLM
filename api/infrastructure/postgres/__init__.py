@@ -5,7 +5,7 @@ from ._postgresproviderrepository import PostgresProviderRepository
 from ._postgresrolesrepository import PostgresRolesRepository
 from ._postgresrouterrepository import PostgresRouterRepository
 from ._postgresusersrepository import PostgresUserRepository
-from ._postgresuserwithrolerepository import PostgresUserWithRoleQuery
+from ._postgresuserwithrolequery import PostgresUserWithRoleQuery
 
 __all__ = [
     "PostgresKeyRepository",

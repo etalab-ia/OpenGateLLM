@@ -152,10 +152,7 @@ async def delete_provider(
     delete_provider_use_case: DeleteProviderUseCase = Depends(delete_provider_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> ProviderResponse:
-    command = DeleteProviderCommand(
-        user_id=request_context.get().user_id,
-        provider_id=provider_id,
-    )
+    command = DeleteProviderCommand(user_id=request_context.get().user_id, provider_id=provider_id)
     try:
         result = await delete_provider_use_case.execute(command)
     except Exception as e:

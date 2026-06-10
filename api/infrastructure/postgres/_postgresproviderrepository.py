@@ -14,6 +14,28 @@ class PostgresProviderRepository(ProviderRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
 
+    @staticmethod
+    def _row_to_provider(row) -> Provider:
+        return Provider(
+            router_id=row.router_id,
+            user_id=row.user_id,
+            type=row.type,
+            url=row.url,
+            key=row.key,
+            timeout=row.timeout,
+            model_name=row.model_name,
+            model_hosting_zone=HostingZone[row.model_hosting_zone],
+            model_total_params=row.model_total_params,
+            model_active_params=row.model_active_params,
+            qos_metric=None if row.qos_metric is None else QoSMetric(row.qos_metric.value if hasattr(row.qos_metric, "value") else row.qos_metric),
+            qos_limit=row.qos_limit,
+            max_context_length=row.max_context_length,
+            vector_size=row.vector_size,
+            id=row.id,
+            created=int(row.created.timestamp()),
+            updated=int(row.updated.timestamp()),
+        )
+
     @with_lock(namespace="provider", key="provider.id")
     async def update_provider(self, provider: Provider) -> Provider | ProviderAlreadyExistsError:
         try:
@@ -72,28 +94,6 @@ class PostgresProviderRepository(ProviderRepository):
         if row is None:
             return ProviderNotFoundError(id=provider_id)
         return self._row_to_provider(row)
-
-    @staticmethod
-    def _row_to_provider(row) -> Provider:
-        return Provider(
-            router_id=row.router_id,
-            user_id=row.user_id,
-            type=row.type,
-            url=row.url,
-            key=row.key,
-            timeout=row.timeout,
-            model_name=row.model_name,
-            model_hosting_zone=HostingZone[row.model_hosting_zone],
-            model_total_params=row.model_total_params,
-            model_active_params=row.model_active_params,
-            qos_metric=None if row.qos_metric is None else QoSMetric(row.qos_metric.value if hasattr(row.qos_metric, "value") else row.qos_metric),
-            qos_limit=row.qos_limit,
-            max_context_length=row.max_context_length,
-            vector_size=row.vector_size,
-            id=row.id,
-            created=int(row.created.timestamp()),
-            updated=int(row.updated.timestamp()),
-        )
 
     @with_lock(namespace="provider", key="router_id")
     async def create_provider(
@@ -162,3 +162,8 @@ class PostgresProviderRepository(ProviderRepository):
     async def get_provider_ids_by_user_id(self, user_id: int) -> list[int]:
         result = await self.postgres_session.execute(statement=select(ProviderTable.id).where(ProviderTable.user_id == user_id))
         return list(result.scalars().all())
+
+    async def get_all_providers_of_router(self, router_id: int) -> list[Provider]:
+        select_query = select(ProviderTable).where(ProviderTable.router_id == router_id)
+        rows = (await self.postgres_session.execute(select_query)).scalars().all()
+        return [self._row_to_provider(row) for row in rows]
