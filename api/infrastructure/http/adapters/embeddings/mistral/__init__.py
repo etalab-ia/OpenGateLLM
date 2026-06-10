@@ -1,3 +1,3 @@
-from ._mistralembeddingsapdapter import MistralEmbeddingsAdapter
+from ._mistralembeddingsadapter import MistralEmbeddingsAdapter
 
 __all__ = ["MistralEmbeddingsAdapter"]

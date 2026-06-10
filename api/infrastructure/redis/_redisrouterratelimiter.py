@@ -67,7 +67,7 @@ class RedisRouterRateLimiter(RouterRateLimiter):
 
         return state
 
-    async def update_rate_limit_state(self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int) -> RouterRateLimitState:
+    async def update_rate_limit_state(self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int) -> None:
         rpm = next((limit.value for limit in router_limits if limit.type == LimitType.RPM), 0)
         await self._hit(user_id=user_id, router_id=router_id, type=LimitType.RPM, value=rpm)
 
@@ -99,7 +99,7 @@ class RedisRouterRateLimiter(RouterRateLimiter):
             case LimitType.TPD | LimitType.RPD:
                 return RateLimitItemPerDay(amount=value)
 
-    async def _get_window_stats(self, user_id: int, router_id: int, type: LimitType, value: int | None = None) -> WindowStats:
+    async def _get_window_stats(self, user_id: int, router_id: int, type: LimitType, value: int | None = None) -> WindowStats | None:
         try:
             limit = await self._get_limit(type=type, value=value)
             if limit is None:

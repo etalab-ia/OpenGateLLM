@@ -1,3 +1,3 @@
-from ._mistralocrsadapter import MistralOcrAdapter
+from ._mistralocradapter import MistralOcrAdapter
 
 __all__ = ["MistralOcrAdapter"]

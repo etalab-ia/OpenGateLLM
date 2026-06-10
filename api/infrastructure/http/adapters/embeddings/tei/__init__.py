@@ -1,3 +1,3 @@
-from ._teiembeddingsapdapter import TeiEmbeddingsAdapter
+from ._teiembeddingsadapter import TeiEmbeddingsAdapter
 
 __all__ = ["TeiEmbeddingsAdapter"]
