@@ -59,6 +59,23 @@ class TestGetUsers:
         result_ids = {u["id"] for u in data["data"]}
         assert result_ids == {user_1.id, user_2.id}
 
+    async def test_filters_by_email_partial_match(self, client: AsyncClient, db_session):
+        role = RoleSQLFactory()
+        user = UserSQLFactory(role=role, email="target@test.com")
+        UserSQLFactory(role=role, email="other@test.com")
+        await db_session.flush()
+
+        response = await client.get(
+            url=URL,
+            params={"email": "target"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["total"] == 1
+        assert [u["id"] for u in data["data"]] == [user.id]
+
     async def test_filters_by_organization_id(self, client: AsyncClient, db_session):
         organization = OrganizationSQLFactory()
         user_1 = UserSQLFactory(organization=organization)

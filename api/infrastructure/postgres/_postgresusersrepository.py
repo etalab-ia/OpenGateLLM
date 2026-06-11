@@ -173,7 +173,7 @@ class PostgresUserRepository(UserRepository):
         if organization_id is not None:
             conditions.append(UserTable.organization_id == organization_id)
         if email is not None:
-            conditions.append(UserTable.email == email)
+            conditions.append(UserTable.email.like(f"%{email.lower()}%"))
 
         total = (await self.postgres_session.execute(count_query.where(*conditions))).scalar_one()
 
