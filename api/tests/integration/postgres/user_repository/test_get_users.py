@@ -71,6 +71,36 @@ class TestGetUsers:
         result_ids = {u.id for u in result.data}
         assert result_ids == {user_1.id, user_2.id}
 
+    async def test_filters_by_email_partial_match(self, repository, db_session):
+        # Arrange
+        role = RoleSQLFactory()
+        user = UserSQLFactory(role=role, email="target@test.com")
+        UserSQLFactory(role=role, email="other@test.com")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_users(email="target")
+
+        # Assert
+        assert result.total == 1
+        assert [u.id for u in result.data] == [user.id]
+
+    async def test_filters_by_email_matches_shared_substring(self, repository, db_session):
+        # Arrange
+        role = RoleSQLFactory()
+        user_1 = UserSQLFactory(role=role, email="alice@company.com")
+        user_2 = UserSQLFactory(role=role, email="bob@company.com")
+        UserSQLFactory(role=role, email="other@test.com")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_users(email="company")
+
+        # Assert
+        assert result.total == 2
+        result_ids = {u.id for u in result.data}
+        assert result_ids == {user_1.id, user_2.id}
+
     async def test_total_reflects_role_filter(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()

@@ -11,6 +11,7 @@ class GetUsersCommand:
     authenticated_user_id: int
     role_id: int | None
     organization_id: int | None
+    email: str | None = None
     offset: int = 0
     limit: int = 10
     sort_by: UserSortField = UserSortField.ID
@@ -42,6 +43,7 @@ class GetUsersUseCase:
         user_page = await self.user_repository.get_users(
             role_id=command.role_id,
             organization_id=command.organization_id,
+            email=command.email,
             offset=command.offset,
             limit=command.limit,
             sort_by=command.sort_by,

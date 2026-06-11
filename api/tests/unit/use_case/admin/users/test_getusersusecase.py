@@ -110,7 +110,7 @@ class TestGetUsersUseCase:
         assert result.user_page.data == []
 
     @pytest.mark.asyncio
-    async def test_should_pass_filters_to_repository(self, use_case, user_repository, user_with_role_query, admin_user):
+    async def test_should_pass_filters_including_email_search_to_repository(self, use_case, user_repository, user_with_role_query, admin_user):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         user_repository.get_users.return_value = EntitiesPage(total=0, data=[])
@@ -118,6 +118,7 @@ class TestGetUsersUseCase:
             authenticated_user_id=admin_user.id,
             role_id=5,
             organization_id=3,
+            email="target",
             offset=20,
             limit=50,
             sort_by=UserSortField.EMAIL,
@@ -131,6 +132,7 @@ class TestGetUsersUseCase:
         user_repository.get_users.assert_called_once_with(
             role_id=5,
             organization_id=3,
+            email="target",
             offset=20,
             limit=50,
             sort_by=UserSortField.EMAIL,

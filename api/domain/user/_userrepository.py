@@ -37,6 +37,7 @@ class UserRepository(ABC):
         self,
         role_id: int | None = None,
         organization_id: int | None = None,
+        email: str | None = None,
         offset: int = 0,
         limit: int = 10,
         sort_by: UserSortField = UserSortField.ID,
