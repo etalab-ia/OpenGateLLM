@@ -124,14 +124,6 @@ def provider_settings_form_fields() -> rx.Component:
             placeholder="No url",
         ),
         entity_form_input_field(
-            label="API key",
-            value=ProvidersState.entity.key,
-            tooltip="API key of the provider",
-            read_only=True,
-            type="password",
-            placeholder="No key",
-        ),
-        entity_form_input_field(
             label="Model name",
             value=ProvidersState.entity.model_name,
             tooltip="Model name of the provider",

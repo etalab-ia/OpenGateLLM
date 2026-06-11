@@ -23,7 +23,7 @@ class TestGetProvider:
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         router = RouterSQLFactory(user=self.admin_user)
-        provider = ProviderSQLFactory(router=router, user=self.admin_user)
+        provider = ProviderSQLFactory(router=router, user=self.admin_user, key="secret-key", basic_auth={"username": "u", "password": "p"})
         await db_session.flush()
 
         response = await client.get(
@@ -35,6 +35,8 @@ class TestGetProvider:
         data = response.json()
         assert data["id"] == provider.id
         assert data["object"] == "provider"
+        assert "key" not in data
+        assert "basic_auth" not in data
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

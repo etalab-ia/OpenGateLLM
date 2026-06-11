@@ -110,6 +110,7 @@ class CreateProviderUseCase:
             provider_type=command.provider_type,
             url=command.url,
             key=command.key,
+            basic_auth=command.basic_auth,
             timeout=command.timeout,
             model_name=command.model_name,
             model_hosting_zone=command.model_hosting_zone,
