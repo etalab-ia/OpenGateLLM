@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from api.domain.model.entities import HealthStatus, ModelHealthStatus
 from api.domain.provider import ProviderAdapter, ProviderAdapterBuilder, ProviderClient, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
+from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
 from api.domain.router import RouterRepository
 from api.domain.user import UserWithRoleQuery
@@ -96,7 +96,7 @@ class GetHealthModelsUseCase:
                         continue
 
                 result = adapter.format_response(original_request=original_request, original_response=response)
-                print(f"formatted response: {result}")
+
                 match result:
                     case ProviderFormattedResponse() as formatted_response:
                         pass
@@ -104,10 +104,20 @@ class GetHealthModelsUseCase:
                         health.status = HealthStatus.RED
                         continue
 
-                if formatted_response.data.waiting_requests > self.WAITING_REQUESTS_THRESHOLD and health.status != HealthStatus.RED:
-                    health.status = HealthStatus.YELLOW
-                elif formatted_response.data.running_requests > self.RUNNING_REQUESTS_THRESHOLD and health.status != HealthStatus.RED:
-                    health.status = HealthStatus.YELLOW
+                match provider.type:
+                    case ProviderType.VLLM:
+                        if health.status != HealthStatus.RED:
+                            if formatted_response.data.waiting_requests > 0:
+                                health.status = HealthStatus.YELLOW
+                            if formatted_response.data.running_requests > 20:
+                                health.status = HealthStatus.RED
+
+                    case ProviderType.MISTRAL:
+                        if health.status != HealthStatus.RED:
+                            if formatted_response.data.running_requests > 58:
+                                health.status = HealthStatus.YELLOW
+                            if formatted_response.data.running_requests > 63:
+                                health.status = HealthStatus.RED
 
             models.append(health)
 
