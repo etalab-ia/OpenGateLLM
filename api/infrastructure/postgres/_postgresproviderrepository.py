@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain import SortOrder
 from api.domain.provider import ProviderRepository
-from api.domain.provider.entities import HostingZone, Provider, ProviderPage, ProviderSortField, ProviderType, QoSMetric
+from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderPage, ProviderSortField, ProviderType, QoSMetric
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Provider as ProviderTable
@@ -22,6 +22,7 @@ class PostgresProviderRepository(ProviderRepository):
             type=row.type,
             url=row.url,
             key=row.key,
+            basic_auth=BasicAuth(username=row.basic_auth["username"], password=row.basic_auth["password"]) if row.basic_auth else None,
             timeout=row.timeout,
             model_name=row.model_name,
             model_hosting_zone=HostingZone[row.model_hosting_zone],
@@ -103,6 +104,7 @@ class PostgresProviderRepository(ProviderRepository):
         provider_type: ProviderType,
         url: str,
         key: str | None,
+        basic_auth: BasicAuth | None,
         timeout: int,
         model_name: str,
         model_hosting_zone: HostingZone,
@@ -123,6 +125,7 @@ class PostgresProviderRepository(ProviderRepository):
                     type=provider_type.value,
                     url=url,
                     key=key,
+                    basic_auth={"username": basic_auth.username, "password": basic_auth.password} if basic_auth else None,
                     timeout=timeout,
                     model_name=model_name,
                     model_hosting_zone=model_hosting_zone,

@@ -70,7 +70,6 @@ class ProvidersState(EntityState):
             user=self.provider_owners.get(provider["user_id"], "Unknown"),
             type=_type_converter.get(provider["type"]),
             url=provider["url"],
-            key=provider["key"],
             timeout=provider["timeout"],
             model_name=provider["model_name"],
             model_hosting_zone=provider["model_hosting_zone"],

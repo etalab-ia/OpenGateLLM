@@ -71,6 +71,26 @@ class MistralModelResponseFactory(factory.DictFactory):
     type = "base"
 
 
+class MistralMetricsResponseFactory(factory.DictFactory):
+    class Meta:
+        exclude = ["model_name", "running", "waiting"]
+
+    _status_code = 200
+
+    # parameters
+    model_name = factory.Faker("bothify", text="model-????-####")
+    running = 0.0
+    waiting = 0.0
+
+    # body
+    text = factory.LazyAttribute(
+        lambda self: (
+            f'vllm:num_requests_running{{model_name="{self.model_name}"}} {self.running}\n'
+            f'vllm:num_requests_waiting{{model_name="{self.model_name}"}} {self.waiting}\n'
+        )
+    )
+
+
 class MistralModelsResponseFactory(factory.DictFactory):
     class Meta:
         exclude = ["count"]

@@ -90,6 +90,7 @@ async def create_provider(
             provider_type=body.type,
             url=body.url,
             key=body.key,
+            basic_auth=body.basic_auth,
             timeout=body.timeout,
             model_name=body.model_name,
             model_hosting_zone=body.model_hosting_zone,

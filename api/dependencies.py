@@ -162,9 +162,13 @@ def _router_rate_limiter() -> RouterRateLimiter:
 # health use cases
 def get_health_models_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
+    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
+    provider_client: ProviderClient = Depends(_provider_client),
     redis_client: Redis = Depends(get_redis_client),
 ) -> GetHealthModelsUseCase:
     return GetHealthModelsUseCase(
+        provider_adapter_builder=provider_adapter_builder,
+        provider_client=provider_client,
         provider_metrics_logger=_provider_metrics_logger(redis_client),
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),

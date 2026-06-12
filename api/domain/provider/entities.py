@@ -1,11 +1,11 @@
 from enum import StrEnum
 from http import HTTPMethod
-from typing import Annotated
+from typing import Annotated, Literal
 
 import pycountry
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from api.domain import EntitiesPage
+from api.domain import BaseModel, EntitiesPage
 from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
 from api.domain.model.entities import Models, ModelType
 from api.domain.rerank.entities import CreateRerankBody, Rerank
@@ -31,6 +31,11 @@ class QoSMetric(StrEnum):
     LATENCY = "latency"  # requests latency
     INFLIGHT = "inflight"  # requests concurrency
     PERFORMANCE = "performance"  # custom performance metric
+
+
+class BasicAuth(BaseModel):
+    username: str
+    password: str
 
 
 class ProviderType(StrEnum):
@@ -96,6 +101,7 @@ class Provider(BaseModel):
     type: ProviderType
     url: str
     key: str | None = None
+    basic_auth: BasicAuth | None = None
     timeout: int
     model_name: str
     model_hosting_zone: HostingZone = HostingZone.WOR
@@ -146,24 +152,31 @@ class ProviderOriginalRequest(BaseModel):
     files: Annotated[dict | None, Field(default=None, description="The files to use for the request.")]
 
 
-class ProviderFormattedRequest(BaseModel):
-    method: Annotated[HTTPMethod, Field(description="The HTTP method to build the request.")]
-    url: Annotated[str, Field(description="The model API URL to build the request.")]
-    body: Annotated[dict, Field(default={}, description="The JSON body to use for the request.")]
-    form: Annotated[dict, Field(default={}, description="The form-encoded data to use for the request.")]
-    files: Annotated[dict, Field(default={}, description="The files to use for the request.")]
-
-
 class ResponseMetrics(BaseModel):
     latency: Annotated[int, Field(default=0, description="The latency of the response.")]
     ttft: Annotated[int | None, Field(default=None, description="The time to first byte of the response.")]
 
 
+class ProviderFormattedRequest(BaseModel):
+    method: Annotated[HTTPMethod, Field(description="The HTTP method to build the request.")]
+    url: Annotated[str, Field(description="The model API URL to build the request.")]
+    auth: Annotated[BasicAuth | None, Field(default=None, description="The authentication to use for the request.")]
+    body: Annotated[dict, Field(default={}, description="The JSON body to use for the request.")]
+    form: Annotated[dict, Field(default={}, description="The form-encoded data to use for the request.")]
+    files: Annotated[dict, Field(default={}, description="The files to use for the request.")]
+
+
 class ProviderOriginalResponse(BaseModel):
-    data: Annotated[dict | list, Field(default={}, description="The JSON data to use for the response.")]
+    data: Annotated[dict | list | None, Field(default=None, description="The JSON data to use for the response.")]
     text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
 
 
+class ProviderMetrics(BaseModel):
+    object: Literal["providerMetrics"] = "providerMetrics"
+    waiting_requests: float
+    running_requests: float
+
+
 class ProviderFormattedResponse(BaseModel):
-    data: Annotated[AudioTranscription | ChatCompletion | ChatCompletionChunk | Embeddings | Models | OCR | Rerank | None, Field(default=None, description="The JSON data to use for the response.")]  # fmt: off
+    data: Annotated[AudioTranscription | ChatCompletion | ChatCompletionChunk | Embeddings | Models  | OCR | ProviderMetrics | Rerank | None, Field(default=None, description="The JSON data to use for the response.")]  # fmt: off
     text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]

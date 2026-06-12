@@ -5,7 +5,7 @@ import factory
 from factory import fuzzy
 
 from api.domain.model.entities import ModelType as RouterType
-from api.domain.provider.entities import HostingZone, Provider, ProviderType
+from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderType
 from api.domain.role.entities import Limit, LimitType, PermissionType, Role
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy
 from api.domain.user.entities import User
@@ -85,6 +85,7 @@ class ProviderFactory(factory.Factory):
     type = factory.Faker("random_element", elements=list(ProviderType))
     url = factory.Faker("url")
     key = None
+    basic_auth = None
     timeout = 30
     model_name = factory.Faker("bothify", text="model-????")
     model_hosting_zone = HostingZone.WOR
@@ -146,6 +147,7 @@ class ModelProviderConfigurationFactory(factory.Factory):
     type = ProviderType.VLLM
     url = factory.Faker("url")
     key = None
+    basic_auth: BasicAuth | None = None
     timeout = 30
     model_name = factory.Faker("bothify", text="model-????")
     model_hosting_zone = HostingZone.WOR

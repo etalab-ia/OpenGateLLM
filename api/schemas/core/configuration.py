@@ -11,7 +11,7 @@ from pydantic import ValidationError as PydanticValidationError
 from pydantic_settings import BaseSettings
 import yaml
 
-from api.domain.provider.entities import HostingZone, ProviderType
+from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.core.elasticsearch import ElasticsearchIndexLanguage
 from api.schemas.core.models import Metric
@@ -108,6 +108,7 @@ class ModelProvider(ConfigBaseModel):
     type: Annotated[ProviderType, Field(..., description="Model provider type.")]
     url: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Model provider API url. The url must only contain the domain name (without `/v1` suffix for example). Depends of the model provider type, the url can be optional (Albert, OpenAI).")]  # fmt: off
     key: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Model provider API key.")]  # fmt: off
+    basic_auth: Annotated[BasicAuth | None, Field(default=None, description="Model provider basic authentication.")]
     timeout: Annotated[int, Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 503 error (model is too busy).")]  # fmt: off
     model_name: Annotated[str, Field(..., description="Model name from the model provider.")]  # fmt: off
     model_hosting_zone: Annotated[HostingZone, Field(default=HostingZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")]  # fmt: off

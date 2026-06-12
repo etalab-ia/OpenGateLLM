@@ -1,3 +1,4 @@
+import base64
 from urllib.parse import urljoin
 
 import httpx
@@ -7,7 +8,8 @@ import respx
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.entities import ProviderOriginalResponse, ProviderType
 from api.infrastructure.http import HttpProviderClient
-from api.tests.integration.factories.vllm import VllmEmbeddingsResponseFactory, VllmModelsResponseFactory
+from api.tests.integration.factories.mistral import MistralMetricsResponseFactory
+from api.tests.integration.factories.vllm import VllmEmbeddingsResponseFactory, VllmMetricsResponseFactory, VllmModelsResponseFactory
 from api.tests.unit.infrastructure.factories import ProviderFormattedRequestFactory
 from api.tests.unit.use_case.factories import ProviderFactory
 
@@ -78,6 +80,58 @@ class TestHttpProviderClient:
         assert result.text is None
         assert route.called is True
         assert route.calls[0].request.headers.get("Authorization") is None
+
+    @respx.mock
+    async def test_forward_request_metrics_text_response(self):
+        provider = provider_factory()
+        formatted_request = ProviderFormattedRequestFactory(vllm_metrics=True, base_url=provider.url)
+
+        body = VllmMetricsResponseFactory(model_name=DEFAULT_MODEL_ID, running=2.0, waiting=1.0)
+        url = urljoin(DEFAULT_PROVIDER_URL, "/metrics")
+        route = respx.get(url=url).mock(
+            return_value=httpx.Response(
+                status_code=VllmMetricsResponseFactory._status_code,
+                text=body["text"],
+                headers={"Content-Type": "text/plain"},
+            )
+        )
+
+        result = await HttpProviderClient().forward_request(provider=provider, formatted_request=formatted_request)
+
+        assert isinstance(result, ProviderOriginalResponse)
+        assert result.data is None
+        assert result.text == body["text"]
+        assert route.called is True
+        assert route.calls[0].request.headers.get("Authorization") == "Bearer test-key"
+
+    @respx.mock
+    async def test_forward_request_uses_basic_auth_when_formatted_request_has_auth(self):
+        provider = ProviderFactory(
+            type=ProviderType.MISTRAL,
+            url=DEFAULT_PROVIDER_URL,
+            key=None,
+            timeout=1,
+            model_name=DEFAULT_MODEL_ID,
+        )
+        formatted_request = ProviderFormattedRequestFactory(mistral_metrics=True, base_url=provider.url)
+
+        body = MistralMetricsResponseFactory(model_name=DEFAULT_MODEL_ID)
+        url = urljoin(DEFAULT_PROVIDER_URL, "/metrics")
+        route = respx.get(url=url).mock(
+            return_value=httpx.Response(
+                status_code=MistralMetricsResponseFactory._status_code,
+                text=body["text"],
+                headers={"Content-Type": "text/plain"},
+            )
+        )
+
+        result = await HttpProviderClient().forward_request(provider=provider, formatted_request=formatted_request)
+
+        assert isinstance(result, ProviderOriginalResponse)
+        assert result.text == body["text"]
+        assert route.called is True
+        expected_auth = "Basic " + base64.b64encode(b"metrics:secret").decode()
+        assert route.calls[0].request.headers.get("Authorization") == expected_auth
 
     @pytest.mark.parametrize(
         ("exception", "expected_detail"),

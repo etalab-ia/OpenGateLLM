@@ -15,6 +15,8 @@ from api.infrastructure.http.adapters.embeddings.mistral import MistralEmbedding
 from api.infrastructure.http.adapters.embeddings.openai import OpenaiEmbeddingsAdapter
 from api.infrastructure.http.adapters.embeddings.tei import TeiEmbeddingsAdapter
 from api.infrastructure.http.adapters.embeddings.vllm import VllmEmbeddingsAdapter
+from api.infrastructure.http.adapters.metrics.mistral import MistralMetricsAdapter
+from api.infrastructure.http.adapters.metrics.vllm import VllmMetricsAdapter
 from api.infrastructure.http.adapters.models.albert import AlbertModelsAdapter
 from api.infrastructure.http.adapters.models.mistral import MistralModelsAdapter
 from api.infrastructure.http.adapters.models.openai import OpenaiModelsAdapter
@@ -55,6 +57,10 @@ class HttpProviderAdapterBuilder(ProviderAdapterBuilder):
             ProviderType.OPENAI: OpenaiModelsAdapter,
             ProviderType.TEI: TeiModelsAdapter,
             ProviderType.VLLM: VllmModelsAdapter,
+        },
+        EndpointRoute.METRICS: {
+            ProviderType.MISTRAL: MistralMetricsAdapter,
+            ProviderType.VLLM: VllmMetricsAdapter,
         },
         EndpointRoute.OCR: {
             ProviderType.ALBERT: AlbertOcrAdapter,

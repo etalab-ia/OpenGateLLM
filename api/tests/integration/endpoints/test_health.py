@@ -1,22 +1,32 @@
 from unittest.mock import AsyncMock
+from urllib.parse import urljoin
 
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
+import respx
 
 from api.dependencies import get_health_models_use_case_factory
 from api.domain.user.errors import UserExpiredError
+from api.schemas.admin.providers import ProviderType
 from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
-from api.tests.integration.factories.sql import LimitSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.endpoints.utils import mock_metrics_responses
+from api.tests.integration.factories.sql import LimitSQLFactory, ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
 HEALTH_URL = EndpointRoute.HEALTH
 HEALTH_MODELS_URL = EndpointRoute.HEALTH_MODELS
 
-LATENCY_HISTORY_COUNT = 1800
-MEDIAN_LATENCY_MS = 1000.0
-HISTORICAL_LATENCIES_MS = [MEDIAN_LATENCY_MS] * LATENCY_HISTORY_COUNT
+HEALTH_PROVIDER_URL = "http://health-provider.test/"
+HEALTH_MODEL_NAME = "health-model"
+METRICS_URL = urljoin(HEALTH_PROVIDER_URL, "/metrics")
+METRICS_BODY = (
+    "# HELP vllm:num_requests_running\n"
+    "# TYPE vllm:num_requests_running gauge\n"
+    f'vllm:num_requests_running{{model_name="{HEALTH_MODEL_NAME}"}} 0.0\n'
+    f'vllm:num_requests_waiting{{model_name="{HEALTH_MODEL_NAME}"}} 0.0\n'
+)
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -36,13 +46,20 @@ class TestGetHealthModels:
         self.key = await create_key(db_session, name="user_key", user=self.user)
         self.router_owner = UserSQLFactory(name="Bob", email="bob@example.com", admin_user=True)
 
+    @respx.mock
     async def test_happy_path(self, client: AsyncClient, db_session):
         router = RouterSQLFactory(
             user=self.router_owner,
             name="router_1",
             type=ModelType.TEXT_GENERATION,
-            providers=1,
-            providers__qos_metric=None,
+        )
+        ProviderSQLFactory(
+            router=router,
+            user=self.router_owner,
+            type=ProviderType.VLLM,
+            url=HEALTH_PROVIDER_URL,
+            model_name=HEALTH_MODEL_NAME,
+            qos_metric=None,
         )
         RouterSQLFactory(
             user=self.router_owner,
@@ -54,6 +71,7 @@ class TestGetHealthModels:
         LimitSQLFactory(role=self.user.role, router=router)
         await db_session.flush()
 
+        mock_metrics_responses(respx, ProviderType.VLLM, METRICS_BODY, 200)
         response = await client.get(
             url=HEALTH_MODELS_URL,
             headers={"Authorization": f"Bearer {self.key.token}"},

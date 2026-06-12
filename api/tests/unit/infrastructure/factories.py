@@ -8,7 +8,7 @@ from openai.types import Embedding
 
 from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
 from api.domain.model.entities import Model, Models, ModelType
-from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest
+from api.domain.provider.entities import BasicAuth, ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest
 from api.domain.rerank.entities import CreateRerankBody, Rerank, RerankResult
 from api.utils.variables import EndpointRoute
 
@@ -48,6 +48,7 @@ class ProviderOriginalRequestFactory(factory.Factory):
             ),
         )
         models = factory.Trait(endpoint=EndpointRoute.MODELS)
+        metrics = factory.Trait(endpoint=EndpointRoute.METRICS)
         rerank = factory.Trait(
             endpoint=EndpointRoute.RERANK,
             body=factory.LazyAttribute(
@@ -89,6 +90,17 @@ class ProviderFormattedRequestFactory(factory.Factory):
                     "input": ["hello world"],
                 }
             ),
+        )
+        vllm_metrics = factory.Trait(
+            method=HTTPMethod.GET,
+            url=factory.LazyAttribute(lambda self: urljoin(self.base_url, "/metrics")),
+            body=factory.LazyFunction(dict),
+        )
+        mistral_metrics = factory.Trait(
+            method=HTTPMethod.GET,
+            url=factory.LazyAttribute(lambda self: urljoin(self.base_url, "/metrics")),
+            body=factory.LazyFunction(dict),
+            auth=BasicAuth(username="metrics", password="secret"),
         )
 
 

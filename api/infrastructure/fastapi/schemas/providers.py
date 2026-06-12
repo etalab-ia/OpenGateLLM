@@ -2,7 +2,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field, StringConstraints, model_validator
 
-from api.domain.provider.entities import HostingZone, ProviderType, QoSMetric
+from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType, QoSMetric
 from api.infrastructure.fastapi.schemas import BaseModel
 from api.schemas.core.configuration import ModelProvider
 
@@ -18,6 +18,7 @@ class CreateProviderResponse(BaseModel):
     type: Annotated[ProviderType, Field(..., description="Provider type.")]
     url: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, to_lower=True), Field(default=None, description="Provider API url. The url must only contain the domain name (without `/v1` suffix for example).")]  # fmt: off
     key: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Provider API key.")]  # fmt: off
+    basic_auth: Annotated[BasicAuth | None, Field(default=None, description="Provider basic authentication.")]
     timeout: Annotated[int, Field(..., ge=1, le=3600, description="Timeout for the provider requests, after user receive an 500 error (model is too busy).")]  # fmt: off
     model_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(..., description="Model name from the model provider.")]  # fmt: off
     model_hosting_zone: Annotated[HostingZone, Field(default=HostingZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])]  # fmt: off
@@ -53,7 +54,6 @@ class ProviderResponse(BaseModel):
     user_id: Annotated[int, Field(description="ID of the user that owns the provider.")]  # fmt: off
     provider_type: Annotated[ProviderType, Field(alias="type", description="Provider type.")]  # fmt: off
     url: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, to_lower=True), Field(default=None, description="provider API url. The url must only contain the domain name (without `/v1` suffix for example).")]  # fmt: off
-    key: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="provider API key.")]
     timeout: Annotated[int, Field(description="Timeout for the provider requests, after user receive an 500 error (model is too busy).")]
     model_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="Model name from the model provider.")]
     model_hosting_zone: Annotated[HostingZone, Field(default=HostingZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])]  # fmt: off
