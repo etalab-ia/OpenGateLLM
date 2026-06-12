@@ -59,6 +59,7 @@ dependencies:
     index_language: english
     number_of_shards: 1
     number_of_replicas: 0
+    refresh_interval: 1s
     hosts: "http://${ELASTICSEARCH_HOST:-localhost}:${ELASTICSEARCH_PORT:-9200}"
     basic_auth:
       - "elastic"
@@ -82,7 +83,7 @@ settings:
   # log_level: INFO
   # log_format: [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s
 
-  swagger_version: 0.4.5
+  swagger_version: 0.4.7
   # swagger_contact_url: https://github.com/etalab-ia/OpenGateLLM
   # swagger_contact_email: john.doe@example.com
   # swagger_docs_url: /docs
@@ -227,6 +228,7 @@ Other arguments declared below are used to configure the Elasticsearch index.
 |                    |         | For more information about stemmer, see https://www.elastic.co/docs/reference/text-analysis/analysis-stemmer-tokenfilter#analysis-stemmer-tokenfilter-configure-parms. |             |                                                                                                                                                                                                                                                                                                                                          |            |
 | number_of_shards   | integer | Number of shards for the Elasticsearch index.                                                                                                                          | 12          |                                                                                                                                                                                                                                                                                                                                          | 4          |
 | number_of_replicas | integer | Number of replicas for the Elasticsearch index.                                                                                                                        | 1           |                                                                                                                                                                                                                                                                                                                                          | 1          |
+| refresh_interval   | string  | Refresh interval for the Elasticsearch index                                                                                                                           | 1s          |                                                                                                                                                                                                                                                                                                                                          | 2s         |
 
 <br></br>
 
