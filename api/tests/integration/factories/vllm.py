@@ -103,6 +103,26 @@ class VllmEmbeddingsResponseFactory(factory.DictFactory):
     usage = {"prompt_tokens": 6, "total_tokens": 6}
 
 
+class VllmMetricsResponseFactory(factory.DictFactory):
+    class Meta:
+        exclude = ["model_name", "running", "waiting"]
+
+    _status_code = 200
+
+    # parameters
+    model_name = factory.Faker("bothify", text="????/???-?#")
+    running = 0.0
+    waiting = 0.0
+
+    # body
+    text = factory.LazyAttribute(
+        lambda self: (
+            f'vllm:num_requests_running{{model_name="{self.model_name}"}} {self.running}\n'
+            f'vllm:num_requests_waiting{{model_name="{self.model_name}"}} {self.waiting}\n'
+        )
+    )
+
+
 class VllmModelsResponseFactory(factory.DictFactory):
     class Meta:
         exclude = ["max_context_length", "model_id", "extra_fields"]

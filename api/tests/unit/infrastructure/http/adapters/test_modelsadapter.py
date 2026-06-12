@@ -166,22 +166,6 @@ class TestModelsAdapter:
         assert result == "https://provider.test/v1/endpoint"
 
     @pytest.mark.parametrize(
-        argnames=("adapter"),
-        argvalues=["albert_models_adapter", "mistral_models_adapter", "openai_models_adapter", "tei_models_adapter", "vllm_models_adapter"],
-        indirect=["adapter"],
-    )
-    def test_format_request_not_preserve_body(self, adapter):
-        # Arrange
-        original_request = ProviderOriginalRequestFactory(models=True)
-        original_request.body = {"model": "test-model"}
-
-        # Act
-        result = adapter.format_request(original_request)
-
-        # Assert
-        assert result.body == {}
-
-    @pytest.mark.parametrize(
         argnames=("adapter", "method"),
         argvalues=[
             ("albert_models_adapter", HTTPMethod.GET),

@@ -6,10 +6,18 @@ import pytest
 
 from api.domain.model.entities import HealthStatus
 from api.domain.model.errors import StatusCodeModelError
-from api.domain.provider.entities import Provider, ProviderFormattedRequest, ProviderFormattedResponse, ProviderMetrics, ProviderOriginalResponse
-from api.domain.provider.errors import UnsupportedProviderEndpointError
+from api.domain.provider.entities import (
+    Provider,
+    ProviderFormattedRequest,
+    ProviderFormattedResponse,
+    ProviderMetrics,
+    ProviderOriginalResponse,
+    ProviderType,
+)
+from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
 from api.domain.role.entities import Limit, LimitType
 from api.domain.user.errors import UserExpiredError
+from api.infrastructure.http.adapters.metrics.mistral import MistralMetricsAdapter
 from api.infrastructure.http.adapters.metrics.vllm import VllmMetricsAdapter
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, UserWithRoleFactory
 from api.use_cases.health import GetHealthModelsCommand, GetHealthModelsUseCase, GetHealthModelsUseCaseSuccess
@@ -89,17 +97,24 @@ def default_command():
     return GetHealthModelsCommand(user_id=1)
 
 
-def configure_metrics(provider_adapter_builder, provider_client, provider: Provider, *, waiting: float = 0.0, running: float = 0.0):
-    adapter = VllmMetricsAdapter(provider=provider)
+def configure_metrics(
+    provider_adapter_builder,
+    provider_client,
+    provider: Provider,
+    *,
+    waiting: float = 0.0,
+    running: float = 0.0,
+    format_response_result: ProviderFormattedResponse | ProviderAdapterValidationResponseError | None = None,
+):
+    adapter = MistralMetricsAdapter(provider=provider) if provider.type == ProviderType.MISTRAL else VllmMetricsAdapter(provider=provider)
     adapter.format_response = MagicMock(
-        return_value=ProviderFormattedResponse(data=ProviderMetrics(waiting_requests=waiting, running_requests=running))
+        return_value=format_response_result or ProviderFormattedResponse(data=ProviderMetrics(waiting_requests=waiting, running_requests=running))
     )
     provider_adapter_builder.build.return_value = adapter
     provider_client.forward_request.return_value = ProviderOriginalResponse(text=METRICS_TEXT)
 
 
 def configure_models_fallback(provider_adapter_builder, provider_client, *, models_response):
-    metrics_adapter = MagicMock()
     models_adapter = MagicMock()
     models_adapter.format_request.return_value = ProviderFormattedRequest(method=HTTPMethod.GET, url="https://provider.test/v1/models")
 
@@ -135,7 +150,7 @@ class TestGetHealthModelsUseCase:
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = user_without_access
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider_repository.get_all_providers.return_value = [ProviderFactory(id=1, router_id=1)]
+        provider_repository.get_all_providers.return_value = [ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)]
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -165,7 +180,7 @@ class TestGetHealthModelsUseCase:
         assert [model.id for model in result.models] == ["with-providers"]
 
     @pytest.mark.asyncio
-    async def test_should_return_green_when_metrics_are_low(
+    async def test_should_return_green_when_vllm_metrics_are_low(
         self,
         use_case,
         user_with_role_query,
@@ -179,7 +194,7 @@ class TestGetHealthModelsUseCase:
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider = ProviderFactory(id=1, router_id=1)
+        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
         provider_repository.get_all_providers.return_value = [provider]
         configure_metrics(provider_adapter_builder, provider_client, provider, waiting=0, running=0)
 
@@ -194,7 +209,7 @@ class TestGetHealthModelsUseCase:
         provider_client.forward_request.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_should_return_yellow_when_waiting_requests_exceed_threshold(
+    async def test_should_return_yellow_when_vllm_has_waiting_requests(
         self,
         use_case,
         user_with_role_query,
@@ -208,9 +223,9 @@ class TestGetHealthModelsUseCase:
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider = ProviderFactory(id=1, router_id=1)
+        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
         provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_adapter_builder, provider_client, provider, waiting=11, running=0)
+        configure_metrics(provider_adapter_builder, provider_client, provider, waiting=1, running=0)
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -220,7 +235,7 @@ class TestGetHealthModelsUseCase:
         assert result.models[0].status == HealthStatus.YELLOW
 
     @pytest.mark.asyncio
-    async def test_should_return_yellow_when_running_requests_exceed_threshold(
+    async def test_should_return_red_when_vllm_running_requests_exceed_threshold(
         self,
         use_case,
         user_with_role_query,
@@ -234,9 +249,61 @@ class TestGetHealthModelsUseCase:
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider = ProviderFactory(id=1, router_id=1)
+        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
         provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_adapter_builder, provider_client, provider, waiting=0, running=101)
+        configure_metrics(provider_adapter_builder, provider_client, provider, waiting=0, running=21)
+
+        # Act
+        result = await use_case.execute(command=default_command)
+
+        # Assert
+        assert isinstance(result, GetHealthModelsUseCaseSuccess)
+        assert result.models[0].status == HealthStatus.RED
+
+    @pytest.mark.asyncio
+    async def test_should_return_red_when_vllm_has_waiting_and_running_requests_exceed_threshold(
+        self,
+        use_case,
+        user_with_role_query,
+        router_repository,
+        provider_repository,
+        admin_user,
+        provider_adapter_builder,
+        provider_client,
+        default_command,
+    ):
+        # Arrange
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
+        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
+        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
+        provider_repository.get_all_providers.return_value = [provider]
+        configure_metrics(provider_adapter_builder, provider_client, provider, waiting=5, running=21)
+
+        # Act
+        result = await use_case.execute(command=default_command)
+
+        # Assert
+        assert isinstance(result, GetHealthModelsUseCaseSuccess)
+        assert result.models[0].status == HealthStatus.RED
+
+    @pytest.mark.asyncio
+    async def test_should_return_yellow_when_mistral_running_requests_exceed_yellow_threshold(
+        self,
+        use_case,
+        user_with_role_query,
+        router_repository,
+        provider_repository,
+        admin_user,
+        provider_adapter_builder,
+        provider_client,
+        default_command,
+    ):
+        # Arrange
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
+        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="mistral", providers=1)]
+        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.MISTRAL)
+        provider_repository.get_all_providers.return_value = [provider]
+        configure_metrics(provider_adapter_builder, provider_client, provider, waiting=0, running=59)
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -244,6 +311,32 @@ class TestGetHealthModelsUseCase:
         # Assert
         assert isinstance(result, GetHealthModelsUseCaseSuccess)
         assert result.models[0].status == HealthStatus.YELLOW
+
+    @pytest.mark.asyncio
+    async def test_should_return_red_when_mistral_running_requests_exceed_red_threshold(
+        self,
+        use_case,
+        user_with_role_query,
+        router_repository,
+        provider_repository,
+        admin_user,
+        provider_adapter_builder,
+        provider_client,
+        default_command,
+    ):
+        # Arrange
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
+        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="mistral", providers=1)]
+        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.MISTRAL)
+        provider_repository.get_all_providers.return_value = [provider]
+        configure_metrics(provider_adapter_builder, provider_client, provider, waiting=0, running=64)
+
+        # Act
+        result = await use_case.execute(command=default_command)
+
+        # Assert
+        assert isinstance(result, GetHealthModelsUseCaseSuccess)
+        assert result.models[0].status == HealthStatus.RED
 
     @pytest.mark.asyncio
     async def test_should_return_red_when_metrics_request_fails(
@@ -260,10 +353,41 @@ class TestGetHealthModelsUseCase:
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider = ProviderFactory(id=1, router_id=1)
+        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
         provider_repository.get_all_providers.return_value = [provider]
         configure_metrics(provider_adapter_builder, provider_client, provider)
         provider_client.forward_request.return_value = StatusCodeModelError(status_code=500, detail="error")
+
+        # Act
+        result = await use_case.execute(command=default_command)
+
+        # Assert
+        assert isinstance(result, GetHealthModelsUseCaseSuccess)
+        assert result.models[0].status == HealthStatus.RED
+
+    @pytest.mark.asyncio
+    async def test_should_return_red_when_metrics_response_validation_fails(
+        self,
+        use_case,
+        user_with_role_query,
+        router_repository,
+        provider_repository,
+        admin_user,
+        provider_adapter_builder,
+        provider_client,
+        default_command,
+    ):
+        # Arrange
+        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
+        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
+        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
+        provider_repository.get_all_providers.return_value = [provider]
+        configure_metrics(
+            provider_adapter_builder,
+            provider_client,
+            provider,
+            format_response_result=ProviderAdapterValidationResponseError(provider_type=provider.type, errors=[{"msg": "invalid"}]),
+        )
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -287,7 +411,7 @@ class TestGetHealthModelsUseCase:
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider = ProviderFactory(id=1, router_id=1)
+        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.TEI)
         provider_repository.get_all_providers.return_value = [provider]
         configure_models_fallback(
             provider_adapter_builder,
@@ -319,7 +443,7 @@ class TestGetHealthModelsUseCase:
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider_repository.get_all_providers.return_value = [ProviderFactory(id=1, router_id=1)]
+        provider_repository.get_all_providers.return_value = [ProviderFactory(id=1, router_id=1, type=ProviderType.TEI)]
         configure_models_fallback(
             provider_adapter_builder,
             provider_client,
@@ -351,10 +475,10 @@ class TestGetHealthModelsUseCase:
             RouterFactory(id=1, name="accessible", providers=1),
             RouterFactory(id=2, name="forbidden", providers=1),
         ]
-        accessible_provider = ProviderFactory(id=1, router_id=1)
+        accessible_provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
         provider_repository.get_all_providers.return_value = [
             accessible_provider,
-            ProviderFactory(id=2, router_id=2),
+            ProviderFactory(id=2, router_id=2, type=ProviderType.VLLM),
         ]
         configure_metrics(provider_adapter_builder, provider_client, accessible_provider)
 
@@ -380,10 +504,10 @@ class TestGetHealthModelsUseCase:
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        accessible_provider = ProviderFactory(id=1, router_id=1)
+        accessible_provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
         provider_repository.get_all_providers.return_value = [
             accessible_provider,
-            ProviderFactory(id=2, router_id=99),
+            ProviderFactory(id=2, router_id=99, type=ProviderType.VLLM),
         ]
         configure_metrics(provider_adapter_builder, provider_client, accessible_provider)
 
