@@ -28,3 +28,4 @@ class User(BaseModel):
     created: int
     updated: int
     priority: int
+    password: str | None

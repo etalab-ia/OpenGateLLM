@@ -6,26 +6,6 @@ from pydantic import Field, StringConstraints, field_validator
 from api.schemas import BaseModel
 
 
-class UserUpdateRequest(BaseModel):
-    email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] | None = Field(default=None, description="The new user email. If None, the user email is not changed.")  # fmt: off
-    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="The new user name. If None, the user name is not changed.")  # fmt: off
-    current_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72)] | None = Field(default=None, description="The current user password.")  # fmt: off
-    password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72)] | None = Field(default=None, description="The new user password. If None, the user password is not changed.")  # fmt: off
-    role: int | None = Field(default=None, description="The new role ID. If None, the user role is not changed.")  # fmt: off
-    organization: int | None = Field(default=None, description="The new organization ID. If None, the user will be removed from the organization if he was in one.")  # fmt: off
-    budget: float | None = Field(default=None, description="The new budget. If None, the user will have no budget.")  # fmt: off
-    expires: int | None = Field(default=None, description="The new expiration timestamp. If None, the user will never expire.")  # fmt: off
-    priority: int | None = Field(default=None, ge=0, description="The new user priority. Higher value means higher priority. If None, unchanged.")  # fmt: off
-
-    @field_validator("expires", mode="before")
-    def must_be_future(cls, expires):
-        if isinstance(expires, int):
-            if expires <= int(dt.datetime.now(tz=dt.UTC).timestamp()):
-                raise ValueError("Wrong timestamp, must be in the future.")
-
-        return expires
-
-
 class UsersResponse(BaseModel):
     id: int = Field(description="The user ID.")
 

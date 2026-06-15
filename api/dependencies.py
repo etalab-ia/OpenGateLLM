@@ -20,6 +20,7 @@ from api.domain.provider import (
 from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
 from api.domain.user import UserPasswordEncoder
+from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
 from api.infrastructure.fastapi.context import request_context
@@ -49,7 +50,7 @@ from api.use_cases.admin.providers import (
 )
 from api.use_cases.admin.roles import CreateRoleUseCase, DeleteRoleUseCase, GetRolesUseCase, GetRoleUseCase, UpdateRoleUseCase
 from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
-from api.use_cases.admin.users import CreateUserUseCase, DeleteUserUseCase, GetOneUserUseCase, GetUsersUseCase
+from api.use_cases.admin.users import CreateUserUseCase, DeleteUserUseCase, GetOneUserUseCase, GetUsersUseCase, UpdateUserUseCase
 from api.use_cases.auth import AuthLoginUseCase
 from api.use_cases.embeddings import CreateEmbeddingsUseCase
 from api.use_cases.health import GetHealthModelsUseCase
@@ -61,6 +62,10 @@ from api.utils.context import global_context
 
 def get_request_context() -> ContextVar[RequestContext]:
     return request_context
+
+
+def get_authenticated_user() -> AuthenticatedUserView:
+    return request_context.get().user
 
 
 def get_secret_key() -> str:
@@ -250,6 +255,10 @@ def delete_user_use_case_factory(postgres_session: AsyncSession = Depends(get_po
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
     )
+
+
+def update_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateUserUseCase:
+    return UpdateUserUseCase(user_repository=_user_repository(postgres_session), user_password_encoder=_user_password_encoder())
 
 
 # rerank use cases

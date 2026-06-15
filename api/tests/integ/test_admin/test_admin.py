@@ -103,7 +103,7 @@ class TestAuth:
         # Update expiration to now
         future_current = int((datetime.now() + timedelta(seconds=10)).timestamp())
         response = client.patch_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}", json={"expires": future_current})
-        assert response.status_code == 204, response.text
+        assert response.status_code == 200, response.text
 
         # Check updated expiration
         response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}")
@@ -343,7 +343,7 @@ class TestAuth:
 
         # Update the budget
         response = client.patch_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_id}", json={"budget": 0})
-        assert response.status_code == 204, response.text
+        assert response.status_code == 200, response.text
 
         # Check that the budget is updated
         response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_id}")
