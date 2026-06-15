@@ -38,7 +38,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     UserAlreadyExistsHTTPException,
     UserNotFoundHTTPException,
 )
-from api.infrastructure.fastapi.schemas.users import CreateUserBody, UserResponse, UsersResponse
+from api.infrastructure.fastapi.schemas.admin.users import CreateUserBody, UserResponse, UsersResponse
 from api.use_cases.admin.users import (
     CreateUserCommand,
     CreateUserUseCase,
