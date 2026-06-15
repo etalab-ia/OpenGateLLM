@@ -27,7 +27,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RoleHasUsersHTTPException,
     RoleNotFoundHTTPException,
 )
-from api.infrastructure.fastapi.schemas.roles import CreateRoleBody, RoleResponse, RolesResponse
+from api.infrastructure.fastapi.schemas.admin.roles import CreateRoleBody, RoleResponse, RolesResponse
 from api.use_cases.admin.roles import (
     CreateRoleCommand,
     CreateRoleUseCase,

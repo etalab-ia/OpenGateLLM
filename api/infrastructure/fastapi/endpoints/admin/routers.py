@@ -26,7 +26,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RouterAlreadyExistsHTTPException,
     RouterNotFoundHTTPException,
 )
-from api.infrastructure.fastapi.schemas.routers import CreateRouterBody, RouterResponse, RoutersResponse, UpdateRouterBody
+from api.infrastructure.fastapi.schemas.admin.routers import CreateRouterBody, RouterResponse, RoutersResponse, UpdateRouterBody
 from api.use_cases.admin.routers import (
     CreateRouterCommand,
     CreateRouterUseCase,

@@ -33,7 +33,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     ProviderNotReachableHTTPException,
     RouterNotFoundHTTPException,
 )
-from api.infrastructure.fastapi.schemas.providers import (
+from api.infrastructure.fastapi.schemas.admin.providers import (
     CreateProviderBody,
     CreateProviderResponse,
     ProviderResponse,

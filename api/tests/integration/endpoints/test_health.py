@@ -1,5 +1,4 @@
 from unittest.mock import AsyncMock
-from urllib.parse import urljoin
 
 from httpx import AsyncClient
 import pytest
@@ -11,16 +10,14 @@ from api.domain.user.errors import UserExpiredError
 from api.schemas.admin.providers import ProviderType
 from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
-from api.tests.integration.endpoints.utils import mock_metrics_responses
+from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_metrics_responses
 from api.tests.integration.factories.sql import LimitSQLFactory, ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
 HEALTH_URL = EndpointRoute.HEALTH
 HEALTH_MODELS_URL = EndpointRoute.HEALTH_MODELS
 
-HEALTH_PROVIDER_URL = "http://health-provider.test/"
 HEALTH_MODEL_NAME = "health-model"
-METRICS_URL = urljoin(HEALTH_PROVIDER_URL, "/metrics")
 METRICS_BODY = (
     "# HELP vllm:num_requests_running\n"
     "# TYPE vllm:num_requests_running gauge\n"
@@ -57,7 +54,7 @@ class TestGetHealthModels:
             router=router,
             user=self.router_owner,
             type=ProviderType.VLLM,
-            url=HEALTH_PROVIDER_URL,
+            url=DEFAULT_PROVIDER_URL,
             model_name=HEALTH_MODEL_NAME,
             qos_metric=None,
         )
