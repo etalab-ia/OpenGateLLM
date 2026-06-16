@@ -10,43 +10,53 @@ def tokenizer():
 
 
 class TestTiktokenModelTokenizer:
-    def test_encode_returns_same_tokens_as_underlying_encoding(self, tokenizer):
+    def test_compute_tokens_returns_token_count_for_single_text(self, tokenizer):
         # Act
-        result = tokenizer.encode("hello")
+        result = tokenizer.compute_tokens(texts=["hello"])
 
         # Assert
-        assert result == [31373]
+        assert result == 1
 
-    def test_encode_returns_empty_list_for_empty_string(self, tokenizer):
+    def test_compute_tokens_returns_zero_for_empty_texts(self, tokenizer):
         # Act
-        result = tokenizer.encode("")
+        result = tokenizer.compute_tokens(texts=[])
 
         # Assert
-        assert result == []
+        assert result == 0
 
-    def test_encode_token_count_differs_by_text_length(self, tokenizer):
+    def test_compute_tokens_count_differs_by_text_length(self, tokenizer):
         # Act
-        short_tokens = tokenizer.encode("hi")
-        long_tokens = tokenizer.encode("hello world")
+        short_count = tokenizer.compute_tokens(texts=["hi"])
+        long_count = tokenizer.compute_tokens(texts=["hello world"])
 
         # Assert
-        assert len(short_tokens) < len(long_tokens)
+        assert short_count < long_count
 
-    def test_encode_is_deterministic_for_same_text(self, tokenizer):
+    def test_compute_tokens_is_deterministic_for_same_texts(self, tokenizer):
         # Act
-        first = tokenizer.encode("hello world")
-        second = tokenizer.encode("hello world")
+        first = tokenizer.compute_tokens(texts=["hello", "world"])
+        second = tokenizer.compute_tokens(texts=["hello", "world"])
 
         # Assert
         assert first == second
 
-    def test_encode_token_count_matches_tiktoken_encoding(self, tokenizer):
+    def test_compute_tokens_joins_and_strips_texts(self, tokenizer):
         # Arrange
-        text = "hello world"
         encoding = tiktoken.get_encoding("gpt2")
 
         # Act
-        result = tokenizer.encode(text)
+        result = tokenizer.compute_tokens(texts=["query", "document1", "document2 "])
 
         # Assert
-        assert len(result) == len(encoding.encode(text))
+        assert result == len(encoding.encode("query document1 document2"))
+
+    def test_compute_tokens_count_matches_tiktoken_encoding(self, tokenizer):
+        # Arrange
+        texts = ["hello", "world"]
+        encoding = tiktoken.get_encoding("gpt2")
+
+        # Act
+        result = tokenizer.compute_tokens(texts=texts)
+
+        # Assert
+        assert result == len(encoding.encode(" ".join(texts).strip()))
