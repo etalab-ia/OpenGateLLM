@@ -11,7 +11,7 @@ from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, Unk
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.user.errors import UserHasNoAccessToRouterError
+from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.schemas.admin.roles import LimitType
 from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
@@ -113,6 +113,11 @@ class TestCreateRerank:
                 UserHasNoAccessToRouterError(id=1),
                 404,
                 f"Model {DEFAULT_MODEL_NAME} not found.",
+            ),
+            (
+                UserHasInsufficientBudgetError(),
+                400,
+                "Insufficient budget.",
             ),
             (
                 RouterHasWrongTypeError(id=1, actual_type=RouterType.TEXT_GENERATION, expected_type=RouterType.TEXT_CLASSIFICATION),

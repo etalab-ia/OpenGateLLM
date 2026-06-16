@@ -17,7 +17,7 @@ from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage.entities import Usage
-from api.domain.user.errors import UserHasNoAccessToRouterError
+from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.context import RequestContext
 from api.schemas.core.models import Metric
 from api.utils.variables import EndpointRoute
@@ -53,6 +53,7 @@ type CreateRerankUseCaseResult = (
     | StatusCodeModelError
     | UnknownModelError
     | UserHasNoAccessToRouterError
+    | UserHasInsufficientBudgetError
 )
 
 
@@ -81,7 +82,7 @@ class CreateRerankUseCase:
         self.router_repository = router_repository
 
     async def execute(self, command: CreateRerankCommand) -> CreateRerankUseCaseResult:
-        user = command.request_context.get().user
+        authenticated_user = command.request_context.get().user
         result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=command.model)
         match result:
             case Router() as router:
@@ -96,8 +97,11 @@ class CreateRerankUseCase:
             return RouterHasNoProvidersError(id=router.id)
         if router.type != RouterType.TEXT_CLASSIFICATION:
             return RouterHasWrongTypeError(id=router.id, actual_type=router.type, expected_type=RouterType.TEXT_CLASSIFICATION)
-        if user.cannot_access_router(router_id=router.id):
+        if authenticated_user.cannot_access_router(router_id=router.id):
             return UserHasNoAccessToRouterError(id=router.id)
+
+        if router.cost_prompt_tokens > 0 and authenticated_user.budget == 0:
+            return UserHasInsufficientBudgetError()
 
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
         provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
@@ -112,10 +116,10 @@ class CreateRerankUseCase:
         )
         prompt_tokens = self.model_tokenizer.compute_tokens(texts=original_request.body.get_prompts())
 
-        if not user.is_admin:
-            limits = [limit for limit in user.limits if limit.router_id == router.id]
+        if not authenticated_user.is_admin:
+            limits = [limit for limit in authenticated_user.limits if limit.router_id == router.id]
             rate_limit_state = await self.router_rate_limiter.get_rate_limit_state(
-                user_id=user.id,
+                user_id=authenticated_user.id,
                 router_limits=limits,
                 router_id=router.id,
                 prompt_tokens=prompt_tokens,
@@ -125,7 +129,7 @@ class CreateRerankUseCase:
                 limit_type = exceeded_limits[0]
                 return RouterRateLimitExceededError(id=router.id, limit_type=limit_type, headers=rate_limit_state.build_limit_headers)
             await self.router_rate_limiter.update_rate_limit_state(
-                user_id=user.id,
+                user_id=authenticated_user.id,
                 router_limits=limits,
                 router_id=router.id,
                 prompt_tokens=prompt_tokens,
