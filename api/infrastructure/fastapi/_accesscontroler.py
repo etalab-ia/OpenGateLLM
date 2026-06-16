@@ -45,11 +45,11 @@ class AccessController:
         if not api_key.credentials:
             raise InvalidAPIKeyHTTPException()
 
-        if not api_key.startswith(TOKEN_PREFIX):
+        if not api_key.credentials.startswith(TOKEN_PREFIX):
             raise InvalidAPIKeyHTTPException()
 
         try:
-            jwt_token = api_key.split(TOKEN_PREFIX)[1]
+            jwt_token = api_key.credentials.split(TOKEN_PREFIX)[1]
             claims = jwt.decode(token=jwt_token, key=secret_key, algorithms=["HS256"])
             decoded_key = Key.build_from_claims(claims=claims)
 
