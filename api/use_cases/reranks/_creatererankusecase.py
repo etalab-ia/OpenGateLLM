@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import ConfigDict
 
+from api.domain.key.errors import InvalidKeyError, KeyNotFoundError
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
@@ -16,8 +17,7 @@ from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage.entities import Usage
-from api.domain.user import UserWithRoleQuery
-from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
+from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.context import RequestContext
 from api.schemas.core.models import Metric
 from api.utils.variables import EndpointRoute
@@ -40,6 +40,8 @@ class CreateRerankUseCaseSuccess:
 
 type CreateRerankUseCaseResult = (
     CreateRerankUseCaseSuccess
+    | InvalidKeyError
+    | KeyNotFoundError
     | NoAvailableProviderError
     | ProviderAdapterValidationRequestError
     | ProviderAdapterValidationResponseError
@@ -50,7 +52,6 @@ type CreateRerankUseCaseResult = (
     | TooBusyModelError
     | StatusCodeModelError
     | UnknownModelError
-    | UserExpiredError
     | UserHasNoAccessToRouterError
 )
 
@@ -67,7 +68,6 @@ class CreateRerankUseCase:
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
-        user_with_role_query: UserWithRoleQuery,
     ) -> None:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
         self.model_tokenizer = model_tokenizer
@@ -79,15 +79,9 @@ class CreateRerankUseCase:
 
         self.router_rate_limiter = router_rate_limiter
         self.router_repository = router_repository
-        self.user_with_role_query = user_with_role_query
 
     async def execute(self, command: CreateRerankCommand) -> CreateRerankUseCaseResult:
-        user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.request_context.get().user_id)
-        command.set_value_in_request_context(key="user_email", value=user.email)
-
-        if user.expires is not None and user.expires < time.time():
-            return UserExpiredError()
-
+        user = command.request_context.get().user
         result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=command.model)
         match result:
             case Router() as router:

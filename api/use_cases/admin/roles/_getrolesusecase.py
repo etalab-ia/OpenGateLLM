@@ -4,13 +4,10 @@ from dataclasses import dataclass, replace
 from api.domain import SortField, SortOrder
 from api.domain.role import LimitRepository, PermissionRepository, RoleRepository
 from api.domain.role.entities import RolePage
-from api.domain.user import UserWithRoleQuery
-from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
 
 
 @dataclass
 class GetRolesCommand:
-    user_id: int
     offset: int = 0
     limit: int = 10
     sort_by: SortField = SortField.ID
@@ -22,34 +19,16 @@ class GetRolesUseCaseSuccess:
     role_page: RolePage
 
 
-type GetRolesUseCaseResult = GetRolesUseCaseSuccess | UserExpiredError | UserIsNotAdminError
+type GetRolesUseCaseResult = GetRolesUseCaseSuccess
 
 
 class GetRolesUseCase:
-    def __init__(
-        self,
-        role_repository: RoleRepository,
-        permission_repository: PermissionRepository,
-        limit_repository: LimitRepository,
-        user_with_role_query: UserWithRoleQuery,
-    ):
+    def __init__(self, role_repository: RoleRepository, permission_repository: PermissionRepository, limit_repository: LimitRepository):
         self.role_repository = role_repository
         self.permission_repository = permission_repository
         self.limit_repository = limit_repository
-        self.user_with_role_query = user_with_role_query
 
-    async def execute(
-        self,
-        command: GetRolesCommand,
-    ) -> GetRolesUseCaseResult:
-        user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.user_id)
-
-        if user.has_expired:
-            return UserExpiredError()
-
-        if not user.is_admin:
-            return UserIsNotAdminError()
-
+    async def execute(self, command: GetRolesCommand) -> GetRolesUseCaseResult:
         role_page = await self.role_repository.get_roles_page(
             limit=command.limit, offset=command.offset, sort_by=command.sort_by, sort_order=command.sort_order
         )

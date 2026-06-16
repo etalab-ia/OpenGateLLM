@@ -1,12 +1,8 @@
-from unittest.mock import AsyncMock
-
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import get_roles_use_case_factory
 from api.domain.role.entities import LimitType, PermissionType
-from api.domain.user.errors import UserIsNotAdminError
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
@@ -44,17 +40,16 @@ class TestGetRoles:
         role_names = [r["name"] for r in data["data"]]
         assert "my-role" in role_names
 
-    async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app):
-        mock_use_case = AsyncMock()
-        mock_use_case.execute.return_value = UserIsNotAdminError()
-        app.dependency_overrides[get_roles_use_case_factory] = lambda: mock_use_case
+    async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
+        regular_user = UserSQLFactory(regular_user=True)
+        key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
 
         response = await client.get(
             url=URL,
-            headers={"Authorization": f"Bearer {self.key.token}"},
+            headers={"Authorization": f"Bearer {key.token}"},
         )
 
-        assert response.status_code == 403
+        assert response.status_code == 403, response.text
         assert response.json().get("detail") == "User has no admin rights."
 
     @pytest.mark.parametrize(

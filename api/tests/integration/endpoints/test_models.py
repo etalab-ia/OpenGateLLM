@@ -4,9 +4,8 @@ from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import get_model_use_case_factory, get_models_use_case_factory
+from api.dependencies import get_model_use_case_factory
 from api.domain.model.errors import ModelNotFoundError
-from api.domain.user.errors import UserExpiredError
 from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import LimitSQLFactory, RouterSQLFactory, UserSQLFactory
@@ -68,29 +67,6 @@ class TestGetModels:
         assert models_by_id["router_2"]["max_context_length"] == 16384
 
     @pytest.mark.parametrize(
-        "use_case_result,expected_status,expected_detail",
-        [
-            (
-                UserExpiredError(),
-                403,
-                "Your account has expired. Please contact support to renew your account.",
-            ),
-        ],
-    )
-    async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
-        mock_use_case = AsyncMock()
-        mock_use_case.execute.return_value = use_case_result
-        app.dependency_overrides[get_models_use_case_factory] = lambda: mock_use_case
-
-        response = await client.get(
-            url=URL,
-            headers={"Authorization": f"Bearer {self.key.token}"},
-        )
-
-        assert response.status_code == expected_status
-        assert response.json().get("detail") == expected_detail
-
-    @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",
         [
             ({}, 401, "Not authenticated"),
@@ -150,11 +126,6 @@ class TestGetModel:
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
         [
-            (
-                UserExpiredError(),
-                403,
-                "Your account has expired. Please contact support to renew your account.",
-            ),
             (
                 ModelNotFoundError(name="non_existent_model"),
                 404,

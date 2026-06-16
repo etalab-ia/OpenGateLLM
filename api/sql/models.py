@@ -2,7 +2,7 @@ import datetime as dt
 from http import HTTPMethod
 from typing import Optional
 
-from sqlalchemy import ForeignKey, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -16,12 +16,14 @@ from api.utils.variables import DEFAULT_TIMEOUT
 
 Base = declarative_base()
 
+UtcDateTime = DateTime(timezone=True)
+
 
 class Usage(Base):
     __tablename__ = "usage"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
+    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
 
     # foreign keys
     user_id: Mapped[int | None] = mapped_column(ForeignKey(column="user.id", ondelete="SET NULL"), index=True)
@@ -63,8 +65,8 @@ class Role(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(unique=True, index=True)
-    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
-    updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
+    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
+    updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())
     storage_limit: Mapped[int | None] = mapped_column(default=None)
 
     user: Mapped[list["User"]] = relationship(back_populates="role", passive_deletes=True)
@@ -78,7 +80,7 @@ class Permission(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     role_id: Mapped[int] = mapped_column(ForeignKey(column="role.id", ondelete="CASCADE"))
     permission: Mapped[PermissionType]
-    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
+    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
 
     role: Mapped["Role"] = relationship(back_populates="permissions")
 
@@ -93,7 +95,7 @@ class Limit(Base):
     router_id: Mapped[int] = mapped_column(ForeignKey(column="router.id", ondelete="CASCADE"))
     type: Mapped[LimitType]
     value: Mapped[int | None]
-    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
+    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
 
     role: Mapped["Role"] = relationship(back_populates="limits")
     router: Mapped["Router"] = relationship(back_populates="limit")
@@ -113,9 +115,9 @@ class User(Base):
     role_id: Mapped[int] = mapped_column(ForeignKey(column="role.id", ondelete="RESTRICT"))
     organization_id: Mapped[int | None] = mapped_column(ForeignKey(column="organization.id", ondelete="RESTRICT"))
     budget: Mapped[float | None]
-    expires: Mapped[dt.datetime | None]
-    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
-    updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
+    expires: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
+    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
+    updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())
     priority: Mapped[int] = mapped_column(default=0)
 
     usage: Mapped[list["Usage"]] = relationship(back_populates="user", passive_deletes=True)
@@ -139,8 +141,8 @@ class Token(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="CASCADE"))
     name: Mapped[str | None]
     token: Mapped[str | None]
-    expires: Mapped[dt.datetime | None]
-    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
+    expires: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
+    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
 
     user: Mapped["User"] = relationship(back_populates="token")
     usage: Mapped[list["Usage"]] = relationship(back_populates="token", passive_deletes=True)
@@ -151,8 +153,8 @@ class Organization(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(unique=True)
-    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
-    updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
+    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
+    updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())
 
     user: Mapped["User"] = relationship(back_populates="organization", passive_deletes=True)
 
@@ -165,8 +167,8 @@ class Collection(Base):
     name: Mapped[str]
     description: Mapped[str | None]
     visibility: Mapped[CollectionVisibility]
-    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
-    updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
+    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
+    updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())
 
     user: Mapped["User"] = relationship(back_populates="collection")
     document: Mapped[list["Document"]] = relationship(back_populates="collection", cascade="all, delete-orphan", passive_deletes=True)
@@ -179,7 +181,7 @@ class Document(Base):
     collection_id: Mapped[int] = mapped_column(ForeignKey(column="collection.id", ondelete="CASCADE"))
     name: Mapped[str]
     size: Mapped[int] = mapped_column(default=0)
-    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
+    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
 
     collection: Mapped["Collection"] = relationship(back_populates="document", passive_deletes=True)
 
@@ -194,8 +196,8 @@ class Router(Base):
     load_balancing_strategy: Mapped[RouterLoadBalancingStrategy]
     cost_prompt_tokens: Mapped[float] = mapped_column(default=0.0)
     cost_completion_tokens: Mapped[float] = mapped_column(default=0.0)
-    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
-    updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
+    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
+    updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())
 
     user: Mapped["User"] = relationship(back_populates="router")
     alias: Mapped[list["RouterAlias"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
@@ -233,8 +235,8 @@ class Provider(Base):
     qos_limit: Mapped[float | None]
     max_context_length: Mapped[int | None]
     vector_size: Mapped[int | None]
-    created: Mapped[dt.datetime] = mapped_column(insert_default=func.now())
-    updated: Mapped[dt.datetime] = mapped_column(insert_default=func.now(), onupdate=func.now())
+    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
+    updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())
 
     router: Mapped["Router"] = relationship(back_populates="provider")
     user: Mapped["User"] = relationship(back_populates="provider")

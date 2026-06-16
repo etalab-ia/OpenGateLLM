@@ -6,15 +6,12 @@ from api.domain.provider.entities import HostingZone, Metric, Provider
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.user import UserWithRoleQuery
-from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
 
 
 @dataclass
 class UpdateProviderCommand:
     provider_id: int
     router_id: int | None
-    user_id: int
     timeout: int | None
     model_hosting_zone: HostingZone | None
     model_total_params: int | None
@@ -36,8 +33,6 @@ type UpdateProviderUseCaseResult = (
     | RouterNotFoundError
     | ProviderAlreadyExistsError
     | ProviderNotFoundError
-    | UserExpiredError
-    | UserIsNotAdminError
 )
 
 
@@ -46,21 +41,11 @@ class UpdateProviderUseCase:
         self,
         router_repository: RouterRepository,
         provider_repository: ProviderRepository,
-        user_with_role_query: UserWithRoleQuery,
     ):
         self.router_repository = router_repository
         self.provider_repository = provider_repository
-        self.user_with_role_query = user_with_role_query
 
     async def execute(self, command: UpdateProviderCommand) -> UpdateProviderUseCaseResult:
-        user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.user_id)
-
-        if user.has_expired:
-            return UserExpiredError()
-
-        if not user.is_admin:
-            return UserIsNotAdminError()
-
         existing_provider = await self.provider_repository.get_one_provider(provider_id=command.provider_id)
         if isinstance(existing_provider, ProviderNotFoundError):
             return ProviderNotFoundError(id=command.provider_id)

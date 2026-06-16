@@ -7,7 +7,7 @@ import pytest_asyncio
 from api.dependencies import create_user_use_case_factory
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user.errors import UserAlreadyExistsError, UserIsNotAdminError
+from api.domain.user.errors import UserAlreadyExistsError
 from api.tests.helpers import create_key
 from api.tests.integration.factories.sql import RoleSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
@@ -66,11 +66,6 @@ class TestCreateUser:
                 404,
                 "Organization 99 not found.",
             ),
-            (
-                UserIsNotAdminError(),
-                403,
-                "User has no admin rights.",
-            ),
         ],
     )
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
@@ -86,6 +81,19 @@ class TestCreateUser:
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail
+
+    async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
+        regular_user = UserSQLFactory(regular_user=True)
+        key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
+
+        response = await client.post(
+            url=URL,
+            headers={"Authorization": f"Bearer {key.token}"},
+            json=_valid_body(role_id=1),
+        )
+
+        assert response.status_code == 403, response.text
+        assert response.json().get("detail") == "User has no admin rights."
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",

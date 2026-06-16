@@ -1,12 +1,8 @@
-from unittest.mock import AsyncMock
-
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 import respx
 
-from api.dependencies import get_health_models_use_case_factory
-from api.domain.user.errors import UserExpiredError
 from api.schemas.admin.providers import ProviderType
 from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
@@ -76,29 +72,6 @@ class TestGetHealthModels:
 
         assert response.status_code == 200, response.text
         assert response.json() == {"data": [{"id": "router_1", "status": "green"}]}
-
-    @pytest.mark.parametrize(
-        "use_case_result,expected_status,expected_detail",
-        [
-            (
-                UserExpiredError(),
-                403,
-                "Your account has expired. Please contact support to renew your account.",
-            ),
-        ],
-    )
-    async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
-        mock_use_case = AsyncMock()
-        mock_use_case.execute.return_value = use_case_result
-        app.dependency_overrides[get_health_models_use_case_factory] = lambda: mock_use_case
-
-        response = await client.get(
-            url=HEALTH_MODELS_URL,
-            headers={"Authorization": f"Bearer {self.key.token}"},
-        )
-
-        assert response.status_code == expected_status
-        assert response.json().get("detail") == expected_detail
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",

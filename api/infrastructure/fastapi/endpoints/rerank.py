@@ -9,13 +9,12 @@ from api.dependencies import create_rerank_use_case_factory, get_request_context
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
-from api.infrastructure.fastapi.access import get_current_key
+from api.domain.user.errors import UserHasNoAccessToRouterError
+from api.infrastructure.fastapi import AccessController
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.decorators import hooks
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    AccountExpiredHTTPException,
     InternalServerHTTPException,
     ModelIsTooBusyExceptionHTTPException,
     ModelNotFoundHTTPException,
@@ -33,7 +32,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.RERANK.title()])
 
 @router.post(
     path=EndpointRoute.RERANK,
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=AccessController())],
     status_code=200,
     responses=get_documentation_responses(
         [
@@ -64,7 +63,7 @@ async def create_rerank(
         logger.exception(
             "Unexpected error while executing rerank use case",
             extra={
-                "user_id": request_context.get().user_id,
+                "authenticated_user_id": request_context.get().user.id,
                 "model_name": body.model,
                 "error_type": type(e).__name__,
             },
@@ -88,8 +87,6 @@ async def create_rerank(
             raise ModelNotFoundHTTPException(name=body.model)
         case RouterHasWrongTypeError(actual_type=actual_type, expected_type=expected_type):
             raise WrongModelTypeHTTPException(expected_type=expected_type, actual_type=actual_type)
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
         case UserHasNoAccessToRouterError():
             raise ModelNotFoundHTTPException(name=body.model)
         case TooBusyModelError(detail=detail):

@@ -13,7 +13,7 @@ class InvalidProviderTypeHTTPException(HTTPException):
 
 
 # 401
-class InvalidAPIKeyException(HTTPException):
+class InvalidAPIKeyHTTPException(HTTPException):
     status_code = 401
     detail = "Invalid API key."
 
@@ -21,7 +21,7 @@ class InvalidAPIKeyException(HTTPException):
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
-class InvalidAuthenticationSchemeException(HTTPException):
+class InvalidAuthenticationSchemeHTTPException(HTTPException):
     status_code = 401
     detail = "Invalid authentication scheme."
 

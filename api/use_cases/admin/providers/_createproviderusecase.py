@@ -6,14 +6,12 @@ from api.domain.provider.entities import BasicAuth, HostingZone, Metric, Provide
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.user import UserWithRoleQuery
-from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
 
 
 @dataclass
 class CreateProviderCommand:
-    router_id: int
     user_id: int
+    router_id: int
     provider_type: ProviderType
     url: str
     key: str | None
@@ -40,33 +38,16 @@ type CreateProviderUseCaseResult = (
     | InconsistentModelVectorSizeError
     | RouterNotFoundError
     | ProviderAlreadyExistsError
-    | UserExpiredError
-    | UserIsNotAdminError
 )
 
 
 class CreateProviderUseCase:
-    def __init__(
-        self,
-        router_repository: RouterRepository,
-        provider_repository: ProviderRepository,
-        provider_gateway: ProviderGateway,
-        user_with_role_query: UserWithRoleQuery,
-    ):
+    def __init__(self, router_repository: RouterRepository, provider_repository: ProviderRepository, provider_gateway: ProviderGateway):
         self.router_repository = router_repository
         self.provider_repository = provider_repository
         self.provider_gateway = provider_gateway
-        self.user_with_role_query = user_with_role_query
 
     async def execute(self, command: CreateProviderCommand) -> CreateProviderUseCaseResult:
-        user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.user_id)
-
-        if user.has_expired:
-            return UserExpiredError()
-
-        if not user.is_admin:
-            return UserIsNotAdminError()
-
         router = await self.router_repository.get_router_by_id(router_id=command.router_id)
         if router is None:
             return RouterNotFoundError(id=command.router_id)

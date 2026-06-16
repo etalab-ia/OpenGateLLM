@@ -5,8 +5,7 @@ from api.domain.model.errors import ModelNotFoundError
 from api.domain.router import RouterRepository
 from api.domain.router.entities import Router
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.user import UserWithRoleQuery
-from api.domain.user.errors import UserExpiredError
+from api.domain.user.views import UserWithRoleView
 
 
 @dataclass
@@ -16,23 +15,18 @@ class GetModelUseCaseSucess:
 
 @dataclass
 class GetModelCommand:
-    user_id: int
+    user: UserWithRoleView
     name: str
 
 
-type GetModelUseCaseResult = GetModelUseCaseSucess | ModelNotFoundError | UserExpiredError
+type GetModelUseCaseResult = GetModelUseCaseSucess | ModelNotFoundError
 
 
 class GetModelUseCase:
-    def __init__(self, router_repository: RouterRepository, user_with_role_query: UserWithRoleQuery):
+    def __init__(self, router_repository: RouterRepository):
         self.router_repository = router_repository
-        self.user_with_role_query = user_with_role_query
 
     async def execute(self, command: GetModelCommand) -> GetModelUseCaseResult:
-        user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.user_id)
-        if user.has_expired:
-            return UserExpiredError()
-
         result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=command.name)
         match result:
             case Router() as router:
@@ -40,7 +34,7 @@ class GetModelUseCase:
             case RouterNotFoundError():
                 return ModelNotFoundError(name=command.name)
 
-        if router.has_no_providers or user.cannot_access_router(router_id=router.id):
+        if router.has_no_providers or command.user.cannot_access_router(router_id=router.id):
             return ModelNotFoundError(name=command.name)
 
         organization_name = await self.router_repository.get_organization_name(router.user_id)

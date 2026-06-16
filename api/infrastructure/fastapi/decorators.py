@@ -37,8 +37,8 @@ def hooks(*, postgres_session_provider: PostgresSessionProvider):
         async def wrapper(*args, **kwargs):
             usage = Usage(created=datetime.now(), endpoint="N/A")
             context = request_context.get()
-            if context.user_id is None:
-                logger.info(f"No user ID found in request context, skipping usage logging ({context.endpoint}).")
+            if context.key is None:
+                logger.info(f"No key found in request context, skipping usage logging ({context.endpoint}).")
                 return await endpoint_func(*args, **kwargs)
 
             try:
@@ -68,10 +68,10 @@ def hooks(*, postgres_session_provider: PostgresSessionProvider):
 
 def set_usage_from_context(usage: Usage):
     context = request_context.get()
-    usage.user_id = context.user_id
-    usage.user_email = context.user_email
-    usage.token_id = context.key_id
-    usage.token_name = context.key_name
+    usage.user_id = context.key.user_id
+    usage.user_email = context.user.email
+    usage.token_id = context.key.id
+    usage.token_name = context.key.name
     usage.endpoint = context.endpoint
     usage.method = context.method
     usage.router_id = context.router_id

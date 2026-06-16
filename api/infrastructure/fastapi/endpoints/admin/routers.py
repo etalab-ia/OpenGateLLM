@@ -13,13 +13,11 @@ from api.dependencies import (
 )
 from api.domain import SortField, SortOrder
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
-from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
-from api.infrastructure.fastapi.access import get_current_key
+from api.infrastructure.fastapi import AccessController
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    AccountExpiredHTTPException,
     InternalServerHTTPException,
     NotAdminUserHTTPException,
     RouterAliasAlreadyExistsHTTPException,
@@ -51,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 @router.post(
     path=EndpointRoute.ADMIN_ROUTERS,
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=201,
     responses=get_documentation_responses([RouterAliasAlreadyExistsHTTPException, RouterAlreadyExistsHTTPException, NotAdminUserHTTPException]),
 )
@@ -61,7 +59,7 @@ async def create_router(
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> RouterResponse:
     command = CreateRouterCommand(
-        user_id=request_context.get().user_id,
+        user_id=request_context.get().user.id,
         name=body.name,
         router_type=body.router_type,
         aliases=body.aliases,
@@ -75,7 +73,7 @@ async def create_router(
         logger.exception(
             "Unexpected error while executing create_router use case",
             extra={
-                "user_id": request_context.get().user_id,
+                "authenticated_user_id": request_context.get().user.id,
                 "router_name": body.name,
                 "error_type": type(e).__name__,
             },
@@ -89,15 +87,11 @@ async def create_router(
             raise RouterAliasAlreadyExistsHTTPException(name)
         case RouterNameAlreadyExistsError(name):
             raise RouterAlreadyExistsHTTPException(name)
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
 
 
 @router.get(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException, RouterNotFoundHTTPException]),
 )
@@ -106,17 +100,14 @@ async def get_router(
     get_one_router_use_case: GetOneRouterUseCase = Depends(get_one_router_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> RouterResponse:
-    command = GetOneRouterCommand(
-        router_id=router_id,
-        user_id=request_context.get().user_id,
-    )
+    command = GetOneRouterCommand(router_id=router_id)
     try:
         result = await get_one_router_use_case.execute(command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing get_router use case",
             extra={
-                "user_id": command.user_id,
+                "authenticated_user_id": request_context.get().user.id,
                 "router_id": command.router_id,
                 "error_type": type(e).__name__,
             },
@@ -127,15 +118,11 @@ async def get_router(
             return RouterResponse.model_validate(returned_router, from_attributes=True)
         case RouterNotFoundError(id=not_found_id):
             raise RouterNotFoundHTTPException(router_id=not_found_id)
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
 
 
 @router.get(
     path=EndpointRoute.ADMIN_ROUTERS,
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException]),
 )
@@ -148,7 +135,6 @@ async def get_routers(
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> RoutersResponse:
     command = GetRoutersCommand(
-        user_id=request_context.get().user_id,
         offset=offset,
         limit=limit,
         sort_by=sort_by,
@@ -160,7 +146,7 @@ async def get_routers(
         logger.exception(
             "Unexpected error while executing get_routers use case",
             extra={
-                "user_id": command.user_id,
+                "authenticated_user_id": request_context.get().user.id,
                 "error_type": type(e).__name__,
             },
         )
@@ -173,15 +159,11 @@ async def get_routers(
                 limit=limit,
                 data=[RouterResponse.model_validate(r, from_attributes=True) for r in router_page.data],
             )
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
 
 
 @router.delete(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     responses=get_documentation_responses([NotAdminUserHTTPException, RouterNotFoundHTTPException]),
     status_code=200,
 )
@@ -190,10 +172,7 @@ async def delete_router(
     delete_router_use_case: DeleteRouterUseCase = Depends(delete_router_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> RouterResponse:
-    command = DeleteRouterCommand(
-        user_id=request_context.get().user_id,
-        router_id=router_id,
-    )
+    command = DeleteRouterCommand(router_id=router_id)
     try:
         result = await delete_router_use_case.execute(command)
     except Exception as e:
@@ -212,15 +191,11 @@ async def delete_router(
             return RouterResponse.model_validate(deleted_router, from_attributes=True)
         case RouterNotFoundError(id=not_found_id):
             raise RouterNotFoundHTTPException(not_found_id)
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
 
 
 @router.patch(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     responses=get_documentation_responses(
         [
             NotAdminUserHTTPException,
@@ -238,7 +213,6 @@ async def update_router(
     body: UpdateRouterBody = Body(description="The router update request."),
 ) -> RouterResponse:
     command = UpdateRouterCommand(
-        user_id=request_context.get().user_id,
         router_id=router_id,
         name=body.name,
         router_type=body.router_type,
@@ -264,11 +238,7 @@ async def update_router(
             return RouterResponse.model_validate(updated_router, from_attributes=True)
         case RouterNotFoundError(id=not_found_id):
             raise RouterNotFoundHTTPException(not_found_id)
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
         case RouterAliasAlreadyExistsError(aliases):
             raise RouterAliasAlreadyExistsHTTPException(aliases)
         case RouterNameAlreadyExistsError(name):
             raise RouterAlreadyExistsHTTPException(name)
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
