@@ -2,19 +2,19 @@ import pytest
 
 from api.domain.role.entities import LimitType, PermissionType
 from api.domain.user.errors import UserNotFoundError
-from api.domain.user.views import UserWithRoleView
-from api.infrastructure.postgres import PostgresUserWithRoleQuery
+from api.domain.user.views import AuthenticatedUserView
+from api.infrastructure.postgres import PostgresAuthenticatedUserQuery
 from api.tests.integration.factories.sql import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory, UserSQLFactory
 
 
 @pytest.fixture
 def query(db_session):
-    return PostgresUserWithRoleQuery(postgres_session=db_session)
+    return PostgresAuthenticatedUserQuery(postgres_session=db_session)
 
 
 @pytest.mark.asyncio(loop_scope="session")
-class TestGetUserWithRoleById:
-    async def test_should_return_user_with_role_when_user_exists(self, query, db_session):
+class TestGetAuthenticatedUserById:
+    async def test_should_return_user_when_user_exists(self, query, db_session):
         # Arrange
         role = RoleSQLFactory()
         PermissionSQLFactory(role=role, permission=PermissionType.ADMIN)
@@ -27,10 +27,10 @@ class TestGetUserWithRoleById:
         await db_session.flush()
 
         # Act
-        result = await query.get_user_with_role_by_id(user_id=user.id)
+        result = await query.get_user_by_id(user_id=user.id)
 
         # Assert
-        assert isinstance(result, UserWithRoleView)
+        assert isinstance(result, AuthenticatedUserView)
         assert result.id == user.id
         assert result.email == user.email
         assert result.name == user.name
@@ -52,15 +52,15 @@ class TestGetUserWithRoleById:
         await db_session.flush()
 
         # Act
-        result = await query.get_user_with_role_by_id(user_id=user.id)
+        result = await query.get_user_by_id(user_id=user.id)
 
         # Assert
-        assert isinstance(result, UserWithRoleView)
+        assert isinstance(result, AuthenticatedUserView)
         assert result.is_admin is True
 
     async def test_should_return_user_not_found_when_id_does_not_exist(self, query, db_session):
         # Act
-        result = await query.get_user_with_role_by_id(user_id=999999)
+        result = await query.get_user_by_id(user_id=999999)
 
         # Assert
         assert isinstance(result, UserNotFoundError)
@@ -68,8 +68,8 @@ class TestGetUserWithRoleById:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-class TestGetUserWithRoleByEmail:
-    async def test_should_return_user_with_role_when_email_matches(self, query, db_session):
+class TestGetAuthenticatedUserByEmail:
+    async def test_should_return_user_when_email_matches(self, query, db_session):
         # Arrange
         role = RoleSQLFactory()
         PermissionSQLFactory(role=role, permission=PermissionType.READ_METRIC)
@@ -77,17 +77,17 @@ class TestGetUserWithRoleByEmail:
         await db_session.flush()
 
         # Act
-        result = await query.get_user_with_role_by_email(email="found@example.com")
+        result = await query.get_user_by_email(email="found@example.com")
 
         # Assert
-        assert isinstance(result, UserWithRoleView)
+        assert isinstance(result, AuthenticatedUserView)
         assert result.id == user.id
         assert result.email == "found@example.com"
         assert result.permissions == [PermissionType.READ_METRIC]
 
     async def test_should_return_user_not_found_when_email_does_not_exist(self, query, db_session):
         # Act
-        result = await query.get_user_with_role_by_email(email="missing@example.com")
+        result = await query.get_user_by_email(email="missing@example.com")
 
         # Assert
         assert isinstance(result, UserNotFoundError)
@@ -99,7 +99,7 @@ class TestGetUserWithRoleByEmail:
         await db_session.flush()
 
         # Act
-        result = await query.get_user_with_role_by_email(email="EXACT@example.com")
+        result = await query.get_user_by_email(email="EXACT@example.com")
 
         # Assert
         assert isinstance(result, UserNotFoundError)

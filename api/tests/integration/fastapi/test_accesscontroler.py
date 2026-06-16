@@ -15,7 +15,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     InvalidAuthenticationSchemeHTTPException,
     NotAdminUserHTTPException,
 )
-from api.infrastructure.postgres import PostgresKeyRepository, PostgresUserWithRoleQuery
+from api.infrastructure.postgres import PostgresAuthenticatedUserQuery, PostgresKeyRepository
 from api.tests.helpers import create_key
 from api.tests.integration.factories.sql import PermissionSQLFactory, RoleSQLFactory, TokenSQLFactory, UserSQLFactory
 from api.utils.configuration import configuration
@@ -55,8 +55,8 @@ def key_repository(db_session) -> PostgresKeyRepository:
 
 
 @pytest.fixture
-def user_with_role_query(db_session) -> PostgresUserWithRoleQuery:
-    return PostgresUserWithRoleQuery(postgres_session=db_session)
+def authenticated_user_query(db_session) -> PostgresAuthenticatedUserQuery:
+    return PostgresAuthenticatedUserQuery(postgres_session=db_session)
 
 
 @pytest.fixture
@@ -83,7 +83,7 @@ class TestAccessController:
         access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
     ):
@@ -97,7 +97,7 @@ class TestAccessController:
                 api_key=api_key,
                 secret_key=secret_key,
                 key_repository=key_repository,
-                user_with_role_query=user_with_role_query,
+                authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
             )
 
@@ -106,7 +106,7 @@ class TestAccessController:
         access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
     ):
@@ -120,7 +120,7 @@ class TestAccessController:
                 api_key=api_key,
                 secret_key=secret_key,
                 key_repository=key_repository,
-                user_with_role_query=user_with_role_query,
+                authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
             )
 
@@ -129,7 +129,7 @@ class TestAccessController:
         access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
     ):
@@ -143,7 +143,7 @@ class TestAccessController:
                 api_key=api_key,
                 secret_key=secret_key,
                 key_repository=key_repository,
-                user_with_role_query=user_with_role_query,
+                authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
             )
 
@@ -152,7 +152,7 @@ class TestAccessController:
         access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
     ):
@@ -166,7 +166,7 @@ class TestAccessController:
                 api_key=api_key,
                 secret_key=secret_key,
                 key_repository=key_repository,
-                user_with_role_query=user_with_role_query,
+                authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
             )
 
@@ -175,7 +175,7 @@ class TestAccessController:
         access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
         db_session,
@@ -191,7 +191,7 @@ class TestAccessController:
                 api_key=api_key,
                 secret_key=secret_key,
                 key_repository=key_repository,
-                user_with_role_query=user_with_role_query,
+                authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
             )
 
@@ -200,7 +200,7 @@ class TestAccessController:
         access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
         db_session,
@@ -216,7 +216,7 @@ class TestAccessController:
                 api_key=api_key,
                 secret_key=secret_key,
                 key_repository=key_repository,
-                user_with_role_query=user_with_role_query,
+                authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
             )
 
@@ -225,7 +225,7 @@ class TestAccessController:
         access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
     ):
@@ -240,7 +240,7 @@ class TestAccessController:
                 api_key=api_key,
                 secret_key=secret_key,
                 key_repository=key_repository,
-                user_with_role_query=user_with_role_query,
+                authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
             )
 
@@ -249,7 +249,7 @@ class TestAccessController:
         access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
     ):
@@ -269,7 +269,7 @@ class TestAccessController:
                 api_key=api_key,
                 secret_key=secret_key,
                 key_repository=key_repository,
-                user_with_role_query=user_with_role_query,
+                authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
             )
 
@@ -278,7 +278,7 @@ class TestAccessController:
         access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
         db_session,
@@ -296,7 +296,7 @@ class TestAccessController:
                 api_key=api_key,
                 secret_key=secret_key,
                 key_repository=key_repository,
-                user_with_role_query=user_with_role_query,
+                authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
             )
 
@@ -305,7 +305,7 @@ class TestAccessController:
         access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
         db_session,
@@ -331,7 +331,7 @@ class TestAccessController:
                 api_key=api_key,
                 secret_key=secret_key,
                 key_repository=key_repository,
-                user_with_role_query=user_with_role_query,
+                authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
             )
 
@@ -340,7 +340,7 @@ class TestAccessController:
         access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
         db_session,
@@ -366,7 +366,7 @@ class TestAccessController:
                 api_key=api_key,
                 secret_key=secret_key,
                 key_repository=key_repository,
-                user_with_role_query=user_with_role_query,
+                authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
             )
 
@@ -375,7 +375,7 @@ class TestAccessController:
         access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
         db_session,
@@ -392,7 +392,7 @@ class TestAccessController:
                 api_key=api_key,
                 secret_key=secret_key,
                 key_repository=key_repository,
-                user_with_role_query=user_with_role_query,
+                authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
             )
 
@@ -401,7 +401,7 @@ class TestAccessController:
         admin_access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
         db_session,
@@ -420,7 +420,7 @@ class TestAccessController:
                 api_key=api_key,
                 secret_key=secret_key,
                 key_repository=key_repository,
-                user_with_role_query=user_with_role_query,
+                authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
             )
 
@@ -429,7 +429,7 @@ class TestAccessController:
         access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
         db_session,
@@ -445,7 +445,7 @@ class TestAccessController:
             api_key=api_key,
             secret_key=secret_key,
             key_repository=key_repository,
-            user_with_role_query=user_with_role_query,
+            authenticated_user_query=authenticated_user_query,
             request_context=reset_request_context,
         )
 
@@ -463,7 +463,7 @@ class TestAccessController:
         admin_access_controller: AccessController,
         request_obj: Mock,
         key_repository: PostgresKeyRepository,
-        user_with_role_query: PostgresUserWithRoleQuery,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
         secret_key: str,
         db_session,
@@ -479,7 +479,7 @@ class TestAccessController:
             api_key=api_key,
             secret_key=secret_key,
             key_repository=key_repository,
-            user_with_role_query=user_with_role_query,
+            authenticated_user_query=authenticated_user_query,
             request_context=reset_request_context,
         )
 

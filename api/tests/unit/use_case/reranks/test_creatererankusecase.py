@@ -30,7 +30,7 @@ from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.tests.integration.factories.vllm import VllmRerankResponseFactory
-from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, UserWithRoleFactory
+from api.tests.unit.use_case.factories import AutenticatedUserFactor, ProviderFactory, RouterFactory
 from api.use_cases.reranks import CreateRerankCommand, CreateRerankUseCase, CreateRerankUseCaseSuccess
 
 
@@ -125,12 +125,12 @@ def use_case(
 
 @pytest.fixture
 def admin_user():
-    return UserWithRoleFactory(id=1, admin=True)
+    return AutenticatedUserFactor(id=1, admin=True)
 
 
 @pytest.fixture
 def user_with_router_access():
-    return UserWithRoleFactory(id=1, without_permission=True, limits=[Limit(router_id=1, type=LimitType.RPM, value=100)])
+    return AutenticatedUserFactor(id=1, without_permission=True, limits=[Limit(router_id=1, type=LimitType.RPM, value=100)])
 
 
 @pytest.fixture
@@ -160,7 +160,7 @@ def default_command(make_command, admin_user):
 
 @pytest.fixture
 def user_without_router_access():
-    return UserWithRoleFactory(id=1, without_permission=True, limits=[])
+    return AutenticatedUserFactor(id=1, without_permission=True, limits=[])
 
 
 @pytest.fixture

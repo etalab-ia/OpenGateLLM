@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict
 from api.domain.role.entities import Limit, PermissionType
 
 
-class UserWithRoleView(BaseModel):
+class AuthenticatedUserView(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     id: int
@@ -17,8 +17,6 @@ class UserWithRoleView(BaseModel):
     limits: list[Limit]
     expires: int | None
     priority: int
-    created: int
-    updated: int
 
     @property
     def is_admin(self) -> bool:

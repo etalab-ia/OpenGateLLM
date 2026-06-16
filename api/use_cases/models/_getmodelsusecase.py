@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from api.domain.model.entities import Model, ModelCosts
 from api.domain.router import RouterRepository
-from api.domain.user.views import UserWithRoleView
+from api.domain.user.views import AuthenticatedUserView
 
 
 @dataclass
@@ -12,7 +12,7 @@ class GetModelsUseCaseSucess:
 
 @dataclass
 class GetModelsCommand:
-    user: UserWithRoleView
+    authenticated_user: AuthenticatedUserView
 
 
 type GetModelsUseCaseResult = GetModelsUseCaseSucess
@@ -29,7 +29,7 @@ class GetModelsUseCase:
         for router in routers:
             if router.has_no_providers:
                 continue
-            if command.user.cannot_access_router(router_id=router.id):
+            if command.authenticated_user.cannot_access_router(router_id=router.id):
                 continue
 
             organization_name = await self.router_repository.get_organization_name(router.user_id)

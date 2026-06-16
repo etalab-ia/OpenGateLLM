@@ -17,7 +17,7 @@ from api.domain.provider.errors import ProviderAdapterValidationResponseError, U
 from api.domain.role.entities import Limit, LimitType
 from api.infrastructure.http.adapters.metrics.mistral import MistralMetricsAdapter
 from api.infrastructure.http.adapters.metrics.vllm import VllmMetricsAdapter
-from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, UserWithRoleFactory
+from api.tests.unit.use_case.factories import AutenticatedUserFactor, ProviderFactory, RouterFactory
 from api.use_cases.health import GetHealthModelsCommand, GetHealthModelsUseCase, GetHealthModelsUseCaseSuccess
 from api.utils.variables import EndpointRoute
 
@@ -51,12 +51,12 @@ def provider_repository():
 
 @pytest.fixture
 def admin_user():
-    return UserWithRoleFactory(id=1, admin=True)
+    return AutenticatedUserFactor(id=1, admin=True)
 
 
 @pytest.fixture
 def user_with_router_access():
-    return UserWithRoleFactory(
+    return AutenticatedUserFactor(
         id=1,
         limits=[Limit(router_id=1, value=100, type=LimitType.RPM)],
         permissions=[],
@@ -65,7 +65,7 @@ def user_with_router_access():
 
 @pytest.fixture
 def user_without_access():
-    return UserWithRoleFactory(id=1, limits=[], permissions=[])
+    return AutenticatedUserFactor(id=1, limits=[], permissions=[])
 
 
 @pytest.fixture
@@ -81,7 +81,7 @@ def use_case(provider_adapter_builder, provider_client, provider_metrics_logger,
 
 @pytest.fixture
 def default_command(user_with_router_access):
-    return GetHealthModelsCommand(user=user_with_router_access)
+    return GetHealthModelsCommand(authenticated_user=user_with_router_access)
 
 
 def configure_metrics(
@@ -127,7 +127,7 @@ class TestGetHealthModelsUseCase:
         default_command,
     ):
         # Arrange
-        default_command.user = admin_user
+        default_command.authenticated_user = admin_user
         router_repository.get_all_routers.return_value = [
             RouterFactory(id=1, name="gpt-4", providers=1),
             RouterFactory(id=2, name="gpt-5", providers=1),
@@ -154,7 +154,7 @@ class TestGetHealthModelsUseCase:
         self, use_case, router_repository, provider_repository, user_without_access, default_command
     ):
         # Arrange
-        default_command.user = user_without_access
+        default_command.authenticated_user = user_without_access
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
         provider_repository.get_all_providers.return_value = [ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)]
 

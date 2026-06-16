@@ -5,7 +5,7 @@ from api.domain.model.errors import ModelNotFoundError
 from api.domain.router import RouterRepository
 from api.domain.router.entities import Router
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.user.views import UserWithRoleView
+from api.domain.user.views import AuthenticatedUserView
 
 
 @dataclass
@@ -15,7 +15,7 @@ class GetModelUseCaseSucess:
 
 @dataclass
 class GetModelCommand:
-    user: UserWithRoleView
+    authenticated_user: AuthenticatedUserView
     name: str
 
 
@@ -34,7 +34,7 @@ class GetModelUseCase:
             case RouterNotFoundError():
                 return ModelNotFoundError(name=command.name)
 
-        if router.has_no_providers or command.user.cannot_access_router(router_id=router.id):
+        if router.has_no_providers or command.authenticated_user.cannot_access_router(router_id=router.id):
             return ModelNotFoundError(name=command.name)
 
         organization_name = await self.router_repository.get_organization_name(router.user_id)

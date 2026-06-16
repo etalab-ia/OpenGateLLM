@@ -39,7 +39,7 @@ async def get_health_models(
     Get the health of the models.
     """
 
-    command = GetHealthModelsCommand(user=request_context.get().user)
+    command = GetHealthModelsCommand(authenticated_user=request_context.get().user)
     try:
         result = await get_health_models_use_case.execute(command=command)
     except Exception as e:

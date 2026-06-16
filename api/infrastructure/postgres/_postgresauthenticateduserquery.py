@@ -3,19 +3,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
 from api.domain.role.entities import LimitType
-from api.domain.user import UserWithRoleQuery
+from api.domain.user import AuthenticatedUserQuery
 from api.domain.user.errors import UserNotFoundError
-from api.domain.user.views import UserWithRoleView
+from api.domain.user.views import AuthenticatedUserView
 from api.sql.models import Limit as LimitTable
 from api.sql.models import Permission as PermissionTable
 from api.sql.models import User as UserTable
 
 
-class PostgresUserWithRoleQuery(UserWithRoleQuery):
+class PostgresAuthenticatedUserQuery(AuthenticatedUserQuery):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
 
-    async def get_user_with_role_by_id(self, user_id: int) -> UserWithRoleView | UserNotFoundError:
+    async def get_user_by_id(self, user_id: int) -> AuthenticatedUserView | UserNotFoundError:
         statement = self._build_statement()
         statement = statement.where(UserTable.id == user_id)
 
@@ -26,7 +26,7 @@ class PostgresUserWithRoleQuery(UserWithRoleQuery):
 
         return self._row_to_view(row)
 
-    async def get_user_with_role_by_email(self, email: str) -> UserWithRoleView | UserNotFoundError:
+    async def get_user_by_email(self, email: str) -> AuthenticatedUserView | UserNotFoundError:
         statement = self._build_statement()
         statement = statement.where(UserTable.email == email)
 
@@ -72,11 +72,11 @@ class PostgresUserWithRoleQuery(UserWithRoleQuery):
         return statement
 
     @staticmethod
-    def _row_to_view(row) -> UserWithRoleView:
+    def _row_to_view(row) -> AuthenticatedUserView:
         data = dict(row._mapping)
         data["permissions"] = data.get("permissions") or []
         data["limits"] = data.get("limits") or []
         for limit in data["limits"]:
             limit["type"] = LimitType[limit["type"]]
 
-        return UserWithRoleView(**data)
+        return AuthenticatedUserView(**data)

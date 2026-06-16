@@ -32,7 +32,7 @@ async def get_models(
     """
     Lists the currently available models and provides basic information.
     """
-    command = GetModelsCommand(user=request_context.get().user)
+    command = GetModelsCommand(authenticated_user=request_context.get().user)
     try:
         result = await get_models_use_case.execute(command=command)
     except Exception as e:
@@ -65,7 +65,7 @@ async def get_model(
     """
     Get a model by name and provide basic information.
     """
-    command = GetModelCommand(user=request_context.get().user, name=model)
+    command = GetModelCommand(authenticated_user=request_context.get().user, name=model)
     try:
         result = await get_model_use_case.execute(command=command)
     except Exception as e:
