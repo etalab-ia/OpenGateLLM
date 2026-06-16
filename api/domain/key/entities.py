@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime
 
 from pydantic import BaseModel, FutureDatetime
 
@@ -17,16 +17,12 @@ class Key(BaseModel):
 
     @classmethod
     def build_from_claims(cls, claims: dict):
-        expires = claims.get("expires")
-        if isinstance(expires, str):
-            expires = datetime.fromisoformat(expires)
-
         return cls(
             id=claims["token_id"],
             name="",
             user_id=claims["user_id"],
-            expires=expires,
-            created=datetime.now(UTC),
+            expires=claims["expires"],
+            created=0,
         )
 
     def is_valid(self, expected_key: "Key") -> bool:

@@ -82,8 +82,6 @@ class CreateRerankUseCase:
 
     async def execute(self, command: CreateRerankCommand) -> CreateRerankUseCaseResult:
         user = command.request_context.get().user
-        command.set_value_in_request_context(key="user_email", value=user.email)
-
         result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=command.model)
         match result:
             case Router() as router:

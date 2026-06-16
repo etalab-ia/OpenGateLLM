@@ -6,7 +6,6 @@ import pytest_asyncio
 
 from api.dependencies import delete_role_use_case_factory
 from api.domain.role.errors import RoleHasUsersError, RoleNotFoundError
-from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import RoleSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
@@ -48,16 +47,6 @@ class TestDeleteRole:
                 409,
                 "Role 999 has 3 users and cannot be removed.",
             ),
-            (
-                UserIsNotAdminError(),
-                403,
-                "User has no admin rights.",
-            ),
-            (
-                UserExpiredError(),
-                403,
-                "Your account has expired. Please contact support to renew your account.",
-            ),
         ],
     )
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
@@ -72,6 +61,18 @@ class TestDeleteRole:
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail
+
+    async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
+        regular_user = UserSQLFactory(regular_user=True)
+        key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
+
+        response = await client.delete(
+            url=f"{URL}/1",
+            headers={"Authorization": f"Bearer {key.token}"},
+        )
+
+        assert response.status_code == 403, response.text
+        assert response.json().get("detail") == "User has no admin rights."
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",

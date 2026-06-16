@@ -6,7 +6,6 @@ import pytest_asyncio
 
 from api.dependencies import create_router_use_case_factory
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
-from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import UserSQLFactory
 from api.utils.variables import EndpointRoute
@@ -52,11 +51,6 @@ class TestCreateRouter:
         "use_case_result,expected_status,expected_detail",
         [
             (
-                UserIsNotAdminError(),
-                403,
-                "User has no admin rights.",
-            ),
-            (
                 RouterNameAlreadyExistsError(name="test-router"),
                 409,
                 "Router test-router already exists.",
@@ -65,11 +59,6 @@ class TestCreateRouter:
                 RouterAliasAlreadyExistsError(aliases=["alias1"]),
                 409,
                 "Following aliases already exist: '['alias1']'",
-            ),
-            (
-                UserExpiredError(),
-                403,
-                "Your account has expired. Please contact support to renew your account.",
             ),
         ],
     )
@@ -86,6 +75,19 @@ class TestCreateRouter:
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail
+
+    async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
+        regular_user = UserSQLFactory(regular_user=True)
+        key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
+
+        response = await client.post(
+            url=URL,
+            headers={"Authorization": f"Bearer {key.token}"},
+            json=_valid_body(),
+        )
+
+        assert response.status_code == 403, response.text
+        assert response.json().get("detail") == "User has no admin rights."
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",

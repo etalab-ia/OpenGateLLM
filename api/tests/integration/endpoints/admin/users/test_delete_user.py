@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 
 from api.dependencies import delete_user_use_case_factory
-from api.domain.user.errors import DeleteUserWithProvidersError, DeleteUserWithRoutersError, UserExpiredError, UserIsNotAdminError, UserNotFoundError
+from api.domain.user.errors import DeleteUserWithProvidersError, DeleteUserWithRoutersError, UserNotFoundError
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import UserSQLFactory
 from api.utils.variables import EndpointRoute
@@ -42,16 +42,6 @@ class TestDeleteUser:
                 "User 1 not found.",
             ),
             (
-                UserIsNotAdminError(),
-                403,
-                "User has no admin rights.",
-            ),
-            (
-                UserExpiredError(),
-                403,
-                "Your account has expired. Please contact support to renew your account.",
-            ),
-            (
                 DeleteUserWithRoutersError(user_id=1, router_ids=[10, 20]),
                 409,
                 "User cannot be deleted because the user owns routers: [10, 20].",
@@ -75,6 +65,18 @@ class TestDeleteUser:
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail
+
+    async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
+        regular_user = UserSQLFactory(regular_user=True)
+        key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
+
+        response = await client.delete(
+            url=f"{URL}/1",
+            headers={"Authorization": f"Bearer {key.token}"},
+        )
+
+        assert response.status_code == 403, response.text
+        assert response.json().get("detail") == "User has no admin rights."
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",

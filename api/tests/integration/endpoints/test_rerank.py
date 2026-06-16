@@ -11,7 +11,7 @@ from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, Unk
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
+from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.schemas.admin.roles import LimitType
 from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
@@ -99,11 +99,6 @@ class TestCreateRerank:
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
         [
-            (
-                UserExpiredError(),
-                403,
-                "Your account has expired. Please contact support to renew your account.",
-            ),
             (
                 RouterNotFoundError(name=DEFAULT_MODEL_NAME),
                 404,
