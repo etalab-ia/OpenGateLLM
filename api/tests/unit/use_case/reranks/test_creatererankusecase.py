@@ -94,7 +94,22 @@ def use_case(
     provider_repository,
     router_rate_limiter,
     router_repository,
+    rerank_router,
+    rerank_provider,
+    sample_rerank,
 ) -> CreateRerankUseCase:
+    router_repository.get_router_by_name_or_alias.return_value = rerank_router
+    provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
+    provider_load_balancer.find_best_provider.return_value = rerank_provider
+    provider_metrics_logger.increment_inflight.return_value = True
+    provider_client.forward_request.return_value = ProviderOriginalResponse(data=VllmRerankResponseFactory())
+    rate_limit_state = rate_limit_state_factory()
+    rate_limit_state.rpm = RpmRateLimitState(value=100, remaining=99, reset=int(dt.datetime.now(dt.UTC).timestamp()) + 30)
+    router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
+    model_tokenizer.compute_tokens.return_value = 15
+    mock_adapter = _mock_adapter(formatted_response=sample_rerank)
+    provider_adapter_builder.build.return_value = mock_adapter
+
     return CreateRerankUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
@@ -246,10 +261,7 @@ def _mock_adapter(*, formatted_request=None, formatted_response=None, request_er
         url="https://provider.example/rerank",
         body={},
     )
-    adapter.format_response.return_value = response_error or ProviderFormattedResponse(
-        data=formatted_response,
-        metrics=ResponseMetrics(latency=120),
-    )
+    adapter.format_response.return_value = response_error or ProviderFormattedResponse(data=formatted_response, metrics=ResponseMetrics(latency=120))
     if request_error is not None:
         adapter.format_request.return_value = request_error
     return adapter
@@ -257,15 +269,9 @@ def _mock_adapter(*, formatted_request=None, formatted_response=None, request_er
 
 class TestCreateRerankUseCase:
     @pytest.mark.asyncio
-    async def test_should_return_router_not_found_error_when_router_does_not_exist(
-        self,
-        use_case,
-        router_repository,
-        default_command,
-        admin_user,
-    ):
+    async def test_should_return_router_not_found_error_when_router_does_not_exist(self, use_case, default_command, admin_user):
         # Arrange
-        router_repository.get_router_by_name_or_alias.return_value = RouterNotFoundError(name="rerank-router")
+        use_case.router_repository.get_router_by_name_or_alias.return_value = RouterNotFoundError(name="rerank-router")
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -277,16 +283,10 @@ class TestCreateRerankUseCase:
         assert_request_context(ctx, user_email=admin_user.email)
 
     @pytest.mark.asyncio
-    async def test_should_return_router_has_no_providers_error_when_router_has_no_providers(
-        self,
-        use_case,
-        router_repository,
-        default_command,
-        admin_user,
-    ):
+    async def test_should_return_router_has_no_providers_error_when_router_has_no_providers(self, use_case, default_command, admin_user):
         # Arrange
         rerank_router = RouterFactory(id=1, name="rerank-router", type=RouterType.TEXT_CLASSIFICATION, providers=0)
-        router_repository.get_router_by_name_or_alias.return_value = rerank_router
+        use_case.router_repository.get_router_by_name_or_alias.return_value = rerank_router
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -299,17 +299,10 @@ class TestCreateRerankUseCase:
         assert_request_context(ctx, user_email=admin_user.email, router_id=rerank_router.id, router_name=rerank_router.name)
 
     @pytest.mark.asyncio
-    async def test_should_return_router_has_wrong_type_error_when_router_is_not_text_classification(
-        self,
-        use_case,
-        router_repository,
-        default_command,
-        admin_user,
-    ):
+    async def test_should_return_router_has_wrong_type_error_when_router_is_not_text_classification(self, use_case, default_command, admin_user):
         # Arrange
-
         rerank_router = RouterFactory(id=1, name="rerank-router", type=RouterType.TEXT_GENERATION, providers=1)
-        router_repository.get_router_by_name_or_alias.return_value = rerank_router
+        use_case.router_repository.get_router_by_name_or_alias.return_value = rerank_router
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -324,16 +317,11 @@ class TestCreateRerankUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_user_has_no_access_error_when_user_cannot_access_router(
-        self,
-        use_case,
-        user_without_router_access,
-        router_repository,
-        rerank_router,
-        make_command,
+        self, use_case, user_without_router_access, rerank_router, make_command
     ):
         # Arrange
         command = make_command(user_without_router_access)
-        router_repository.get_router_by_name_or_alias.return_value = rerank_router
+        use_case.router_repository.get_router_by_name_or_alias.return_value = rerank_router
 
         # Act
         result = await use_case.execute(command=command)
@@ -347,26 +335,11 @@ class TestCreateRerankUseCase:
 
     @pytest.mark.asyncio
     async def test_should_call_model_tokenizer_with_request_prompts_before_rate_limit_check(
-        self,
-        use_case,
-        user_with_router_access,
-        router_repository,
-        provider_repository,
-        provider_load_balancer,
-        provider_adapter_builder,
-        router_rate_limiter,
-        model_tokenizer,
-        rerank_router,
-        rerank_provider,
-        make_command,
+        self, use_case, user_with_router_access, model_tokenizer, make_command
     ):
         # Arrange
         command = make_command(user_with_router_access)
-        router_repository.get_router_by_name_or_alias.return_value = rerank_router
-        provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
-        provider_load_balancer.find_best_provider.return_value = rerank_provider
-        router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state_factory(tpm_exceeded=True)
-        provider_adapter_builder.build.return_value = _mock_adapter()
+        use_case.router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state_factory(tpm_exceeded=True)
 
         # Act
         result = await use_case.execute(command=command)
@@ -390,26 +363,17 @@ class TestCreateRerankUseCase:
         self,
         use_case,
         user_with_router_access,
-        router_repository,
-        provider_repository,
         provider_load_balancer,
-        provider_adapter_builder,
         router_rate_limiter,
         rerank_router,
         rerank_provider,
         make_command,
         limit_type,
         rate_limit_state,
-        mock_rerank_latency_120ms,
     ):
         # Arrange
         command = make_command(user_with_router_access)
-        router_repository.get_router_by_name_or_alias.return_value = rerank_router
-        provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
-        provider_load_balancer.find_best_provider.return_value = rerank_provider
-        router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
-        mock_adapter = _mock_adapter()
-        provider_adapter_builder.build.return_value = mock_adapter
+        use_case.router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
 
         # Act
         result = await use_case.execute(command=command)
@@ -434,22 +398,9 @@ class TestCreateRerankUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_provider_adapter_validation_request_error_when_request_is_invalid(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_load_balancer,
-        provider_adapter_builder,
-        rerank_router,
-        rerank_provider,
-        default_command,
-        admin_user,
-        mock_rerank_latency_120ms,
+        self, use_case, provider_adapter_builder, rerank_router, rerank_provider, default_command, admin_user
     ):
         # Arrange
-        router_repository.get_router_by_name_or_alias.return_value = rerank_router
-        provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
-        provider_load_balancer.find_best_provider.return_value = rerank_provider
         validation_error = ProviderAdapterValidationRequestError(provider_type=ProviderType.TEI, errors=[{"msg": "invalid"}])
         mock_adapter = _mock_adapter(request_error=validation_error)
         provider_adapter_builder.build.return_value = mock_adapter
@@ -472,28 +423,11 @@ class TestCreateRerankUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_error_when_provider_forward_request_fails(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_load_balancer,
-        provider_metrics_logger,
-        provider_client,
-        provider_adapter_builder,
-        rerank_router,
-        rerank_provider,
-        default_command,
-        admin_user,
+        self, use_case, provider_metrics_logger, provider_client, rerank_router, rerank_provider, default_command, admin_user
     ):
         # Arrange
-        router_repository.get_router_by_name_or_alias.return_value = rerank_router
-        provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
-        provider_load_balancer.find_best_provider.return_value = rerank_provider
-        provider_metrics_logger.increment_inflight.return_value = True
         provider_error = TooBusyModelError(status_code=503, detail="busy")
         provider_client.forward_request.return_value = provider_error
-        mock_adapter = _mock_adapter()
-        provider_adapter_builder.build.return_value = mock_adapter
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -516,9 +450,6 @@ class TestCreateRerankUseCase:
     async def test_should_return_provider_adapter_validation_response_error_when_response_is_invalid(
         self,
         use_case,
-        router_repository,
-        provider_repository,
-        provider_load_balancer,
         provider_metrics_logger,
         provider_client,
         provider_adapter_builder,
@@ -528,9 +459,6 @@ class TestCreateRerankUseCase:
         admin_user,
     ):
         # Arrange
-        router_repository.get_router_by_name_or_alias.return_value = rerank_router
-        provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
-        provider_load_balancer.find_best_provider.return_value = rerank_provider
         provider_metrics_logger.increment_inflight.return_value = False
         provider_client.forward_request.return_value = ProviderOriginalResponse(data={}, metrics=ResponseMetrics(latency=80))
         validation_error = ProviderAdapterValidationResponseError(provider_type=ProviderType.TEI, errors=[{"msg": "invalid"}])
@@ -558,12 +486,9 @@ class TestCreateRerankUseCase:
     async def test_should_return_rerank_when_admin_user_and_flow_succeeds(
         self,
         use_case,
-        router_repository,
         provider_repository,
         provider_load_balancer,
         provider_metrics_logger,
-        provider_client,
-        provider_adapter_builder,
         rerank_router,
         rerank_provider,
         sample_rerank,
@@ -574,16 +499,6 @@ class TestCreateRerankUseCase:
         admin_user,
         mock_successful_rerank_flow,
     ):
-        # Arrange
-
-        router_repository.get_router_by_name_or_alias.return_value = rerank_router
-        provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
-        provider_load_balancer.find_best_provider.return_value = rerank_provider
-        provider_metrics_logger.increment_inflight.return_value = True
-        provider_client.forward_request.return_value = ProviderOriginalResponse(data=VllmRerankResponseFactory())
-        mock_adapter = _mock_adapter(formatted_response=sample_rerank)
-        provider_adapter_builder.build.return_value = mock_adapter
-
         # Act
         result = await use_case.execute(command=default_command)
 
@@ -593,9 +508,9 @@ class TestCreateRerankUseCase:
         assert result.data.results == sample_rerank.results
         assert result.data.model == sample_rerank.model
         assert result.data.usage == Usage(
-            prompt_tokens=10,
+            prompt_tokens=15,
             completion_tokens=0,
-            total_tokens=10,
+            total_tokens=15,
             cost=0.03,
             impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
         )
@@ -634,8 +549,8 @@ class TestCreateRerankUseCase:
             router_name=rerank_router.name,
             provider_id=rerank_provider.id,
             provider_model_name=rerank_provider.model_name,
-            prompt_tokens=10,
-            total_tokens=10,
+            prompt_tokens=15,
+            total_tokens=15,
             cost=result.data.usage.cost,
         )
 
@@ -643,11 +558,9 @@ class TestCreateRerankUseCase:
     async def test_should_enrich_when_non_admin_user_and_flow_succeeds(
         self,
         use_case,
-        router_repository,
         provider_repository,
         provider_load_balancer,
         provider_metrics_logger,
-        provider_client,
         provider_adapter_builder,
         router_rate_limiter,
         model_tokenizer,
@@ -661,11 +574,6 @@ class TestCreateRerankUseCase:
     ):
         # Arrange
         command = make_command(user_with_router_access)
-        router_repository.get_router_by_name_or_alias.return_value = rerank_router
-        provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
-        provider_load_balancer.find_best_provider.return_value = rerank_provider
-        provider_metrics_logger.increment_inflight.return_value = True
-        provider_client.forward_request.return_value = ProviderOriginalResponse(data=VllmRerankResponseFactory())
         rate_limit_state = rate_limit_state_factory()
         rate_limit_state.rpm = RpmRateLimitState(
             value=100,
