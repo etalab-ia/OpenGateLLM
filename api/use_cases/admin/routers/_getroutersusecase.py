@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 from api.domain import SortField, SortOrder
-from api.domain.key import KeyRepository
 from api.domain.router import RouterRepository
 from api.domain.router.entities import RouterPage
 
@@ -23,8 +22,7 @@ type GetRoutersUseCaseResult = GetRoutersUseCaseSuccess
 
 
 class GetRoutersUseCase:
-    def __init__(self, key_repository: KeyRepository, router_repository: RouterRepository):
-        self.key_repository = key_repository
+    def __init__(self, router_repository: RouterRepository):
         self.router_repository = router_repository
 
     async def execute(self, command: GetRoutersCommand) -> GetRoutersUseCaseResult:

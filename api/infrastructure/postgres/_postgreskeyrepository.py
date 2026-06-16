@@ -17,6 +17,6 @@ class PostgresKeyRepository(KeyRepository):
 
         row = result.scalar_one_or_none()
         if row is None:
-            return KeyNotFoundError()
+            return KeyNotFoundError(id=key_id)
 
         return Key(id=row.id, name=row.name, user_id=row.user_id, expires=row.expires, created=row.created)

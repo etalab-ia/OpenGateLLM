@@ -1,4 +1,3 @@
-import datetime as dt
 from datetime import datetime
 from unittest.mock import AsyncMock, Mock
 
@@ -8,7 +7,6 @@ from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import ModelNotFoundError
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.user.errors import UserExpiredError
 from api.tests.unit.use_case.factories import RouterFactory, UserWithRoleFactory
 from api.use_cases.models import GetModelCommand, GetModelUseCase, GetModelUseCaseSucess
 
@@ -22,23 +20,8 @@ def router_repository():
 
 
 @pytest.fixture
-def user_with_role_query():
-    return AsyncMock()
-
-
-@pytest.fixture
-def expired_user():
-    return UserWithRoleFactory(id=1, expires=int((dt.datetime.now() - dt.timedelta(days=1)).timestamp()))
-
-
-@pytest.fixture
-def use_case(router_repository, user_with_role_query):
-    return GetModelUseCase(router_repository=router_repository, user_with_role_query=user_with_role_query)
-
-
-@pytest.fixture
-def default_command():
-    return GetModelCommand(user_id=1, name="gpt-4")
+def use_case(router_repository):
+    return GetModelUseCase(router_repository=router_repository)
 
 
 @pytest.fixture
@@ -58,26 +41,14 @@ def router():
 
 
 @pytest.fixture
-def user_info_with_access():
-    return UserWithRoleFactory(
-        id=1,
-        limits=[Limit(router_id=1, value=100, type=LimitType.RPM)],
-    )
+def default_command():
+    return GetModelCommand(user=UserWithRoleFactory(id=1, limits=[Limit(router_id=1, value=100, type=LimitType.RPM)]), name="gpt-4")
 
 
 class TestGetModelUseCase:
     @pytest.mark.asyncio
-    async def test_should_return_a_list_with_one_model_when_a_name_is_given(
-        self,
-        router_repository,
-        user_with_role_query,
-        router,
-        user_info_with_access,
-        use_case,
-        default_command,
-    ):
+    async def test_should_return_a_list_with_one_model_when_a_name_is_given(self, router_repository, router, use_case, default_command):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = user_info_with_access
         router_repository.get_router_by_name_or_alias.return_value = router
         router_repository.get_organization_name.return_value = "Anthropic"
 
@@ -90,23 +61,14 @@ class TestGetModelUseCase:
         router_repository.get_router_by_name_or_alias.assert_awaited_once_with(name_or_alias="gpt-4")
 
     @pytest.mark.asyncio
-    async def test_should_return_a_list_with_one_model_when_an_alias_is_given(
-        self,
-        router_repository,
-        user_with_role_query,
-        router,
-        user_info_with_access,
-        use_case,
-        default_command,
-    ):
+    async def test_should_return_a_list_with_one_model_when_an_alias_is_given(self, router_repository, router, use_case, default_command):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = user_info_with_access
         router_repository.get_router_by_name_or_alias.return_value = router
         router_repository.get_organization_name.return_value = "OpenAI"
-        command = GetModelCommand(user_id=1, name="gpt-4-turbo")
+        default_command.name = "gpt-4-turbo"
 
         # Act
-        result = await use_case.execute(command=command)
+        result = await use_case.execute(command=default_command)
 
         # Assert
         assert isinstance(result, GetModelUseCaseSucess)
@@ -115,21 +77,13 @@ class TestGetModelUseCase:
         router_repository.get_router_by_name_or_alias.assert_awaited_once_with(name_or_alias="gpt-4-turbo")
 
     @pytest.mark.asyncio
-    async def test_should_return_model_not_found_when_given_a_name_that_does_not_exist(
-        self,
-        router_repository,
-        user_with_role_query,
-        router,
-        user_info_with_access,
-        use_case,
-    ):
+    async def test_should_return_model_not_found_when_given_a_name_that_does_not_exist(self, router_repository, use_case, default_command):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = user_info_with_access
         router_repository.get_router_by_name_or_alias.return_value = RouterNotFoundError(name="non-existent-model")
-        command = GetModelCommand(user_id=1, name="non-existent-model")
+        default_command.name = "non-existent-model"
 
         # Act
-        result = await use_case.execute(command=command)
+        result = await use_case.execute(command=default_command)
 
         # Assert
         assert isinstance(result, ModelNotFoundError)
@@ -139,14 +93,13 @@ class TestGetModelUseCase:
     async def test_should_return_model_not_found_when_given_a_name_and_no_limit_no_admin_permission(
         self,
         router_repository,
-        user_with_role_query,
         router,
         use_case,
         default_command,
     ):
         # Arrange
-        user_info_no_access = UserWithRoleFactory(id=2, limits=[], permissions=[])
-        user_with_role_query.get_user_with_role_by_id.return_value = user_info_no_access
+        default_command.user = UserWithRoleFactory(id=2, limits=[], permissions=[])
+
         router_repository.get_router_by_name_or_alias.return_value = router
 
         # Act
@@ -160,14 +113,12 @@ class TestGetModelUseCase:
     async def test_should_return_router_not_found_when_limit_is_zero(
         self,
         router_repository,
-        user_with_role_query,
         router,
         use_case,
         default_command,
     ):
         # Arrange
-        user_info_zero_limit = UserWithRoleFactory(id=1, limits=[Limit(router_id=1, value=0, type=LimitType.RPM)], permissions=[])
-        user_with_role_query.get_user_with_role_by_id.return_value = user_info_zero_limit
+        default_command.user = UserWithRoleFactory(id=1, limits=[Limit(router_id=1, value=0, type=LimitType.RPM)], permissions=[])
         router_repository.get_router_by_name_or_alias.return_value = router
 
         # Act
@@ -181,14 +132,12 @@ class TestGetModelUseCase:
     async def test_should_return_the_router_when_associated_limit_value_is_none(
         self,
         router_repository,
-        user_with_role_query,
         router,
         use_case,
         default_command,
     ):
         # Arrange
-        user_info_unlimited = UserWithRoleFactory(id=1, limits=[Limit(router_id=1, value=None, type=LimitType.RPM)], permissions=[])
-        user_with_role_query.get_user_with_role_by_id.return_value = user_info_unlimited
+        default_command.user = UserWithRoleFactory(id=1, limits=[Limit(router_id=1, value=None, type=LimitType.RPM)], permissions=[])
         router_repository.get_router_by_name_or_alias.return_value = router
         router_repository.get_organization_name.return_value = "Anthropic"
 
@@ -198,14 +147,3 @@ class TestGetModelUseCase:
         # Assert
         assert isinstance(result, GetModelUseCaseSucess)
         assert result.model.id == "gpt-4"
-
-    @pytest.mark.asyncio
-    async def test_should_return_user_expired_error_when_user_expired(self, user_with_role_query, expired_user, use_case, default_command):
-        # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = expired_user
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, UserExpiredError)

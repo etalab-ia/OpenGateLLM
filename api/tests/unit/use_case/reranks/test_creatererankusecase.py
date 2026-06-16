@@ -26,7 +26,7 @@ from api.domain.router.errors import (
     RouterRateLimitExceededError,
 )
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
-from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
+from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.tests.integration.factories.vllm import VllmRerankResponseFactory
@@ -84,11 +84,6 @@ def router_repository():
 
 
 @pytest.fixture
-def user_with_role_query():
-    return AsyncMock()
-
-
-@pytest.fixture
 def use_case(
     model_environmental_impacts_computer,
     model_tokenizer,
@@ -99,7 +94,6 @@ def use_case(
     provider_repository,
     router_rate_limiter,
     router_repository,
-    user_with_role_query,
 ) -> CreateRerankUseCase:
     return CreateRerankUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -111,15 +105,7 @@ def use_case(
         provider_repository=provider_repository,
         router_rate_limiter=router_rate_limiter,
         router_repository=router_repository,
-        user_with_role_query=user_with_role_query,
     )
-
-
-@pytest.fixture
-def request_context() -> ContextVar:
-    context = ContextVar("request_context")
-    context.set(RequestContext(user_id=1))
-    return context
 
 
 @pytest.fixture
@@ -129,21 +115,37 @@ def admin_user():
 
 @pytest.fixture
 def user_with_router_access():
-    return UserWithRoleFactory(
-        id=1,
-        without_permission=True,
-        limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
-    )
+    return UserWithRoleFactory(id=1, without_permission=True, limits=[Limit(router_id=1, type=LimitType.RPM, value=100)])
+
+
+@pytest.fixture
+def request_context() -> ContextVar:
+    return ContextVar("request_context")
+
+
+@pytest.fixture
+def make_command(request_context):
+    def _make(user) -> CreateRerankCommand:
+        request_context.set(RequestContext(user=user))
+        return CreateRerankCommand(
+            query="query",
+            documents=["doc a", "doc b"],
+            model="rerank-router",
+            top_n=2,
+            request_context=request_context,
+        )
+
+    return _make
+
+
+@pytest.fixture
+def default_command(make_command, admin_user):
+    return make_command(admin_user)
 
 
 @pytest.fixture
 def user_without_router_access():
     return UserWithRoleFactory(id=1, without_permission=True, limits=[])
-
-
-@pytest.fixture
-def expired_user():
-    return UserWithRoleFactory(id=1, expires=int((dt.datetime.now() - dt.timedelta(days=1)).timestamp()))
 
 
 @pytest.fixture
@@ -160,17 +162,6 @@ def rerank_router():
 @pytest.fixture
 def rerank_provider():
     return ProviderFactory(id=1, router_id=1, type=ProviderType.TEI, model_name="bge-reranker")
-
-
-@pytest.fixture
-def default_command(request_context):
-    return CreateRerankCommand(
-        query="query",
-        documents=["doc a", "doc b"],
-        model="rerank-router",
-        top_n=2,
-        request_context=request_context,
-    )
 
 
 @pytest.fixture
@@ -266,40 +257,14 @@ def _mock_adapter(*, formatted_request=None, formatted_response=None, request_er
 
 class TestCreateRerankUseCase:
     @pytest.mark.asyncio
-    async def test_should_return_user_expired_error_when_user_expired(
-        self,
-        use_case,
-        user_with_role_query,
-        expired_user,
-        default_command,
-        router_repository,
-        provider_repository,
-    ):
-        # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = expired_user
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, UserExpiredError)
-        router_repository.get_router_by_name_or_alias.assert_not_called()
-        provider_repository.get_all_providers_of_router.assert_not_called()
-
-        ctx = default_command.request_context.get()
-        assert_request_context(ctx, user_email=expired_user.email)
-
-    @pytest.mark.asyncio
     async def test_should_return_router_not_found_error_when_router_does_not_exist(
         self,
         use_case,
-        user_with_role_query,
-        admin_user,
         router_repository,
         default_command,
+        admin_user,
     ):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_router_by_name_or_alias.return_value = RouterNotFoundError(name="rerank-router")
 
         # Act
@@ -315,13 +280,11 @@ class TestCreateRerankUseCase:
     async def test_should_return_router_has_no_providers_error_when_router_has_no_providers(
         self,
         use_case,
-        user_with_role_query,
-        admin_user,
         router_repository,
         default_command,
+        admin_user,
     ):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         rerank_router = RouterFactory(id=1, name="rerank-router", type=RouterType.TEXT_CLASSIFICATION, providers=0)
         router_repository.get_router_by_name_or_alias.return_value = rerank_router
 
@@ -339,13 +302,12 @@ class TestCreateRerankUseCase:
     async def test_should_return_router_has_wrong_type_error_when_router_is_not_text_classification(
         self,
         use_case,
-        user_with_role_query,
-        admin_user,
         router_repository,
         default_command,
+        admin_user,
     ):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
+
         rerank_router = RouterFactory(id=1, name="rerank-router", type=RouterType.TEXT_GENERATION, providers=1)
         router_repository.get_router_by_name_or_alias.return_value = rerank_router
 
@@ -364,31 +326,29 @@ class TestCreateRerankUseCase:
     async def test_should_return_user_has_no_access_error_when_user_cannot_access_router(
         self,
         use_case,
-        user_with_role_query,
         user_without_router_access,
         router_repository,
         rerank_router,
-        default_command,
+        make_command,
     ):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = user_without_router_access
+        command = make_command(user_without_router_access)
         router_repository.get_router_by_name_or_alias.return_value = rerank_router
 
         # Act
-        result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command=command)
 
         # Assert
         assert isinstance(result, UserHasNoAccessToRouterError)
         assert result.id == rerank_router.id
 
-        ctx = default_command.request_context.get()
+        ctx = command.request_context.get()
         assert_request_context(ctx, user_email=user_without_router_access.email, router_id=rerank_router.id, router_name=rerank_router.name)
 
     @pytest.mark.asyncio
     async def test_should_call_model_tokenizer_with_request_prompts_before_rate_limit_check(
         self,
         use_case,
-        user_with_role_query,
         user_with_router_access,
         router_repository,
         provider_repository,
@@ -398,10 +358,10 @@ class TestCreateRerankUseCase:
         model_tokenizer,
         rerank_router,
         rerank_provider,
-        default_command,
+        make_command,
     ):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = user_with_router_access
+        command = make_command(user_with_router_access)
         router_repository.get_router_by_name_or_alias.return_value = rerank_router
         provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
         provider_load_balancer.find_best_provider.return_value = rerank_provider
@@ -409,7 +369,7 @@ class TestCreateRerankUseCase:
         provider_adapter_builder.build.return_value = _mock_adapter()
 
         # Act
-        result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command=command)
 
         # Assert
         assert isinstance(result, RouterRateLimitExceededError)
@@ -429,7 +389,6 @@ class TestCreateRerankUseCase:
     async def test_should_return_router_rate_limit_exceeded_error_when_one_limit_is_exceeded(
         self,
         use_case,
-        user_with_role_query,
         user_with_router_access,
         router_repository,
         provider_repository,
@@ -438,13 +397,13 @@ class TestCreateRerankUseCase:
         router_rate_limiter,
         rerank_router,
         rerank_provider,
-        default_command,
+        make_command,
         limit_type,
         rate_limit_state,
         mock_rerank_latency_120ms,
     ):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = user_with_router_access
+        command = make_command(user_with_router_access)
         router_repository.get_router_by_name_or_alias.return_value = rerank_router
         provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
         provider_load_balancer.find_best_provider.return_value = rerank_provider
@@ -453,7 +412,7 @@ class TestCreateRerankUseCase:
         provider_adapter_builder.build.return_value = mock_adapter
 
         # Act
-        result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command=command)
 
         # Assert
         assert isinstance(result, RouterRateLimitExceededError)
@@ -463,7 +422,7 @@ class TestCreateRerankUseCase:
         router_rate_limiter.update_rate_limit_state.assert_not_called()
         provider_load_balancer.find_best_provider.assert_called_once()
 
-        ctx = default_command.request_context.get()
+        ctx = command.request_context.get()
         assert_request_context(
             ctx,
             user_email=user_with_router_access.email,
@@ -477,8 +436,6 @@ class TestCreateRerankUseCase:
     async def test_should_return_provider_adapter_validation_request_error_when_request_is_invalid(
         self,
         use_case,
-        user_with_role_query,
-        admin_user,
         router_repository,
         provider_repository,
         provider_load_balancer,
@@ -486,10 +443,10 @@ class TestCreateRerankUseCase:
         rerank_router,
         rerank_provider,
         default_command,
+        admin_user,
         mock_rerank_latency_120ms,
     ):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_router_by_name_or_alias.return_value = rerank_router
         provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
         provider_load_balancer.find_best_provider.return_value = rerank_provider
@@ -517,8 +474,6 @@ class TestCreateRerankUseCase:
     async def test_should_return_error_when_provider_forward_request_fails(
         self,
         use_case,
-        user_with_role_query,
-        admin_user,
         router_repository,
         provider_repository,
         provider_load_balancer,
@@ -528,9 +483,9 @@ class TestCreateRerankUseCase:
         rerank_router,
         rerank_provider,
         default_command,
+        admin_user,
     ):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_router_by_name_or_alias.return_value = rerank_router
         provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
         provider_load_balancer.find_best_provider.return_value = rerank_provider
@@ -561,8 +516,6 @@ class TestCreateRerankUseCase:
     async def test_should_return_provider_adapter_validation_response_error_when_response_is_invalid(
         self,
         use_case,
-        user_with_role_query,
-        admin_user,
         router_repository,
         provider_repository,
         provider_load_balancer,
@@ -572,9 +525,9 @@ class TestCreateRerankUseCase:
         rerank_router,
         rerank_provider,
         default_command,
+        admin_user,
     ):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         router_repository.get_router_by_name_or_alias.return_value = rerank_router
         provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
         provider_load_balancer.find_best_provider.return_value = rerank_provider
@@ -605,14 +558,12 @@ class TestCreateRerankUseCase:
     async def test_should_return_rerank_when_admin_user_and_flow_succeeds(
         self,
         use_case,
-        user_with_role_query,
         router_repository,
         provider_repository,
         provider_load_balancer,
         provider_metrics_logger,
         provider_client,
         provider_adapter_builder,
-        admin_user,
         rerank_router,
         rerank_provider,
         sample_rerank,
@@ -620,10 +571,11 @@ class TestCreateRerankUseCase:
         model_tokenizer,
         model_environmental_impacts_computer,
         default_command,
+        admin_user,
         mock_successful_rerank_flow,
     ):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
+
         router_repository.get_router_by_name_or_alias.return_value = rerank_router
         provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
         provider_load_balancer.find_best_provider.return_value = rerank_provider
@@ -691,7 +643,6 @@ class TestCreateRerankUseCase:
     async def test_should_enrich_when_non_admin_user_and_flow_succeeds(
         self,
         use_case,
-        user_with_role_query,
         router_repository,
         provider_repository,
         provider_load_balancer,
@@ -705,11 +656,11 @@ class TestCreateRerankUseCase:
         rerank_router,
         rerank_provider,
         sample_rerank,
-        default_command,
+        make_command,
         mock_successful_rerank_flow,
     ):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = user_with_router_access
+        command = make_command(user_with_router_access)
         router_repository.get_router_by_name_or_alias.return_value = rerank_router
         provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
         provider_load_balancer.find_best_provider.return_value = rerank_provider
@@ -727,7 +678,7 @@ class TestCreateRerankUseCase:
         provider_adapter_builder.build.return_value = mock_adapter
 
         # Act
-        result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command=command)
 
         # Assert
         assert isinstance(result, CreateRerankUseCaseSuccess)
@@ -777,7 +728,7 @@ class TestCreateRerankUseCase:
             prompt_tokens=15,
         )
 
-        ctx = default_command.request_context.get()
+        ctx = command.request_context.get()
         assert_request_context(
             ctx,
             user_email=user_with_router_access.email,

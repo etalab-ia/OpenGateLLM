@@ -5,7 +5,6 @@ from typing import Any
 
 from pydantic import ConfigDict
 
-from api.domain.key.entities import Key
 from api.domain.key.errors import InvalidKeyError, KeyNotFoundError
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ModelType as RouterType
@@ -82,14 +81,6 @@ class CreateRerankUseCase:
         self.router_repository = router_repository
 
     async def execute(self, command: CreateRerankCommand) -> CreateRerankUseCaseResult:
-        result = await self.key_repository.get_key_by_id(key_id=command.request_context.get().key.id)
-        match result:
-            case KeyNotFoundError():
-                return KeyNotFoundError()
-            case Key() as key:
-                if not command.key.is_valid(expected_key=key):
-                    return InvalidKeyError()
-
         user = command.request_context.get().user
         command.set_value_in_request_context(key="user_email", value=user.email)
 

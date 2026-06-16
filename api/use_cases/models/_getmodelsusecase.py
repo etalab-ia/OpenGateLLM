@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from api.domain.model.entities import Model, ModelCosts
 from api.domain.router import RouterRepository
-from api.domain.user.views import UserViewWithRole
+from api.domain.user.views import UserWithRoleView
 
 
 @dataclass
@@ -12,7 +12,7 @@ class GetModelsUseCaseSucess:
 
 @dataclass
 class GetModelsCommand:
-    user: UserViewWithRole
+    user: UserWithRoleView
 
 
 type GetModelsUseCaseResult = GetModelsUseCaseSucess

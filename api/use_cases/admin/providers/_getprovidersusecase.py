@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from api.domain import SortOrder
 from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import ProviderPage, ProviderSortField
-from api.domain.user import UserWithRoleQuery
 
 
 @dataclass
@@ -24,7 +23,7 @@ type GetProvidersUseCaseResult = GetProvidersUseCaseSuccess
 
 
 class GetProvidersUseCase:
-    def __init__(self, provider_repository: ProviderRepository, user_with_role_query: UserWithRoleQuery):
+    def __init__(self, provider_repository: ProviderRepository):
         self.provider_repository = provider_repository
 
     async def execute(self, command: GetProvidersCommand) -> GetProvidersUseCaseResult:

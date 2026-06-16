@@ -5,7 +5,7 @@ from api.domain.model.errors import ModelNotFoundError
 from api.domain.router import RouterRepository
 from api.domain.router.entities import Router
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.user.views import UserViewWithRole
+from api.domain.user.views import UserWithRoleView
 
 
 @dataclass
@@ -15,7 +15,7 @@ class GetModelUseCaseSucess:
 
 @dataclass
 class GetModelCommand:
-    user: UserViewWithRole
+    user: UserWithRoleView
     name: str
 
 

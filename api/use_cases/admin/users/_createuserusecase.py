@@ -9,7 +9,6 @@ from api.domain.user.errors import UserAlreadyExistsError
 
 @dataclass
 class CreateUserCommand:
-    user: User
     email: str
     password: str
     role_id: int

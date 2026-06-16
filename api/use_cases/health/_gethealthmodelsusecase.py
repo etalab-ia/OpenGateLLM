@@ -5,13 +5,13 @@ from api.domain.provider import ProviderAdapter, ProviderAdapterBuilder, Provide
 from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
 from api.domain.router import RouterRepository
-from api.domain.user.views import UserViewWithRole
+from api.domain.user.views import UserWithRoleView
 from api.utils.variables import EndpointRoute
 
 
 @dataclass
 class GetHealthModelsCommand:
-    user: UserViewWithRole
+    user: UserWithRoleView
 
 
 @dataclass

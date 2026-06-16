@@ -1,11 +1,9 @@
-import datetime as dt
 from unittest.mock import AsyncMock
 
 import pytest
 
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
-from api.tests.unit.use_case.factories import RoleFactory, UserWithRoleFactory
+from api.tests.unit.use_case.factories import RoleFactory
 from api.use_cases.admin.roles import GetRoleCommand, GetRoleUseCase, GetRoleUseCaseSuccess
 
 
@@ -15,41 +13,17 @@ def role_repository():
 
 
 @pytest.fixture
-def user_with_role_query():
-    return AsyncMock()
-
-
-@pytest.fixture
-def admin_user():
-    return UserWithRoleFactory(id=1, admin=True)
-
-
-@pytest.fixture
-def non_admin_user():
-    return UserWithRoleFactory(id=3, without_permission=True, limits=[])
-
-
-@pytest.fixture
-def expired_user():
-    return UserWithRoleFactory(id=1, expires=int((dt.datetime.now() - dt.timedelta(days=1)).timestamp()))
-
-
-@pytest.fixture
-def use_case(role_repository, user_with_role_query):
-    return GetRoleUseCase(
-        role_repository=role_repository,
-        user_with_role_query=user_with_role_query,
-    )
+def use_case(role_repository):
+    return GetRoleUseCase(role_repository=role_repository)
 
 
 class TestGetRoleUseCase:
     @pytest.mark.asyncio
-    async def test_should_return_role_when_user_is_admin_and_role_exists(self, use_case, role_repository, user_with_role_query, admin_user):
+    async def test_should_return_role_when_user_is_admin_and_role_exists(self, use_case, role_repository):
         # Arrange
         role = RoleFactory(id=42)
-        user_with_role_query.get_user_with_role_by_id.return_value = admin_user
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = role
-        command = GetRoleCommand(user_id=1, role_id=42)
+        command = GetRoleCommand(role_id=42)
 
         # Act
         result = await use_case.execute(command)
@@ -60,26 +34,10 @@ class TestGetRoleUseCase:
         role_repository.get_role_with_permissions_and_limits_by_id.assert_awaited_once_with(role_id=42)
 
     @pytest.mark.asyncio
-    async def test_should_return_user_is_not_admin_error_when_user_is_not_admin(
-        self, use_case, role_repository, user_with_role_query, non_admin_user
-    ):
+    async def test_should_return_role_not_found_error_when_role_does_not_exist(self, use_case, role_repository):
         # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = non_admin_user
-        command = GetRoleCommand(user_id=1, role_id=42)
-
-        # Act
-        result = await use_case.execute(command)
-
-        # Assert
-        assert isinstance(result, UserIsNotAdminError)
-        role_repository.get_role_with_permissions_and_limits_by_id.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_should_return_role_not_found_error_when_role_does_not_exist(self, use_case, role_repository, user_with_role_query):
-        # Arrange
-        user_with_role_query.get_user_with_role_by_id.return_value = UserWithRoleFactory(admin=True)
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = RoleNotFoundError(id=99)
-        command = GetRoleCommand(user_id=1, role_id=99)
+        command = GetRoleCommand(role_id=99)
 
         # Act
         result = await use_case.execute(command)
@@ -88,14 +46,3 @@ class TestGetRoleUseCase:
         assert isinstance(result, RoleNotFoundError)
         assert result.id == 99
         role_repository.get_role_with_permissions_and_limits_by_id.assert_awaited_once_with(role_id=99)
-
-    @pytest.mark.asyncio
-    async def test_should_return_user_expired_error_when_user_expired(self, use_case, expired_user):
-        # Arrange
-        use_case.user_with_role_query.get_user_with_role_by_id.return_value = expired_user
-
-        # Act
-        result = await use_case.execute(command=GetRoleCommand(user_id=1, role_id=42))
-
-        # Assert
-        assert isinstance(result, UserExpiredError)

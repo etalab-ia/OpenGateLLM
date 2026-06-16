@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import Provider
 from api.domain.provider.errors import ProviderNotFoundError
-from api.domain.user import UserWithRoleQuery
 
 
 @dataclass
@@ -20,7 +19,7 @@ type GetOneProviderUseCaseResult = GetOneProviderUseCaseSuccess | ProviderNotFou
 
 
 class GetOneProviderUseCase:
-    def __init__(self, provider_repository: ProviderRepository, user_with_role_query: UserWithRoleQuery):
+    def __init__(self, provider_repository: ProviderRepository):
         self.provider_repository = provider_repository
 
     async def execute(self, command: GetOneProviderCommand) -> GetOneProviderUseCaseResult:
