@@ -37,7 +37,7 @@ class GetModelUseCase:
         if router.has_no_providers or command.authenticated_user.cannot_access_router(router_id=router.id):
             return ModelNotFoundError(name=command.name)
 
-        organization_name = await self.router_repository.get_organization_name(router.user_id)
+        organization_name = await self.router_repository.get_organization_name(router.user_id)  # @TODO: replace by organization repository
         model = Model(
             id=router.name,
             type=router.type,
