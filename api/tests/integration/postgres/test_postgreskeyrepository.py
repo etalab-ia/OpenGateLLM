@@ -30,8 +30,8 @@ class TestGetKeyById:
         assert result.id == token.id
         assert result.name == "my-key"
         assert result.user_id == user.id
-        assert result.expires == expires_at
-        assert result.created == token.created
+        assert result.expires == PostgresKeyRepository._to_utc(expires_at)
+        assert result.created == PostgresKeyRepository._to_utc(token.created)
 
     async def test_get_key_by_id_should_return_key_with_none_expires_when_token_never_expires(self, repository, db_session):
         # Arrange
