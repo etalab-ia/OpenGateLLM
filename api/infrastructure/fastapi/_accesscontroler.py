@@ -4,6 +4,7 @@ from typing import Annotated, Any
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
+from pydantic import ValidationError
 
 from api.dependencies import _key_repository, _user_with_role_query, get_request_context, get_secret_key
 from api.domain.key import KeyRepository
@@ -48,12 +49,11 @@ class AccessController:
         if not api_key.credentials.startswith(TOKEN_PREFIX):
             raise InvalidAPIKeyHTTPException()
 
+        jwt_token = api_key.credentials.split(TOKEN_PREFIX)[1]
         try:
-            jwt_token = api_key.credentials.split(TOKEN_PREFIX)[1]
             claims = jwt.decode(token=jwt_token, key=secret_key, algorithms=["HS256"])
             decoded_key = Key.build_from_claims(claims=claims)
-
-        except (JWTError, IndexError, KeyError, ValueError):
+        except (JWTError, KeyError, ValidationError):
             raise InvalidAPIKeyHTTPException()
 
         self._set_value_in_request_context(request_context=request_context, key="key", value=decoded_key)

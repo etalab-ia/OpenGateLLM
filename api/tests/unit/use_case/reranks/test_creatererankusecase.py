@@ -239,7 +239,8 @@ def assert_request_context(
     kwh: float | None = None,
     kgco2eq: float | None = None,
 ):
-    assert ctx.user_email == user_email
+    assert ctx.user is not None
+    assert ctx.user.email == user_email
     assert ctx.id == request_id
     assert ctx.router_id == router_id
     assert ctx.router_name == router_name
