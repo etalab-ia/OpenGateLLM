@@ -82,7 +82,7 @@ async def get_redis_client() -> AsyncGenerator[Redis, Any]:
 
 
 # queries
-def _user_with_role_query(session: AsyncSession) -> PostgresUserWithRoleQuery:
+def _user_with_role_query(session: AsyncSession = Depends(get_postgres_session)) -> PostgresUserWithRoleQuery:
     return PostgresUserWithRoleQuery(postgres_session=session)
 
 

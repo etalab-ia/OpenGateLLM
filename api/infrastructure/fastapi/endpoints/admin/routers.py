@@ -12,15 +12,17 @@ from api.dependencies import (
     update_router_use_case_factory,
 )
 from api.domain import SortField, SortOrder
+from api.domain.key.errors import InvalidKeyError
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
-from api.infrastructure.fastapi.access import get_current_key
+from api.infrastructure.fastapi.access import decode_api_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
     AccountExpiredHTTPException,
     InternalServerHTTPException,
+    InvalidAPIKeyHTTPException,
     NotAdminUserHTTPException,
     RouterAliasAlreadyExistsHTTPException,
     RouterAlreadyExistsHTTPException,
@@ -51,7 +53,7 @@ logger = logging.getLogger(__name__)
 
 @router.post(
     path=EndpointRoute.ADMIN_ROUTERS,
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=201,
     responses=get_documentation_responses([RouterAliasAlreadyExistsHTTPException, RouterAlreadyExistsHTTPException, NotAdminUserHTTPException]),
 )
@@ -97,7 +99,7 @@ async def create_router(
 
 @router.get(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException, RouterNotFoundHTTPException]),
 )
@@ -135,7 +137,7 @@ async def get_router(
 
 @router.get(
     path=EndpointRoute.ADMIN_ROUTERS,
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException]),
 )
@@ -175,13 +177,15 @@ async def get_routers(
             )
         case UserIsNotAdminError():
             raise NotAdminUserHTTPException()
+        case InvalidKeyError():
+            raise InvalidAPIKeyHTTPException()
         case UserExpiredError():
             raise AccountExpiredHTTPException()
 
 
 @router.delete(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     responses=get_documentation_responses([NotAdminUserHTTPException, RouterNotFoundHTTPException]),
     status_code=200,
 )
@@ -220,7 +224,7 @@ async def delete_router(
 
 @router.patch(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     responses=get_documentation_responses(
         [
             NotAdminUserHTTPException,

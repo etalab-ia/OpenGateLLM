@@ -17,7 +17,7 @@ from api.domain.provider.entities import ProviderSortField
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
 from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
-from api.infrastructure.fastapi.access import get_current_key
+from api.infrastructure.fastapi.access import decode_api_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
@@ -64,7 +64,7 @@ logger = logging.getLogger(__name__)
 
 @router.post(
     path=EndpointRoute.ADMIN_PROVIDERS,
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=201,
     responses=get_documentation_responses(
         exceptions=[
@@ -144,7 +144,7 @@ async def create_provider(
 
 @router.delete(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     responses=get_documentation_responses([ProviderNotFoundHTTPException, NotAdminUserHTTPException]),
 )
@@ -183,7 +183,7 @@ async def delete_provider(
 
 @router.patch(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     responses=get_documentation_responses(
         [
@@ -258,7 +258,7 @@ async def update_provider(
 
 @router.get(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException, ProviderNotFoundHTTPException]),
 )
@@ -296,7 +296,7 @@ async def get_provider(
 
 @router.get(
     path=EndpointRoute.ADMIN_PROVIDERS,
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     response_model=ProvidersResponse,
     responses=get_documentation_responses([NotAdminUserHTTPException]),

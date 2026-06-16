@@ -10,7 +10,7 @@ from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, Unk
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
-from api.infrastructure.fastapi.access import get_current_key
+from api.infrastructure.fastapi.access import decode_api_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.decorators import hooks
 from api.infrastructure.fastapi.documentation import get_documentation_responses
@@ -33,7 +33,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.RERANK.title()])
 
 @router.post(
     path=EndpointRoute.RERANK,
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     responses=get_documentation_responses(
         [

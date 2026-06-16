@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from api.dependencies import get_model_use_case_factory, get_models_use_case_factory, get_request_context
 from api.domain.model.errors import ModelNotFoundError
 from api.domain.user.errors import UserExpiredError
-from api.infrastructure.fastapi.access import get_current_key
+from api.infrastructure.fastapi.access import decode_api_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import AccountExpiredHTTPException, ModelNotFoundHTTPException
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.MODELS.title()])
 
 @router.get(
     path=EndpointRoute.MODELS,
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     response_model=ModelsResponse,
     responses=get_documentation_responses([]),
@@ -41,7 +41,7 @@ async def get_models(
 
 @router.get(
     path=EndpointRoute.MODELS + "/{model:path}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     response_model=Model,
     responses=get_documentation_responses([ModelNotFoundHTTPException]),

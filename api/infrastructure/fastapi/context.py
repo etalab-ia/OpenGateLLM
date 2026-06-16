@@ -2,6 +2,8 @@ from contextvars import ContextVar
 
 from pydantic import BaseModel, ConfigDict
 
+from api.domain.key.entities import Key
+
 
 class RequestContext(BaseModel):
     model_config = ConfigDict(extra="allow")
@@ -11,11 +13,11 @@ class RequestContext(BaseModel):
     method: str | None = None
     endpoint: str | None = None
 
-    # request context
-    user_id: int | None = None
+    # user identifiers
+    key: Key | None = None
     user_email: str | None = None
-    key_id: int | None = None
-    key_name: str | None = None  # @TODO: refactor key repository to implement this field
+
+    # model identifiers
     router_id: int | None = None
     provider_id: int | None = None
     router_name: str | None = None

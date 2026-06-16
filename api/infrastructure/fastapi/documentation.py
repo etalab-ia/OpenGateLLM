@@ -2,7 +2,12 @@ from typing import Protocol
 
 from pydantic import BaseModel
 
-from api.infrastructure.fastapi.endpoints.exceptions import AccountExpiredHTTPException, InvalidAPIKeyException, InvalidAuthenticationSchemeException
+from api.infrastructure.fastapi.endpoints.exceptions import (
+    AccountExpiredHTTPException,
+    InvalidAPIKeyHTTPException,
+    InvalidAuthenticationSchemeHTTPException,
+    NotAdminUserHTTPException,
+)
 
 
 class HTTPExceptionModel(BaseModel):
@@ -16,12 +21,27 @@ class _DocumentableHTTPException(Protocol):
     detail: str
 
 
-def get_documentation_responses(exceptions: list[type[_DocumentableHTTPException]], add_auth_exceptions: bool = True):
+def get_documentation_responses(
+    exceptions: list[type[_DocumentableHTTPException]], add_auth_exceptions: bool = True, add_admin_exceptions: bool = False
+):
     """
     Generate a dictionary of responses for a list of HTTP exceptions in Redoc and Swagger documentation.
     """
     if add_auth_exceptions:
-        exceptions.extend([InvalidAuthenticationSchemeException, InvalidAPIKeyException, AccountExpiredHTTPException])
+        exceptions.extend(
+            [
+                InvalidAuthenticationSchemeHTTPException,
+                InvalidAPIKeyHTTPException,
+                AccountExpiredHTTPException,
+            ]
+        )
+
+    if add_admin_exceptions:
+        exceptions.extend(
+            [
+                NotAdminUserHTTPException,
+            ]
+        )
 
     responses = {}
     for exception in exceptions:

@@ -23,7 +23,7 @@ from api.domain.user.errors import (
     UserIsNotAdminError,
     UserNotFoundError,
 )
-from api.infrastructure.fastapi.access import get_current_key
+from api.infrastructure.fastapi.access import decode_api_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
@@ -60,7 +60,7 @@ logger = logging.getLogger(__name__)
 
 @router.post(
     path=EndpointRoute.ADMIN_USERS,
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=201,
     responses=get_documentation_responses(
         [
@@ -117,7 +117,7 @@ async def create_user(
 
 @router.get(
     path=EndpointRoute.ADMIN_USERS + "/{user_id}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     responses=get_documentation_responses([UserNotFoundHTTPException]),
 )
@@ -154,7 +154,7 @@ async def get_user(
 
 @router.get(
     path=EndpointRoute.ADMIN_USERS,
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     responses=get_documentation_responses([]),
 )
@@ -208,7 +208,7 @@ async def get_users(
 
 @router.delete(
     path=EndpointRoute.ADMIN_USERS + "/{user_id}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     responses=get_documentation_responses(
         [

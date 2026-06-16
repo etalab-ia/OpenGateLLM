@@ -6,8 +6,8 @@ import pytest
 
 from api.domain.key.entities import KeyClaims
 from api.domain.key.errors import KeyNotFoundError
-from api.infrastructure.fastapi.access import get_current_key
-from api.infrastructure.fastapi.endpoints.exceptions import InvalidAPIKeyException, InvalidAuthenticationSchemeException
+from api.infrastructure.fastapi.access import decode_api_key
+from api.infrastructure.fastapi.endpoints.exceptions import InvalidAPIKeyHTTPException, InvalidAuthenticationSchemeHTTPException
 
 
 @pytest.fixture
@@ -41,8 +41,8 @@ class TestGetCurrentKey:
         api_key = HTTPAuthorizationCredentials(scheme="Basic", credentials="sk-token")
 
         # Act / Assert
-        with pytest.raises(InvalidAuthenticationSchemeException):
-            await get_current_key(
+        with pytest.raises(InvalidAuthenticationSchemeHTTPException):
+            await decode_api_key(
                 request=request_obj,
                 api_key=api_key,
                 key_repository=key_repository,
@@ -58,8 +58,8 @@ class TestGetCurrentKey:
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials="")
 
         # Act / Assert
-        with pytest.raises(InvalidAPIKeyException):
-            await get_current_key(
+        with pytest.raises(InvalidAPIKeyHTTPException):
+            await decode_api_key(
                 request=request_obj,
                 api_key=api_key,
                 key_repository=key_repository,
@@ -78,8 +78,8 @@ class TestGetCurrentKey:
 
         # Act / Assert
         with patch("api.infrastructure.fastapi.access.Key.decode", return_value=KeyClaims(user_id=1, key_id=10)):
-            with pytest.raises(InvalidAPIKeyException):
-                await get_current_key(
+            with pytest.raises(InvalidAPIKeyHTTPException):
+                await decode_api_key(
                     request=request_obj,
                     api_key=api_key,
                     key_repository=key_repository,
@@ -99,8 +99,8 @@ class TestGetCurrentKey:
 
         # Act / Assert
         with patch("api.infrastructure.fastapi.access.Key.decode", return_value=KeyClaims(user_id=1, key_id=10)):
-            with pytest.raises(InvalidAPIKeyException):
-                await get_current_key(
+            with pytest.raises(InvalidAPIKeyHTTPException):
+                await decode_api_key(
                     request=request_obj,
                     api_key=api_key,
                     key_repository=key_repository,
@@ -118,7 +118,7 @@ class TestGetCurrentKey:
 
         # Act
         with patch("api.infrastructure.fastapi.access.Key.decode", return_value=KeyClaims(user_id=42, key_id=99)):
-            await get_current_key(
+            await decode_api_key(
                 request=request_obj,
                 api_key=api_key,
                 key_repository=key_repository,

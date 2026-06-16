@@ -15,7 +15,7 @@ from api.domain import SortField, SortOrder
 from api.domain.role.entities import Limit
 from api.domain.role.errors import RoleAlreadyExistsError, RoleHasUsersError, RoleNotFoundError
 from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
-from api.infrastructure.fastapi.access import get_current_key
+from api.infrastructure.fastapi.access import decode_api_key
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 @router.post(
     path=EndpointRoute.ADMIN_ROLES,
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=201,
     responses=get_documentation_responses([NotAdminUserHTTPException, RoleAlreadyExistsHTTPException]),
 )
@@ -93,7 +93,7 @@ async def create_role(
 
 @router.patch(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException, RoleAlreadyExistsHTTPException, RoleNotFoundHTTPException]),
 )
@@ -140,7 +140,7 @@ async def update_role(
 
 @router.get(
     path=EndpointRoute.ADMIN_ROLES,
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException]),
 )
@@ -190,7 +190,7 @@ async def get_roles(
 
 @router.get(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException, RoleNotFoundHTTPException]),
 )
@@ -229,7 +229,7 @@ async def get_role(
 
 @router.delete(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
-    dependencies=[Security(dependency=get_current_key)],
+    dependencies=[Security(dependency=decode_api_key)],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException, RoleNotFoundHTTPException, RoleHasUsersHTTPException]),
 )

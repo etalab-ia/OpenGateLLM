@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import ConfigDict
 
+from api.domain.key.entities import Key
+from api.domain.key.errors import InvalidKeyError, KeyNotFoundError
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
@@ -40,6 +42,8 @@ class CreateRerankUseCaseSuccess:
 
 type CreateRerankUseCaseResult = (
     CreateRerankUseCaseSuccess
+    | InvalidKeyError
+    | KeyNotFoundError
     | NoAvailableProviderError
     | ProviderAdapterValidationRequestError
     | ProviderAdapterValidationResponseError
@@ -82,6 +86,14 @@ class CreateRerankUseCase:
         self.user_with_role_query = user_with_role_query
 
     async def execute(self, command: CreateRerankCommand) -> CreateRerankUseCaseResult:
+        result = await self.key_repository.get_key_by_id(key_id=command.request_context.get().key.id)
+        match result:
+            case KeyNotFoundError():
+                return KeyNotFoundError()
+            case Key() as key:
+                if not command.key.is_valid(expected_key=key):
+                    return InvalidKeyError()
+
         user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.request_context.get().user_id)
         command.set_value_in_request_context(key="user_email", value=user.email)
 
