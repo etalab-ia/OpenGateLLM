@@ -4,8 +4,6 @@ from api.domain import SortField, SortOrder
 from api.domain.key import KeyRepository
 from api.domain.router import RouterRepository
 from api.domain.router.entities import RouterPage
-from api.domain.user import UserWithRoleQuery
-from api.domain.user.errors import UserIsNotAdminError
 
 
 @dataclass
@@ -21,14 +19,13 @@ class GetRoutersUseCaseSuccess:
     router_page: RouterPage
 
 
-type GetRoutersUseCaseResult = GetRoutersUseCaseSuccess | UserIsNotAdminError
+type GetRoutersUseCaseResult = GetRoutersUseCaseSuccess
 
 
 class GetRoutersUseCase:
-    def __init__(self, key_repository: KeyRepository, router_repository: RouterRepository, user_with_role_query: UserWithRoleQuery):
+    def __init__(self, key_repository: KeyRepository, router_repository: RouterRepository):
         self.key_repository = key_repository
         self.router_repository = router_repository
-        self.user_with_role_query = user_with_role_query
 
     async def execute(self, command: GetRoutersCommand) -> GetRoutersUseCaseResult:
         router_page = await self.router_repository.get_routers_page(

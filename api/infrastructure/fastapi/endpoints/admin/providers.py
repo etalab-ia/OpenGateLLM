@@ -16,13 +16,11 @@ from api.domain.model.errors import InconsistentModelMaxContextLengthError, Inco
 from api.domain.provider.entities import ProviderSortField
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
-from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
-from api.infrastructure.fastapi.access import decode_api_key
+from api.infrastructure.fastapi import AccessController
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    AccountExpiredHTTPException,
     InconsistentModelMaxContextLengthHTTPException,
     InconsistentModelVectorSizeHTTPException,
     InternalServerHTTPException,
@@ -64,7 +62,7 @@ logger = logging.getLogger(__name__)
 
 @router.post(
     path=EndpointRoute.ADMIN_PROVIDERS,
-    dependencies=[Security(dependency=decode_api_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=201,
     responses=get_documentation_responses(
         exceptions=[
@@ -85,8 +83,8 @@ async def create_provider(
 ) -> CreateProviderResponse:
     try:
         command = CreateProviderCommand(
+            user_id=request_context.get().user.id,
             router_id=body.router_id,
-            user_id=request_context.get().user_id,
             provider_type=body.type,
             url=body.url,
             key=body.key,
@@ -104,7 +102,7 @@ async def create_provider(
         logger.exception(
             "Unexpected error while executing create_provider use case",
             extra={
-                "user_id": request_context.get().user_id,
+                "authenticated_user_id": request_context.get().user.id,
                 "provider_router_id": body.router_id,
                 "provider_url": body.url,
                 "provider_model_name": body.model_name,
@@ -135,32 +133,26 @@ async def create_provider(
         case RouterNotFoundError(id=router_id):
             raise RouterNotFoundHTTPException(router_id=router_id)
 
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
-
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
-
 
 @router.delete(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
-    dependencies=[Security(dependency=decode_api_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=200,
-    responses=get_documentation_responses([ProviderNotFoundHTTPException, NotAdminUserHTTPException]),
+    responses=get_documentation_responses(exceptions=[ProviderNotFoundHTTPException, NotAdminUserHTTPException]),
 )
 async def delete_provider(
     provider_id: int = Path(description="The ID of the provider to delete."),
     delete_provider_use_case: DeleteProviderUseCase = Depends(delete_provider_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> ProviderResponse:
-    command = DeleteProviderCommand(user_id=request_context.get().user_id, provider_id=provider_id)
+    command = DeleteProviderCommand(provider_id=provider_id)
     try:
         result = await delete_provider_use_case.execute(command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing delete_provider use case",
             extra={
-                "user_id": command.user_id,
+                "authenticated_user_id": request_context.get().user.id,
                 "provider_id": command.provider_id,
                 "error_type": type(e).__name__,
             },
@@ -174,16 +166,10 @@ async def delete_provider(
         case ProviderNotFoundError(id=not_found_id):
             raise ProviderNotFoundHTTPException(provider_id=not_found_id)
 
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
-
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
-
 
 @router.patch(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
-    dependencies=[Security(dependency=decode_api_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=200,
     responses=get_documentation_responses(
         [
@@ -206,7 +192,6 @@ async def update_provider(
     command = UpdateProviderCommand(
         provider_id=provider_id,
         router_id=body.router_id,
-        user_id=request_context.get().user_id,
         timeout=body.timeout,
         model_hosting_zone=body.model_hosting_zone,
         model_total_params=body.model_total_params,
@@ -220,7 +205,7 @@ async def update_provider(
         logger.exception(
             "Unexpected error while executing update_provider use case",
             extra={
-                "user_id": request_context.get().user_id,
+                "authenticated_user_id": request_context.get().user.id,
                 "provider_router_id": body.router_id,
                 "error_type": type(e).__name__,
             },
@@ -249,16 +234,10 @@ async def update_provider(
         case ProviderNotFoundError(id=provider_id):
             raise ProviderNotFoundHTTPException(provider_id=provider_id)
 
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
-
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
-
 
 @router.get(
     path=EndpointRoute.ADMIN_PROVIDERS + "/{provider_id}",
-    dependencies=[Security(dependency=decode_api_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException, ProviderNotFoundHTTPException]),
 )
@@ -267,14 +246,14 @@ async def get_provider(
     get_one_provider_use_case: GetOneProviderUseCase = Depends(get_one_provider_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> ProviderResponse:
-    command = GetOneProviderCommand(user_id=request_context.get().user_id, provider_id=provider_id)
+    command = GetOneProviderCommand(provider_id=provider_id)
     try:
         result = await get_one_provider_use_case.execute(command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing get_one_provider use case",
             extra={
-                "user_id": command.user_id,
+                "authenticated_user_id": request_context.get().user.id,
                 "provider_id": command.provider_id,
                 "error_type": type(e).__name__,
             },
@@ -287,16 +266,10 @@ async def get_provider(
         case ProviderNotFoundError(id=not_found_id):
             raise ProviderNotFoundHTTPException(provider_id=not_found_id)
 
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
-
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
-
 
 @router.get(
     path=EndpointRoute.ADMIN_PROVIDERS,
-    dependencies=[Security(dependency=decode_api_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=200,
     response_model=ProvidersResponse,
     responses=get_documentation_responses([NotAdminUserHTTPException]),
@@ -310,21 +283,14 @@ async def get_providers(
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
     get_providers_use_case: GetProvidersUseCase = Depends(get_providers_use_case_factory),
 ) -> ProvidersResponse:
-    command = GetProvidersCommand(
-        router_id=router_id,
-        user_id=request_context.get().user_id,
-        offset=offset,
-        limit=limit,
-        sort_by=sort_by,
-        sort_order=sort_order,
-    )
+    command = GetProvidersCommand(router_id=router_id, offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order)
     try:
         result = await get_providers_use_case.execute(command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing get_providers use case",
             extra={
-                "user_id": command.user_id,
+                "authenticated_user_id": request_context.get().user.id,
                 "router_id": router_id,
                 "offset": command.offset,
                 "limit": command.limit,
@@ -342,9 +308,3 @@ async def get_providers(
                 limit=limit,
                 data=[ProviderResponse.model_validate(provider, from_attributes=True) for provider in providers_page.data],
             )
-
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
-
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()

@@ -9,7 +9,6 @@ from api.dependencies import _key_repository, _user_with_role_query, get_request
 from api.domain.key import KeyRepository
 from api.domain.key.entities import Key
 from api.domain.key.errors import KeyNotFoundError
-from api.domain.role.entities import PermissionType
 from api.domain.user import UserWithRoleQuery
 from api.infrastructure.fastapi.endpoints.exceptions import (
     AccountExpiredHTTPException,
@@ -24,8 +23,8 @@ http_bearer = HTTPBearer()
 
 
 class AccessController:
-    def __init__(self, permissions: list[PermissionType] = []):
-        self.permissions = permissions
+    def __init__(self, only_admin: bool = False):
+        self.only_admin = only_admin
 
     @staticmethod
     def _set_value_in_request_context(request_context: ContextVar[RequestContext], key: str, value: Any) -> None:
@@ -72,7 +71,7 @@ class AccessController:
         if user.has_expired:
             raise AccountExpiredHTTPException()
 
-        if PermissionType.ADMIN in user.permissions and not user.is_admin:
+        if self.only_admin and not user.is_admin:
             raise NotAdminUserHTTPException()
 
         self._set_value_in_request_context(request_context=request_context, key="user", value=user)

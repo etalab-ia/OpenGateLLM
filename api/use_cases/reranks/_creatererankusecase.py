@@ -18,8 +18,7 @@ from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage.entities import Usage
-from api.domain.user import UserWithRoleQuery
-from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
+from api.domain.user.errors import UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.context import RequestContext
 from api.schemas.core.models import Metric
 from api.utils.variables import EndpointRoute
@@ -54,7 +53,6 @@ type CreateRerankUseCaseResult = (
     | TooBusyModelError
     | StatusCodeModelError
     | UnknownModelError
-    | UserExpiredError
     | UserHasNoAccessToRouterError
 )
 
@@ -71,7 +69,6 @@ class CreateRerankUseCase:
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
-        user_with_role_query: UserWithRoleQuery,
     ) -> None:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
         self.model_tokenizer = model_tokenizer
@@ -83,7 +80,6 @@ class CreateRerankUseCase:
 
         self.router_rate_limiter = router_rate_limiter
         self.router_repository = router_repository
-        self.user_with_role_query = user_with_role_query
 
     async def execute(self, command: CreateRerankCommand) -> CreateRerankUseCaseResult:
         result = await self.key_repository.get_key_by_id(key_id=command.request_context.get().key.id)
@@ -94,11 +90,8 @@ class CreateRerankUseCase:
                 if not command.key.is_valid(expected_key=key):
                     return InvalidKeyError()
 
-        user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.request_context.get().user_id)
+        user = command.request_context.get().user
         command.set_value_in_request_context(key="user_email", value=user.email)
-
-        if user.expires is not None and user.expires < time.time():
-            return UserExpiredError()
 
         result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=command.model)
         match result:

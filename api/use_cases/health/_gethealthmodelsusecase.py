@@ -5,14 +5,13 @@ from api.domain.provider import ProviderAdapter, ProviderAdapterBuilder, Provide
 from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
 from api.domain.router import RouterRepository
-from api.domain.user import UserWithRoleQuery
-from api.domain.user.errors import UserExpiredError
+from api.domain.user.views import UserViewWithRole
 from api.utils.variables import EndpointRoute
 
 
 @dataclass
 class GetHealthModelsCommand:
-    user_id: int
+    user: UserViewWithRole
 
 
 @dataclass
@@ -20,7 +19,7 @@ class GetHealthModelsUseCaseSuccess:
     models: list[ModelHealthStatus]
 
 
-type GetHealthModelsUseCaseResult = GetHealthModelsUseCaseSuccess | UserExpiredError
+type GetHealthModelsUseCaseResult = GetHealthModelsUseCaseSuccess
 
 
 class GetHealthModelsUseCase:
@@ -34,21 +33,14 @@ class GetHealthModelsUseCase:
         provider_metrics_logger: ProviderMetricsLogger,
         provider_repository: ProviderRepository,
         router_repository: RouterRepository,
-        user_with_role_query: UserWithRoleQuery,
     ):
         self.provider_adapter_builder = provider_adapter_builder
         self.provider_client = provider_client
         self.provider_metrics_logger = provider_metrics_logger
         self.provider_repository = provider_repository
         self.router_repository = router_repository
-        self.user_with_role_query = user_with_role_query
 
     async def execute(self, command: GetHealthModelsCommand) -> GetHealthModelsUseCaseResult:
-        user = await self.user_with_role_query.get_user_with_role_by_id(user_id=command.user_id)
-
-        if user.has_expired:
-            return UserExpiredError()
-
         models = []
         routers = await self.router_repository.get_all_routers()
         providers = await self.provider_repository.get_all_providers()
@@ -56,7 +48,7 @@ class GetHealthModelsUseCase:
         for router in routers:
             if router.has_no_providers:
                 continue
-            if user.cannot_access_router(router_id=router.id):
+            if command.user.cannot_access_router(router_id=router.id):
                 continue
 
             health = ModelHealthStatus(id=router.name, status=HealthStatus.GREEN)

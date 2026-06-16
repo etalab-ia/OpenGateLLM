@@ -14,13 +14,11 @@ from api.dependencies import (
 from api.domain import SortField, SortOrder
 from api.domain.role.entities import Limit
 from api.domain.role.errors import RoleAlreadyExistsError, RoleHasUsersError, RoleNotFoundError
-from api.domain.user.errors import UserExpiredError, UserIsNotAdminError
-from api.infrastructure.fastapi.access import decode_api_key
+from api.infrastructure.fastapi import AccessController
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    AccountExpiredHTTPException,
     InternalServerHTTPException,
     NotAdminUserHTTPException,
     RoleAlreadyExistsHTTPException,
@@ -52,7 +50,7 @@ logger = logging.getLogger(__name__)
 
 @router.post(
     path=EndpointRoute.ADMIN_ROLES,
-    dependencies=[Security(dependency=decode_api_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=201,
     responses=get_documentation_responses([NotAdminUserHTTPException, RoleAlreadyExistsHTTPException]),
 )
@@ -62,18 +60,13 @@ async def create_role(
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> RoleResponse:
     try:
-        command = CreateRoleCommand(
-            user_id=request_context.get().user_id,
-            name=body.name,
-            permissions=body.permissions,
-            limits=body.limits,
-        )
+        command = CreateRoleCommand(name=body.name, permissions=body.permissions, limits=body.limits)
         result = await create_role_use_case.execute(command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing create_role use case",
             extra={
-                "user_id": request_context.get().user_id,
+                "authenticated_user_id": request_context.get().user.id,
                 "role_name": body.name,
                 "error_type": type(e).__name__,
             },
@@ -85,15 +78,11 @@ async def create_role(
             return RoleResponse.model_validate(role, from_attributes=True)
         case RoleAlreadyExistsError(name=name):
             raise RoleAlreadyExistsHTTPException(name)
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
 
 
 @router.patch(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
-    dependencies=[Security(dependency=decode_api_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException, RoleAlreadyExistsHTTPException, RoleNotFoundHTTPException]),
 )
@@ -103,22 +92,21 @@ async def update_role(
     update_role_use_case: UpdateRoleUseCase = Depends(update_role_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> RoleResponse:
+    command = UpdateRoleCommand(
+        role_id=role_id,
+        name=body.name,
+        permissions=body.permissions,
+        limits=[Limit(router_id=body_limit.router_id, type=body_limit.type, value=body_limit.value) for body_limit in body.limits]
+        if body.limits
+        else None,
+    )
     try:
-        command = UpdateRoleCommand(
-            user_id=request_context.get().user_id,
-            role_id=role_id,
-            name=body.name,
-            permissions=body.permissions,
-            limits=[Limit(router_id=body_limit.router_id, type=body_limit.type, value=body_limit.value) for body_limit in body.limits]
-            if body.limits
-            else None,
-        )
         result = await update_role_use_case.execute(command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing update_role use case",
             extra={
-                "user_id": request_context.get().user_id,
+                "authenticated_user_id": request_context.get().user.id,
                 "role_name": body.name,
                 "error_type": type(e).__name__,
             },
@@ -132,15 +120,11 @@ async def update_role(
             raise RoleNotFoundHTTPException(not_found_role_id)
         case RoleAlreadyExistsError(name=name):
             raise RoleAlreadyExistsHTTPException(name)
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
 
 
 @router.get(
     path=EndpointRoute.ADMIN_ROLES,
-    dependencies=[Security(dependency=decode_api_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException]),
 )
@@ -149,23 +133,17 @@ async def get_roles(
     limit: int = Query(default=10, ge=1, le=100, description="Maximum number of roles to return."),
     sort_by: SortField = Query(default=SortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
     get_roles_use_case: GetRolesUseCase = Depends(get_roles_use_case_factory),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> RolesResponse:
     try:
-        command = GetRolesCommand(
-            user_id=request_context.get().user_id,
-            offset=offset,
-            limit=limit,
-            sort_by=sort_by,
-            sort_order=sort_order,
-        )
+        command = GetRolesCommand(offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order)
         result = await get_roles_use_case.execute(command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing get_roles use case",
             extra={
-                "user_id": command.user_id,
+                "authenticated_user_id": request_context.get().user.id,
                 "offset": command.offset,
                 "limit": command.limit,
                 "sort_by": command.sort_by,
@@ -182,15 +160,11 @@ async def get_roles(
                 limit=limit,
                 data=[RoleResponse.model_validate(role, from_attributes=True) for role in roles_page.data],
             )
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
 
 
 @router.get(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
-    dependencies=[Security(dependency=decode_api_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException, RoleNotFoundHTTPException]),
 )
@@ -199,17 +173,14 @@ async def get_role(
     get_role_use_case: GetRoleUseCase = Depends(get_role_use_case_factory),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> RoleResponse:
+    command = GetRoleCommand(role_id=role_id)
     try:
-        command = GetRoleCommand(
-            user_id=request_context.get().user_id,
-            role_id=role_id,
-        )
         result = await get_role_use_case.execute(command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing get_role use case",
             extra={
-                "user_id": request_context.get().user_id,
+                "authenticated_user_id": request_context.get().user.id,
                 "role_id": role_id,
                 "error_type": type(e).__name__,
             },
@@ -221,15 +192,11 @@ async def get_role(
             return RoleResponse.model_validate(role, from_attributes=True)
         case RoleNotFoundError(id=role_id):
             raise RoleNotFoundHTTPException(role_id)
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
 
 
 @router.delete(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
-    dependencies=[Security(dependency=decode_api_key)],
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=200,
     responses=get_documentation_responses([NotAdminUserHTTPException, RoleNotFoundHTTPException, RoleHasUsersHTTPException]),
 )
@@ -239,16 +206,13 @@ async def delete_role(
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> RoleResponse:
     try:
-        command = DeleteRoleCommand(
-            user_id=request_context.get().user_id,
-            role_id=role_id,
-        )
+        command = DeleteRoleCommand(role_id=role_id)
         result = await delete_role_use_case.execute(command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing delete_role use case",
             extra={
-                "user_id": request_context.get().user_id,
+                "authenticated_user_id": request_context.get().user.id,
                 "role_id": role_id,
                 "error_type": type(e).__name__,
             },
@@ -262,7 +226,3 @@ async def delete_role(
             raise RoleNotFoundHTTPException(role_id)
         case RoleHasUsersError(id=role_id, number_of_users=number_of_users):
             raise RoleHasUsersHTTPException(role_id=role_id, number_of_users=number_of_users)
-        case UserIsNotAdminError():
-            raise NotAdminUserHTTPException()
-        case UserExpiredError():
-            raise AccountExpiredHTTPException()
