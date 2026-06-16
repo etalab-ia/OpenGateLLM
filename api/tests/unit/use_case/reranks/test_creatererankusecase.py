@@ -25,7 +25,7 @@ from api.domain.router.errors import (
     RouterNotFoundError,
     RouterRateLimitExceededError,
 )
-from api.domain.usage.entities import Usage
+from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters import HttpProviderAdapter
@@ -35,10 +35,16 @@ from api.use_cases.reranks import CreateRerankCommand, CreateRerankUseCase, Crea
 
 
 @pytest.fixture
-def usage_computer():
+def model_tokenizer():
+    tokenizer = MagicMock()
+    tokenizer.compute_tokens.return_value = 10
+    return tokenizer
+
+
+@pytest.fixture
+def model_environmental_impacts_computer():
     computer = MagicMock()
-    computer.compute_tokens.return_value = 10
-    computer.compute_usage.return_value = Usage(cost=3.14)
+    computer.compute.return_value = EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0)
     return computer
 
 
@@ -84,6 +90,8 @@ def user_with_role_query():
 
 @pytest.fixture
 def use_case(
+    model_environmental_impacts_computer,
+    model_tokenizer,
     provider_adapter_builder,
     provider_client,
     provider_load_balancer,
@@ -91,10 +99,11 @@ def use_case(
     provider_repository,
     router_rate_limiter,
     router_repository,
-    usage_computer,
     user_with_role_query,
 ) -> CreateRerankUseCase:
     return CreateRerankUseCase(
+        model_environmental_impacts_computer=model_environmental_impacts_computer,
+        model_tokenizer=model_tokenizer,
         provider_adapter_builder=provider_adapter_builder,
         provider_client=provider_client,
         provider_load_balancer=provider_load_balancer,
@@ -102,7 +111,6 @@ def use_case(
         provider_repository=provider_repository,
         router_rate_limiter=router_rate_limiter,
         router_repository=router_repository,
-        usage_computer=usage_computer,
         user_with_role_query=user_with_role_query,
     )
 
@@ -171,8 +179,30 @@ def sample_rerank():
         id="rerank-1",
         model="rerank-router",
         results=[RerankResult(relevance_score=0.9, index=0)],
-        usage=Usage(cost=3.14),
     )
+
+
+@pytest.fixture
+def mock_rerank_latency_120ms():
+    with patch(
+        "api.use_cases.reranks._creatererankusecase.time.perf_counter",
+        side_effect=[0, 0.12],
+    ):
+        yield
+
+
+@pytest.fixture
+def mock_usage_cost():
+    with patch(
+        "api.domain.usage.entities.Usage.compute_request_cost",
+        return_value=0.03,
+    ):
+        yield
+
+
+@pytest.fixture
+def mock_successful_rerank_flow(mock_rerank_latency_120ms, mock_usage_cost):
+    yield
 
 
 def rate_limit_state_factory(tpm_exceeded: bool = False, tpd_exceeded: bool = False, rpm_exceeded: bool = False, rpd_exceeded: bool = False):
@@ -355,6 +385,37 @@ class TestCreateRerankUseCase:
         assert_request_context(ctx, user_email=user_without_router_access.email, router_id=rerank_router.id, router_name=rerank_router.name)
 
     @pytest.mark.asyncio
+    async def test_should_call_model_tokenizer_with_request_prompts_before_rate_limit_check(
+        self,
+        use_case,
+        user_with_role_query,
+        user_with_router_access,
+        router_repository,
+        provider_repository,
+        provider_load_balancer,
+        provider_adapter_builder,
+        router_rate_limiter,
+        model_tokenizer,
+        rerank_router,
+        rerank_provider,
+        default_command,
+    ):
+        # Arrange
+        user_with_role_query.get_user_with_role_by_id.return_value = user_with_router_access
+        router_repository.get_router_by_name_or_alias.return_value = rerank_router
+        provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
+        provider_load_balancer.find_best_provider.return_value = rerank_provider
+        router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state_factory(tpm_exceeded=True)
+        provider_adapter_builder.build.return_value = _mock_adapter()
+
+        # Act
+        result = await use_case.execute(command=default_command)
+
+        # Assert
+        assert isinstance(result, RouterRateLimitExceededError)
+        model_tokenizer.compute_tokens.assert_called_once_with(texts=["query", "doc a", "doc b"])
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "limit_type,rate_limit_state",
         [
@@ -380,6 +441,7 @@ class TestCreateRerankUseCase:
         default_command,
         limit_type,
         rate_limit_state,
+        mock_rerank_latency_120ms,
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = user_with_router_access
@@ -391,8 +453,7 @@ class TestCreateRerankUseCase:
         provider_adapter_builder.build.return_value = mock_adapter
 
         # Act
-        with patch("api.use_cases.reranks._creatererankusecase.time.perf_counter", side_effect=[0, 0.12]):
-            result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command=default_command)
 
         # Assert
         assert isinstance(result, RouterRateLimitExceededError)
@@ -425,6 +486,7 @@ class TestCreateRerankUseCase:
         rerank_router,
         rerank_provider,
         default_command,
+        mock_rerank_latency_120ms,
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
@@ -436,8 +498,7 @@ class TestCreateRerankUseCase:
         provider_adapter_builder.build.return_value = mock_adapter
 
         # Act
-        with patch("api.use_cases.reranks._creatererankusecase.time.perf_counter", side_effect=[10, 10.12]):
-            result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command=default_command)
 
         # Assert
         assert result == validation_error
@@ -556,8 +617,10 @@ class TestCreateRerankUseCase:
         rerank_provider,
         sample_rerank,
         router_rate_limiter,
-        usage_computer,
+        model_tokenizer,
+        model_environmental_impacts_computer,
         default_command,
+        mock_successful_rerank_flow,
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = admin_user
@@ -570,12 +633,20 @@ class TestCreateRerankUseCase:
         provider_adapter_builder.build.return_value = mock_adapter
 
         # Act
-        with patch("api.use_cases.reranks._creatererankusecase.time.perf_counter", side_effect=[0, 0.12]):
-            result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command=default_command)
 
         # Assert
         assert isinstance(result, CreateRerankUseCaseSuccess)
-        assert result.data == sample_rerank
+        assert result.data.id == sample_rerank.id
+        assert result.data.results == sample_rerank.results
+        assert result.data.model == sample_rerank.model
+        assert result.data.usage == Usage(
+            prompt_tokens=10,
+            completion_tokens=0,
+            total_tokens=10,
+            cost=0.03,
+            impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
+        )
         assert result.headers == RouterRateLimitState.admin_rate_limit_state().build_limit_headers
         provider_repository.get_all_providers_of_router.assert_awaited_once_with(router_id=rerank_router.id)
         provider_load_balancer.find_best_provider.assert_awaited_once_with(
@@ -589,15 +660,13 @@ class TestCreateRerankUseCase:
             ]
         )
         provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=rerank_provider.id)
-        usage_computer.compute_usage.assert_called_once_with(
-            prompt_tokens=10,
-            completion_tokens=0,
-            cost_prompt_tokens=rerank_router.cost_prompt_tokens,
-            cost_completion_tokens=rerank_router.cost_completion_tokens,
-            latency=120,
+        model_tokenizer.compute_tokens.assert_called_once_with(texts=["query", "doc a", "doc b"])
+        model_environmental_impacts_computer.compute.assert_called_once_with(
             model_active_params=rerank_provider.model_active_params,
             model_total_params=rerank_provider.model_total_params,
-            model_hosting_zone=rerank_provider.model_hosting_zone,
+            model_zone=rerank_provider.model_hosting_zone,
+            completion_tokens=0,
+            request_latency=120,
         )
 
         assert result.headers == rate_limit_state_factory().build_limit_headers
@@ -615,7 +684,7 @@ class TestCreateRerankUseCase:
             provider_model_name=rerank_provider.model_name,
             prompt_tokens=10,
             total_tokens=10,
-            cost=sample_rerank.usage.cost,
+            cost=result.data.usage.cost,
         )
 
     @pytest.mark.asyncio
@@ -630,12 +699,14 @@ class TestCreateRerankUseCase:
         provider_client,
         provider_adapter_builder,
         router_rate_limiter,
-        usage_computer,
+        model_tokenizer,
+        model_environmental_impacts_computer,
         user_with_router_access,
         rerank_router,
         rerank_provider,
         sample_rerank,
         default_command,
+        mock_successful_rerank_flow,
     ):
         # Arrange
         user_with_role_query.get_user_with_role_by_id.return_value = user_with_router_access
@@ -651,17 +722,25 @@ class TestCreateRerankUseCase:
             reset=int(dt.datetime.now(dt.UTC).timestamp()) + 30,
         )
         router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
-        usage_computer.compute_tokens.return_value = 15
+        model_tokenizer.compute_tokens.return_value = 15
         mock_adapter = _mock_adapter(formatted_response=sample_rerank)
         provider_adapter_builder.build.return_value = mock_adapter
 
         # Act
-        with patch("api.use_cases.reranks._creatererankusecase.time.perf_counter", side_effect=[10, 10.05]):
-            result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command=default_command)
 
         # Assert
         assert isinstance(result, CreateRerankUseCaseSuccess)
-        assert result.data == sample_rerank
+        assert result.data.id == sample_rerank.id
+        assert result.data.results == sample_rerank.results
+        assert result.data.model == sample_rerank.model
+        assert result.data.usage == Usage(
+            prompt_tokens=15,
+            completion_tokens=0,
+            total_tokens=15,
+            cost=0.03,
+            impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
+        )
         assert result.headers == rate_limit_state.build_limit_headers
         provider_repository.get_all_providers_of_router.assert_awaited_once_with(router_id=rerank_router.id)
         provider_load_balancer.find_best_provider.assert_awaited_once_with(
@@ -670,11 +749,19 @@ class TestCreateRerankUseCase:
         )
         provider_metrics_logger.log_metric.assert_has_awaits(
             [
-                call(provider_id=rerank_provider.id, metric=Metric.LATENCY, value=50),
-                call(provider_id=rerank_provider.id, metric=Metric.NORMALIZED_LATENCY, value=50),
+                call(provider_id=rerank_provider.id, metric=Metric.LATENCY, value=120),
+                call(provider_id=rerank_provider.id, metric=Metric.NORMALIZED_LATENCY, value=120),
             ]
         )
         provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=rerank_provider.id)
+        model_tokenizer.compute_tokens.assert_called_once_with(texts=["query", "doc a", "doc b"])
+        model_environmental_impacts_computer.compute.assert_called_once_with(
+            model_active_params=rerank_provider.model_active_params,
+            model_total_params=rerank_provider.model_total_params,
+            model_zone=rerank_provider.model_hosting_zone,
+            completion_tokens=0,
+            request_latency=120,
+        )
 
         assert result.headers == rate_limit_state.build_limit_headers
         router_rate_limiter.get_rate_limit_state.assert_awaited_once_with(
@@ -701,5 +788,5 @@ class TestCreateRerankUseCase:
             provider_model_name=rerank_provider.model_name,
             prompt_tokens=15,
             total_tokens=15,
-            cost=sample_rerank.usage.cost,
+            cost=result.data.usage.cost,
         )

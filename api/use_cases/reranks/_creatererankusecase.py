@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import ConfigDict
 
+from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider import ProviderAdapterBuilder, ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
@@ -14,7 +15,7 @@ from api.domain.rerank.entities import CreateRerankBody, Rerank
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.usage import UsageComputer
+from api.domain.usage.entities import Usage
 from api.domain.user import UserWithRoleQuery
 from api.domain.user.errors import UserExpiredError, UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.context import RequestContext
@@ -57,6 +58,8 @@ type CreateRerankUseCaseResult = (
 class CreateRerankUseCase:
     def __init__(
         self,
+        model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer,
+        model_tokenizer: ModelTokenizer,
         provider_adapter_builder: ProviderAdapterBuilder,
         provider_client: ProviderClient,
         provider_load_balancer: ProviderLoadBalancer,
@@ -64,11 +67,10 @@ class CreateRerankUseCase:
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
-        usage_computer: UsageComputer,
         user_with_role_query: UserWithRoleQuery,
     ) -> None:
-        self.usage_computer = usage_computer
-
+        self.model_environmental_impacts_computer = model_environmental_impacts_computer
+        self.model_tokenizer = model_tokenizer
         self.provider_adapter_builder = provider_adapter_builder
         self.provider_client = provider_client
         self.provider_load_balancer = provider_load_balancer
@@ -114,7 +116,7 @@ class CreateRerankUseCase:
             endpoint=EndpointRoute.RERANK,
             body=CreateRerankBody(query=command.query, documents=command.documents, model=command.model, top_n=command.top_n),
         )
-        prompt_tokens = self.usage_computer.compute_tokens(texts=original_request.body.get_prompts())
+        prompt_tokens = self.model_tokenizer.compute_tokens(texts=original_request.body.get_prompts())
 
         if not user.is_admin:
             limits = [limit for limit in user.limits if limit.router_id == router.id]
@@ -161,16 +163,28 @@ class CreateRerankUseCase:
         result = adapter.format_response(original_request=original_request, original_response=original_response)
         match result:
             case ProviderFormattedResponse() as formatted_response:
-                formatted_response.data.usage = self.usage_computer.compute_usage(
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=0,  # rerank has no completion tokens
-                    cost_prompt_tokens=router.cost_prompt_tokens,
-                    cost_completion_tokens=router.cost_completion_tokens,
-                    latency=latency,
+                environmental_impacts = self.model_environmental_impacts_computer.compute(
                     model_active_params=provider.model_active_params,
                     model_total_params=provider.model_total_params,
-                    model_hosting_zone=provider.model_hosting_zone,
+                    model_zone=provider.model_hosting_zone,
+                    completion_tokens=0,
+                    request_latency=latency,
                 )
+                cost = Usage.compute_request_cost(
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=0,
+                    cost_prompt_tokens=router.cost_prompt_tokens,
+                    cost_completion_tokens=router.cost_completion_tokens,
+                )
+
+                formatted_response.data.usage = Usage(
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=0,
+                    total_tokens=prompt_tokens,
+                    cost=cost,
+                    impacts=environmental_impacts,
+                )
+
                 await self.provider_metrics_logger.log_metric(
                     provider_id=provider.id,
                     metric=Metric.LATENCY,
