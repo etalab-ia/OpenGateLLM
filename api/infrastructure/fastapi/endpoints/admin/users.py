@@ -79,7 +79,7 @@ async def create_user(
             password=body.password,
             role_id=body.role,
             name=body.name,
-            organization_id=body.organization,
+            organization_id=body.organization_id,
             budget=body.budget,
             expires=body.expires,
             priority=body.priority,

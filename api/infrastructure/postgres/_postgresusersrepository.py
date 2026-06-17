@@ -48,7 +48,7 @@ class PostgresUserRepository(UserRepository):
             sub=row.sub,
             iss=row.iss,
             role=row.role,
-            organization=row.organization,
+            organization_id=row.organization,
             budget=row.budget,
             priority=row.priority,
             expires=row.expires,

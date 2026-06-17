@@ -103,6 +103,6 @@ class TestCreateUser:
         assert result.name == "Full User"
         assert result.sub == "sub-123"
         assert result.iss == "https://issuer.example.com"
-        assert result.organization == organization.id
+        assert result.organization_id == organization.id
         assert result.budget == 100.0
         assert result.priority == 5
