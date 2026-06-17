@@ -17,8 +17,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
 )
 from api.infrastructure.postgres import PostgresAuthenticatedUserQuery, PostgresKeyRepository
 from api.tests.helpers import create_key
-from api.tests.integration.factories.sql import PermissionSQLFactory, RoleSQLFactory, TokenSQLFactory, UserSQLFactory
-from api.utils.configuration import configuration
+from api.tests.integration.factories.sql import KeySQLFactory, PermissionSQLFactory, RoleSQLFactory, UserSQLFactory
 
 
 def _encode_api_key(
@@ -50,8 +49,13 @@ def admin_access_controller() -> AccessController:
 
 
 @pytest.fixture
-def key_repository(db_session) -> PostgresKeyRepository:
-    return PostgresKeyRepository(postgres_session=db_session)
+def secret_key() -> str:
+    return "MY_SECRET_KEY"
+
+
+@pytest.fixture
+def key_repository(db_session, secret_key) -> PostgresKeyRepository:
+    return PostgresKeyRepository(postgres_session=db_session, secret_key=secret_key)
 
 
 @pytest.fixture
@@ -69,11 +73,6 @@ def reset_request_context() -> ContextVar[RequestContext]:
 @pytest.fixture
 def request_obj() -> Mock:
     return Mock()
-
-
-@pytest.fixture
-def secret_key() -> str:
-    return configuration.settings.auth_secret_key
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -313,7 +312,7 @@ class TestAccessController:
         # Arrange
         user = UserSQLFactory()
         user_2 = UserSQLFactory()
-        token = TokenSQLFactory(user=user, never_expires=True)
+        token = KeySQLFactory(user=user, never_expires=True)
         await db_session.flush()
 
         credentials = _encode_api_key(
@@ -348,7 +347,7 @@ class TestAccessController:
         # Arrange
         user = UserSQLFactory()
         stored_expires = datetime.now() + timedelta(days=1)
-        token = TokenSQLFactory(user=user, expires=stored_expires)
+        token = KeySQLFactory(user=user, expires=stored_expires)
         await db_session.flush()
 
         credentials = _encode_api_key(
