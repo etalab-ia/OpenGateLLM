@@ -3,11 +3,6 @@ from datetime import UTC, datetime
 from api.domain import BaseModel
 
 
-class KeyClaims(BaseModel):
-    user_id: int
-    key_id: int
-
-
 class Key(BaseModel):
     id: int
     name: str
