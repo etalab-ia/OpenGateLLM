@@ -12,8 +12,8 @@ class UserRepository(ABC):
     async def create_user(
         self,
         email: str,
-        password: str,
         role_id: int,
+        password: str | None = None,
         name: str | None = None,
         sub: str | None = None,
         iss: str | None = None,
