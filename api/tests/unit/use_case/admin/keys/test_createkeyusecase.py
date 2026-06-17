@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock
 import pytest
 
 from api.domain.key.entities import Key
-from api.domain.key.errors import KeyAlreadyExistsError
 from api.domain.user.errors import UserNotFoundError
 from api.use_cases.admin.keys import CreateKeyCommand, CreateKeyUseCase, CreateKeyUseCaseSuccess
 
@@ -44,21 +43,9 @@ class TestCreateKeyUseCase:
 
         # Assert
         assert isinstance(result, CreateKeyUseCaseSuccess)
-        assert result.created_key.id == 42
-        assert result.created_key.name == "my-key"
+        assert result.key.id == 42
+        assert result.key.name == "my-key"
         key_repository.create_key.assert_awaited_once_with(user_id=1, name="my-key", expire=None)
-
-    @pytest.mark.asyncio
-    async def test_should_return_key_already_exists_error(self, use_case, key_repository, default_command):
-        # Arrange
-        key_repository.create_key.return_value = KeyAlreadyExistsError(name="my-key")
-
-        # Act
-        result = await use_case.execute(default_command)
-
-        # Assert
-        assert isinstance(result, KeyAlreadyExistsError)
-        assert result.name == "my-key"
 
     @pytest.mark.asyncio
     async def test_should_return_user_not_found_error(self, use_case, key_repository, default_command):

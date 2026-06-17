@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import select
 
 from api.domain.key.entities import Key
-from api.domain.key.errors import KeyAlreadyExistsError, KeyNotFoundError
+from api.domain.key.errors import KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.infrastructure.postgres import PostgresKeyRepository
 from api.sql.models import Token as KeyTable
@@ -113,19 +113,6 @@ class TestCreateKey:
         assert result.expires == expires_at
         _assert_jwt_claims(result, secret_key=secret_key, user_id=user.id, expires=expires_at)
         await _assert_stored_token_is_masked(db_session, result)
-
-    async def test_create_key_should_return_key_already_exists_error_when_name_is_duplicated(self, repository, db_session):
-        # Arrange
-        user = UserSQLFactory()
-        KeySQLFactory(user=user, name="duplicate-key")
-        await db_session.flush()
-
-        # Act
-        result = await repository.create_key(user_id=user.id, name="duplicate-key", expire=None)
-
-        # Assert
-        assert isinstance(result, KeyAlreadyExistsError)
-        assert result.name == "duplicate-key"
 
     async def test_create_key_should_return_user_not_found_error_when_user_does_not_exist(self, repository, db_session):
         # Act

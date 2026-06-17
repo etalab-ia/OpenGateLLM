@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from pydantic import FutureDatetime
 
 from api.domain.key.entities import Key
-from api.domain.key.errors import KeyAlreadyExistsError, KeyNotFoundError
+from api.domain.key.errors import KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 
 
@@ -15,5 +15,5 @@ class KeyRepository(ABC):
         pass
 
     @abstractmethod
-    async def create_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | KeyAlreadyExistsError | UserNotFoundError:
+    async def create_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | UserNotFoundError:
         pass

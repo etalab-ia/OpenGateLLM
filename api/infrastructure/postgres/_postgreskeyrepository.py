@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.key import KeyRepository
 from api.domain.key.entities import Key
-from api.domain.key.errors import KeyAlreadyExistsError, KeyNotFoundError
+from api.domain.key.errors import KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.sql.models import Token as KeyTable
 
@@ -34,13 +34,11 @@ class PostgresKeyRepository(KeyRepository):
 
         return Key(id=row.id, name=row.name, user_id=row.user_id, value=row.token, expires=row.expires, created=row.created)
 
-    async def create_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | KeyAlreadyExistsError | UserNotFoundError:
+    async def create_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | UserNotFoundError:
         try:
             result = await self.postgres_session.execute(insert(KeyTable).values(user_id=user_id, name=name, expires=expire).returning(KeyTable))
             row = result.scalar_one()
         except IntegrityError as e:
-            if "unique_token_name_per_user" in str(e.orig):
-                return KeyAlreadyExistsError(name=name)
             if "token_user_id_fkey" in str(e.orig):
                 return UserNotFoundError(id=user_id)
             raise

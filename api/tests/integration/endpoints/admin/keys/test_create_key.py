@@ -5,7 +5,6 @@ import pytest
 import pytest_asyncio
 
 from api.dependencies import create_key_use_case_factory
-from api.domain.key.errors import KeyAlreadyExistsError
 from api.domain.user.errors import UserNotFoundError
 from api.tests.helpers import create_key
 from api.tests.integration.factories.sql import UserSQLFactory
@@ -51,11 +50,6 @@ class TestCreateKey:
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
         [
-            (
-                KeyAlreadyExistsError(name="existing-key"),
-                409,
-                "Key existing-key already exists.",
-            ),
             (
                 UserNotFoundError(id=99),
                 404,

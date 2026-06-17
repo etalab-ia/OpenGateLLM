@@ -381,7 +381,7 @@ class TestAccessController:
     ):
         # Arrange
         user = UserSQLFactory(expires=datetime.now() - timedelta(days=1))
-        key = await create_key(db_session, user=user, never_expires=True)
+        key = await create_key(db_session, secret_key=secret_key, user=user, never_expires=True)
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials=key.token)
 
         # Act / Assert
@@ -409,7 +409,7 @@ class TestAccessController:
         role = RoleSQLFactory()
         PermissionSQLFactory(role=role, permission=PermissionType.READ_METRIC)
         user = UserSQLFactory(role=role)
-        key = await create_key(db_session, user=user, never_expires=True)
+        key = await create_key(db_session, secret_key=secret_key, user=user, never_expires=True)
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials=key.token)
 
         # Act / Assert
@@ -435,7 +435,7 @@ class TestAccessController:
     ):
         # Arrange
         user = UserSQLFactory()
-        key = await create_key(db_session, user=user, never_expires=True)
+        key = await create_key(db_session, secret_key=secret_key, user=user, never_expires=True)
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials=key.token)
 
         # Act
@@ -469,7 +469,7 @@ class TestAccessController:
     ):
         # Arrange
         user = UserSQLFactory(admin_user=True)
-        key = await create_key(db_session, user=user, never_expires=True)
+        key = await create_key(db_session, secret_key=secret_key, user=user, never_expires=True)
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials=key.token)
 
         # Act

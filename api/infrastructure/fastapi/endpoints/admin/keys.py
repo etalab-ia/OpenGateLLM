@@ -4,7 +4,6 @@ import logging
 from fastapi import Body, Depends, Security
 
 from api.dependencies import create_key_use_case_factory
-from api.domain.key.errors import KeyAlreadyExistsError
 from api.domain.user.errors import UserNotFoundError
 from api.infrastructure.fastapi import AccessController
 from api.infrastructure.fastapi.context import RequestContext
@@ -12,7 +11,6 @@ from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InternalServerHTTPException,
-    KeyAlreadyExistsHTTPException,
     NotAdminUserHTTPException,
     UserNotFoundHTTPException,
 )
@@ -28,7 +26,7 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_KEYS,
     dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=201,
-    responses=get_documentation_responses([NotAdminUserHTTPException, KeyAlreadyExistsHTTPException, UserNotFoundHTTPException]),
+    responses=get_documentation_responses([NotAdminUserHTTPException, UserNotFoundHTTPException]),
 )
 async def create_key(
     body: CreateKeyBody = Body(description="The key creation request."),
@@ -55,7 +53,5 @@ async def create_key(
     match result:
         case CreateKeyUseCaseSuccess(key=key):
             return CreateKeyResponse.model_validate(key, from_attributes=True)
-        case KeyAlreadyExistsError(name=name):
-            raise KeyAlreadyExistsHTTPException(name)
         case UserNotFoundError(id=user_id):
             raise UserNotFoundHTTPException(user_id)
