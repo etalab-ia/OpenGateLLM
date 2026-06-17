@@ -255,7 +255,7 @@ class PostgresUserRepository(UserRepository):
         if row is None:
             return UserNotFoundError(email=email)
 
-        if row.password is None or not self.user_password_encoder.validate_password(password=password, encoded_password=row.password):
+        if row.password is not None and not self.user_password_encoder.validate_password(password=password, encoded_password=row.password):
             return InvalidUserPasswordError()
 
         return self._row_to_user(row)

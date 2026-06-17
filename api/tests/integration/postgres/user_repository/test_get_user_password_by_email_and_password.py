@@ -58,7 +58,7 @@ class TestGetUserPasswordByEmailAndPassword:
         # Assert
         assert isinstance(result, InvalidUserPasswordError)
 
-    async def test_returns_invalid_user_password_error_when_password_is_not_set(self, repository, db_session):
+    async def test_returns_user_when_password_is_not_set(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()
         await db_session.flush()
@@ -68,4 +68,5 @@ class TestGetUserPasswordByEmailAndPassword:
         result = await repository.get_user_password_by_email_and_password(email="nopassword@test.com", password="anything")
 
         # Assert
-        assert isinstance(result, InvalidUserPasswordError)
+        assert isinstance(result, User)
+        assert result.email == "nopassword@test.com"

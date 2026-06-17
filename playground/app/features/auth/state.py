@@ -70,7 +70,7 @@ class AuthState(rx.State):
                 response.raise_for_status()
 
                 login_data = response.json()
-                api_key = login_data.get("key")
+                api_key = login_data.get("value")
                 api_key_id = login_data.get("id")
 
                 # Get user info
