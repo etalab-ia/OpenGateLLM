@@ -3,11 +3,11 @@ from typing import Annotated, Any
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+from jose import JWTError
 from pydantic import ValidationError
 
-from api.dependencies import _authenticated_user_query, _key_repository, get_request_context, get_secret_key
-from api.domain.key import KeyRepository
+from api.dependencies import _authenticated_user_query, _key_repository, get_request_context
+from api.domain.key import KeyEncoder, KeyRepository
 from api.domain.key.entities import Key
 from api.domain.key.errors import KeyNotFoundError
 from api.domain.user import AuthenticatedUserQuery
@@ -19,7 +19,6 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
 )
 from api.schemas.core.context import RequestContext
 
-TOKEN_PREFIX = "sk-"
 http_bearer = HTTPBearer()
 
 
@@ -35,7 +34,6 @@ class AccessController:
         self,
         request: Request,
         api_key: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
-        secret_key: str = Depends(get_secret_key),
         key_repository: KeyRepository = Depends(_key_repository),
         authenticated_user_query: AuthenticatedUserQuery = Depends(_authenticated_user_query),
         request_context: ContextVar[RequestContext] = Depends(get_request_context),
@@ -46,12 +44,11 @@ class AccessController:
         if not api_key.credentials:
             raise InvalidAPIKeyHTTPException()
 
-        if not api_key.credentials.startswith(TOKEN_PREFIX):
+        if not api_key.credentials.startswith(KeyEncoder.KEY_PREFIX):
             raise InvalidAPIKeyHTTPException()
 
-        jwt_token = api_key.credentials.split(TOKEN_PREFIX)[1]
         try:
-            claims = jwt.decode(token=jwt_token, key=secret_key, algorithms=["HS256"])
+            claims = key_repository.key_encoder.decode(key_value=api_key.credentials)
             decoded_key = Key.build_from_claims(claims=claims)
         except (JWTError, KeyError, ValidationError):
             raise InvalidAPIKeyHTTPException()

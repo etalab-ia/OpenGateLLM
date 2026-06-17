@@ -15,10 +15,10 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     InvalidAuthenticationSchemeHTTPException,
     NotAdminUserHTTPException,
 )
+from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.postgres import PostgresAuthenticatedUserQuery, PostgresKeyRepository
 from api.tests.helpers import create_key
-from api.tests.integration.factories.sql import PermissionSQLFactory, RoleSQLFactory, TokenSQLFactory, UserSQLFactory
-from api.utils.configuration import configuration
+from api.tests.integration.factories.sql import KeySQLFactory, PermissionSQLFactory, RoleSQLFactory, UserSQLFactory
 
 
 def _encode_api_key(
@@ -50,8 +50,18 @@ def admin_access_controller() -> AccessController:
 
 
 @pytest.fixture
-def key_repository(db_session) -> PostgresKeyRepository:
-    return PostgresKeyRepository(postgres_session=db_session)
+def secret_key() -> str:
+    return "MY_SECRET_KEY"
+
+
+@pytest.fixture
+def key_encoder(secret_key) -> JwtKeyEncoder:
+    return JwtKeyEncoder(secret_key=secret_key)
+
+
+@pytest.fixture
+def key_repository(db_session, key_encoder) -> PostgresKeyRepository:
+    return PostgresKeyRepository(key_encoder=key_encoder, postgres_session=db_session)
 
 
 @pytest.fixture
@@ -71,11 +81,6 @@ def request_obj() -> Mock:
     return Mock()
 
 
-@pytest.fixture
-def secret_key() -> str:
-    return configuration.settings.auth_secret_key
-
-
 @pytest.mark.asyncio(loop_scope="session")
 class TestAccessController:
     async def test_should_raise_invalid_authentication_scheme_when_scheme_is_not_bearer(
@@ -85,7 +90,6 @@ class TestAccessController:
         key_repository: PostgresKeyRepository,
         authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
-        secret_key: str,
     ):
         # Arrange
         api_key = HTTPAuthorizationCredentials(scheme="Basic", credentials="sk-jwt-token")
@@ -95,7 +99,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -108,7 +111,6 @@ class TestAccessController:
         key_repository: PostgresKeyRepository,
         authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
-        secret_key: str,
     ):
         # Arrange
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials="")
@@ -118,7 +120,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -131,7 +132,6 @@ class TestAccessController:
         key_repository: PostgresKeyRepository,
         authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
-        secret_key: str,
     ):
         # Arrange
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials="jwt-token")
@@ -141,7 +141,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -154,7 +153,6 @@ class TestAccessController:
         key_repository: PostgresKeyRepository,
         authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
-        secret_key: str,
     ):
         # Arrange
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials="sk-not-a-valid-jwt")
@@ -164,7 +162,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -189,7 +186,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -214,7 +210,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -238,7 +233,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -267,7 +261,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -294,7 +287,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -313,7 +305,7 @@ class TestAccessController:
         # Arrange
         user = UserSQLFactory()
         user_2 = UserSQLFactory()
-        token = TokenSQLFactory(user=user, never_expires=True)
+        token = KeySQLFactory(user=user, never_expires=True)
         await db_session.flush()
 
         credentials = _encode_api_key(
@@ -329,7 +321,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -348,7 +339,7 @@ class TestAccessController:
         # Arrange
         user = UserSQLFactory()
         stored_expires = datetime.now() + timedelta(days=1)
-        token = TokenSQLFactory(user=user, expires=stored_expires)
+        token = KeySQLFactory(user=user, expires=stored_expires)
         await db_session.flush()
 
         credentials = _encode_api_key(
@@ -364,7 +355,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -382,7 +372,7 @@ class TestAccessController:
     ):
         # Arrange
         user = UserSQLFactory(expires=datetime.now() - timedelta(days=1))
-        key = await create_key(db_session, user=user, never_expires=True)
+        key = await create_key(db_session, secret_key=secret_key, user=user, never_expires=True)
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials=key.token)
 
         # Act / Assert
@@ -390,7 +380,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -410,7 +399,7 @@ class TestAccessController:
         role = RoleSQLFactory()
         PermissionSQLFactory(role=role, permission=PermissionType.READ_METRIC)
         user = UserSQLFactory(role=role)
-        key = await create_key(db_session, user=user, never_expires=True)
+        key = await create_key(db_session, secret_key=secret_key, user=user, never_expires=True)
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials=key.token)
 
         # Act / Assert
@@ -418,7 +407,6 @@ class TestAccessController:
             await admin_access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -436,14 +424,13 @@ class TestAccessController:
     ):
         # Arrange
         user = UserSQLFactory()
-        key = await create_key(db_session, user=user, never_expires=True)
+        key = await create_key(db_session, secret_key=secret_key, user=user, never_expires=True)
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials=key.token)
 
         # Act
         await access_controller(
             request=request_obj,
             api_key=api_key,
-            secret_key=secret_key,
             key_repository=key_repository,
             authenticated_user_query=authenticated_user_query,
             request_context=reset_request_context,
@@ -470,14 +457,13 @@ class TestAccessController:
     ):
         # Arrange
         user = UserSQLFactory(admin_user=True)
-        key = await create_key(db_session, user=user, never_expires=True)
+        key = await create_key(db_session, secret_key=secret_key, user=user, never_expires=True)
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials=key.token)
 
         # Act
         await admin_access_controller(
             request=request_obj,
             api_key=api_key,
-            secret_key=secret_key,
             key_repository=key_repository,
             authenticated_user_query=authenticated_user_query,
             request_context=reset_request_context,

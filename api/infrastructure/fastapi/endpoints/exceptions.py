@@ -126,6 +126,14 @@ class UserNotFoundHTTPException(HTTPException):
 
 
 # 409
+class KeyAlreadyExistsHTTPException(HTTPException):
+    status_code = 409
+    detail = "Key {name} already exists."
+
+    def __init__(self, name: str):
+        super().__init__(status_code=self.status_code, detail=f"Key {name} already exists.")
+
+
 class UserAlreadyExistsHTTPException(HTTPException):
     status_code = 409
     detail = "User {email} already exists."

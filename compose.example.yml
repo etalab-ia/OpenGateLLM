@@ -82,7 +82,7 @@ services:
     volumes:
       - elasticsearch:/usr/share/elasticsearch/data
     healthcheck:
-      test: [ "CMD-SHELL", "bash", "-c", ":> /dev/tcp/127.0.0.1/9200" ]
+      test: [ "CMD-SHELL", "curl -fs 'http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=5s' || exit 1" ]
       interval: 4s
       timeout: 10s
       retries: 5

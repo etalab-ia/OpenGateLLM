@@ -7,7 +7,7 @@ import redis.asyncio as redis
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.domain.key import KeyRepository
+from api.domain.key import KeyEncoder, KeyRepository
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.provider import (
     ProviderAdapterBuilder,
@@ -22,6 +22,7 @@ from api.domain.router import RouterRateLimiter
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
 from api.infrastructure.fastapi.context import request_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
+from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
     PostgresAuthenticatedUserQuery,
@@ -36,6 +37,7 @@ from api.infrastructure.postgres import (
 from api.infrastructure.redis import RedisProviderLoadBalancer, RedisProviderMetricsLogger, RedisRouterRateLimiter
 from api.infrastructure.tiktoken import TiktokenModelTokenizer
 from api.schemas.core.context import RequestContext
+from api.use_cases.admin.keys import CreateKeyUseCase
 from api.use_cases.admin.providers import (
     CreateProviderUseCase,
     DeleteProviderUseCase,
@@ -86,36 +88,11 @@ def _authenticated_user_query(session: AsyncSession = Depends(get_postgres_sessi
     return PostgresAuthenticatedUserQuery(postgres_session=session)
 
 
-# repositories
-def _key_repository(session: AsyncSession = Depends(get_postgres_session)) -> KeyRepository:
-    return PostgresKeyRepository(postgres_session=session)
-
-
-def _user_repository(session: AsyncSession) -> PostgresUserRepository:
-    return PostgresUserRepository(postgres_session=session)
-
-
-def _role_repository(session: AsyncSession) -> PostgresRolesRepository:
-    return PostgresRolesRepository(postgres_session=session)
-
-
-def _router_repository(session: AsyncSession) -> PostgresRouterRepository:
-    return PostgresRouterRepository(postgres_session=session, app_title=configuration.settings.app_title)
-
-
-def _limit_repository(session: AsyncSession) -> LimitRepository:
-    return PostgresLimitRepository(postgres_session=session)
-
-
-def _permission_repository(session: AsyncSession) -> PermissionRepository:
-    return PostgresPermissionRepository(postgres_session=session)
-
-
-def _provider_repository(session: AsyncSession) -> ProviderRepository:
-    return PostgresProviderRepository(postgres_session=session)
-
-
 # helpers
+def _key_encoder() -> KeyEncoder:
+    return JwtKeyEncoder(secret_key=configuration.settings.auth_secret_key)
+
+
 def _model_tokenizer() -> ModelTokenizer:
     return TiktokenModelTokenizer(model=global_context._tokenizer)
 
@@ -151,6 +128,35 @@ def _router_rate_limiter() -> RouterRateLimiter:
     return RedisRouterRateLimiter(redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy)
 
 
+# repositories
+def _key_repository(key_encoder: KeyEncoder = Depends(_key_encoder), session: AsyncSession = Depends(get_postgres_session)) -> KeyRepository:
+    return PostgresKeyRepository(key_encoder=key_encoder, postgres_session=session)
+
+
+def _user_repository(session: AsyncSession) -> PostgresUserRepository:
+    return PostgresUserRepository(postgres_session=session)
+
+
+def _role_repository(session: AsyncSession) -> PostgresRolesRepository:
+    return PostgresRolesRepository(postgres_session=session)
+
+
+def _router_repository(session: AsyncSession) -> PostgresRouterRepository:
+    return PostgresRouterRepository(postgres_session=session, app_title=configuration.settings.app_title)
+
+
+def _limit_repository(session: AsyncSession) -> LimitRepository:
+    return PostgresLimitRepository(postgres_session=session)
+
+
+def _permission_repository(session: AsyncSession) -> PermissionRepository:
+    return PostgresPermissionRepository(postgres_session=session)
+
+
+def _provider_repository(session: AsyncSession) -> ProviderRepository:
+    return PostgresProviderRepository(postgres_session=session)
+
+
 # health use cases
 def get_health_models_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
@@ -165,6 +171,11 @@ def get_health_models_use_case_factory(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
     )
+
+
+# keys use cases
+def create_key_use_case_factory(key_repository: KeyRepository = Depends(_key_repository)) -> CreateKeyUseCase:
+    return CreateKeyUseCase(key_repository=key_repository)
 
 
 # models use cases

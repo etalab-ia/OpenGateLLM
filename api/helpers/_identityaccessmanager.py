@@ -32,6 +32,7 @@ from api.utils.exceptions import (
     OrganizationNotFoundException,
     PasswordNotFoundException,
     RoleNotFoundException,
+    TokenAlreadyExistsException,
     TokenNotFoundException,
     UserAlreadyExistsException,
     UserNotFoundException,
@@ -515,8 +516,14 @@ class IdentityAccessManager:
             raise UserNotFoundException()
 
         # create the token
-        result = await postgres_session.execute(statement=insert(table=TokenTable).values(user_id=user.id, name=name).returning(TokenTable.id))
-        token_id = result.scalar_one()
+        try:
+            result = await postgres_session.execute(statement=insert(table=TokenTable).values(user_id=user.id, name=name).returning(TokenTable.id))
+            token_id = result.scalar_one()
+        except IntegrityError as e:
+            if "unique_token_name_per_user" in str(e.orig):
+                raise TokenAlreadyExistsException(name=name)
+            raise
+
         await postgres_session.commit()
 
         # generate the token

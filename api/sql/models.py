@@ -147,6 +147,8 @@ class Token(Base):
     user: Mapped["User"] = relationship(back_populates="token")
     usage: Mapped[list["Usage"]] = relationship(back_populates="token", passive_deletes=True)
 
+    __table_args__ = (UniqueConstraint("user_id", "name", name="unique_token_name_per_user"),)
+
 
 class Organization(Base):
     __tablename__ = "organization"

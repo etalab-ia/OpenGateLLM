@@ -120,6 +120,11 @@ class TokenNotFoundException(HTTPException):
         super().__init__(status_code=404, detail=detail)
 
 
+class TokenAlreadyExistsException(HTTPException):
+    def __init__(self, name: str) -> None:
+        super().__init__(status_code=409, detail=f"Key {name} already exists.")
+
+
 class ToolNotFoundException(HTTPException):
     def __init__(self, detail: str = "Tool not found.") -> None:
         super().__init__(status_code=404, detail=detail)
