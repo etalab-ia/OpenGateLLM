@@ -1,4 +1,3 @@
-import bcrypt
 from sqlalchemy import Integer, cast, delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,9 +6,15 @@ from api.domain import SortOrder
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.entities import PermissionType
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user import UserRepository
+from api.domain.user import UserPasswordEncoder, UserRepository
 from api.domain.user.entities import User, UserPage, UserSortField
-from api.domain.user.errors import DeleteUserWithProvidersError, DeleteUserWithRoutersError, UserAlreadyExistsError, UserNotFoundError
+from api.domain.user.errors import (
+    DeleteUserWithProvidersError,
+    DeleteUserWithRoutersError,
+    InvalidUserPasswordError,
+    UserAlreadyExistsError,
+    UserNotFoundError,
+)
 from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Permission as PermissionTable
 from api.sql.models import User as UserTable
@@ -36,8 +41,9 @@ _USER_COLUMNS = (
 
 
 class PostgresUserRepository(UserRepository):
-    def __init__(self, postgres_session: AsyncSession):
+    def __init__(self, postgres_session: AsyncSession, user_password_encoder: UserPasswordEncoder):
         self.postgres_session = postgres_session
+        self.user_password_encoder = user_password_encoder
 
     @staticmethod
     def _row_to_user(row) -> User:
@@ -55,12 +61,6 @@ class PostgresUserRepository(UserRepository):
             created=row.created,
             updated=row.updated,
         )
-
-    @staticmethod
-    def _hash_password(password: str | None) -> str | None:
-        if password is None:
-            return None
-        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     async def get_user_by_id(self, user_id: int) -> User | UserNotFoundError:
         result = await self.postgres_session.execute(select(*_USER_COLUMNS).where(UserTable.id == user_id))
@@ -83,7 +83,7 @@ class PostgresUserRepository(UserRepository):
         expires: int | None = None,
         priority: int = 0,
     ) -> User | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError:
-        hashed_password = self._hash_password(password=password)
+        encoded_password = self.user_password_encoder.encode_password(password=password) if password is not None else None
         expires_value = func.to_timestamp(expires) if expires is not None else None
 
         try:
@@ -92,7 +92,7 @@ class PostgresUserRepository(UserRepository):
                 .values(
                     email=email,
                     name=name,
-                    password=hashed_password,
+                    password=encoded_password,
                     sub=sub,
                     iss=iss,
                     role_id=role_id,
@@ -246,5 +246,16 @@ class PostgresUserRepository(UserRepository):
         row = result.one_or_none()
         if row is None:
             return UserNotFoundError(id=user_id)
+
+        return self._row_to_user(row)
+
+    async def get_user_password_by_email_and_password(self, email: str, password: str) -> User | UserNotFoundError | InvalidUserPasswordError:
+        result = await self.postgres_session.execute(select(*_USER_COLUMNS, UserTable.password).where(UserTable.email == email))
+        row = result.one_or_none()
+        if row is None:
+            return UserNotFoundError(email=email)
+
+        if row.password is None or not self.user_password_encoder.validate_password(password=password, encoded_password=row.password):
+            return InvalidUserPasswordError()
 
         return self._row_to_user(row)

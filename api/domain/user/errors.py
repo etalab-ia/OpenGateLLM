@@ -14,6 +14,11 @@ class DeleteUserWithRoutersError:
 
 
 @dataclass
+class InvalidUserPasswordError:
+    pass
+
+
+@dataclass
 class UserAlreadyExistsError:
     email: str
 

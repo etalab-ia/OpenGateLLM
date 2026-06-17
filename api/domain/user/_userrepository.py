@@ -4,7 +4,13 @@ from api.domain import SortOrder
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.entities import User, UserPage, UserSortField
-from api.domain.user.errors import DeleteUserWithProvidersError, DeleteUserWithRoutersError, UserAlreadyExistsError, UserNotFoundError
+from api.domain.user.errors import (
+    DeleteUserWithProvidersError,
+    DeleteUserWithRoutersError,
+    InvalidUserPasswordError,
+    UserAlreadyExistsError,
+    UserNotFoundError,
+)
 
 
 class UserRepository(ABC):
@@ -55,4 +61,8 @@ class UserRepository(ABC):
 
     @abstractmethod
     async def get_user_by_id(self, user_id: int) -> User | UserNotFoundError:
+        pass
+
+    @abstractmethod
+    async def get_user_password_by_email_and_password(self, email: str, password: str) -> User | UserNotFoundError | InvalidUserPasswordError:
         pass

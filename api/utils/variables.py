@@ -14,7 +14,7 @@ METRICS__TIMESERIE_RETENTION_SECONDS: int = 60 * 30  # 30 minutes
 class RouterName(StrEnum):
     ADMIN = ("admin", "api.infrastructure.fastapi.endpoints.admin")
     AUDIO = ("audio", "api.endpoints.audio")
-    AUTH = ("auth", "api.endpoints.auth")
+    AUTH = ("auth", "api.infrastructure.fastapi.endpoints.auth")
     CHAT = ("chat", "api.endpoints.chat")
     CHUNKS = ("chunks", "api.endpoints.chunks")
     COLLECTIONS = ("collections", "api.endpoints.collections")

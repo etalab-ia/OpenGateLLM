@@ -15,3 +15,7 @@ class KeyRepository(ABC):
     @abstractmethod
     async def create_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | KeyAlreadyExistsError | UserNotFoundError:
         pass
+
+    @abstractmethod
+    async def upsert_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | UserNotFoundError:
+        pass
