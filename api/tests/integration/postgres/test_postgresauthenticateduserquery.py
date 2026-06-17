@@ -33,10 +33,7 @@ class TestGetAuthenticatedUserById:
         assert isinstance(result, AuthenticatedUserView)
         assert result.id == user.id
         assert result.email == user.email
-        assert result.name == user.name
-        assert result.organization == user.organization_id
         assert result.budget == 42.5
-        assert result.priority == 5
         assert set(result.permissions) == {PermissionType.ADMIN, PermissionType.READ_METRIC}
         assert len(result.limits) == 2
         assert result.limits[0].router_id == router.id

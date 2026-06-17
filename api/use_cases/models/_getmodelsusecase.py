@@ -32,7 +32,7 @@ class GetModelsUseCase:
             if command.authenticated_user.cannot_access_router(router_id=router.id):
                 continue
 
-            organization_name = await self.router_repository.get_organization_name(router.user_id)
+            organization_name = await self.router_repository.get_organization_name(router.user_id)  # @TODO: replace by organization repository
             models.append(
                 Model(
                     id=router.name,

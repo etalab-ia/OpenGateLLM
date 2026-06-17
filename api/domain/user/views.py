@@ -10,13 +10,10 @@ class AuthenticatedUserView(BaseModel):
 
     id: int
     email: str
-    name: str | None
-    organization: int | None
     budget: float | None
     permissions: list[PermissionType]
     limits: list[Limit]
     expires: int | None
-    priority: int
 
     @property
     def is_admin(self) -> bool:
