@@ -140,8 +140,8 @@ def _key_repository(key_encoder: KeyEncoder = Depends(_key_encoder), session: As
     return PostgresKeyRepository(key_encoder=key_encoder, postgres_session=session)
 
 
-def _user_repository(session: AsyncSession, user_password_encoder: UserPasswordEncoder = Depends(_user_password_encoder)) -> PostgresUserRepository:
-    return PostgresUserRepository(postgres_session=session, user_password_encoder=user_password_encoder)
+def _user_repository(session: AsyncSession) -> PostgresUserRepository:
+    return PostgresUserRepository(postgres_session=session, user_password_encoder=_user_password_encoder())
 
 
 def _role_repository(session: AsyncSession) -> PostgresRolesRepository:

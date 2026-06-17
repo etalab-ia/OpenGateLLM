@@ -18,7 +18,7 @@ URL = f"/v1{EndpointRoute.ADMIN_USERS}"
 def _valid_body(role_id: int, **overrides) -> dict:
     body = {
         "email": "newuser@test.com",
-        "password": "s3cr3t",
+        "password": "s3cr3tpw",
         "role": role_id,
     }
     body.update(overrides)
