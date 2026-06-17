@@ -7,5 +7,10 @@ class InvalidKeyError:
 
 
 @dataclass
+class KeyAlreadyExistsError:
+    name: str
+
+
+@dataclass
 class KeyNotFoundError:
     id: int

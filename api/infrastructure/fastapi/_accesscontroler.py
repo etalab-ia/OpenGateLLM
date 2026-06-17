@@ -19,7 +19,6 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
 )
 from api.schemas.core.context import RequestContext
 
-TOKEN_PREFIX = "sk-"
 http_bearer = HTTPBearer()
 
 
@@ -46,10 +45,10 @@ class AccessController:
         if not api_key.credentials:
             raise InvalidAPIKeyHTTPException()
 
-        if not api_key.credentials.startswith(TOKEN_PREFIX):
+        if not api_key.credentials.startswith(KeyRepository.TOKEN_PREFIX):
             raise InvalidAPIKeyHTTPException()
 
-        jwt_token = api_key.credentials.split(TOKEN_PREFIX)[1]
+        jwt_token = api_key.credentials.split(KeyRepository.TOKEN_PREFIX)[1]
         try:
             claims = jwt.decode(token=jwt_token, key=secret_key, algorithms=["HS256"])
             decoded_key = Key.build_from_claims(claims=claims)

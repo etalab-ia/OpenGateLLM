@@ -36,6 +36,7 @@ from api.infrastructure.postgres import (
 from api.infrastructure.redis import RedisProviderLoadBalancer, RedisProviderMetricsLogger, RedisRouterRateLimiter
 from api.infrastructure.tiktoken import TiktokenModelTokenizer
 from api.schemas.core.context import RequestContext
+from api.use_cases.admin.keys import CreateKeyUseCase
 from api.use_cases.admin.providers import (
     CreateProviderUseCase,
     DeleteProviderUseCase,
@@ -88,7 +89,7 @@ def _authenticated_user_query(session: AsyncSession = Depends(get_postgres_sessi
 
 # repositories
 def _key_repository(session: AsyncSession = Depends(get_postgres_session)) -> KeyRepository:
-    return PostgresKeyRepository(postgres_session=session)
+    return PostgresKeyRepository(postgres_session=session, secret_key=configuration.settings.auth_secret_key)
 
 
 def _user_repository(session: AsyncSession) -> PostgresUserRepository:
@@ -165,6 +166,11 @@ def get_health_models_use_case_factory(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
     )
+
+
+# keys use cases
+def create_key_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateKeyUseCase:
+    return CreateKeyUseCase(key_repository=_key_repository(postgres_session))
 
 
 # models use cases

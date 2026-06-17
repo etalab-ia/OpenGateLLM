@@ -120,7 +120,7 @@ class UserSQLFactory(BaseSQLFactory):
         guest_user = factory.Trait(role=factory.SubFactory(RoleSQLFactory, guest=True), priority=-1)
 
 
-class TokenSQLFactory(BaseSQLFactory):
+class KeySQLFactory(BaseSQLFactory):
     class Meta:
         model = Token
 
@@ -133,11 +133,8 @@ class TokenSQLFactory(BaseSQLFactory):
 
     class Params:
         expired = factory.Trait(expires=factory.LazyFunction(lambda: datetime.now() - timedelta(days=1)))
-
         never_expires = factory.Trait(expires=None)
-
         short_lived = factory.Trait(expires=factory.LazyFunction(lambda: datetime.now() + timedelta(hours=1)))
-
         long_lived = factory.Trait(expires=factory.LazyFunction(lambda: datetime.now() + timedelta(days=365)))
 
 
