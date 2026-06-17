@@ -5,13 +5,13 @@ from api.domain.provider import ProviderAdapter, ProviderAdapterBuilder, Provide
 from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
 from api.domain.router import RouterRepository
-from api.domain.user.views import UserWithRoleView
+from api.domain.user.views import AuthenticatedUserView
 from api.utils.variables import EndpointRoute
 
 
 @dataclass
 class GetHealthModelsCommand:
-    user: UserWithRoleView
+    authenticated_user: AuthenticatedUserView
 
 
 @dataclass
@@ -48,7 +48,7 @@ class GetHealthModelsUseCase:
         for router in routers:
             if router.has_no_providers:
                 continue
-            if command.user.cannot_access_router(router_id=router.id):
+            if command.authenticated_user.cannot_access_router(router_id=router.id):
                 continue
 
             health = ModelHealthStatus(id=router.name, status=HealthStatus.GREEN)

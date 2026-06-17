@@ -24,6 +24,7 @@ from api.infrastructure.fastapi.context import request_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
+    PostgresAuthenticatedUserQuery,
     PostgresKeyRepository,
     PostgresLimitRepository,
     PostgresPermissionRepository,
@@ -31,7 +32,6 @@ from api.infrastructure.postgres import (
     PostgresRolesRepository,
     PostgresRouterRepository,
     PostgresUserRepository,
-    PostgresUserWithRoleQuery,
 )
 from api.infrastructure.redis import RedisProviderLoadBalancer, RedisProviderMetricsLogger, RedisRouterRateLimiter
 from api.infrastructure.tiktoken import TiktokenModelTokenizer
@@ -82,8 +82,8 @@ async def get_redis_client() -> AsyncGenerator[Redis, Any]:
 
 
 # queries
-def _user_with_role_query(session: AsyncSession = Depends(get_postgres_session)) -> PostgresUserWithRoleQuery:
-    return PostgresUserWithRoleQuery(postgres_session=session)
+def _authenticated_user_query(session: AsyncSession = Depends(get_postgres_session)) -> PostgresAuthenticatedUserQuery:
+    return PostgresAuthenticatedUserQuery(postgres_session=session)
 
 
 # repositories

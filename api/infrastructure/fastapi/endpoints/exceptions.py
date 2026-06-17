@@ -12,6 +12,14 @@ class InvalidProviderTypeHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=f"Invalid model provider type {incorrect_provider_type} for {router_type} router.")
 
 
+class InsufficientBudgetHTTPException(HTTPException):
+    status_code = 400
+    detail = "Insufficient budget."
+
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)
+
+
 # 401
 class InvalidAPIKeyHTTPException(HTTPException):
     status_code = 401

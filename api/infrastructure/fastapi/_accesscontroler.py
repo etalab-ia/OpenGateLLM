@@ -6,11 +6,11 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from pydantic import ValidationError
 
-from api.dependencies import _key_repository, _user_with_role_query, get_request_context, get_secret_key
+from api.dependencies import _authenticated_user_query, _key_repository, get_request_context, get_secret_key
 from api.domain.key import KeyRepository
 from api.domain.key.entities import Key
 from api.domain.key.errors import KeyNotFoundError
-from api.domain.user import UserWithRoleQuery
+from api.domain.user import AuthenticatedUserQuery
 from api.infrastructure.fastapi.endpoints.exceptions import (
     AccountExpiredHTTPException,
     InvalidAPIKeyHTTPException,
@@ -37,7 +37,7 @@ class AccessController:
         api_key: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
         secret_key: str = Depends(get_secret_key),
         key_repository: KeyRepository = Depends(_key_repository),
-        user_with_role_query: UserWithRoleQuery = Depends(_user_with_role_query),
+        authenticated_user_query: AuthenticatedUserQuery = Depends(_authenticated_user_query),
         request_context: ContextVar[RequestContext] = Depends(get_request_context),
     ) -> None:
         if api_key.scheme != "Bearer":
@@ -66,7 +66,7 @@ class AccessController:
                 if not decoded_key.is_valid(expected_key=key):
                     raise InvalidAPIKeyHTTPException()
 
-        user = await user_with_role_query.get_user_with_role_by_id(user_id=key.user_id)
+        user = await authenticated_user_query.get_user_by_id(user_id=key.user_id)
 
         if user.has_expired:
             raise AccountExpiredHTTPException()

@@ -1,4 +1,4 @@
+from ._authenticateduserquery import AuthenticatedUserQuery
 from ._userrepository import UserRepository
-from ._userwithrolequery import UserWithRoleQuery
 
-__all__ = ["UserRepository", "UserWithRoleQuery"]
+__all__ = ["AuthenticatedUserQuery", "UserRepository"]

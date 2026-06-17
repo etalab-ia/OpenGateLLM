@@ -26,11 +26,11 @@ from api.domain.router.errors import (
     RouterRateLimitExceededError,
 )
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
-from api.domain.user.errors import UserHasNoAccessToRouterError
+from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.tests.integration.factories.vllm import VllmRerankResponseFactory
-from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory, UserWithRoleFactory
+from api.tests.unit.use_case.factories import AutenticatedUserFactor, ProviderFactory, RouterFactory
 from api.use_cases.reranks import CreateRerankCommand, CreateRerankUseCase, CreateRerankUseCaseSuccess
 
 
@@ -125,12 +125,12 @@ def use_case(
 
 @pytest.fixture
 def admin_user():
-    return UserWithRoleFactory(id=1, admin=True)
+    return AutenticatedUserFactor(id=1, admin=True)
 
 
 @pytest.fixture
 def user_with_router_access():
-    return UserWithRoleFactory(id=1, without_permission=True, limits=[Limit(router_id=1, type=LimitType.RPM, value=100)])
+    return AutenticatedUserFactor(id=1, without_permission=True, limits=[Limit(router_id=1, type=LimitType.RPM, value=100)])
 
 
 @pytest.fixture
@@ -160,7 +160,7 @@ def default_command(make_command, admin_user):
 
 @pytest.fixture
 def user_without_router_access():
-    return UserWithRoleFactory(id=1, without_permission=True, limits=[])
+    return AutenticatedUserFactor(id=1, without_permission=True, limits=[])
 
 
 @pytest.fixture
@@ -315,6 +315,104 @@ class TestCreateRerankUseCase:
 
         ctx = default_command.request_context.get()
         assert_request_context(ctx, user_email=admin_user.email, router_id=rerank_router.id, router_name=rerank_router.name)
+
+    @pytest.mark.asyncio
+    async def test_should_return_user_has_insufficient_budget_error_when_router_is_paid_and_user_budget_is_zero(
+        self, use_case, user_with_router_access, provider_load_balancer, provider_repository, make_command
+    ):
+        # Arrange
+        user_with_zero_budget = AutenticatedUserFactor(
+            id=user_with_router_access.id,
+            without_permission=True,
+            budget=0,
+            limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
+        )
+        command = make_command(user_with_zero_budget)
+        paid_rerank_router = RouterFactory(
+            id=1,
+            name="rerank-router",
+            type=RouterType.TEXT_CLASSIFICATION,
+            providers=1,
+            load_balancing_strategy="shuffle",
+            cost_prompt_tokens=0.001,
+            cost_completion_tokens=0.002,
+        )
+        use_case.router_repository.get_router_by_name_or_alias.return_value = paid_rerank_router
+
+        # Act
+        result = await use_case.execute(command=command)
+
+        # Assert
+        assert isinstance(result, UserHasInsufficientBudgetError)
+        provider_repository.get_all_providers_of_router.assert_not_awaited()
+        provider_load_balancer.find_best_provider.assert_not_awaited()
+
+        ctx = command.request_context.get()
+        assert_request_context(
+            ctx,
+            user_email=user_with_zero_budget.email,
+            router_id=paid_rerank_router.id,
+            router_name=paid_rerank_router.name,
+        )
+
+    @pytest.mark.asyncio
+    async def test_should_not_check_budget_when_router_is_free(
+        self, use_case, user_with_router_access, provider_load_balancer, make_command, mock_successful_rerank_flow
+    ):
+        # Arrange
+        user_with_zero_budget = AutenticatedUserFactor(
+            id=user_with_router_access.id,
+            without_permission=True,
+            budget=0,
+            limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
+        )
+        command = make_command(user_with_zero_budget)
+        free_rerank_router = RouterFactory(
+            id=1,
+            name="rerank-router",
+            type=RouterType.TEXT_CLASSIFICATION,
+            providers=1,
+            load_balancing_strategy="shuffle",
+            free=True,
+        )
+        use_case.router_repository.get_router_by_name_or_alias.return_value = free_rerank_router
+
+        # Act
+        result = await use_case.execute(command=command)
+
+        # Assert
+        assert isinstance(result, CreateRerankUseCaseSuccess)
+        provider_load_balancer.find_best_provider.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_should_not_check_budget_when_user_has_unlimited_budget_and_router_is_paid(
+        self, use_case, user_with_router_access, provider_load_balancer, make_command, mock_successful_rerank_flow
+    ):
+        # Arrange
+        user_with_unlimited_budget = AutenticatedUserFactor(
+            id=user_with_router_access.id,
+            without_permission=True,
+            unlimited_budget=True,
+            limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
+        )
+        command = make_command(user_with_unlimited_budget)
+        paid_rerank_router = RouterFactory(
+            id=1,
+            name="rerank-router",
+            type=RouterType.TEXT_CLASSIFICATION,
+            providers=1,
+            load_balancing_strategy="shuffle",
+            cost_prompt_tokens=0.001,
+            cost_completion_tokens=0.002,
+        )
+        use_case.router_repository.get_router_by_name_or_alias.return_value = paid_rerank_router
+
+        # Act
+        result = await use_case.execute(command=command)
+
+        # Assert
+        assert isinstance(result, CreateRerankUseCaseSuccess)
+        provider_load_balancer.find_best_provider.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_should_return_user_has_no_access_error_when_user_cannot_access_router(

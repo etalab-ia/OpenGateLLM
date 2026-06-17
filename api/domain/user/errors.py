@@ -25,6 +25,11 @@ class UserNotFoundError:
 
 
 @dataclass
+class UserHasInsufficientBudgetError:
+    pass
+
+
+@dataclass
 class UserIsNotAdminError:
     pass
 
