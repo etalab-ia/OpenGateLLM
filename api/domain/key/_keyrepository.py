@@ -8,8 +8,6 @@ from api.domain.user.errors import UserNotFoundError
 
 
 class KeyRepository(ABC):
-    TOKEN_PREFIX = "sk-"
-
     @abstractmethod
     async def get_key_by_id(self, key_id: int) -> Key | KeyNotFoundError:
         pass

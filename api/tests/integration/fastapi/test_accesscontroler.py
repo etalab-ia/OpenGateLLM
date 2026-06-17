@@ -15,6 +15,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     InvalidAuthenticationSchemeHTTPException,
     NotAdminUserHTTPException,
 )
+from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.postgres import PostgresAuthenticatedUserQuery, PostgresKeyRepository
 from api.tests.helpers import create_key
 from api.tests.integration.factories.sql import KeySQLFactory, PermissionSQLFactory, RoleSQLFactory, UserSQLFactory
@@ -54,8 +55,13 @@ def secret_key() -> str:
 
 
 @pytest.fixture
-def key_repository(db_session, secret_key) -> PostgresKeyRepository:
-    return PostgresKeyRepository(postgres_session=db_session, secret_key=secret_key)
+def key_encoder(secret_key) -> JwtKeyEncoder:
+    return JwtKeyEncoder(secret_key=secret_key)
+
+
+@pytest.fixture
+def key_repository(db_session, key_encoder) -> PostgresKeyRepository:
+    return PostgresKeyRepository(key_encoder=key_encoder, postgres_session=db_session)
 
 
 @pytest.fixture
@@ -84,7 +90,6 @@ class TestAccessController:
         key_repository: PostgresKeyRepository,
         authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
-        secret_key: str,
     ):
         # Arrange
         api_key = HTTPAuthorizationCredentials(scheme="Basic", credentials="sk-jwt-token")
@@ -94,7 +99,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -107,7 +111,6 @@ class TestAccessController:
         key_repository: PostgresKeyRepository,
         authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
-        secret_key: str,
     ):
         # Arrange
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials="")
@@ -117,7 +120,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -130,7 +132,6 @@ class TestAccessController:
         key_repository: PostgresKeyRepository,
         authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
-        secret_key: str,
     ):
         # Arrange
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials="jwt-token")
@@ -140,7 +141,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -153,7 +153,6 @@ class TestAccessController:
         key_repository: PostgresKeyRepository,
         authenticated_user_query: PostgresAuthenticatedUserQuery,
         reset_request_context: ContextVar[RequestContext],
-        secret_key: str,
     ):
         # Arrange
         api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials="sk-not-a-valid-jwt")
@@ -163,7 +162,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -188,7 +186,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -213,7 +210,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -237,7 +233,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -266,7 +261,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -293,7 +287,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -328,7 +321,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -363,7 +355,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -389,7 +380,6 @@ class TestAccessController:
             await access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -417,7 +407,6 @@ class TestAccessController:
             await admin_access_controller(
                 request=request_obj,
                 api_key=api_key,
-                secret_key=secret_key,
                 key_repository=key_repository,
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
@@ -442,7 +431,6 @@ class TestAccessController:
         await access_controller(
             request=request_obj,
             api_key=api_key,
-            secret_key=secret_key,
             key_repository=key_repository,
             authenticated_user_query=authenticated_user_query,
             request_context=reset_request_context,
@@ -476,7 +464,6 @@ class TestAccessController:
         await admin_access_controller(
             request=request_obj,
             api_key=api_key,
-            secret_key=secret_key,
             key_repository=key_repository,
             authenticated_user_query=authenticated_user_query,
             request_context=reset_request_context,

@@ -1,10 +1,9 @@
-from jose import jwt
 from pydantic import FutureDatetime
 from sqlalchemy import insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.domain.key import KeyRepository
+from api.domain.key import KeyEncoder, KeyRepository
 from api.domain.key.entities import Key
 from api.domain.key.errors import KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
@@ -12,17 +11,9 @@ from api.sql.models import Token as KeyTable
 
 
 class PostgresKeyRepository(KeyRepository):
-    def __init__(self, postgres_session: AsyncSession, secret_key: str):
+    def __init__(self, key_encoder: KeyEncoder, postgres_session: AsyncSession):
+        self.key_encoder = key_encoder
         self.postgres_session = postgres_session
-        self.secret_key = secret_key
-
-    def _encode_token(self, user_id: int, token_id: int, expires: FutureDatetime | None = None) -> str:
-        expires = int(expires.timestamp()) if expires is not None else None
-        return KeyRepository.TOKEN_PREFIX + jwt.encode(
-            claims={"user_id": user_id, "token_id": token_id, "expires": expires},
-            key=self.secret_key,
-            algorithm="HS256",
-        )
 
     async def get_key_by_id(self, key_id: int) -> Key | KeyNotFoundError:
         query = select(KeyTable).where(KeyTable.id == key_id)
@@ -43,7 +34,7 @@ class PostgresKeyRepository(KeyRepository):
                 return UserNotFoundError(id=user_id)
             raise
 
-        value = self._encode_token(user_id=user_id, token_id=row.id, expires=expire)
+        value = self.key_encoder.encode_token(user_id=user_id, key_id=row.id, expires=expire)
         registered_value = f"{value[:8]}...{value[-8:]}"
 
         await self.postgres_session.execute(update(KeyTable).values(token=registered_value).where(KeyTable.id == row.id))

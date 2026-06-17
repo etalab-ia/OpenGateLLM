@@ -1,12 +1,12 @@
 from datetime import UTC, datetime
 
-from jose import jwt
 import pytest
 from sqlalchemy import select
 
 from api.domain.key.entities import Key
 from api.domain.key.errors import KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
+from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.postgres import PostgresKeyRepository
 from api.sql.models import Token as KeyTable
 from api.tests.integration.factories.sql import KeySQLFactory, UserSQLFactory
@@ -18,8 +18,13 @@ def secret_key():
 
 
 @pytest.fixture
-def repository(db_session, secret_key):
-    return PostgresKeyRepository(postgres_session=db_session, secret_key=secret_key)
+def key_encoder(secret_key):
+    return JwtKeyEncoder(secret_key=secret_key)
+
+
+@pytest.fixture
+def repository(db_session, key_encoder):
+    return PostgresKeyRepository(key_encoder=key_encoder, postgres_session=db_session)
 
 
 async def _assert_stored_token_is_masked(db_session, key: Key) -> None:
@@ -29,8 +34,8 @@ async def _assert_stored_token_is_masked(db_session, key: Key) -> None:
     assert stored.token != key.value
 
 
-def _assert_jwt_claims(key: Key, *, secret_key: str, user_id: int, expires: datetime | None) -> None:
-    claims = jwt.decode(key.value.removeprefix("sk-"), key=secret_key, algorithms=["HS256"])
+def _assert_jwt_claims(key: Key, *, key_encoder: JwtKeyEncoder, user_id: int, expires: datetime | None) -> None:
+    claims = key_encoder.decode(key_value=key.value)
     assert claims["user_id"] == user_id
     assert claims["token_id"] == key.id
     assert claims.get("expires") == (int(expires.timestamp()) if expires is not None else None)
@@ -80,7 +85,7 @@ class TestGetKeyById:
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestCreateKey:
-    async def test_create_key_should_return_key_when_user_exists(self, repository, db_session, secret_key):
+    async def test_create_key_should_return_key_when_user_exists(self, repository, db_session, key_encoder):
         # Arrange
         user = UserSQLFactory()
         await db_session.flush()
@@ -95,10 +100,10 @@ class TestCreateKey:
         assert result.value.startswith("sk-")
         assert result.expires is None
         assert isinstance(result.id, int)
-        _assert_jwt_claims(result, secret_key=secret_key, user_id=user.id, expires=None)
+        _assert_jwt_claims(result, key_encoder=key_encoder, user_id=user.id, expires=None)
         await _assert_stored_token_is_masked(db_session, result)
 
-    async def test_create_key_should_return_key_with_expiration(self, repository, db_session, secret_key):
+    async def test_create_key_should_return_key_with_expiration(self, repository, db_session, key_encoder):
         # Arrange
         user = UserSQLFactory()
         expires_at = datetime(2030, 1, 1, 12, 0, 0, tzinfo=UTC)
@@ -111,7 +116,7 @@ class TestCreateKey:
         assert isinstance(result, Key)
         assert result.name == "expiring-key"
         assert result.expires == expires_at
-        _assert_jwt_claims(result, secret_key=secret_key, user_id=user.id, expires=expires_at)
+        _assert_jwt_claims(result, key_encoder=key_encoder, user_id=user.id, expires=expires_at)
         await _assert_stored_token_is_masked(db_session, result)
 
     async def test_create_key_should_return_user_not_found_error_when_user_does_not_exist(self, repository, db_session):

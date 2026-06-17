@@ -1,6 +1,4 @@
-from jose import jwt
-
-from api.domain.key import KeyRepository
+from api.infrastructure.jwt import JwtKeyEncoder
 from api.tests.integration.factories.sql import KeySQLFactory
 from api.utils.configuration import configuration
 
@@ -14,13 +12,9 @@ async def create_key(db_session, secret_key: str | None = None, **kwargs):
     await db_session.flush()
 
     secret_key = secret_key or configuration.settings.auth_secret_key
+    key_encoder = JwtKeyEncoder(secret_key=secret_key)
 
-    expires = int(key.expires.timestamp()) if key.expires is not None else None
-    key.token = KeyRepository.TOKEN_PREFIX + jwt.encode(
-        claims={"user_id": key.user_id, "token_id": key.id, "expires": expires},
-        key=secret_key,
-        algorithm="HS256",
-    )
+    key.token = key_encoder.encode_token(user_id=key.user_id, key_id=key.id, expires=key.expires)
 
     await db_session.flush()
 
