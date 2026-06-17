@@ -3,12 +3,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from jose import JWTError
 import pytest
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._identityaccessmanager import CheckTokenResult, IdentityAccessManager
 from api.utils.exceptions import (
     InvalidTokenExpirationException,
+    TokenAlreadyExistsException,
     TokenNotFoundException,
     UserNotFoundException,
 )
@@ -69,6 +70,22 @@ async def test_create_token_user_not_found(postgres_session: AsyncSession):
 
     with pytest.raises(UserNotFoundException):
         await iam.create_token(postgres_session, user_id=99, name="dev")
+
+
+@pytest.mark.asyncio
+async def test_create_token_already_exists(postgres_session: AsyncSession):
+    iam = IdentityAccessManager(secret_key="secret")
+    postgres_session.execute = AsyncMock(
+        side_effect=[
+            _Result(scalar_one=MagicMock(id=1)),
+            IntegrityError("", "", Exception('duplicate key value violates unique constraint "unique_token_name_per_user"')),
+        ]
+    )
+
+    with pytest.raises(TokenAlreadyExistsException) as exc_info:
+        await iam.create_token(postgres_session, user_id=1, name="test")
+
+    assert exc_info.value.detail == "Key test already exists."
 
 
 @pytest.mark.asyncio
