@@ -22,7 +22,7 @@ class User(BaseModel):
     sub: str | None
     iss: str | None
     role: int
-    organization: int | None
+    organization_id: int | None
     budget: float | None
     expires: int | None
     created: int

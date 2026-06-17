@@ -32,6 +32,23 @@ class TestCreateUser:
         assert isinstance(result.id, int)
         assert result.role == role.id
 
+    async def test_creates_user_when_password_is_omitted_and_password_is_null_in_db(self, repository, db_session):
+        # Arrange
+        role = RoleSQLFactory()
+        await db_session.flush()
+
+        # Act
+        result = await repository.create_user(email="nopassword@test.com", role_id=role.id)
+        await db_session.flush()
+
+        # Assert
+        assert isinstance(result, User)
+        assert result.email == "nopassword@test.com"
+        assert result.role == role.id
+
+        row = (await db_session.execute(select(UserTable.password).where(UserTable.email == "nopassword@test.com"))).scalar_one()
+        assert row is None
+
     async def test_password_is_hashed_in_db(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()
@@ -103,6 +120,6 @@ class TestCreateUser:
         assert result.name == "Full User"
         assert result.sub == "sub-123"
         assert result.iss == "https://issuer.example.com"
-        assert result.organization == organization.id
+        assert result.organization_id == organization.id
         assert result.budget == 100.0
         assert result.priority == 5

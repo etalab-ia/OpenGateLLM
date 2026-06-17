@@ -9,9 +9,9 @@ from api.infrastructure.fastapi.schemas import BaseModel
 class CreateUserBody(BaseModel):
     email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254), Field(..., description="The user email.")]
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="The user name.")
-    password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72)] = Field(..., description="The user password.")
+    password: Annotated[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72)] | None, Field(default=None, description="The user password.")]  # fmt: off
     role: int = Field(..., description="The role ID.")
-    organization: int | None = Field(default=None, description="The organization ID.")
+    organization_id: int | None = Field(default=None, description="The organization ID.")
     budget: float | None = Field(default=None, description="The budget.")
     expires: int | None = Field(default=None, description="The expiration timestamp.")
     priority: int = Field(default=0, ge=0, description="The user priority. Higher value means higher priority.")
@@ -32,7 +32,7 @@ class UserResponse(BaseModel):
     sub: Annotated[str | None, Field(default=None, description="Subject identifier for SSO.")]
     iss: Annotated[str | None, Field(default=None, description="Issuer identifier for SSO.")]
     role: Annotated[int, Field(..., description="ID of the role assigned to the user.")]
-    organization: Annotated[int | None, Field(default=None, description="ID of the organization the user belongs to.")]
+    organization_id: Annotated[int | None, Field(default=None, description="ID of the organization the user belongs to.")]
     budget: Annotated[float | None, Field(default=None, description="Budget allocated to the user.")]
     expires: Annotated[int | None, Field(default=None, description="Expiration time of the user, as Unix timestamp.")]
     created: Annotated[int, Field(..., description="Time of creation, as Unix timestamp.")]
