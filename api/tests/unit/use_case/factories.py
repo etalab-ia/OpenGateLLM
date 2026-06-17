@@ -107,7 +107,7 @@ class UserFactory(factory.Factory):
     sub = None
     iss = None
     role = factory.Faker("random_int", min=1, max=100)
-    organization = factory.Faker("random_int", min=1, max=10000)
+    organization_id = factory.Faker("random_int", min=1, max=10000)
     budget = factory.Faker("pyfloat", left_digits=5, right_digits=2, positive=True)
     expires = None
     priority = 0

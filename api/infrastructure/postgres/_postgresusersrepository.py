@@ -48,7 +48,7 @@ class PostgresUserRepository(UserRepository):
             sub=row.sub,
             iss=row.iss,
             role=row.role,
-            organization=row.organization,
+            organization_id=row.organization,
             budget=row.budget,
             priority=row.priority,
             expires=row.expires,
@@ -57,7 +57,9 @@ class PostgresUserRepository(UserRepository):
         )
 
     @staticmethod
-    def _hash_password(password: str) -> str:
+    def _hash_password(password: str | None) -> str | None:
+        if password is None:
+            return None
         return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     async def get_user_by_id(self, user_id: int) -> User | UserNotFoundError:
@@ -71,8 +73,8 @@ class PostgresUserRepository(UserRepository):
     async def create_user(
         self,
         email: str,
-        password: str,
         role_id: int,
+        password: str | None = None,
         name: str | None = None,
         sub: str | None = None,
         iss: str | None = None,

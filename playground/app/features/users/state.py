@@ -35,7 +35,7 @@ class UsersState(EntityState):
         role_dict_reverse = {v: k for k, v in self.roles_dict.items()}
 
         role_name = role_dict_reverse[user["role"]]
-        organization_name = organization_dict_reverse.get(user["organization"], None)
+        organization_name = organization_dict_reverse.get(user["organization_id"], None)
 
         return User(
             id=user["id"],
@@ -262,7 +262,7 @@ class UsersState(EntityState):
             payload["budget"] = self.entity_to_create.budget
 
         if organization_id:
-            payload["organization"] = organization_id
+            payload["organization_id"] = organization_id
 
         response = None
         try:
