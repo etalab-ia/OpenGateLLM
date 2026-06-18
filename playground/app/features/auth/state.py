@@ -84,34 +84,6 @@ class AuthState(rx.State):
             return value[7:].strip()
         return value
 
-    async def _oauth2_fetch_tokens_from_oauth2_proxy(self, headers: dict[str, str]) -> tuple[str | None, str | None]:
-        cookie = headers.get("cookie", "")
-        if not cookie:
-            return None, None
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    url="http://oauth2-proxy:4180/oauth2/auth",
-                    headers={
-                        "Cookie": cookie,
-                        "Host": headers.get("host", "localhost"),
-                        "X-Forwarded-Proto": headers.get("x-forwarded-proto", "http"),
-                    },
-                    timeout=5.0,
-                )
-            if response.status_code != 202:
-                return None, None
-            probe_headers = {key.lower(): value for key, value in response.headers.items()}
-            access_token = self._oauth2_extract_token_from_headers(probe_headers, "x-auth-request-access-token")
-            id_token = None
-            for key in ("authorization", "x-forwarded-id-token", "x-auth-request-id-token"):
-                id_token = self._oauth2_extract_token_from_headers(probe_headers, key)
-                if id_token:
-                    break
-            return access_token, id_token
-        except Exception:
-            return None, None
-
     @rx.event
     async def basic_login(self):
         email = self.email_input.strip()
@@ -176,27 +148,15 @@ class AuthState(rx.State):
         headers = self.router.headers.raw_headers
 
         headers = self.router.headers.raw_headers
-        email = headers.get("x-forwarded-email") or headers.get("x-auth-request-email")
+        email = headers.get("x-auth-request-email")
         if not email:
             raise ValueError("Email not found in headers")
 
-        access_token = self._oauth2_extract_token_from_headers(headers=headers, key="x-auth-request-access-token")
-
         id_token = None
-        for key in ["authorization", "x-forwarded-id-token", "x-auth-request-id-token"]:
+        for key in ["authorization", "x-forwarded-id-token"]:
             id_token = self._oauth2_extract_token_from_headers(headers=headers, key=key)
             if id_token:
                 break
-
-        if not access_token or not id_token:
-            fallback_access, fallback_id = await self._oauth2_fetch_tokens_from_oauth2_proxy(headers=headers)
-            if not access_token:
-                access_token = fallback_access
-            if not id_token:
-                id_token = fallback_id
-
-        if not access_token:
-            raise ValueError("Access token not found in headers")
 
         if not id_token:
             raise ValueError("ID token not found in headers")
@@ -288,7 +248,6 @@ class AuthState(rx.State):
         self.user_limits = []
 
         # return rx.redirect(rd)
-        # client_id = "557aea18a617ec6a06260ec42015f26251d671f3914a7312e6b168dc4e4f738e"
         # url = f"https://fca.integ01.dev-agentconnect.fr/api/v2/session/end?client_id={client_id}&post_logout_redirect_uri=http%3A%2F%2Flocalhost:4180/oauth2/sign_in"
         # return rx.redirect(urljoin(base=self.oauth2_oauth2_proxy_url, url=f"/oauth2/sign_out?rd={rd}"))
         return rx.redirect(quote(self.oauth2_oidc_provider_logout_url, safe=""))
