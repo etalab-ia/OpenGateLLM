@@ -7,8 +7,10 @@ import redis.asyncio as redis
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain.auth import AuthSsoSessionValidator
 from api.domain.key import KeyEncoder, KeyRepository
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
+from api.domain.organization import OrganizationRepository
 from api.domain.provider import (
     ProviderAdapterBuilder,
     ProviderClient,
@@ -23,13 +25,14 @@ from api.domain.user import UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
 from api.infrastructure.fastapi.context import request_context
-from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
+from api.infrastructure.http import HttpAuthSsoSessionValidator, HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
     PostgresAuthenticatedUserQuery,
     PostgresKeyRepository,
     PostgresLimitRepository,
+    PostgresOrganizationRepository,
     PostgresPermissionRepository,
     PostgresProviderRepository,
     PostgresRolesRepository,
@@ -50,7 +53,7 @@ from api.use_cases.admin.providers import (
 from api.use_cases.admin.roles import CreateRoleUseCase, DeleteRoleUseCase, GetRolesUseCase, GetRoleUseCase, UpdateRoleUseCase
 from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
 from api.use_cases.admin.users import CreateUserUseCase, DeleteUserUseCase, GetOneUserUseCase, GetUsersUseCase
-from api.use_cases.auth import AuthLoginUseCase
+from api.use_cases.auth import AuthLoginUseCase, AuthSsoLoginUseCase
 from api.use_cases.embeddings import CreateEmbeddingsUseCase
 from api.use_cases.health import GetHealthModelsUseCase
 from api.use_cases.models import GetModelsUseCase, GetModelUseCase
@@ -93,6 +96,10 @@ def _authenticated_user_query(session: AsyncSession = Depends(get_postgres_sessi
 
 
 # helpers
+def _auth_sso_session_validator() -> AuthSsoSessionValidator:
+    return HttpAuthSsoSessionValidator(auth_playground_url=configuration.settings.auth_playground_url)
+
+
 def _key_encoder() -> KeyEncoder:
     return JwtKeyEncoder(secret_key=configuration.settings.auth_secret_key)
 
@@ -141,6 +148,10 @@ def _key_repository(key_encoder: KeyEncoder = Depends(_key_encoder), session: As
     return PostgresKeyRepository(key_encoder=key_encoder, postgres_session=session)
 
 
+def _organization_repository(session: AsyncSession) -> OrganizationRepository:
+    return PostgresOrganizationRepository(postgres_session=session)
+
+
 def _user_repository(session: AsyncSession) -> PostgresUserRepository:
     return PostgresUserRepository(postgres_session=session)
 
@@ -163,6 +174,35 @@ def _permission_repository(session: AsyncSession) -> PermissionRepository:
 
 def _provider_repository(session: AsyncSession) -> ProviderRepository:
     return PostgresProviderRepository(postgres_session=session)
+
+
+# auth use cases
+def auth_login_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    key_encoder: KeyEncoder = Depends(_key_encoder),
+    password_encoder: UserPasswordEncoder = Depends(_user_password_encoder),
+) -> AuthLoginUseCase:
+    return AuthLoginUseCase(
+        key_repository=PostgresKeyRepository(key_encoder=key_encoder, postgres_session=postgres_session),
+        user_repository=PostgresUserRepository(postgres_session=postgres_session),
+        user_password_encoder=password_encoder,
+        login_session_duration=configuration.settings.auth_login_session_duration,
+    )
+
+
+def auth_sso_login_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    key_encoder: KeyEncoder = Depends(_key_encoder),
+) -> AuthSsoLoginUseCase:
+    return AuthSsoLoginUseCase(
+        key_repository=_key_repository(key_encoder=key_encoder, session=postgres_session),
+        organization_repository=_organization_repository(session=postgres_session),
+        user_repository=_user_repository(session=postgres_session),
+        auth_sso_session_validator=_auth_sso_session_validator(),
+        auth_login_type=configuration.settings.auth_login_type,
+        auth_sso_default_role_id=configuration.settings.auth_sso_default_role_id,
+        auth_login_session_duration=configuration.settings.auth_login_session_duration,
+    )
 
 
 # health use cases

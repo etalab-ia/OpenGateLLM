@@ -4,7 +4,7 @@ import pytest
 from redis.asyncio import Redis as AsyncRedis
 
 from api.domain.role.entities import Limit, LimitType
-from api.infrastructure.redis._redisrouterratelimiter import RedisRouterRateLimiter
+from api.infrastructure.redis import RedisRouterRateLimiter
 from api.schemas.core.configuration import LimitingStrategy
 
 

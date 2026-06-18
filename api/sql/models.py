@@ -7,6 +7,7 @@ from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 from sqlalchemy.types import JSON
 
+from api.domain.auth.entities import SsoAccessRuleType
 from api.domain.role.entities import LimitType, PermissionType
 from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
@@ -153,6 +154,33 @@ class Token(Base):
     usage: Mapped[list["Usage"]] = relationship(back_populates="token", passive_deletes=True)
 
     __table_args__ = (UniqueConstraint("user_id", "name", name="unique_token_name_per_user"),)
+
+
+class SsoAccessRule(Base):
+    __tablename__ = "sso_access_rule"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    type: Mapped[SsoAccessRuleType]
+    value: Mapped[str]
+    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
+    updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (UniqueConstraint("type", "value", name="unique_sso_access_rule_type_value"),)
+
+
+class SsoRoleMapping(Base):
+    __tablename__ = "sso_role_mapping"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    organization_name: Mapped[str]
+    oidc_role_name: Mapped[str]
+    role_id: Mapped[int] = mapped_column(ForeignKey(column="role.id", ondelete="CASCADE"))
+    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
+    updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())
+
+    role: Mapped["Role"] = relationship(passive_deletes=True)
+
+    __table_args__ = (UniqueConstraint("organization_name", "oidc_role_name", name="unique_sso_role_mapping_org_oidc_role"),)
 
 
 class Organization(Base):

@@ -120,7 +120,11 @@ def navigation_sidebar() -> rx.Component:
                     rx.button(
                         rx.icon("log-out", size=16),
                         "Logout",
-                        on_click=AuthState.logout,
+                        on_click=rx.cond(
+                            configuration.settings.auth_login_type == "oidc",
+                            AuthState.oidc_logout,
+                            AuthState.basic_logout,
+                        ),
                         variant="soft",
                         color_scheme="red",
                         width="100%",

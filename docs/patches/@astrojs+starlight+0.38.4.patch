@@ -1,5 +1,5 @@
 diff --git a/node_modules/@astrojs/starlight/user-components/Icon.astro b/node_modules/@astrojs/starlight/user-components/Icon.astro
-index 148c86e..ba35ffc 100644
+index 148c86e..c8a1f2b 100644
 --- a/node_modules/@astrojs/starlight/user-components/Icon.astro
 +++ b/node_modules/@astrojs/starlight/user-components/Icon.astro
 @@ -1,8 +1,9 @@
@@ -13,15 +13,16 @@ index 148c86e..ba35ffc 100644
  	label?: string;
  	color?: string;
  	size?: string;
-@@ -11,6 +12,7 @@ interface Props {
+@@ -11,6 +12,8 @@ interface Props {
  
  const { name, label, size = '1em', color } = Astro.props;
  const a11yAttrs = label ? ({ 'aria-label': label } as const) : ({ 'aria-hidden': 'true' } as const);
 +const isExternalIcon = typeof name === 'string' && name.includes(':');
++const astroIconName = name.startsWith('local:') ? name.slice('local:'.length) : name;
  
  /**
   * The fragment around the element is used as a workaround to avoid a trailing whitespace in the output.
-@@ -18,17 +20,23 @@ const a11yAttrs = label ? ({ 'aria-label': label } as const) : ({ 'aria-hidden':
+@@ -18,17 +21,23 @@ const a11yAttrs = label ? ({ 'aria-label': label } as const) : ({ 'aria-hidden':
   */
  ---
  
@@ -38,7 +39,7 @@ index 148c86e..ba35ffc 100644
 -</>
 +{
 +	isExternalIcon ? (
-+		<AstroIcon {...a11yAttrs} name={name} class={Astro.props.class} size={size} />
++		<AstroIcon {...a11yAttrs} name={astroIconName} class={Astro.props.class} size={size} />
 +	) : (
 +		<>
 +			<svg

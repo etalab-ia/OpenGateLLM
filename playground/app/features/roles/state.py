@@ -4,7 +4,6 @@ import datetime as dt
 import httpx
 import reflex as rx
 
-from app.core.configuration import configuration
 from app.features.roles.models import Role
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
@@ -88,7 +87,7 @@ class RolesState(EntityState):
                         f"{self.opengatellm_url}/v1/admin/routers",
                         params={"offset": offset, "limit": 100},
                         headers={"Authorization": f"Bearer {self.api_key}"},
-                        timeout=configuration.settings.playground_opengatellm_timeout,
+                        timeout=self.opengatellm_timeout,
                     )
 
                     response.raise_for_status()
@@ -109,7 +108,7 @@ class RolesState(EntityState):
                         "sort_order": self.order_direction_value,
                     },
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
 
                 response.raise_for_status()
@@ -159,7 +158,7 @@ class RolesState(EntityState):
                 response = await client.delete(
                     url=f"{self.opengatellm_url}/v1/admin/roles/{self.entity_to_delete.id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -207,7 +206,7 @@ class RolesState(EntityState):
                     url=f"{self.opengatellm_url}/v1/admin/roles/{role.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -285,7 +284,7 @@ class RolesState(EntityState):
                     url=f"{self.opengatellm_url}/v1/admin/roles",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -325,7 +324,7 @@ class RolesState(EntityState):
                     f"{self.opengatellm_url}/v1/admin/roles/{role.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -415,7 +414,7 @@ class RolesState(EntityState):
                     url=f"{self.opengatellm_url}/v1/admin/roles/{self.entity.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
             response.raise_for_status()
 

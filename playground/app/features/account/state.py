@@ -3,7 +3,6 @@
 import httpx
 import reflex as rx
 
-from app.core.configuration import configuration
 from app.features.auth.state import AuthState
 from app.shared.components.toasts import httpx_error_toast
 
@@ -67,7 +66,7 @@ class AccountState(AuthState):
                     url=f"{self.opengatellm_url}/v1/me/info",
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     json={"current_password": self.current_password, "password": self.new_password},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -104,7 +103,7 @@ class AccountState(AuthState):
                     url=f"{self.opengatellm_url}/v1/me/info",
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     json={"name": self.edit_name.strip()},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
 
