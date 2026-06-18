@@ -126,3 +126,47 @@ class TestCreateKey:
         # Assert
         assert isinstance(result, UserNotFoundError)
         assert result.id == 999999
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestUpsertKey:
+    async def test_upsert_key_should_create_key_when_it_does_not_exist(self, repository, db_session, key_encoder):
+        # Arrange
+        user = UserSQLFactory()
+        await db_session.flush()
+
+        # Act
+        result = await repository.upsert_key(user_id=user.id, name="playground", expire=None)
+
+        # Assert
+        assert isinstance(result, Key)
+        assert result.name == "playground"
+        assert result.user_id == user.id
+        assert result.value.startswith("sk-")
+        _assert_jwt_claims(result, key_encoder=key_encoder, user_id=user.id, expires=None)
+        await _assert_stored_token_is_masked(db_session, result)
+
+    async def test_upsert_key_should_update_existing_key(self, repository, db_session, key_encoder):
+        # Arrange
+        user = UserSQLFactory()
+        expires_at = datetime(2030, 1, 1, 12, 0, 0, tzinfo=UTC)
+        await db_session.flush()
+        created = await repository.upsert_key(user_id=user.id, name="playground", expire=None)
+
+        # Act
+        result = await repository.upsert_key(user_id=user.id, name="playground", expire=expires_at)
+
+        # Assert
+        assert isinstance(result, Key)
+        assert result.id == created.id
+        assert result.expires == expires_at
+        _assert_jwt_claims(result, key_encoder=key_encoder, user_id=user.id, expires=expires_at)
+        await _assert_stored_token_is_masked(db_session, result)
+
+    async def test_upsert_key_should_return_user_not_found_error_when_user_does_not_exist(self, repository, db_session):
+        # Act
+        result = await repository.upsert_key(user_id=999999, name="playground", expire=None)
+
+        # Assert
+        assert isinstance(result, UserNotFoundError)
+        assert result.id == 999999

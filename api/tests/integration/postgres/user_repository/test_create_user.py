@@ -1,4 +1,5 @@
-import bcrypt
+from unittest.mock import MagicMock
+
 import pytest
 from sqlalchemy import select
 
@@ -12,8 +13,16 @@ from api.tests.integration.factories.sql import OrganizationSQLFactory, RoleSQLF
 
 
 @pytest.fixture
-def repository(db_session):
-    return PostgresUserRepository(postgres_session=db_session)
+def user_password_encoder():
+    user_password_encoder = MagicMock()
+    user_password_encoder.encode_password.return_value = "encoded:s3cr3t"
+
+    return user_password_encoder
+
+
+@pytest.fixture
+def repository(db_session, user_password_encoder):
+    return PostgresUserRepository(postgres_session=db_session, user_password_encoder=user_password_encoder)
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -61,7 +70,7 @@ class TestCreateUser:
         # Assert
         row = (await db_session.execute(select(UserTable.password).where(UserTable.email == "hashed@test.com"))).scalar_one()
         assert row != "plaintext"
-        assert bcrypt.checkpw(b"plaintext", row.encode("utf-8"))
+        assert row == "encoded:s3cr3t"
 
     async def test_returns_user_already_exists_error_when_email_is_duplicate(self, repository, db_session):
         # Arrange

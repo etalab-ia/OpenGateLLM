@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import pytest
 
 from api.domain.user.entities import User
@@ -7,8 +9,13 @@ from api.tests.integration.factories.sql import OrganizationSQLFactory, RoleSQLF
 
 
 @pytest.fixture
-def repository(db_session):
-    return PostgresUserRepository(postgres_session=db_session)
+def user_password_encoder():
+    return MagicMock()
+
+
+@pytest.fixture
+def repository(db_session, user_password_encoder):
+    return PostgresUserRepository(postgres_session=db_session, user_password_encoder=user_password_encoder)
 
 
 @pytest.mark.asyncio(loop_scope="session")

@@ -19,6 +19,8 @@ from api.domain.provider import (
 )
 from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
+from api.domain.user import UserPasswordEncoder
+from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
 from api.infrastructure.fastapi.context import request_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
@@ -48,6 +50,7 @@ from api.use_cases.admin.providers import (
 from api.use_cases.admin.roles import CreateRoleUseCase, DeleteRoleUseCase, GetRolesUseCase, GetRoleUseCase, UpdateRoleUseCase
 from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
 from api.use_cases.admin.users import CreateUserUseCase, DeleteUserUseCase, GetOneUserUseCase, GetUsersUseCase
+from api.use_cases.auth import AuthLoginUseCase
 from api.use_cases.health import GetHealthModelsUseCase
 from api.use_cases.models import GetModelsUseCase, GetModelUseCase
 from api.use_cases.reranks import CreateRerankUseCase
@@ -124,6 +127,10 @@ def _provider_load_balancer(redis_client: Redis = Depends(get_redis_client)) -> 
     return RedisProviderLoadBalancer(redis_client=redis_client)
 
 
+def _user_password_encoder() -> UserPasswordEncoder:
+    return BcryptUserPasswordEncoder()
+
+
 def _router_rate_limiter() -> RouterRateLimiter:
     return RedisRouterRateLimiter(redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy)
 
@@ -134,7 +141,7 @@ def _key_repository(key_encoder: KeyEncoder = Depends(_key_encoder), session: As
 
 
 def _user_repository(session: AsyncSession) -> PostgresUserRepository:
-    return PostgresUserRepository(postgres_session=session)
+    return PostgresUserRepository(postgres_session=session, user_password_encoder=_user_password_encoder())
 
 
 def _role_repository(session: AsyncSession) -> PostgresRolesRepository:
@@ -170,6 +177,19 @@ def get_health_models_use_case_factory(
         provider_metrics_logger=_provider_metrics_logger(redis_client),
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
+    )
+
+
+# auth use cases
+def auth_login_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    key_encoder: KeyEncoder = Depends(_key_encoder),
+    password_encoder: UserPasswordEncoder = Depends(_user_password_encoder),
+) -> AuthLoginUseCase:
+    return AuthLoginUseCase(
+        key_repository=PostgresKeyRepository(key_encoder=key_encoder, postgres_session=postgres_session),
+        user_repository=PostgresUserRepository(postgres_session=postgres_session, user_password_encoder=password_encoder),
+        login_session_duration=configuration.settings.auth_playground_session_duration,
     )
 
 
