@@ -50,7 +50,7 @@ from api.use_cases.admin.providers import (
 from api.use_cases.admin.roles import CreateRoleUseCase, DeleteRoleUseCase, GetRolesUseCase, GetRoleUseCase, UpdateRoleUseCase
 from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
 from api.use_cases.admin.users import CreateUserUseCase, DeleteUserUseCase, GetOneUserUseCase, GetUsersUseCase
-from api.use_cases.auth import AuthLoginUseCase
+from api.use_cases.auth import AuthLoginUseCase, AuthOidcLoginUseCase
 from api.use_cases.health import GetHealthModelsUseCase
 from api.use_cases.models import GetModelsUseCase, GetModelUseCase
 from api.use_cases.reranks import CreateRerankUseCase
@@ -164,6 +164,34 @@ def _provider_repository(session: AsyncSession) -> ProviderRepository:
     return PostgresProviderRepository(postgres_session=session)
 
 
+# auth use cases
+def auth_login_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    key_encoder: KeyEncoder = Depends(_key_encoder),
+    password_encoder: UserPasswordEncoder = Depends(_user_password_encoder),
+) -> AuthLoginUseCase:
+    return AuthLoginUseCase(
+        key_repository=PostgresKeyRepository(key_encoder=key_encoder, postgres_session=postgres_session),
+        user_repository=PostgresUserRepository(postgres_session=postgres_session),
+        user_password_encoder=password_encoder,
+        login_session_duration=configuration.settings.auth_login_session_duration,
+    )
+
+
+def auth_oidc_login_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    key_encoder: KeyEncoder = Depends(_key_encoder),
+    password_encoder: UserPasswordEncoder = Depends(_user_password_encoder),
+) -> AuthOidcLoginUseCase:
+    return AuthOidcLoginUseCase(
+        key_repository=PostgresKeyRepository(key_encoder=key_encoder, postgres_session=postgres_session),
+        user_repository=PostgresUserRepository(postgres_session=postgres_session, user_password_encoder=password_encoder),
+        sso_oidc_issuer_url=configuration.settings.auth_sso_oidc_issuer_url,
+        sso_oidc_client_id=configuration.settings.auth_sso_oidc_client_id,
+        login_session_duration=configuration.settings.auth_playground_session_duration,
+    )
+
+
 # health use cases
 def get_health_models_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
@@ -177,20 +205,6 @@ def get_health_models_use_case_factory(
         provider_metrics_logger=_provider_metrics_logger(redis_client),
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
-    )
-
-
-# auth use cases
-def auth_login_use_case_factory(
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-    key_encoder: KeyEncoder = Depends(_key_encoder),
-    password_encoder: UserPasswordEncoder = Depends(_user_password_encoder),
-) -> AuthLoginUseCase:
-    return AuthLoginUseCase(
-        key_repository=PostgresKeyRepository(key_encoder=key_encoder, postgres_session=postgres_session),
-        user_repository=PostgresUserRepository(postgres_session=postgres_session),
-        user_password_encoder=password_encoder,
-        login_session_duration=configuration.settings.auth_login_session_duration,
     )
 
 

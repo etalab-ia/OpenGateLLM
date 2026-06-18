@@ -57,10 +57,11 @@ def login_form() -> rx.Component:
                     ),
                     rx.button(
                         "Sign In",
-                        on_click=AuthState.login_direct,
+                        on_click=AuthState.basic_login,
                         width="100%",
                         loading=AuthState.is_loading,
                         disabled=AuthState.is_loading,
+                        cursor="pointer",
                     ),
                     spacing="4",
                     width="100%",

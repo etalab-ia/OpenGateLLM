@@ -134,8 +134,9 @@ app = rx.App(
 )
 
 # Public pages
+login = [AuthState.sso_login] if configuration.settings.playground_sso_enabled else []
 
-app.add_page(component=index, route="/")
+app.add_page(component=index, route="/", on_load=login)
 if PlaygroundPages.ACCOUNT not in configuration.settings.playground_disabled_pages:
     app.add_page(component=account, route="/account")
 if PlaygroundPages.KEYS not in configuration.settings.playground_disabled_pages:

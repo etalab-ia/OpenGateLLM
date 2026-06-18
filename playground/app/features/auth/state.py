@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 import httpx
 import reflex as rx
 
@@ -30,6 +32,11 @@ class AuthState(rx.State):
     is_loading: bool = False
 
     opengatellm_url: str = configuration.settings.playground_opengatellm_url
+    opengatellm_timeout: int = configuration.settings.playground_opengatellm_timeout
+    sso_enabled: bool = configuration.settings.playground_sso_enabled
+    sso_opengatellm_admin_api_key: str | None = configuration.settings.playground_sso_opengatellm_admin_api_key
+    sso_opengatellm_default_role_id: int | None = configuration.settings.playground_sso_opengatellm_default_role_id
+    sso_provider_logout_url: str = configuration.settings.playground_sso_provider_logout_url
 
     # Form fields
     email_input: str = ""
@@ -45,9 +52,70 @@ class AuthState(rx.State):
         """Set password input value."""
         self.password_input = value
 
+    async def _login(self, client: httpx.AsyncClient, email: str, password: str):
+        response = await client.post(
+            url=f"{self.opengatellm_url}/v1/auth/login",
+            json={"email": email, "password": password},
+            timeout=self.opengatellm_timeout,
+        )
+        return response
+
+    async def _oidc_login(self, client: httpx.AsyncClient, email: str, id_token: str):
+        response = await client.post(
+            url=f"{self.opengatellm_url}/v1/auth/oidc/login",
+            json={"email": email, "id_token": id_token},
+            timeout=self.opengatellm_timeout,
+        )
+        return response
+
+    async def _get_user_info(self, client: httpx.AsyncClient, api_key: str):
+        response = await client.get(
+            url=f"{self.opengatellm_url}/v1/me/info",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=self.opengatellm_timeout,
+        )
+        return response
+
+    @staticmethod
+    def _sso_extract_token_from_headers(headers: dict[str, str], key: str) -> str | None:
+        value = headers.get(key)
+        if not value:
+            return None
+        value = value.strip()
+        if value.lower().startswith("bearer "):
+            return value[7:].strip()
+        return value
+
+    async def _sso_fetch_tokens_from_oauth2_proxy(self, headers: dict[str, str]) -> tuple[str | None, str | None]:
+        cookie = headers.get("cookie", "")
+        if not cookie:
+            return None, None
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    url="http://oauth2-proxy:4180/oauth2/auth",
+                    headers={
+                        "Cookie": cookie,
+                        "Host": headers.get("host", "localhost"),
+                        "X-Forwarded-Proto": headers.get("x-forwarded-proto", "http"),
+                    },
+                    timeout=5.0,
+                )
+            if response.status_code != 202:
+                return None, None
+            probe_headers = {key.lower(): value for key, value in response.headers.items()}
+            access_token = self._sso_extract_token_from_headers(probe_headers, "x-auth-request-access-token")
+            id_token = None
+            for key in ("authorization", "x-forwarded-id-token", "x-auth-request-id-token"):
+                id_token = self._sso_extract_token_from_headers(probe_headers, key)
+                if id_token:
+                    break
+            return access_token, id_token
+        except Exception:
+            return None, None
+
     @rx.event
-    async def login_direct(self):
-        """Handle login using direct state values."""
+    async def basic_login(self):
         email = self.email_input.strip()
         password = self.password_input.strip()
 
@@ -61,30 +129,15 @@ class AuthState(rx.State):
         response = None
         try:
             async with httpx.AsyncClient() as client:
-                # Login to get API key
-                response = await client.post(
-                    f"{self.opengatellm_url}/v1/auth/login",
-                    json={"email": email, "password": password},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
-                )
+                # Create API key
+                response = await self._login(client=client, email=email, password=password)
                 response.raise_for_status()
-
-                login_data = response.json()
-                api_key = login_data.get("value")
-                api_key_id = login_data.get("id")
+                api_key = response.json().get("value")
+                api_key_id = response.json().get("id")
 
                 # Get user info
-                response = await client.get(
-                    f"{self.opengatellm_url}/v1/me/info",
-                    headers={"Authorization": f"Bearer {api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
-                )
-
-                if response.status_code != 200:
-                    yield rx.toast.error("Failed to fetch user info", position="bottom-right")
-                    self.is_loading = False
-                    yield
-                    return
+                response = await self._get_user_info(client=client, api_key=api_key)
+                response.raise_for_status()
 
                 user_data = response.json()
 
@@ -117,6 +170,78 @@ class AuthState(rx.State):
             self.is_loading = False
             yield
 
+    @rx.event
+    async def sso_login(self):
+        if self.is_authenticated:
+            return
+
+        headers = self.router.headers.raw_headers
+
+        headers = self.router.headers.raw_headers
+        email = headers.get("x-forwarded-email") or headers.get("x-auth-request-email")
+        if not email:
+            raise ValueError("Email not found in headers")
+
+        access_token = self._sso_extract_token_from_headers(headers=headers, key="x-auth-request-access-token")
+
+        id_token = None
+        for key in ["authorization", "x-forwarded-id-token", "x-auth-request-id-token"]:
+            id_token = self._sso_extract_token_from_headers(headers=headers, key=key)
+            if id_token:
+                break
+
+        if not access_token or not id_token:
+            fallback_access, fallback_id = await self._sso_fetch_tokens_from_oauth2_proxy(headers=headers)
+            if not access_token:
+                access_token = fallback_access
+            if not id_token:
+                id_token = fallback_id
+
+        if not access_token:
+            raise ValueError("Access token not found in headers")
+
+        if not id_token:
+            raise ValueError("ID token not found in headers")
+
+        self.is_loading = True
+        yield
+
+        response = None
+        try:
+            async with httpx.AsyncClient() as client:
+                # Create API key
+                response = await self._oidc_login(client=client, email=email, id_token=id_token)
+
+                response.raise_for_status()
+                api_key = response.json().get("value")
+                api_key_id = response.json().get("id")
+
+                # Get user info
+                response = await self._get_user_info(client=client, api_key=api_key)
+                response.raise_for_status()
+                user_data = response.json()
+
+                # Update state
+                self.is_authenticated = True
+                self.user_id = user_data.get("id")
+                self.user_email = user_data.get("email")
+                self.user_name = user_data.get("name")
+                self.api_key = api_key
+                self.api_key_id = api_key_id
+                self.user_organization = user_data.get("organization")
+                self.user_budget = user_data.get("budget")
+                self.user_priority = user_data.get("priority", 0)
+                self.user_created = user_data.get("created")
+                self.user_updated = user_data.get("updated")
+                self.user_permissions = user_data.get("permissions", [])
+                self.user_limits = user_data.get("limits", [])
+
+        except Exception as e:
+            yield httpx_error_toast(exception=e, response=response)
+        finally:
+            self.is_loading = False
+            yield
+
     @rx.var
     def is_admin(self) -> bool:
         """Check if user has admin permission."""
@@ -128,7 +253,7 @@ class AuthState(rx.State):
         return self.user_id == 0
 
     @rx.event
-    def logout(self):
+    def basic_logout(self):
         """Handle logout."""
         self.is_authenticated = False
         self.user_id = None
@@ -143,3 +268,29 @@ class AuthState(rx.State):
         self.user_updated = None
         self.user_permissions = []
         self.user_limits = []
+
+    @rx.event
+    def sso_logout(self):
+        """Handle SSO logout by redirecting the browser to oauth2-proxy sign_out.
+
+        oauth2-proxy clears the session cookie then redirects to the provider logout URL.
+        """
+        self.is_authenticated = False
+        self.user_id = None
+        self.user_email = None
+        self.user_name = None
+        self.api_key = None
+        self.api_key_id = None
+        self.user_organization = None
+        self.user_budget = None
+        self.user_priority = None
+        self.user_created = None
+        self.user_updated = None
+        self.user_permissions = []
+        self.user_limits = []
+
+        # return rx.redirect(rd)
+        # client_id = "557aea18a617ec6a06260ec42015f26251d671f3914a7312e6b168dc4e4f738e"
+        # url = f"https://fca.integ01.dev-agentconnect.fr/api/v2/session/end?client_id={client_id}&post_logout_redirect_uri=http%3A%2F%2Flocalhost:4180/oauth2/sign_in"
+        # return rx.redirect(urljoin(base=self.sso_oauth2_proxy_url, url=f"/oauth2/sign_out?rd={rd}"))
+        return rx.redirect(quote(self.sso_provider_logout_url, safe=""))

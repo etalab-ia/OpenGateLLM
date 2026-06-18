@@ -29,6 +29,14 @@ class InvalidAPIKeyHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
+class InvalidOidcTokenHTTPException(HTTPException):
+    status_code = 401
+    detail = "Invalid OIDC token."
+
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)
+
+
 class InvalidPasswordHTTPException(HTTPException):
     status_code = 401
     detail = "Invalid password."
@@ -127,7 +135,7 @@ class ProviderNotFoundHTTPException(HTTPException):
 
 class UserNotFoundHTTPException(HTTPException):
     status_code = 404
-    detail = "User {user_id} not found."
+    detail = "User {user_id}|{email} not found."
 
     def __init__(self, user_id: int | None = None, email: str | None = None) -> None:
 
