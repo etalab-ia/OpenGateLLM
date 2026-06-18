@@ -37,6 +37,14 @@ class InvalidOidcTokenHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
+class OidcProviderNotAvailableHTTPException(HTTPException):
+    status_code = 503
+    detail = "OIDC provider is not available."
+
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)
+
+
 class InvalidPasswordHTTPException(HTTPException):
     status_code = 401
     detail = "Invalid password."

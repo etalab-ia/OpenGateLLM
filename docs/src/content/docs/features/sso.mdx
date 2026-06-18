@@ -62,10 +62,11 @@ services:
 ```yaml
 settings: 
     [...]
-    playground_sso_enabled: True
-    playground_sso_opengatellm_admin_api_key: sk-eyJhb...
-    playground_sso_opengatellm_default_role_id: 1
-    playground_sso_provider_logout_url: https://...
+    auth_login_type: oidc
+    auth_oauth2_oidc_issuer_url: https://...
+    auth_oauth2_oidc_client_id: ${OAUTH2_PROXY_CLIENT_ID}
+    auth_oauth2_default_role_id: 1
+    auth_oauth2_oidc_provider_logout_url: https://...
 ```
 
 ## Provider specifications

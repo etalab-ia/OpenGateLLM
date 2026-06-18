@@ -134,7 +134,7 @@ app = rx.App(
 )
 
 # Public pages
-login = [AuthState.sso_login] if configuration.settings.playground_sso_enabled else []
+login = [AuthState.oauth2_login] if configuration.settings.auth_login_type == "oidc" else []
 
 app.add_page(component=index, route="/", on_load=login)
 if PlaygroundPages.ACCOUNT not in configuration.settings.playground_disabled_pages:

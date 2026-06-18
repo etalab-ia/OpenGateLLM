@@ -136,22 +136,14 @@ class Settings(ConfigBaseModel):
     playground_documentation_url: str | None = Field(default="https://docs.opengatellm.org", pattern=r"^http[s]?://", description="Documentation URL. If not provided, deactivated documentation link in the navigation bar.")  # fmt: off
 
 
-class SettingsWithoutSSO(Settings):
-    playground_sso_enabled: Literal[False] = Field(default=False, description="Whether SSO is enabled.")
-    playground_sso_provider_logout_url: Any = Field(default=None, description="The logout url for SSO.")
+class SettingsLoginPassword(Settings):
+    auth_login_type: Literal["password"] = Field(default="password", description="Login type for the API.")
+    auth_oauth2_oidc_provider_logout_url: Any = Field(default=None, description="The logout url for SSO.")
 
 
-class SettingsWithSSO(Settings):
-    playground_sso_enabled: Literal[True] = Field(default=True, description="Whether SSO is enabled.")
-    playground_sso_provider_logout_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="The logout url for SSO.")  # fmt: off
-    playground_sso_oidc_issuer_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(
-        default="https://fca.integ01.dev-agentconnect.fr/api/v2",
-        description="OIDC issuer URL used to fetch JWKS and validate id_tokens.",
-    )
-    playground_sso_oidc_client_id: str | None = Field(
-        default=None,
-        description="OIDC client_id (audience) for id_token validation. Falls back to OAUTH2_PROXY_CLIENT_ID env var.",
-    )
+class SettingsLoginOIDC(Settings):
+    auth_login_type: Literal["oidc"] = Field(default="oidc", description="Login type for the API.")
+    auth_oauth2_oidc_provider_logout_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="The logout url for SSO.")  # fmt: off
 
 
 class ConfigFile(ConfigBaseModel):
@@ -164,13 +156,13 @@ class ConfigFile(ConfigBaseModel):
     """
 
     dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the playground.")  # fmt: off
-    settings: Annotated[SettingsWithoutSSO | SettingsWithSSO, Field(discriminator="playground_sso_enabled", default_factory=SettingsWithoutSSO, description="General settings configuration fields. Some fields are common to the API and the playground.")]  # fmt: off
+    settings: Annotated[SettingsLoginPassword | SettingsLoginOIDC, Field(discriminator="auth_login_type", default_factory=SettingsLoginPassword, description="General settings configuration fields. Some fields are common to the API and the playground.")]  # fmt: off
 
     @model_validator(mode="before")
     @classmethod
     def normalize(cls, data: Any) -> Any:
         if isinstance(data, dict) and isinstance(data.get("settings"), dict):
-            data["settings"].setdefault("playground_sso_enabled", False)
+            data["settings"].setdefault("auth_login_type", "password")
         return data
 
 
@@ -193,17 +185,6 @@ class Configuration(BaseSettings):
         uncommented_lines = [line for line in lines if not line.lstrip().startswith("#")]
         file_content = cls.replace_environment_variables(file_content="".join(uncommented_lines))
         config = ConfigFile(**yaml.safe_load(stream=file_content))
-
-        try:
-            default_role_id = config.settings.playground_sso_opengatellm_default_role_id
-            if default_role_id is not None:
-                default_role_id = int(default_role_id)
-            config.settings.playground_sso_opengatellm_default_role_id = default_role_id
-        except ValueError:
-            raise ValueError("For SSO to be enabled, default role ID must be an integer.")
-
-        if config.settings.playground_sso_enabled and not config.settings.playground_sso_oidc_client_id:
-            config.settings.playground_sso_oidc_client_id = os.getenv("OAUTH2_PROXY_CLIENT_ID") or None
 
         values.dependencies = config.dependencies
         values.settings = config.settings

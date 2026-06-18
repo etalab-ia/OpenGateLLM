@@ -3,13 +3,16 @@ import logging
 from fastapi import APIRouter, Depends
 
 from api.dependencies import auth_login_use_case_factory, auth_oidc_login_use_case_factory
-from api.domain.auth.errors import InvalidOidcTokenError
+from api.domain.auth.errors import InvalidOidcTokenError, OidcProviderNotAvailableError
+from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.errors import InvalidUserPasswordError, UserNotFoundError
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InternalServerHTTPException,
     InvalidOidcTokenHTTPException,
     InvalidPasswordHTTPException,
+    OidcProviderNotAvailableHTTPException,
+    RoleNotFoundHTTPException,
     UserNotFoundHTTPException,
 )
 from api.infrastructure.fastapi.schemas.auth import AuthLoginBody, AuthLoginResponse, AuthOidcLoginBody
@@ -61,7 +64,9 @@ async def login(body: AuthLoginBody, auth_login_use_case: AuthLoginUseCase = Dep
     path=EndpointRoute.AUTH_OIDC_LOGIN,
     status_code=200,
     response_model=AuthLoginResponse,
-    responses=get_documentation_responses([InvalidPasswordHTTPException, UserNotFoundHTTPException], add_auth_exceptions=False),
+    responses=get_documentation_responses(
+        [InvalidPasswordHTTPException, UserNotFoundHTTPException, RoleNotFoundHTTPException], add_auth_exceptions=False
+    ),
 )
 async def oidc_login(body: AuthOidcLoginBody, auth_oidc_login_use_case: AuthOidcLoginUseCase = Depends(auth_oidc_login_use_case_factory)):
     command = AuthOidcLoginCommand(email=body.email, id_token=body.id_token)
@@ -82,3 +87,7 @@ async def oidc_login(body: AuthOidcLoginBody, auth_oidc_login_use_case: AuthOidc
             return AuthLoginResponse.model_validate(key, from_attributes=True)
         case InvalidOidcTokenError():
             raise InvalidOidcTokenHTTPException()
+        case OidcProviderNotAvailableError():
+            raise OidcProviderNotAvailableHTTPException()
+        case RoleNotFoundError(role_id=role_id):
+            raise RoleNotFoundHTTPException(role_id=role_id)

@@ -56,6 +56,12 @@ settings:
   auth_secret_key: changeme
   auth_bootsrap_admin_username: admin
   auth_bootsrap_admin_password: changeme
+  # auth_login_type: password
+  # auth_login_session_duration: 3600
+  # auth_sso_default_role_id: 1
+  # auth_sso_oidc_issuer_url: https://...
+  # auth_sso_oidc_client_id: ${OAUTH2_PROXY_CLIENT_ID}
+  # auth_sso_oidc_provider_logout_url: https://...
 
   # rate_limiting_strategy: fixed_window
 
@@ -68,7 +74,6 @@ settings:
   playground_opengatellm_url: ${OPENGATELLM_URL}
   # playground_opengatellm_timeout: 60
   # playground_disabled_pages: []
-  # playground_sso_enabled: False
   # playground_default_model: my-model
   # playground_theme_has_background: True
   # playground_theme_accent_color: purple

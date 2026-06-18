@@ -33,10 +33,8 @@ class AuthState(rx.State):
 
     opengatellm_url: str = configuration.settings.playground_opengatellm_url
     opengatellm_timeout: int = configuration.settings.playground_opengatellm_timeout
-    sso_enabled: bool = configuration.settings.playground_sso_enabled
-    sso_opengatellm_admin_api_key: str | None = configuration.settings.playground_sso_opengatellm_admin_api_key
-    sso_opengatellm_default_role_id: int | None = configuration.settings.playground_sso_opengatellm_default_role_id
-    sso_provider_logout_url: str = configuration.settings.playground_sso_provider_logout_url
+    login_type: str = configuration.settings.auth_login_type
+    oauth2_oidc_provider_logout_url: str = configuration.settings.auth_oauth2_oidc_provider_logout_url
 
     # Form fields
     email_input: str = ""
@@ -77,7 +75,7 @@ class AuthState(rx.State):
         return response
 
     @staticmethod
-    def _sso_extract_token_from_headers(headers: dict[str, str], key: str) -> str | None:
+    def _oauth2_extract_token_from_headers(headers: dict[str, str], key: str) -> str | None:
         value = headers.get(key)
         if not value:
             return None
@@ -86,7 +84,7 @@ class AuthState(rx.State):
             return value[7:].strip()
         return value
 
-    async def _sso_fetch_tokens_from_oauth2_proxy(self, headers: dict[str, str]) -> tuple[str | None, str | None]:
+    async def _oauth2_fetch_tokens_from_oauth2_proxy(self, headers: dict[str, str]) -> tuple[str | None, str | None]:
         cookie = headers.get("cookie", "")
         if not cookie:
             return None, None
@@ -104,10 +102,10 @@ class AuthState(rx.State):
             if response.status_code != 202:
                 return None, None
             probe_headers = {key.lower(): value for key, value in response.headers.items()}
-            access_token = self._sso_extract_token_from_headers(probe_headers, "x-auth-request-access-token")
+            access_token = self._oauth2_extract_token_from_headers(probe_headers, "x-auth-request-access-token")
             id_token = None
             for key in ("authorization", "x-forwarded-id-token", "x-auth-request-id-token"):
-                id_token = self._sso_extract_token_from_headers(probe_headers, key)
+                id_token = self._oauth2_extract_token_from_headers(probe_headers, key)
                 if id_token:
                     break
             return access_token, id_token
@@ -171,7 +169,7 @@ class AuthState(rx.State):
             yield
 
     @rx.event
-    async def sso_login(self):
+    async def oauth2_login(self):
         if self.is_authenticated:
             return
 
@@ -182,16 +180,16 @@ class AuthState(rx.State):
         if not email:
             raise ValueError("Email not found in headers")
 
-        access_token = self._sso_extract_token_from_headers(headers=headers, key="x-auth-request-access-token")
+        access_token = self._oauth2_extract_token_from_headers(headers=headers, key="x-auth-request-access-token")
 
         id_token = None
         for key in ["authorization", "x-forwarded-id-token", "x-auth-request-id-token"]:
-            id_token = self._sso_extract_token_from_headers(headers=headers, key=key)
+            id_token = self._oauth2_extract_token_from_headers(headers=headers, key=key)
             if id_token:
                 break
 
         if not access_token or not id_token:
-            fallback_access, fallback_id = await self._sso_fetch_tokens_from_oauth2_proxy(headers=headers)
+            fallback_access, fallback_id = await self._oauth2_fetch_tokens_from_oauth2_proxy(headers=headers)
             if not access_token:
                 access_token = fallback_access
             if not id_token:
@@ -270,7 +268,7 @@ class AuthState(rx.State):
         self.user_limits = []
 
     @rx.event
-    def sso_logout(self):
+    def oauth2_logout(self):
         """Handle SSO logout by redirecting the browser to oauth2-proxy sign_out.
 
         oauth2-proxy clears the session cookie then redirects to the provider logout URL.
@@ -292,5 +290,5 @@ class AuthState(rx.State):
         # return rx.redirect(rd)
         # client_id = "557aea18a617ec6a06260ec42015f26251d671f3914a7312e6b168dc4e4f738e"
         # url = f"https://fca.integ01.dev-agentconnect.fr/api/v2/session/end?client_id={client_id}&post_logout_redirect_uri=http%3A%2F%2Flocalhost:4180/oauth2/sign_in"
-        # return rx.redirect(urljoin(base=self.sso_oauth2_proxy_url, url=f"/oauth2/sign_out?rd={rd}"))
-        return rx.redirect(quote(self.sso_provider_logout_url, safe=""))
+        # return rx.redirect(urljoin(base=self.oauth2_oauth2_proxy_url, url=f"/oauth2/sign_out?rd={rd}"))
+        return rx.redirect(quote(self.oauth2_oidc_provider_logout_url, safe=""))
