@@ -1,3 +1,4 @@
+import json
 from urllib.parse import quote
 
 import httpx
@@ -247,7 +248,5 @@ class AuthState(rx.State):
         self.user_permissions = []
         self.user_limits = []
 
-        # return rx.redirect(rd)
-        # url = f"https://fca.integ01.dev-agentconnect.fr/api/v2/session/end?client_id={client_id}&post_logout_redirect_uri=http%3A%2F%2Flocalhost:4180/oauth2/sign_in"
-        # return rx.redirect(urljoin(base=self.oauth2_oauth2_proxy_url, url=f"/oauth2/sign_out?rd={rd}"))
-        return rx.redirect(quote(self.oauth2_oidc_provider_logout_url, safe=""))
+        sign_out_path = f"/oauth2/sign_out?rd={quote(self.oauth2_oidc_provider_logout_url, safe='')}"
+        return rx.call_script(f"window.location.assign({json.dumps(sign_out_path)})")

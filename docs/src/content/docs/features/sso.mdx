@@ -66,15 +66,32 @@ settings:
     auth_oauth2_oidc_issuer_url: https://...
     auth_oauth2_oidc_client_id: ${OAUTH2_PROXY_CLIENT_ID}
     auth_oauth2_default_role_id: 1
-    auth_oauth2_oidc_provider_logout_url: https://...
+    auth_oauth2_oidc_provider_logout_url: ${SSO_PROVIDER_LOGOUT_URL}
 ```
 
-## Provider specifications
+## Supported identity providers
 
 <Tabs>
   <TabItem value="proconnect" label="ProConnect" icon="local:proconnect">
-    <p>ProConnect is the provider of the Single Sign-On (SSO) for the OpenGateLLM playground.</p>
+    ProConnect is the identity provider of the Single Sign-On (SSO) for the OpenGateLLM playground. To activate SSO, you need to create a client in ProConnect on https://partenaires.moncomptepro.beta.gouv.fr/.
 
-    To activate SSO, you need to create a client in ProConnect on https://partenaires.moncomptepro.beta.gouv.fr/
+    **Logout URL**
+
+    ProConnect requires a RP-initiated logout call to the issuer `/session/end` endpoint. See 2.4.1 section in [ProConnect technical documentation](https://partenaires.proconnect.gouv.fr/docs/fournisseur-service/implementation_technique) for details.
+    Generate `auth_oauth2_oidc_provider_logout_url` from the issuer root URL and the oauth2-proxy login URL (post logout redirect URI).
+    You can use following function to generate the logout URL, example:
+    - oauth2_proxy_login_url: `http://localhost:4180/oauth2/sign_in`
+    - issuer_url: `https://fca.integ01.dev-agentconnect.fr/api/v2`
+
+    ```python
+    import secrets
+    from urllib.parse import quote
+
+    def build_proconnect_logout_url(issuer_url: str, oauth2_proxy_login_url: str) -> str:
+        issuer_url = issuer_url.rstrip("/")
+        encoded_redirect = quote(oauth2_proxy_login_url, safe="")
+        state = secrets.token_urlsafe(32)
+        return f"{issuer_url}/session/end?id_token_hint={{id_token}}&post_logout_redirect_uri={encoded_redirect}&state={quote(state, safe='')}"
+    ```
   </TabItem>
 </Tabs>
