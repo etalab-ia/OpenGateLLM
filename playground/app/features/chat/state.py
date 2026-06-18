@@ -61,7 +61,7 @@ class ChatState(AuthState):
                 response = await client.get(
                     f"{self.opengatellm_url}/v1/models",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -204,7 +204,7 @@ class ChatState(AuthState):
                             "Content-Type": "application/json",
                         },
                         json=payload,
-                        timeout=configuration.settings.playground_opengatellm_timeout,
+                        timeout=self.opengatellm_timeout,
                     ) as response:
                         if response.status_code != 200:
                             error_text = await response.aread()
@@ -242,7 +242,7 @@ class ChatState(AuthState):
                             "Content-Type": "application/json",
                         },
                         json=payload,
-                        timeout=configuration.settings.playground_opengatellm_timeout,
+                        timeout=self.opengatellm_timeout,
                     )
 
                     if response.status_code != 200:

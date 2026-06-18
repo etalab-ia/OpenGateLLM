@@ -6,7 +6,6 @@ from typing import Any
 import httpx
 import reflex as rx
 
-from app.core.configuration import configuration
 from app.features.usage.models import Usage
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
@@ -64,7 +63,7 @@ class UsageState(EntityState):
                     url=f"{self.opengatellm_url}/v1/me/usage",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
                 data = response.json()

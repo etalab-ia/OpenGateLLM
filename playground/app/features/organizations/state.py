@@ -3,7 +3,6 @@ import datetime as dt
 import httpx
 import reflex as rx
 
-from app.core.configuration import configuration
 from app.features.organizations.models import Organization
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
@@ -56,7 +55,7 @@ class OrganizationsState(EntityState):
                     url=f"{self.opengatellm_url}/v1/admin/organizations",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
 
                 response.raise_for_status()
@@ -105,7 +104,7 @@ class OrganizationsState(EntityState):
                 response = await client.delete(
                     url=f"{self.opengatellm_url}/v1/admin/organizations/{self.entity_to_delete.id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -152,7 +151,7 @@ class OrganizationsState(EntityState):
                     url=f"{self.opengatellm_url}/v1/admin/organizations",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -210,7 +209,7 @@ class OrganizationsState(EntityState):
                     url=f"{self.opengatellm_url}/v1/admin/organizations/{self.entity.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
             response.raise_for_status()
 
