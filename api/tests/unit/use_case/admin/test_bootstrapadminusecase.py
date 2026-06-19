@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -30,12 +30,20 @@ def limit_repository():
 
 
 @pytest.fixture
-def use_case(user_repository, role_repository, permission_repository, limit_repository):
+def user_password_encoder():
+    encoder = MagicMock()
+    encoder.encode_password.return_value = "$2b$12$encodedpasswordhash"
+    return encoder
+
+
+@pytest.fixture
+def use_case(user_repository, role_repository, permission_repository, limit_repository, user_password_encoder):
     return BootstrapAdminUseCase(
         user_repository=user_repository,
         role_repository=role_repository,
         limit_repository=limit_repository,
         permission_repository=permission_repository,
+        user_password_encoder=user_password_encoder,
     )
 
 
@@ -46,7 +54,9 @@ def command():
 
 class TestBootstrapAdminUserUseCase:
     @pytest.mark.asyncio
-    async def test_successfully_creates_admin_user_and_role(self, use_case, user_repository, role_repository, permission_repository, command):
+    async def test_successfully_creates_admin_user_and_role(
+        self, use_case, user_repository, role_repository, permission_repository, user_password_encoder, command
+    ):
         # Arrange
         role = RoleFactory(id=42)
         user = UserFactory(id=10, email="admin@opengatellm.org", role=42)
@@ -66,9 +76,10 @@ class TestBootstrapAdminUserUseCase:
 
         role_repository.create_role.assert_awaited_once_with(name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_ROLE_NAME)
         permission_repository.create_permissions.assert_awaited_once_with(role_id=42, permissions=[PermissionType.ADMIN])
+        user_password_encoder.encode_password.assert_called_once_with(password=command.password)
         user_repository.create_user.assert_awaited_once_with(
             email=command.email,
-            password=command.password,
+            password="$2b$12$encodedpasswordhash",
             role_id=42,
             name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_USER_NAME,
         )
@@ -89,7 +100,9 @@ class TestBootstrapAdminUserUseCase:
         user_repository.create_user.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_reuses_existing_role_when_role_name_conflicts(self, use_case, user_repository, role_repository, permission_repository, command):
+    async def test_reuses_existing_role_when_role_name_conflicts(
+        self, use_case, user_repository, role_repository, permission_repository, user_password_encoder, command
+    ):
         # Arrange
         existing_role = RoleFactory(
             id=5,
@@ -109,9 +122,10 @@ class TestBootstrapAdminUserUseCase:
         assert result == BootstrapAdminUseCaseSuccess(user_id=11, email="admin@opengatellm.org", role_id=5)
         role_repository.create_role.assert_not_awaited()
         permission_repository.create_permissions.assert_not_awaited()
+        user_password_encoder.encode_password.assert_called_once_with(password=command.password)
         user_repository.create_user.assert_awaited_once_with(
             email=command.email,
-            password=command.password,
+            password="$2b$12$encodedpasswordhash",
             role_id=5,
             name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_USER_NAME,
         )

@@ -22,6 +22,7 @@ from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
+from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
@@ -131,6 +132,7 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
         role_repository=role_repository,
         limit_repository=limit_repository,
         permission_repository=permission_repository,
+        user_password_encoder=BcryptUserPasswordEncoder(),
     ).execute(
         BootstrapAdminCommand(email=configuration.settings.auth_bootsrap_admin_username, password=configuration.settings.auth_bootsrap_admin_password)
     )

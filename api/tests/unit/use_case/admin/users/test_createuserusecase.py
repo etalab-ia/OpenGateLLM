@@ -81,41 +81,6 @@ class TestCreateUserUseCase:
         }
 
     @pytest.mark.asyncio
-    async def test_should_create_user_when_password_is_none(self, use_case, user_repository, user_password_encoder):
-        # Arrange
-        command = CreateUserCommand(
-            email="newuser-nopassword@test.com",
-            role_id=10,
-            name=None,
-            organization_id=None,
-            budget=None,
-            expires=None,
-            priority=0,
-        )
-        user = UserFactory(
-            id=43,
-            email="newuser-nopassword@test.com",
-            name=None,
-            role=10,
-            organization_id=None,
-            budget=None,
-            priority=0,
-        )
-        user_repository.create_user.return_value = user
-
-        # Act
-        result = await use_case.execute(command)
-
-        # Assert
-        assert isinstance(result, CreateUserUseCaseSuccess)
-        assert result.user.id == 43
-        assert result.user.email == "newuser-nopassword@test.com"
-
-        user_password_encoder.encode_password.assert_not_called()
-        user_repository.create_user.assert_awaited_once()
-        assert user_repository.create_user.call_args.kwargs["password"] is None
-
-    @pytest.mark.asyncio
     async def test_should_return_user_already_exists_error_when_a_user_has_the_same_email(self, use_case, user_repository, default_command):
         # Arrange
 

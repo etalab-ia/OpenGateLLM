@@ -11,7 +11,7 @@ from api.domain.user.errors import UserAlreadyExistsError
 class CreateUserCommand:
     email: str
     role_id: int
-    password: str | None = None
+    password: str
     name: str | None = None
     organization_id: int | None = None
     budget: float | None = None
@@ -33,7 +33,7 @@ class CreateUserUseCase:
         self.user_password_encoder = user_password_encoder
 
     async def execute(self, command: CreateUserCommand) -> CreateUserUseCaseResult:
-        password = self.user_password_encoder.encode_password(password=command.password) if command.password is not None else None
+        password = self.user_password_encoder.encode_password(password=command.password)
         result = await self.user_repository.create_user(
             email=command.email,
             password=password,

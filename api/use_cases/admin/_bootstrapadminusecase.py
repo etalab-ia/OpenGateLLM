@@ -4,7 +4,7 @@ import logging
 from api.domain.role import LimitRepository, PermissionRepository, RoleRepository
 from api.domain.role.entities import PermissionType, Role
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user import UserRepository
+from api.domain.user import UserPasswordEncoder, UserRepository
 from api.domain.user.entities import User
 from api.domain.user.errors import UserNotFoundError
 
@@ -44,11 +44,13 @@ class BootstrapAdminUseCase:
         permission_repository: PermissionRepository,
         limit_repository: LimitRepository,
         user_repository: UserRepository,
+        user_password_encoder: UserPasswordEncoder,
     ):
         self.role_repository = role_repository
         self.permission_repository = permission_repository
         self.limit_repository = limit_repository
         self.user_repository = user_repository
+        self.user_password_encoder = user_password_encoder
 
     async def execute(self, command: BootstrapAdminCommand) -> BootstrapAdminUseCaseResult:
         result = await self.user_repository.get_first_admin_user()
@@ -71,9 +73,10 @@ class BootstrapAdminUseCase:
                 if user.role != role.id:
                     await self.user_repository.update_user(user=user.model_copy(update={"role": role.id}))
             case UserNotFoundError():
+                encoded_password = self.user_password_encoder.encode_password(password=command.password)
                 user = await self.user_repository.create_user(
                     email=command.email,
-                    password=command.password,
+                    password=encoded_password,
                     role_id=role.id,
                     name=self.BOOTSTRAP_ADMIN_USER_NAME,
                 )

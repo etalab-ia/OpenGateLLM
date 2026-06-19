@@ -58,7 +58,7 @@ def test_client(setup_database, setup_elasticsearch_index) -> Generator[TestClie
             url=f"/v1{EndpointRoute.AUTH_LOGIN}",
             json={"email": "admin", "password": "changeme"},
         )
-        # response.raise_for_status()
+        response.raise_for_status()
         token = response.json()["value"]
         client.headers = {"Authorization": f"Bearer {token}"}
         yield client
