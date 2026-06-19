@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from api.dependencies import auth_login_use_case_factory
 from api.domain.user.errors import InvalidUserPasswordError, UserNotFoundError
@@ -40,7 +40,5 @@ async def login(body: AuthLoginBody, auth_login_use_case: AuthLoginUseCase = Dep
             return AuthLoginResponse.model_validate(key, from_attributes=True)
         case InvalidUserPasswordError():
             raise InvalidPasswordHTTPException()
-        case UserNotFoundError(id=user_id) if user_id is not None:
-            raise UserNotFoundHTTPException(user_id)
-        case UserNotFoundError():
-            raise HTTPException(status_code=404, detail="User not found.")
+        case UserNotFoundError(email=email):
+            raise UserNotFoundHTTPException(email=email)
