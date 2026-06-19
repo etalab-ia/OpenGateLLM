@@ -15,7 +15,7 @@ from api.schemas.core.configuration import ConfigFile as ApiConfigFile  # noqa: 
 from app.core.configuration import ConfigFile as PlaygroundConfigFile  # noqa: E402 # type: ignore
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--output", type=str, default=os.path.join("./docs/src/content/docs/configuration/configuration_file.md"))
+parser.add_argument("--output", type=str, default=os.path.join("./docs/src/content/docs/configuration/configuration_file.mdx"))
 
 
 class Row(BaseModel):
@@ -247,7 +247,7 @@ The following is an example of configuration file:
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    assert args.output.endswith(".md"), f"Output file must end with .md ({args.output})"
+    assert args.output.endswith(".mdx"), f"Output file must end with .mdx ({args.output})"
     assert os.path.exists(os.path.dirname(args.output)), f"Output directory does not exist ({os.path.dirname(args.output)})"
 
     with open(file=os.path.join("./scripts/docs/configuration_header.md")) as f:
