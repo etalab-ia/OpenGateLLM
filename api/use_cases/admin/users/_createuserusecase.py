@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user import UserRepository
+from api.domain.user import UserPasswordEncoder, UserRepository
 from api.domain.user.entities import User
 from api.domain.user.errors import UserAlreadyExistsError
 
@@ -28,13 +28,15 @@ type CreateUserUseCaseResult = CreateUserUseCaseSuccess | UserAlreadyExistsError
 
 
 class CreateUserUseCase:
-    def __init__(self, user_repository: UserRepository):
+    def __init__(self, user_repository: UserRepository, user_password_encoder: UserPasswordEncoder):
         self.user_repository = user_repository
+        self.user_password_encoder = user_password_encoder
 
     async def execute(self, command: CreateUserCommand) -> CreateUserUseCaseResult:
+        password = self.user_password_encoder.encode_password(password=command.password) if command.password is not None else None
         result = await self.user_repository.create_user(
             email=command.email,
-            password=command.password,
+            password=password,
             role_id=command.role_id,
             name=command.name,
             organization_id=command.organization_id,

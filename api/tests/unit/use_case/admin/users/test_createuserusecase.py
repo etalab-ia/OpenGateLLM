@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -15,8 +15,15 @@ def user_repository():
 
 
 @pytest.fixture
-def use_case(user_repository):
-    return CreateUserUseCase(user_repository=user_repository)
+def user_password_encoder():
+    encoder = MagicMock()
+    encoder.encode_password.return_value = "encoded:s3cr3t"
+    return encoder
+
+
+@pytest.fixture
+def use_case(user_repository, user_password_encoder):
+    return CreateUserUseCase(user_repository=user_repository, user_password_encoder=user_password_encoder)
 
 
 @pytest.fixture
@@ -30,7 +37,7 @@ def default_command():
 
 class TestCreateUserUseCase:
     @pytest.mark.asyncio
-    async def test_should_create_user_with_default_values(self, use_case, user_repository):
+    async def test_should_create_user_with_default_values(self, use_case, user_repository, user_password_encoder):
         # Arrange
         command = CreateUserCommand(
             email="newuser@test.com",
@@ -60,6 +67,7 @@ class TestCreateUserUseCase:
         assert result.user.id == 42
         assert result.user.email == "newuser@test.com"
 
+        user_password_encoder.encode_password.assert_called_once_with(password="s3cr3t")
         user_repository.create_user.assert_awaited_once()
         assert user_repository.create_user.call_args.kwargs == {
             "email": "newuser@test.com",
@@ -67,13 +75,13 @@ class TestCreateUserUseCase:
             "name": "New User",
             "expires": None,
             "organization_id": 5,
-            "password": "s3cr3t",
+            "password": "encoded:s3cr3t",
             "budget": 100.0,
             "priority": 2,
         }
 
     @pytest.mark.asyncio
-    async def test_should_create_user_when_password_is_none(self, use_case, user_repository):
+    async def test_should_create_user_when_password_is_none(self, use_case, user_repository, user_password_encoder):
         # Arrange
         command = CreateUserCommand(
             email="newuser-nopassword@test.com",
@@ -103,6 +111,7 @@ class TestCreateUserUseCase:
         assert result.user.id == 43
         assert result.user.email == "newuser-nopassword@test.com"
 
+        user_password_encoder.encode_password.assert_not_called()
         user_repository.create_user.assert_awaited_once()
         assert user_repository.create_user.call_args.kwargs["password"] is None
 

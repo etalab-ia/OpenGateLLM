@@ -141,7 +141,7 @@ def _key_repository(key_encoder: KeyEncoder = Depends(_key_encoder), session: As
 
 
 def _user_repository(session: AsyncSession) -> PostgresUserRepository:
-    return PostgresUserRepository(postgres_session=session, user_password_encoder=_user_password_encoder())
+    return PostgresUserRepository(postgres_session=session)
 
 
 def _role_repository(session: AsyncSession) -> PostgresRolesRepository:
@@ -188,7 +188,8 @@ def auth_login_use_case_factory(
 ) -> AuthLoginUseCase:
     return AuthLoginUseCase(
         key_repository=PostgresKeyRepository(key_encoder=key_encoder, postgres_session=postgres_session),
-        user_repository=PostgresUserRepository(postgres_session=postgres_session, user_password_encoder=password_encoder),
+        user_repository=PostgresUserRepository(postgres_session=postgres_session),
+        user_password_encoder=password_encoder,
         login_session_duration=configuration.settings.auth_login_session_duration,
     )
 
@@ -209,7 +210,7 @@ def get_model_use_case_factory(postgres_session: AsyncSession = Depends(get_post
 
 # user use cases
 def create_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateUserUseCase:
-    return CreateUserUseCase(user_repository=_user_repository(postgres_session))
+    return CreateUserUseCase(user_repository=_user_repository(postgres_session), user_password_encoder=_user_password_encoder())
 
 
 def get_one_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneUserUseCase:

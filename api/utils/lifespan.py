@@ -22,7 +22,6 @@ from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
-from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
@@ -122,7 +121,7 @@ def create_postgres_session_factory(configuration: Configuration) -> tuple[Async
 
 
 async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_session: AsyncSession) -> int:
-    user_repository = PostgresUserRepository(postgres_session=postgres_session, user_password_encoder=BcryptUserPasswordEncoder())
+    user_repository = PostgresUserRepository(postgres_session=postgres_session)
     role_repository = PostgresRolesRepository(postgres_session=postgres_session)
     limit_repository = PostgresLimitRepository(postgres_session=postgres_session)
     permission_repository = PostgresPermissionRepository(postgres_session=postgres_session)

@@ -29,8 +29,10 @@ class TestAuthLogin:
     async def setup(self, db_session):
         role = RoleSQLFactory()
         await db_session.flush()
-        repository = PostgresUserRepository(postgres_session=db_session, user_password_encoder=BcryptUserPasswordEncoder())
-        await repository.create_user(email="login-user@test.com", password="s3cr3t", role_id=role.id)
+        password_encoder = BcryptUserPasswordEncoder()
+        repository = PostgresUserRepository(postgres_session=db_session)
+        encoded_password = password_encoder.encode_password(password="s3cr3t")
+        await repository.create_user(email="login-user@test.com", password=encoded_password, role_id=role.id)
 
     async def test_happy_path(self, client: AsyncClient):
         response = await client.post(url=URL, json=_valid_body())
