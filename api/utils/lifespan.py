@@ -242,7 +242,7 @@ def create_identity_access_manager(configuration: Configuration) -> IdentityAcce
     return IdentityAccessManager(
         secret_key=configuration.settings.auth_secret_key,
         key_max_expiration_days=configuration.settings.auth_key_max_expiration_days,
-        playground_session_duration=configuration.settings.auth_playground_session_duration,
+        playground_session_duration=configuration.settings.auth_login_session_duration,
     )
 
 

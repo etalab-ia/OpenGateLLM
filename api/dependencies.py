@@ -189,7 +189,7 @@ def auth_login_use_case_factory(
     return AuthLoginUseCase(
         key_repository=PostgresKeyRepository(key_encoder=key_encoder, postgres_session=postgres_session),
         user_repository=PostgresUserRepository(postgres_session=postgres_session, user_password_encoder=password_encoder),
-        login_session_duration=configuration.settings.auth_playground_session_duration,
+        login_session_duration=configuration.settings.auth_login_session_duration,
     )
 
 
