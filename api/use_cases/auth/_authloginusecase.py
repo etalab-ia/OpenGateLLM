@@ -43,9 +43,9 @@ class AuthLoginUseCase:
                 return error
             case _:
                 user_id, encoded_password = result
-                if encoded_password is not None and not self.user_password_encoder.validate_password(
-                    password=command.password, encoded_password=encoded_password
-                ):
+                if encoded_password is None:
+                    return InvalidUserPasswordError()
+                if not self.user_password_encoder.validate_password(password=command.password, encoded_password=encoded_password):
                     return InvalidUserPasswordError()
 
         expires = datetime.now(tz=UTC) + timedelta(seconds=self.login_session_duration)

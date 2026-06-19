@@ -72,33 +72,22 @@ class TestAuthLoginUseCase:
         assert key_repository.upsert_key.await_args.kwargs["expire"] is not None
 
     @pytest.mark.asyncio
-    async def test_should_refresh_playground_key_when_password_is_null(self, use_case, key_repository, user_repository, user_password_encoder):
+    async def test_should_return_invalid_user_password_error_when_stored_password_is_null(
+        self,
+        use_case,
+        user_repository,
+        user_password_encoder,
+        default_command,
+    ):
         # Arrange
-        command = AuthLoginCommand(email="user@test.com", password=None)
         user_repository.get_user_id_and_password_by_email.return_value = (1, None)
-        refreshed_key = Key(
-            id=42,
-            name="playground",
-            user_id=1,
-            value="sk-test-token",
-            expires=datetime(2030, 1, 1, tzinfo=UTC),
-            created=datetime(2030, 1, 1, tzinfo=UTC),
-        )
-        key_repository.upsert_key.return_value = refreshed_key
 
         # Act
-        result = await use_case.execute(command)
+        result = await use_case.execute(default_command)
 
         # Assert
-        assert isinstance(result, AuthLoginUseCaseSuccess)
-        assert result.key.id == 42
-        assert result.key.name == "playground"
-        user_repository.get_user_id_and_password_by_email.assert_awaited_once_with(email="user@test.com")
+        assert isinstance(result, InvalidUserPasswordError)
         user_password_encoder.validate_password.assert_not_called()
-        key_repository.upsert_key.assert_awaited_once()
-        assert key_repository.upsert_key.await_args.kwargs["user_id"] == 1
-        assert key_repository.upsert_key.await_args.kwargs["name"] == "playground"
-        assert key_repository.upsert_key.await_args.kwargs["expire"] is not None
 
     @pytest.mark.asyncio
     async def test_should_return_user_not_found_error(self, use_case, user_repository, default_command):
