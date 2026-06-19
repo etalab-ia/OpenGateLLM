@@ -49,6 +49,26 @@ class TestCreateUser:
         assert data["role"] == role.id
 
     @pytest.mark.parametrize(
+        "body,expected_msg",
+        [
+            ({"email": "newuser@test.com", "role": 1}, "Field required"),
+            ({"email": "newuser@test.com", "role": 1, "password": None}, "Input should be a valid string"),
+        ],
+        ids=["missing_password", "null_password"],
+    )
+    async def test_rejects_missing_or_null_password(self, client: AsyncClient, body, expected_msg):
+        response = await client.post(
+            url=URL,
+            headers={"Authorization": f"Bearer {self.token.token}"},
+            json=body,
+        )
+
+        assert response.status_code == 422, response.text
+        password_errors = [error for error in response.json()["detail"] if error["loc"][-1] == "password"]
+        assert len(password_errors) == 1
+        assert password_errors[0]["msg"] == expected_msg
+
+    @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
         [
             (

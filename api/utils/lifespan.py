@@ -122,7 +122,7 @@ def create_postgres_session_factory(configuration: Configuration) -> tuple[Async
 
 
 async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_session: AsyncSession) -> int:
-    user_repository = PostgresUserRepository(postgres_session=postgres_session, user_password_encoder=BcryptUserPasswordEncoder())
+    user_repository = PostgresUserRepository(postgres_session=postgres_session)
     role_repository = PostgresRolesRepository(postgres_session=postgres_session)
     limit_repository = PostgresLimitRepository(postgres_session=postgres_session)
     permission_repository = PostgresPermissionRepository(postgres_session=postgres_session)
@@ -132,6 +132,7 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
         role_repository=role_repository,
         limit_repository=limit_repository,
         permission_repository=permission_repository,
+        user_password_encoder=BcryptUserPasswordEncoder(),
     ).execute(
         BootstrapAdminCommand(email=configuration.settings.auth_bootsrap_admin_username, password=configuration.settings.auth_bootsrap_admin_password)
     )
@@ -242,7 +243,7 @@ def create_identity_access_manager(configuration: Configuration) -> IdentityAcce
     return IdentityAccessManager(
         secret_key=configuration.settings.auth_secret_key,
         key_max_expiration_days=configuration.settings.auth_key_max_expiration_days,
-        playground_session_duration=configuration.settings.auth_playground_session_duration,
+        playground_session_duration=configuration.settings.auth_login_session_duration,
     )
 
 

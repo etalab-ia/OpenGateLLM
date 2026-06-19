@@ -9,7 +9,7 @@ from api.infrastructure.fastapi.schemas import BaseModel
 class CreateUserBody(BaseModel):
     email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254), Field(..., description="The user email.")]
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="The user name.")
-    password: Annotated[Annotated[str, StringConstraints(strip_whitespace=True, min_length=6, max_length=72)] | None, Field(default=None, description="The user password.")]  # fmt: off
+    password: Annotated[Annotated[str, StringConstraints(strip_whitespace=True, min_length=6, max_length=72)], Field(description="The user password.")]  # fmt: off
     role: int = Field(..., description="The role ID.")
     organization_id: int | None = Field(default=None, description="The organization ID.")
     budget: float | None = Field(default=None, description="The budget.")

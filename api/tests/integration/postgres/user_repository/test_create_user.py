@@ -1,5 +1,3 @@
-from unittest.mock import MagicMock
-
 import pytest
 from sqlalchemy import select
 
@@ -13,16 +11,8 @@ from api.tests.integration.factories.sql import OrganizationSQLFactory, RoleSQLF
 
 
 @pytest.fixture
-def user_password_encoder():
-    user_password_encoder = MagicMock()
-    user_password_encoder.encode_password.return_value = "encoded:s3cr3t"
-
-    return user_password_encoder
-
-
-@pytest.fixture
-def repository(db_session, user_password_encoder):
-    return PostgresUserRepository(postgres_session=db_session, user_password_encoder=user_password_encoder)
+def repository(db_session):
+    return PostgresUserRepository(postgres_session=db_session)
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -58,18 +48,17 @@ class TestCreateUser:
         row = (await db_session.execute(select(UserTable.password).where(UserTable.email == "nopassword@test.com"))).scalar_one()
         assert row is None
 
-    async def test_password_is_hashed_in_db(self, repository, db_session):
+    async def test_password_is_stored_as_provided(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()
         await db_session.flush()
 
         # Act
-        await repository.create_user(email="hashed@test.com", password="plaintext", role_id=role.id)
+        await repository.create_user(email="hashed@test.com", password="encoded:s3cr3t", role_id=role.id)
         await db_session.flush()
 
         # Assert
         row = (await db_session.execute(select(UserTable.password).where(UserTable.email == "hashed@test.com"))).scalar_one()
-        assert row != "plaintext"
         assert row == "encoded:s3cr3t"
 
     async def test_returns_user_already_exists_error_when_email_is_duplicate(self, repository, db_session):

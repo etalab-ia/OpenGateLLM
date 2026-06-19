@@ -7,7 +7,6 @@ from api.domain.user.entities import User, UserPage, UserSortField
 from api.domain.user.errors import (
     DeleteUserWithProvidersError,
     DeleteUserWithRoutersError,
-    InvalidUserPasswordError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -64,5 +63,5 @@ class UserRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_user_password_by_email_and_password(self, email: str, password: str) -> User | UserNotFoundError | InvalidUserPasswordError:
+    async def get_user_id_and_password_by_email(self, email: str) -> tuple[int, str | None] | UserNotFoundError:
         pass

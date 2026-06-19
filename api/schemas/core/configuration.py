@@ -404,7 +404,7 @@ class Settings(ConfigBaseModel):
     auth_bootsrap_admin_username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(default="admin", description="Username of the admin user created at the first startup.")  # fmt: off
     auth_bootsrap_admin_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72)] = Field(default="changeme", description="Password of the admin user created at the first startup.")  # fmt: off
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a new API key to be valid.")  # fmt: off
-    auth_playground_session_duration: int = Field(default=3600, ge=1, description="Duration of the playground postgres_session in seconds.")  # fmt: off
+    auth_login_session_duration: int = Field(default=3600, ge=1, description="Duration of the playground postgres_session in seconds.")  # fmt: off
 
     # rate_limiting
     rate_limiting_strategy: LimitingStrategy = Field(default=LimitingStrategy.FIXED_WINDOW, description="Rate limiting strategy for the API.")  # fmt: off

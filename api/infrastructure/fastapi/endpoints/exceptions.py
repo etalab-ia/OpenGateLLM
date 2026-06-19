@@ -129,8 +129,16 @@ class UserNotFoundHTTPException(HTTPException):
     status_code = 404
     detail = "User {user_id} not found."
 
-    def __init__(self, user_id: int) -> None:
-        super().__init__(status_code=self.status_code, detail=f"User {user_id} not found.")
+    def __init__(self, user_id: int | None = None, email: str | None = None) -> None:
+
+        if user_id is not None:
+            detail = f"User {user_id} not found."
+        elif email is not None:
+            detail = f"User {email} not found."
+        else:
+            detail = "User not found."
+
+        super().__init__(status_code=self.status_code, detail=detail)
 
 
 # 409

@@ -6,12 +6,11 @@ from api.domain import SortOrder
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.entities import PermissionType
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user import UserPasswordEncoder, UserRepository
+from api.domain.user import UserRepository
 from api.domain.user.entities import User, UserPage, UserSortField
 from api.domain.user.errors import (
     DeleteUserWithProvidersError,
     DeleteUserWithRoutersError,
-    InvalidUserPasswordError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
@@ -41,9 +40,8 @@ _USER_COLUMNS = (
 
 
 class PostgresUserRepository(UserRepository):
-    def __init__(self, postgres_session: AsyncSession, user_password_encoder: UserPasswordEncoder):
+    def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
-        self.user_password_encoder = user_password_encoder
 
     @staticmethod
     def _row_to_user(row) -> User:
@@ -83,7 +81,6 @@ class PostgresUserRepository(UserRepository):
         expires: int | None = None,
         priority: int = 0,
     ) -> User | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError:
-        encoded_password = self.user_password_encoder.encode_password(password=password) if password is not None else None
         expires_value = func.to_timestamp(expires) if expires is not None else None
 
         try:
@@ -92,7 +89,7 @@ class PostgresUserRepository(UserRepository):
                 .values(
                     email=email,
                     name=name,
-                    password=encoded_password,
+                    password=password,
                     sub=sub,
                     iss=iss,
                     role_id=role_id,
@@ -249,13 +246,10 @@ class PostgresUserRepository(UserRepository):
 
         return self._row_to_user(row)
 
-    async def get_user_password_by_email_and_password(self, email: str, password: str) -> User | UserNotFoundError | InvalidUserPasswordError:
-        result = await self.postgres_session.execute(select(*_USER_COLUMNS, UserTable.password).where(UserTable.email == email))
+    async def get_user_id_and_password_by_email(self, email: str) -> tuple[int, str | None] | UserNotFoundError:
+        result = await self.postgres_session.execute(select(UserTable.id, UserTable.password).where(UserTable.email == email))
         row = result.one_or_none()
         if row is None:
             return UserNotFoundError(email=email)
 
-        if row.password is not None and not self.user_password_encoder.validate_password(password=password, encoded_password=row.password):
-            return InvalidUserPasswordError()
-
-        return self._row_to_user(row)
+        return row.id, row.password
