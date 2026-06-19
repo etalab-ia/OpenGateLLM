@@ -50,7 +50,7 @@ class TestAuthLogin:
             (
                 UserNotFoundError(email="missing@test.com"),
                 404,
-                "User not found.",
+                "User missing@test.com not found.",
             ),
             (
                 InvalidUserPasswordError(),
