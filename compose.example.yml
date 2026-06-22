@@ -29,8 +29,6 @@ services:
       - "REDIS_PORT=${REDIS_PORT:-6379}"
     ports:
       - "${PLAYGROUND_PORT:-8501}:8501"
-    volumes:
-      - "./${CONFIG_FILE:-config.yml}:/config.yml:ro"
     healthcheck:
       test: [ "CMD-SHELL", "curl -sf http://localhost:8501/ping || exit 1" ]
       interval: 5s

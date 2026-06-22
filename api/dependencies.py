@@ -194,12 +194,11 @@ def auth_login_use_case_factory(
 def auth_oidc_login_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     key_encoder: KeyEncoder = Depends(_key_encoder),
-    user_password_encoder: UserPasswordEncoder = Depends(_user_password_encoder),
     auth_oidc_provider_cache: AuthOidcProviderCache = Depends(_auth_oidc_provider_cache),
 ) -> AuthOidcLoginUseCase:
     return AuthOidcLoginUseCase(
         key_repository=PostgresKeyRepository(key_encoder=key_encoder, postgres_session=postgres_session),
-        user_repository=PostgresUserRepository(postgres_session=postgres_session, user_password_encoder=user_password_encoder),
+        user_repository=PostgresUserRepository(postgres_session=postgres_session),
         auth_oidc_provider_client=_auth_oidc_provider_client(),
         auth_oidc_token_validator=_auth_oidc_token_validator(),
         auth_oidc_provider_cache=auth_oidc_provider_cache,

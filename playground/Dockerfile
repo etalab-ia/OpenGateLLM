@@ -45,10 +45,13 @@ RUN apt-get update && \
 RUN groupadd --gid 1100 opengatellm && \
     useradd --home /playground --gid 1100 --uid 1100 --create-home opengatellm
 
+# Re-declare build args in this stage (ARGs from the builder stage are not inherited).
+ARG NGINX_CONF=./playground/nginx.conf
+
 COPY --chown=opengatellm:opengatellm ./playground/rxconfig.py ./rxconfig.py
 COPY --chown=opengatellm:opengatellm ./playground/app ./app
 COPY --chown=opengatellm:opengatellm ./playground/assets ./assets
-COPY --chown=opengatellm:opengatellm ./playground/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chown=opengatellm:opengatellm ${NGINX_CONF} /etc/nginx/conf.d/default.conf
 COPY --chown=opengatellm:opengatellm ./playground/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 COPY --from=builder --chown=opengatellm:opengatellm /playground/config.yml ./config.yml

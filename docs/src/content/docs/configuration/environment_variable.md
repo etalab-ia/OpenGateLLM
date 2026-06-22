@@ -25,6 +25,7 @@ For adapt the playground docker image for your deployment, you can build it with
 | REFLEX_FRONTEND_URL | str | `"http://localhost:8501"` | URL of the frontend application. |
 | REFLEX_FRONTEND_PATH | str | `""` | Path of the frontend application. |
 | FAVICON | str | `"./playground/assets/logo.svg"` | Path to your favicon file. |
+| NGINX_CONF | str | `"./playground/nginx.conf"` | Path to your nginx configuration file. |
 
 Example: 
 ```bash
