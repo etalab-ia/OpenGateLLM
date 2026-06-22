@@ -122,7 +122,7 @@ def navigation_sidebar() -> rx.Component:
                         "Logout",
                         on_click=rx.cond(
                             configuration.settings.auth_login_type == "oidc",
-                            AuthState.oauth2_logout,
+                            AuthState.oidc_logout,
                             AuthState.basic_logout,
                         ),
                         variant="soft",

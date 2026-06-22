@@ -35,7 +35,10 @@ class AuthState(rx.State):
     opengatellm_url: str = configuration.settings.playground_opengatellm_url
     opengatellm_timeout: int = configuration.settings.playground_opengatellm_timeout
     login_type: str = configuration.settings.auth_login_type
-    oauth2_oidc_provider_logout_url: str = configuration.settings.auth_oauth2_oidc_provider_logout_url
+    if getattr(configuration.settings, "auth_sso_logout_redirect_uri", None) is not None:
+        sso_logout_redirect_url: str = configuration.settings.auth_sso_logout_redirect_uri
+    else:
+        sso_logout_redirect_url: None = None
 
     # Form fields
     email_input: str = ""
@@ -59,7 +62,7 @@ class AuthState(rx.State):
         )
         return response
 
-    async def _oidc_login(self, client: httpx.AsyncClient, email: str, id_token: str):
+    async def _sso_login(self, client: httpx.AsyncClient, email: str, id_token: str):
         response = await client.post(
             url=f"{self.opengatellm_url}/v1/auth/oidc/login",
             json={"email": email, "id_token": id_token},
@@ -142,7 +145,7 @@ class AuthState(rx.State):
             yield
 
     @rx.event
-    async def oauth2_login(self):
+    async def oidc_login(self):
         if self.is_authenticated:
             return
 
@@ -169,7 +172,7 @@ class AuthState(rx.State):
         try:
             async with httpx.AsyncClient() as client:
                 # Create API key
-                response = await self._oidc_login(client=client, email=email, id_token=id_token)
+                response = await self._sso_login(client=client, email=email, id_token=id_token)
 
                 response.raise_for_status()
                 api_key = response.json().get("value")
@@ -229,7 +232,7 @@ class AuthState(rx.State):
         self.user_limits = []
 
     @rx.event
-    def oauth2_logout(self):
+    def oidc_logout(self):
         """Handle SSO logout by redirecting the browser to oauth2-proxy sign_out.
 
         oauth2-proxy clears the session cookie then redirects to the provider logout URL.
@@ -248,5 +251,5 @@ class AuthState(rx.State):
         self.user_permissions = []
         self.user_limits = []
 
-        sign_out_path = f"/oauth2/sign_out?rd={quote(self.oauth2_oidc_provider_logout_url, safe='')}"
+        sign_out_path = f"/oauth2/sign_out?rd={quote(self.sso_logout_redirect_url, safe='')}"
         return rx.call_script(f"window.location.assign({json.dumps(sign_out_path)})")

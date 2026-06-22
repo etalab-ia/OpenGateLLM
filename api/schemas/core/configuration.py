@@ -436,16 +436,13 @@ class Settings(ConfigBaseModel):
 
 class SettingsLoginPassword(Settings):
     auth_login_type: Literal["password"] = Field(default="password", description="Login type for the API.")  # fmt: off
-    auth_oauth2_oidc_issuer_url: Any = Field(default=None, description="OIDC issuer URL used to fetch JWKS and validate id_tokens.")  # fmt: off
-    auth_oauth2_oidc_client_id: Any = Field(default=None, description="OIDC client_id (audience) for id_token validation. Falls back to OAUTH2_PROXY_CLIENT_ID env var.")  # fmt: off
-    auth_oauth2_default_role_id: Any = Field(default=None, description="Default role ID for SSO users.")  # fmt: off
 
 
 class SettingsLoginOIDC(Settings):
     auth_login_type: Literal["oidc"] = Field(default="oidc", description="Login type for the API.")  # fmt: off
-    auth_oauth2_oidc_issuer_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC issuer URL used to fetch JWKS and validate id_tokens.")  # fmt: off
-    auth_oauth2_oidc_client_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC client_id (audience) for id_token validation. Falls back to OAUTH2_PROXY_CLIENT_ID env var.")  # fmt: off
-    auth_oauth2_default_role_id: int = Field(default=1, ge=1, description="Default role ID for SSO users.")
+    auth_sso_oidc_issuer_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC issuer URL used to fetch JWKS and validate id_tokens.")  # fmt: off
+    auth_sso_client_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC client_id (audience) for id_token validation. Falls back to OAUTH2_PROXY_CLIENT_ID env var.")  # fmt: off
+    auth_sso_default_role_id: int = Field(default=1, ge=1, description="Default role ID for SSO users.")
 
 
 # load config ----------------------------------------------------------------------------------------------------------------------------------------
@@ -481,12 +478,6 @@ class ConfigFile(ConfigBaseModel):
         if isinstance(data, dict) and isinstance(data.get("settings"), dict):
             settings = data["settings"]
             settings.setdefault("auth_login_type", "password")
-            if "auth_playground_session_duration" in settings and "auth_login_session_duration" not in settings:
-                settings["auth_login_session_duration"] = settings["auth_playground_session_duration"]
-            if "auth_sso_oidc_issuer_url" in settings and "auth_oauth2_oidc_issuer_url" not in settings:
-                settings["auth_oauth2_oidc_issuer_url"] = settings.pop("auth_sso_oidc_issuer_url")
-            if "auth_sso_oidc_client_id" in settings and "auth_oauth2_oidc_client_id" not in settings:
-                settings["auth_oauth2_oidc_client_id"] = settings.pop("auth_sso_oidc_client_id")
         return data
 
     @model_validator(mode="after")

@@ -94,7 +94,7 @@ def _authenticated_user_query(session: AsyncSession = Depends(get_postgres_sessi
 
 # helpers
 def _auth_oidc_provider_client() -> AuthOidcProviderClient:
-    return HttpAuthOidcProviderClient(issuer_url=configuration.settings.auth_oauth2_oidc_issuer_url)
+    return HttpAuthOidcProviderClient(issuer_url=configuration.settings.auth_sso_oidc_issuer_url)
 
 
 def _auth_oidc_token_validator() -> AuthOidcTokenValidator:
@@ -202,11 +202,11 @@ def auth_oidc_login_use_case_factory(
         auth_oidc_provider_client=_auth_oidc_provider_client(),
         auth_oidc_token_validator=_auth_oidc_token_validator(),
         auth_oidc_provider_cache=auth_oidc_provider_cache,
-        oauth2_login_type=configuration.settings.auth_login_type,
-        oauth2_oidc_issuer_url=configuration.settings.auth_oauth2_oidc_issuer_url,
-        oauth2_oidc_client_id=configuration.settings.auth_oauth2_oidc_client_id,
-        oauth2_default_role_id=configuration.settings.auth_oauth2_default_role_id,
-        login_session_duration=configuration.settings.auth_login_session_duration,
+        auth_login_type=configuration.settings.auth_login_type,
+        auth_sso_oidc_issuer_url=configuration.settings.auth_sso_oidc_issuer_url,
+        auth_sso_client_id=configuration.settings.auth_sso_client_id,
+        auth_sso_default_role_id=configuration.settings.auth_sso_default_role_id,
+        auth_login_session_duration=configuration.settings.auth_login_session_duration,
     )
 
 

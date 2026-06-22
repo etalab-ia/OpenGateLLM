@@ -3,6 +3,7 @@ from functools import wraps
 import logging
 import os
 import re
+import secrets
 from typing import Annotated, Any, Literal, get_args, get_origin
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, constr, field_validator, model_validator
@@ -138,12 +139,25 @@ class Settings(ConfigBaseModel):
 
 class SettingsLoginPassword(Settings):
     auth_login_type: Literal["password"] = Field(default="password", description="Login type for the API.")
-    auth_oauth2_oidc_provider_logout_url: Any = Field(default=None, description="The logout url for SSO.")
 
 
 class SettingsLoginOIDC(Settings):
     auth_login_type: Literal["oidc"] = Field(default="oidc", description="Login type for the API.")
-    auth_oauth2_oidc_provider_logout_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="The logout url for SSO.")  # fmt: off
+
+    auth_app_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="http://localhost:8501", description="The URL of the application, use to whitelist domains in oauth2-proxy. Can be overridden by OAUTH2_PROXY_WHITELIST_DOMAINS env var.")  # fmt: off
+    auth_sso_oidc_issuer_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC issuer URL used to fetch JWKS and validate id_tokens.")  # fmt: off
+    auth_sso_client_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC client_id (audience) for id_token validation. Falls back to OAUTH2_PROXY_CLIENT_ID env var.")  # fmt: off
+    auth_sso_client_secret: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC client secret for id_token validation. Can be overridden by OAUTH2_PROXY_CLIENT_SECRET env var.")  # fmt: off
+    auth_sso_cookie_secret: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default=None, description="OIDC cookie secret for id_token validation. Can be overridden by OAUTH2_PROXY_COOKIE_SECRET env var.")  # fmt: off
+    auth_sso_logout_redirect_uri: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="The logout redirect uri for SSO. Can be overridden by OAUTH2_PROXY_REDIRECT_URL env var.")  # fmt: off
+    auth_sso_oidc_scope: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="openid", description="OIDC scope for id_token validation. Can be overridden by OAUTH2_PROXY_SCOPE env var.")  # fmt: off
+    auth_sso_cookie_secure: bool = Field(default=False, description="Whether the cookie is secure. Can be overridden by OAUTH2_PROXY_COOKIE_SECURE env var. Set to True if the application is served over HTTPS.")  # fmt: off
+
+    @field_validator("auth_sso_cookie_secret", mode="after")
+    def set_auth_sso_cookie_secure(cls, value: str | None):
+        if value is None:
+            return secrets.token_bytes(32).hex()
+        return value
 
 
 class ConfigFile(ConfigBaseModel):
@@ -162,7 +176,10 @@ class ConfigFile(ConfigBaseModel):
     @classmethod
     def normalize(cls, data: Any) -> Any:
         if isinstance(data, dict) and isinstance(data.get("settings"), dict):
-            data["settings"].setdefault("auth_login_type", "password")
+            settings = data["settings"]
+            settings.setdefault("auth_login_type", "password")
+            if "auth_oauth2_oidc_provider_logout_url" in settings and "auth_sso_logout_redirect_uri" not in settings:
+                settings["auth_sso_logout_redirect_uri"] = settings.pop("auth_oauth2_oidc_provider_logout_url")
         return data
 
 

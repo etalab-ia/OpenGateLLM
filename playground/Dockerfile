@@ -60,16 +60,16 @@ RUN case "${TARGETARCH}" in \
 RUN groupadd --gid 1100 opengatellm && \
     useradd --home /playground --gid 1100 --uid 1100 --create-home opengatellm
 
-# Re-declare build args in this stage (ARGs from the builder stage are not inherited).
-ARG NGINX_CONF=./playground/nginx.conf
-
 COPY --chown=opengatellm:opengatellm ./playground/rxconfig.py ./rxconfig.py
 COPY --chown=opengatellm:opengatellm ./playground/app ./app
 COPY --chown=opengatellm:opengatellm ./playground/assets ./assets
-COPY --chown=opengatellm:opengatellm ${NGINX_CONF} /etc/nginx/conf.d/default.conf
+COPY --chown=opengatellm:opengatellm ./playground/nginx.conf /playground/nginx.conf
+COPY --chown=opengatellm:opengatellm ./playground/nginx.oauth2-proxy.conf /playground/nginx.oauth2-proxy.conf
 COPY --chown=opengatellm:opengatellm ./playground/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY --chown=opengatellm:opengatellm ./playground/oauth2-proxy.cfg /playground/oauth2-proxy.cfg
 COPY --chown=opengatellm:opengatellm ./playground/oauth2-proxy-entrypoint.sh /playground/oauth2-proxy-entrypoint.sh
+COPY --chown=opengatellm:opengatellm ./playground/playground-entrypoint.py /playground/playground-entrypoint.py
+
 RUN chmod +x /playground/oauth2-proxy-entrypoint.sh
 
 COPY --from=builder --chown=opengatellm:opengatellm /playground/config.yml ./config.yml
@@ -80,10 +80,10 @@ ENV CONFIG_FILE=config.yml \
     PATH="/playground/.venv/bin:${PATH}" \
     PYTHONPATH="/playground:"
 
-RUN chown -R opengatellm:opengatellm /playground /var/lib/nginx /var/log/nginx /run /etc/supervisor /usr/share/nginx/html
+RUN chown -R opengatellm:opengatellm /playground /var/lib/nginx /var/log/nginx /run /etc/supervisor /etc/nginx/conf.d /usr/share/nginx/html
 
 EXPOSE 8501 4180
 
 USER opengatellm
 
-CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["python", "/playground/playground-entrypoint.py"]

@@ -1,5 +1,5 @@
 ---
-title: Single Sign-On (SSO)
+title: Single Sign-On (SSO) for the Playground
 sidebar:
   label: "[lucide:shield-user] Single Sign-On (SSO)"
 ---
@@ -26,12 +26,18 @@ idp ->> user: Response
 
 ## Configuration
 
-* Build the playground image with the SSO nginx configuration and oauth2-proxy embedded in the container.
+To activate SSO, you need to set the `auth_login_type` to `oidc` in the configuration file. You need to provide the following settings:
 
-  * Set the `NGINX_CONF` build argument to `./playground/nginx.oauth2-proxy.conf`.
-  * Expose the playground container port `4180` (oauth2-proxy) to the host port of the playground (default `8501`).
-  * Do not expose the nginx port `8501` directly; oauth2-proxy proxies authenticated traffic to nginx on `127.0.0.1:8501`.
-  * Pass the `OAUTH2_PROXY_*` environment variables to the *playground* container.
+  ```yaml
+  settings:
+    auth_login_type: oidc
+    auth_sso_oidc_issuer_url: https://...
+    auth_sso_client_id: ${OAUTH2_PROXY_CLIENT_ID}
+    auth_sso_default_role_id: 1
+    auth_oauth2_oidc_provider_logout_url:
+  ```
+
+* Pass the `OAUTH2_PROXY_*` environment variables to the *playground* container.
 
   Example configuration:
   ```yaml
@@ -45,7 +51,6 @@ idp ->> user: Response
         dockerfile: playground/Dockerfile
         args:
           CONFIG_FILE: config.yml
-          NGINX_CONF: ./playground/nginx.oauth2-proxy.conf
       env_file: .env
       environment:
         - "OPENGATELLM_URL=${OPENGATELLM_URL:-http://api:8000}"
@@ -54,27 +59,6 @@ idp ->> user: Response
         - "OAUTH2_PROXY_CLIENT_ID=${OAUTH2_PROXY_CLIENT_ID}"
         - "OAUTH2_PROXY_CLIENT_SECRET=${OAUTH2_PROXY_CLIENT_SECRET}"
         - "OAUTH2_PROXY_COOKIE_SECRET=${OAUTH2_PROXY_COOKIE_SECRET}"
-        - "OAUTH2_PROXY_PROVIDER=oidc"
-        - "OAUTH2_PROXY_PROVIDER_DISPLAY_NAME=ProConnect"
-        - "OAUTH2_PROXY_OIDC_ISSUER_URL=https://fca.integ01.dev-agentconnect.fr/api/v2"
-        - "OAUTH2_PROXY_SCOPE=openid email profile"
-        - "OAUTH2_PROXY_UPSTREAMS=http://127.0.0.1:8501"
-        - "OAUTH2_PROXY_REDIRECT_URL=http://localhost:8501/oauth2/callback"
-        - "OAUTH2_PROXY_WHITELIST_DOMAINS=fca.integ01.dev-agentconnect.fr,localhost"
-        - "OAUTH2_PROXY_EMAIL_DOMAINS=*"
-        - "OAUTH2_PROXY_SET_XAUTHREQUEST=true"
-        - "OAUTH2_PROXY_SET_AUTHORIZATION_HEADER=true"
-        - "OAUTH2_PROXY_PASS_USER_HEADERS=true"
-        - "OAUTH2_PROXY_PASS_ACCESS_TOKEN=true"
-        - "OAUTH2_PROXY_PASS_AUTHORIZATION_HEADER=true"
-        - "OAUTH2_PROXY_COOKIE_NAME=_oauth2_proxy_opengatellm"
-        - "OAUTH2_PROXY_COOKIE_SECURE=false"
-        - "OAUTH2_PROXY_COOKIE_SAMESITE=lax"
-        - "OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180"
-        - "OAUTH2_PROXY_SKIP_PROVIDER_BUTTON=true"
-        - "OAUTH2_PROXY_REQUEST_LOGGING=true"
-        - "OAUTH2_PROXY_AUTH_LOGGING=true"
-        - "OAUTH2_PROXY_STANDARD_LOGGING=true"
       ports:
         - "${OAUTH2_PROXY_PORT:-8501}:4180"
       healthcheck:
@@ -111,9 +95,9 @@ idp ->> user: Response
 settings: 
     [...]
     auth_login_type: oidc
-    auth_oauth2_oidc_issuer_url: https://...
-    auth_oauth2_oidc_client_id: ${OAUTH2_PROXY_CLIENT_ID}
-    auth_oauth2_default_role_id: 1
+    auth_sso_oidc_issuer_url: https://...
+    auth_sso_client_id: ${OAUTH2_PROXY_CLIENT_ID}
+    auth_sso_default_role_id: 1
     auth_oauth2_oidc_provider_logout_url: ${SSO_PROVIDER_LOGOUT_URL}
 ```
 
