@@ -1,11 +1,11 @@
 from ._authloginusecase import AuthLoginCommand, AuthLoginUseCase, AuthLoginUseCaseSuccess
-from ._authoidcloginusecase import AuthOidcLoginCommand, AuthOidcLoginUseCase, AuthOidcLoginUseCaseSuccess
+from ._authssologinusecase import AuthSsoLoginCommand, AuthSsoLoginUseCase, AuthSsoLoginUseCaseSuccess
 
 __all__ = [
     "AuthLoginCommand",
     "AuthLoginUseCase",
     "AuthLoginUseCaseSuccess",
-    "AuthOidcLoginCommand",
-    "AuthOidcLoginUseCase",
-    "AuthOidcLoginUseCaseSuccess",
+    "AuthSsoLoginCommand",
+    "AuthSsoLoginUseCase",
+    "AuthSsoLoginUseCaseSuccess",
 ]

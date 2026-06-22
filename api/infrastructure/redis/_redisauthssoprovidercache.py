@@ -2,10 +2,10 @@ import json
 
 from redis.asyncio import Redis as AsyncRedis
 
-from api.domain.auth import AuthOidcProviderCache
+from api.domain.auth import AuthSsoProviderCache
 
 
-class RedisAuthOidcProviderCache(AuthOidcProviderCache):
+class RedisAuthSsoProviderCache(AuthSsoProviderCache):
     def __init__(self, redis_client: AsyncRedis):
         self.redis_client = redis_client
 

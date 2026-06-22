@@ -1,4 +1,4 @@
-from ._jwtauthoidctokenvalidator import JwtAuthOidcTokenValidator
+from ._jwtauthssotokenvalidator import JwtAuthSsoTokenValidator
 from ._jwtkeyencoder import JwtKeyEncoder
 
-__all__ = ["JwtAuthOidcTokenValidator", "JwtKeyEncoder"]
+__all__ = ["JwtAuthSsoTokenValidator", "JwtKeyEncoder"]

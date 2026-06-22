@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class AuthOidcProviderCache(ABC):
+class AuthSsoProviderCache(ABC):
     @abstractmethod
     async def get(self, email: str) -> dict | None:
         pass

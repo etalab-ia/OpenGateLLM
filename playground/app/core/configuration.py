@@ -178,8 +178,6 @@ class ConfigFile(ConfigBaseModel):
         if isinstance(data, dict) and isinstance(data.get("settings"), dict):
             settings = data["settings"]
             settings.setdefault("auth_login_type", "password")
-            if "auth_oauth2_oidc_provider_logout_url" in settings and "auth_sso_logout_redirect_uri" not in settings:
-                settings["auth_sso_logout_redirect_uri"] = settings.pop("auth_oauth2_oidc_provider_logout_url")
         return data
 
 

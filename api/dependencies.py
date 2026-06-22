@@ -7,7 +7,7 @@ import redis.asyncio as redis
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.domain.auth import AuthOidcProviderCache, AuthOidcProviderClient, AuthOidcTokenValidator
+from api.domain.auth import AuthSsoProviderCache, AuthSsoProviderClient, AuthSsoTokenValidator
 from api.domain.key import KeyEncoder, KeyRepository
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.provider import (
@@ -24,8 +24,8 @@ from api.domain.user import UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
 from api.infrastructure.fastapi.context import request_context
-from api.infrastructure.http import HttpAuthOidcProviderClient, HttpProviderAdapterBuilder, HttpProviderClient
-from api.infrastructure.jwt import JwtAuthOidcTokenValidator, JwtKeyEncoder
+from api.infrastructure.http import HttpAuthSsoProviderClient, HttpProviderAdapterBuilder, HttpProviderClient
+from api.infrastructure.jwt import JwtAuthSsoTokenValidator, JwtKeyEncoder
 from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
     PostgresAuthenticatedUserQuery,
@@ -37,7 +37,7 @@ from api.infrastructure.postgres import (
     PostgresRouterRepository,
     PostgresUserRepository,
 )
-from api.infrastructure.redis import RedisAuthOidcProviderCache, RedisProviderLoadBalancer, RedisProviderMetricsLogger, RedisRouterRateLimiter
+from api.infrastructure.redis import RedisAuthSsoProviderCache, RedisProviderLoadBalancer, RedisProviderMetricsLogger, RedisRouterRateLimiter
 from api.infrastructure.tiktoken import TiktokenModelTokenizer
 from api.schemas.core.context import RequestContext
 from api.use_cases.admin.keys import CreateKeyUseCase
@@ -51,7 +51,7 @@ from api.use_cases.admin.providers import (
 from api.use_cases.admin.roles import CreateRoleUseCase, DeleteRoleUseCase, GetRolesUseCase, GetRoleUseCase, UpdateRoleUseCase
 from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
 from api.use_cases.admin.users import CreateUserUseCase, DeleteUserUseCase, GetOneUserUseCase, GetUsersUseCase
-from api.use_cases.auth import AuthLoginUseCase, AuthOidcLoginUseCase
+from api.use_cases.auth import AuthLoginUseCase, AuthSsoLoginUseCase
 from api.use_cases.health import GetHealthModelsUseCase
 from api.use_cases.models import GetModelsUseCase, GetModelUseCase
 from api.use_cases.reranks import CreateRerankUseCase
@@ -93,16 +93,16 @@ def _authenticated_user_query(session: AsyncSession = Depends(get_postgres_sessi
 
 
 # helpers
-def _auth_oidc_provider_client() -> AuthOidcProviderClient:
-    return HttpAuthOidcProviderClient(issuer_url=configuration.settings.auth_sso_oidc_issuer_url)
+def _auth_sso_provider_client() -> AuthSsoProviderClient:
+    return HttpAuthSsoProviderClient(issuer_url=configuration.settings.auth_sso_oidc_issuer_url)
 
 
-def _auth_oidc_token_validator() -> AuthOidcTokenValidator:
-    return JwtAuthOidcTokenValidator()
+def _auth_sso_token_validator() -> AuthSsoTokenValidator:
+    return JwtAuthSsoTokenValidator()
 
 
-def _auth_oidc_provider_cache(redis_client: Redis = Depends(get_redis_client)) -> AuthOidcProviderCache:
-    return RedisAuthOidcProviderCache(redis_client=redis_client)
+def _auth_sso_provider_cache(redis_client: Redis = Depends(get_redis_client)) -> AuthSsoProviderCache:
+    return RedisAuthSsoProviderCache(redis_client=redis_client)
 
 
 def _key_encoder() -> KeyEncoder:
@@ -191,17 +191,17 @@ def auth_login_use_case_factory(
     )
 
 
-def auth_oidc_login_use_case_factory(
+def auth_sso_login_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     key_encoder: KeyEncoder = Depends(_key_encoder),
-    auth_oidc_provider_cache: AuthOidcProviderCache = Depends(_auth_oidc_provider_cache),
-) -> AuthOidcLoginUseCase:
-    return AuthOidcLoginUseCase(
+    auth_sso_provider_cache: AuthSsoProviderCache = Depends(_auth_sso_provider_cache),
+) -> AuthSsoLoginUseCase:
+    return AuthSsoLoginUseCase(
         key_repository=PostgresKeyRepository(key_encoder=key_encoder, postgres_session=postgres_session),
         user_repository=PostgresUserRepository(postgres_session=postgres_session),
-        auth_oidc_provider_client=_auth_oidc_provider_client(),
-        auth_oidc_token_validator=_auth_oidc_token_validator(),
-        auth_oidc_provider_cache=auth_oidc_provider_cache,
+        auth_sso_provider_client=_auth_sso_provider_client(),
+        auth_sso_token_validator=_auth_sso_token_validator(),
+        auth_sso_provider_cache=auth_sso_provider_cache,
         auth_login_type=configuration.settings.auth_login_type,
         auth_sso_oidc_issuer_url=configuration.settings.auth_sso_oidc_issuer_url,
         auth_sso_client_id=configuration.settings.auth_sso_client_id,

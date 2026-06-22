@@ -15,6 +15,6 @@ class AuthLoginResponse(CreateKeyResponse):
     pass
 
 
-class AuthOidcLoginBody(BaseModel):
+class AuthSsoLoginBody(BaseModel):
     email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(description="The user email.")
-    id_token: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="The ID token for SSO login.")  # fmt: off
+    token: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="The ID token for SSO login.")  # fmt: off

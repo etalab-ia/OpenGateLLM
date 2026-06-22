@@ -1,7 +1,10 @@
+from base64 import urlsafe_b64decode
 import json
+import time
 from urllib.parse import quote
 
 import httpx
+from httpx import HTTPStatusError
 import reflex as rx
 
 from app.core.configuration import configuration
@@ -35,10 +38,7 @@ class AuthState(rx.State):
     opengatellm_url: str = configuration.settings.playground_opengatellm_url
     opengatellm_timeout: int = configuration.settings.playground_opengatellm_timeout
     login_type: str = configuration.settings.auth_login_type
-    if getattr(configuration.settings, "auth_sso_logout_redirect_uri", None) is not None:
-        sso_logout_redirect_url: str = configuration.settings.auth_sso_logout_redirect_uri
-    else:
-        sso_logout_redirect_url: None = None
+    sso_logout_redirect_uri: str | None = None if getattr(configuration.settings, "auth_sso_logout_redirect_uri") is None else configuration.settings.auth_sso_logout_redirect_uri  # fmt: off
 
     # Form fields
     email_input: str = ""
@@ -62,10 +62,10 @@ class AuthState(rx.State):
         )
         return response
 
-    async def _sso_login(self, client: httpx.AsyncClient, email: str, id_token: str):
+    async def _sso_login(self, client: httpx.AsyncClient, email: str, token: str):
         response = await client.post(
-            url=f"{self.opengatellm_url}/v1/auth/oidc/login",
-            json={"email": email, "id_token": id_token},
+            url=f"{self.opengatellm_url}/v1/auth/sso/login",
+            json={"email": email, "token": token},
             timeout=self.opengatellm_timeout,
         )
         return response
@@ -144,12 +144,28 @@ class AuthState(rx.State):
             self.is_loading = False
             yield
 
+    @staticmethod
+    def _token_is_expired(token: str) -> bool:
+        try:
+            payload_b64 = token.split(".")[1]
+            payload_b64 += "=" * (-len(payload_b64) % 4)
+            claims = json.loads(urlsafe_b64decode(payload_b64))
+            exp = claims.get("exp")
+            return bool(exp and exp < time.time())
+        except Exception:
+            return False
+
+    def _oidc_reauth_redirect(self):
+        """Clear stale oauth2-proxy session and restart OIDC login."""
+        return_path = self.router.url.path or "/"
+        sign_in_url = f"/oauth2/sign_in?rd={quote(return_path, safe='')}"
+        sign_out_url = f"/oauth2/sign_out?rd={quote(sign_in_url, safe='')}"
+        return rx.call_script(f"window.location.assign({json.dumps(sign_out_url)})")
+
     @rx.event
     async def oidc_login(self):
         if self.is_authenticated:
             return
-
-        headers = self.router.headers.raw_headers
 
         headers = self.router.headers.raw_headers
         email = headers.get("x-auth-request-email")
@@ -165,6 +181,10 @@ class AuthState(rx.State):
         if not id_token:
             raise ValueError("ID token not found in headers")
 
+        if self._token_is_expired(id_token):
+            yield self._oidc_reauth_redirect()
+            return
+
         self.is_loading = True
         yield
 
@@ -172,7 +192,7 @@ class AuthState(rx.State):
         try:
             async with httpx.AsyncClient() as client:
                 # Create API key
-                response = await self._sso_login(client=client, email=email, id_token=id_token)
+                response = await self._sso_login(client=client, email=email, token=id_token)
 
                 response.raise_for_status()
                 api_key = response.json().get("value")
@@ -198,6 +218,11 @@ class AuthState(rx.State):
                 self.user_permissions = user_data.get("permissions", [])
                 self.user_limits = user_data.get("limits", [])
 
+        except HTTPStatusError as e:
+            if response is not None and response.status_code == 401:
+                yield self._oidc_reauth_redirect()
+                return
+            yield httpx_error_toast(exception=e, response=response)
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
         finally:
@@ -251,5 +276,5 @@ class AuthState(rx.State):
         self.user_permissions = []
         self.user_limits = []
 
-        sign_out_path = f"/oauth2/sign_out?rd={quote(self.sso_logout_redirect_url, safe='')}"
+        sign_out_path = f"/oauth2/sign_out?rd={quote(self.sso_logout_redirect_uri, safe='')}"
         return rx.call_script(f"window.location.assign({json.dumps(sign_out_path)})")

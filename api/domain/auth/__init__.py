@@ -1,5 +1,5 @@
-from ._authoidcprovidercache import AuthOidcProviderCache
-from ._authoidcproviderclient import AuthOidcProviderClient
-from ._authoidctokenvalidator import AuthOidcTokenValidator
+from ._authssoprovidercache import AuthSsoProviderCache
+from ._authssoproviderclient import AuthSsoProviderClient
+from ._authssotokenvalidator import AuthSsoTokenValidator
 
-__all__ = ["AuthOidcProviderCache", "AuthOidcProviderClient", "AuthOidcTokenValidator"]
+__all__ = ["AuthSsoProviderCache", "AuthSsoProviderClient", "AuthSsoTokenValidator"]

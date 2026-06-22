@@ -1,12 +1,12 @@
 from jose import JWTError, jwk, jwt
 
-from api.domain.auth import AuthOidcTokenValidator
+from api.domain.auth import AuthSsoTokenValidator
 from api.domain.auth.errors import InvalidOidcTokenError
 
 
-class JwtAuthOidcTokenValidator(AuthOidcTokenValidator):
-    async def validate_token(self, id_token: str, client_id: str, jwks: dict) -> dict[str] | InvalidOidcTokenError:
-        unverified_header = jwt.get_unverified_header(token=id_token)
+class JwtAuthSsoTokenValidator(AuthSsoTokenValidator):
+    async def validate_token(self, token: str, client_id: str, jwks: dict) -> dict[str] | InvalidOidcTokenError:
+        unverified_header = jwt.get_unverified_header(token=token)
         kid = unverified_header.get("kid")
         if not kid:
             return InvalidOidcTokenError(message="No 'kid' found in JWT header")
@@ -21,7 +21,7 @@ class JwtAuthOidcTokenValidator(AuthOidcTokenValidator):
             return InvalidOidcTokenError(message=f"No matching key found for kid: {kid}", stale_jwks=True)
 
         decode_kwargs: dict[str] = {
-            "token": id_token,
+            "token": token,
             "key": signing_key,
             "algorithms": ["RS256", "ES256"],
             "issuer": None,

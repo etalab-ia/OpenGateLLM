@@ -1,27 +1,36 @@
 ---
-title: Single Sign-On (SSO) for the Playground
+title: SSO for playground UI
 sidebar:
-  label: "[lucide:shield-user] Single Sign-On (SSO)"
+  label: "[lucide:shield-user] SSO for playground UI"
 ---
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-OpenGateLLM supports Single Sign-On (SSO) with OAuth2-proxy (see [OAuth2-proxy documentation](https://oauth2-proxy.github.io/oauth2-proxy/)).
+OpenGateLLM support le Single Sign-On (SSO) pour se connecter au Playground en alternative au login par mot de passe par défaut. 
+Ce support est assuré par OAuth2-proxy (voir [documentation OAuth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/)) depuis 
+le container du playground.
 
 
 ```mermaid
-sequenceDiagram
+flowchart LR
 
-actor user as User [Browser]
-participant idp as Identity Provider
-participant rp as Reverse Proxy
-participant oauth2 as OAuth2-proxy
-participant playground as OpenGateLLM Playground
-participant api as OpenGateLLM API
+    user[Browser]
+    rp-public{"Public Reverse Proxy<br>(eg. my-domain.com)"}
+    api["OpenGateLLM API"]
+    idp["Identity Provider<br>(eg. Google)"]
+    
+    subgraph playground [OpenGateLLM Playground]
+        rp-playground{"Nginx"}
+        ui-playground["Playground UI"]
+          
+        oauth2["OAuth2-proxy"]    
+        rp-playground <--> oauth2
+        rp-playground --> ui-playground
+    end
 
-user ->> rp: Request
-rp ->> oauth2: Request
-oauth2 ->> idp: Request
-idp ->> user: Response
+    user --> rp-public
+    rp-public --> rp-playground
+    oauth2 <--> idp
+    ui-playground --> api
 ```
 
 ## Configuration

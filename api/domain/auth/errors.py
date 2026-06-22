@@ -8,5 +8,5 @@ class InvalidOidcTokenError:
 
 
 @dataclass
-class OidcProviderNotAvailableError:
+class SsoProviderNotAvailableError:
     message: str | None = None

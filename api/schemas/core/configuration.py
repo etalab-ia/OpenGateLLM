@@ -405,8 +405,6 @@ class Settings(ConfigBaseModel):
     auth_bootsrap_admin_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72)] = Field(default="changeme", description="Password of the admin user created at the first startup.")  # fmt: off
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a new API key to be valid.")  # fmt: off
     auth_login_session_duration: int = Field(default=3600, ge=1, description="Duration of login session for the playground in seconds.")  # fmt: off
-    auth_sso_oidc_issuer_url: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default=None, description="OIDC issuer URL used to fetch JWKS and validate id_tokens.")  # fmt: off
-    auth_sso_oidc_client_id: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default=None, description="OIDC client_id (audience) for id_token validation. Falls back to OAUTH2_PROXY_CLIENT_ID env var.")  # fmt: off
 
     # rate_limiting
     rate_limiting_strategy: LimitingStrategy = Field(default=LimitingStrategy.FIXED_WINDOW, description="Rate limiting strategy for the API.")  # fmt: off
@@ -440,9 +438,17 @@ class SettingsLoginPassword(Settings):
 
 class SettingsLoginOIDC(Settings):
     auth_login_type: Literal["oidc"] = Field(default="oidc", description="Login type for the API.")  # fmt: off
-    auth_sso_oidc_issuer_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC issuer URL used to fetch JWKS and validate id_tokens.")  # fmt: off
-    auth_sso_client_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC client_id (audience) for id_token validation. Falls back to OAUTH2_PROXY_CLIENT_ID env var.")  # fmt: off
-    auth_sso_default_role_id: int = Field(default=1, ge=1, description="Default role ID for SSO users.")
+    auth_sso_oidc_issuer_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC issuer URL used to fetch JWKS and validate id_tokens. Can be overridden by OAUTH2_PROXY_OIDC_ISSUER_URL env var.")  # fmt: off
+    auth_sso_client_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC client_id (audience) for id_token validation. Can be overriden by OAUTH2_PROXY_CLIENT_ID env var.")  # fmt: off
+    auth_sso_default_role_id: int = Field(default=1, ge=1, description="Default role ID for SSO users when these are created.")
+
+    @model_validator(mode="after")
+    def override_by_oauth2_proxy_env_vars(self) -> Any:
+        if os.getenv("OAUTH2_PROXY_OIDC_ISSUER_URL") is not None:
+            self.auth_sso_oidc_issuer_url = os.getenv("OAUTH2_PROXY_OIDC_ISSUER_URL")
+        if os.getenv("OAUTH2_PROXY_CLIENT_ID") is not None:
+            self.auth_sso_client_id = os.getenv("OAUTH2_PROXY_CLIENT_ID")
+        return self
 
 
 # load config ----------------------------------------------------------------------------------------------------------------------------------------
