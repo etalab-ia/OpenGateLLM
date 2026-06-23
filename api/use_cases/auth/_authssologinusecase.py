@@ -6,6 +6,9 @@ from api.domain.auth import AuthSsoProviderCache, AuthSsoProviderClient, AuthSso
 from api.domain.auth.errors import InvalidOidcTokenError, SsoProviderNotAvailableError
 from api.domain.key import KeyRepository
 from api.domain.key.entities import Key
+from api.domain.organization import OrganizationRepository
+from api.domain.organization.entities import Organization
+from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserRepository
 from api.domain.user.entities import User
@@ -15,6 +18,8 @@ from api.domain.user.errors import UserNotFoundError
 @dataclass
 class AuthSsoLoginCommand:
     email: str
+    name: str | None
+    organization: str | None
     token: str
 
 
@@ -32,6 +37,7 @@ class AuthSsoLoginUseCase:
     def __init__(
         self,
         key_repository: KeyRepository,
+        organization_repository: OrganizationRepository,
         user_repository: UserRepository,
         auth_sso_provider_client: AuthSsoProviderClient,
         auth_sso_token_validator: AuthSsoTokenValidator,
@@ -43,6 +49,7 @@ class AuthSsoLoginUseCase:
         auth_login_session_duration: int = 3600,
     ):
         self.key_repository = key_repository
+        self.organization_repository = organization_repository
         self.user_repository = user_repository
         self.auth_sso_provider_client = auth_sso_provider_client
         self.auth_sso_token_validator = auth_sso_token_validator
@@ -112,9 +119,22 @@ class AuthSsoLoginUseCase:
             case User() as user:
                 pass
             case UserNotFoundError():
+                if command.organization is not None:
+                    result = await self.organization_repository.get_organization_by_name(name=command.organization)
+                    match result:
+                        case Organization() as organization:
+                            pass
+                        case OrganizationNotFoundError() as error:
+                            organization = await self.organization_repository.create_organization(name=command.organization)
+                            organization_id = organization.id
+                else:
+                    organization_id = None
+
                 result = await self.user_repository.create_user(
                     role_id=self.auth_sso_default_role_id,
                     email=command.email,
+                    name=command.name,
+                    organization_id=organization_id,
                     sub=claims.get("sub"),
                     iss=claims.get("iss"),
                 )

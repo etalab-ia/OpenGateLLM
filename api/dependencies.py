@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.domain.auth import AuthSsoProviderCache, AuthSsoProviderClient, AuthSsoTokenValidator
 from api.domain.key import KeyEncoder, KeyRepository
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
+from api.domain.organization import OrganizationRepository
 from api.domain.provider import (
     ProviderAdapterBuilder,
     ProviderClient,
@@ -31,6 +32,7 @@ from api.infrastructure.postgres import (
     PostgresAuthenticatedUserQuery,
     PostgresKeyRepository,
     PostgresLimitRepository,
+    PostgresOrganizationRepository,
     PostgresPermissionRepository,
     PostgresProviderRepository,
     PostgresRolesRepository,
@@ -153,6 +155,10 @@ def _key_repository(key_encoder: KeyEncoder = Depends(_key_encoder), session: As
     return PostgresKeyRepository(key_encoder=key_encoder, postgres_session=session)
 
 
+def _organization_repository(session: AsyncSession) -> OrganizationRepository:
+    return PostgresOrganizationRepository(postgres_session=session)
+
+
 def _user_repository(session: AsyncSession) -> PostgresUserRepository:
     return PostgresUserRepository(postgres_session=session)
 
@@ -197,8 +203,9 @@ def auth_sso_login_use_case_factory(
     auth_sso_provider_cache: AuthSsoProviderCache = Depends(_auth_sso_provider_cache),
 ) -> AuthSsoLoginUseCase:
     return AuthSsoLoginUseCase(
-        key_repository=PostgresKeyRepository(key_encoder=key_encoder, postgres_session=postgres_session),
-        user_repository=PostgresUserRepository(postgres_session=postgres_session),
+        key_repository=_key_repository(key_encoder=key_encoder, session=postgres_session),
+        organization_repository=_organization_repository(session=postgres_session),
+        user_repository=_user_repository(session=postgres_session),
         auth_sso_provider_client=_auth_sso_provider_client(),
         auth_sso_token_validator=_auth_sso_token_validator(),
         auth_sso_provider_cache=auth_sso_provider_cache,

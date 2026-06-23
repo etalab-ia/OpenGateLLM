@@ -60,8 +60,16 @@ settings:
   # auth_login_session_duration: 3600
   # auth_sso_default_role_id: 1
   # auth_sso_oidc_issuer_url: https://...
-  # auth_sso_oidc_client_id: ${OAUTH2_PROXY_CLIENT_ID}
-  # auth_sso_oidc_provider_logout_url: https://...
+  # auth_sso_client_id: ${OAUTH2_PROXY_CLIENT_ID}
+  # auth_sso_client_secret: ${OAUTH2_PROXY_CLIENT_SECRET}
+  # auth_sso_cookie_secret: ${OAUTH2_PROXY_COOKIE_SECRET}
+  # auth_sso_logout_redirect_uri: https://...
+  # auth_sso_oidc_scope: openid email profile roles siret organization_label given_name usual_name
+  # auth_sso_cookie_secure: False
+  # auth_sso_name_claim_fields: [given_name, usual_name]
+  # auth_sso_groups_claim_field: roles
+  # auth_sso_allowed_groups: [agent_public_etat]
+  # auth_sso_organization_claim_field: organization_label
 
   # rate_limiting_strategy: fixed_window
 

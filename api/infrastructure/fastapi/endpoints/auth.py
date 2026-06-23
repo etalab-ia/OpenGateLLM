@@ -69,7 +69,7 @@ async def login(body: AuthLoginBody, auth_login_use_case: AuthLoginUseCase = Dep
     ),
 )
 async def sso_login(body: AuthSsoLoginBody, auth_sso_login_use_case: AuthSsoLoginUseCase = Depends(auth_sso_login_use_case_factory)):
-    command = AuthSsoLoginCommand(email=body.email, token=body.token)
+    command = AuthSsoLoginCommand(email=body.email, name=body.name, organization=body.organization, token=body.token)
     try:
         result = await auth_sso_login_use_case.execute(command=command)
     except Exception as e:

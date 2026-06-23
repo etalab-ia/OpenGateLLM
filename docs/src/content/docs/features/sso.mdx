@@ -5,14 +5,13 @@ sidebar:
 ---
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-OpenGateLLM support le Single Sign-On (SSO) pour se connecter au Playground en alternative au login par mot de passe par défaut. 
+OpenGateLLM support le Single Sign-On (SSO) via les fournisseurs d'identité OIDC pour se connecter au Playground en alternative au login par mot de passe par défaut. 
 Ce support est assuré par OAuth2-proxy (voir [documentation OAuth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/)) depuis 
 le container du playground.
 
 
 ```mermaid
 flowchart LR
-
     user[Browser]
     rp-public{"Public Reverse Proxy<br>(eg. my-domain.com)"}
     api["OpenGateLLM API"]
@@ -37,78 +36,64 @@ flowchart LR
 
 To activate SSO, you need to set the `auth_login_type` to `oidc` in the configuration file. You need to provide the following settings:
 
+* In API configuration file:
   ```yaml
   settings:
-    auth_login_type: oidc
-    auth_sso_oidc_issuer_url: https://...
-    auth_sso_client_id: ${OAUTH2_PROXY_CLIENT_ID}
-    auth_sso_default_role_id: 1
-    auth_oauth2_oidc_provider_logout_url:
-  ```
-
-* Pass the `OAUTH2_PROXY_*` environment variables to the *playground* container.
-
-  Example configuration:
-  ```yaml
-  services:
     [...]
-
-    playground:
-      [...]
-      build:
-        context: .
-        dockerfile: playground/Dockerfile
-        args:
-          CONFIG_FILE: config.yml
-      env_file: .env
-      environment:
-        - "OPENGATELLM_URL=${OPENGATELLM_URL:-http://api:8000}"
-        - "REDIS_HOST=redis"
-        - "REDIS_PORT=${REDIS_PORT:-6379}"
-        - "OAUTH2_PROXY_CLIENT_ID=${OAUTH2_PROXY_CLIENT_ID}"
-        - "OAUTH2_PROXY_CLIENT_SECRET=${OAUTH2_PROXY_CLIENT_SECRET}"
-        - "OAUTH2_PROXY_COOKIE_SECRET=${OAUTH2_PROXY_COOKIE_SECRET}"
-      ports:
-        - "${OAUTH2_PROXY_PORT:-8501}:4180"
-      healthcheck:
-        test: [ "CMD-SHELL", "curl -sf http://localhost:8501/ping || exit 1" ]
-        interval: 5s
-        timeout: 5s
-        retries: 10
-        start_period: 30s
-      depends_on:
-        redis:
-        condition: service_healthy
-      api:
-        condition: service_healthy
+    auth_login_type: oidc
+    auth_sso_oidc_issuer_url: https://accounts.google.com/o/oauth2/v2/auth
+    auth_sso_client_id: 363d078d...1a70e095
+    auth_sso_default_role_id: 1
   ```
+
+* In Playground configuration file:
+
+  ```yaml
+  settings:
+    [...]
+    auth_login_type: oidc
+
+    auth_app_url: "http://localhost:8501"
+    auth_sso_oidc_issuer_url: https://accounts.google.com/o/oauth2/v2/auth
+    auth_sso_client_id: 363d078d...1a70e095
+    auth_sso_client_secret: aaa85134...75efdf827
+    auth_sso_logout_redirect_uri: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="The logout redirect uri for SSO.")  # fmt: off
+    auth_sso_oidc_scope: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="openid", description="OIDC scope for id_token validation.")  # fmt: off
+    auth_sso_cookie_secure: bool = Field(default=False, description="Whether the cookie is secure. Set to True if the application is served over HTTPS.")  # fmt: off
+    auth_sso_cookie_secret: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default=None, description="OIDC cookie secret for id_token validation.")  # fmt: off
+    auth_sso_name_claim_fields: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]] = Field(default_factory=["name"], description="OIDC userinfo claim fields joined to build the user display name sent to the API on SSO login.")  # fmt: off
+    auth_sso_groups_claim: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="roles", description="OIDC groups claim name.")  # fmt: off
+    auth_sso_allowed_groups: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]] = Field(default_factory=list, description="OIDC groups allowed to access the application. When empty, all groups are allowed.")  # fmt: off
+    auth_sso_allowed_email_domains: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]] = Field(default_factory=list, description="OIDC whitelisted email domains.")  # fmt: off
+
+  ```
+
+  * `auth_sso_logout_redirect_uri`
+
+
+  * `auth_sso_cookie_secure`
+  
+    Whether the cookie is secure. Set to True if the application is served over HTTPS. Default is False.
+
+  * `auth_sso_cookie_secret`
+
+    Secret used to sign the OAuth2-proxy cookies. If not provided, a random secret will be generated. To generate a secret, you can see the dedicated 
+    section in the [OAuth2-proxy documentation](https://oauth2-proxy.github.io/oauth2-proxy/configuration/overview/#generating-a-cookie-secret).
+
+  * `auth_sso_allowed_email_domains`
+  
+  Si vide, toutes les adresses email sont autorisées, sauf si `auth_sso_allowed_groups` est défini.
+
+  * `auth_sso_allowed_groups`
+  Si vide, toutes les groupes sont autorisées, sauf si `auth_sso_allowed_email_domains` est défini.
+
+
 
   The playground image installs the [oauth2-proxy prebuilt binary](https://oauth2-proxy.github.io/oauth2-proxy/installation) and starts it with supervisord alongside nginx and the Reflex backend. When `OAUTH2_PROXY_CLIENT_ID` is not set, oauth2-proxy is skipped automatically.
 
   ```bash
   docker build --build-arg CONFIG_FILE=config.yml --file playground/Dockerfile --tag playground:latest .
   ```
-
-* Setup OAuth2-proxy environment variables
-
-| Variable | Description |
-| --- | --- |
-| `OAUTH2_PROXY_CLIENT_ID` | OAuth2-proxy client ID (see provider specifications). |
-| `OAUTH2_PROXY_CLIENT_SECRET` | OAuth2-proxy client secret (see provider specifications). |
-| `OAUTH2_PROXY_COOKIE_SECRET` | OAuth2-proxy cookie secret (see [this documentation](https://oauth2-proxy.github.io/oauth2-proxy/configuration/overview/#generating-a-cookie-secret)). |
-| `OAUTH2_PROXY_OIDC_ISSUER_URL` | OAuth2-proxy OIDC issuer URL. |
-
-* Setup configuration file
-
-```yaml
-settings: 
-    [...]
-    auth_login_type: oidc
-    auth_sso_oidc_issuer_url: https://...
-    auth_sso_client_id: ${OAUTH2_PROXY_CLIENT_ID}
-    auth_sso_default_role_id: 1
-    auth_oauth2_oidc_provider_logout_url: ${SSO_PROVIDER_LOGOUT_URL}
-```
 
 ## Supported identity providers
 

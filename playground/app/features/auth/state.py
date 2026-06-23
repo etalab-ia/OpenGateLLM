@@ -10,6 +10,8 @@ import reflex as rx
 from app.core.configuration import configuration
 from app.shared.components.toasts import httpx_error_toast
 
+UNAUTHORIZED_TOAST_DURATION_MS = 10_000
+
 
 class AuthState(rx.State):
     """Authentication state."""
@@ -18,7 +20,7 @@ class AuthState(rx.State):
 
     is_authenticated: bool = False
     user_id: int | None = None
-    user_email: str
+    user_email: str | None = None
     user_name: str | None = None
     api_key: str | None = None
     api_key_id: int | None = None
@@ -38,7 +40,15 @@ class AuthState(rx.State):
     opengatellm_url: str = configuration.settings.playground_opengatellm_url
     opengatellm_timeout: int = configuration.settings.playground_opengatellm_timeout
     login_type: str = configuration.settings.auth_login_type
-    sso_logout_redirect_uri: str | None = None if getattr(configuration.settings, "auth_sso_logout_redirect_uri") is None else configuration.settings.auth_sso_logout_redirect_uri  # fmt: off
+    playground_url: str | None = None if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_playground_url
+    sso_logout_redirect_uri: str | None = None if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_logout_redirect_uri  # fmt: off
+    sso_oidc_issuer_url: str | None = None if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_oidc_issuer_url
+    sso_name_claim_fields: list[str] = [] if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_name_claim_fields
+    sso_groups_claim_field: str | None = None if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_groups_claim_field  # fmt: off
+    sso_allowed_groups: list[str] = [] if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_allowed_groups
+    sso_allowed_email_domains: list[str] = [] if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_allowed_email_domains  # fmt: off
+    sso_organization_claim_field: str | None = None if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_organization_claim_field  # fmt: off
+    sso_allowed_organizations: list[str] = [] if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_allowed_organizations  # fmt: off
 
     # Form fields
     email_input: str = ""
@@ -62,10 +72,10 @@ class AuthState(rx.State):
         )
         return response
 
-    async def _sso_login(self, client: httpx.AsyncClient, email: str, token: str):
+    async def _sso_login(self, client: httpx.AsyncClient, email: str, name: str | None, organization: str | None, token: str):
         response = await client.post(
             url=f"{self.opengatellm_url}/v1/auth/sso/login",
-            json={"email": email, "token": token},
+            json={"email": email, "name": name, "organization": organization, "token": token},
             timeout=self.opengatellm_timeout,
         )
         return response
@@ -145,15 +155,79 @@ class AuthState(rx.State):
             yield
 
     @staticmethod
+    def _decode_jwt_payload(token: str) -> dict:
+        payload_b64 = token.split(".")[1]
+        payload_b64 += "=" * (-len(payload_b64) % 4)
+        return json.loads(urlsafe_b64decode(payload_b64))
+
+    @staticmethod
     def _token_is_expired(token: str) -> bool:
         try:
-            payload_b64 = token.split(".")[1]
-            payload_b64 += "=" * (-len(payload_b64) % 4)
-            claims = json.loads(urlsafe_b64decode(payload_b64))
+            claims = AuthState._decode_jwt_payload(token)
             exp = claims.get("exp")
             return bool(exp and exp < time.time())
         except Exception:
             return False
+
+    @staticmethod
+    def _name_from_claims(claims: dict, claim_fields: list[str]) -> str | None:
+        if claim_fields:
+            parts = [str(claims.get(field, "")).strip() for field in claim_fields]
+            full_name = " ".join(part for part in parts if part)
+            return full_name or None
+
+        name = claims.get("name")
+        if name is None:
+            return None
+        stripped_name = str(name).strip()
+        return stripped_name or None
+
+    @staticmethod
+    def _check_user_access(
+        organization: str | None,
+        email: str,
+        groups: list[str],
+        allowed_groups: list[str],
+        allowed_email_domains: list[str],
+        allowed_organizations: list[str],
+    ) -> bool:
+        """
+        Check SSO user access:
+        - if all allowed_* are empty → everyone has access
+        - if only one allowed_* is non-empty → that single criterion decides access
+        - if at least two allowed_* are non-empty → OR across the enabled criteria
+        """
+        checks: list[bool] = []
+
+        if allowed_groups:
+            checks.append(any(group in allowed_groups for group in groups))
+
+        if allowed_email_domains:
+            checks.append(any(email.endswith(domain) for domain in allowed_email_domains))
+
+        if allowed_organizations:
+            checks.append(organization is not None and organization in allowed_organizations)
+
+        return True if not checks else any(checks)
+
+    @staticmethod
+    def _parse_userinfo_response(response: httpx.Response) -> dict:
+        content_type = response.headers.get("content-type", "")
+        if "application/json" in content_type:
+            return response.json()
+
+        text = response.text.strip()
+        if text.count(".") == 2:
+            return AuthState._decode_jwt_payload(text)
+        return json.loads(text)
+
+    async def _fetch_claims_from_userinfo(self, client: httpx.AsyncClient, access_token: str) -> dict:
+        userinfo_url = f"{self.sso_oidc_issuer_url.rstrip('/')}/userinfo"
+        response = await client.get(url=userinfo_url, headers={"Authorization": f"Bearer {access_token}"}, timeout=self.opengatellm_timeout)
+        response.raise_for_status()
+        claims = self._parse_userinfo_response(response)
+
+        return claims
 
     def _oidc_reauth_redirect(self):
         """Clear stale oauth2-proxy session and restart OIDC login."""
@@ -164,6 +238,12 @@ class AuthState(rx.State):
 
     @rx.event
     async def oidc_login(self):
+        """
+        OIDC login logic:
+        - if all allowed_* are empty → everyone has access
+        - if only one allowed_* is non-empty → that single criterion decides access
+        - if at least two allowed_* are non-empty → OR across the enabled criteria
+        """
         if self.is_authenticated:
             return
 
@@ -181,6 +261,8 @@ class AuthState(rx.State):
         if not id_token:
             raise ValueError("ID token not found in headers")
 
+        access_token = self._oauth2_extract_token_from_headers(headers=headers, key="x-auth-request-access-token")
+
         if self._token_is_expired(id_token):
             yield self._oidc_reauth_redirect()
             return
@@ -192,7 +274,30 @@ class AuthState(rx.State):
         try:
             async with httpx.AsyncClient() as client:
                 # Create API key
-                response = await self._sso_login(client=client, email=email, token=id_token)
+                claims = await self._fetch_claims_from_userinfo(client=client, access_token=access_token)
+                name = self._name_from_claims(claims=claims, claim_fields=self.sso_name_claim_fields)
+                groups = claims.get(self.sso_groups_claim_field, [])
+                organization = claims.get(self.sso_organization_claim_field)
+                has_access = self._check_user_access(
+                    email=email,
+                    organization=organization,
+                    groups=groups,
+                    allowed_groups=self.sso_allowed_groups,
+                    allowed_email_domains=self.sso_allowed_email_domains,
+                    allowed_organizations=self.sso_allowed_organizations,
+                )
+
+                if not has_access:
+                    yield rx.toast.error(
+                        message="You are not authorized to access this application. Please contact your administrator.",
+                        position="top-center",
+                        duration=UNAUTHORIZED_TOAST_DURATION_MS,
+                    )
+                    sign_out_path = f"/oauth2/sign_out?rd={quote(self.sso_logout_redirect_uri, safe='')}"
+                    yield rx.call_script(f"setTimeout(() => window.location.assign({json.dumps(sign_out_path)}), {UNAUTHORIZED_TOAST_DURATION_MS})")
+                    return
+
+                response = await self._sso_login(client=client, email=email, name=name, organization=organization, token=id_token)
 
                 response.raise_for_status()
                 api_key = response.json().get("value")

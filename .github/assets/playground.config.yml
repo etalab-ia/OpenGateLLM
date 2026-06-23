@@ -10,6 +10,19 @@ settings:
   playground_documentation_url: https://doc.incubateur.net/alliance/albert-api
   playground_opengatellm_timeout: 300
 
+  auth_login_type: oidc
+  auth_playground_url: ${AUTH_PLAYGROUND_URL}
+  auth_sso_oidc_issuer_url: ${AUTH_SSO_OIDC_ISSUER_URL}
+  auth_sso_client_id: ${AUTH_SSO_CLIENT_ID}
+  auth_sso_client_secret: ${AUTH_SSO_CLIENT_SECRET}
+  auth_sso_cookie_secret: ${AUTH_SSO_COOKIE_SECRET}
+  auth_sso_logout_redirect_uri: ${AUTH_SSO_LOGOUT_REDIRECT_URI}
+  auth_sso_oidc_scope: openid email profile roles siret organization_label given_name usual_name
+  auth_sso_cookie_secure: ${AUTH_SSO_COOKIE_SECURE}
+  auth_sso_name_claim_fields: [given_name, usual_name]
+  auth_sso_groups_claim_field: roles
+  auth_sso_allowed_groups: [agent_public_etat]
+
 # dependencies:
 #   redis:
-#     url: ${REDIS_URL:-redis://:changeme@localhost:6379}
+#    -  url: ${REDIS_URL:-redis://:changeme@localhost:6379}

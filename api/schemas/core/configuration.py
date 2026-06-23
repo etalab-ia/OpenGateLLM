@@ -438,8 +438,8 @@ class SettingsLoginPassword(Settings):
 
 class SettingsLoginOIDC(Settings):
     auth_login_type: Literal["oidc"] = Field(default="oidc", description="Login type for the API.")  # fmt: off
-    auth_sso_oidc_issuer_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC issuer URL used to fetch JWKS and validate id_tokens. Can be overridden by OAUTH2_PROXY_OIDC_ISSUER_URL env var.")  # fmt: off
-    auth_sso_client_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC client_id (audience) for id_token validation. Can be overriden by OAUTH2_PROXY_CLIENT_ID env var.")  # fmt: off
+    auth_sso_oidc_issuer_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC issuer URL used to fetch JWKS and validate id_tokens.")  # fmt: off
+    auth_sso_client_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC client_id (audience) for id_token validation.")  # fmt: off
     auth_sso_default_role_id: int = Field(default=1, ge=1, description="Default role ID for SSO users when these are created.")
 
     @model_validator(mode="after")
