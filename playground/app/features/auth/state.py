@@ -10,7 +10,7 @@ import reflex as rx
 from app.core.configuration import configuration
 from app.shared.components.toasts import httpx_error_toast
 
-UNAUTHORIZED_TOAST_DURATION_MS = 10_000
+UNAUTHORIZED_TOAST_DURATION_MS = 4_000
 
 
 class AuthState(rx.State):
@@ -36,6 +36,7 @@ class AuthState(rx.State):
 
     # Loading state
     is_loading: bool = False
+    has_access: bool = True
 
     opengatellm_url: str = configuration.settings.playground_opengatellm_url
     opengatellm_timeout: int = configuration.settings.playground_opengatellm_timeout
@@ -49,6 +50,15 @@ class AuthState(rx.State):
     sso_allowed_email_domains: list[str] = [] if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_allowed_email_domains  # fmt: off
     sso_organization_claim_field: str | None = None if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_organization_claim_field  # fmt: off
     sso_allowed_organizations: list[str] = [] if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_allowed_organizations  # fmt: off
+
+    @rx.var
+    def oidc_login_progress_duration(self) -> str:
+        """CSS duration for the OIDC login progress bar animation."""
+        return rx.cond(
+            self.has_access,
+            f"{configuration.settings.playground_opengatellm_timeout}s",
+            f"{UNAUTHORIZED_TOAST_DURATION_MS}ms",
+        )
 
     # Form fields
     email_input: str = ""
@@ -247,6 +257,7 @@ class AuthState(rx.State):
         if self.is_authenticated:
             return
 
+        self.has_access = True
         headers = self.router.headers.raw_headers
         email = headers.get("x-auth-request-email")
         if not email:
@@ -278,7 +289,7 @@ class AuthState(rx.State):
                 name = self._name_from_claims(claims=claims, claim_fields=self.sso_name_claim_fields)
                 groups = claims.get(self.sso_groups_claim_field, [])
                 organization = claims.get(self.sso_organization_claim_field)
-                has_access = self._check_user_access(
+                access_granted = self._check_user_access(
                     email=email,
                     organization=organization,
                     groups=groups,
@@ -286,8 +297,10 @@ class AuthState(rx.State):
                     allowed_email_domains=self.sso_allowed_email_domains,
                     allowed_organizations=self.sso_allowed_organizations,
                 )
+                self.has_access = access_granted
 
-                if not has_access:
+                if not self.has_access:
+                    yield
                     yield rx.toast.error(
                         message="You are not authorized to access this application. Please contact your administrator.",
                         position="top-center",
@@ -348,6 +361,7 @@ class AuthState(rx.State):
     def basic_logout(self):
         """Handle logout."""
         self.is_authenticated = False
+        self.has_access = True
         self.user_id = None
         self.user_email = None
         self.user_name = None
@@ -368,6 +382,7 @@ class AuthState(rx.State):
         oauth2-proxy clears the session cookie then redirects to the provider logout URL.
         """
         self.is_authenticated = False
+        self.has_access = True
         self.user_id = None
         self.user_email = None
         self.user_name = None

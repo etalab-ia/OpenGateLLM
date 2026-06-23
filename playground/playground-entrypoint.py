@@ -17,6 +17,7 @@ def main():
     if configuration.settings.auth_login_type == "oidc":
         logger.info("playground: SSO enabled, using oauth2-proxy nginx configuration")
         shutil.copy("/playground/nginx.oauth2-proxy.conf", nginx_conf_dst)
+        supervisord_config_path = "/etc/supervisor/conf.d/supervisord.oauth2-proxy.conf"
 
         settings = configuration.settings
         env["OAUTH2_PROXY_OIDC_ISSUER_URL"] = settings.auth_sso_oidc_issuer_url
@@ -34,6 +35,7 @@ def main():
         env["OAUTH2_PROXY_WHITELIST_DOMAINS"] = f"{app_domain},{issuer_domain}"
 
     else:
+        supervisord_config_path = "/etc/supervisor/conf.d/supervisord.conf"
         logger.info("playground: SSO disabled, using default nginx configuration")
         shutil.copy("/playground/nginx.conf", nginx_conf_dst)
 
@@ -43,7 +45,7 @@ def main():
 
     os.execve(
         path=supervisord_path,
-        argv=["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"],
+        argv=["supervisord", "-c", supervisord_config_path],
         env=env,
     )
 

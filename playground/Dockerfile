@@ -66,6 +66,7 @@ COPY --chown=opengatellm:opengatellm ./playground/assets ./assets
 COPY --chown=opengatellm:opengatellm ./playground/nginx.conf /playground/nginx.conf
 COPY --chown=opengatellm:opengatellm ./playground/nginx.oauth2-proxy.conf /playground/nginx.oauth2-proxy.conf
 COPY --chown=opengatellm:opengatellm ./playground/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY --chown=opengatellm:opengatellm ./playground/supervisord.oauth2-proxy.conf /etc/supervisor/conf.d/supervisord.oauth2-proxy.conf
 COPY --chown=opengatellm:opengatellm ./playground/oauth2-proxy.cfg /playground/oauth2-proxy.cfg
 COPY --chown=opengatellm:opengatellm ./playground/oauth2-proxy-entrypoint.sh /playground/oauth2-proxy-entrypoint.sh
 COPY --chown=opengatellm:opengatellm ./playground/playground-entrypoint.py /playground/playground-entrypoint.py
