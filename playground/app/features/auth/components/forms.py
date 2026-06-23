@@ -1,6 +1,7 @@
 import reflex as rx
 
-from app.features.auth.state import AuthState
+from app.core.configuration import configuration
+from app.features.auth.state import UNAUTHORIZED_TOAST_DURATION_MS, AuthState
 
 
 def password_login_form():
@@ -55,16 +56,19 @@ def oidc_login_form() -> rx.Component:
                 rx.vstack(
                     rx.text("Login processing, you will be redirected soon...", size="2"),
                     rx.cond(
-                        ~AuthState.has_access,
-                        rx.progress(
-                            duration=AuthState.oidc_login_progress_duration,
-                            size="3",
-                            width="100%",
-                        ),
-                        rx.progress(
-                            duration=AuthState.oidc_login_progress_duration,
-                            size="3",
-                            width="100%",
+                        AuthState.is_loading,
+                        rx.cond(
+                            AuthState.has_access,
+                            rx.progress(
+                                duration=f"{configuration.settings.playground_opengatellm_timeout}s",
+                                size="3",
+                                width="100%",
+                            ),
+                            rx.progress(
+                                duration=f"{UNAUTHORIZED_TOAST_DURATION_MS}ms",
+                                size="3",
+                                width="100%",
+                            ),
                         ),
                     ),
                     spacing="3",

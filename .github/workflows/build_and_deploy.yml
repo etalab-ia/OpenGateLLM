@@ -125,6 +125,12 @@ jobs:
             REFLEX_BACKEND_URL=${{ matrix.public_url }}
             REFLEX_FRONTEND_URL=${{ matrix.public_url }}
             CONFIG_FILE=.github/assets/playground.config.yml
+            AUTH_LOGIN_TYPE=oidc
+            AUTH_PLAYGROUND_URL=${{ matrix.public_url }}
+            AUTH_SSO_OIDC_ISSUER_URL=${{ secrets.PROCONNECT_OIDC_ISSUER_URL }}
+            AUTH_SSO_CLIENT_ID=${{ secrets.PROCONNECT_OIDC_CLIENT_ID }}
+            AUTH_SSO_CLIENT_SECRET=${{ secrets.PROCONNECT_OIDC_CLIENT_SECRET }}
+            AUTH_SSO_LOGOUT_REDIRECT_URI=${{ secrets.PROCONNECT_OIDC_LOGOUT_REDIRECT_URI }}
             PLAYGROUND_DISABLED_PAGES=[roles,users,organizations,routers,providers]
             FAVICON=.github/assets/logo.svg
             LOGO=.github/assets/logo.svg
