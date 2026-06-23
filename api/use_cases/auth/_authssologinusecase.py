@@ -123,8 +123,8 @@ class AuthSsoLoginUseCase:
                     result = await self.organization_repository.get_organization_by_name(name=command.organization)
                     match result:
                         case Organization() as organization:
-                            pass
-                        case OrganizationNotFoundError() as error:
+                            organization_id = organization.id
+                        case OrganizationNotFoundError():
                             organization = await self.organization_repository.create_organization(name=command.organization)
                             organization_id = organization.id
                 else:

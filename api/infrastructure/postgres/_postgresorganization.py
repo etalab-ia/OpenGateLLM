@@ -1,4 +1,4 @@
-from sqlalchemy import insert, select
+from sqlalchemy import func, insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,15 +17,15 @@ class PostgresOrganizationRepository(OrganizationRepository):
         try:
             result = await self.postgres_session.execute(insert(OrganizationTable).values(name=name).returning(OrganizationTable))
             row = result.scalar_one()
-        except IntegrityError as e:
-            if "unique_organization_name" in str(e.orig):
-                return OrganizationAlreadyExistsError(name=name)
-            raise
+        except IntegrityError:
+            return OrganizationAlreadyExistsError(name=name)
 
         return Organization(id=row.id, name=row.name, users=0, created=row.created, updated=row.updated)
 
     async def get_organization_by_name(self, name: str) -> Organization | OrganizationNotFoundError:
-        users_subquery = select(UserTable.id).where(UserTable.organization_id == OrganizationTable.id).correlate(OrganizationTable).scalar_subquery()
+        users_subquery = (
+            select(func.count(UserTable.id)).where(UserTable.organization_id == OrganizationTable.id).correlate(OrganizationTable).scalar_subquery()
+        )
         statement = select(
             OrganizationTable,
             users_subquery.label("users"),

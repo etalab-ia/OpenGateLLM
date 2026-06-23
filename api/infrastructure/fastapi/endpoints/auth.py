@@ -89,5 +89,5 @@ async def sso_login(body: AuthSsoLoginBody, auth_sso_login_use_case: AuthSsoLogi
             raise InvalidOidcTokenHTTPException()
         case SsoProviderNotAvailableError():
             raise OidcProviderNotAvailableHTTPException()
-        case RoleNotFoundError(role_id=role_id):
+        case RoleNotFoundError(id=role_id):
             raise RoleNotFoundHTTPException(role_id=role_id)
