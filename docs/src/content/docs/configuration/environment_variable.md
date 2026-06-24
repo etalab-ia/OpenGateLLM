@@ -26,8 +26,6 @@ For adapt the playground docker image for your deployment, you can build it with
 | REFLEX_FRONTEND_PATH | str | `""` | Path of the frontend application. |
 | FAVICON | str | `"./playground/assets/logo.svg"` | Path to your favicon file. |
 
-At runtime, the playground container selects `nginx.oauth2-proxy.conf` when `OAUTH2_PROXY_CLIENT_ID` is set, otherwise `nginx.conf`.
-
 Example: 
 ```bash
  docker build --build-arg \

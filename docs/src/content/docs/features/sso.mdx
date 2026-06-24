@@ -29,7 +29,7 @@ flowchart LR
     user --> rp-public
     rp-public --> rp-playground
     oauth2 <--> idp
-    ui-playground --> api
+    ui-playground -|/v1/auth/sso/login|-> api
 ```
 
 ## Configuration
@@ -52,7 +52,6 @@ To activate SSO, you need to set the `auth_login_type` to `oidc` in the configur
   settings:
     [...]
     auth_login_type: oidc
-
     auth_app_url: "http://localhost:8501"
     auth_sso_oidc_issuer_url: https://accounts.google.com/o/oauth2/v2/auth
     auth_sso_client_id: 363d078d...1a70e095
@@ -65,8 +64,11 @@ To activate SSO, you need to set the `auth_login_type` to `oidc` in the configur
     auth_sso_groups_claim: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="roles", description="OIDC groups claim name.")  # fmt: off
     auth_sso_allowed_groups: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]] = Field(default_factory=list, description="OIDC groups allowed to access the application. When empty, all groups are allowed.")  # fmt: off
     auth_sso_allowed_email_domains: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]] = Field(default_factory=list, description="OIDC whitelisted email domains.")  # fmt: off
-
   ```
+
+<Aside type="tip">
+You can use the same configuration file for both the API and the Playground.
+</Aside>
 
   * `auth_sso_logout_redirect_uri`
 
