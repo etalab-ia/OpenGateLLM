@@ -34,6 +34,8 @@ SCOPE_BADGE_VARIANTS: dict[str, str] = {
     SCOPE_PLAYGROUND: "tip",
 }
 
+TYPE_BADGE_VARIANT = "default"
+
 
 class Row(BaseModel):
     attribute: str
@@ -380,7 +382,11 @@ def format_values(values: list) -> str:
 
 
 def format_types(types: list) -> str:
-    return ", ".join(types)
+    badges = [
+        f'<Badge text="{html.escape(type_, quote=True)}" variant="{TYPE_BADGE_VARIANT}" size="small" style="white-space: nowrap" />'
+        for type_ in types
+    ]
+    return f'<span class="config-type-badges">{"".join(badges)}</span>'
 
 
 def format_scope(scope: set[str]) -> str:
@@ -402,11 +408,25 @@ def style_scope_column(table_html: str) -> str:
     return table_html
 
 
+def style_type_column(table_html: str) -> str:
+    table_html = re.sub(r"<th>Type\s*</th>", '<th class="config-type-cell">Type</th>', table_html)
+    table_html = re.sub(
+        r'<td>(<span class="config-type-badges">)',
+        r'<td class="config-type-cell">\1',
+        table_html,
+    )
+    return table_html
+
+
+def style_description_column(table_html: str) -> str:
+    return re.sub(r"<th>Description\s*</th>", '<th class="config-description-cell">Description</th>', table_html)
+
+
 def format_row(row: Row):
     return [
         format_cell_html(row.attribute),
         format_scope(row.scope),
-        format_cell_html(format_types(row.types)),
+        format_types(row.types),
         format_cell_html(row.description),
         format_cell_html(format_default(row.default)),
         format_values(row.values),
@@ -420,7 +440,10 @@ def format_table(rows: list[Row]) -> str:
         headers=["Attribute", "Scope", "Type", "Description", "Default", "Values", "Examples"],
         tablefmt="unsafehtml",
     )
-    return style_scope_column(table_html)
+    table_html = style_scope_column(table_html)
+    table_html = style_type_column(table_html)
+    table_html = style_description_column(table_html)
+    return f'<div class="config-table-wrapper">\n{table_html}\n</div>'
 
 
 def format_variant_tabs(variant_rows: dict[str, list[Row]]) -> str:

@@ -104,21 +104,21 @@ class ConfigBaseModel(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-@custom_validation_error(suffix="-1")
+@custom_validation_error()
 class RedisDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
 
 
-@custom_validation_error(suffix="-1")
+@custom_validation_error()
 class Dependencies(ConfigBaseModel):
-    redis: RedisDependency | None = Field(default=None, description="Set the Redis connection url to use as stage manager. See https://reflex.dev/docs/api-reference/config/ for more information.")  # fmt: off
+    redis: RedisDependency | None = Field(default=None, description="Redis is a required dependency for the API to store rate limiting counters and performance metrics. It is an optional dependency for the Playground to use as stage manage (see [Reflex documentation](https://reflex.dev/docs/api-reference/config/)).")  # fmt: off
 
 
-@custom_validation_error(suffix="-1")
+@custom_validation_error()
 class Settings(ConfigBaseModel):
-    auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a token to be valid.")  # fmt: off
-    routing_max_priority: int = Field(default=10, ge=0, description="Maximum allowed priority in routing tasks.")  # fmt: off
-    app_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application.")
+    auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a new API key to be valid.")  # fmt: off
+    routing_max_priority: int = Field(default=4, ge=0, description="Maximum allowed priority in routing tasks.")  # fmt: off
+    app_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application (dsiplayed on Playground, Swagger and Redoc UI).")
 
     playground_opengatellm_url: str = Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")
     playground_opengatellm_timeout: int = Field(default=60, description="The timeout in seconds for the OpenGateLLM API.")
@@ -146,9 +146,9 @@ class SettingsLoginOIDC(Settings):
 
     auth_playground_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="http://localhost:8501", description="The URL of the application, use to whitelist domains in oauth2-proxy.")  # fmt: off
     auth_sso_oidc_issuer_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC issuer URL used to fetch JWKS and validate id_tokens.")  # fmt: off
-    auth_sso_client_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC client_id (audience) for id_token validation..")  # fmt: off
+    auth_sso_client_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC client_id (audience) for id_token validation.")  # fmt: off
     auth_sso_client_secret: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC client secret for id_token validation.")  # fmt: off
-    auth_sso_cookie_secret: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default=None, validate_default=True, description="OIDC cookie secret for id_token validation.")  # fmt: off
+    auth_sso_cookie_secret: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default=None, validate_default=True, description="Secret used to sign the OAuth2-proxy cookies. If not provided, a random secret will be generated. To generate a secret, you can see the dedicated section in the [OAuth2-proxy documentation](https://oauth2-proxy.github.io/oauth2-proxy/configuration/overview/#generating-a-cookie-secret).")  # fmt: off
     auth_sso_logout_redirect_uri: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="The logout redirect uri for SSO.")  # fmt: off
     auth_sso_oidc_scope: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="openid", description="OIDC scope for id_token validation.")  # fmt: off
     auth_sso_cookie_secure: bool = Field(default=False, description="Whether the cookie is secure. Set to True if the application is served over HTTPS.")  # fmt: off
@@ -184,8 +184,8 @@ class ConfigFile(ConfigBaseModel):
     [Environment variables](/configuration/environment_variable/#playground) for more information.
     """
 
-    dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the playground.")  # fmt: off
-    settings: Annotated[SettingsLoginPassword | SettingsLoginOIDC, Field(discriminator="auth_login_type", default_factory=SettingsLoginPassword, description="General settings configuration fields. Some fields are common to the API and the playground.")]  # fmt: off
+    dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies required by the applications (API and Playground).")  # fmt: off
+    settings: Annotated[SettingsLoginPassword | SettingsLoginOIDC, Field(discriminator="auth_login_type", default_factory=SettingsLoginPassword, description="General settings configuration fields.")]  # fmt: off
 
     @model_validator(mode="before")
     @classmethod

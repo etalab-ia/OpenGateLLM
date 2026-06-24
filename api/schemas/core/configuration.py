@@ -292,7 +292,7 @@ class Dependencies(ConfigBaseModel):
     langfuse: LangfuseDependency | None = Field(default=None, description="See the [LangfuseDependency section](#langfusedependency) for more information.")  # fmt: off
     marker: MarkerDependency | None = Field(default=None, json_schema_extra={"deprecated": True})  # fmt: off
     postgres: PostgresDependency = Field(..., description="Postgres is a required dependency of OpenGateLLM to store API data.")  # fmt: off
-    redis: RedisDependency  = Field(..., description="Redis is a required dependency of OpenGateLLM to store rate limiting counters and performance metrics.")  # fmt: off
+    redis: RedisDependency  = Field(..., description="Redis is a required dependency for the API to store rate limiting counters and performance metrics. It is an optional dependency for the Playground to use as stage manage (see [Reflex documentation](https://reflex.dev/docs/api-reference/config/)).")  # fmt: off
     sentry: SentryDependency | None = Field(default=None, description="Sentry is an optional dependency of OpenGateLLM. Sentry helps you identify, diagnose, and fix errors in real-time.")  # fmt: off
 
     @model_validator(mode="after")
@@ -372,7 +372,7 @@ class Settings(ConfigBaseModel):
     # general
     disabled_routers: list[RouterName] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["embeddings"]], json_schema_extra={"default": []})  # fmt: off
     hidden_routers: list[RouterName] = Field(default_factory=list, description="Routers are enabled but hidden in the swagger and the documentation of the API.", examples=[["admin"]], json_schema_extra={"default": []})  # fmt: off
-    app_title: str = Field(default=DEFAULT_APP_NAME, description="Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["My API"])  # fmt: off
+    app_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application (dsiplayed on Playground, Swagger and Redoc UI).", examples=["My API"])  # fmt: off
 
     # routing
     routing_max_retries: int = Field(default=3, ge=1, description="Maximum number of retries for routing tasks.")  # fmt: off
@@ -466,7 +466,7 @@ class ConfigFile(ConfigBaseModel):
     """
 
     models: list[Model] = Field(default_factory=list, description="Models used by the API.")  # fmt: off
-    dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the API.")  # fmt: off
+    dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies required by the applications (API and Playground).")  # fmt: off
     settings: Annotated[SettingsLoginPassword | SettingsLoginOIDC, Field(discriminator="auth_login_type", default_factory=SettingsLoginPassword, description="General settings configuration fields.")]  # fmt: off
 
     @field_validator("settings", mode="before")

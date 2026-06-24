@@ -5,25 +5,9 @@ sidebar:
   order: 0
 ---
 import { Badge, Tabs, TabItem } from '@astrojs/starlight/components';
+import ConfigTableDocs from '../../../components/ConfigTableDocs.astro';
 
-<style is:global>{`
-  .sl-markdown-content table .config-scope-cell {
-    white-space: nowrap;
-    width: 1%;
-    vertical-align: top;
-  }
-  .sl-markdown-content table .config-scope-badges {
-    display: inline-flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 0.25rem;
-  }
-  .sl-markdown-content table .config-scope-badges .sl-badge {
-    overflow-wrap: normal;
-    word-break: keep-all;
-    white-space: nowrap;
-  }
-`}</style>
+<ConfigTableDocs />
 
 OpenGateLLM requires configuring a configuration file. This defines models, dependencies, and settings parameters. Playground and API can share the same configuration file; the **Scope** column in each table indicates whether a field applies to the API, the Playground, or both.
 
