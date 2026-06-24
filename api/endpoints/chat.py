@@ -78,6 +78,8 @@ async def chat_completions(
         elasticsearch_client=elasticsearch_client,
     )
 
+    await postgres_session.close()
+
     if body.stream:
         stream_iter = model_provider.forward_stream(request_content=request_content, redis_client=redis_client)
         return StreamingResponseWithStatusCode(content=stream_iter, media_type="text/event-stream")
