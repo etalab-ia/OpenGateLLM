@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from api.dependencies import auth_login_use_case_factory, auth_sso_login_use_case_factory
 from api.domain.auth.errors import InvalidOidcTokenError, SsoProviderNotAvailableError
@@ -68,15 +68,29 @@ async def login(body: AuthLoginBody, auth_login_use_case: AuthLoginUseCase = Dep
         [InvalidPasswordHTTPException, UserNotFoundHTTPException, RoleNotFoundHTTPException], add_auth_exceptions=False
     ),
 )
-async def sso_login(body: AuthSsoLoginBody, auth_sso_login_use_case: AuthSsoLoginUseCase = Depends(auth_sso_login_use_case_factory)):
-    command = AuthSsoLoginCommand(email=body.email, name=body.name, organization=body.organization, token=body.token)
+async def sso_login(
+    request: Request,
+    body: AuthSsoLoginBody,
+    auth_sso_login_use_case: AuthSsoLoginUseCase = Depends(auth_sso_login_use_case_factory),
+):
+    session_cookie = request.headers.get("cookie")
+    if not session_cookie:
+        raise InvalidOidcTokenHTTPException()
+
+    command = AuthSsoLoginCommand(
+        session_cookie=session_cookie,
+        name=body.name,
+        organization=body.organization,
+        sub=body.sub,
+        iss=body.iss,
+        expires=body.expires,
+    )
     try:
         result = await auth_sso_login_use_case.execute(command=command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing auth oidc login use case",
             extra={
-                "email": body.email,
                 "error_type": type(e).__name__,
             },
         )

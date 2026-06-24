@@ -16,7 +16,10 @@ class AuthLoginResponse(CreateKeyResponse):
 
 
 class AuthSsoLoginBody(BaseModel):
-    email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(description="The user email. If user not found, a new user will be created.")  # fmt: off
     name: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(default=None, description="The user name.")  # fmt: off
     organization: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(default=None, description="The organization name. If organization not found, a new organization will be created.")  # fmt: off
-    token: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="The ID token for SSO login.")  # fmt: off
+    sub: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(default=None, description="The OIDC subject identifier.")  # fmt: off
+    iss: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(default=None, description="The OIDC issuer identifier.")  # fmt: off
+    expires: int | None = Field(
+        default=None, ge=1, description="Unix timestamp when the OIDC token expires. Used as the playground API key expiration."
+    )

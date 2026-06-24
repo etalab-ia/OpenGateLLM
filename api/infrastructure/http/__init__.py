@@ -1,5 +1,5 @@
-from ._httpauthssoproviderclient import HttpAuthSsoProviderClient
+from ._httpauthssosessionvalidator import HttpAuthSsoSessionValidator
 from ._httpprovideradapterbuilder import HttpProviderAdapterBuilder
 from ._httpproviderclient import HttpProviderClient
 
-__all__ = ["HttpAuthSsoProviderClient", "HttpProviderAdapterBuilder", "HttpProviderClient"]
+__all__ = ["HttpAuthSsoSessionValidator", "HttpProviderAdapterBuilder", "HttpProviderClient"]

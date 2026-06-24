@@ -248,6 +248,16 @@ def build_row(attribute: str, property: dict, ref_keys: list[str], scope: set[st
     return row
 
 
+def merge_defaults(defaults_by_scope: dict[str, str]) -> str:
+    unique_defaults = set(defaults_by_scope.values())
+    if len(unique_defaults) == 1:
+        return next(iter(unique_defaults))
+
+    return "\n".join(
+        f"{value if value != 'required' else '**required**'} ({SCOPE_LABELS[scope_key]})" for scope_key, value in sorted(defaults_by_scope.items())
+    )
+
+
 def merge_rows(*rows: Row) -> Row:
     scope = set().union(*(row.scope for row in rows))
     types = list(dict.fromkeys(type_ for row in rows for type_ in row.types))
@@ -259,11 +269,7 @@ def merge_rows(*rows: Row) -> Row:
         description = " ".join(f"**{SCOPE_LABELS[next(iter(row.scope))]}**: {row.description}" for row in rows if row.description)
 
     defaults_by_scope = {next(iter(row.scope)): row.default for row in rows}
-    unique_defaults = set(defaults_by_scope.values())
-    if len(unique_defaults) == 1:
-        default = next(iter(unique_defaults))
-    else:
-        default = " / ".join(f"{SCOPE_LABELS[scope_key]}: {value}" for scope_key, value in sorted(defaults_by_scope.items()))
+    default = merge_defaults(defaults_by_scope)
 
     values = list(dict.fromkeys(value for row in rows for value in row.values))
     examples = next((row.examples for row in rows if row.examples), [])
@@ -363,6 +369,7 @@ def format_examples(examples: list) -> str:
 
 def format_cell_html(text: str) -> str:
     text = handle_acorn(text=html.escape(text))
+    text = text.replace("\n", "<br />")
     text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', text)
     text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
     return text

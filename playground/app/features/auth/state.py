@@ -73,10 +73,20 @@ class AuthState(rx.State):
         )
         return response
 
-    async def _sso_login(self, client: httpx.AsyncClient, email: str, name: str | None, organization: str | None, token: str):
+    async def _sso_login(
+        self,
+        client: httpx.AsyncClient,
+        name: str | None,
+        organization: str | None,
+        session_cookie: str,
+        sub: str | None,
+        iss: str | None,
+        expires: int | None,
+    ):
         response = await client.post(
             url=f"{self.opengatellm_url}/v1/auth/sso/login",
-            json={"email": email, "name": name, "organization": organization, "token": token},
+            headers={"Cookie": session_cookie},
+            json={"name": name, "organization": organization, "sub": sub, "iss": iss, "expires": expires},
             timeout=self.opengatellm_timeout,
         )
         return response
@@ -160,6 +170,14 @@ class AuthState(rx.State):
         payload_b64 = token.split(".")[1]
         payload_b64 += "=" * (-len(payload_b64) % 4)
         return json.loads(urlsafe_b64decode(payload_b64))
+
+    @staticmethod
+    def _token_expiration(token: str) -> int | None:
+        try:
+            exp = AuthState._decode_jwt_payload(token).get("exp")
+            return int(exp) if exp is not None else None
+        except Exception:
+            return None
 
     @staticmethod
     def _token_is_expired(token: str) -> bool:
@@ -254,6 +272,10 @@ class AuthState(rx.State):
         if not email:
             raise ValueError("Email not found in headers")
 
+        session_cookie = headers.get("cookie")
+        if not session_cookie:
+            raise ValueError("Session cookie not found in headers")
+
         id_token = None
         for key in ["authorization", "x-forwarded-id-token"]:
             id_token = self._oauth2_extract_token_from_headers(headers=headers, key=key)
@@ -268,6 +290,8 @@ class AuthState(rx.State):
         if self._token_is_expired(id_token):
             yield self._oidc_reauth_redirect()
             return
+
+        token_expires = self._token_expiration(id_token)
 
         self.is_loading = True
         yield
@@ -300,7 +324,15 @@ class AuthState(rx.State):
                     yield rx.call_script(f"setTimeout(() => window.location.assign({json.dumps(sign_out_path)}), {UNAUTHORIZED_TOAST_DURATION_MS})")
                     return
 
-                response = await self._sso_login(client=client, email=email, name=name, organization=organization, token=id_token)
+                response = await self._sso_login(
+                    client=client,
+                    name=name,
+                    organization=organization,
+                    session_cookie=session_cookie,
+                    sub=claims.get("sub"),
+                    iss=claims.get("iss"),
+                    expires=token_expires,
+                )
 
                 response.raise_for_status()
                 api_key = response.json().get("value")

@@ -29,6 +29,7 @@ def main():
         env["OAUTH2_PROXY_REDIRECT_URL"] = urljoin(base=base, url="oauth2/callback")
         env["OAUTH2_PROXY_SCOPE"] = settings.auth_sso_oidc_scope
         env["OAUTH2_PROXY_LOGOUT_REDIRECT_URI"] = settings.auth_sso_logout_redirect_uri
+        env["OAUTH2_PROXY_COOKIE_EXPIRE"] = f"{settings.auth_login_session_duration}s"
 
         issuer_domain = urlparse(url=settings.auth_sso_oidc_issuer_url).netloc
         app_domain = urlparse(url=settings.auth_playground_url).netloc

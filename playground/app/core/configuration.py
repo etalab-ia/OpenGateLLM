@@ -117,6 +117,7 @@ class Dependencies(ConfigBaseModel):
 @custom_validation_error()
 class Settings(ConfigBaseModel):
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a new API key to be valid.")  # fmt: off
+    auth_login_session_duration: int = Field(default=3600, ge=1, description="Duration of login session for the playground in seconds. Also used as oauth2-proxy cookie expiration when SSO is enabled.")  # fmt: off
     routing_max_priority: int = Field(default=4, ge=0, description="Maximum allowed priority in routing tasks.")  # fmt: off
     app_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application (dsiplayed on Playground, Swagger and Redoc UI).")
 
@@ -144,7 +145,7 @@ class SettingsLoginPassword(Settings):
 class SettingsLoginOIDC(Settings):
     auth_login_type: Literal["oidc"] = Field(default="oidc", description="Login type for the API.")
 
-    auth_playground_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="http://localhost:8501", description="The URL of the application, use to whitelist domains in oauth2-proxy.")  # fmt: off
+    auth_playground_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="http://localhost:8501", description="Playground URL. Used by oauth2-proxy for redirect whitelisting and by the API to validate SSO sessions via /oauth2/auth. Use an internal URL reachable from the API (for example http://playground:8501) for API configuration and a public URL reachable from the internet (for example https://playground.my-domain.com) for Playground configuration.")  # fmt: off
     auth_sso_oidc_issuer_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC issuer URL used to fetch JWKS and validate id_tokens.")  # fmt: off
     auth_sso_client_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC client_id (audience) for id_token validation.")  # fmt: off
     auth_sso_client_secret: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="OIDC client secret for id_token validation.")  # fmt: off

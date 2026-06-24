@@ -5,81 +5,116 @@ sidebar:
 ---
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
-OpenGateLLM support le Single Sign-On (SSO) via les fournisseurs d'identité OIDC pour se connecter au Playground en alternative au login par mot de passe par défaut. 
-Ce support est assuré par OAuth2-proxy (voir [documentation OAuth2 Proxy](https://oauth2-proxy.github.io/oauth2-proxy/)) depuis 
-le container du playground.
+OpenGateLLM supports Single Sign-On (SSO) through OIDC identity providers to log into the Playground as an alternative to the default password login.
+This support is provided by [OAuth2 Proxy](https://oauth2-proxy.github.io/oauth2-proxy/) running inside the Playground container.
 
+With SSO authentication flow, users are automatically created when they sign in for the first time.
+
+
+## Authentication flow
 
 ```mermaid
+---
+config:
+  layout: elk
+---
 flowchart LR
     user@{ shape: notch-rect, label: "User browser" }
     rp-public{"Public Reverse Proxy<br>(eg. my-domain.com)"}
-    api("OpenGateLLM API")
+
     idp("Identity Provider<br>(eg. Google)")
-    
+
     subgraph playground [OpenGateLLM Playground]
         rp-playground{"Nginx"}
-        reflex("Reflex App")
-          
-        oauth2["OAuth2 Proxy"]    
-        rp-playground <--> oauth2
-        rp-playground --> reflex
+        oauth2("OAuth2 Proxy")
+        reflex("Reflex App")  
+        rp-playground e1@-->|5| reflex
+        rp-playground e2@<-->|3| oauth2
+
     end
 
-    user --> rp-public
-    rp-public --> rp-playground
-    oauth2 <--> idp
-    reflex -->|"/v1/auth/sso/login"| api
+    subgraph api [OpenGateLLM API]
+      fastapi("FastAPI")
+      db("PostgreSQL")
+      reflex e3@-->|6| fastapi
+      fastapi e4@-->|8| db
+    end
+
+    user e5@-->|1| rp-public
+    rp-public e6@-->|2| rp-playground
+    oauth2 e7@<-->|4| idp
+    fastapi e8@-->|7| oauth2
+  
+  e1@{ animation: fast }
+  e2@{ animation: fast }
+  e3@{ animation: fast }
+  e4@{ animation: fast }
+  e5@{ animation: fast }
+  e6@{ animation: fast }
+  e7@{ animation: fast }
+  e8@{ animation: fast }
 ```
+
+1. The user enter the Playground URL into their browser and will be redirected to public reverse proxy where you publish yous services (eg. my-api.com, my-playground.com)
+2. The public reverse proxy will redirect the user to the Playground container. In this container, the request is collected by a Nginx server.
+3. The Nginx server will forward the request to the OAuth2 Proxy service.
+4. The OAuth2 Proxy service will redirect the user to the identity provider (eg. Google, Azure, etc.). 
+The user will authenticate and will be redirected back to the OAuth2 Proxy service with a session cookie.
+The OAuth2 Proxy service validate the session cookie and forward the request to the Reflex App in Playground container.
+5. The Reflex App will retrieve information about the user from the identity provider (`/userinfo` endpoint) like name, email, organization, etc.
+6. The Reflex App will call the OpenGateLLM API `/v1/auth/sso/login` endpoint with the session cookie and the user information.
+7. The API will validate the session cookie by calling the OAuth2 Proxy service `/oauth2/auth` endpoint.
+8. If user or their organization does not exist in the database, the API will create it automatically by calling PostgreSQL database.
+Finally, the API creates a new API key for the user and returns it to the Reflex App. 
+This API key, named "playground", has the same duration as the OIDC token and allows the user to perform actions in the Playground.
 
 ## Configuration
 
-To activate SSO, you need to set the `auth_login_type` to `oidc` in the configuration file. You need to provide the following settings:
+To activate SSO, set `auth_login_type` to `oidc` in the configuration file.
+Configure the `auth_sso_*` settings for the Playground and `auth_playground_url` for the API. See the [Settings section](/configuration/configuration_file/#settings) in the configuration documentation for the full list of parameters.
+
+In production, restrict network access to `/v1/auth/sso/login` so only the Playground can reach it. The API validates the oauth2-proxy session by calling `{auth_playground_url}/oauth2/auth` instead of re-validating OIDC tokens with the identity provider.
 
 <Aside type="tip">
 You can use the same configuration file for both the API and the Playground.
 </Aside>
 
-  * `auth_sso_logout_redirect_uri`
+Rebuild the Playground image so the configuration is baked in, by passing the `CONFIG_FILE` build argument:
 
+```bash
+docker build --build-arg CONFIG_FILE=config.yml --file playground/Dockerfile --tag playground:latest .
+```
 
-  * `auth_sso_cookie_secure`
-  
-    Whether the cookie is secure. Set to True if the application is served over HTTPS. Default is False.
+### Access filters
 
-  * `auth_sso_cookie_secret`
+Three optional filters restrict who can sign in to the Playground after OIDC authentication:
 
-    Secret used to sign the OAuth2-proxy cookies. If not provided, a random secret will be generated. To generate a secret, you can see the dedicated 
-    section in the [OAuth2-proxy documentation](https://oauth2-proxy.github.io/oauth2-proxy/configuration/overview/#generating-a-cookie-secret).
+- **OIDC groups** — set `auth_sso_groups_claim_field` to the claim that carries group membership from your identity provider, then list allowed values in `auth_sso_allowed_groups`. When empty, all groups are allowed.
+- **OIDC organization** — set `auth_sso_organization_claim_field` to the claim that carries the organization name, then list allowed values in `auth_sso_allowed_organizations`. When empty, all organizations are allowed. If the claim field is set, the organization is created automatically in OpenGateLLM when it does not already exist.
+- **Email domain** — list allowed domains in `auth_sso_allowed_email_domains` (for example `@example.com` or `example.com`). When empty, all email domains are allowed.
 
-  * `auth_sso_allowed_email_domains`
-  
-  Si vide, toutes les adresses email sont autorisées, sauf si `auth_sso_allowed_groups` est défini.
+Filters are evaluated by the Playground after OAuth2 Proxy authentication and before the API SSO login call.
 
-  * `auth_sso_allowed_groups`
-  Si vide, toutes les groupes sont autorisées, sauf si `auth_sso_allowed_email_domains` est défini.
+#### Combination rules
 
-
-
-  The playground image installs the [oauth2-proxy prebuilt binary](https://oauth2-proxy.github.io/oauth2-proxy/installation) and starts it with supervisord alongside nginx and the Reflex backend. When `OAUTH2_PROXY_CLIENT_ID` is not set, oauth2-proxy is skipped automatically.
-
-  ```bash
-  docker build --build-arg CONFIG_FILE=config.yml --file playground/Dockerfile --tag playground:latest .
-  ```
+- If all `auth_sso_allowed_*` lists are empty, every authenticated user is allowed.
+- If exactly one list is non-empty, only that criterion is checked.
+- If two or more lists are non-empty, a user is allowed when they match **any** of the enabled criteria (logical OR).
 
 ## Supported identity providers
 
 <Tabs>
   <TabItem value="proconnect" label="ProConnect" icon="local:proconnect">
-    ProConnect is the identity provider of the Single Sign-On (SSO) for the OpenGateLLM playground. To activate SSO, you need to create a client in ProConnect on https://partenaires.moncomptepro.beta.gouv.fr/.
+    ProConnect is the identity provider used for SSO on the OpenGateLLM Playground in French public administration deployments. To activate SSO, create a client on [partenaires.moncomptepro.beta.gouv.fr](https://partenaires.moncomptepro.beta.gouv.fr/).
 
     **Logout URL**
 
-    ProConnect requires a RP-initiated logout call to the issuer `/session/end` endpoint. See 2.4.1 section in [ProConnect technical documentation](https://partenaires.proconnect.gouv.fr/docs/fournisseur-service/implementation_technique) for details.
-    Generate `auth_oauth2_oidc_provider_logout_url` from the issuer root URL and the oauth2-proxy login URL (post logout redirect URI).
-    You can use following function to generate the logout URL, example:
-    - oauth2_proxy_login_url: `http://localhost:8501/oauth2/sign_in`
-    - issuer_url: `https://fca.integ01.dev-agentconnect.fr/api/v2`
+    ProConnect requires an RP-initiated logout call to the issuer `/session/end` endpoint. See section 2.4.1 in the [ProConnect technical documentation](https://partenaires.proconnect.gouv.fr/docs/fournisseur-service/implementation_technique) for details.
+
+    Set `auth_sso_logout_redirect_uri` to the ProConnect logout URL. Build it from the issuer root URL and the OAuth2 Proxy sign-in URL (used as the post-logout redirect URI). Example values:
+
+    - `oauth2_proxy_login_url`: `http://localhost:8501/oauth2/sign_in`
+    - `issuer_url`: `https://fca.integ01.dev-agentconnect.fr/api/v2`
 
     ```python
     import secrets
@@ -91,5 +126,7 @@ You can use the same configuration file for both the API and the Playground.
         state = secrets.token_urlsafe(32)
         return f"{issuer_url}/session/end?id_token_hint={{id_token}}&post_logout_redirect_uri={encoded_redirect}&state={quote(state, safe='')}"
     ```
+
+    The `{id_token}` placeholder is substituted by OAuth2 Proxy when the user signs out.
   </TabItem>
 </Tabs>

@@ -1,12 +1,19 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version.
     rev: v0.15.13
     hooks:
-      # Run the linter.
       - id: ruff
         types_or: [ python, pyi ]
         args: [ --fix ]
-      # Run the formatter.
       - id: ruff-format
         types_or: [ python, pyi ]
+
+  - repo: local
+    hooks:
+      - id: encrypt-playground-config
+        name: Encrypt playground config
+        entry: scripts/encrypt_vault.sh
+        args: ['--vault-password-file=.vault']
+        language: system
+        types: [file]
+        files: .github/assets/playground.config.yml.j2

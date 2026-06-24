@@ -58,6 +58,7 @@ settings:
   auth_bootsrap_admin_password: changeme
   # auth_login_type: password
   # auth_login_session_duration: 3600
+  # auth_playground_url: http://playground:8501
   # auth_sso_default_role_id: 1
   # auth_sso_oidc_issuer_url: https://...
   # auth_sso_client_id: ${OAUTH2_PROXY_CLIENT_ID}
