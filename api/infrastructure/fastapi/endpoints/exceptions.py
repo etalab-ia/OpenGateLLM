@@ -29,15 +29,15 @@ class InvalidAPIKeyHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
-class InvalidOidcTokenHTTPException(HTTPException):
+class InvalidSSOSessionHTTPException(HTTPException):
     status_code = 401
-    detail = "Invalid OIDC token."
+    detail = "Invalid SSO session."
 
     def __init__(self) -> None:
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
-class OidcProviderNotAvailableHTTPException(HTTPException):
+class SSOProviderNotAvailableHTTPException(HTTPException):
     status_code = 503
     detail = "OIDC provider is not available."
 
@@ -100,7 +100,31 @@ class InconsistentModelVectorSizeHTTPException(HTTPException):
         )
 
 
+class SsoAccessDeniedHTTPException(HTTPException):
+    status_code = 403
+    detail = "You are not authorized to access this application."
+
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)
+
+
 # 404
+class DefaultSsoPolicyOrganizationNotFoundHTTPException(HTTPException):
+    status_code = 404
+    detail = "Default SSO policy organization is not set."
+
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)
+
+
+class DefaultSsoPolicyRoleNotFoundHTTPException(HTTPException):
+    status_code = 404
+    detail = "Default SSO policy role is not set."
+
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)
+
+
 class ModelNotFoundHTTPException(HTTPException):
     status_code = 404
     detail = "Model {name} not found."
@@ -113,16 +137,18 @@ class RoleNotFoundHTTPException(HTTPException):
     status_code = 404
     detail = "Role {role_id} not found."
 
-    def __init__(self, role_id: int) -> None:
-        super().__init__(status_code=self.status_code, detail=f"Role {role_id} not found.")
+    def __init__(self, role_id: int | None = None) -> None:
+        detail = f"Role {role_id} not found." if role_id is not None else "Role not found."
+        super().__init__(status_code=self.status_code, detail=detail)
 
 
 class OrganizationNotFoundHTTPException(HTTPException):
     status_code = 404
     detail = "Organization {organization_id} not found."
 
-    def __init__(self, organization_id: int) -> None:
-        super().__init__(status_code=self.status_code, detail=f"Organization {organization_id} not found.")
+    def __init__(self, organization_id: int | None = None) -> None:
+        detail = f"Organization {organization_id} not found." if organization_id is not None else "Organization not found."
+        super().__init__(status_code=self.status_code, detail=detail)
 
 
 class RouterNotFoundHTTPException(HTTPException):
@@ -228,6 +254,14 @@ class DeleteUserWithProvidersHTTPException(HTTPException):
 
     def __init__(self, provider_ids: list[int] | None) -> None:
         super().__init__(status_code=409, detail=f"User cannot be deleted because the user owns providers: {provider_ids}.")
+
+
+class SsoPolicyRuleAlreadyExistsHTTPException(HTTPException):
+    status_code = 409
+    detail = "SSO policy rule already exists."
+
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)
 
 
 # 413

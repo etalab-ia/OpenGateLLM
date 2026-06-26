@@ -61,12 +61,10 @@ flowchart LR
 4. The OAuth2 Proxy service will redirect the user to the identity provider (eg. Google, Azure, etc.). 
 The user will authenticate and will be redirected back to the OAuth2 Proxy service with a session cookie.
 The OAuth2 Proxy service validate the session cookie and forward the request to the Reflex App in Playground container.
-5. The Reflex App will retrieve information about the user from the identity provider (`/userinfo` endpoint) like name, email, organization, etc.
+5. The Reflex App will retrieve information about the user from the identity provider (`/userinfo` endpoint) like name, email, organization, and roles.
 6. The Reflex App will call the OpenGateLLM API `/v1/auth/sso/login` endpoint with the session cookie and the user information.
-7. The API will validate the session cookie by calling the OAuth2 Proxy service `/oauth2/auth` endpoint.
-8. If user or their organization does not exist in the database, the API will create it automatically by calling PostgreSQL database.
-Finally, the API creates a new API key for the user and returns it to the Reflex App. 
-This API key, named "playground", has the same duration as the OIDC token and allows the user to perform actions in the Playground.
+7. The API will validate the session cookie by calling the OAuth2 Proxy service `/oauth2/auth` endpoint, then evaluate the SSO access policy stored in PostgreSQL.
+8. If the user passes the access filters and a role mapping matches their OIDC organization and role claims, the API creates the user and organization when needed, then creates a new API key.
 
 ## Configuration
 
@@ -85,19 +83,23 @@ Rebuild the Playground image so the configuration is baked in, by passing the `C
 docker build --build-arg CONFIG_FILE=config.yml --file playground/Dockerfile --tag playground:latest .
 ```
 
-### Access filters
+### Access policy
 
-Three optional filters restrict who can sign in to the Playground after OIDC authentication:
+SSO access rules are stored in PostgreSQL and managed from the Playground **SSO Access** admin page (`/sso-access`) or through the API endpoint `GET/PUT /v1/admin/sso/policy`.
 
-- **OIDC groups** — set `auth_sso_groups_claim_field` to the claim that carries group membership from your identity provider, then list allowed values in `auth_sso_allowed_groups`. When empty, all groups are allowed.
-- **OIDC organization** — set `auth_sso_organization_claim_field` to the claim that carries the organization name, then list allowed values in `auth_sso_allowed_organizations`. When empty, all organizations are allowed. If the claim field is set, the organization is created automatically in OpenGateLLM when it does not already exist.
-- **Email domain** — list allowed domains in `auth_sso_allowed_email_domains` (for example `@example.com` or `example.com`). When empty, all email domains are allowed.
+Three optional access filters restrict who can sign in after OIDC authentication:
 
-Filters are evaluated by the Playground after OAuth2 Proxy authentication and before the API SSO login call.
+- **Allowed emails** — full email addresses or suffixes such as `@example.com`. A user matches when their email ends with one of the configured values.
+- **Allowed organizations** — OIDC organization claim values.
+- **Allowed roles** — OIDC role claim values.
+
+Set `auth_sso_role_claim_field` and `auth_sso_organization_claim_field` in the configuration file so the Playground can read role and organization values from the identity provider `/userinfo` endpoint.
+
+A **role mapping** is also required for every successful SSO login: each `(organization, OIDC role)` pair must map to an OpenGateLLM `role_id`. If no mapping matches, the API returns `403`.
 
 #### Combination rules
 
-- If all `auth_sso_allowed_*` lists are empty, every authenticated user is allowed.
+- If all allowed lists are empty, every authenticated user passes the access filters.
 - If exactly one list is non-empty, only that criterion is checked.
 - If two or more lists are non-empty, a user is allowed when they match **any** of the enabled criteria (logical OR).
 

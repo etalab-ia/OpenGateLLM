@@ -151,31 +151,18 @@ class Token(Base):
     __table_args__ = (UniqueConstraint("user_id", "name", name="unique_token_name_per_user"),)
 
 
-class SsoAccessRule(Base):
-    __tablename__ = "sso_access_rule"
+class SsoPolicyRule(Base):
+    __tablename__ = "sso_policy_rule"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     type: Mapped[SsoAccessRuleType]
-    value: Mapped[str]
+    value: Mapped[str | None]
+    role_id: Mapped[int | None] = mapped_column(ForeignKey(column="role.id", ondelete="CASCADE"))
+    organization_id: Mapped[int | None] = mapped_column(ForeignKey(column="organization.id", ondelete="CASCADE"))
     created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
     updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())
 
-    __table_args__ = (UniqueConstraint("type", "value", name="unique_sso_access_rule_type_value"),)
-
-
-class SsoRoleMapping(Base):
-    __tablename__ = "sso_role_mapping"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    organization_name: Mapped[str]
-    oidc_role_name: Mapped[str]
-    role_id: Mapped[int] = mapped_column(ForeignKey(column="role.id", ondelete="CASCADE"))
-    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
-    updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())
-
-    role: Mapped["Role"] = relationship(passive_deletes=True)
-
-    __table_args__ = (UniqueConstraint("organization_name", "oidc_role_name", name="unique_sso_role_mapping_org_oidc_role"),)
+    __table_args__ = (UniqueConstraint("type", "value", name="unique_sso_policy_type_value"),)
 
 
 class Organization(Base):

@@ -96,6 +96,7 @@ class PlaygroundPages(StrEnum):
     PROVIDERS = "providers"
     ROLES = "roles"
     ROUTERS = "routers"
+    SSO_ACCESS = "sso_access"
     USAGE = "usage"
     USERS = "users"
 
@@ -154,26 +155,14 @@ class SettingsLoginOIDC(Settings):
     auth_sso_oidc_scope: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default="openid", description="OIDC scope for id_token validation.")  # fmt: off
     auth_sso_cookie_secure: bool = Field(default=False, description="Whether the cookie is secure. Set to True if the application is served over HTTPS.")  # fmt: off
     auth_sso_name_claim_fields: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]] = Field(default_factory=["name"], description="OIDC userinfo claim fields joined to build the user display name sent to the API on SSO login.")  # fmt: off
-    auth_sso_groups_claim_field: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default=None, description="OIDC groups claim name. Must be set if auth_sso_allowed_groups is set.")  # fmt: off
-    auth_sso_allowed_groups: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]] = Field(default_factory=list, description="OIDC groups allowed to access the application. When empty, all groups are allowed.")  # fmt: off
-    auth_sso_allowed_email_domains: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]] = Field(default_factory=list, description="OIDC whitelisted email domains. When empty, all email domains are allowed.")  # fmt: off
-    auth_sso_organization_claim_field: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default=None, description="OIDC organization claim name. When it set, organization will be automatically created if it doesn't exist. Must be set if auth_sso_allowed_organizations is set.")  # fmt: off
-    auth_sso_allowed_organizations: list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]] = Field(default_factory=list, description="OIDC allowed organizations. When empty, all organizations are allowed.")  # fmt: off
+    auth_sso_role_claim_field: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default=None, description="OIDC role claim name used to read role values from the identity provider.")  # fmt: off
+    auth_sso_organization_claim_field: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1)] = Field(default=None, description="OIDC organization claim name. When set, organization will be automatically created if it doesn't exist.")  # fmt: off
 
     @field_validator("auth_sso_cookie_secret", mode="after")
     def set_auth_sso_cookie_secret(cls, value: str | None) -> str:
         if value is None:
             return base64.urlsafe_b64encode(os.urandom(32)).decode()
         return value
-
-    @model_validator(mode="after")
-    def validate_model(self) -> Any:
-        if self.auth_sso_allowed_groups and not self.auth_sso_groups_claim_field:
-            raise ValueError("If auth_sso_allowed_groups is set, auth_sso_groups_claim_field must be set.")
-
-        if self.auth_sso_allowed_organizations and not self.auth_sso_organization_claim_field:
-            raise ValueError("If auth_sso_allowed_organizations is set, auth_sso_organization_claim_field must be set.")
-        return self
 
 
 class ConfigFile(ConfigBaseModel):

@@ -1,16 +1,12 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 
-from api.domain.auth.errors import InvalidOidcTokenError, SsoProviderNotAvailableError
-
-
-@dataclass(frozen=True)
-class SsoSessionClaims:
-    email: str
-    user: str | None = None
+from api.domain.auth.errors import SsoInvalidSessionError, SsoProviderNotAvailableError
 
 
 class AuthSsoSessionValidator(ABC):
     @abstractmethod
-    async def validate_session(self, session_cookie: str) -> SsoSessionClaims | InvalidOidcTokenError | SsoProviderNotAvailableError:
+    async def validate_session(self, session_cookie: str) -> str | SsoInvalidSessionError | SsoProviderNotAvailableError:
+        """
+        Validate the session cookie by calling the authentication service and return the email of the user.
+        """
         pass

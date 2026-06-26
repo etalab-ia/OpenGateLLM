@@ -36,7 +36,6 @@ class AuthState(rx.State):
 
     # Loading state
     is_loading: bool = False
-    has_access: bool = True
 
     opengatellm_url: str = configuration.settings.playground_opengatellm_url
     opengatellm_timeout: int = configuration.settings.playground_opengatellm_timeout
@@ -45,11 +44,8 @@ class AuthState(rx.State):
     sso_logout_redirect_uri: str | None = None if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_logout_redirect_uri  # fmt: off
     sso_oidc_issuer_url: str | None = None if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_oidc_issuer_url
     sso_name_claim_fields: list[str] = [] if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_name_claim_fields
-    sso_groups_claim_field: str | None = None if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_groups_claim_field  # fmt: off
-    sso_allowed_groups: list[str] = [] if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_allowed_groups
-    sso_allowed_email_domains: list[str] = [] if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_allowed_email_domains  # fmt: off
+    sso_role_claim_field: str | None = None if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_role_claim_field  # fmt: off
     sso_organization_claim_field: str | None = None if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_organization_claim_field  # fmt: off
-    sso_allowed_organizations: list[str] = [] if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_allowed_organizations  # fmt: off
 
     # Form fields
     email_input: str = ""
@@ -78,6 +74,7 @@ class AuthState(rx.State):
         client: httpx.AsyncClient,
         name: str | None,
         organization: str | None,
+        roles: list[str],
         session_cookie: str,
         sub: str | None,
         iss: str | None,
@@ -86,7 +83,14 @@ class AuthState(rx.State):
         response = await client.post(
             url=f"{self.opengatellm_url}/v1/auth/sso/login",
             headers={"Cookie": session_cookie},
-            json={"name": name, "organization": organization, "sub": sub, "iss": iss, "expires": expires},
+            json={
+                "name": name,
+                "organization": organization,
+                "roles": roles,
+                "sub": sub,
+                "iss": iss,
+                "expires": expires,
+            },
             timeout=self.opengatellm_timeout,
         )
         return response
@@ -202,32 +206,16 @@ class AuthState(rx.State):
         return stripped_name or None
 
     @staticmethod
-    def _check_user_access(
-        organization: str | None,
-        email: str,
-        groups: list[str],
-        allowed_groups: list[str],
-        allowed_email_domains: list[str],
-        allowed_organizations: list[str],
-    ) -> bool:
-        """
-        Check SSO user access:
-        - if all allowed_* are empty → everyone has access
-        - if only one allowed_* is non-empty → that single criterion decides access
-        - if at least two allowed_* are non-empty → OR across the enabled criteria
-        """
-        checks: list[bool] = []
+    def _roles_from_claims(claims: dict, role_claim_field: str | None) -> list[str]:
+        if not role_claim_field:
+            return []
 
-        if allowed_groups:
-            checks.append(any(group in allowed_groups for group in groups))
-
-        if allowed_email_domains:
-            checks.append(any(email.endswith(domain) for domain in allowed_email_domains))
-
-        if allowed_organizations:
-            checks.append(organization is not None and organization in allowed_organizations)
-
-        return True if not checks else any(checks)
+        roles_claim = claims.get(role_claim_field, [])
+        if isinstance(roles_claim, str):
+            return [roles_claim] if roles_claim else []
+        if isinstance(roles_claim, list):
+            return [str(role) for role in roles_claim if str(role).strip()]
+        return []
 
     @staticmethod
     def _parse_userinfo_response(response: httpx.Response) -> dict:
@@ -255,18 +243,15 @@ class AuthState(rx.State):
         sign_out_url = f"/oauth2/sign_out?rd={quote(sign_in_url, safe='')}"
         return rx.call_script(f"window.location.assign({json.dumps(sign_out_url)})")
 
+    def _oidc_access_denied_redirect(self):
+        sign_out_path = f"/oauth2/sign_out?rd={quote(self.sso_logout_redirect_uri, safe='')}"
+        return rx.call_script(f"setTimeout(() => window.location.assign({json.dumps(sign_out_path)}), {UNAUTHORIZED_TOAST_DURATION_MS})")
+
     @rx.event
     async def oidc_login(self):
-        """
-        OIDC login logic:
-        - if all allowed_* are empty → everyone has access
-        - if only one allowed_* is non-empty → that single criterion decides access
-        - if at least two allowed_* are non-empty → OR across the enabled criteria
-        """
         if self.is_authenticated:
             return
 
-        self.has_access = True
         headers = self.router.headers.raw_headers
         email = headers.get("x-auth-request-email")
         if not email:
@@ -299,35 +284,18 @@ class AuthState(rx.State):
         response = None
         try:
             async with httpx.AsyncClient() as client:
-                # Create API key
                 claims = await self._fetch_claims_from_userinfo(client=client, access_token=access_token)
                 name = self._name_from_claims(claims=claims, claim_fields=self.sso_name_claim_fields)
-                groups = claims.get(self.sso_groups_claim_field, [])
+                roles = self._roles_from_claims(claims=claims, role_claim_field=self.sso_role_claim_field)
                 organization = claims.get(self.sso_organization_claim_field)
-                self.has_access = self._check_user_access(
-                    email=email,
-                    organization=organization,
-                    groups=groups,
-                    allowed_groups=self.sso_allowed_groups,
-                    allowed_email_domains=self.sso_allowed_email_domains,
-                    allowed_organizations=self.sso_allowed_organizations,
-                )
-
-                if not self.has_access:
-                    yield
-                    yield rx.toast.error(
-                        message="You are not authorized to access this application. Please contact your administrator.",
-                        position="top-center",
-                        duration=UNAUTHORIZED_TOAST_DURATION_MS,
-                    )
-                    sign_out_path = f"/oauth2/sign_out?rd={quote(self.sso_logout_redirect_uri, safe='')}"
-                    yield rx.call_script(f"setTimeout(() => window.location.assign({json.dumps(sign_out_path)}), {UNAUTHORIZED_TOAST_DURATION_MS})")
-                    return
+                if organization is not None:
+                    organization = str(organization).strip() or None
 
                 response = await self._sso_login(
                     client=client,
                     name=name,
                     organization=organization,
+                    roles=roles,
                     session_cookie=session_cookie,
                     sub=claims.get("sub"),
                     iss=claims.get("iss"),
@@ -338,12 +306,10 @@ class AuthState(rx.State):
                 api_key = response.json().get("value")
                 api_key_id = response.json().get("id")
 
-                # Get user info
                 response = await self._get_user_info(client=client, api_key=api_key)
                 response.raise_for_status()
                 user_data = response.json()
 
-                # Update state
                 self.is_authenticated = True
                 self.user_id = user_data.get("id")
                 self.user_email = user_data.get("email")
@@ -359,6 +325,14 @@ class AuthState(rx.State):
                 self.user_limits = user_data.get("limits", [])
 
         except HTTPStatusError as e:
+            if response is not None and response.status_code == 403:
+                yield rx.toast.error(
+                    message="You are not authorized to access this application. Please contact your administrator.",
+                    position="top-center",
+                    duration=UNAUTHORIZED_TOAST_DURATION_MS,
+                )
+                yield self._oidc_access_denied_redirect()
+                return
             if response is not None and response.status_code == 401:
                 yield self._oidc_reauth_redirect()
                 return
@@ -366,8 +340,7 @@ class AuthState(rx.State):
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
         finally:
-            if self.has_access:
-                self.is_loading = False
+            self.is_loading = False
             yield
 
     @rx.var
@@ -384,7 +357,6 @@ class AuthState(rx.State):
     def basic_logout(self):
         """Handle logout."""
         self.is_authenticated = False
-        self.has_access = True
         self.user_id = None
         self.user_email = None
         self.user_name = None
@@ -405,7 +377,6 @@ class AuthState(rx.State):
         oauth2-proxy clears the session cookie then redirects to the provider logout URL.
         """
         self.is_authenticated = False
-        self.has_access = True
         self.user_id = None
         self.user_email = None
         self.user_name = None

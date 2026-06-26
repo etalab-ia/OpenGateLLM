@@ -14,6 +14,8 @@ from app.features.roles.page import roles_page
 from app.features.roles.state import RolesState
 from app.features.routers.page import routers_page
 from app.features.routers.state import RoutersState
+from app.features.sso_access.page import sso_access_page
+from app.features.sso_access.state import SsoAccessState
 from app.features.usage.page import usage_page
 from app.features.usage.state import UsageState
 from app.features.users.page import users_page
@@ -120,6 +122,17 @@ def providers() -> rx.Component:
     )
 
 
+def sso_access() -> rx.Component:
+    """SSO access policy page (admin only)."""
+    return authenticated_page(
+        rx.cond(
+            AuthState.is_admin,
+            sso_access_page(),
+            access_denied_page(message="You need admin permissions to access this page."),
+        )
+    )
+
+
 app = rx.App(
     theme=rx.theme(
         has_background=configuration.settings.playground_theme_has_background,
@@ -145,13 +158,15 @@ if PlaygroundPages.USAGE not in configuration.settings.playground_disabled_pages
     app.add_page(component=usage, route="/usage", on_load=[UsageState.load_entities])
 
 # Admin pages
-if PlaygroundPages.ROLES not in configuration.settings.playground_disabled_pages:
-    app.add_page(component=roles, route="/roles", on_load=[RolesState.load_entities])
-if PlaygroundPages.USERS not in configuration.settings.playground_disabled_pages:
-    app.add_page(component=users, route="/users", on_load=[UsersState.load_entities])
 if PlaygroundPages.ORGANIZATIONS not in configuration.settings.playground_disabled_pages:
     app.add_page(component=organizations, route="/organizations", on_load=[OrganizationsState.load_entities])
-if PlaygroundPages.ROUTERS not in configuration.settings.playground_disabled_pages:
-    app.add_page(component=routers, route="/routers", on_load=[RoutersState.load_entities])
 if PlaygroundPages.PROVIDERS not in configuration.settings.playground_disabled_pages:
     app.add_page(component=providers, route="/providers", on_load=[ProvidersState.load_entities])
+if PlaygroundPages.ROLES not in configuration.settings.playground_disabled_pages:
+    app.add_page(component=roles, route="/roles", on_load=[RolesState.load_entities])
+if PlaygroundPages.ROUTERS not in configuration.settings.playground_disabled_pages:
+    app.add_page(component=routers, route="/routers", on_load=[RoutersState.load_entities])
+if PlaygroundPages.SSO_ACCESS not in configuration.settings.playground_disabled_pages:
+    app.add_page(component=sso_access, route="/sso-access", on_load=[SsoAccessState.load_entities])
+if PlaygroundPages.USERS not in configuration.settings.playground_disabled_pages:
+    app.add_page(component=users, route="/users", on_load=[UsersState.load_entities])

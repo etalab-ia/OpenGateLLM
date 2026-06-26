@@ -1,14 +1,17 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
-from api.domain.auth import AuthSsoSessionValidator, SsoSessionClaims
-from api.domain.auth.errors import InvalidOidcTokenError, SsoProviderNotAvailableError
+from api.domain.auth import AuthSsoSessionValidator, SsoPolicyRepository
+from api.domain.auth.errors import (
+    DefaultSsoPolicyOrganizationIsNotSetError,
+    DefaultSsoPolicyRoleIsNotSetError,
+    SsoAccessDeniedError,
+    SsoInvalidSessionError,
+    SsoProviderNotAvailableError,
+)
 from api.domain.key import KeyRepository
 from api.domain.key.entities import Key
-from api.domain.organization import OrganizationRepository
-from api.domain.organization.entities import Organization
-from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserRepository
 from api.domain.user.entities import User
@@ -20,6 +23,7 @@ class AuthSsoLoginCommand:
     session_cookie: str
     name: str | None
     organization: str | None
+    roles: list[str] = field(default_factory=list)
     sub: str | None = None
     iss: str | None = None
     expires: int | None = None
@@ -30,63 +34,71 @@ class AuthSsoLoginUseCaseSuccess:
     key: Key
 
 
-type AuthSsoLoginUseCaseResult = AuthSsoLoginUseCaseSuccess | InvalidOidcTokenError | SsoProviderNotAvailableError | RoleNotFoundError
+type AuthSsoLoginUseCaseResult = (
+    AuthSsoLoginUseCaseSuccess
+    | DefaultSsoPolicyOrganizationIsNotSetError
+    | DefaultSsoPolicyRoleIsNotSetError
+    | SsoInvalidSessionError
+    | SsoProviderNotAvailableError
+    | SsoAccessDeniedError
+    | RoleNotFoundError
+)
 
 
 class AuthSsoLoginUseCase:
-    REFRESH_KEY_NAME: str = "playground"
+    REFRESH_KEY_NAME: str = "_playground_refreshed_key"
 
     def __init__(
         self,
         key_repository: KeyRepository,
-        organization_repository: OrganizationRepository,
         user_repository: UserRepository,
+        sso_policy_repository: SsoPolicyRepository,
         auth_sso_session_validator: AuthSsoSessionValidator,
         auth_login_type: Literal["password", "oidc"],
-        auth_sso_default_role_id: int | None = None,
         auth_login_session_duration: int = 3600,
     ):
         self.key_repository = key_repository
-        self.organization_repository = organization_repository
         self.user_repository = user_repository
+        self.sso_policy_repository = sso_policy_repository
         self.auth_sso_session_validator = auth_sso_session_validator
 
         self.auth_login_session_duration = auth_login_session_duration
         self.auth_login_type = auth_login_type
-        self.auth_sso_default_role_id = auth_sso_default_role_id
 
     async def execute(self, command: AuthSsoLoginCommand) -> AuthSsoLoginUseCaseResult:
         if self.auth_login_type != "oidc":
-            return InvalidOidcTokenError()
+            return SsoInvalidSessionError()
 
         result = await self.auth_sso_session_validator.validate_session(session_cookie=command.session_cookie)
         match result:
-            case SsoSessionClaims() as session:
+            case str() as email:
                 pass
-            case InvalidOidcTokenError() | SsoProviderNotAvailableError() as error:
+            case SsoInvalidSessionError() | SsoProviderNotAvailableError() as error:
                 return error
 
-        result = await self.user_repository.get_user_by_email(email=session.email)
+        policy = await self.sso_policy_repository.get_policy()
+        if not policy.is_allowed(email=email, organization=command.organization, roles=command.roles):
+            return SsoAccessDeniedError()
+
+        result = await self.user_repository.get_user_by_email(email=email)
         match result:
             case User() as user:
                 pass
             case UserNotFoundError():
-                if command.organization is not None:
-                    result = await self.organization_repository.get_organization_by_name(name=command.organization)
-                    match result:
-                        case Organization() as organization:
-                            organization_id = organization.id
-                        case OrganizationNotFoundError():
-                            organization = await self.organization_repository.create_organization(name=command.organization)
-                            organization_id = organization.id
-                else:
-                    organization_id = None
+                organization_rule = policy.get_matching_organization_rule(organization=command.organization)
+                role_rule = policy.get_matching_role_rule(roles=command.roles)
+
+                if role_rule is None:
+                    return DefaultSsoPolicyRoleIsNotSetError()
+
+                if organization_rule is None:
+                    return DefaultSsoPolicyOrganizationIsNotSetError()
 
                 result = await self.user_repository.create_user(
-                    role_id=self.auth_sso_default_role_id,
-                    email=session.email,
+                    role_id=role_rule.role_id,
+                    email=email,
                     name=command.name,
-                    organization_id=organization_id,
+                    organization_id=organization_rule.organization_id,
                     sub=command.sub,
                     iss=command.iss,
                 )
