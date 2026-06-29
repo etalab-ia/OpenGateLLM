@@ -1,5 +1,5 @@
 from contextvars import ContextVar, Token
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
 from fastapi.security import HTTPAuthorizationCredentials
@@ -326,6 +326,10 @@ class TestAccessController:
                 request_context=reset_request_context,
             )
 
+    @pytest.mark.skipif(
+        condition=datetime.now(tz=UTC) < datetime(2027, 8, 10, tzinfo=UTC),
+        reason="Ignore test until 2027-08-10 due to legacy key expiration date unsync with database",
+    )
     async def test_should_raise_invalid_api_key_when_expires_does_not_match_stored_expires(
         self,
         access_controller: AccessController,
@@ -476,3 +480,88 @@ class TestAccessController:
         assert context.user is not None
         assert context.user.id == user.id
         assert context.user.is_admin is True
+
+    async def test_should_validate_legacy_key_when_expires_is_in_expires_at(
+        self,
+        access_controller: AccessController,
+        request_obj: Mock,
+        key_repository: PostgresKeyRepository,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
+        reset_request_context: ContextVar[RequestContext],
+        secret_key: str,
+        db_session,
+    ):
+        """
+        Some legacy keys has expiration date unsync with database: after 2027-08-10, we can remove this test.
+        """
+        # Arrange
+        user = UserSQLFactory()
+        stored_expires = datetime.now(tz=UTC) + timedelta(days=1)
+        token = KeySQLFactory(user=user, expires=stored_expires)
+        await db_session.flush()
+
+        credentials = "sk-" + jwt.encode(
+            claims={"user_id": user.id, "token_id": token.id, "expires_at": int(stored_expires.timestamp())},
+            key=secret_key,
+            algorithm="HS256",
+        )
+        api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials=credentials)
+
+        # Act
+        await access_controller(
+            request=request_obj,
+            api_key=api_key,
+            key_repository=key_repository,
+            authenticated_user_query=authenticated_user_query,
+            request_context=reset_request_context,
+        )
+
+        # Assert
+        context = reset_request_context.get()
+        assert context.key is not None
+        assert context.key.id == token.id
+        assert context.key.user_id == user.id
+        assert int(context.key.expires.timestamp()) == int(stored_expires.timestamp())
+
+    async def test_should_validate_legacy_key_when_expiration_date_is_unsync_with_database(
+        self,
+        access_controller: AccessController,
+        request_obj: Mock,
+        key_repository: PostgresKeyRepository,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
+        reset_request_context: ContextVar[RequestContext],
+        secret_key: str,
+        db_session,
+    ):
+        """
+        Some legacy keys has expiration date unsync with database: after 2027-08-10, we can remove this test.
+        """
+        # Arrange
+        user = UserSQLFactory()
+        database_stored_expires = datetime.now() + timedelta(days=1)
+        token = KeySQLFactory(user=user, expires=database_stored_expires)
+        await db_session.flush()
+
+        key_stored_expires = int((datetime.now(tz=UTC) - timedelta(hours=1)).timestamp())
+        credentials = "sk-" + jwt.encode(
+            claims={"user_id": user.id, "token_id": token.id, "expires": key_stored_expires},
+            key=secret_key,
+            algorithm="HS256",
+        )
+        api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials=credentials)
+
+        # Act
+        await access_controller(
+            request=request_obj,
+            api_key=api_key,
+            key_repository=key_repository,
+            authenticated_user_query=authenticated_user_query,
+            request_context=reset_request_context,
+        )
+
+        # Assert
+        context = reset_request_context.get()
+        assert context.key is not None
+        assert context.key.id == token.id
+        assert context.key.user_id == user.id
+        assert int(context.key.expires.timestamp()) == key_stored_expires
