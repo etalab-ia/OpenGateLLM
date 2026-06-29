@@ -40,7 +40,7 @@ def entity_row(
                     with_settings,
                     rx.button(
                         rx.icon("settings", size=ICON_SIZE_MEDIUM),
-                        on_click=lambda: state.set_entity_settings(entity=entity),
+                        on_click=lambda: state.set_entity_settings(entity=entity).stop_propagation,
                         variant="soft",
                         color_scheme="blue",
                         size=TEXT_SIZE_LABEL,
@@ -48,7 +48,7 @@ def entity_row(
                 ),
                 rx.button(
                     rx.icon("trash-2", size=ICON_SIZE_MEDIUM),
-                    on_click=lambda: state.set_entity_to_delete(entity=entity),
+                    on_click=lambda: state.set_entity_to_delete(entity=entity).stop_propagation,
                     variant="soft",
                     color_scheme="red",
                     size=TEXT_SIZE_LABEL,
