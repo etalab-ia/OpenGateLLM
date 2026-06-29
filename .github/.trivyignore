@@ -21,3 +21,7 @@ CVE-2026-42496 exp:2026-09-01
 # Perl heap buffer overflow during compilation — no upstream Debian fix yet
 # Reported in perl-base from base image. Re-evaluate after 2026-09-01.
 CVE-2026-8376 exp:2026-09-01
+
+# libssh2 Out-of-Bounds Write via Unchecked — no upstream Debian fix yet
+# Reported in libssh2-1t64 from base image. Re-evaluate after 2026-09-01.
+CVE-2026-55200 exp:2026-09-01
