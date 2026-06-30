@@ -95,8 +95,8 @@ class CreateEmbeddingsUseCase:
 
         if router.has_no_providers:
             return RouterHasNoProvidersError(id=router.id)
-        if router.type != RouterType.TEXT_CLASSIFICATION:
-            return RouterHasWrongTypeError(id=router.id, actual_type=router.type, expected_type=RouterType.TEXT_CLASSIFICATION)
+        if router.type != RouterType.TEXT_EMBEDDINGS_INFERENCE:
+            return RouterHasWrongTypeError(id=router.id, actual_type=router.type, expected_type=RouterType.TEXT_EMBEDDINGS_INFERENCE)
         if authenticated_user.cannot_access_router(router_id=router.id):
             return UserHasNoAccessToRouterError(id=router.id)
 
