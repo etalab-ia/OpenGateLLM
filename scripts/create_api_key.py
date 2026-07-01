@@ -1,4 +1,5 @@
 import argparse
+from uuid import uuid4
 
 import requests
 from rich.console import Console
@@ -25,10 +26,16 @@ if __name__ == "__main__":
     # Login
     response = requests.post(url=f"{args.api_url}/v1/auth/login", headers=headers, json={"email": args.email, "password": args.password})
     assert response.status_code == 200, response.text
-    tmp_api_key = response.json()["key"]
+    tmp_api_key = response.json()["value"]
 
     # Create a new API key
-    response = requests.post(url=f"{args.api_url}/v1/me/keys", headers={"Authorization": f"Bearer {tmp_api_key}"}, json={"name": "my-first-key"})
+    response = requests.post(
+        url=f"{args.api_url}/v1/me/keys",
+        headers={"Authorization": f"Bearer {tmp_api_key}"},
+        json={
+            "name": f"my-first-key-{uuid4()}",
+        },
+    )
     assert response.status_code == 201, response.text
     api_key = response.json()["key"]
 
