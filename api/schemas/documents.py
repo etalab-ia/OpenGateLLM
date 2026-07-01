@@ -21,7 +21,7 @@ class Document(BaseModel):
     collection_id: Annotated[int, Field(gt=0, default=..., description="The ID of the collection the document belongs to.")]
     created: Annotated[int, Field(default=..., description="The date of the document creation.")]
     chunks: Annotated[int, Field(ge=0, default=0, description="The number of chunks the document has.")]
-    size: Annotated[int, Field(ge=0, default=0, description="The size of the document in bytes.")]
+    size: Annotated[int, Field(ge=0, default=0, description="The size of the document in tokens.")]
 
 
 class Documents(BaseModel):
