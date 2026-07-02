@@ -25,7 +25,7 @@ class CreateKeyBody(BaseModel):
         return expires
 
 
-class CreateKeyResponse(BaseModel):
+class KeyResponse(BaseModel):
     object: Annotated[Literal["key"], Field(default="key", description="Type of the object.")]
     id: Annotated[int, Field(description="ID of the key.")]
     name: Annotated[str, Field(description="Name of the key.")]
@@ -48,3 +48,11 @@ class CreateKeyResponse(BaseModel):
                 "created": int(data.created.timestamp()),
             }
         return data
+
+
+class KeysResponse(BaseModel):
+    object: Annotated[Literal["list"], Field(default="list", description="Type of the object.")]
+    total: Annotated[int, Field(description="Total number of keys.")]
+    offset: Annotated[int, Field(description="Offset of the keys list.")]
+    limit: Annotated[int, Field(description="Limit of the keys list.")]
+    data: Annotated[list[KeyResponse], Field(description="List of keys.")]

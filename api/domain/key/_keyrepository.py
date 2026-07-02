@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 
 from pydantic import FutureDatetime
 
-from api.domain.key.entities import Key
+from api.domain import SortField, SortOrder
+from api.domain.key.entities import Key, KeyPage
 from api.domain.key.errors import KeyAlreadyExistsError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 
@@ -10,6 +11,18 @@ from api.domain.user.errors import UserNotFoundError
 class KeyRepository(ABC):
     @abstractmethod
     async def get_key_by_id(self, key_id: int) -> Key | KeyNotFoundError:
+        pass
+
+    @abstractmethod
+    async def get_keys_page(
+        self,
+        user_id: int | None = None,
+        limit: int = 10,
+        offset: int = 0,
+        sort_by: SortField = SortField.ID,
+        sort_order: SortOrder = SortOrder.ASC,
+        exclude_expired: bool = True,
+    ) -> KeyPage:
         pass
 
     @abstractmethod

@@ -141,6 +141,14 @@ class UserNotFoundHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=detail)
 
 
+class KeyNotFoundHTTPException(HTTPException):
+    status_code = 404
+    detail = "Key {key_id} not found."
+
+    def __init__(self, key_id: int) -> None:
+        super().__init__(status_code=self.status_code, detail=f"Key {key_id} not found.")
+
+
 # 409
 class KeyAlreadyExistsHTTPException(HTTPException):
     status_code = 409
