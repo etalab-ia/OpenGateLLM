@@ -25,3 +25,7 @@ CVE-2026-8376 exp:2026-09-01
 # libssh2 Out-of-Bounds Write via Unchecked — no upstream Debian fix yet
 # Reported in libssh2-1t64 from base image. Re-evaluate after 2026-09-01.
 CVE-2026-55200 exp:2026-09-01
+
+# Python tarfile.extractall() with the 'data' or 'tar' filter could be bypasse — no upstream Debian fix yet
+# Reported in libpython3.13-minimal from base image. Re-evaluate after 2026-09-01.
+CVE-2026-11940 exp:2026-09-01
