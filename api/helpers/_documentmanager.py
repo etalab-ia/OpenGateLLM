@@ -26,8 +26,10 @@ from api.sql.models import Collection as CollectionTable
 from api.sql.models import Document as DocumentTable
 from api.sql.models import Role as RoleTable
 from api.sql.models import User as UserTable
+from api.utils.context import global_context
 from api.utils.exceptions import (
     ChunkingFailedException,
+    ChunkNotFoundException,
     CollectionNotFoundException,
     DocumentNotFoundException,
     FileSizeLimitExceededException,
@@ -196,13 +198,14 @@ class DocumentManager:
 
         # get document name
         document_name = name or file.filename.strip() if file else name
-        document_size = 0
+        document_token_count = 0
 
         if file:
             # parse the file
             try:
                 content = await self.parser_manager.parse(file=file)
-                document_size = len(content)
+                tokenizer = global_context.tokenizer
+                document_token_count = len(tokenizer.tokenizer.encode(content))
             except Exception as e:
                 logger.exception(f"failed to parse {document_name} ({e}).")
                 raise ParsingDocumentFailedException()
@@ -214,7 +217,7 @@ class DocumentManager:
             )
             if storage_limit is not None and storage_consumption > storage_limit:
                 raise InsufficientStorageLimitException(
-                    detail=f"Upload size limit exceeded. Limit: {storage_limit} bytes. Current: {storage_consumption} bytes."
+                    detail=f"Upload size limit exceeded. Limit: {storage_limit} tokens. Current: {storage_consumption} tokens."
                 )
 
             # split the content into chunks
@@ -239,7 +242,7 @@ class DocumentManager:
                 statement=insert(table=DocumentTable)
                 .values(
                     name=document_name,
-                    size=document_size,
+                    size=document_token_count,
                     collection_id=collection_id,
                 )
                 .returning(DocumentTable.id)
@@ -399,18 +402,18 @@ class DocumentManager:
             )
             for i, chunk in enumerate(chunks, start=start)
         ]
-
-        chunks_size = sum(len(chunk.content) for chunk in chunks)
+        tokenizer = global_context.tokenizer
+        chunks_token_count = sum([len(tokenizer.tokenizer.encode(chunk.content)) for chunk in chunks])
         storage_limit, storage_consumption = await self._get_storage_limit_and_consumption(postgres_session=postgres_session, user_id=user_id)
         if storage_limit is not None and storage_consumption > storage_limit:
             raise InsufficientStorageLimitException(
-                detail=f"Upload size limit exceeded. Limit: {storage_limit} bytes. Current: {storage_consumption} bytes."
+                detail=f"Upload size limit exceeded. Limit: {storage_limit} tokens. Current: {storage_consumption} tokens."
             )
 
         # update the document size
         result = await postgres_session.execute(
             statement=update(table=DocumentTable)
-            .values(size=func.coalesce(DocumentTable.size, 0) + chunks_size)
+            .values(size=func.coalesce(DocumentTable.size, 0) + chunks_token_count)
             .where(DocumentTable.id == document_id)
             .returning(DocumentTable.size)
         )
@@ -460,13 +463,21 @@ class DocumentManager:
         except NoResultFound:
             raise DocumentNotFoundException()
 
-        chunk_size = await elasticsearch_vector_store.get_chunk_size(client=elasticsearch_client, document_id=document_id, chunk_id=chunk_id)
+        chunks = await elasticsearch_vector_store.get_chunks(client=elasticsearch_client, document_id=document_id, chunk_id=chunk_id)
 
-        await postgres_session.execute(
-            statement=update(table=DocumentTable)
-            .values(size=func.coalesce(DocumentTable.size, 0) - chunk_size)
-            .where(DocumentTable.id == document_id)
-        )
+        if not chunks:
+            raise ChunkNotFoundException()
+
+        content = chunks[0].content
+        if content:
+            tokenizer = global_context.tokenizer
+            chunk_token_count = len(tokenizer.tokenizer.encode(content))
+
+            await postgres_session.execute(
+                statement=update(table=DocumentTable)
+                .values(size=func.coalesce(DocumentTable.size, 0) - chunk_token_count)
+                .where(DocumentTable.id == document_id)
+            )
         await elasticsearch_vector_store.delete_chunk(client=elasticsearch_client, document_id=document_id, chunk_id=chunk_id)
 
         await postgres_session.commit()

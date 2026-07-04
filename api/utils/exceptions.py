@@ -13,7 +13,7 @@ class InsufficientBudgetException(HTTPException):
 
 
 class InsufficientStorageLimitException(HTTPException):
-    def __init__(self, detail: str = "Insufficient upload size limit.") -> None:
+    def __init__(self, detail: str = "Insufficient upload tokens limit.") -> None:
         super().__init__(status_code=400, detail=detail)
 
 

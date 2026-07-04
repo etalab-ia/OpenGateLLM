@@ -15,6 +15,7 @@ from api.schemas.core.context import RequestContext
 from api.schemas.me.info import UserInfo
 from api.schemas.search import SearchMethod
 from api.schemas.usage import Usage
+from api.utils.context import global_context
 from api.utils.exceptions import (
     ChunkingFailedException,
     CollectionNotFoundException,
@@ -22,6 +23,19 @@ from api.utils.exceptions import (
     ParsingDocumentFailedException,
     VectorizationFailedException,
 )
+
+
+@pytest.fixture
+def mock_global_tokenizer():
+    mock_inner_tokenizer = MagicMock()
+    mock_inner_tokenizer.encode.return_value = [0] * 10
+    mock_usage_tokenizer = MagicMock()
+    mock_usage_tokenizer.tokenizer = mock_inner_tokenizer
+
+    previous_tokenizer = global_context.tokenizer
+    global_context.tokenizer = mock_usage_tokenizer
+    yield mock_usage_tokenizer
+    global_context.tokenizer = previous_tokenizer
 
 
 def create_upload_file(content: str, filename: str, content_type: str) -> UploadFile:
@@ -328,7 +342,7 @@ async def test_delete_collection_success():
 
 
 @pytest.mark.asyncio
-async def test_create_document_success(monkeypatch):
+async def test_create_document_success(mock_global_tokenizer):
     mock_elasticsearch_vector_store = AsyncMock()
     mock_elasticsearch_client = AsyncMock()
     mock_parser = AsyncMock()
@@ -932,7 +946,7 @@ async def test_create_document_parsing_fails():
 
 
 @pytest.mark.asyncio
-async def test_create_document_empty_chunks():
+async def test_create_document_empty_chunks(mock_global_tokenizer):
     """Test ChunkingFailedException when no chunks extracted."""
     mock_elasticsearch_vector_store = AsyncMock()
     mock_elasticsearch_client = AsyncMock()
@@ -994,7 +1008,7 @@ async def test_create_document_empty_chunks():
 
 
 @pytest.mark.asyncio
-async def test_create_document_vectorization_fails(monkeypatch):
+async def test_create_document_vectorization_fails(mock_global_tokenizer):
     """Test cleanup when vectorization fails."""
     mock_elasticsearch_vector_store = AsyncMock()
     mock_elasticsearch_client = AsyncMock()
