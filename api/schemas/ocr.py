@@ -54,8 +54,9 @@ class CreateOCR(BaseModel):
     include_image_base64: bool | None = Field(default=None, description="Include image URLs in response")
     model: str | None = Field(default=None, description="The model to use for the OCR.")
     pages: list[int] | None = Field(default=None, description="Specific pages to process. Accepts a list of integers or a string of comma-separated numbers and ranges (e.g. '0,1,2' or '0-5' or '0,2-4'). Page numbers start from 0.")  # fmt: off
-    table_format: Literal["markdown", "html"] | None = Field(default="markdown", description="Format for table extraction: 'markdown' (default) or 'html'.")  # fmt: off
+    table_format: Literal["markdown", "html"] | None = Field(default=None, description="Format for table extraction: 'markdown' (default) or 'html'.")  # fmt: off
 
 
 class OCR(OCRResponse):
+    id: str = Field(default=..., description="The ID of the OCR request.")
     usage: Usage | None = Field(default=None, description="Usage information for the request.")

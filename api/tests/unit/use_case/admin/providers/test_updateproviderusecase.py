@@ -56,7 +56,11 @@ def default_command():
 class TestUpdateProviderUseCase:
     @pytest.mark.asyncio
     async def test_should_return_provider_not_found_error_when_provider_does_not_exist(
-        self, use_case, provider_repository, router_repository, default_command
+        self,
+        use_case,
+        provider_repository,
+        router_repository,
+        default_command,
     ):
         # Arrange
 
@@ -73,7 +77,12 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_router_not_found_error_when_current_router_does_not_exist(
-        self, use_case, provider_repository, router_repository, sample_provider, default_command
+        self,
+        use_case,
+        provider_repository,
+        router_repository,
+        sample_provider,
+        default_command,
     ):
         # Arrange
 
@@ -90,7 +99,12 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_router_not_found_error_when_new_router_does_not_exist(
-        self, use_case, provider_repository, router_repository, sample_provider, sample_router
+        self,
+        use_case,
+        provider_repository,
+        router_repository,
+        sample_provider,
+        sample_router,
     ):
         # Arrange
 
@@ -118,14 +132,17 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_invalid_provider_type_error_when_type_not_compatible_with_new_router(
-        self, use_case, provider_repository, router_repository, sample_provider
+        self,
+        use_case,
+        provider_repository,
+        router_repository,
     ):
         # Arrange
 
+        provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.OPENAI, timeout=30)
         current_router = RouterFactory(id=1, type=RouterType.TEXT_GENERATION)
-        # TEI provider is not compatible with TEXT_CLASSIFICATION for VLLM type
         new_router = RouterFactory(id=2, type=RouterType.TEXT_CLASSIFICATION, providers=0)
-        provider_repository.get_one_provider.return_value = sample_provider
+        provider_repository.get_one_provider.return_value = provider
         router_repository.get_router_by_id.side_effect = [current_router, new_router]
 
         command = UpdateProviderCommand(
@@ -144,7 +161,7 @@ class TestUpdateProviderUseCase:
 
         # Assert
         assert isinstance(result, InvalidProviderTypeError)
-        assert result.provider_type == ProviderType.VLLM.value
+        assert result.provider_type == ProviderType.OPENAI.value
         assert result.router_type == RouterType.TEXT_CLASSIFICATION.value
         provider_repository.update_provider.assert_not_called()
 
