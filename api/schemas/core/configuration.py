@@ -280,10 +280,6 @@ class RedisDependency(ConfigBaseModel):
     url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
 
 
-class EmptyDependency(ConfigBaseModel):
-    pass
-
-
 @custom_validation_error()
 class Dependencies(ConfigBaseModel):
     albert: AlbertDependency | None = Field(default=None, json_schema_extra={"deprecated": True})  # fmt: off
@@ -418,8 +414,6 @@ class Settings(ConfigBaseModel):
 
     # document_parsing
     document_parsing_max_concurrent: int = Field(default=10, ge=1, description="Maximum number of concurrent document parsing tasks per worker.")  # fmt: off
-
-    front_url: str = Field(default="http://localhost:8501", description="Front-end URL for the application.")
 
     @model_validator(mode="after")
     def validate_model(self) -> Any:
