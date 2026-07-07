@@ -83,7 +83,7 @@ jobs:
           base: "main"
           delete-branch: true
           add-paths: |
-            docs/src/content/docs/configuration/configuration_file.md
+            docs/src/content/docs/configuration/configuration_file.mdx
             docs/openapi.json
             docs/redoc-static.html
             docs/astro.config.mjs
