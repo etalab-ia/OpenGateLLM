@@ -9,6 +9,12 @@ services:
       - "${API_PORT:-8000}:8000"
     volumes:
       - "${CONFIG_FILE:-./config.yml}:/config.yml:ro"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1" ]
+      interval: 4s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     depends_on:
       redis:
         condition: service_healthy
@@ -23,12 +29,10 @@ services:
       - "REDIS_PORT=${REDIS_PORT:-6379}"
     ports:
       - "${PLAYGROUND_PORT:-8501}:8501"
-    volumes:
-      - "./${CONFIG_FILE:-config.yml}:/config.yml:ro"
     depends_on:
-      redis:
+      api:
         condition: service_healthy
-      postgres:
+      redis:
         condition: service_healthy
 
   postgres:

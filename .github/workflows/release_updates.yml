@@ -50,14 +50,24 @@ jobs:
 
       - name: Generate documentation
         run: |
-          PYTHONPATH=. python ./scripts/docs/generate_configuration_documentation.py --output ./docs/src/content/docs/configuration/configuration_file.md
+          PYTHONPATH=. python ./scripts/docs/generate_configuration_documentation.py --output ./docs/src/content/docs/configuration/configuration_file.mdx
           make quickstart
-          for i in {1..30}; do
-            if curl -fsS http://localhost:8000/health >/dev/null; then
-              break
+          api_health=unknown
+          for _ in $(seq 1 30); do
+            api_container_id="$(docker compose --env-file .env --file compose.example.yml ps -q api)"
+            if [ -n "$api_container_id" ]; then
+              api_health="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$api_container_id")"
+              if [ "$api_health" = "healthy" ]; then
+                break
+              fi
             fi
             sleep 2
           done
+          if [ "$api_health" != "healthy" ]; then
+            echo "API container is not healthy (status: $api_health)"
+            docker compose --env-file .env --file compose.yml logs --no-color api
+            exit 1
+          fi
           curl -fSL --retry 8 --retry-all-errors --retry-delay 2 http://localhost:8000/openapi.json -o ./docs/openapi.json
           docker pull redocly/cli
           docker run --rm -v ${{ github.workspace }}/docs:/spec redocly/cli build-docs /spec/openapi.json --output /spec/redoc-static.html
@@ -73,7 +83,7 @@ jobs:
           base: "main"
           delete-branch: true
           add-paths: |
-            docs/src/content/docs/configuration/configuration_file.md
+            docs/src/content/docs/configuration/configuration_file.mdx
             docs/openapi.json
             docs/redoc-static.html
             docs/astro.config.mjs
