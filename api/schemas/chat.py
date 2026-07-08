@@ -4,24 +4,12 @@ from typing import Annotated, Any, Literal
 
 from mistralai.client.models import ChatCompletionRequest
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field
 
 from api.schemas import BaseModel
 from api.schemas.admin.providers import ProviderType
 from api.schemas.core.models import RequestContent
-from api.schemas.search import Search, SearchArgs
 from api.schemas.usage import Usage
-
-
-class SearchTool(SearchArgs):
-    """
-    Built-in search tool available in `tools`.
-
-    Use `type="search"` to trigger retrieval over indexed documents.
-    All additional parameters are inherited from `SearchArgs`.
-    """
-
-    type: Annotated[Literal["search"], Field(default="search", description="The type of tool to call.")]
 
 
 class CreateChatCompletion(BaseModel):
@@ -42,37 +30,10 @@ class CreateChatCompletion(BaseModel):
     stream_options: Any | None = Field(default=None, description="Options for streaming response. Only set this when you set `stream: true`.")  # fmt: off
     temperature: float | None = Field(default=None, description="What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. We generally recommend altering this or `top_p` but not both.")  # fmt: off
     top_p: float | None = Field(default=None, description="An alternative to sampling with temperature, called nucleus sampling, where the model considers the results of the tokens with top_p probability mass. So 0.1 means only the tokens comprising the top 10% probability mass are considered.<br>We generally recommend altering this or `temperature` but not both.")  # fmt: off
-    tools: Annotated[list[dict| SearchTool] | None, Field(description="A list of tools the model may call. Currently, only functions are supported as a tool. Support function calling and build-in tools (currently only SearchTool). Use this to provide a list of functions the model may generate JSON inputs for.")] | None = Field(default=None)  # fmt: off
+    tools: Annotated[list[dict] | None, Field(description="A list of tools the model may call. Currently, only functions are supported as a tool.")] | None = Field(default=None)  # fmt: off
     tool_choice: Any = Field(default="none", description="Controls which (if any) tool is called by the model. `none` means the model will not call any tool and instead generates a message. `auto` means the model can pick between generating a message or calling one or more tools. `required` means the model must call one or more tools. Specifying a particular tool via `{\"type\": \"function\", \"function\": {\"name\": \"my_function\"}}` forces the model to call that tool.<br>`none` is the default when no tools are present. `auto` is the default if tools are present.")  # fmt: off
     parallel_tool_calls: bool | None = Field(default=False, description="Whether to call tools in parallel or sequentially. If true, the model will call tools in parallel. If false, the model will call tools sequentially. If None, the model will call tools in parallel if the model supports it, otherwise it will call tools sequentially.")  # fmt: off
     user: str | None = Field(default=None, description="A unique identifier representing the user.")  # fmt: off
-
-    # search additional fields
-    search: bool = Field(default=False, deprecated=True)
-    search_args: SearchArgs | None = Field(default=None, deprecated=True)
-
-    @field_validator("tools", mode="after")
-    @classmethod
-    def validate_fields(cls, tools: list[dict | SearchTool] | None) -> list[dict | SearchTool] | None:
-        if tools is None:
-            return tools
-
-        for i, tool in enumerate(tools):
-            if tool.get("type") == "search":
-                tools[i] = SearchTool(**tool)
-        return tools
-
-    @model_validator(mode="after")
-    def convert_search_args_to_tool(self) -> "CreateChatCompletion":
-        if self.search:
-            if self.search_args is None:
-                raise ValueError("search_args is required when search is True")
-            self.tools = [] if self.tools is None else self.tools
-            self.tools.append(SearchTool(**self.search_args.model_dump(exclude_none=True)).model_dump())
-            self.search = False
-            self.search_args = None
-
-        return self
 
     @staticmethod
     def format_request(provider_type: ProviderType, request_content: RequestContent):
@@ -120,7 +81,6 @@ class CreateChatCompletion(BaseModel):
 
 class ChatCompletion(ChatCompletion):
     id: str = Field(default=None, description="A unique identifier for the chat completion.")
-    search_results: list[Search] = []
     usage: Usage = Field(default_factory=Usage, description="Usage information for the request.")
 
     @staticmethod
@@ -158,8 +118,6 @@ class ChatCompletion(ChatCompletion):
 
 
 class ChatCompletionChunk(ChatCompletionChunk):
-    search_results: list[Search] = []
-
     @staticmethod
     def parse_chunk(chunk: str) -> Literal["[DONE]"] | dict | None:
         if not chunk.startswith("data: "):

@@ -1,34 +1,23 @@
 from contextvars import ContextVar
-from functools import partial
 from http import HTTPMethod
 
-from elasticsearch import AsyncElasticsearch
 from fastapi import APIRouter, Depends, Request, Security
 from fastapi.responses import JSONResponse
 from redis.asyncio import Redis as AsyncRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.helpers._accesscontroller import AccessController
-from api.helpers._documentmanager import DocumentManager
-from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
+from api.helpers._searchtool import SearchTool
 from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 from api.helpers.models import ModelRegistry
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk, CreateChatCompletion
 from api.schemas.core.context import RequestContext
 from api.schemas.core.models import RequestContent
 from api.schemas.exception import HTTPExceptionModel
-from api.utils.dependencies import (
-    get_document_manager,
-    get_elasticsearch_client,
-    get_elasticsearch_vector_store,
-    get_model_registry,
-    get_postgres_session,
-    get_redis_client,
-    get_request_context,
-)
+from api.utils.configuration import configuration
+from api.utils.dependencies import get_model_registry, get_postgres_session, get_redis_client, get_request_context
 from api.utils.exceptions import CollectionNotFoundException, ModelIsTooBusyException, ModelNotFoundException, WrongModelTypeException
 from api.utils.hooks_decorator import hooks
-from api.utils.tools import SearchTool
 from api.utils.variables import EndpointRoute, RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.CHAT.title()])
@@ -50,11 +39,8 @@ async def chat_completions(
     request: Request,
     body: CreateChatCompletion,
     model_registry: ModelRegistry = Depends(get_model_registry),
-    document_manager: DocumentManager = Depends(get_document_manager),
     postgres_session: AsyncSession = Depends(get_postgres_session),
     redis_client: AsyncRedis = Depends(get_redis_client),
-    elasticsearch_vector_store: ElasticsearchVectorStore | None = Depends(partial(get_elasticsearch_vector_store, required=False)),
-    elasticsearch_client: AsyncElasticsearch | None = Depends(get_elasticsearch_client),
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse | StreamingResponseWithStatusCode:
     """Creates a model response for the given chat conversation."""
@@ -67,16 +53,14 @@ async def chat_completions(
     )
 
     request_content = RequestContent(method=HTTPMethod.POST, endpoint=EndpointRoute.CHAT_COMPLETIONS, body=body.model_dump(), model=body.model)
-    request_content = await SearchTool.call(
-        request_content=request_content,
-        model_registry=model_registry,
-        postgres_session=postgres_session,
-        redis_client=redis_client,
-        request_context=request_context,
-        document_manager=document_manager,
-        elasticsearch_vector_store=elasticsearch_vector_store,
-        elasticsearch_client=elasticsearch_client,
-    )
+
+    if configuration.settings.search_opengaterag_url:
+        search_tool = SearchTool(
+            opengaterag_url=configuration.settings.search_opengaterag_url,
+            postgres_session=postgres_session,
+            user_id=request_context.get().user_info.id,
+        )
+        request_content = await search_tool.call(request_content=request_content)
 
     await postgres_session.close()
 

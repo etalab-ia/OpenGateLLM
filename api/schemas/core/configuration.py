@@ -13,7 +13,6 @@ import yaml
 
 from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
-from api.schemas.core.elasticsearch import ElasticsearchIndexLanguage
 from api.schemas.core.models import Metric
 from api.schemas.models import ModelType
 from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, RouterName
@@ -163,32 +162,11 @@ class Model(ConfigBaseModel):
 
 
 # dependencies ---------------------------------------------------------------------------------------------------------------------------------------
-
-
-class ParserType(StrEnum):
-    ALBERT = "albert"
-    MARKER = "marker"
-
-
 class DependencyType(StrEnum):
-    ALBERT = "albert"
     CELERY = "celery"
-    ELASTICSEARCH = "elasticsearch"
-    MARKER = "marker"
     POSTGRES = "postgres"
     REDIS = "redis"
     SENTRY = "sentry"
-
-
-@custom_validation_error()
-class AlbertDependency(ConfigBaseModel):
-    """
-    **[DEPRECATED]**
-    """
-
-    url: constr(strip_whitespace=True, min_length=1) = Field(default="https://albert.api.etalab.gouv.fr", description="Albert API url.")  # fmt: off
-    headers: dict[str, str] = Field(default_factory=dict, description="Albert API request headers.", examples=[{"Authorization": "Bearer my-api-key"}], json_schema_extra={"default": {}})  # fmt: off
-    timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Albert API requests.", examples=[10])  # fmt: off
 
 
 @custom_validation_error()
@@ -201,32 +179,6 @@ class CeleryDependency(ConfigBaseModel):
     result_backend: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Celery result backend url. If not provided, use redis dependency as result backend.")  # fmt: off
     timezone: str = Field(default="UTC", description="Timezone.", examples=["UTC"])  # fmt: off
     enable_utc: bool = Field(default=True, description="Enable UTC.", examples=[True])  # fmt: off
-
-
-@custom_validation_error()
-class ElasticsearchDependency(ConfigBaseModel):
-    """
-    Elasticsearch is an optional dependency of OpenGateLLM. Elasticsearch is used as a vector store. If this dependency is provided, all documents endpoint are enabled.
-    Pass all arguments of `elasticsearch.Elasticsearch` class, see https://elasticsearch-py.readthedocs.io/en/latest/api/elasticsearch.html for more information.
-    Other arguments declared below are used to configure the Elasticsearch index.
-    """
-
-    index_name: constr(strip_whitespace=True, min_length=1) = Field(default="opengatellm", description="Name of the Elasticsearch index.", examples=["my_index"])  # fmt: off
-    index_language: ElasticsearchIndexLanguage = Field(default=ElasticsearchIndexLanguage.ENGLISH, description="Language of the Elasticsearch index.", examples=[ElasticsearchIndexLanguage.ENGLISH.value])  # fmt: off
-    number_of_shards: int = Field(default=12, ge=1, le=75, description="Number of shards for the Elasticsearch index.", examples=[4])  # fmt: off
-    number_of_replicas: int = Field(default=1, ge=0, description="Number of replicas for the Elasticsearch index.", examples=[1])  # fmt: off
-    refresh_interval: constr(strip_whitespace=True, pattern=r"^(-1|\d+(ms|s|m|h|d))$") = Field(default="1s", description="Refresh interval for the Elasticsearch index", examples=["2s"])  # fmt: off
-
-
-@custom_validation_error()
-class MarkerDependency(ConfigBaseModel):
-    """
-    **[DEPRECATED]**
-    """
-
-    url: constr(strip_whitespace=True, min_length=1) = Field(..., description="Marker API url.")  # fmt: off
-    headers: dict[str, str] = Field(default_factory=dict, description="Marker API request headers.", examples=[{"Authorization": "Bearer my-api-key"}], json_schema_extra={"default": {}})  # fmt: off
-    timeout: int = Field(default=DEFAULT_TIMEOUT, ge=1, description="Timeout for the Marker API requests.", examples=[10])  # fmt: off
 
 
 @custom_validation_error()
@@ -282,11 +234,8 @@ class RedisDependency(ConfigBaseModel):
 
 @custom_validation_error()
 class Dependencies(ConfigBaseModel):
-    albert: AlbertDependency | None = Field(default=None, json_schema_extra={"deprecated": True})  # fmt: off
     celery: CeleryDependency | None = Field(default=None, json_schema_extra={"deprecated": True})  # fmt: off
-    elasticsearch: ElasticsearchDependency | None = Field(default=None, description="Elasticsearch is an optional dependency of OpenGateLLM. Elasticsearch is used as a vector store. If this dependency is provided, all documents endpoint are enabled.")  # fmt: off
     langfuse: LangfuseDependency | None = Field(default=None, description="See the [LangfuseDependency section](#langfusedependency) for more information.")  # fmt: off
-    marker: MarkerDependency | None = Field(default=None, json_schema_extra={"deprecated": True})  # fmt: off
     postgres: PostgresDependency = Field(..., description="Postgres is a required dependency of OpenGateLLM to store API data.")  # fmt: off
     redis: RedisDependency  = Field(..., description="Redis is a required dependency of OpenGateLLM to store rate limiting counters and performance metrics.")  # fmt: off
     sentry: SentryDependency | None = Field(default=None, description="Sentry is an optional dependency of OpenGateLLM. Sentry helps you identify, diagnose, and fix errors in real-time.")  # fmt: off
@@ -300,45 +249,6 @@ class Dependencies(ConfigBaseModel):
                 self.celery.result_backend = self.redis.url
 
             logging.info("Celery queuing is enabled.")
-
-        return self
-
-    @model_validator(mode="after")
-    def validate_dependencies(self):
-        """
-        Check if only one dependency of each family is provided. For example, Elasticsearch can be used, but not both.
-
-        The parser dependency can be Albert or Marker, it is converted into a single attribute called "parser".
-        """
-
-        def create_attribute(name: str, type: StrEnum, values: Any):
-            candidates = [item for item in type if getattr(values, item.value) is not None]
-
-            # Ensure only one dependency of this family is defined
-            if len(candidates) > 1:
-                raise ValueError(f"Only one {type.__name__} is allowed (provided: {', '.join(c.value for c in candidates)}).")
-
-            # If no dependency is provided, set the attribute to None
-            if len(candidates) == 0:
-                setattr(values, name, None)
-            else:
-                chosen_enum = candidates[0]
-                dep_obj = getattr(values, chosen_enum.value)
-
-                # Add a `type` field on the dependency object to remember its family (string form)
-                setattr(dep_obj, "type", chosen_enum)
-
-                # Expose the dependency under the generic name (parser, ...)
-                setattr(values, name, dep_obj)
-
-                # Clean up specific attributes
-                for item in type:
-                    if item != chosen_enum and hasattr(values, item.value):
-                        delattr(values, item.value)
-
-            return values
-
-        self = create_attribute(name="parser", type=ParserType, values=self)
 
         return self
 
@@ -409,11 +319,8 @@ class Settings(ConfigBaseModel):
     monitoring_postgres_enabled: bool = Field(default=True, description="If true, the log usage will be written in the PostgreSQL database.")  # fmt: off
     monitoring_prometheus_enabled: bool = Field(default=True, description="If true, Prometheus metrics will be exposed in the `/metrics` endpoint.")  # fmt: off
 
-    # vector_store
-    vector_store_model: str | None = Field(default=None, description="Model used to vectorize the text in the vector store database. Is required if a vector store dependency is provided (Elasticsearch). This model must be defined in the `models` section and have type `text-embeddings-inference`.")  # fmt: off
-
-    # document_parsing
-    document_parsing_max_concurrent: int = Field(default=10, ge=1, description="Maximum number of concurrent document parsing tasks per worker.")  # fmt: off
+    # search
+    search_opengaterag_url: Annotated[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None, Field(default="http://localhost:8000", description="OpenGateRAG URL for search.", deprecated=True)]  # fmt: off
 
     @model_validator(mode="after")
     def validate_model(self) -> Any:
@@ -432,7 +339,7 @@ class ConfigFile(ConfigBaseModel):
     """
     Configuration file is composed of 3 sections, models:
     - `models`: to declare models API exposed to the API.
-    - `dependencies`: to declare both required plugins for the API (e.g. PostgreSQL, Redis) and optional ones (e.g. Elasticsearch).
+    - `dependencies`: to declare both required plugins for the API (e.g. PostgreSQL, Redis) and optional ones (e.g. Sentry).
     - `settings`: to configure the API.
 
     :::warnings
@@ -464,11 +371,6 @@ class ConfigFile(ConfigBaseModel):
         # build the complete list of all models
         for model_type in ModelType:
             models["all"].extend(models[model_type.value])
-
-        # check for interdependencies
-        if self.dependencies.elasticsearch and self.settings.vector_store_model:
-            assert self.settings.vector_store_model in models["all"], "Vector store model must be defined in models section."
-            assert self.settings.vector_store_model in models[ModelType.TEXT_EMBEDDINGS_INFERENCE.value], f"The vector store model must have type {ModelType.TEXT_EMBEDDINGS_INFERENCE}."  # fmt: off
 
         return self
 

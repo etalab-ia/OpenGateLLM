@@ -203,33 +203,6 @@ For the Redis server itself, also apply standard production hardening:
 - Disable default users and create least-privilege users.
 - Configure dedicated log files.
 
-### Elasticsearch (optional vector store)
-
-- Override index defaults (`index_name`, `index_language`, `number_of_shards`, `number_of_replicas`) for your workload.
-- Increase request timeout for large corpus search workloads.
-- Use an index name that reflects the embedding model.
-- If Elasticsearch is enabled, `settings.vector_store_model` must reference a configured model of type `text-embeddings-inference`.
-
-```diff lang="yaml"
-dependencies:
-
-  elasticsearch:
-+    index_name: "bge-m3-1024"
-+    index_language: french
-+    number_of_shards: 24
-+    number_of_replicas: 0
-    hosts: "http://${ELASTIC_HOST}:${ELASTIC_PORT}"
-    basic_auth:
-      - "${ELASTIC_USER}"
-      - "${ELASTIC_PASSWORD}"
-+    request_timeout: 120
-+    retry_on_timeout: true
-
-settings:
-  [...]
-  vector_store_model: "my-embeddings-model"
-```
-
 ## Playground UI
 
 - Use Redis as state manager mode. To activate Redis, you need to set the `dependencies.redis` section in the configuration file.

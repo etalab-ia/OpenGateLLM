@@ -67,21 +67,6 @@ dependencies:
     retry_on_timeout: True
     health_check_interval: 30
     decode_responses: False
-  
-  elasticsearch:
-    index_name: test_index
-    index_language: french
-    number_of_shards: 1
-    number_of_replicas: 1
-    refresh_interval: 1s
-    hosts: http://localhost:${ELASTICSEARCH_PORT:-9200}
-    basic_auth:
-      - elasticsearch
-      - changeme
-
-  albert:
-    headers:
-      Authorization: Bearer ${ALBERT_API_KEY}
 
 # ---------------------------------- settings -----------------------------------
 settings:
@@ -91,4 +76,4 @@ settings:
   monitoring_sentry_enabled: False
   monitoring_postgres_enabled: True
   monitoring_prometheus_enabled: True
-  vector_store_model: BAAI/bge-m3
+  opengaterag_url: http://localhost:8001
