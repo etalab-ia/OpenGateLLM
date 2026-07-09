@@ -107,12 +107,6 @@ class AccessController:
             return
 
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=EndpointRoute.CHAT_COMPLETIONS, body=body)
-        if body.get("search", False):  # count the search request as one request to the search model (embeddings)
-            search_router_id = await global_context.model_registry.get_router_id_from_model_name(
-                model_name=global_context.document_manager.vector_store_model,
-                postgres_session=postgres_session,
-            )
-            await global_context.limiter.check_user_limits(user_info=user_info, router_id=search_router_id, prompt_tokens=prompt_tokens)
         await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
     @staticmethod

@@ -188,6 +188,8 @@ Output Format:
 - If none of the documents answer the query, state: "I do not know based on the provided documents."
 """
 
+    SYSTEM_KEY_NAME = "_system_search_tool"
+
     def __init__(self, opengaterag_url: str, postgres_session: AsyncSession, user_id: int):
         self.opengaterag_url = opengaterag_url
         self.postgres_session = postgres_session
@@ -222,7 +224,7 @@ Output Format:
         if not query:
             return request_content
 
-        key = await self._upsert_key(user_id=self.user_id, name="_search_tool_usage", expire=int(datetime.now().timestamp()) + 60 * 60)
+        key = await self._upsert_key(user_id=self.user_id, name=self.SYSTEM_KEY_NAME, expire=int(datetime.now().timestamp()) + 60 * 60)
         if key is None:
             return request_content
 

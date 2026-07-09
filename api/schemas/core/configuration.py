@@ -320,7 +320,7 @@ class Settings(ConfigBaseModel):
     monitoring_prometheus_enabled: bool = Field(default=True, description="If true, Prometheus metrics will be exposed in the `/metrics` endpoint.")  # fmt: off
 
     # search
-    search_opengaterag_url: Annotated[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None, Field(default="http://localhost:8000", description="OpenGateRAG URL for search.", deprecated=True)]  # fmt: off
+    search_opengaterag_url: Annotated[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None, Field(default=None, description="OpenGateRAG URL for search.", deprecated=True)]  # fmt: off
 
     @model_validator(mode="after")
     def validate_model(self) -> Any:
