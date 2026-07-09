@@ -59,6 +59,7 @@ async def chat_completions(
             opengaterag_url=configuration.settings.search_opengaterag_url,
             postgres_session=postgres_session,
             user_id=request_context.get().user_info.id,
+            secret_key=configuration.settings.auth_secret_key,
         )
         request_content = await search_tool.call(request_content=request_content)
 

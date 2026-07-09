@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 import logging
 from typing import Annotated, Literal
@@ -21,6 +21,7 @@ from pydantic import (
 )
 from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import CoreSchema
+from sqlalchemy import update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -190,10 +191,11 @@ Output Format:
 
     SYSTEM_KEY_NAME = "_system_search_tool"
 
-    def __init__(self, opengaterag_url: str, postgres_session: AsyncSession, user_id: int):
+    def __init__(self, opengaterag_url: str, postgres_session: AsyncSession, user_id: int, secret_key: str):
         self.opengaterag_url = opengaterag_url
         self.postgres_session = postgres_session
         self.user_id = user_id
+        self.secret_key = secret_key
 
     async def call(self, request_content: RequestContent) -> RequestContent:
         tools = request_content.body.get("tools", [])
@@ -217,6 +219,8 @@ Output Format:
         if not search_args:
             return request_content
 
+        request_content.additional_data["search_results"] = []
+
         messages = request_content.body.get("messages", [])
         if not messages:
             return request_content
@@ -224,37 +228,51 @@ Output Format:
         if not query:
             return request_content
 
-        key = await self._upsert_key(user_id=self.user_id, name=self.SYSTEM_KEY_NAME, expire=int(datetime.now().timestamp()) + 60 * 60)
+        expire_time = datetime.now(UTC) + timedelta(hours=1)
+        key = await self._upsert_key(user_id=self.user_id, name=self.SYSTEM_KEY_NAME, expire=expire_time)
+
         if key is None:
             return request_content
 
         results = []
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                url=f"{self.opengaterag_url}/search",
-                headers={"Authorization": f"Bearer {key.value}"},
-                json={"query": query, **search_args.model_dump()},
-            )
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    url=f"{self.opengaterag_url}/v1/search",
+                    headers={"Authorization": f"Bearer {key.value}"},
+                    json={"query": query, **search_args.model_dump()},
+                    timeout=60,
+                )
+        except Exception as e:
+            return request_content
+        try:
+            response.raise_for_status()
+        except Exception:
             try:
-                response.raise_for_status()
-                results = response.json()
-            except Exception as e:
-                return request_content
+                detail = response.json()["detail"]
+            except Exception:
+                detail = response.text
+            raise HTTPException(status_code=response.status_code, detail=detail)
 
-        chunks = "\n".join([result.chunk.content for result in results])
-        request_content.body["messages"][-1]["content"] = SearchTool.PROMPT_TEMPLATE.format(query=query, chunks=chunks)
-        request_content.additional_data["search_results"] = [result.model_dump(mode="json") for result in results]
+        results = response.json()
+
+        if len(results["data"]) > 0:
+            chunks = "\n".join([result["chunk"]["content"] for result in results["data"]])
+            request_content.body["messages"][-1]["content"] = SearchTool.PROMPT_TEMPLATE.format(query=query, chunks=chunks)
+
+        request_content.additional_data["search_results"] = results["data"]
 
         return request_content
 
-    def _encode_token(self, user_id: int, token_id: int, expires: int | None = None) -> str:
+    def _encode_token(self, user_id: int, token_id: int, expires: datetime | None = None) -> str:
+        expires = int(expires.timestamp()) if expires is not None else None
         return IdentityAccessManager.TOKEN_PREFIX + jwt.encode(
             claims={"user_id": user_id, "token_id": token_id, "expires": expires},
             key=self.secret_key,
             algorithm="HS256",
         )
 
-    async def _upsert_key(self, user_id: int, name: str, expire: int) -> Key | None:
+    async def _upsert_key(self, user_id: int, name: str, expire: datetime) -> Key | None:
         try:
             result = await self.postgres_session.execute(
                 pg_insert(KeyTable)
@@ -263,14 +281,15 @@ Output Format:
                 .returning(KeyTable)
             )
             row = result.scalar_one()
+
         except IntegrityError as e:
             if "token_user_id_fkey" in str(e.orig):
                 return None
             raise
 
         value = self._encode_token(user_id=user_id, token_id=row.id, expires=expire)
-        # useless
-        # registered_value = f"{value[:8]}...{value[-8:]}"
-        # await self.postgres_session.execute(update(KeyTable).values(token=registered_value).where(KeyTable.id == row.id))
+        registered_value = f"{value[:8]}...{value[-8:]}"
+        await self.postgres_session.execute(update(KeyTable).values(token=registered_value).where(KeyTable.id == row.id))
+        await self.postgres_session.commit()
 
         return Key(id=row.id, name=row.name, user_id=row.user_id, value=value, expires=row.expires, created=row.created)
