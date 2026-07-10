@@ -1,19 +1,12 @@
 name: Release updates
 
-# on:
-#   workflow_run:
-#     workflows: ["Build and scan images"]
-#     types:
-#       - completed
-#   workflow_dispatch:
-#   workflow_call:
-
 on:
-  pull_request:
-    branches: [ main ]
-  workflow_call: # Add this to make the workflow reusable
-  workflow_dispatch: # Add this to allow manual triggering
-
+  workflow_run:
+    workflows: ["Build and scan images"]
+    types:
+      - completed
+  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: write
@@ -25,21 +18,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+
       - name: Checkout du code
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}
           fetch-depth: 0
-
-      - name: Configure Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install ".[api,playground,dev]"
 
       - name: Update project version
         run: |
@@ -50,31 +35,31 @@ jobs:
             exit 0
           fi
           sed -i -E "s/^[[:space:]]*version[[:space:]]*=.*/version = \"${latest_version}\"/" pyproject.toml
-          sed -i -E "s|(image:[[:space:]]*ghcr.io/etalab-ia/opengatellm/api:).*|\\1${latest_version}|" compose.example.yml
-          sed -i -E "s|(image:[[:space:]]*ghcr.io/etalab-ia/opengatellm/playground:).*|\\1${latest_version}|" compose.example.yml
           sed -i -E "s/^[[:space:]]*swagger_version:[[:space:]]*.*/  swagger_version: ${latest_version}/" config.example.yml
           sed -i -E "s/(badge:[[:space:]]*)'[^']*'/\1'v${latest_version}'/" docs/astro.config.mjs
-
+      
       - name: Generate documentation
         env:
           DOCS_DIR: ${{ github.workspace }}/docs
+          CONFIG_FILE: ${{ github.workspace }}/config.example.yml
         run: |
+          uv venv
+          uv pip install -p .venv/bin/python ".[api,playground,dev]"
+          . .venv/bin/activate
           PYTHONPATH=. python ./scripts/docs/generate_configuration_documentation.py --output ./docs/src/content/docs/configuration/configuration_file.mdx
-          make quickstart
-          api_health=unknown
-          for _ in $(seq 1 30); do
-            api_container_id="$(docker compose --env-file .env --file compose.example.yml ps -q api)"
-            if [ -n "$api_container_id" ]; then
-              api_health="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$api_container_id")"
-              if [ "$api_health" = "healthy" ]; then
-                break
-              fi
-            fi
-            sleep 2
-          done
-          if [ "$api_health" != "healthy" ]; then
-            echo "API container is not healthy (status: $api_health)"
-            docker compose --env-file .env --file compose.yml logs --no-color api
+          if ! docker compose --file ./compose.example.yml up --detach --wait; then
+            echo "Services did not become healthy." >&2
+            echo "::group::Docker Compose status"
+            docker compose --file ./compose.example.yml ps || true
+            echo "::endgroup::"
+
+            echo "::group::Docker Compose logs (all services)"
+            docker compose --file ./compose.example.yml logs --no-color || true
+            echo "::endgroup::"
+
+            echo "::group::API health probe"
+            curl -sv "http://localhost:8000/health" || true
+            echo "::endgroup::"
             exit 1
           fi
           curl -fSL --retry 8 --retry-all-errors --retry-delay 2 http://localhost:8000/openapi.json -o ./docs/openapi.json

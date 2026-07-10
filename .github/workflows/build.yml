@@ -15,11 +15,11 @@ on:
 jobs:
   prepare:
     name: Prepare build
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'release' ||
+      github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    # Builds triggered by a PR commit wait here for a manual approval from the GitHub Actions UI
-    # (configure required reviewers on the "build-approval" environment in repo settings).
-    # Builds triggered by push/release/workflow_dispatch use the unprotected "build-auto" environment
-    # and therefore run immediately, exactly like before.
     environment: ${{ github.event_name == 'pull_request' && 'build-approval' || 'build-auto' }}
     outputs:
       image_tag: ${{ steps.set_tag.outputs.tag }}

@@ -20,7 +20,13 @@ on:
 
 jobs:
   deploy-dev:
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.actor.login != 'github-actions[bot]'
+      )
     name: Deploy from ${{ github.event.workflow_run.head_branch || github.ref_name }}/${{ github.event.workflow_run.head_sha || github.sha }}
     runs-on: ubuntu-latest
     steps:

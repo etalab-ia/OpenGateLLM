@@ -11,6 +11,10 @@ on:
 jobs:
   unit-tests:
     name: Unit tests
+    if: >-
+      github.event_name == 'workflow_call' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
     steps:
@@ -75,6 +79,10 @@ jobs:
 
   e2e-tests:
     name: e2e tests
+    if: >-
+      github.event_name == 'workflow_call' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
