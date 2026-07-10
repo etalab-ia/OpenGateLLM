@@ -26,11 +26,15 @@ jobs:
     steps:
       - name: Determine image tag
         id: set_tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            TAG="${{ github.event.release.tag_name }}"
-          elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            TAG="${{ github.head_ref }}"
+          if [ "$EVENT_NAME" = "release" ]; then
+            TAG="$RELEASE_TAG_NAME"
+          elif [ "$EVENT_NAME" = "pull_request" ]; then
+            TAG="$HEAD_REF"
           else
             TAG="latest"
           fi
@@ -217,4 +221,5 @@ jobs:
     uses: ./.github/workflows/deploy.yml
     with:
       commit_title: ${{ needs.build-opengatellm-api.outputs.commit_title }}
-    secrets: inherit
+    secrets:
+      GITLAB_CI_TOKEN: ${{ secrets.GITLAB_CI_TOKEN }}
