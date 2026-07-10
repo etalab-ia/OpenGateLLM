@@ -2,7 +2,7 @@ name: Release updates
 
 on:
   workflow_run:
-    workflows: ["Build, scan images and deploy"]
+    workflows: ["Build and scan images"]
     types:
       - completed
   workflow_dispatch:
