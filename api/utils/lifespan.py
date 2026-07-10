@@ -1,6 +1,5 @@
 from contextlib import asynccontextmanager
 
-from elasticsearch import AsyncElasticsearch
 from fastapi import FastAPI
 from langfuse import Langfuse
 import redis.asyncio as redis
@@ -8,17 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 import tiktoken
 from tiktoken.core import Encoding
 
-from api.clients.parser import BaseParserClient as ParserClient
 from api.dependencies import get_postgres_session
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
-from api.helpers._documentmanager import DocumentManager
-from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers._identityaccessmanager import IdentityAccessManager
 from api.helpers._langfusemanager import LangfuseManager
 from api.helpers._limiter import Limiter
-from api.helpers._parsermanager import ParserManager
 from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
@@ -43,7 +38,6 @@ from api.use_cases.admin import (
 from api.use_cases.models import BootstrapModelsUseCase, BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
 from api.utils.configuration import get_configuration
 from api.utils.context import global_context
-from api.utils.exceptions import RouterNotFoundException
 from api.utils.logging import init_logger
 
 logger = init_logger(name=__name__)
@@ -54,7 +48,6 @@ async def lifespan(_: FastAPI):
     configuration = get_configuration()
 
     global_context.redis_pool = await create_redis_pool(configuration)
-    global_context.elasticsearch_client = await create_elasticsearch_client(configuration)
     global_context.postgres_engine, global_context.postgres_session_factory = create_postgres_session_factory(configuration)
 
     async for postgres_session in get_postgres_session():
@@ -62,7 +55,6 @@ async def lifespan(_: FastAPI):
         await bootstrap_models(configuration=configuration, postgres_session=postgres_session, bootstrap_admin_user_id=bootstrap_admin_user_id)
 
     global_context.model_registry = await create_model_registry(configuration, global_context.postgres_session_factory)
-    global_context.elasticsearch_vector_store = await create_elasticsearch_vector_store(configuration, global_context.elasticsearch_client, global_context.model_registry, global_context.postgres_session_factory)  # fmt: off
     global_context.usage_manager = create_usage_manager()
 
     global_context.langfuse_client = create_langfuse_client(configuration=configuration)
@@ -70,15 +62,10 @@ async def lifespan(_: FastAPI):
     global_context.limiter = create_limiter(configuration=configuration, redis_pool=global_context.redis_pool)
     global_context.tokenizer = create_tokenizer(configuration=configuration)
     global_context._tokenizer = initialize_tokenizer(configuration=configuration)
-    global_context.parser = await create_parser(configuration=configuration)
-    global_context.document_manager = create_document_manager(configuration, elasticsearch_vector_store=global_context.elasticsearch_vector_store)
 
     await global_context.limiter.reset()
 
     yield
-
-    if global_context.elasticsearch_client:
-        await global_context.elasticsearch_client.close()
 
     if global_context.redis_pool:
         await global_context.redis_pool.aclose()
@@ -95,24 +82,6 @@ async def create_redis_pool(configuration: Configuration) -> redis.ConnectionPoo
         raise RuntimeError("Redis database is not reachable.")
     await client.aclose()
     return pool
-
-
-async def create_elasticsearch_client(configuration: Configuration) -> AsyncElasticsearch | None:
-    if configuration.dependencies.elasticsearch is None:
-        return None
-
-    kwargs = configuration.dependencies.elasticsearch.model_dump()
-    kwargs.pop("index_name")
-    kwargs.pop("index_language")
-    kwargs.pop("number_of_shards")
-    kwargs.pop("number_of_replicas")
-    kwargs.pop("refresh_interval")
-
-    client = AsyncElasticsearch(**kwargs)
-    if not await client.ping():
-        await client.close()
-        raise RuntimeError("Elasticsearch database is not reachable.")
-    return client
 
 
 def create_postgres_session_factory(configuration: Configuration) -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
@@ -199,42 +168,6 @@ async def create_model_registry(
     return registry
 
 
-async def create_elasticsearch_vector_store(
-    configuration: Configuration,
-    elasticsearch_client: AsyncElasticsearch,
-    model_registry: ModelRegistry,
-    session_factory: async_sessionmaker,
-) -> ElasticsearchVectorStore | None:
-    if configuration.dependencies.elasticsearch is None or configuration.settings.vector_store_model is None:
-        return None
-
-    async with session_factory() as session:
-        try:
-            routers = await model_registry.get_routers(
-                router_id=None,
-                name=configuration.settings.vector_store_model,
-                postgres_session=session,
-            )
-        except RouterNotFoundException:
-            raise ValueError("Vector store model not found.")
-
-    vector_size = routers[0].vector_size
-    if vector_size is None:
-        raise RuntimeError(f"Vector size is None (no provider for this model {routers[0].name}).")
-
-    es_config = configuration.dependencies.elasticsearch
-    vector_store = ElasticsearchVectorStore(index_name=es_config.index_name)
-    await vector_store.setup(
-        client=elasticsearch_client,
-        index_language=es_config.index_language,
-        number_of_shards=es_config.number_of_shards,
-        number_of_replicas=es_config.number_of_replicas,
-        vector_size=vector_size,
-        refresh_interval=es_config.refresh_interval,
-    )
-    return vector_store
-
-
 def create_usage_manager() -> UsageManager:
     return UsageManager()
 
@@ -269,22 +202,6 @@ def initialize_tokenizer(configuration: Configuration) -> Encoding:
             return tiktoken.get_encoding("cl100k_base")
         case Tokenizer.TIKTOKEN_GPT2:
             return tiktoken.get_encoding("gpt2")
-
-
-async def create_parser(configuration: Configuration) -> ParserClient | None:
-    if configuration.dependencies.parser is None:
-        return None
-
-    parser = ParserClient.import_module(type=configuration.dependencies.parser.type)(**configuration.dependencies.parser.model_dump())
-    check_health = await parser.check_health()
-    if not check_health:
-        raise RuntimeError("Health check failed for parser.")
-    return parser
-
-
-def create_document_manager(configuration: Configuration, elasticsearch_vector_store: ElasticsearchVectorStore | None) -> DocumentManager | None:
-    parser_manager = ParserManager(max_concurrent=configuration.settings.document_parsing_max_concurrent)
-    return DocumentManager(vector_store_model=configuration.settings.vector_store_model, parser_manager=parser_manager)
 
 
 def create_langfuse_client(configuration: Configuration) -> LangfuseManager | None:

@@ -394,15 +394,6 @@ class TestAuth:
         assert response.status_code == 200, response.text
         user1_token_data = response.json()
 
-        # Create a collection using first user's token
-        response = client.post(
-            url=f"/v1{EndpointRoute.COLLECTIONS}",
-            headers=headers1,
-            json={"name": f"collection_user1_{str(uuid4())}", "visibility": "private"},
-        )
-        assert response.status_code == 201, response.text
-        collection_id = response.json()["id"]
-
         # Create second user
         response = client.post_with_permissions(
             url=f"/v1{EndpointRoute.ADMIN_USERS}",
@@ -441,25 +432,18 @@ class TestAuth:
         assert response.status_code == 200, response.text
         user1_token_data = response.json()
 
-        # Try to access collection created by first user with first user's token
-        response = client.get(
-            url=f"/v1{EndpointRoute.COLLECTIONS}/{collection_id}",
-            headers=headers1,
-        )
-        assert response.status_code == 200, "Second user should not have access to first user's private collection"
-        # Try to access collection created by first user with second user's token
-        response = client.get(
-            url=f"/v1{EndpointRoute.COLLECTIONS}/{collection_id}",
-            headers=headers2,
-        )
-        assert response.status_code == 404, "Second user should not have access to first user's private collection"
+        # Verify each user only sees their own keys in /me/keys.
+        response = client.get(url=f"/v1{EndpointRoute.ME_KEYS}", headers=headers1)
+        assert response.status_code == 200, response.text
+        user1_key_ids = {key["id"] for key in response.json()["data"]}
+        assert user1_token_id in user1_key_ids, "First user should see their own key"
+        assert user2_token_id not in user1_key_ids, "First user should not see second user's key"
 
-        # Verify first user can still access their collection
-        response = client.get(
-            url=f"/v1{EndpointRoute.COLLECTIONS}/{collection_id}",
-            headers=headers1,
-        )
-        assert response.status_code == 200, "First user should still have access to their collection"
+        response = client.get(url=f"/v1{EndpointRoute.ME_KEYS}", headers=headers2)
+        assert response.status_code == 200, response.text
+        user2_key_ids = {key["id"] for key in response.json()["data"]}
+        assert user2_token_id in user2_key_ids, "Second user should see their own key"
+        assert user1_token_id not in user2_key_ids, "Second user should not see first user's key"
 
         # Check that tokens are different for both users
         assert user1_token_data["token"] != user2_token_data["token"], "Tokens with same name across users should not be modified by each other"

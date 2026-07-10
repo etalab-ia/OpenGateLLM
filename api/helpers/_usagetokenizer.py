@@ -16,7 +16,6 @@ class UsageTokenizer:
         EndpointRoute.EMBEDDINGS,
         EndpointRoute.OCR,
         EndpointRoute.RERANK,
-        EndpointRoute.SEARCH,
     ]
 
     def __init__(self, tokenizer: Tokenizer):
@@ -44,9 +43,6 @@ class UsageTokenizer:
 
             elif endpoint == EndpointRoute.RERANK:
                 prompt_tokens = sum([len(self.tokenizer.encode(str(input))) for input in body.get("input", [])])
-
-            elif endpoint == EndpointRoute.SEARCH:
-                prompt_tokens = len(self.tokenizer.encode(str(body.get("prompt", ""))))
 
             elif endpoint == EndpointRoute.OCR:
                 prompt_tokens = len(self.tokenizer.encode(str(body.get("prompt", ""))))

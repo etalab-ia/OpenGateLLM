@@ -18,16 +18,6 @@ dependencies:
     decode_responses: False
     socket_keepalive: True
   
-  elasticsearch: # optional
-    index_name: opengatellm
-    index_language: english
-    number_of_shards: 1
-    number_of_replicas: 0
-    refresh_interval: 1s
-    hosts: "http://${ELASTICSEARCH_HOST:-localhost}:${ELASTICSEARCH_PORT:-9200}"
-    basic_auth:
-      - "elastic"
-      - ${ELASTICSEARCH_PASSWORD}
 
   # sentry:
   #   dsn: ${SENTRY_DSN}
@@ -62,8 +52,6 @@ settings:
   # monitoring_sentry_enabled: True
   # monitoring_postgres_enabled: True
   # monitoring_prometheus_enabled: True
-
-  # vector_store_model: my-model
 
   playground_opengatellm_url: ${OPENGATELLM_URL}
   # playground_opengatellm_timeout: 60

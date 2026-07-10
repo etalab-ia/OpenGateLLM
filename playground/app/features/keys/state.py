@@ -75,7 +75,7 @@ class KeysState(EntityState):
                 self.entities = []
 
                 for key in data.get("data", []):
-                    if key["name"] != "playground":
+                    if key["name"] not in ["playground", "_system_search_tool"]:
                         self.entities.append(self._format_key(key))
 
             self.has_more_page = len(self.entities) == self.per_page
