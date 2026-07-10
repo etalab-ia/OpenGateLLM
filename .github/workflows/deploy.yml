@@ -1,20 +1,10 @@
 name: Deploy
 
 on:
-  workflow_call:
-    inputs:
-      commit_title:
-        description: "Title of the commit that triggered the build, used for the GitLab pipeline name"
-        required: true
-        type: string
-      environment:
-        description: "Deployment environment"
-        required: false
-        type: string
-        default: dev
-    secrets:
-      GITLAB_CI_TOKEN:
-        required: true
+  workflow_run:
+    workflows: ["Build and scan images"]
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       commit_title:
@@ -30,14 +20,29 @@ on:
 
 jobs:
   deploy-dev:
-    name: Deploy from ${{ github.ref_name }}/${{ github.sha }}
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    name: Deploy from ${{ github.event.workflow_run.head_branch || github.ref_name }}/${{ github.event.workflow_run.head_sha || github.sha }}
     runs-on: ubuntu-latest
     steps:
+      - name: Get commit title
+        id: commit_title
+        env:
+          HEAD_COMMIT_MESSAGE: ${{ github.event.workflow_run.head_commit.message }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMIT_TITLE_INPUT: ${{ inputs.commit_title }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            TITLE="$COMMIT_TITLE_INPUT"
+          else
+            TITLE="$(echo "$HEAD_COMMIT_MESSAGE" | head -n 1)"
+          fi
+          echo "title=$TITLE" >> "$GITHUB_OUTPUT"
+
       - name: Trigger dev deployment
         env:
           GITLAB_CI_TOKEN: ${{ secrets.GITLAB_CI_TOKEN }}
-          PIPELINE_NAME: ${{ github.event.repository.name }} - ${{ inputs.commit_title }}
-          DEPLOYMENT_ENVIRONMENT: ${{ inputs.environment }}
+          PIPELINE_NAME: ${{ github.event.repository.name }} - ${{ steps.commit_title.outputs.title }}
+          DEPLOYMENT_ENVIRONMENT: ${{ inputs.environment || 'dev' }}
         run: |
           RESPONSE="$(curl --request POST \
             --form token="$GITLAB_CI_TOKEN" \
