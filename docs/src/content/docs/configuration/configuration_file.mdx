@@ -41,7 +41,7 @@ The following is an example of configuration file:
 # -------------------------------- dependencies ---------------------------------
 dependencies:
   postgres: # required
-    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-localhost}:${POSTGRES_PORT:-5432}/postgres
+    url: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/postgres
     echo: False
     pool_size: 5
     connect_args:
@@ -50,7 +50,7 @@ dependencies:
       command_timeout: 60
 
   redis: # required
-    url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
+    url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
     max_connections: 200
     socket_connect_timeout: 5
     retry_on_timeout: True
@@ -77,7 +77,7 @@ settings:
   # log_level: INFO
   # log_format: [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s
 
-  swagger_version: 0.4.7
+  swagger_version: 0.4.9
   # swagger_contact_url: https://github.com/etalab-ia/OpenGateLLM
   # swagger_contact_email: john.doe@example.com
   # swagger_docs_url: /docs
@@ -93,7 +93,7 @@ settings:
   # monitoring_postgres_enabled: True
   # monitoring_prometheus_enabled: True
 
-  playground_opengatellm_url: ${OPENGATELLM_URL}
+  playground_opengatellm_url: ${OPENGATELLM_URL:-http://api:8000}
   # playground_opengatellm_timeout: 60
   # playground_disabled_pages: []
   # playground_default_model: my-model
