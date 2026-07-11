@@ -2,13 +2,18 @@ name: opengatellm
 
 services:
   api:
-    image: ghcr.io/etalab-ia/opengatellm/api:0.4.7
+    image: ghcr.io/etalab-ia/opengatellm/api:latest
     restart: always
-    env_file: .env
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
       - "${CONFIG_FILE:-./config.yml}:/config.yml:ro"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1" ]
+      interval: 4s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     depends_on:
       redis:
         condition: service_healthy
@@ -16,19 +21,17 @@ services:
         condition: service_healthy
 
   playground:
-    image: ghcr.io/etalab-ia/opengatellm/playground:0.4.7
+    image: ghcr.io/etalab-ia/opengatellm/playground:latest
     environment:
       - "OPENGATELLM_URL=${OPENGATELLM_URL:-http://api:8000}"
       - "REDIS_HOST=redis"
       - "REDIS_PORT=${REDIS_PORT:-6379}"
     ports:
       - "${PLAYGROUND_PORT:-8501}:8501"
-    volumes:
-      - "./${CONFIG_FILE:-config.yml}:/config.yml:ro"
     depends_on:
-      redis:
+      api:
         condition: service_healthy
-      postgres:
+      redis:
         condition: service_healthy
 
   postgres:

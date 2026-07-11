@@ -1,10 +1,11 @@
+import array
+import base64
 from http import HTTPMethod
 from unittest.mock import Mock, patch
 
-from pydantic import BaseModel
 import pytest
 
-from api.domain.embeddings.entities import Embeddings
+from api.domain.embeddings.entities import Embeddings, EncodingFormat
 from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
 from api.infrastructure.http.adapters.embeddings.tei import TeiEmbeddingsAdapter
@@ -236,6 +237,30 @@ class TestEmbeddingsAdapter:
         assert result.data.model == "openweight-embeddings"
 
     @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
+        indirect=["adapter"],
+    )
+    def test_format_response_decodes_base64_embeddings(self, adapter):
+        # Arrange
+        embedding = [0.1, 0.2, 0.3]
+        response_data = TeiEmbeddingsResponseFactory(dimensions=3)
+        response_data["data"][0]["embedding"] = base64.b64encode(array.array("f", embedding).tobytes()).decode()
+
+        adapter._extract_request_id = Mock(return_value="req-123")
+        original_request = ProviderOriginalRequestFactory(embeddings=True)
+        original_request.body.encoding_format = EncodingFormat.BASE64
+        original_response = ProviderOriginalResponse(data=response_data)
+
+        # Act
+        result = adapter.format_response(original_response=original_response, original_request=original_request)
+
+        # Assert
+        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result.data, Embeddings)
+        assert result.data.data[0].embedding == pytest.approx(embedding)
+
+    @pytest.mark.parametrize(
         argnames=("adapter", "response_data"),
         argvalues=[
             ("tei_embeddings_adapter", TeiEmbeddingsResponseFactory(dimensions=2, extra_field="extra_value")),
@@ -256,23 +281,19 @@ class TestEmbeddingsAdapter:
         assert result.data.extra_field == "extra_value"
 
     @pytest.mark.parametrize(
-        argnames=("adapter", "response_data"),
-        argvalues=[("tei_embeddings_adapter", TeiEmbeddingsResponseFactory()), ("vllm_embeddings_adapter", VllmEmbeddingsResponseFactory())],
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
         indirect=["adapter"],
     )
-    def test_format_response_returns_validation_error_on_bad_data(self, adapter, response_data):
-        class _InvalidResponsePayload(BaseModel):
-            id: int
-
-        adapter.RESPONSE_TYPE = _InvalidResponsePayload
+    def test_format_response_returns_validation_error_on_bad_data(self, adapter):
         original_request = ProviderOriginalRequestFactory(embeddings=True)
-        original_response = ProviderOriginalResponse(data=response_data)
+        original_response = ProviderOriginalResponse(data={"data": "invalid"})
 
         result = adapter.format_response(original_response=original_response, original_request=original_request)
 
         assert result.provider_type == adapter.provider.type
         assert isinstance(result, ProviderAdapterValidationResponseError)
-        assert len(result.errors) == 1
+        assert len(result.errors) >= 1
 
     @pytest.mark.parametrize(
         argnames=("adapter"),

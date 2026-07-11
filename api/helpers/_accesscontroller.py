@@ -10,15 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.domain.role.entities import PermissionType
 from api.helpers._identityaccessmanager import CheckTokenResult
 from api.schemas.admin.users import User
-from api.schemas.collections import CollectionVisibility
 from api.schemas.me.info import UserInfo
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
-from api.utils.exceptions import (
-    InsufficientPermissionException,
-    InvalidAPIKeyException,
-    InvalidAuthenticationSchemeException,
-)
+from api.utils.exceptions import InsufficientPermissionException, InvalidAPIKeyException, InvalidAuthenticationSchemeException
 from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
@@ -59,9 +54,6 @@ class AccessController:
         if request.url.path.endswith(EndpointRoute.CHAT_COMPLETIONS) and request.method in ["POST", "PATCH"]:
             await self._check_chat_completions(body=body, user_info=user_info, postgres_session=postgres_session)
 
-        if request.url.path.endswith(EndpointRoute.COLLECTIONS) and request.method in ["POST", "PATCH"]:
-            await self._check_collections(body=body, user_info=user_info, postgres_session=postgres_session)
-
         if request.url.path.endswith(EndpointRoute.EMBEDDINGS) and request.method in ["POST"]:
             await self._check_embeddings(body=body, user_info=user_info, postgres_session=postgres_session)
 
@@ -70,9 +62,6 @@ class AccessController:
 
         if request.url.path.endswith(EndpointRoute.RERANK) and request.method in ["POST"]:
             await self._check_rerank(body=body, user_info=user_info, postgres_session=postgres_session)
-
-        if request.url.path.endswith(EndpointRoute.SEARCH) and request.method in ["POST"]:
-            await self._check_search(body=body, user_info=user_info, postgres_session=postgres_session)
 
         return user_info
 
@@ -118,18 +107,7 @@ class AccessController:
             return
 
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=EndpointRoute.CHAT_COMPLETIONS, body=body)
-        if body.get("search", False):  # count the search request as one request to the search model (embeddings)
-            search_router_id = await global_context.model_registry.get_router_id_from_model_name(
-                model_name=global_context.document_manager.vector_store_model,
-                postgres_session=postgres_session,
-            )
-            await global_context.limiter.check_user_limits(user_info=user_info, router_id=search_router_id, prompt_tokens=prompt_tokens)
         await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
-
-    @staticmethod
-    async def _check_collections(body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
-        if body.get("visibility") == CollectionVisibility.PUBLIC and PermissionType.CREATE_PUBLIC_COLLECTION not in user_info.permissions:
-            raise InsufficientPermissionException("Missing permission to update collection visibility to public.")
 
     @staticmethod
     async def _check_embeddings(body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
@@ -153,17 +131,6 @@ class AccessController:
         if router_id is None:
             return
         prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=EndpointRoute.RERANK, body=body)
-        await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
-
-    @staticmethod
-    async def _check_search(body: dict, user_info: UserInfo, postgres_session: AsyncSession) -> None:
-        router_id = await global_context.model_registry.get_router_id_from_model_name(
-            model_name=global_context.document_manager.vector_store_model,
-            postgres_session=postgres_session,
-        )
-        if router_id is None:
-            return
-        prompt_tokens = global_context.tokenizer.get_prompt_tokens(endpoint=EndpointRoute.SEARCH, body=body)
         await global_context.limiter.check_user_limits(user_info=user_info, router_id=router_id, prompt_tokens=prompt_tokens)
 
     @staticmethod

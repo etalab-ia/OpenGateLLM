@@ -1,4 +1,5 @@
 import datetime as dt
+from enum import StrEnum
 from http import HTTPMethod
 from typing import Optional
 
@@ -9,7 +10,6 @@ from sqlalchemy.types import JSON
 from api.domain.role.entities import LimitType, PermissionType
 from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
-from api.schemas.collections import CollectionVisibility
 from api.schemas.core.models import Metric
 from api.schemas.models import ModelType
 from api.utils.variables import DEFAULT_TIMEOUT
@@ -17,6 +17,11 @@ from api.utils.variables import DEFAULT_TIMEOUT
 Base = declarative_base()
 
 UtcDateTime = DateTime(timezone=True)
+
+
+class CollectionVisibility(StrEnum):
+    PRIVATE = "private"
+    PUBLIC = "public"
 
 
 class Usage(Base):

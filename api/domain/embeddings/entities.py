@@ -1,5 +1,7 @@
+import array
+import base64
 from enum import StrEnum
-from typing import Literal
+from typing import Any, Literal
 
 from openai.types import CreateEmbeddingResponse
 from pydantic import Field
@@ -33,3 +35,22 @@ class Embeddings(CreateEmbeddingResponse):
     object: Literal["list"] = "list"
     id: str = Field(default=None, description="A unique identifier for the embedding.")
     usage: Usage = Field(default_factory=Usage, description="Usage information for the request.")
+
+    @classmethod
+    def _from_provider_response(cls, data: Any, *, encoding_format: EncodingFormat = EncodingFormat.FLOAT) -> "Embeddings":
+        if isinstance(data, dict) and encoding_format == EncodingFormat.BASE64:
+            data = {
+                **data,
+                "data": [
+                    {
+                        **item,
+                        "embedding": (
+                            array.array("f", base64.b64decode(item["embedding"])).tolist()
+                            if isinstance(item.get("embedding"), str)
+                            else item["embedding"]
+                        ),
+                    }
+                    for item in data.get("data", [])
+                ],
+            }
+        return cls(**data)

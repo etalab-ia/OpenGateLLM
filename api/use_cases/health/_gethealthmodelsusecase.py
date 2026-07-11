@@ -83,7 +83,6 @@ class GetHealthModelsUseCase:
                     case _:
                         # @TODO: if another provider is healthy, we should not set the health to red
                         # @TODO: connect load balancing strategy to the health status
-                        print(response)
                         health.status = HealthStatus.RED
                         continue
 

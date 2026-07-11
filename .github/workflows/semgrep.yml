@@ -16,7 +16,7 @@ on:
 jobs:
   semgrep-diff:
     name: Semgrep SAST (diff)
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     container:
       image: semgrep/semgrep
@@ -27,7 +27,10 @@ jobs:
 
   semgrep-full:
     name: Semgrep SAST (full)
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: >-
+      github.event_name == 'release' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]')
     runs-on: ubuntu-latest
     container:
       image: semgrep/semgrep

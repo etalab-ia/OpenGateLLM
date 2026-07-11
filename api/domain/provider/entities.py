@@ -50,36 +50,37 @@ class ProviderType(StrEnum):
 
 
 COMPATIBLE_PROVIDER_TYPES: dict[ModelType, list[str]] = {
-    ModelType.AUTOMATIC_SPEECH_RECOGNITION: [
+    ModelType.AUTOMATIC_SPEECH_RECOGNITION: [  # audio transcriptions
         ProviderType.ALBERT.value,
         ProviderType.MISTRAL.value,
         ProviderType.OPENAI.value,
         ProviderType.VLLM.value,
     ],
-    ModelType.IMAGE_TEXT_TO_TEXT: [
+    ModelType.IMAGE_TEXT_TO_TEXT: [  # chat completions
         ProviderType.ALBERT.value,
         ProviderType.MISTRAL.value,
         ProviderType.OPENAI.value,
         ProviderType.VLLM.value,
     ],
-    ModelType.TEXT_EMBEDDINGS_INFERENCE: [
+    ModelType.TEXT_EMBEDDINGS_INFERENCE: [  # embeddings
         ProviderType.ALBERT.value,
         ProviderType.OPENAI.value,
         ProviderType.MISTRAL.value,
         ProviderType.TEI.value,
         ProviderType.VLLM.value,
     ],
-    ModelType.TEXT_GENERATION: [
+    ModelType.TEXT_GENERATION: [  # chat completions
         ProviderType.ALBERT.value,
         ProviderType.MISTRAL.value,
         ProviderType.OPENAI.value,
         ProviderType.VLLM.value,
     ],
-    ModelType.TEXT_CLASSIFICATION: [
+    ModelType.TEXT_CLASSIFICATION: [  # rerank
         ProviderType.ALBERT.value,
         ProviderType.TEI.value,
+        ProviderType.VLLM.value,
     ],
-    ModelType.IMAGE_TO_TEXT: [
+    ModelType.IMAGE_TO_TEXT: [  # ocr
         ProviderType.MISTRAL.value,
     ],
 }
