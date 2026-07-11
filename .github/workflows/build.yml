@@ -15,11 +15,11 @@ on:
 jobs:
   prepare:
     name: Prepare build
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'release' ||
+      github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    # Builds triggered by a PR commit wait here for a manual approval from the GitHub Actions UI
-    # (configure required reviewers on the "build-approval" environment in repo settings).
-    # Builds triggered by push/release/workflow_dispatch use the unprotected "build-auto" environment
-    # and therefore run immediately, exactly like before.
     environment: ${{ github.event_name == 'pull_request' && 'build-approval' || 'build-auto' }}
     outputs:
       image_tag: ${{ steps.set_tag.outputs.tag }}
@@ -49,16 +49,11 @@ jobs:
     env:
       API_IMAGE_NAME: ghcr.io/etalab-ia/opengatellm/api
       IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
-    outputs:
-      commit_title: ${{ steps.get_head_commit_title.outputs.title }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref || github.ref_name }}
-
-      - id: get_head_commit_title
-        run: echo "title=$(git log --format=%B -n 1 HEAD | head -n 1)" >> $GITHUB_OUTPUT
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -206,20 +201,3 @@ jobs:
     with:
       image-name: ghcr.io/etalab-ia/opengatellm/playground
       image-tag: ${{ needs.prepare.outputs.image_tag }}
-
-  deploy-dev:
-    # Only chain automatically into the deploy workflow for the pre-existing, auto-triggered flow
-    # (push to main). Builds approved manually from a PR are not deployed automatically.
-    if: github.event_name == 'push'
-    name: Deploy to dev
-    needs:
-      - build-opengatellm-api
-      - trivy-scan-api
-      - build-opengatellm-playground
-      - trivy-scan-playground
-      - build-albert-playground
-    uses: ./.github/workflows/deploy.yml
-    with:
-      commit_title: ${{ needs.build-opengatellm-api.outputs.commit_title }}
-    secrets:
-      GITLAB_CI_TOKEN: ${{ secrets.GITLAB_CI_TOKEN }}

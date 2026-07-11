@@ -48,6 +48,7 @@ worker = [
 dev = [
     "pre-commit>=4.5.1",
     "ruff>=0.15.2",
+    "tabulate==0.10.0",
 ]
 test = [
     "factory-boy>=3.3.3",
