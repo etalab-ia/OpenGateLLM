@@ -2,9 +2,8 @@ name: opengatellm
 
 services:
   api:
-    image: ghcr.io/etalab-ia/opengatellm/api:0.4.7
+    image: ghcr.io/etalab-ia/opengatellm/api:latest
     restart: always
-    env_file: .env
     ports:
       - "${API_PORT:-8000}:8000"
     volumes:
@@ -22,7 +21,7 @@ services:
         condition: service_healthy
 
   playground:
-    image: ghcr.io/etalab-ia/opengatellm/playground:0.4.7
+    image: ghcr.io/etalab-ia/opengatellm/playground:latest
     environment:
       - "OPENGATELLM_URL=${OPENGATELLM_URL:-http://api:8000}"
       - "REDIS_HOST=redis"
