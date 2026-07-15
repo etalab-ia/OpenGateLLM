@@ -340,7 +340,6 @@ class SettingsLoginPassword(Settings):
 class SettingsLoginOIDC(Settings):
     auth_login_type: Literal["oidc"] = Field(default="oidc", description="Login type for the API.")  # fmt: off
     auth_playground_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="Playground URL. Used by oauth2-proxy for redirect whitelisting and by the API to validate SSO sessions via /oauth2/auth. Use an internal URL reachable from the API (for example http://playground:8501) for API configuration and a public URL reachable from the internet (for example https://playground.my-domain.com) for Playground configuration.")  # fmt: off
-    auth_sso_default_role_id: int = Field(default=1, ge=1, description="Default role ID for SSO users when these are created.")
 
 
 # load config ----------------------------------------------------------------------------------------------------------------------------------------

@@ -3,16 +3,25 @@ import logging
 from fastapi import APIRouter, Depends, Request
 
 from api.dependencies import auth_login_use_case_factory, auth_sso_login_use_case_factory
-from api.domain.auth.errors import InvalidOidcTokenError, SsoProviderNotAvailableError
+from api.domain.auth.errors import (
+    DefaultSsoPolicyOrganizationIsNotSetError,
+    DefaultSsoPolicyRoleIsNotSetError,
+    SsoAccessDeniedError,
+    SsoInvalidSessionError,
+    SsoProviderNotAvailableError,
+)
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.errors import InvalidUserPasswordError, UserNotFoundError
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
+    DefaultSsoPolicyOrganizationNotFoundHTTPException,
+    DefaultSsoPolicyRoleNotFoundHTTPException,
     InternalServerHTTPException,
-    InvalidOidcTokenHTTPException,
     InvalidPasswordHTTPException,
-    OidcProviderNotAvailableHTTPException,
+    InvalidSSOSessionHTTPException,
     RoleNotFoundHTTPException,
+    SsoAccessDeniedHTTPException,
+    SSOProviderNotAvailableHTTPException,
     UserNotFoundHTTPException,
 )
 from api.infrastructure.fastapi.schemas.auth import AuthLoginBody, AuthLoginResponse, AuthSsoLoginBody
@@ -65,7 +74,15 @@ async def login(body: AuthLoginBody, auth_login_use_case: AuthLoginUseCase = Dep
     status_code=200,
     response_model=AuthLoginResponse,
     responses=get_documentation_responses(
-        [InvalidPasswordHTTPException, UserNotFoundHTTPException, RoleNotFoundHTTPException], add_auth_exceptions=False
+        [
+            DefaultSsoPolicyOrganizationNotFoundHTTPException,
+            DefaultSsoPolicyRoleNotFoundHTTPException,
+            SSOProviderNotAvailableHTTPException,
+            SsoAccessDeniedHTTPException,
+            InvalidSSOSessionHTTPException,
+            RoleNotFoundHTTPException,
+        ],
+        add_auth_exceptions=False,
     ),
 )
 async def sso_login(
@@ -75,12 +92,13 @@ async def sso_login(
 ):
     session_cookie = request.headers.get("cookie")
     if not session_cookie:
-        raise InvalidOidcTokenHTTPException()
+        raise InvalidSSOSessionHTTPException()
 
     command = AuthSsoLoginCommand(
         session_cookie=session_cookie,
         name=body.name,
         organization=body.organization,
+        roles=body.roles,
         sub=body.sub,
         iss=body.iss,
         expires=body.expires,
@@ -89,7 +107,7 @@ async def sso_login(
         result = await auth_sso_login_use_case.execute(command=command)
     except Exception as e:
         logger.exception(
-            "Unexpected error while executing auth oidc login use case",
+            "Unexpected error while executing auth sso login use case",
             extra={
                 "error_type": type(e).__name__,
             },
@@ -99,9 +117,15 @@ async def sso_login(
     match result:
         case AuthSsoLoginUseCaseSuccess(key=key):
             return AuthLoginResponse.model_validate(key, from_attributes=True)
-        case InvalidOidcTokenError():
-            raise InvalidOidcTokenHTTPException()
+        case DefaultSsoPolicyOrganizationIsNotSetError():
+            raise DefaultSsoPolicyOrganizationNotFoundHTTPException()
+        case DefaultSsoPolicyRoleIsNotSetError():
+            raise DefaultSsoPolicyRoleNotFoundHTTPException()
+        case SsoInvalidSessionError():
+            raise InvalidSSOSessionHTTPException()
         case SsoProviderNotAvailableError():
-            raise OidcProviderNotAvailableHTTPException()
+            raise SSOProviderNotAvailableHTTPException()
+        case SsoAccessDeniedError():
+            raise SsoAccessDeniedHTTPException()
         case RoleNotFoundError(id=role_id):
             raise RoleNotFoundHTTPException(role_id=role_id)

@@ -22,7 +22,7 @@ type AuthLoginUseCaseResult = AuthLoginUseCaseSuccess | UserNotFoundError | Inva
 
 
 class AuthLoginUseCase:
-    REFRESH_KEY_NAME: str = "playground"
+    REFRESH_KEY_NAME: str = "_playground_refreshed_key"
 
     def __init__(
         self,

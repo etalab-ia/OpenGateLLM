@@ -45,10 +45,10 @@ def navigation_sidebar() -> rx.Component:
     user_items = [item for page, item in user_items if page not in configuration.settings.playground_disabled_pages]
 
     admin_items = [
-        (PlaygroundPages.ROUTERS, nav_item("Routers", "network", "/routers")),
+        (PlaygroundPages.ORGANIZATIONS, nav_item("Organizations", "building", "/organizations")),
         (PlaygroundPages.PROVIDERS, nav_item("Providers", "container", "/providers")),
         (PlaygroundPages.ROLES, nav_item("Roles", "shield", "/roles")),
-        (PlaygroundPages.ORGANIZATIONS, nav_item("Organizations", "building", "/organizations")),
+        (PlaygroundPages.ROUTERS, nav_item("Routers", "network", "/routers")),
         (PlaygroundPages.USERS, nav_item("Users", "users", "/users")),
     ]
     admin_items = [item for page, item in admin_items if page not in configuration.settings.playground_disabled_pages]
