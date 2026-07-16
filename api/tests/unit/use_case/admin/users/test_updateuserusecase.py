@@ -50,9 +50,7 @@ class TestUpdateUserUseCase:
         user_repository.update_user.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_should_keep_current_values_when_fields_are_none_and_clear_organization_id_budget_and_expires(
-        self, use_case, user_repository, sample_user
-    ):
+    async def test_should_keep_non_nullable_fields_and_clear_nullable_fields_when_fields_are_none(self, use_case, user_repository, sample_user):
         # Arrange
         user_repository.get_user_by_id.return_value = sample_user
         user_repository.update_user.side_effect = lambda user: user
@@ -62,11 +60,13 @@ class TestUpdateUserUseCase:
 
         # Assert
         assert isinstance(result, UpdateUserUseCaseSuccess)
+        # Non-nullable columns keep their current value.
         assert result.user.email == sample_user.email
-        assert result.user.name == sample_user.name
         assert result.user.role == sample_user.role
         assert result.user.priority == sample_user.priority
         assert result.user.password == sample_user.password
+        # Nullable columns are cleared.
+        assert result.user.name is None
         assert result.user.organization_id is None
         assert result.user.budget is None
         assert result.user.expires is None
