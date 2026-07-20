@@ -11,6 +11,10 @@ on:
 jobs:
   unit-tests:
     name: Unit tests
+    if: >-
+      github.event_name == 'workflow_call' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
     steps:
@@ -18,19 +22,17 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref_name }}
 
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+
       - name: Set up Docker Compose
         run: |
           cp config.example.yml config.yml
 
       - name: Run unit tests with coverage and publish unit badge
         run: |
-          # Install uv
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          
           # Create a local virtual environment and install dependencies
-          "$HOME/.local/bin/uv" venv
-          "$HOME/.local/bin/uv" pip install -p .venv/bin/python ".[api,playground,dev,test]"
+          uv venv
+          uv pip install -p .venv/bin/python ".[test]"
           
           # Activate venv for the test run
           . .venv/bin/activate
@@ -43,9 +45,28 @@ jobs:
           
           # Build unit coverage badge JSON
           mkdir -p .github/badges
-          COVERAGE=$(python -c "import xml.etree.ElementTree as ET; print(ET.parse('coverage.xml').getroot().get('line-rate'))")
-          COVERAGE_PCT=$(printf "%.2f" $(echo "${COVERAGE} * 100" | bc))
-          echo "{\"schemaVersion\":1,\"label\":\"coverage\",\"message\":\"${COVERAGE_PCT}%\",\"color\":\"$(if (( $(echo \"${COVERAGE_PCT} >= 80\" | bc -l) )); then echo "green"; elif (( $(echo \"${COVERAGE_PCT} >= 70\" | bc -l) )); then echo "yellow"; else echo "red"; fi)\"}" > .github/badges/coverage.json
+          python - <<'PY'
+          import json
+          import xml.etree.ElementTree as ET
+
+          coverage = float(ET.parse("coverage.xml").getroot().get("line-rate"))
+          coverage_pct = f"{coverage * 100:.2f}"
+          if float(coverage_pct) >= 80:
+              color = "green"
+          elif float(coverage_pct) >= 70:
+              color = "yellow"
+          else:
+              color = "red"
+
+          badge = {
+              "schemaVersion": 1,
+              "label": "coverage",
+              "message": f"{coverage_pct}%",
+              "color": color,
+          }
+          with open(".github/badges/coverage.json", "w", encoding="utf-8") as badge_file:
+              json.dump(badge, badge_file)
+          PY
 
       - name: Commit unit coverage badge
         if: github.event.pull_request.base.ref == 'main'
@@ -56,38 +77,31 @@ jobs:
           commit_user_name: "GitHub Actions"
           commit_user_email: "actions@github.com"
 
-  integration-tests:
-    name: Integration tests
+  e2e-tests:
+    name: e2e tests
+    if: >-
+      github.event_name == 'workflow_call' ||
+      github.event_name == 'workflow_dispatch' ||
+      github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        config_file: [api/tests/integ/config.test.yml]
-
     steps:
     - uses: actions/checkout@v4
+
+    - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
 
     - name: Run integration tests
       run: |
         cp .github/.env.ci.example .github/.env.ci
 
-        # Install uv
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-
         # Create a local virtual environment and install dependencies
-        "$HOME/.local/bin/uv" venv
-        "$HOME/.local/bin/uv" pip install -p .venv/bin/python ".[api,playground,dev,test]"
+        uv venv
+        uv pip install -p .venv/bin/python ".[test]"
 
         # Activate venv for the test run
         . .venv/bin/activate
 
-        echo "Listing files in root:"
-        ls -la .
-        echo "Listing files in api/tests/integ:"
-        ls -la api/tests/integ
-
         # Run integration tests
         make test-integ
       env:
-        CONFIG_FILE: ${{ matrix.config_file }}
+        CONFIG_FILE: api/tests/integ/config.test.yml
         ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}

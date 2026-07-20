@@ -16,18 +16,13 @@ class RouterName(StrEnum):
     AUDIO = ("audio", "api.endpoints.audio")
     AUTH = ("auth", "api.infrastructure.fastapi.endpoints.auth")
     CHAT = ("chat", "api.endpoints.chat")
-    CHUNKS = ("chunks", "api.endpoints.chunks")
-    COLLECTIONS = ("collections", "api.endpoints.collections")
-    DOCUMENTS = ("documents", "api.endpoints.documents")
     EMBEDDINGS = ("embeddings", "api.infrastructure.fastapi.endpoints.embeddings")
     HEALTH = ("health", "api.infrastructure.fastapi.endpoints.health")
     ME = ("me", "api.endpoints.me")
     MODELS = ("models", "api.infrastructure.fastapi.endpoints.models")
     MONITORING = ("monitoring", "api.infrastructure.fastapi.endpoints.health")
     OCR = ("ocr", "api.endpoints.ocr")
-    PARSE = ("parse", "api.endpoints.parse")
     RERANK = ("rerank", "api.infrastructure.fastapi.endpoints.rerank")
-    SEARCH = ("search", "api.endpoints.search")
 
     def __new__(cls, value: str, module_path: str):
         obj = str.__new__(cls, value)
@@ -48,9 +43,6 @@ class EndpointRoute(StrEnum):
     AUDIO_TRANSCRIPTIONS = f"/{RouterName.AUDIO}/transcriptions"
     AUTH_LOGIN = f"/{RouterName.AUTH}/login"
     CHAT_COMPLETIONS = f"/{RouterName.CHAT}/completions"
-    CHUNKS = f"/{RouterName.CHUNKS}"
-    COLLECTIONS = f"/{RouterName.COLLECTIONS}"
-    DOCUMENTS = f"/{RouterName.DOCUMENTS}"
     EMBEDDINGS = f"/{RouterName.EMBEDDINGS}"
     HEALTH = f"/{RouterName.HEALTH}"
     HEALTH_MODELS = f"/{RouterName.HEALTH}/models"
@@ -60,9 +52,7 @@ class EndpointRoute(StrEnum):
     ME_USAGE = f"/{RouterName.ME}/usage"
     MODELS = f"/{RouterName.MODELS}"
     OCR = f"/{RouterName.OCR}"
-    PARSE = f"/{RouterName.PARSE}-beta"
     RERANK = f"/{RouterName.RERANK}"
-    SEARCH = f"/{RouterName.SEARCH}"
 
 
 # Supported language from https://github.com/huggingface/transformers/blob/main/src/transformers/models/whisper/tokenization_whisper.py

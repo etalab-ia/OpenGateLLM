@@ -101,6 +101,49 @@ def default_command():
     )
 
 
+COMPATIBLE_PROVIDER_ROUTER_PAIRS: list[tuple[RouterType, ProviderType]] = [
+    (RouterType.AUTOMATIC_SPEECH_RECOGNITION, ProviderType.ALBERT),
+    (RouterType.AUTOMATIC_SPEECH_RECOGNITION, ProviderType.MISTRAL),
+    (RouterType.AUTOMATIC_SPEECH_RECOGNITION, ProviderType.OPENAI),
+    (RouterType.AUTOMATIC_SPEECH_RECOGNITION, ProviderType.VLLM),
+    (RouterType.IMAGE_TEXT_TO_TEXT, ProviderType.ALBERT),
+    (RouterType.IMAGE_TEXT_TO_TEXT, ProviderType.MISTRAL),
+    (RouterType.IMAGE_TEXT_TO_TEXT, ProviderType.OPENAI),
+    (RouterType.IMAGE_TEXT_TO_TEXT, ProviderType.VLLM),
+    (RouterType.TEXT_EMBEDDINGS_INFERENCE, ProviderType.ALBERT),
+    (RouterType.TEXT_EMBEDDINGS_INFERENCE, ProviderType.OPENAI),
+    (RouterType.TEXT_EMBEDDINGS_INFERENCE, ProviderType.MISTRAL),
+    (RouterType.TEXT_EMBEDDINGS_INFERENCE, ProviderType.TEI),
+    (RouterType.TEXT_EMBEDDINGS_INFERENCE, ProviderType.VLLM),
+    (RouterType.TEXT_GENERATION, ProviderType.ALBERT),
+    (RouterType.TEXT_GENERATION, ProviderType.MISTRAL),
+    (RouterType.TEXT_GENERATION, ProviderType.OPENAI),
+    (RouterType.TEXT_GENERATION, ProviderType.VLLM),
+    (RouterType.TEXT_CLASSIFICATION, ProviderType.ALBERT),
+    (RouterType.TEXT_CLASSIFICATION, ProviderType.TEI),
+    (RouterType.TEXT_CLASSIFICATION, ProviderType.VLLM),
+    (RouterType.IMAGE_TO_TEXT, ProviderType.MISTRAL),
+]
+
+INCOMPATIBLE_PROVIDER_ROUTER_PAIRS: list[tuple[RouterType, ProviderType]] = [
+    (RouterType.AUTOMATIC_SPEECH_RECOGNITION, ProviderType.TEI),
+    (RouterType.IMAGE_TEXT_TO_TEXT, ProviderType.TEI),
+    (RouterType.TEXT_GENERATION, ProviderType.TEI),
+    (RouterType.TEXT_CLASSIFICATION, ProviderType.OPENAI),
+    (RouterType.TEXT_CLASSIFICATION, ProviderType.MISTRAL),
+    (RouterType.IMAGE_TO_TEXT, ProviderType.ALBERT),
+    (RouterType.IMAGE_TO_TEXT, ProviderType.OPENAI),
+    (RouterType.IMAGE_TO_TEXT, ProviderType.TEI),
+    (RouterType.IMAGE_TO_TEXT, ProviderType.VLLM),
+]
+
+
+def capabilities_for(router_type: RouterType) -> ProviderCapabilities:
+    if router_type == RouterType.TEXT_EMBEDDINGS_INFERENCE:
+        return ProviderCapabilities(max_context_length=512, vector_size=768)
+    return ProviderCapabilities(max_context_length=4096, vector_size=None)
+
+
 def with_provider_type(command: CreateProviderCommand, provider_type: ProviderType) -> CreateProviderCommand:
     return CreateProviderCommand(
         router_id=command.router_id,
@@ -120,49 +163,6 @@ def with_provider_type(command: CreateProviderCommand, provider_type: ProviderTy
 
 
 class TestCreateProviderUseCase:
-    @pytest.mark.asyncio
-    async def test_should_create_provider_when_router_exists_without_any_provider(
-        self, use_case, router_repository, provider_repository, provider_gateway, sample_router, sample_provider, default_command
-    ):
-        # Arrange
-        router_repository.get_router_by_id.return_value = sample_router
-
-        provider_gateway.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
-        provider_repository.create_provider.return_value = sample_provider
-
-        # Act
-        result = await use_case.execute(default_command)
-
-        # Assert
-        assert isinstance(result, CreateProviderUseCaseSuccess)
-        assert result.provider == sample_provider
-        router_repository.get_router_by_id.assert_called_once_with(router_id=1)
-        provider_gateway.get_capabilities.assert_called_once_with(
-            router_type=RouterType.TEXT_GENERATION,
-            provider_type=ProviderType.VLLM,
-            url="https://example.com/",
-            key=None,
-            timeout=30,
-            model_name="my-model",
-        )
-        provider_repository.create_provider.assert_called_once_with(
-            router_id=1,
-            user_id=1,
-            provider_type=ProviderType.VLLM,
-            url="https://example.com/",
-            key=None,
-            basic_auth=None,
-            timeout=30,
-            model_name="my-model",
-            model_hosting_zone=HostingZone.WOR,
-            model_total_params=0,
-            model_active_params=0,
-            qos_metric=None,
-            qos_limit=None,
-            max_context_length=4096,
-            vector_size=None,
-        )
-
     @pytest.mark.asyncio
     async def test_should_create_provider_when_router_has_a_different_provider(
         self,
@@ -263,20 +263,88 @@ class TestCreateProviderUseCase:
         provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_invalid_provider_type_error_when_type_not_compatible(
-        self, use_case, router_repository, provider_repository, provider_gateway, default_command
+    @pytest.mark.parametrize(
+        ("router_type", "provider_type"),
+        COMPATIBLE_PROVIDER_ROUTER_PAIRS,
+        ids=[f"{router_type.value}-{provider_type.value}" for router_type, provider_type in COMPATIBLE_PROVIDER_ROUTER_PAIRS],
+    )
+    async def test_should_create_provider_when_provider_type_is_compatible(
+        self,
+        use_case,
+        router_repository,
+        provider_repository,
+        provider_gateway,
+        default_command,
+        router_type,
+        provider_type,
     ):
         # Arrange
-
-        router_repository.get_router_by_id.return_value = RouterFactory(id=1, name="tei-router", type=RouterType.TEXT_CLASSIFICATION)
+        capabilities = capabilities_for(router_type)
+        provider = ProviderFactory(id=1, router_id=1, user_id=1, type=provider_type, url="https://example.com/", model_name="my-model")
+        router_repository.get_router_by_id.return_value = RouterFactory(id=1, name="test-router", type=router_type, providers=0)
+        provider_gateway.get_capabilities.return_value = capabilities
+        provider_repository.create_provider.return_value = provider
+        command = with_provider_type(default_command, provider_type)
 
         # Act
-        result = await use_case.execute(default_command)
+        result = await use_case.execute(command)
+
+        # Assert
+        assert isinstance(result, CreateProviderUseCaseSuccess)
+        assert result.provider == provider
+        provider_gateway.get_capabilities.assert_called_once_with(
+            router_type=router_type,
+            provider_type=provider_type,
+            url="https://example.com/",
+            key=None,
+            timeout=30,
+            model_name="my-model",
+        )
+        provider_repository.create_provider.assert_called_once_with(
+            router_id=1,
+            user_id=1,
+            provider_type=provider_type,
+            url="https://example.com/",
+            key=None,
+            basic_auth=None,
+            timeout=30,
+            model_name="my-model",
+            model_hosting_zone=HostingZone.WOR,
+            model_total_params=0,
+            model_active_params=0,
+            qos_metric=None,
+            qos_limit=None,
+            max_context_length=capabilities.max_context_length,
+            vector_size=capabilities.vector_size,
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("router_type", "provider_type"),
+        INCOMPATIBLE_PROVIDER_ROUTER_PAIRS,
+        ids=[f"{router_type.value}-{provider_type.value}" for router_type, provider_type in INCOMPATIBLE_PROVIDER_ROUTER_PAIRS],
+    )
+    async def test_should_return_invalid_provider_type_error_when_provider_type_is_not_compatible(
+        self,
+        use_case,
+        router_repository,
+        provider_repository,
+        provider_gateway,
+        default_command,
+        router_type,
+        provider_type,
+    ):
+        # Arrange
+        router_repository.get_router_by_id.return_value = RouterFactory(id=1, name="test-router", type=router_type)
+        command = with_provider_type(default_command, provider_type)
+
+        # Act
+        result = await use_case.execute(command)
 
         # Assert
         assert isinstance(result, InvalidProviderTypeError)
-        assert result.provider_type == ProviderType.VLLM.value
-        assert result.router_type == RouterType.TEXT_CLASSIFICATION
+        assert result.provider_type == provider_type.value
+        assert result.router_type == router_type.value
         provider_gateway.get_capabilities.assert_not_called()
         provider_repository.create_provider.assert_not_called()
 

@@ -1,6 +1,6 @@
 [project]
 name = "opengatellm"
-version = "0.4.7"
+version = "0.4.9"
 description = "OpenGateLLM project"
 requires-python = ">=3.12"
 license = { text = "MIT" }
@@ -23,20 +23,15 @@ api = [
     "bcrypt==5.0.0",
     "celery==5.6.2",
     "ecologits==0.9.3",
-    "elasticsearch[async]==9.3.0",
     "fastapi==0.135.1",
     "gunicorn==25.1.0",
-    "html-to-markdown==2.29.0",
     "itsdangerous==2.2.0",
-    "langchain-text-splitters==1.1.1",
     "langfuse==4.0.6",
     "limits==5.8.0",
     "mistralai==2.0.0",
     "openai==2.15.0",
     "prometheus-fastapi-instrumentator==7.1.0",
     "psycopg2-binary==2.9.11",
-    "pymupdf4llm==0.3.4",
-    "PyMuPDF==1.27.1",
     "python-jose==3.5.0",
     "python-multipart==0.0.27",
     "redis==7.2.1",
@@ -53,6 +48,7 @@ worker = [
 dev = [
     "pre-commit>=4.5.1",
     "ruff>=0.15.2",
+    "tabulate==0.10.0",
 ]
 test = [
     "factory-boy>=3.3.3",

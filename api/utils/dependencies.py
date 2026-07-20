@@ -2,18 +2,14 @@ from collections.abc import AsyncGenerator
 from contextvars import ContextVar
 from typing import Any
 
-from elasticsearch import AsyncElasticsearch
 import redis.asyncio as redis
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.helpers._documentmanager import DocumentManager
-from api.helpers._elasticsearchvectorstore import ElasticsearchVectorStore
 from api.helpers._usagemanager import UsageManager
 from api.helpers.models import ModelRegistry
 from api.schemas.core.context import RequestContext
 from api.utils.context import global_context, request_context
-from api.utils.exceptions import FeatureNotEnabledException
 
 
 def get_request_context() -> ContextVar[RequestContext]:
@@ -58,28 +54,6 @@ async def get_postgres_session() -> AsyncGenerator[AsyncSession | Any, Any]:
             await postgres_session.close()
 
 
-def get_elasticsearch_client() -> AsyncElasticsearch:
-    """
-    Get an Elasticsearch client from the global context (singleton pattern, Elasticsearch is thread-safe).
-
-    Returns:
-        AsyncElasticsearch: An Elasticsearch client instance.
-    """
-
-    return global_context.elasticsearch_client
-
-
-def get_elasticsearch_vector_store(required: bool = True) -> ElasticsearchVectorStore:
-    """
-    Get the ElasticsearchVectorStore instance from the global context.
-    """
-
-    if required and not global_context.elasticsearch_vector_store:
-        raise FeatureNotEnabledException()
-
-    return global_context.elasticsearch_vector_store
-
-
 def get_model_registry() -> ModelRegistry:
     """
     Get the ModelRegistry instance from the global context.
@@ -100,11 +74,3 @@ async def get_usage_manager() -> UsageManager:
     """
 
     return global_context.usage_manager
-
-
-def get_document_manager() -> DocumentManager:
-    """
-    Get the DocumentManager instance from the global context.
-    """
-
-    return global_context.document_manager

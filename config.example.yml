@@ -1,7 +1,7 @@
 # -------------------------------- dependencies ---------------------------------
 dependencies:
   postgres: # required
-    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-localhost}:${POSTGRES_PORT:-5432}/postgres
+    url: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/postgres
     echo: False
     pool_size: 5
     connect_args:
@@ -10,7 +10,7 @@ dependencies:
       command_timeout: 60
 
   redis: # required
-    url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-localhost}:${REDIS_PORT:-6379}
+    url: redis://:${REDIS_PASSWORD:-changeme}@${REDIS_HOST:-redis}:${REDIS_PORT:-6379}
     max_connections: 200
     socket_connect_timeout: 5
     retry_on_timeout: True
@@ -18,16 +18,6 @@ dependencies:
     decode_responses: False
     socket_keepalive: True
   
-  elasticsearch: # optional
-    index_name: opengatellm
-    index_language: english
-    number_of_shards: 1
-    number_of_replicas: 0
-    refresh_interval: 1s
-    hosts: "http://${ELASTICSEARCH_HOST:-localhost}:${ELASTICSEARCH_PORT:-9200}"
-    basic_auth:
-      - "elastic"
-      - ${ELASTICSEARCH_PASSWORD}
 
   # sentry:
   #   dsn: ${SENTRY_DSN}
@@ -47,7 +37,7 @@ settings:
   # log_level: INFO
   # log_format: [%(asctime)s][%(process)d:%(name)s][%(levelname)s] %(client_ip)s - %(message)s
 
-  swagger_version: 0.4.7
+  swagger_version: 0.4.9
   # swagger_contact_url: https://github.com/etalab-ia/OpenGateLLM
   # swagger_contact_email: john.doe@example.com
   # swagger_docs_url: /docs
@@ -63,9 +53,7 @@ settings:
   # monitoring_postgres_enabled: True
   # monitoring_prometheus_enabled: True
 
-  # vector_store_model: my-model
-
-  playground_opengatellm_url: ${OPENGATELLM_URL}
+  playground_opengatellm_url: ${OPENGATELLM_URL:-http://api:8000}
   # playground_opengatellm_timeout: 60
   # playground_disabled_pages: []
   # playground_default_model: my-model

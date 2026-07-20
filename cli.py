@@ -263,7 +263,6 @@ def run_local_api(console: Console, env: EnvFile) -> tuple[subprocess.Popen, str
             "export PYTHONUNBUFFERED=1; "
             "export REDIS_HOST=localhost; "
             "export POSTGRES_HOST=localhost; "
-            "export ELASTICSEARCH_HOST=localhost; "
             "python -m alembic -c api/alembic.ini upgrade head && "
             f"python -u -m uvicorn api.main:app --host localhost --port {env.api_port} --reload --reload-dir api --log-level {log_level} --use-colors"
         ),
