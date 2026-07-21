@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 import pytest
 from sqlalchemy import select
 
+from api.domain import EntitiesPage, SortField, SortOrder
 from api.domain.key.entities import Key
 from api.domain.key.errors import KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
@@ -81,6 +82,57 @@ class TestGetKeyById:
         # Assert
         assert isinstance(result, KeyNotFoundError)
         assert result.id == 999999
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestGetKeysPage:
+    async def test_returns_correct_page_with_limit_and_offset(self, repository, db_session):
+        user = UserSQLFactory()
+        KeySQLFactory(user=user, name="key_a", never_expires=True)
+        KeySQLFactory(user=user, name="key_b", never_expires=True)
+        KeySQLFactory(user=user, name="key_c", never_expires=True)
+        await db_session.flush()
+
+        result = await repository.get_keys_page(user_id=user.id, limit=2, offset=0, sort_by=SortField.NAME, sort_order=SortOrder.ASC)
+
+        assert isinstance(result, EntitiesPage)
+        assert all(isinstance(k, Key) for k in result.data)
+        returned_names = [k.name for k in result.data]
+        assert returned_names == ["key_a", "key_b"]
+
+    async def test_filters_by_user_id(self, repository, db_session):
+        user = UserSQLFactory()
+        other_user = UserSQLFactory()
+        KeySQLFactory(user=user, name="user-key", never_expires=True)
+        KeySQLFactory(user=other_user, name="other-key", never_expires=True)
+        await db_session.flush()
+
+        result = await repository.get_keys_page(user_id=user.id)
+
+        assert result.total == 1
+        assert result.data[0].name == "user-key"
+
+    async def test_excludes_expired_keys(self, repository, db_session):
+        user = UserSQLFactory()
+        KeySQLFactory(user=user, name="active-key", never_expires=True)
+        KeySQLFactory(user=user, name="expired-key", expired=True)
+        await db_session.flush()
+
+        result = await repository.get_keys_page(user_id=user.id)
+
+        assert result.total == 1
+        assert result.data[0].name == "active-key"
+
+    async def test_sort_by_name_desc(self, repository, db_session):
+        user = UserSQLFactory()
+        KeySQLFactory(user=user, name="key_a", never_expires=True)
+        KeySQLFactory(user=user, name="key_c", never_expires=True)
+        KeySQLFactory(user=user, name="key_b", never_expires=True)
+        await db_session.flush()
+
+        result = await repository.get_keys_page(user_id=user.id, sort_by=SortField.NAME, sort_order=SortOrder.DESC)
+
+        assert [k.name for k in result.data] == ["key_c", "key_b", "key_a"]
 
 
 @pytest.mark.asyncio(loop_scope="session")
