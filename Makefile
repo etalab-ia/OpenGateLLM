@@ -29,11 +29,12 @@ TEST_INTEG_SUFFIX := $(if $(TEST_INTEG_ARG),/$(TEST_INTEG_ARG),)
 
 # test-integ -----------------------------------------------------------------------------------------------------------------------------------------
 test-integ:
-	@python cli.py --test-integ && \
-	set -a; . .github/.env.ci; set +a; \
+	@if [ -z "$${ALBERT_API_KEY}" ]; then \
+		echo "ALBERT_API_KEY is not set. Export it first, see .github/.env.ci.example"; \
+		exit 1; \
+	fi; \
+	export CONFIG_FILE=./api/tests/integ/config.test.yml; \
+	docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis; \
 	PYTHONPATH=. pytest api/tests/integ$(TEST_INTEG_SUFFIX) --config-file=pyproject.toml --cov=./api --cov-report=xml;
-
-%:
-	@:
 
 .PHONY: help quickstart dev lint test-unit test-integ create-api-key
