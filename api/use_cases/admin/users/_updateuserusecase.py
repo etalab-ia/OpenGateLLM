@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from pydantic import SecretStr
+
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserPasswordEncoder, UserRepository
@@ -49,11 +51,11 @@ class UpdateUserUseCase:
         if command.new_password is None:
             password = existing_user.password
         elif command.current_password is None:
-            password = self.user_password_encoder.encode_password(password=command.new_password)
+            password = SecretStr(self.user_password_encoder.encode_password(password=command.new_password))
         elif existing_user.password is not None and self.user_password_encoder.validate_password(
-            password=command.current_password, encoded_password=existing_user.password
+            password=command.current_password, encoded_password=existing_user.password.get_secret_value()
         ):
-            password = self.user_password_encoder.encode_password(password=command.new_password)
+            password = SecretStr(self.user_password_encoder.encode_password(password=command.new_password))
         else:
             return IncorrectCurrentPasswordError(user_id=existing_user.id)
 

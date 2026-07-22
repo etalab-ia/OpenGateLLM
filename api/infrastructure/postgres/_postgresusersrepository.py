@@ -179,7 +179,7 @@ class PostgresUserRepository(UserRepository):
             .values(
                 email=user.email,
                 name=user.name,
-                password=user.password,
+                password=user.password.get_secret_value() if user.password is not None else None,
                 sub=user.sub,
                 iss=user.iss,
                 role_id=user.role,

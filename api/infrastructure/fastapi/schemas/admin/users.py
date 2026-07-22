@@ -1,7 +1,7 @@
 import datetime as dt
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, Field, StringConstraints
+from pydantic import AfterValidator, ConfigDict, Field, StringConstraints
 
 from api.infrastructure.fastapi.schemas import BaseModel
 
@@ -27,6 +27,8 @@ class CreateUserBody(BaseModel):
 
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     object: Annotated[Literal["user"], Field("user", description="Type of the object.")]
     id: Annotated[int, Field(..., description="ID of the user.")]
     email: Annotated[str, Field(..., description="Email of the user.")]

@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock, Mock
 
+from pydantic import SecretStr
 import pytest
 
 from api.domain.organization.errors import OrganizationNotFoundError
@@ -74,7 +75,7 @@ class TestUpdateUserUseCase:
     @pytest.mark.asyncio
     async def test_should_keep_current_password_when_no_new_password(self, use_case, user_repository, user_password_encoder, sample_user):
         # Arrange
-        user_repository.get_user_by_id.return_value = sample_user.model_copy(update={"password": "encoded-old"})
+        user_repository.get_user_by_id.return_value = sample_user.model_copy(update={"password": SecretStr("encoded-old")})
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
@@ -82,7 +83,7 @@ class TestUpdateUserUseCase:
 
         # Assert
         assert isinstance(result, UpdateUserUseCaseSuccess)
-        assert result.user.password == "encoded-old"
+        assert result.user.password == SecretStr("encoded-old")
         user_password_encoder.encode_password.assert_not_called()
 
     @pytest.mark.asyncio
@@ -98,14 +99,14 @@ class TestUpdateUserUseCase:
 
         # Assert
         assert isinstance(result, UpdateUserUseCaseSuccess)
-        assert result.user.password == "encoded-secret"
+        assert result.user.password == SecretStr("encoded-secret")
         user_password_encoder.encode_password.assert_called_once_with(password="secret")
         user_password_encoder.validate_password.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_encode_new_password_when_current_password_is_correct(self, use_case, user_repository, user_password_encoder, sample_user):
         # Arrange
-        user_repository.get_user_by_id.return_value = sample_user.model_copy(update={"password": "encoded-old"})
+        user_repository.get_user_by_id.return_value = sample_user.model_copy(update={"password": SecretStr("encoded-old")})
         user_repository.update_user.side_effect = lambda user: user
         user_password_encoder.validate_password.return_value = True
 
@@ -114,7 +115,7 @@ class TestUpdateUserUseCase:
 
         # Assert
         assert isinstance(result, UpdateUserUseCaseSuccess)
-        assert result.user.password == "encoded-secret"
+        assert result.user.password == SecretStr("encoded-secret")
         user_password_encoder.validate_password.assert_called_once_with(password="old", encoded_password="encoded-old")
 
     @pytest.mark.asyncio
@@ -135,7 +136,7 @@ class TestUpdateUserUseCase:
         self, use_case, user_repository, user_password_encoder, sample_user
     ):
         # Arrange
-        user_repository.get_user_by_id.return_value = sample_user.model_copy(update={"password": "encoded-old"})
+        user_repository.get_user_by_id.return_value = sample_user.model_copy(update={"password": SecretStr("encoded-old")})
         user_password_encoder.validate_password.return_value = False
 
         # Act

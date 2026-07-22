@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+from pydantic import SecretStr
 import pytest
 from sqlalchemy import select
 
@@ -41,7 +42,7 @@ class TestUpdateUser:
                     "name": "Updated Name",
                     "budget": 50.5,
                     "priority": 3,
-                    "password": "encoded:new-secret",
+                    "password": SecretStr("encoded:new-secret"),
                     "role": new_role.id,
                     "organization_id": new_organization.id,
                 }
@@ -57,7 +58,7 @@ class TestUpdateUser:
         assert result.priority == 3
         assert result.role == new_role.id
         assert result.organization_id == new_organization.id
-        assert result.password == "encoded:new-secret"
+        assert result.password == SecretStr("encoded:new-secret")
         assert result.expires is None
         row = (await db_session.execute(select(UserTable.password).where(UserTable.id == user.id))).scalar_one()
         assert row == "encoded:new-secret"
