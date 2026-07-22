@@ -75,5 +75,4 @@ settings:
   auth_key_max_expiration_days: 365
   monitoring_sentry_enabled: False
   monitoring_postgres_enabled: True
-  monitoring_prometheus_enabled: True
-  opengaterag_url: http://localhost:8001
+  monitoring_prometheus_enabled: False
