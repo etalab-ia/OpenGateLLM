@@ -18,7 +18,7 @@
     "astro": "^6.2.1",
     "astro-mermaid": "^2.0.1",
     "mermaid": "^11.14.0",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.0",
     "astro-contributors": "^0.8.0",
     "starlight-giscus": "^0.9.1",
     "starlight-ion-theme": "^2.4.0",
