@@ -3,6 +3,7 @@ from contextvars import ContextVar
 from pydantic import BaseModel, ConfigDict
 
 from api.domain.key.entities import Key
+from api.domain.user.views import AuthenticatedUserView
 
 
 class RequestContext(BaseModel):
@@ -15,6 +16,7 @@ class RequestContext(BaseModel):
 
     # user identifiers
     key: Key | None = None
+    user: AuthenticatedUserView | None = None
     user_email: str | None = None
 
     # model identifiers

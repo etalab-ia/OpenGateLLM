@@ -27,6 +27,7 @@ _USER_COLUMNS = (
     UserTable.id,
     UserTable.email,
     UserTable.name,
+    UserTable.password,
     UserTable.sub,
     UserTable.iss,
     UserTable.role_id.label("role"),
@@ -49,6 +50,7 @@ class PostgresUserRepository(UserRepository):
             id=row.id,
             email=row.email,
             name=row.name,
+            password=row.password,
             sub=row.sub,
             iss=row.iss,
             role=row.role,
@@ -98,20 +100,7 @@ class PostgresUserRepository(UserRepository):
                     expires=expires_value,
                     priority=priority,
                 )
-                .returning(
-                    UserTable.id,
-                    UserTable.email,
-                    UserTable.name,
-                    UserTable.sub,
-                    UserTable.iss,
-                    UserTable.role_id.label("role"),
-                    UserTable.organization_id.label("organization"),
-                    UserTable.budget,
-                    _unix_timestamp(UserTable.expires).label("expires"),
-                    _unix_timestamp(UserTable.created).label("created"),
-                    _unix_timestamp(UserTable.updated).label("updated"),
-                    UserTable.priority,
-                )
+                .returning(*_USER_COLUMNS)
             )
             row = result.one()
         except IntegrityError as e:
@@ -190,28 +179,16 @@ class PostgresUserRepository(UserRepository):
             .values(
                 email=user.email,
                 name=user.name,
+                password=user.password.get_secret_value() if user.password is not None else None,
                 sub=user.sub,
                 iss=user.iss,
                 role_id=user.role,
-                organization_id=user.organization,
+                organization_id=user.organization_id,
                 budget=user.budget,
                 expires=expires_value,
                 priority=user.priority,
             )
-            .returning(
-                UserTable.id,
-                UserTable.email,
-                UserTable.name,
-                UserTable.sub,
-                UserTable.iss,
-                UserTable.role_id.label("role"),
-                UserTable.organization_id.label("organization"),
-                UserTable.budget,
-                _unix_timestamp(UserTable.expires).label("expires"),
-                _unix_timestamp(UserTable.created).label("created"),
-                _unix_timestamp(UserTable.updated).label("updated"),
-                UserTable.priority,
-            )
+            .returning(*_USER_COLUMNS)
             .where(UserTable.id == user.id)
         )
         try:
@@ -219,11 +196,12 @@ class PostgresUserRepository(UserRepository):
             row = result.one_or_none()
         except IntegrityError as e:
             if "user_organization_id_fkey" in str(e.orig):
-                return OrganizationNotFoundError(id=user.organization)
+                return OrganizationNotFoundError(id=user.organization_id)
             if "user_role_id_fkey" in str(e.orig):
                 return RoleNotFoundError(id=user.role)
-            if "ix_user_email_key" in str(e.orig):
+            if "ix_user_email" in str(e.orig):
                 return UserAlreadyExistsError(email=user.email)
+            raise
 
         if row is None:
             return UserNotFoundError(id=user.id)

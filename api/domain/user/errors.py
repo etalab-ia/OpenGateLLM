@@ -47,3 +47,8 @@ class UserExpiredError:
 @dataclass
 class UserHasNoAccessToRouterError:
     id: int
+
+
+@dataclass
+class IncorrectCurrentPasswordError:
+    user_id: int

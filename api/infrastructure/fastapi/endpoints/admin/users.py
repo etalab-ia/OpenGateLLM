@@ -1,4 +1,3 @@
-from contextvars import ContextVar
 import logging
 from typing import assert_never
 
@@ -7,9 +6,10 @@ from fastapi import Body, Depends, Path, Query, Security
 from api.dependencies import (
     create_user_use_case_factory,
     delete_user_use_case_factory,
+    get_authenticated_user,
     get_one_user_use_case_factory,
-    get_request_context,
     get_users_use_case_factory,
+    update_user_use_case_factory,
 )
 from api.domain import SortOrder
 from api.domain.organization.errors import OrganizationNotFoundError
@@ -18,24 +18,26 @@ from api.domain.user.entities import UserSortField
 from api.domain.user.errors import (
     DeleteUserWithProvidersError,
     DeleteUserWithRoutersError,
+    IncorrectCurrentPasswordError,
     UserAlreadyExistsError,
     UserNotFoundError,
 )
+from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi import AccessController
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
     DeleteUserWithProvidersHTTPException,
     DeleteUserWithRoutersHTTPException,
     InternalServerHTTPException,
+    InvalidCurrentPasswordHTTPException,
     NotAdminUserHTTPException,
     OrganizationNotFoundHTTPException,
     RoleNotFoundHTTPException,
     UserAlreadyExistsHTTPException,
     UserNotFoundHTTPException,
 )
-from api.infrastructure.fastapi.schemas.admin.users import CreateUserBody, UserResponse, UsersResponse
+from api.infrastructure.fastapi.schemas.admin.users import CreateUserBody, UserResponse, UsersResponse, UserUpdateRequest
 from api.use_cases.admin.users import (
     CreateUserCommand,
     CreateUserUseCase,
@@ -49,6 +51,9 @@ from api.use_cases.admin.users import (
     GetUsersCommand,
     GetUsersUseCase,
     GetUsersUseCaseSuccess,
+    UpdateUserCommand,
+    UpdateUserUseCase,
+    UpdateUserUseCaseSuccess,
 )
 from api.utils.variables import EndpointRoute
 
@@ -71,7 +76,7 @@ logger = logging.getLogger(__name__)
 async def create_user(
     body: CreateUserBody = Body(description="The user creation request."),
     create_user_use_case: CreateUserUseCase = Depends(create_user_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> UserResponse:
     try:
         command = CreateUserCommand(
@@ -89,7 +94,7 @@ async def create_user(
         logger.exception(
             "Unexpected error while executing create_user use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "email": body.email,
                 "error_type": type(e).__name__,
             },
@@ -116,7 +121,7 @@ async def create_user(
 async def get_user(
     user_id: int = Path(description="The ID of the user to get."),
     get_one_user_use_case: GetOneUserUseCase = Depends(get_one_user_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> UserResponse:
     command = GetOneUserCommand(user_id=user_id)
     try:
@@ -125,7 +130,7 @@ async def get_user(
         logger.exception(
             "Unexpected error while executing get_user use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "user_id": command.user_id,
                 "error_type": type(e).__name__,
             },
@@ -155,7 +160,7 @@ async def get_users(
     sort_by: UserSortField = Query(default=UserSortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_users_use_case: GetUsersUseCase = Depends(get_users_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> UsersResponse:
     command = GetUsersCommand(
         role_id=role_id,
@@ -172,7 +177,7 @@ async def get_users(
         logger.exception(
             "Unexpected error while executing get_users use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "error_type": type(e).__name__,
             },
         )
@@ -205,7 +210,7 @@ async def get_users(
 async def delete_user(
     user_id: int = Path(description="The ID of the user to delete."),
     delete_user_use_case: DeleteUserUseCase = Depends(delete_user_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> UserResponse:
     command = DeleteUserCommand(user_id=user_id)
     try:
@@ -214,7 +219,7 @@ async def delete_user(
         logger.exception(
             "Unexpected error while executing delete_user use case",
             extra={
-                "authenticated_user_id": command.authenticated_user_id,
+                "authenticated_user_id": authenticated_user.id,
                 "user_id": command.user_id,
                 "error_type": type(e).__name__,
             },
@@ -229,5 +234,67 @@ async def delete_user(
             raise DeleteUserWithRoutersHTTPException(router_ids=router_ids)
         case DeleteUserWithProvidersError(provider_ids=provider_ids):
             raise DeleteUserWithProvidersHTTPException(provider_ids=provider_ids)
+        case _ as unreachable:
+            assert_never(unreachable)
+
+
+@router.patch(
+    path=EndpointRoute.ADMIN_USERS + "/{user_id}",
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    status_code=200,
+    responses=get_documentation_responses(
+        [
+            UserNotFoundHTTPException,
+            UserAlreadyExistsHTTPException,
+            RoleNotFoundHTTPException,
+            OrganizationNotFoundHTTPException,
+            InvalidCurrentPasswordHTTPException,
+            NotAdminUserHTTPException,
+        ]
+    ),
+)
+async def update_user(
+    user_id: int = Path(description="The ID of the user to update."),
+    body: UserUpdateRequest = Body(description="The user update request."),
+    update_user_use_case: UpdateUserUseCase = Depends(update_user_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
+) -> UserResponse:
+    command = UpdateUserCommand(
+        user_id=user_id,
+        email=body.email,
+        name=body.name,
+        current_password=body.current_password,
+        new_password=body.password,
+        role_id=body.role,
+        organization_id=body.organization,
+        budget=body.budget,
+        expires=body.expires,
+        priority=body.priority,
+    )
+    try:
+        result = await update_user_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing update_user use case",
+            extra={
+                "authenticated_user_id": authenticated_user.id,
+                "user_id": command.user_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
+    match result:
+        case UpdateUserUseCaseSuccess(user=user):
+            return UserResponse.model_validate(user, from_attributes=True)
+        case UserNotFoundError(id=not_found_id):
+            raise UserNotFoundHTTPException(user_id=not_found_id)
+        case UserAlreadyExistsError(email=email):
+            raise UserAlreadyExistsHTTPException(email=email)
+        case RoleNotFoundError(id=role_id):
+            raise RoleNotFoundHTTPException(role_id)
+        case OrganizationNotFoundError(id=organization_id):
+            raise OrganizationNotFoundHTTPException(organization_id)
+        case IncorrectCurrentPasswordError():
+            raise InvalidCurrentPasswordHTTPException()
         case _ as unreachable:
             assert_never(unreachable)

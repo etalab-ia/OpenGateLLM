@@ -2,6 +2,7 @@ from ._createuserusecase import CreateUserCommand, CreateUserUseCase, CreateUser
 from ._deleteuserusecase import DeleteUserCommand, DeleteUserUseCase, DeleteUserUseCaseSuccess
 from ._getoneuserusecase import GetOneUserCommand, GetOneUserUseCase, GetOneUserUseCaseSuccess
 from ._getusersusecase import GetUsersCommand, GetUsersUseCase, GetUsersUseCaseSuccess
+from ._updateuserusecase import UpdateUserCommand, UpdateUserUseCase, UpdateUserUseCaseSuccess
 
 __all__ = [
     "CreateUserCommand",
@@ -16,4 +17,7 @@ __all__ = [
     "DeleteUserCommand",
     "DeleteUserUseCase",
     "DeleteUserUseCaseSuccess",
+    "UpdateUserCommand",
+    "UpdateUserUseCase",
+    "UpdateUserUseCaseSuccess",
 ]

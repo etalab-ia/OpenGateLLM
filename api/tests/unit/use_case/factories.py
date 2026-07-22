@@ -104,6 +104,7 @@ class UserFactory(factory.Factory):
     id = factory.Sequence(lambda n: n + 1)
     email = factory.Faker("email")
     name = factory.Faker("name", locale="fr_FR")
+    password = None
     sub = None
     iss = None
     role = factory.Faker("random_int", min=1, max=100)

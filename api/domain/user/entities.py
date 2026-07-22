@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 
 from api.domain import EntitiesPage
 
@@ -28,3 +28,4 @@ class User(BaseModel):
     created: int
     updated: int
     priority: int
+    password: SecretStr | None
