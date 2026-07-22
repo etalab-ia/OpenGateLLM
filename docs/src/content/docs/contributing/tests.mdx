@@ -36,11 +36,10 @@ Unit tests are located in the `tests/unit` folder. They are written using the `p
 3. To run the tests, you can use the following command:
 
     ```bash
-      make test-unit
+    pytest api/tests/unit --config-file=pyproject.toml --cov=./api --cov-report=html --cov-report=term-missing --cov-branch --cov-report=xml
     ```
 
     <Aside type="note" title="Open the HTML coverage report">
-
     To check the coverage report, open the HTML file in your browser:
     ```bash
     open htmlcov/index.html  # macOS
@@ -62,18 +61,18 @@ Integration tests are located in the `tests/integration` folder. They are writte
     pip install ".[api,test]"
     ```
 
-3. To run the tests, you can use the following command:
+3. Start depencies services (postgres and redis) with the following command:
 
     ```bash
-    make test-integ
+    docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis 
+    ```
+
+4. To run the tests, you can use the following command:
+
+    ```bash
+    pytest api/tests/integration --config-file=pyproject.toml
     ```
 </Steps>
-
-To run a specific integration test, you can use the following command:
-
-```bash
-make test-integ test_chunk.py::TestChunks::test_get_chunks
-```
 
 To run the tests with VSCode, you can create a `.vscode/settings.json` file with the following content:
 
@@ -85,6 +84,6 @@ To run the tests with VSCode, you can create a `.vscode/settings.json` file with
       ],
       "python.testing.unittestEnabled": false,
       "python.testing.pytestEnabled": true,
-      "python.envFile": "${workspaceFolder}/.github/.env.ci"
+      "python.envFile": "${workspaceFolder}/.env"
   }
 ```
