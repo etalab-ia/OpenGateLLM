@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from api.domain import BaseModel
+from api.domain import BaseModel, EntitiesPage
 
 
 class Key(BaseModel):
@@ -38,3 +38,6 @@ class Key(BaseModel):
         if expires is None:
             return None
         return int(expires.timestamp())
+
+
+KeyPage = EntitiesPage["Key"]

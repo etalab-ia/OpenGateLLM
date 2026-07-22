@@ -508,7 +508,6 @@ def main() -> None:
     parser.add_argument("--make-help", action="store_true", default=False)
     parser.add_argument("--quickstart", action="store_true", default=False)
     parser.add_argument("--dev", action="store_true", default=False)
-    parser.add_argument("--test-integ", action="store_true", default=False)
 
     args = parser.parse_args()
     console = Console()
@@ -540,16 +539,6 @@ def main() -> None:
         exit_code = run_local_services(console, env=env, local_api=True, local_playground=True)
         if exit_code != 0:
             raise SystemExit(exit_code)
-
-    elif args.test_integ:
-        display_header(console, tag="test")
-        env, exit_code = setup(console, env_file=str(project_root / ".github/.env.ci"))
-        if exit_code != 0:
-            raise SystemExit(exit_code)
-        exit_code = run_docker_compose(console, env=env, local_api=False, local_playground=False)
-        if exit_code != 0:
-            raise SystemExit(exit_code)
-        raise SystemExit(0)
 
     else:  # error
         display_header(console)

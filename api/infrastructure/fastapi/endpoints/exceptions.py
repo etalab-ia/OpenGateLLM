@@ -29,9 +29,9 @@ class InvalidAPIKeyHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
-class InvalidPasswordHTTPException(HTTPException):
+class InvalidCredentialsHTTPException(HTTPException):
     status_code = 401
-    detail = "Invalid password."
+    detail = "Invalid email or password."
 
     def __init__(self) -> None:
         super().__init__(status_code=self.status_code, detail=self.detail)
@@ -147,6 +147,14 @@ class UserNotFoundHTTPException(HTTPException):
             detail = "User not found."
 
         super().__init__(status_code=self.status_code, detail=detail)
+
+
+class KeyNotFoundHTTPException(HTTPException):
+    status_code = 404
+    detail = "Key {key_id} not found."
+
+    def __init__(self, key_id: int) -> None:
+        super().__init__(status_code=self.status_code, detail=f"Key {key_id} not found.")
 
 
 # 409

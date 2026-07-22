@@ -1,11 +1,12 @@
 from pydantic import FutureDatetime
-from sqlalchemy import insert, select, update
+from sqlalchemy import asc, desc, func, insert, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain import SortField, SortOrder
 from api.domain.key import KeyEncoder, KeyRepository
-from api.domain.key.entities import Key
+from api.domain.key.entities import Key, KeyPage
 from api.domain.key.errors import KeyAlreadyExistsError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.sql.models import Token as KeyTable
@@ -25,6 +26,36 @@ class PostgresKeyRepository(KeyRepository):
             return KeyNotFoundError(id=key_id)
 
         return Key(id=row.id, name=row.name, user_id=row.user_id, value=row.token, expires=row.expires, created=row.created)
+
+    async def get_keys_page(
+        self,
+        user_id: int | None = None,
+        limit: int = 10,
+        offset: int = 0,
+        sort_by: SortField = SortField.ID,
+        sort_order: SortOrder = SortOrder.ASC,
+        exclude_expired: bool = True,
+    ) -> KeyPage:
+        sort_column = {SortField.ID: KeyTable.id, SortField.NAME: KeyTable.name, SortField.CREATED: KeyTable.created}[sort_by]
+        order_fn = asc if sort_order == SortOrder.ASC else desc
+
+        filters = []
+        if user_id is not None:
+            filters.append(KeyTable.user_id == user_id)
+        if exclude_expired:
+            filters.append(or_(KeyTable.expires.is_(None), KeyTable.expires >= func.now()))
+
+        key_query = select(KeyTable).where(*filters).order_by(order_fn(sort_column)).offset(offset).limit(limit)
+        count_query = select(func.count()).select_from(KeyTable).where(*filters)
+
+        total = (await self.postgres_session.execute(count_query)).scalar_one()
+        result = await self.postgres_session.execute(key_query)
+        keys = [
+            Key(id=row.id, name=row.name, user_id=row.user_id, value=row.token, expires=row.expires, created=row.created)
+            for row in result.scalars().all()
+        ]
+
+        return KeyPage(total=total, data=keys)
 
     async def create_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | KeyAlreadyExistsError | UserNotFoundError:
         try:
