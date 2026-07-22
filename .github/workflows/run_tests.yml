@@ -91,17 +91,18 @@ jobs:
 
     - name: Run integration tests
       run: |
-        cp .github/.env.ci.example .github/.env.ci
-
         # Create a local virtual environment and install dependencies
         uv venv
-        uv pip install -p .venv/bin/python ".[test]"
+        uv pip install -p .venv/bin/python ".[api,dev,test]"
 
         # Activate venv for the test run
         . .venv/bin/activate
 
+        # Start dependencies services
+        docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis
+
         # Run integration tests
-        make test-integ
+        PYTHONPATH=. pytest api/tests/integ --config-file=pyproject.toml --cov=./api --cov-report=xml
       env:
-        CONFIG_FILE: api/tests/integ/config.test.yml
+        CONFIG_FILE: ./api/tests/integ/config.test.yml
         ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}
