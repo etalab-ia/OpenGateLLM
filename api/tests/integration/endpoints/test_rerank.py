@@ -1,3 +1,4 @@
+import json
 from unittest.mock import AsyncMock, MagicMock
 
 from httpx import AsyncClient
@@ -95,6 +96,37 @@ class TestCreateRerank:
         assert data["model"] == DEFAULT_MODEL_NAME
         assert len(data["results"]) == len(DEFAULT_DOCUMENTS)
         assert all("relevance_score" in result and "index" in result for result in data["results"])
+
+    @respx.mock
+    async def test_omitted_optional_fields_are_excluded_from_provider_body(self, client: AsyncClient, db_session):
+        admin_key = await create_key(db_session, name="admin_rerank_exclude_none_key", user=self.router_owner)
+        RouterSQLFactory(
+            user=self.router_owner,
+            name=DEFAULT_MODEL_NAME,
+            type=ModelType.TEXT_CLASSIFICATION,
+            providers=1,
+            providers__type=ProviderType.TEI,
+            providers__url=DEFAULT_PROVIDER_URL,
+        )
+        await db_session.flush()
+
+        route = mock_rerank_responses(
+            respx_mock=respx,
+            provider_type=ProviderType.TEI,
+            body=TeiRerankResponseFactory(count=len(DEFAULT_DOCUMENTS)),
+            status_code=TeiRerankResponseFactory._status_code,
+        )
+
+        response = await client.post(
+            url=URL,
+            headers={"Authorization": f"Bearer {admin_key.token}"},
+            json=_valid_body(),
+        )
+
+        assert response.status_code == 200, response.text
+        provider_json = json.loads(route.calls[0].request.content)
+        assert "top_n" not in provider_json
+        assert None not in provider_json.values()
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
