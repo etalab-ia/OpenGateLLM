@@ -22,6 +22,14 @@ CVE-2026-42496 exp:2026-09-01
 # Reported in perl-base from base image. Re-evaluate after 2026-09-01.
 CVE-2026-8376 exp:2026-09-01
 
+# Perl regex trie overflow (incorrect matches with >65535 alternation branches) — no upstream Debian fix yet
+# Reported in perl-base from base image. Upstream fix is in Perl 5.43.10 only. Re-evaluate after 2026-09-01.
+CVE-2026-13221 exp:2026-09-01
+
+# Perl Storable signed integer overflow on crafted SX_HOOK — no upstream Debian fix yet
+# Reported in perl-base from base image. Fixed upstream in Storable 3.41. Re-evaluate after 2026-09-01.
+CVE-2026-57433 exp:2026-09-01
+
 # libssh2 Out-of-Bounds Write via Unchecked — no upstream Debian fix yet
 # Reported in libssh2-1t64 from base image. Re-evaluate after 2026-09-01.
 CVE-2026-55200 exp:2026-09-01
