@@ -509,6 +509,7 @@ def main() -> None:
     parser.add_argument("--quickstart", action="store_true", default=False)
     parser.add_argument("--dev", action="store_true", default=False)
     parser.add_argument("--test-integ", action="store_true", default=False)
+    parser.add_argument("--test-integration", action="store_true", default=False)
 
     args = parser.parse_args()
     console = Console()
