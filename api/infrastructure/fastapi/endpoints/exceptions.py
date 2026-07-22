@@ -29,9 +29,9 @@ class InvalidAPIKeyHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
-class InvalidPasswordHTTPException(HTTPException):
+class InvalidCredentialsHTTPException(HTTPException):
     status_code = 401
-    detail = "Invalid password."
+    detail = "Invalid email or password."
 
     def __init__(self) -> None:
         super().__init__(status_code=self.status_code, detail=self.detail)
