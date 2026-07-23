@@ -4,7 +4,7 @@ import pytest
 
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
-from api.domain.provider import ProviderCapabilities
+from api.domain.provider.entities import ProviderCapabilities
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.tests.unit.use_case.factories import (
