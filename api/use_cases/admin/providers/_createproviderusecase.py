@@ -43,7 +43,12 @@ type CreateProviderUseCaseResult = (
 
 
 class CreateProviderUseCase:
-    def __init__(self, router_repository: RouterRepository, provider_repository: ProviderRepository, provider_capabilities_repository: ProviderCapabilitiesRepository):
+    def __init__(
+        self,
+        router_repository: RouterRepository,
+        provider_repository: ProviderRepository,
+        provider_capabilities_repository: ProviderCapabilitiesRepository,
+    ):
         self.router_repository = router_repository
         self.provider_repository = provider_repository
         self.provider_capabilities_repository = provider_capabilities_repository

@@ -20,6 +20,7 @@ def router_repository():
 def provider_repository():
     return AsyncMock()
 
+
 @pytest.fixture
 def provider_capabilities_repository():
     return AsyncMock()
@@ -353,7 +354,9 @@ class TestCreateProviderUseCase:
         # Arrange
 
         router_repository.get_router_by_id.return_value = sample_router
-        provider_capabilities_repository.get_provider_capabilities.return_value = ProviderNotReachableError(model_name="my-model", status_code=500, detail="error_detail")
+        provider_capabilities_repository.get_provider_capabilities.return_value = ProviderNotReachableError(
+            model_name="my-model", status_code=500, detail="error_detail"
+        )
 
         # Act
         result = await use_case.execute(default_command)

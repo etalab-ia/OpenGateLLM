@@ -58,7 +58,6 @@ class ProviderCapabilitiesRepository:
 
         return ProviderCapabilities(max_context_length=max_context_length, vector_size=vector_size)
 
-
     async def _get_max_context_length(self, adapter: ProviderAdapter) -> int | None | ModelNotFoundError | ProviderNotReachableError:
         original_request = ProviderOriginalRequest(endpoint=EndpointRoute.MODELS)
         formatted_request = adapter.format_request(original_request=original_request)
@@ -76,7 +75,6 @@ class ProviderCapabilitiesRepository:
             return ModelNotFoundError(name=model_name)
 
         return model.max_context_length
-
 
     async def _get_vector_size(self, adapter: ProviderAdapter) -> int | ProviderNotReachableError:
         original_request = ProviderOriginalRequest(

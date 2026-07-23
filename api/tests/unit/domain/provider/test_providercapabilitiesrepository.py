@@ -197,7 +197,9 @@ class TestProviderCapabilitiesRepository:
         assert result == 10
 
     @pytest.mark.asyncio
-    async def test_should_return_model_not_found_when_models_response_is_empty(self, repository: ProviderCapabilitiesRepository, provider_client: Mock):
+    async def test_should_return_model_not_found_when_models_response_is_empty(
+        self, repository: ProviderCapabilitiesRepository, provider_client: Mock
+    ):
         provider_client.forward_request.return_value = ProviderOriginalResponse(data=AlbertModelsResponseFactory(data=[]))
 
         result = await repository._get_max_context_length(adapter=models_adapter())
@@ -205,7 +207,9 @@ class TestProviderCapabilitiesRepository:
         assert result == ModelNotFoundError(name=DEFAULT_MODEL_ID)
 
     @pytest.mark.asyncio
-    async def test_should_return_model_not_found_when_model_is_missing_in_models_response(self, repository: ProviderCapabilitiesRepository, provider_client: Mock):
+    async def test_should_return_model_not_found_when_model_is_missing_in_models_response(
+        self, repository: ProviderCapabilitiesRepository, provider_client: Mock
+    ):
         provider_client.forward_request.return_value = ProviderOriginalResponse(data=AlbertModelsResponseFactory(data=[AlbertModelResponseFactory()]))
 
         result = await repository._get_max_context_length(adapter=models_adapter())
@@ -213,7 +217,9 @@ class TestProviderCapabilitiesRepository:
         assert result == ModelNotFoundError(name=DEFAULT_MODEL_ID)
 
     @pytest.mark.asyncio
-    async def test_should_return_provider_not_reachable_when_getting_max_context_fails(self, repository: ProviderCapabilitiesRepository, provider_client: Mock):
+    async def test_should_return_provider_not_reachable_when_getting_max_context_fails(
+        self, repository: ProviderCapabilitiesRepository, provider_client: Mock
+    ):
         provider_client.forward_request.return_value = StatusCodeModelError(status_code=500, detail="boom")
 
         result = await repository._get_max_context_length(adapter=models_adapter())
@@ -236,7 +242,9 @@ class TestProviderCapabilitiesRepository:
         assert formatted_request.body["model"] == DEFAULT_MODEL_ID
 
     @pytest.mark.asyncio
-    async def test_should_return_provider_not_reachable_when_getting_vector_size_fails(self, repository: ProviderCapabilitiesRepository, provider_client: Mock):
+    async def test_should_return_provider_not_reachable_when_getting_vector_size_fails(
+        self, repository: ProviderCapabilitiesRepository, provider_client: Mock
+    ):
         provider_client.forward_request.return_value = StatusCodeModelError(status_code=500, detail="boom")
 
         result = await repository._get_vector_size(adapter=embeddings_adapter())
