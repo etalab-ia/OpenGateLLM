@@ -19,7 +19,6 @@ from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
-from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
     PostgresLimitRepository,
     PostgresPermissionRepository,
@@ -124,12 +123,12 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
     provider_repository = PostgresProviderRepository(postgres_session=postgres_session)
     provider_client = HttpProviderClient()
     provider_adapter_builder = HttpProviderAdapterBuilder()
-    provider_gateway = ModelProviderGateway(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
 
     result = await BootstrapModelsUseCase(
         router_repository=router_repository,
         provider_repository=provider_repository,
-        provider_gateway=provider_gateway,
+        provider_client=provider_client,
+        provider_adapter_builder=provider_adapter_builder,
     ).execute(routers_to_create=configuration.models, bootstrap_admin_user_id=bootstrap_admin_user_id)
 
     match result:
