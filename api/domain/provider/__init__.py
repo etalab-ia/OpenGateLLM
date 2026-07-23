@@ -1,5 +1,6 @@
 from api.domain.provider._provideradapter import ProviderAdapter
 from api.domain.provider._provideradapterbuilder import ProviderAdapterBuilder
+from api.domain.provider._providercapabilitiesrepository import ProviderCapabilitiesRepository
 from api.domain.provider._providerclient import ProviderClient, ProviderClientResponse
 from api.domain.provider._providerloadbalancer import ProviderLoadBalancer
 from api.domain.provider._providermetricslogger import ProviderMetricsLogger
@@ -13,4 +14,5 @@ __all__ = [
     "ProviderLoadBalancer",
     "ProviderMetricsLogger",
     "ProviderRepository",
+    "ProviderCapabilitiesRepository",
 ]

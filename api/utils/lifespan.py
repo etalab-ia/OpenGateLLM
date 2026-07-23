@@ -9,6 +9,7 @@ from tiktoken.core import Encoding
 
 from api.dependencies import get_postgres_session
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
+from api.domain.provider import ProviderCapabilitiesRepository
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.helpers._identityaccessmanager import IdentityAccessManager
@@ -121,14 +122,15 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
 async def bootstrap_models(configuration: Configuration, postgres_session: AsyncSession, bootstrap_admin_user_id: int) -> int:
     router_repository = PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title)
     provider_repository = PostgresProviderRepository(postgres_session=postgres_session)
-    provider_client = HttpProviderClient()
-    provider_adapter_builder = HttpProviderAdapterBuilder()
+    provider_capabilities_repository = ProviderCapabilitiesRepository(
+        provider_client=HttpProviderClient(),
+        provider_adapter_builder=HttpProviderAdapterBuilder(),
+    )
 
     result = await BootstrapModelsUseCase(
         router_repository=router_repository,
         provider_repository=provider_repository,
-        provider_client=provider_client,
-        provider_adapter_builder=provider_adapter_builder,
+        provider_capabilities_repository=provider_capabilities_repository,
     ).execute(routers_to_create=configuration.models, bootstrap_admin_user_id=bootstrap_admin_user_id)
 
     match result:

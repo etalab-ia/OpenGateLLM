@@ -11,6 +11,7 @@ from api.domain.key import KeyEncoder, KeyRepository
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.provider import (
     ProviderAdapterBuilder,
+    ProviderCapabilitiesRepository,
     ProviderClient,
     ProviderLoadBalancer,
     ProviderMetricsLogger,
@@ -160,6 +161,11 @@ def _permission_repository(session: AsyncSession) -> PermissionRepository:
 def _provider_repository(session: AsyncSession) -> ProviderRepository:
     return PostgresProviderRepository(postgres_session=session)
 
+def _provider_capabilities_repository(
+    provider_client: ProviderClient = Depends(_provider_client),
+    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
+) -> ProviderCapabilitiesRepository:
+    return ProviderCapabilitiesRepository(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
 
 # health use cases
 def get_health_models_use_case_factory(
@@ -353,14 +359,12 @@ def update_router_use_case_factory(postgres_session: AsyncSession = Depends(get_
 # provider use cases
 def create_provider_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
-    provider_client: ProviderClient = Depends(_provider_client),
-    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
+    provider_capabilities_repository: ProviderCapabilitiesRepository = Depends(_provider_capabilities_repository),
 ) -> CreateProviderUseCase:
     return CreateProviderUseCase(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
-        provider_client=provider_client,
-        provider_adapter_builder=provider_adapter_builder,
+        provider_capabilities_repository=provider_capabilities_repository,
     )
 
 

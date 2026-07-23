@@ -3,12 +3,11 @@ from dataclasses import dataclass
 import logging
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
-from api.domain.provider import ProviderAdapterBuilder, ProviderClient, ProviderRepository
+from api.domain.provider import ProviderCapabilitiesRepository, ProviderRepository
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.schemas.core.configuration import Model as ModelConfiguration
-from api.use_cases.provider import get_provider_capabilities
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +35,10 @@ type BootstrapModelsUseCaseResult = (
 
 
 class BootstrapModelsUseCase:
-    def __init__(self, router_repository: RouterRepository, provider_repository: ProviderRepository, provider_client: ProviderClient, provider_adapter_builder: ProviderAdapterBuilder):
+    def __init__(self, router_repository: RouterRepository, provider_repository: ProviderRepository, provider_capabilities_repository: ProviderCapabilitiesRepository):
         self.router_repository = router_repository
         self.provider_repository = provider_repository
-        self.provider_client = provider_client
-        self.provider_adapter_builder = provider_adapter_builder
+        self.provider_capabilities_repository = provider_capabilities_repository
 
     async def execute(
         self,
@@ -82,9 +80,7 @@ class BootstrapModelsUseCase:
             )
 
             for i, provider_to_create in enumerate(router_to_create.providers):
-                result = await get_provider_capabilities(
-                    provider_client=self.provider_client,
-                    provider_adapter_builder=self.provider_adapter_builder,
+                result = await self.provider_capabilities_repository.get_provider_capabilities(
                     router_type=router.type,
                     provider_type=provider_to_create.type,
                     url=provider_to_create.url,
