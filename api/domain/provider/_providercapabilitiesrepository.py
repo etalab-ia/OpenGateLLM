@@ -37,7 +37,7 @@ class ProviderCapabilitiesRepository:
         )
         adapter = self.provider_adapter_builder.build(endpoint=EndpointRoute.MODELS, provider=provider)
 
-        result = await self._get_max_context_length(provider_client=self.provider_client, adapter=adapter)
+        result = await self._get_max_context_length(adapter=adapter)
         match result:
             case ProviderNotReachableError() as error:
                 return error
@@ -49,7 +49,7 @@ class ProviderCapabilitiesRepository:
         vector_size = None
         if router_type == RouterType.TEXT_EMBEDDINGS_INFERENCE:
             adapter = self.provider_adapter_builder.build(endpoint=EndpointRoute.EMBEDDINGS, provider=provider)
-            result = await self._get_vector_size(provider_client=self.provider_client, adapter=adapter)
+            result = await self._get_vector_size(adapter=adapter)
             match result:
                 case ProviderNotReachableError() as error:
                     return error
@@ -59,11 +59,10 @@ class ProviderCapabilitiesRepository:
         return ProviderCapabilities(max_context_length=max_context_length, vector_size=vector_size)
 
 
-    @staticmethod
-    async def _get_max_context_length(provider_client: ProviderClient, adapter: ProviderAdapter) -> int | None | ModelNotFoundError | ProviderNotReachableError:
+    async def _get_max_context_length(self, adapter: ProviderAdapter) -> int | None | ModelNotFoundError | ProviderNotReachableError:
         original_request = ProviderOriginalRequest(endpoint=EndpointRoute.MODELS)
         formatted_request = adapter.format_request(original_request=original_request)
-        response = await provider_client.forward_request(provider=adapter.provider, formatted_request=formatted_request)
+        response = await self.provider_client.forward_request(provider=adapter.provider, formatted_request=formatted_request)
         match response:
             case ProviderOriginalResponse() as response:
                 pass
@@ -79,14 +78,13 @@ class ProviderCapabilitiesRepository:
         return model.max_context_length
 
 
-    @staticmethod
-    async def _get_vector_size(provider_client: ProviderClient, adapter: ProviderAdapter) -> int | ProviderNotReachableError:
+    async def _get_vector_size(self, adapter: ProviderAdapter) -> int | ProviderNotReachableError:
         original_request = ProviderOriginalRequest(
             endpoint=EndpointRoute.EMBEDDINGS,
             body=CreateEmbeddingsBody(model=adapter.provider.model_name, input="hello world"),
         )
         formatted_request = adapter.format_request(original_request=original_request)
-        response = await provider_client.forward_request(provider=adapter.provider, formatted_request=formatted_request)
+        response = await self.provider_client.forward_request(provider=adapter.provider, formatted_request=formatted_request)
         match response:
             case ProviderOriginalResponse() as response:
                 pass
