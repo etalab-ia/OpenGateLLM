@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from api.domain.model.entities import ModelType as RouterType
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.entities import HostingZone, ProviderCapabilities, ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
@@ -21,16 +21,16 @@ def provider_repository():
     return AsyncMock()
 
 @pytest.fixture
-def provider_capabilites_repository():
+def provider_capabilities_repository():
     return AsyncMock()
 
 
 @pytest.fixture
-def use_case(router_repository, provider_repository, provider_capabilites_repository):
+def use_case(router_repository, provider_repository, provider_capabilities_repository):
     return CreateProviderUseCase(
         router_repository=router_repository,
         provider_repository=provider_repository,
-        provider_capabilities_repository=provider_capabilites_repository,
+        provider_capabilities_repository=provider_capabilities_repository,
     )
 
 
@@ -363,6 +363,23 @@ class TestCreateProviderUseCase:
         assert result.model_name == "my-model"
         assert result.status_code == 500
         assert result.detail == "error_detail"
+        provider_repository.create_provider.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_should_return_model_not_found_error_when_model_is_missing(
+        self, use_case, router_repository, provider_repository, provider_capabilities_repository, sample_router, default_command
+    ):
+        # Arrange
+
+        router_repository.get_router_by_id.return_value = sample_router
+        provider_capabilities_repository.get_provider_capabilities.return_value = ModelNotFoundError(name="my-model")
+
+        # Act
+        result = await use_case.execute(default_command)
+
+        # Assert
+        assert isinstance(result, ModelNotFoundError)
+        assert result.name == "my-model"
         provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio

@@ -12,7 +12,7 @@ from api.dependencies import (
     update_provider_use_case_factory,
 )
 from api.domain import SortOrder
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.entities import ProviderSortField
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
@@ -25,6 +25,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     InconsistentModelVectorSizeHTTPException,
     InternalServerHTTPException,
     InvalidProviderTypeHTTPException,
+    ModelNotFoundHTTPException,
     NotAdminUserHTTPException,
     ProviderAlreadyExistsHTTPException,
     ProviderNotFoundHTTPException,
@@ -70,6 +71,7 @@ logger = logging.getLogger(__name__)
             InconsistentModelVectorSizeHTTPException,
             InvalidProviderTypeHTTPException,
             ProviderNotReachableHTTPException,
+            ModelNotFoundHTTPException,
             ProviderAlreadyExistsHTTPException,
             RouterNotFoundHTTPException,
             NotAdminUserHTTPException,
@@ -126,6 +128,9 @@ async def create_provider(
 
         case ProviderNotReachableError() as error:
             raise ProviderNotReachableHTTPException(name=error.model_name, status_code=error.status_code, detail=error.detail)
+
+        case ModelNotFoundError(name=model_name):
+            raise ModelNotFoundHTTPException(name=model_name)
 
         case ProviderAlreadyExistsError(model_name=model_name, url=url, router_id=router_id):
             raise ProviderAlreadyExistsHTTPException(model_name=model_name, url=url, router_id=router_id)
