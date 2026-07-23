@@ -12,7 +12,6 @@ from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.provider import (
     ProviderAdapterBuilder,
     ProviderClient,
-    ProviderGateway,
     ProviderLoadBalancer,
     ProviderMetricsLogger,
     ProviderRepository,
@@ -26,7 +25,6 @@ from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsCompute
 from api.infrastructure.fastapi.context import request_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
-from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
     PostgresAuthenticatedUserQuery,
     PostgresKeyRepository,
@@ -120,13 +118,6 @@ def _provider_adapter_builder() -> ProviderAdapterBuilder:
 
 def _provider_client() -> ProviderClient:
     return HttpProviderClient()
-
-
-def _provider_gateway(
-    provider_client: ProviderClient = Depends(_provider_client),
-    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
-) -> ProviderGateway:
-    return ModelProviderGateway(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
 
 
 def _provider_load_balancer(redis_client: Redis = Depends(get_redis_client)) -> ProviderLoadBalancer:
@@ -363,11 +354,13 @@ def update_router_use_case_factory(postgres_session: AsyncSession = Depends(get_
 def create_provider_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
     provider_client: ProviderClient = Depends(_provider_client),
+    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
 ) -> CreateProviderUseCase:
     return CreateProviderUseCase(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
-        provider_gateway=_provider_gateway(provider_client=provider_client, provider_adapter_builder=HttpProviderAdapterBuilder()),
+        provider_client=provider_client,
+        provider_adapter_builder=provider_adapter_builder,
     )
 
 
