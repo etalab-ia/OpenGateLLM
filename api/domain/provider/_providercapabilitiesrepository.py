@@ -1,7 +1,9 @@
 from api.domain.embeddings.entities import CreateEmbeddingsBody
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import ModelNotFoundError
-from api.domain.provider import ProviderAdapter, ProviderAdapterBuilder, ProviderClient
+from api.domain.provider._provideradapter import ProviderAdapter
+from api.domain.provider._provideradapterbuilder import ProviderAdapterBuilder
+from api.domain.provider._providerclient import ProviderClient
 from api.domain.provider.entities import Provider, ProviderCapabilities, ProviderOriginalRequest, ProviderOriginalResponse, ProviderType
 from api.domain.provider.errors import ProviderNotReachableError
 from api.utils.variables import EndpointRoute

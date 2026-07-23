@@ -5,10 +5,9 @@ import pytest
 import respx
 
 from api.domain.model.entities import ModelType as RouterType
-from api.domain.provider import ProviderCapabilities
-from api.domain.provider.entities import ProviderType
+from api.domain.provider import ProviderCapabilitiesRepository
+from api.domain.provider.entities import ProviderCapabilities, ProviderType
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
-from api.infrastructure.model import ModelProviderGateway
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory, TeiModelsResponseFactory
 from api.tests.integration.factories.vllm import VllmModelsResponseFactory
 
@@ -32,14 +31,14 @@ def _mock_embeddings_response(respx_mock, body: dict, status_code: int) -> None:
 
 
 @pytest.fixture
-def gateway() -> ModelProviderGateway:
-    return ModelProviderGateway(provider_client=HttpProviderClient(), provider_adapter_builder=HttpProviderAdapterBuilder())
+def repository() -> ProviderCapabilitiesRepository:
+    return ProviderCapabilitiesRepository(provider_client=HttpProviderClient(), provider_adapter_builder=HttpProviderAdapterBuilder())
 
 
 @pytest.mark.asyncio(loop_scope="session")
-class TestModelProviderGateway:
+class TestProviderCapabilitiesRepository:
     @respx.mock
-    async def test_get_capabilities_of_non_embeddings_providers(self, gateway: ModelProviderGateway):
+    async def test_get_capabilities_of_non_embeddings_providers(self, repository: ProviderCapabilitiesRepository):
         _mock_models_response(
             respx_mock=respx,
             provider_type=ProviderType.VLLM,
@@ -47,7 +46,7 @@ class TestModelProviderGateway:
             status_code=VllmModelsResponseFactory._status_code,
         )
 
-        result = await gateway.get_capabilities(
+        result = await repository.get_provider_capabilities(
             router_type=RouterType.TEXT_GENERATION,
             provider_type=ProviderType.VLLM,
             url=DEFAULT_PROVIDER_URL,
@@ -61,7 +60,7 @@ class TestModelProviderGateway:
     @respx.mock
     async def test_get_capabilities_of_embeddings_providers(
         self,
-        gateway: ModelProviderGateway,
+        repository: ProviderCapabilitiesRepository,
     ):
         _mock_models_response(
             respx_mock=respx,
@@ -75,7 +74,7 @@ class TestModelProviderGateway:
             status_code=TeiEmbeddingsResponseFactory._status_code,
         )
 
-        result = await gateway.get_capabilities(
+        result = await repository.get_provider_capabilities(
             router_type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
             provider_type=ProviderType.TEI,
             url=DEFAULT_PROVIDER_URL,
