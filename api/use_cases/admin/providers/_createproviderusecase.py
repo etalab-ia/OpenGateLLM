@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
-from api.domain.provider import ProviderGateway, ProviderRepository
+from api.domain.provider import ProviderAdapterBuilder, ProviderClient, ProviderRepository
 from api.domain.provider.entities import BasicAuth, HostingZone, Metric, Provider, ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError
+from api.use_cases.provider import get_provider_capabilities
 
 
 @dataclass
@@ -42,10 +43,11 @@ type CreateProviderUseCaseResult = (
 
 
 class CreateProviderUseCase:
-    def __init__(self, router_repository: RouterRepository, provider_repository: ProviderRepository, provider_gateway: ProviderGateway):
+    def __init__(self, router_repository: RouterRepository, provider_repository: ProviderRepository, provider_client: ProviderClient, provider_adapter_builder: ProviderAdapterBuilder):
         self.router_repository = router_repository
         self.provider_repository = provider_repository
-        self.provider_gateway = provider_gateway
+        self.provider_client = provider_client
+        self.provider_adapter_builder = provider_adapter_builder
 
     async def execute(self, command: CreateProviderCommand) -> CreateProviderUseCaseResult:
         router = await self.router_repository.get_router_by_id(router_id=command.router_id)
@@ -55,7 +57,9 @@ class CreateProviderUseCase:
         if not command.provider_type.is_compatible_with(router_type=router.type):
             return InvalidProviderTypeError(provider_type=command.provider_type.value, router_type=router.type.value)
 
-        result = await self.provider_gateway.get_capabilities(
+        result = await get_provider_capabilities(
+            provider_client=self.provider_client,
+            provider_adapter_builder=self.provider_adapter_builder,
             router_type=router.type,
             provider_type=command.provider_type,
             url=command.url,
