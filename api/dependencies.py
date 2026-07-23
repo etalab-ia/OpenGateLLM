@@ -161,11 +161,13 @@ def _permission_repository(session: AsyncSession) -> PermissionRepository:
 def _provider_repository(session: AsyncSession) -> ProviderRepository:
     return PostgresProviderRepository(postgres_session=session)
 
+
 def _provider_capabilities_repository(
     provider_client: ProviderClient = Depends(_provider_client),
     provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
 ) -> ProviderCapabilitiesRepository:
     return ProviderCapabilitiesRepository(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
+
 
 # health use cases
 def get_health_models_use_case_factory(
