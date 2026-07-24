@@ -100,7 +100,7 @@ class CreateEmbeddingsUseCase:
         if authenticated_user.cannot_access_router(router_id=router.id):
             return UserHasNoAccessToRouterError(id=router.id)
 
-        if router.cost_prompt_tokens > 0 and authenticated_user.budget == 0:
+        if router.is_prompt_billable and authenticated_user.has_insufficient_budget:
             return UserHasInsufficientBudgetError()
 
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)

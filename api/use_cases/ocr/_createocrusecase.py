@@ -9,10 +9,10 @@ from api.domain.key.errors import InvalidKeyError, KeyNotFoundError
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
+from api.domain.ocr.entities import OCR, CreateOCRBody
 from api.domain.provider import ProviderAdapterBuilder, ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
 from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
-from api.domain.rerank.entities import CreateRerankBody, Rerank
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
@@ -23,8 +23,8 @@ from api.schemas.core.models import Metric
 from api.utils.variables import EndpointRoute
 
 
-class CreateRerankCommand(CreateRerankBody):
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
+class CreateOCRCommand(CreateOCRBody):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     request_context: ContextVar[RequestContext]
 
@@ -33,13 +33,13 @@ class CreateRerankCommand(CreateRerankBody):
 
 
 @dataclass
-class CreateRerankUseCaseSuccess:
-    data: Rerank
+class CreateOCRUseCaseSuccess:
+    data: OCR
     headers: dict[str, str]
 
 
-type CreateRerankUseCaseResult = (
-    CreateRerankUseCaseSuccess
+type CreateOCRUseCaseResult = (
+    CreateOCRUseCaseSuccess
     | InvalidKeyError
     | KeyNotFoundError
     | NoAvailableProviderError
@@ -57,7 +57,7 @@ type CreateRerankUseCaseResult = (
 )
 
 
-class CreateRerankUseCase:
+class CreateOCRUseCase:
     def __init__(
         self,
         model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer,
@@ -81,7 +81,7 @@ class CreateRerankUseCase:
         self.router_rate_limiter = router_rate_limiter
         self.router_repository = router_repository
 
-    async def execute(self, command: CreateRerankCommand) -> CreateRerankUseCaseResult:
+    async def execute(self, command: CreateOCRCommand) -> CreateOCRUseCaseResult:
         authenticated_user = command.request_context.get().user
         result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=command.model)
         match result:
@@ -95,8 +95,8 @@ class CreateRerankUseCase:
 
         if router.has_no_providers:
             return RouterHasNoProvidersError(id=router.id)
-        if router.type != RouterType.TEXT_CLASSIFICATION:
-            return RouterHasWrongTypeError(id=router.id, actual_type=router.type, expected_type=RouterType.TEXT_CLASSIFICATION)
+        if router.type != RouterType.IMAGE_TO_TEXT:
+            return RouterHasWrongTypeError(id=router.id, actual_type=router.type, expected_type=RouterType.IMAGE_TO_TEXT)
         if authenticated_user.cannot_access_router(router_id=router.id):
             return UserHasNoAccessToRouterError(id=router.id)
 
@@ -109,10 +109,23 @@ class CreateRerankUseCase:
         command.set_value_in_request_context(key="provider_id", value=provider.id)
         command.set_value_in_request_context(key="provider_model_name", value=provider.model_name)
 
-        adapter = self.provider_adapter_builder.build(endpoint=EndpointRoute.RERANK, provider=provider)
+        adapter = self.provider_adapter_builder.build(endpoint=EndpointRoute.OCR, provider=provider)
         original_request = ProviderOriginalRequest(
-            endpoint=EndpointRoute.RERANK,
-            body=CreateRerankBody.model_validate(command.model_dump(exclude={"request_context"})),
+            endpoint=EndpointRoute.OCR,
+            body=CreateOCRBody(
+                bbox_annotation_format=command.bbox_annotation_format,
+                document=command.document,
+                document_annotation_format=command.document_annotation_format,
+                document_annotation_prompt=command.document_annotation_prompt,
+                extract_footer=command.extract_footer,
+                extract_header=command.extract_header,
+                image_limit=command.image_limit,
+                image_min_size=command.image_min_size,
+                include_image_base64=command.include_image_base64,
+                model=command.model,
+                pages=command.pages,
+                table_format=command.table_format,
+            ),
         )
         prompt_tokens = self.model_tokenizer.compute_tokens(texts=original_request.body.get_prompts())
 
@@ -147,7 +160,7 @@ class CreateRerankUseCase:
 
         start_time = time.perf_counter()
         result = await self.provider_client.forward_request(provider=provider, formatted_request=formatted_request)
-        latency = int((time.perf_counter() - start_time) * 1000)  # ms
+        latency = int((time.perf_counter() - start_time) * 1000)
 
         if inflight_is_incremented:
             await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
@@ -191,7 +204,7 @@ class CreateRerankUseCase:
                 await self.provider_metrics_logger.log_metric(
                     provider_id=provider.id,
                     metric=Metric.NORMALIZED_LATENCY,
-                    value=latency,  # normalized = latency because rerank has no completion tokens
+                    value=latency,  # normalized = latency because ocr has no completion tokens
                 )
             case ProviderAdapterValidationResponseError() as error:
                 return error
@@ -201,4 +214,4 @@ class CreateRerankUseCase:
         command.set_value_in_request_context(key="total_tokens", value=prompt_tokens)
         command.set_value_in_request_context(key="cost", value=formatted_response.data.usage.cost)
 
-        return CreateRerankUseCaseSuccess(data=formatted_response.data, headers=rate_limit_state.build_limit_headers)
+        return CreateOCRUseCaseSuccess(data=formatted_response.data, headers=rate_limit_state.build_limit_headers)

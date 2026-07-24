@@ -8,11 +8,11 @@ from pydantic import Field
 from api.domain import BaseModel, EntitiesPage
 from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
 from api.domain.model.entities import Models, ModelType
+from api.domain.ocr.entities import OCR, CreateOCRBody
 from api.domain.rerank.entities import CreateRerankBody, Rerank
 from api.domain.router.entities import Router
 from api.schemas.audio import AudioTranscription
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk
-from api.schemas.ocr import OCR
 from api.utils.variables import EndpointRoute
 
 # Add world as a country code, default value of the carbon footprint computation framework
@@ -153,7 +153,9 @@ class ProviderCapabilities(BaseModel):
 
 class ProviderOriginalRequest(BaseModel):
     endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
-    body: Annotated[CreateEmbeddingsBody | CreateRerankBody | None, Field(default=None, description="The JSON body to use for the request.")]
+    body: Annotated[
+        CreateEmbeddingsBody | CreateOCRBody | CreateRerankBody | None, Field(default=None, description="The JSON body to use for the request.")
+    ]
     form: Annotated[dict | None, Field(default=None, description="The form-encoded data to use for the request.")]
     files: Annotated[dict | None, Field(default=None, description="The files to use for the request.")]
 

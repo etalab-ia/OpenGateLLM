@@ -1,7 +1,56 @@
+from typing import Any, Literal
+
 from pydantic import Field
 
 from api.domain import BaseModel
 from api.domain.usage.entities import Usage
+
+
+class OCRJsonSchema(BaseModel):
+    name: str
+    schema: dict[str, Any]
+    strict: bool = False
+    description: str | None = None
+
+
+class OCRResponseFormat(BaseModel):
+    type: Literal["text", "json_object", "json_schema"] = "text"
+    json_schema: OCRJsonSchema | None = None
+
+
+class OCRDocumentURLChunk(BaseModel):
+    document_name: str | None = None
+    document_url: str
+    type: Literal["document_url"] = "document_url"
+
+
+class OCRImageURL(BaseModel):
+    detail: str | None = None
+    url: str
+
+
+class OCRImageURLChunk(BaseModel):
+    image_url: OCRImageURL | str
+    type: Literal["image_url"] = "image_url"
+
+
+class CreateOCRBody(BaseModel):
+    bbox_annotation_format: OCRResponseFormat | None = None
+    document: OCRDocumentURLChunk | OCRImageURLChunk
+    document_annotation_format: OCRResponseFormat | None = None
+    document_annotation_prompt: str | None = None
+    extract_footer: bool = False
+    extract_header: bool = False
+    image_limit: int | None = None
+    image_min_size: int | None = None
+    include_image_base64: bool | None = None
+    model: str | None = None
+    pages: list[int] | None = None
+    table_format: Literal["markdown", "html"] | None = None
+
+    def get_prompts(self) -> list[str]:
+        # OCR requests carry no textual prompt: rate limiting and cost are based on 0 prompt tokens.
+        return []
 
 
 class OCRUsage(BaseModel):
