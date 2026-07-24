@@ -1,4 +1,7 @@
 from abc import abstractmethod
+import math
+
+import reflex as rx
 
 from app.features.auth.state import AuthState
 from app.shared.models.entities import Entity
@@ -93,7 +96,9 @@ class EntityState(AuthState):
     ############################################################
     # Pagination
     ############################################################
-    has_more_page: bool = False
+    total: int = 0
+    page: int = 1
+    per_page: int = 20
 
     @abstractmethod
     async def set_order_by(self, value: str):
@@ -105,12 +110,28 @@ class EntityState(AuthState):
         """Set order direction and reload."""
         pass
 
-    @abstractmethod
+    @rx.event
     async def prev_page(self):
         """Go to previous page."""
-        pass
+        if self.page > 1:
+            self.page -= 1
+            yield
+            async for _ in self.load_entities():
+                yield
 
-    @abstractmethod
+    @rx.event
     async def next_page(self):
         """Go to next page."""
-        pass
+        if self.has_more_page:
+            self.page += 1
+            yield
+            async for _ in self.load_entities():
+                yield
+
+    @rx.var
+    def total_pages(self) -> int:
+        return max(1, math.ceil(self.total / self.per_page))
+
+    @rx.var
+    def has_more_page(self) -> bool:
+        return self.page < self.total_pages

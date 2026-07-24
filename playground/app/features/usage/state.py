@@ -70,7 +70,7 @@ class UsageState(EntityState):
                 data = response.json()
                 self.entities = [self._format_usage(usage) for usage in data.get("data", [])]
 
-            self.has_more_page = len(self.entities) == self.per_page
+            self.total = data.get("total", 0)
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -98,28 +98,10 @@ class UsageState(EntityState):
     ############################################################
     # Pagination & filters
     ############################################################
-    page: int = 1
-    per_page: int = 20
     order_by_value: str = "id"
     order_direction: str = "asc"
     order_direction_options: list[str] = ["asc", "desc"]
     order_direction_value: str = "asc"
-
-    @rx.event
-    async def prev_page(self):
-        if self.page > 1:
-            self.page -= 1
-            yield
-            async for _ in self.load_entities():
-                yield
-
-    @rx.event
-    async def next_page(self):
-        if self.has_more_page:
-            self.page += 1
-            yield
-            async for _ in self.load_entities():
-                yield
 
     filter_date_from_value: str | None = None
     filter_date_to_value: str | None = None
@@ -156,7 +138,6 @@ class UsageState(EntityState):
     @rx.event
     async def apply_filters(self):
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield

@@ -78,7 +78,7 @@ class KeysState(EntityState):
                     if key["name"] not in ["playground", "_system_search_tool"]:
                         self.entities.append(self._format_key(key))
 
-            self.has_more_page = len(self.entities) == self.per_page
+            self.total = data.get("total", 0)
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
         finally:
@@ -220,8 +220,6 @@ class KeysState(EntityState):
     ############################################################
     # Pagination & filters
     ############################################################
-    page: int = 1
-    per_page: int = 20
     order_by_value: str = "id"
     order_direction: str = "asc"
     order_direction_options: list[str] = ["asc", "desc"]
@@ -233,7 +231,7 @@ class KeysState(EntityState):
         """Set order by field and reload."""
         self.order_by_value = value
         self.page = 1
-        self.has_more_page = False
+
         yield
         async for _ in self.load_entities():
             yield
@@ -243,23 +241,6 @@ class KeysState(EntityState):
         """Set order direction and reload."""
         self.order_direction_value = value
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield
-
-    @rx.event
-    async def prev_page(self):
-        if self.page > 1:
-            self.page -= 1
-            yield
-            async for _ in self.load_entities():
-                yield
-
-    @rx.event
-    async def next_page(self):
-        if self.has_more_page:
-            self.page += 1
-            yield
-            async for _ in self.load_entities():
-                yield

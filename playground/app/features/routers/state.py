@@ -99,7 +99,7 @@ class RoutersState(EntityState):
                     if router["user_id"] not in self.router_owners:
                         async with httpx.AsyncClient() as client:
                             response = await client.get(
-                                url=f"{self.opengatellm_url}/v1/admin/users/{router["user_id"]}",
+                                url=f"{self.opengatellm_url}/v1/admin/users/{router['user_id']}",
                                 headers={"Authorization": f"Bearer {self.api_key}"},
                                 timeout=configuration.settings.playground_opengatellm_timeout,
                             )
@@ -113,7 +113,7 @@ class RoutersState(EntityState):
 
                     self.entities.append(self._format_router(router))
 
-            self.has_more_page = len(self.entities) == self.per_page
+            self.total = data.get("total", 0)
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
         finally:
@@ -304,8 +304,6 @@ class RoutersState(EntityState):
     ############################################################
     # Pagination & filters
     ############################################################
-    page: int = 1
-    per_page: int = 20
     order_by_value: str = "id"
     order_direction: str = "asc"
     order_direction_options: list[str] = ["asc", "desc"]
@@ -317,7 +315,6 @@ class RoutersState(EntityState):
         """Set order by field and reload."""
         self.order_by_value = value
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield
@@ -327,23 +324,6 @@ class RoutersState(EntityState):
         """Set order direction and reload."""
         self.order_direction_value = value
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield
-
-    @rx.event
-    async def prev_page(self):
-        if self.page > 1:
-            self.page -= 1
-            yield
-            async for _ in self.load_entities():
-                yield
-
-    @rx.event
-    async def next_page(self):
-        if self.has_more_page:
-            self.page += 1
-            yield
-            async for _ in self.load_entities():
-                yield
