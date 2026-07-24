@@ -191,7 +191,7 @@ def sample_rerank():
 @pytest.fixture
 def mock_rerank_latency_120ms():
     with patch(
-        "api.use_cases.reranks._creatererankusecase.time.perf_counter",
+        "api.use_cases._forwarding.time.perf_counter",
         side_effect=[0, 0.12],
     ):
         yield
