@@ -12,6 +12,7 @@ from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
+from api.schemas.admin.providers import ProviderCarbonFootprintZone
 from api.schemas.admin.roles import LimitType
 from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
@@ -67,6 +68,7 @@ class TestCreateOCR:
             providers=1,
             providers__type=ProviderType.MISTRAL,
             providers__url=DEFAULT_PROVIDER_URL,
+            providers__model_hosting_zone=ProviderCarbonFootprintZone.FRA,  # pin to an ecologits-resolvable zone (impacts now computed from OCR completion tokens)
         )
         await db_session.flush()
 
@@ -90,7 +92,7 @@ class TestCreateOCR:
         assert len(data["pages"]) == page_count
         assert all("markdown" in page and "index" in page for page in data["pages"])
         assert data["usage"]["prompt_tokens"] == 0
-        assert data["usage"]["completion_tokens"] == 0
+        assert data["usage"]["completion_tokens"] == 10  # tokens of the extracted markdown (mock tokenizer: 10 per non-empty text)
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

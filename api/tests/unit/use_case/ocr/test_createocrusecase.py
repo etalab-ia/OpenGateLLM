@@ -189,7 +189,7 @@ def sample_ocr():
 @pytest.fixture
 def mock_ocr_latency_120ms():
     with patch(
-        "api.use_cases._forwarding.time.perf_counter",
+        "api.use_cases.ocr._createocrusecase.time.perf_counter",
         side_effect=[0, 0.12],
     ):
         yield
@@ -352,6 +352,38 @@ class TestCreateOCRUseCase:
             router_id=paid_ocr_router.id,
             router_name=paid_ocr_router.name,
         )
+
+    @pytest.mark.asyncio
+    async def test_should_return_insufficient_budget_when_router_bills_completion_only_and_user_budget_is_zero(
+        self, use_case, user_with_router_access, provider_load_balancer, provider_repository, make_command
+    ):
+        # OCR produces completion tokens, so a completion-only-priced router must gate on budget too.
+        # Arrange
+        user_with_zero_budget = AutenticatedUserFactor(
+            id=user_with_router_access.id,
+            without_permission=True,
+            budget=0,
+            limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
+        )
+        command = make_command(user_with_zero_budget)
+        completion_only_router = RouterFactory(
+            id=1,
+            name="ocr-router",
+            type=RouterType.IMAGE_TO_TEXT,
+            providers=1,
+            load_balancing_strategy="shuffle",
+            cost_prompt_tokens=0.0,
+            cost_completion_tokens=0.002,
+        )
+        use_case.router_repository.get_router_by_name_or_alias.return_value = completion_only_router
+
+        # Act
+        result = await use_case.execute(command=command)
+
+        # Assert
+        assert isinstance(result, UserHasInsufficientBudgetError)
+        provider_repository.get_all_providers_of_router.assert_not_awaited()
+        provider_load_balancer.find_best_provider.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_not_check_budget_when_router_is_free(
@@ -596,6 +628,9 @@ class TestCreateOCRUseCase:
         admin_user,
         mock_successful_ocr_flow,
     ):
+        # Arrange
+        model_tokenizer.compute_tokens.side_effect = [0, 42]  # prompt tokens, then completion tokens (extracted markdown)
+
         # Act
         result = await use_case.execute(command=default_command)
 
@@ -607,8 +642,8 @@ class TestCreateOCRUseCase:
         assert result.data.usage_info == sample_ocr.usage_info
         assert result.data.usage == Usage(
             prompt_tokens=0,
-            completion_tokens=0,
-            total_tokens=0,
+            completion_tokens=42,
+            total_tokens=42,
             cost=0.03,
             impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
         )
@@ -625,12 +660,13 @@ class TestCreateOCRUseCase:
             ]
         )
         provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=ocr_provider.id)
-        model_tokenizer.compute_tokens.assert_called_once_with(texts=[])
+        model_tokenizer.compute_tokens.assert_has_calls([call(texts=[]), call(texts=["# Document"])])
+        assert model_tokenizer.compute_tokens.call_count == 2
         model_environmental_impacts_computer.compute.assert_called_once_with(
             model_active_params=ocr_provider.model_active_params,
             model_total_params=ocr_provider.model_total_params,
             model_zone=ocr_provider.model_hosting_zone,
-            completion_tokens=0,
+            completion_tokens=42,
             request_latency=120,
         )
 
@@ -648,7 +684,7 @@ class TestCreateOCRUseCase:
             provider_id=ocr_provider.id,
             provider_model_name=ocr_provider.model_name,
             prompt_tokens=0,
-            total_tokens=0,
+            total_tokens=42,
             cost=result.data.usage.cost,
         )
 
@@ -681,6 +717,7 @@ class TestCreateOCRUseCase:
         router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
         mock_adapter = _mock_adapter(formatted_response=sample_ocr)
         provider_adapter_builder.build.return_value = mock_adapter
+        model_tokenizer.compute_tokens.side_effect = [0, 42]  # prompt tokens, then completion tokens (extracted markdown)
 
         # Act
         result = await use_case.execute(command=command)
@@ -692,8 +729,8 @@ class TestCreateOCRUseCase:
         assert result.data.model == sample_ocr.model
         assert result.data.usage == Usage(
             prompt_tokens=0,
-            completion_tokens=0,
-            total_tokens=0,
+            completion_tokens=42,
+            total_tokens=42,
             cost=0.03,
             impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
         )
@@ -710,12 +747,13 @@ class TestCreateOCRUseCase:
             ]
         )
         provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=ocr_provider.id)
-        model_tokenizer.compute_tokens.assert_called_once_with(texts=[])
+        model_tokenizer.compute_tokens.assert_has_calls([call(texts=[]), call(texts=["# Document"])])
+        assert model_tokenizer.compute_tokens.call_count == 2
         model_environmental_impacts_computer.compute.assert_called_once_with(
             model_active_params=ocr_provider.model_active_params,
             model_total_params=ocr_provider.model_total_params,
             model_zone=ocr_provider.model_hosting_zone,
-            completion_tokens=0,
+            completion_tokens=42,
             request_latency=120,
         )
 
@@ -743,6 +781,6 @@ class TestCreateOCRUseCase:
             provider_id=ocr_provider.id,
             provider_model_name=ocr_provider.model_name,
             prompt_tokens=0,
-            total_tokens=0,
+            total_tokens=42,
             cost=result.data.usage.cost,
         )
