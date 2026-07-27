@@ -1,4 +1,5 @@
 import datetime as dt
+import math
 
 import httpx
 import reflex as rx
@@ -79,7 +80,7 @@ class KeysState(EntityState):
                     if key["name"] not in ["_system_playground_key", "_system_search_tool"]:
                         self.entities.append(self._format_key(key))
 
-            self.has_more_page = len(self.entities) == self.per_page
+            self.total = data.get("total", 0)
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
         finally:
@@ -222,18 +223,22 @@ class KeysState(EntityState):
     ############################################################
     page: int = 1
     per_page: int = 20
+    total: int = 0
     order_by_value: str = "id"
     order_direction: str = "asc"
     order_direction_options: list[str] = ["asc", "desc"]
     order_direction_value: str = "asc"
     order_by_options: list[str] = ["id", "name", "created"]
 
+    @rx.var
+    def total_pages(self) -> int:
+        return max(1, math.ceil(self.total / self.per_page))
+
     @rx.event
     async def set_order_by(self, value: str):
         """Set order by field and reload."""
         self.order_by_value = value
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield
@@ -243,7 +248,6 @@ class KeysState(EntityState):
         """Set order direction and reload."""
         self.order_direction_value = value
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield
@@ -258,7 +262,7 @@ class KeysState(EntityState):
 
     @rx.event
     async def next_page(self):
-        if self.has_more_page:
+        if self.page < self.total_pages:
             self.page += 1
             yield
             async for _ in self.load_entities():
