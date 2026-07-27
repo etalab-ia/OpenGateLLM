@@ -32,13 +32,13 @@ class RequestContextCarrier(BaseModel):
 
 
 @dataclass
-class PromptOnlyForwardingUseCaseSuccess[TData]:
+class ForwardingUseCaseSuccess[TData]:
     data: TData
     headers: dict[str, str]
 
 
-type PromptOnlyForwardingUseCaseResult[TData] = (
-    PromptOnlyForwardingUseCaseSuccess[TData]
+type ForwardingUseCaseResult[TData] = (
+    ForwardingUseCaseSuccess[TData]
     | InvalidKeyError
     | KeyNotFoundError
     | NoAvailableProviderError
@@ -56,7 +56,7 @@ type PromptOnlyForwardingUseCaseResult[TData] = (
 )
 
 
-class PromptOnlyForwardingUseCase[TCommand: RequestContextCarrier, TData]:
+class ForwardingUseCase[TCommand: RequestContextCarrier, TData]:
     ROUTER_TYPE: ClassVar[RouterType]
     ENDPOINT: ClassVar[EndpointRoute]
     BODY_TYPE: ClassVar[type[BaseModel]]
@@ -84,7 +84,13 @@ class PromptOnlyForwardingUseCase[TCommand: RequestContextCarrier, TData]:
         self.router_rate_limiter = router_rate_limiter
         self.router_repository = router_repository
 
-    async def execute(self, command: TCommand) -> PromptOnlyForwardingUseCaseResult[TData]:
+    def _completion_tokens(self, data: TData) -> int:
+        return 0
+
+    def _is_billable(self, router: Router) -> bool:
+        return router.is_prompt_billable
+
+    async def execute(self, command: TCommand) -> ForwardingUseCaseResult[TData]:
         authenticated_user = command.request_context.get().user
         result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=command.model)
         match result:
@@ -103,7 +109,7 @@ class PromptOnlyForwardingUseCase[TCommand: RequestContextCarrier, TData]:
         if authenticated_user.cannot_access_router(router_id=router.id):
             return UserHasNoAccessToRouterError(id=router.id)
 
-        if router.is_prompt_billable and authenticated_user.has_insufficient_budget:
+        if self._is_billable(router) and authenticated_user.has_insufficient_budget:
             return UserHasInsufficientBudgetError()
 
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
@@ -164,24 +170,25 @@ class PromptOnlyForwardingUseCase[TCommand: RequestContextCarrier, TData]:
         result = adapter.format_response(original_request=original_request, original_response=original_response)
         match result:
             case ProviderFormattedResponse() as formatted_response:
+                completion_tokens = self._completion_tokens(formatted_response.data)
                 environmental_impacts = self.model_environmental_impacts_computer.compute(
                     model_active_params=provider.model_active_params,
                     model_total_params=provider.model_total_params,
                     model_zone=provider.model_hosting_zone,
-                    completion_tokens=0,
+                    completion_tokens=completion_tokens,
                     request_latency=latency,
                 )
                 cost = Usage.compute_request_cost(
                     prompt_tokens=prompt_tokens,
-                    completion_tokens=0,
+                    completion_tokens=completion_tokens,
                     cost_prompt_tokens=router.cost_prompt_tokens,
                     cost_completion_tokens=router.cost_completion_tokens,
                 )
 
                 formatted_response.data.usage = Usage(
                     prompt_tokens=prompt_tokens,
-                    completion_tokens=0,
-                    total_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    total_tokens=prompt_tokens + completion_tokens,
                     cost=cost,
                     impacts=environmental_impacts,
                 )
@@ -194,14 +201,14 @@ class PromptOnlyForwardingUseCase[TCommand: RequestContextCarrier, TData]:
                 await self.provider_metrics_logger.log_metric(
                     provider_id=provider.id,
                     metric=Metric.NORMALIZED_LATENCY,
-                    value=latency,  # normalized == latency: prompt-only endpoints have no completion tokens
+                    value=latency,  # raw latency: legacy never divided this metric by completion tokens
                 )
             case ProviderAdapterValidationResponseError() as error:
                 return error
 
         command.set_value_in_request_context(key="id", value=formatted_response.data.id)
         command.set_value_in_request_context(key="prompt_tokens", value=prompt_tokens)
-        command.set_value_in_request_context(key="total_tokens", value=prompt_tokens)
+        command.set_value_in_request_context(key="total_tokens", value=prompt_tokens + completion_tokens)
         command.set_value_in_request_context(key="cost", value=formatted_response.data.usage.cost)
 
-        return PromptOnlyForwardingUseCaseSuccess(data=formatted_response.data, headers=rate_limit_state.build_limit_headers)
+        return ForwardingUseCaseSuccess(data=formatted_response.data, headers=rate_limit_state.build_limit_headers)

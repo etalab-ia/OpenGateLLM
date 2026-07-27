@@ -23,7 +23,7 @@ HostingZone = StrEnum("HostingZone", {str(code).upper(): str(code) for code in s
 class Metric(StrEnum):
     LATENCY = "latency"  # requests latency
     TTFT = "ttft"  # time to first token
-    NORMALIZED_LATENCY = "normalized_latency"  # requests latency normalized by the completion tokens
+    NORMALIZED_LATENCY = "normalized_latency"  # intended as latency per completion token, but the raw latency is written as is (never normalized)
 
 
 class QoSMetric(StrEnum):

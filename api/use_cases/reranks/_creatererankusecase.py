@@ -1,16 +1,16 @@
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.rerank.entities import CreateRerankBody, Rerank
-from api.use_cases._forwarding import PromptOnlyForwardingUseCase, PromptOnlyForwardingUseCaseSuccess, RequestContextCarrier
+from api.use_cases._forwarding import ForwardingUseCase, ForwardingUseCaseSuccess, RequestContextCarrier
 from api.utils.variables import EndpointRoute
 
 
 class CreateRerankCommand(CreateRerankBody, RequestContextCarrier): ...
 
 
-CreateRerankUseCaseSuccess = PromptOnlyForwardingUseCaseSuccess
+CreateRerankUseCaseSuccess = ForwardingUseCaseSuccess
 
 
-class CreateRerankUseCase(PromptOnlyForwardingUseCase[CreateRerankCommand, Rerank]):
+class CreateRerankUseCase(ForwardingUseCase[CreateRerankCommand, Rerank]):
     ROUTER_TYPE = RouterType.TEXT_CLASSIFICATION
     ENDPOINT = EndpointRoute.RERANK
     BODY_TYPE = CreateRerankBody

@@ -189,7 +189,7 @@ def sample_ocr():
 @pytest.fixture
 def mock_ocr_latency_120ms():
     with patch(
-        "api.use_cases.ocr._createocrusecase.time.perf_counter",
+        "api.use_cases._forwarding.time.perf_counter",
         side_effect=[0, 0.12],
     ):
         yield
