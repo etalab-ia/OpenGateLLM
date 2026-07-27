@@ -24,7 +24,7 @@ from api.utils.variables import EndpointRoute
 
 
 class CreateEmbeddingsCommand(CreateEmbeddingsBody):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
 
     request_context: ContextVar[RequestContext]
 
@@ -112,12 +112,7 @@ class CreateEmbeddingsUseCase:
         adapter = self.provider_adapter_builder.build(endpoint=EndpointRoute.EMBEDDINGS, provider=provider)
         original_request = ProviderOriginalRequest(
             endpoint=EndpointRoute.EMBEDDINGS,
-            body=CreateEmbeddingsBody(
-                input=command.input,
-                model=command.model,
-                dimensions=command.dimensions,
-                encoding_format=command.encoding_format,
-            ),
+            body=CreateEmbeddingsBody.model_validate(command.model_dump(exclude={"request_context"})),
         )
         prompt_tokens = self.model_tokenizer.compute_tokens(texts=original_request.body.get_prompts())
 

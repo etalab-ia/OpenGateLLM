@@ -53,13 +53,7 @@ async def create_rerank(
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     try:
-        command = CreateRerankCommand(
-            query=body.query,
-            documents=body.documents,
-            model=body.model,
-            top_n=body.top_n,
-            request_context=request_context,
-        )
+        command = CreateRerankCommand(**body.model_dump(), request_context=request_context)
         result = await create_rerank_use_case.execute(command)
     except Exception as e:
         logger.exception(

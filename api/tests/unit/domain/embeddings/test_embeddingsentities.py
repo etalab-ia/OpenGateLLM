@@ -48,3 +48,58 @@ class TestCreateEmbeddingsBodyGetPrompts:
 
         # Assert
         assert result == ["1", "2", "3", "4", "5", "6"]
+
+    def test_returns_messages_content_when_input_is_none(self, embeddings_body: CreateEmbeddingsBody):
+        # Arrange
+        embeddings_body = CreateEmbeddingsBody(
+            model=embeddings_body.model,
+            input=None,
+            messages=[
+                {"role": "system", "content": "system prompt"},
+                {"role": "user", "content": "user prompt"},
+            ],
+        )
+
+        # Act
+        result = embeddings_body.get_prompts()
+
+        # Assert
+        assert result == ["system prompt", "user prompt"]
+
+    def test_returns_only_text_parts_from_multimodal_messages_when_input_is_none(self, embeddings_body: CreateEmbeddingsBody):
+        # Arrange
+        embeddings_body = CreateEmbeddingsBody(
+            model=embeddings_body.model,
+            input=None,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": "https://example.com/image.jpg"}},
+                        {"type": "text", "text": "Describe this image"},
+                    ],
+                },
+                {
+                    "role": "assistant",
+                    "content": [
+                        {"type": "text", "text": "Image description"},
+                    ],
+                },
+            ],
+        )
+
+        # Act
+        result = embeddings_body.get_prompts()
+
+        # Assert
+        assert result == ["Describe this image", "Image description"]
+
+    def test_returns_empty_list_when_input_and_messages_are_missing(self, embeddings_body: CreateEmbeddingsBody):
+        # Arrange
+        embeddings_body = CreateEmbeddingsBody(model=embeddings_body.model, input=None, messages=None)
+
+        # Act
+        result = embeddings_body.get_prompts()
+
+        # Assert
+        assert result == []
