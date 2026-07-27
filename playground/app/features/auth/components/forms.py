@@ -30,40 +30,43 @@ def login_form() -> rx.Component:
                 width="100%",
             ),
             rx.vstack(
-                rx.vstack(
+                rx.form(
                     rx.vstack(
-                        rx.text("Email", size="2", weight="bold"),
-                        rx.input(
-                            placeholder="Enter your email",
-                            value=AuthState.email_input,
-                            on_change=AuthState.set_email_input,
-                            type="email",
+                        rx.vstack(
+                            rx.text("Email", size="2", weight="bold"),
+                            rx.input(
+                                placeholder="Enter your email",
+                                value=AuthState.email_input,
+                                on_change=AuthState.set_email_input,
+                                type="email",
+                                width="100%",
+                            ),
+                            spacing="1",
                             width="100%",
                         ),
-                        spacing="1",
-                        width="100%",
-                    ),
-                    rx.vstack(
-                        rx.text("Password", size="2", weight="bold"),
-                        rx.input(
-                            placeholder="Enter your password",
-                            value=AuthState.password_input,
-                            on_change=AuthState.set_password_input,
-                            type="password",
+                        rx.vstack(
+                            rx.text("Password", size="2", weight="bold"),
+                            rx.input(
+                                placeholder="Enter your password",
+                                value=AuthState.password_input,
+                                on_change=AuthState.set_password_input,
+                                type="password",
+                                width="100%",
+                            ),
+                            spacing="1",
                             width="100%",
                         ),
-                        spacing="1",
+                        rx.button(
+                            "Sign In",
+                            on_click=AuthState.login_direct,
+                            width="100%",
+                            loading=AuthState.is_loading,
+                            disabled=AuthState.is_loading,
+                            type="submit",
+                        ),
+                        spacing="4",
                         width="100%",
                     ),
-                    rx.button(
-                        "Sign In",
-                        on_click=AuthState.login_direct,
-                        width="100%",
-                        loading=AuthState.is_loading,
-                        disabled=AuthState.is_loading,
-                    ),
-                    spacing="4",
-                    width="100%",
                 ),
                 spacing="0",
                 width="100%",
