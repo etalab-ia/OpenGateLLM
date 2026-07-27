@@ -53,13 +53,7 @@ async def create_embeddings(
     request_context: ContextVar[RequestContext] = Depends(get_request_context),
 ) -> JSONResponse:
     try:
-        command = CreateEmbeddingsCommand(
-            input=body.input,
-            model=body.model,
-            dimensions=body.dimensions,
-            encoding_format=body.encoding_format,
-            request_context=request_context,
-        )
+        command = CreateEmbeddingsCommand(**body.model_dump(), request_context=request_context)
         result = await create_embeddings_use_case.execute(command)
     except Exception as e:
         logger.exception(

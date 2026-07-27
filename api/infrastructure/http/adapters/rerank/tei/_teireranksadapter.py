@@ -27,7 +27,7 @@ class TeiRerankAdapter(RerankAdapter):
                 {
                     "query": original_request.body.query,
                     "texts": original_request.body.documents,
-                    **original_request.body.model_dump(),
+                    **original_request.body.model_dump(exclude_none=True),
                 }
             )
         except ValidationError as e:

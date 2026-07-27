@@ -182,6 +182,24 @@ class TestEmbeddingsAdapter:
         assert result.body["model"] == provider_model_name
 
     @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
+        indirect=["adapter"],
+    )
+    def test_format_request_excludes_none_fields(self, adapter):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(embeddings=True)
+        original_request.body.dimensions = None
+
+        # Act
+        result = adapter.format_request(original_request)
+
+        # Assert
+        assert "dimensions" not in result.body
+        assert "model" in result.body
+        assert "input" in result.body
+
+    @pytest.mark.parametrize(
         argnames=("adapter", "method"),
         argvalues=[("tei_embeddings_adapter", HTTPMethod.POST), ("vllm_embeddings_adapter", HTTPMethod.POST)],
         indirect=["adapter"],

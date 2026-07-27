@@ -31,7 +31,7 @@ class HttpProviderAdapter(ProviderAdapter):
         formatted_request = ProviderFormattedRequest(
             method=self.TARGET_ENDPOINT_METHOD,
             url=target_url,
-            body=original_request.body.model_dump() if original_request.body else {},
+            body=original_request.body.model_dump(exclude_none=True) if original_request.body else {},
             form=original_request.form if original_request.form else {},
             files=original_request.files if original_request.files else {},
         )

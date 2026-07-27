@@ -36,14 +36,14 @@ def mock_models_responses(respx_mock, provider_type: ProviderType, body: factory
     respx_mock.get(url=url).mock(return_value=httpx.Response(status_code=status_code, json=body))
 
 
-def mock_embeddings_responses(respx_mock, provider_type: ProviderType, body: factory.DictFactory, status_code: int) -> None:
+def mock_embeddings_responses(respx_mock, provider_type: ProviderType, body: factory.DictFactory, status_code: int):
     url = urljoin(DEFAULT_PROVIDER_URL, url=EMBEDDINGS_ENDPOINT_BY_PROVIDER[provider_type])
-    respx_mock.post(url=url).mock(return_value=httpx.Response(status_code=status_code, json=body))
+    return respx_mock.post(url=url).mock(return_value=httpx.Response(status_code=status_code, json=body))
 
 
-def mock_rerank_responses(respx_mock, provider_type: ProviderType, body: list | factory.Factory, status_code: int) -> None:
+def mock_rerank_responses(respx_mock, provider_type: ProviderType, body: list | factory.Factory, status_code: int):
     url = urljoin(DEFAULT_PROVIDER_URL, RERANK_ENDPOINT_BY_PROVIDER[provider_type])
-    respx_mock.post(url=url).mock(return_value=httpx.Response(status_code=status_code, json=body))
+    return respx_mock.post(url=url).mock(return_value=httpx.Response(status_code=status_code, json=body))
 
 
 def mock_metrics_responses(respx_mock, provider_type: ProviderType, text: str, status_code: int) -> None:

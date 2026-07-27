@@ -181,6 +181,23 @@ class TestRerankAdapter:
         assert result.body["model"] == provider_model_name
 
     @pytest.mark.parametrize(
+        argnames=("adapter"),
+        argvalues=["tei_rerank_adapter", "vllm_rerank_adapter"],
+        indirect=["adapter"],
+    )
+    def test_format_request_excludes_none_fields(self, adapter):
+        # Arrange
+        original_request = ProviderOriginalRequestFactory(rerank=True)
+        original_request.body.top_n = None
+
+        # Act
+        result = adapter.format_request(original_request)
+
+        # Assert
+        assert "top_n" not in result.body
+        assert "query" in result.body
+
+    @pytest.mark.parametrize(
         argnames=("adapter", "method"),
         argvalues=[("tei_rerank_adapter", HTTPMethod.POST), ("vllm_rerank_adapter", HTTPMethod.POST)],
         indirect=["adapter"],

@@ -24,7 +24,7 @@ from api.utils.variables import EndpointRoute
 
 
 class CreateRerankCommand(CreateRerankBody):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="allow")
 
     request_context: ContextVar[RequestContext]
 
@@ -112,7 +112,7 @@ class CreateRerankUseCase:
         adapter = self.provider_adapter_builder.build(endpoint=EndpointRoute.RERANK, provider=provider)
         original_request = ProviderOriginalRequest(
             endpoint=EndpointRoute.RERANK,
-            body=CreateRerankBody(query=command.query, documents=command.documents, model=command.model, top_n=command.top_n),
+            body=CreateRerankBody.model_validate(command.model_dump(exclude={"request_context"})),
         )
         prompt_tokens = self.model_tokenizer.compute_tokens(texts=original_request.body.get_prompts())
 

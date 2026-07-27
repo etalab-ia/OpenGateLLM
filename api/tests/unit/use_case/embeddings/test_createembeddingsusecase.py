@@ -749,3 +749,44 @@ class TestCreateEmbeddingsUseCase:
             total_tokens=15,
             cost=result.data.usage.cost,
         )
+
+    @pytest.mark.asyncio
+    async def test_should_forward_extra_fields_to_provider_adapter_without_raising(
+        self,
+        use_case,
+        provider_adapter_builder,
+        request_context,
+        admin_user,
+        mock_successful_embeddings_flow,
+    ):
+        # Arrange
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image_url", "image_url": {"url": "https://example.com/image.jpg"}},
+                    {"type": "text", "text": "Represent the given image."},
+                ],
+            }
+        ]
+        request_context.set(RequestContext(user=admin_user))
+        command = CreateEmbeddingsCommand(
+            input=None,
+            model="embeddings-router",
+            messages=messages,
+            continue_final_message=True,
+            add_special_tokens=True,
+            request_context=request_context,
+        )
+
+        # Act
+        result = await use_case.execute(command=command)
+
+        # Assert
+        assert isinstance(result, CreateEmbeddingsUseCaseSuccess)
+        original_request = provider_adapter_builder.build.return_value.format_request.call_args.kwargs["original_request"]
+        body = original_request.body.model_dump()
+        assert body["messages"] == messages
+        assert body["continue_final_message"] is True
+        assert body["add_special_tokens"] is True
+        assert body["input"] is None

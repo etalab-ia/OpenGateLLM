@@ -748,3 +748,40 @@ class TestCreateRerankUseCase:
             total_tokens=15,
             cost=result.data.usage.cost,
         )
+
+    @pytest.mark.asyncio
+    async def test_should_forward_extra_fields_to_provider_adapter_without_raising(
+        self,
+        use_case,
+        provider_adapter_builder,
+        request_context,
+        admin_user,
+        mock_successful_rerank_flow,
+    ):
+        # Arrange
+        request_context.set(RequestContext(user=admin_user))
+        command = CreateRerankCommand(
+            query="query",
+            documents=["doc a", "doc b"],
+            model="rerank-router",
+            top_n=2,
+            truncate=True,
+            return_text=True,
+            raw_scores=False,
+            truncation_direction="left",
+            request_context=request_context,
+        )
+
+        # Act
+        result = await use_case.execute(command=command)
+
+        # Assert
+        assert isinstance(result, CreateRerankUseCaseSuccess)
+        original_request = provider_adapter_builder.build.return_value.format_request.call_args.kwargs["original_request"]
+        body = original_request.body.model_dump()
+        assert body["truncate"] is True
+        assert body["return_text"] is True
+        assert body["raw_scores"] is False
+        assert body["truncation_direction"] == "left"
+        assert body["query"] == "query"
+        assert body["documents"] == ["doc a", "doc b"]
