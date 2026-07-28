@@ -11,7 +11,6 @@ from api.domain.key import KeyEncoder, KeyRepository
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.provider import (
     ProviderAdapterBuilder,
-    ProviderCapabilitiesRepository,
     ProviderClient,
     ProviderLoadBalancer,
     ProviderMetricsLogger,
@@ -55,6 +54,7 @@ from api.use_cases.embeddings import CreateEmbeddingsUseCase
 from api.use_cases.health import GetHealthModelsUseCase
 from api.use_cases.models import GetModelsUseCase, GetModelUseCase
 from api.use_cases.reranks import CreateRerankUseCase
+from api.use_cases.services import ProviderCapabilitiesProbe
 from api.utils.configuration import configuration
 from api.utils.context import global_context
 
@@ -162,11 +162,11 @@ def _provider_repository(session: AsyncSession) -> ProviderRepository:
     return PostgresProviderRepository(postgres_session=session)
 
 
-def _provider_capabilities_repository(
+def _provider_capabilities_probe(
     provider_client: ProviderClient = Depends(_provider_client),
     provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
-) -> ProviderCapabilitiesRepository:
-    return ProviderCapabilitiesRepository(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
+) -> ProviderCapabilitiesProbe:
+    return ProviderCapabilitiesProbe(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
 
 
 # health use cases
@@ -361,12 +361,12 @@ def update_router_use_case_factory(postgres_session: AsyncSession = Depends(get_
 # provider use cases
 def create_provider_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
-    provider_capabilities_repository: ProviderCapabilitiesRepository = Depends(_provider_capabilities_repository),
+    provider_capabilities_probe: ProviderCapabilitiesProbe = Depends(_provider_capabilities_probe),
 ) -> CreateProviderUseCase:
     return CreateProviderUseCase(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
-        provider_capabilities_repository=provider_capabilities_repository,
+        provider_capabilities_probe=provider_capabilities_probe,
     )
 
 

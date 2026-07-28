@@ -1,20 +1,18 @@
 from api.domain.embeddings.entities import CreateEmbeddingsBody
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import ModelNotFoundError
-from api.domain.provider._provideradapter import ProviderAdapter
-from api.domain.provider._provideradapterbuilder import ProviderAdapterBuilder
-from api.domain.provider._providerclient import ProviderClient
+from api.domain.provider import ProviderAdapter, ProviderAdapterBuilder, ProviderClient
 from api.domain.provider.entities import Provider, ProviderCapabilities, ProviderOriginalRequest, ProviderOriginalResponse, ProviderType
 from api.domain.provider.errors import ProviderNotReachableError
 from api.utils.variables import EndpointRoute
 
 
-class ProviderCapabilitiesRepository:
+class ProviderCapabilitiesProbe:
     def __init__(self, provider_client: ProviderClient, provider_adapter_builder: ProviderAdapterBuilder):
         self.provider_client = provider_client
         self.provider_adapter_builder = provider_adapter_builder
 
-    async def get_provider_capabilities(
+    async def get_capabilities(
         self,
         router_type: RouterType,
         provider_type: ProviderType,

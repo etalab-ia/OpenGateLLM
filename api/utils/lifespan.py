@@ -9,7 +9,6 @@ from tiktoken.core import Encoding
 
 from api.dependencies import get_postgres_session
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
-from api.domain.provider import ProviderCapabilitiesRepository
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.helpers._identityaccessmanager import IdentityAccessManager
@@ -36,6 +35,7 @@ from api.use_cases.admin import (
     BootstrapAdminUseCaseSuccess,
 )
 from api.use_cases.models import BootstrapModelsUseCase, BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
+from api.use_cases.services import ProviderCapabilitiesProbe
 from api.utils.configuration import get_configuration
 from api.utils.context import global_context
 from api.utils.logging import init_logger
@@ -122,7 +122,7 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
 async def bootstrap_models(configuration: Configuration, postgres_session: AsyncSession, bootstrap_admin_user_id: int) -> int:
     router_repository = PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title)
     provider_repository = PostgresProviderRepository(postgres_session=postgres_session)
-    provider_capabilities_repository = ProviderCapabilitiesRepository(
+    provider_capabilities_probe = ProviderCapabilitiesProbe(
         provider_client=HttpProviderClient(),
         provider_adapter_builder=HttpProviderAdapterBuilder(),
     )
@@ -130,7 +130,7 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
     result = await BootstrapModelsUseCase(
         router_repository=router_repository,
         provider_repository=provider_repository,
-        provider_capabilities_repository=provider_capabilities_repository,
+        provider_capabilities_probe=provider_capabilities_probe,
     ).execute(routers_to_create=configuration.models, bootstrap_admin_user_id=bootstrap_admin_user_id)
 
     match result:

@@ -7,7 +7,7 @@ import respx
 
 from api.dependencies import create_provider_use_case_factory
 from api.domain.model.entities import ModelType as RouterType
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
 from api.domain.router.errors import RouterNotFoundError
@@ -83,6 +83,11 @@ class TestCreateProvider:
                 ProviderNotReachableError(model_name="my-model", status_code=500, detail="error_detail"),
                 424,
                 "Model provider my-model not reachable (500): error_detail",
+            ),
+            (
+                ModelNotFoundError(name="my-model"),
+                404,
+                "Model my-model not found.",
             ),
             (
                 ProviderAlreadyExistsError(model_name="my-model", url=DEFAULT_PROVIDER_URL, router_id=1),

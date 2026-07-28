@@ -6,7 +6,6 @@ import pytest
 from api.domain.model.entities import Model, Models
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import ModelNotFoundError, StatusCodeModelError
-from api.domain.provider import ProviderCapabilitiesRepository
 from api.domain.provider.entities import ProviderCapabilities, ProviderFormattedResponse, ProviderOriginalResponse, ProviderType
 from api.domain.provider.errors import ProviderNotReachableError
 from api.infrastructure.http import HttpProviderAdapterBuilder
@@ -17,6 +16,7 @@ from api.infrastructure.http.adapters.models.albert import AlbertModelsAdapter
 from api.tests.integration.factories.albert import AlbertModelResponseFactory, AlbertModelsResponseFactory
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory
 from api.tests.unit.use_case.factories import ProviderFactory
+from api.use_cases.services import ProviderCapabilitiesProbe
 
 DEFAULT_PROVIDER_URL = "https://test.com"
 DEFAULT_MODEL_ID = "test-model"
@@ -35,8 +35,8 @@ def provider_adapter_builder() -> HttpProviderAdapterBuilder:
 
 
 @pytest.fixture
-def repository(provider_client: Mock, provider_adapter_builder: HttpProviderAdapterBuilder) -> ProviderCapabilitiesRepository:
-    return ProviderCapabilitiesRepository(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
+def probe(provider_client: Mock, provider_adapter_builder: HttpProviderAdapterBuilder) -> ProviderCapabilitiesProbe:
+    return ProviderCapabilitiesProbe(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
 
 
 def provider_factory(provider_type: ProviderType = ProviderType.ALBERT, model_name: str = DEFAULT_MODEL_ID):
@@ -51,13 +51,13 @@ def embeddings_adapter() -> TeiEmbeddingsAdapter:
     return TeiEmbeddingsAdapter(provider=provider_factory(provider_type=ProviderType.TEI))
 
 
-class TestProviderCapabilitiesRepository:
+class TestProviderCapabilitiesProbe:
     @pytest.mark.asyncio
-    async def test_should_get_capabilities_for_generation_router(self, repository: ProviderCapabilitiesRepository, mocker):
-        mocked_get_max_context_length = mocker.patch.object(ProviderCapabilitiesRepository, "_get_max_context_length", AsyncMock(return_value=4096))
-        mocked_get_vector_size = mocker.patch.object(ProviderCapabilitiesRepository, "_get_vector_size", AsyncMock())
+    async def test_should_get_capabilities_for_generation_router(self, probe: ProviderCapabilitiesProbe, mocker):
+        mocked_get_max_context_length = mocker.patch.object(ProviderCapabilitiesProbe, "_get_max_context_length", AsyncMock(return_value=4096))
+        mocked_get_vector_size = mocker.patch.object(ProviderCapabilitiesProbe, "_get_vector_size", AsyncMock())
 
-        result = await repository.get_provider_capabilities(
+        result = await probe.get_capabilities(
             router_type=RouterType.TEXT_GENERATION,
             provider_type=ProviderType.ALBERT,
             url=DEFAULT_PROVIDER_URL,
@@ -75,11 +75,11 @@ class TestProviderCapabilitiesRepository:
         mocked_get_vector_size.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_get_capabilities_for_embedding_router(self, repository: ProviderCapabilitiesRepository, mocker):
-        mocked_get_max_context_length = mocker.patch.object(ProviderCapabilitiesRepository, "_get_max_context_length", AsyncMock(return_value=2048))
-        mocked_get_vector_size = mocker.patch.object(ProviderCapabilitiesRepository, "_get_vector_size", AsyncMock(return_value=3))
+    async def test_should_get_capabilities_for_embedding_router(self, probe: ProviderCapabilitiesProbe, mocker):
+        mocked_get_max_context_length = mocker.patch.object(ProviderCapabilitiesProbe, "_get_max_context_length", AsyncMock(return_value=2048))
+        mocked_get_vector_size = mocker.patch.object(ProviderCapabilitiesProbe, "_get_vector_size", AsyncMock(return_value=3))
 
-        result = await repository.get_provider_capabilities(
+        result = await probe.get_capabilities(
             router_type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
             provider_type=ProviderType.TEI,
             url=DEFAULT_PROVIDER_URL,
@@ -100,10 +100,10 @@ class TestProviderCapabilitiesRepository:
         "error",
         [ProviderNotReachableError(model_name=DEFAULT_MODEL_ID, status_code=500, detail="error_detail"), ModelNotFoundError(name=DEFAULT_MODEL_ID)],
     )
-    async def test_should_return_max_context_error(self, repository: ProviderCapabilitiesRepository, error, mocker):
-        mocker.patch.object(ProviderCapabilitiesRepository, "_get_max_context_length", AsyncMock(return_value=error))
+    async def test_should_return_max_context_error(self, probe: ProviderCapabilitiesProbe, error, mocker):
+        mocker.patch.object(ProviderCapabilitiesProbe, "_get_max_context_length", AsyncMock(return_value=error))
 
-        result = await repository.get_provider_capabilities(
+        result = await probe.get_capabilities(
             router_type=RouterType.TEXT_GENERATION,
             provider_type=ProviderType.ALBERT,
             url=DEFAULT_PROVIDER_URL,
@@ -115,12 +115,12 @@ class TestProviderCapabilitiesRepository:
         assert result == error
 
     @pytest.mark.asyncio
-    async def test_should_return_vector_size_error(self, repository: ProviderCapabilitiesRepository, mocker):
+    async def test_should_return_vector_size_error(self, probe: ProviderCapabilitiesProbe, mocker):
         error = ProviderNotReachableError(model_name=DEFAULT_MODEL_ID, status_code=500, detail="error_detail")
-        mocker.patch.object(ProviderCapabilitiesRepository, "_get_max_context_length", AsyncMock(return_value=4096))
-        mocker.patch.object(ProviderCapabilitiesRepository, "_get_vector_size", AsyncMock(return_value=error))
+        mocker.patch.object(ProviderCapabilitiesProbe, "_get_max_context_length", AsyncMock(return_value=4096))
+        mocker.patch.object(ProviderCapabilitiesProbe, "_get_vector_size", AsyncMock(return_value=error))
 
-        result = await repository.get_provider_capabilities(
+        result = await probe.get_capabilities(
             router_type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
             provider_type=ProviderType.TEI,
             url=DEFAULT_PROVIDER_URL,
@@ -132,14 +132,14 @@ class TestProviderCapabilitiesRepository:
         assert result == error
 
     @pytest.mark.asyncio
-    async def test_should_get_max_context_length_when_model_id_is_found(self, repository: ProviderCapabilitiesRepository, provider_client: Mock):
+    async def test_should_get_max_context_length_when_model_id_is_found(self, probe: ProviderCapabilitiesProbe, provider_client: Mock):
         body = AlbertModelsResponseFactory(
             count=2,
             data=[AlbertModelResponseFactory(model=DEFAULT_MODEL_ID, aliases=["test-model-alias"], max_context_length=10)],
         )
         provider_client.forward_request.return_value = ProviderOriginalResponse(data=body)
 
-        result = await repository._get_max_context_length(adapter=models_adapter())
+        result = await probe._get_max_context_length(adapter=models_adapter())
 
         assert result == 10
         provider_client.forward_request.assert_awaited_once()
@@ -148,7 +148,7 @@ class TestProviderCapabilitiesRepository:
         assert formatted_request.url == f"{DEFAULT_PROVIDER_URL}/v1/models"
 
     @pytest.mark.asyncio
-    async def test_should_get_max_context_length_when_model_alias_is_found(self, repository: ProviderCapabilitiesRepository, provider_client: Mock):
+    async def test_should_get_max_context_length_when_model_alias_is_found(self, probe: ProviderCapabilitiesProbe, provider_client: Mock):
         adapter = Mock()
         adapter.provider = provider_factory(model_name="model-alias")
         adapter.format_request.return_value = Mock()
@@ -176,13 +176,13 @@ class TestProviderCapabilitiesRepository:
         )
         provider_client.forward_request.return_value = ProviderOriginalResponse(data={})
 
-        result = await repository._get_max_context_length(adapter=adapter)
+        result = await probe._get_max_context_length(adapter=adapter)
 
         assert result == 10
 
     @pytest.mark.asyncio
     async def test_should_return_the_first_model_max_context_length_when_several_models_with_the_same_name_are_found(
-        self, repository: ProviderCapabilitiesRepository, provider_client: Mock
+        self, probe: ProviderCapabilitiesProbe, provider_client: Mock
     ):
         body = AlbertModelsResponseFactory(
             data=[
@@ -192,47 +192,43 @@ class TestProviderCapabilitiesRepository:
         )
         provider_client.forward_request.return_value = ProviderOriginalResponse(data=body)
 
-        result = await repository._get_max_context_length(adapter=models_adapter())
+        result = await probe._get_max_context_length(adapter=models_adapter())
 
         assert result == 10
 
     @pytest.mark.asyncio
-    async def test_should_return_model_not_found_when_models_response_is_empty(
-        self, repository: ProviderCapabilitiesRepository, provider_client: Mock
-    ):
+    async def test_should_return_model_not_found_when_models_response_is_empty(self, probe: ProviderCapabilitiesProbe, provider_client: Mock):
         provider_client.forward_request.return_value = ProviderOriginalResponse(data=AlbertModelsResponseFactory(data=[]))
 
-        result = await repository._get_max_context_length(adapter=models_adapter())
+        result = await probe._get_max_context_length(adapter=models_adapter())
 
         assert result == ModelNotFoundError(name=DEFAULT_MODEL_ID)
 
     @pytest.mark.asyncio
     async def test_should_return_model_not_found_when_model_is_missing_in_models_response(
-        self, repository: ProviderCapabilitiesRepository, provider_client: Mock
+        self, probe: ProviderCapabilitiesProbe, provider_client: Mock
     ):
         provider_client.forward_request.return_value = ProviderOriginalResponse(data=AlbertModelsResponseFactory(data=[AlbertModelResponseFactory()]))
 
-        result = await repository._get_max_context_length(adapter=models_adapter())
+        result = await probe._get_max_context_length(adapter=models_adapter())
 
         assert result == ModelNotFoundError(name=DEFAULT_MODEL_ID)
 
     @pytest.mark.asyncio
-    async def test_should_return_provider_not_reachable_when_getting_max_context_fails(
-        self, repository: ProviderCapabilitiesRepository, provider_client: Mock
-    ):
+    async def test_should_return_provider_not_reachable_when_getting_max_context_fails(self, probe: ProviderCapabilitiesProbe, provider_client: Mock):
         provider_client.forward_request.return_value = StatusCodeModelError(status_code=500, detail="boom")
 
-        result = await repository._get_max_context_length(adapter=models_adapter())
+        result = await probe._get_max_context_length(adapter=models_adapter())
 
         assert result == ProviderNotReachableError(model_name=DEFAULT_MODEL_ID, status_code=500, detail="boom")
 
     @pytest.mark.asyncio
-    async def test_should_get_vector_size(self, repository: ProviderCapabilitiesRepository, provider_client: Mock):
+    async def test_should_get_vector_size(self, probe: ProviderCapabilitiesProbe, provider_client: Mock):
         provider_client.forward_request.return_value = ProviderOriginalResponse(
             data=TeiEmbeddingsResponseFactory(dimensions=3, model_id=DEFAULT_MODEL_ID)
         )
 
-        result = await repository._get_vector_size(adapter=embeddings_adapter())
+        result = await probe._get_vector_size(adapter=embeddings_adapter())
 
         assert result == 3
         provider_client.forward_request.assert_awaited_once()
@@ -242,11 +238,9 @@ class TestProviderCapabilitiesRepository:
         assert formatted_request.body["model"] == DEFAULT_MODEL_ID
 
     @pytest.mark.asyncio
-    async def test_should_return_provider_not_reachable_when_getting_vector_size_fails(
-        self, repository: ProviderCapabilitiesRepository, provider_client: Mock
-    ):
+    async def test_should_return_provider_not_reachable_when_getting_vector_size_fails(self, probe: ProviderCapabilitiesProbe, provider_client: Mock):
         provider_client.forward_request.return_value = StatusCodeModelError(status_code=500, detail="boom")
 
-        result = await repository._get_vector_size(adapter=embeddings_adapter())
+        result = await probe._get_vector_size(adapter=embeddings_adapter())
 
         assert result == ProviderNotReachableError(model_name=DEFAULT_MODEL_ID, status_code=500, detail="boom")
