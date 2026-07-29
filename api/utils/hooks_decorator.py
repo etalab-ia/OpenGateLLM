@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime
 import functools
 import logging
+import re
 
 from fastapi import HTTPException, Request, Response
 from sqlalchemy import func, select, update
@@ -14,6 +15,17 @@ from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
 
 logger = logging.getLogger(__name__)
+
+
+def _observation_name(endpoint: str | None) -> str | None:
+    """Normalize the request path into a stable observation name (e.g. "/v1/chat/completions" -> "chat-completions").
+
+    Keeps Langfuse trace names consistent across success and failure: the root span, the child generation
+    (see ObservationName) and therefore the trace all share the same slug, whichever observations get created.
+    """
+    if not endpoint:
+        return None
+    return re.sub(r"^/v\d+/", "", endpoint).strip("/").replace("/", "-")
 
 
 def hooks(func):
@@ -45,7 +57,7 @@ def hooks(func):
         langfuse_obs = None
         if global_context.langfuse_client is not None:
             try:
-                langfuse_obs = global_context.langfuse_client.start_observation(as_type="span")
+                langfuse_obs = global_context.langfuse_client.start_observation(as_type="span", name=_observation_name(context.endpoint))
                 context.langfuse_trace_id = langfuse_obs.trace_id
                 context.langfuse_parent_span_id = langfuse_obs.id
             except Exception:
@@ -65,7 +77,7 @@ def hooks(func):
             usage.status = e.status_code
             asyncio.create_task(log_usage(usage=usage))
             if global_context.langfuse_client is not None and langfuse_obs is not None:
-                global_context.langfuse_client.end_root_observation(langfuse_obs=langfuse_obs, status=e.status_code, error=e.detail)
+                global_context.langfuse_client.end_root_observation(langfuse_obs=langfuse_obs, status=e.status_code, error=str(e.detail))
             raise e  # Re-raise the exception for FastAPI to handle
 
     return wrapper
