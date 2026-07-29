@@ -7,14 +7,12 @@ from api.dependencies import (
     create_router_use_case_factory,
     delete_router_use_case_factory,
     get_one_router_use_case_factory,
-    get_request_context,
     get_routers_use_case_factory,
     update_router_use_case_factory,
 )
 from api.domain import SortField, SortOrder
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
-from api.infrastructure.context import RequestContext
-from api.infrastructure.fastapi import AccessController
+from api.infrastructure.fastapi import AccessController, RequestContext, get_request_context
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (

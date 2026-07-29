@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 import tiktoken
 from tiktoken.core import Encoding
 
-from api.dependencies import get_postgres_session
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
@@ -18,6 +17,7 @@ from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
+from api.infrastructure.dependencies import get_postgres_session
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.postgres import (
     PostgresLimitRepository,

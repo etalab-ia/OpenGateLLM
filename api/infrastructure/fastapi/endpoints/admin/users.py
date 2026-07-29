@@ -6,7 +6,6 @@ from fastapi import Body, Depends, Path, Query, Security
 from api.dependencies import (
     create_user_use_case_factory,
     delete_user_use_case_factory,
-    get_authenticated_user,
     get_one_user_use_case_factory,
     get_users_use_case_factory,
     update_user_use_case_factory,
@@ -23,7 +22,7 @@ from api.domain.user.errors import (
     UserNotFoundError,
 )
 from api.domain.user.views import AuthenticatedUserView
-from api.infrastructure.fastapi import AccessController
+from api.infrastructure.fastapi import AccessController, get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (

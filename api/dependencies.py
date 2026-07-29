@@ -1,9 +1,4 @@
-from collections.abc import AsyncGenerator
-from contextvars import ContextVar
-from typing import Any
-
 from fastapi import Depends
-import redis.asyncio as redis
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,14 +15,19 @@ from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
 from api.domain.usage import UsageRecorder
 from api.domain.user import UserPasswordEncoder
-from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
-from api.infrastructure.context import RequestContextUsageRecorder, request_context
+from api.infrastructure.dependencies import (
+    _key_encoder,
+    _key_repository,
+    get_postgres_session,
+    get_redis_client,
+)
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
+from api.infrastructure.fastapi import RequestContextUsageRecorder, request_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
+from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.postgres import (
-    PostgresAuthenticatedUserQuery,
     PostgresKeyRepository,
     PostgresLimitRepository,
     PostgresPermissionRepository,
@@ -38,7 +38,6 @@ from api.infrastructure.postgres import (
 )
 from api.infrastructure.redis import RedisProviderLoadBalancer, RedisProviderMetricsLogger, RedisRouterRateLimiter
 from api.infrastructure.tiktoken import TiktokenModelTokenizer
-from api.schemas.core.context import RequestContext
 from api.use_cases.admin.keys import CreateKeyUseCase, GetKeysUseCase, GetOneKeyUseCase
 from api.use_cases.admin.providers import (
     CreateProviderUseCase,
@@ -61,48 +60,11 @@ from api.utils.configuration import configuration
 from api.utils.context import global_context
 
 
-def get_request_context() -> ContextVar[RequestContext]:
-    return request_context
-
-
-def get_authenticated_user() -> AuthenticatedUserView:
-    return request_context.get().user
-
-
 def get_secret_key() -> str:
     return configuration.settings.auth_secret_key
 
 
-# databases
-async def get_postgres_session() -> AsyncGenerator[AsyncSession]:
-    session_factory = global_context.postgres_session_factory
-    async with session_factory() as postgres_session:
-        try:
-            yield postgres_session
-            if postgres_session.in_transaction():
-                await postgres_session.commit()
-        except Exception:
-            if postgres_session.in_transaction():
-                await postgres_session.rollback()
-            raise
-
-
-async def get_redis_client() -> AsyncGenerator[Redis, Any]:
-    client = redis.Redis(connection_pool=global_context.redis_pool)
-    yield client
-    await client.aclose()
-
-
-# queries
-def _authenticated_user_query(session: AsyncSession = Depends(get_postgres_session)) -> PostgresAuthenticatedUserQuery:
-    return PostgresAuthenticatedUserQuery(postgres_session=session)
-
-
 # helpers
-def _key_encoder() -> KeyEncoder:
-    return JwtKeyEncoder(secret_key=configuration.settings.auth_secret_key)
-
-
 def _model_tokenizer() -> ModelTokenizer:
     return TiktokenModelTokenizer(model=global_context._tokenizer)
 
@@ -140,10 +102,6 @@ def _usage_recorder() -> UsageRecorder:
 
 
 # repositories
-def _key_repository(key_encoder: KeyEncoder = Depends(_key_encoder), session: AsyncSession = Depends(get_postgres_session)) -> KeyRepository:
-    return PostgresKeyRepository(key_encoder=key_encoder, postgres_session=session)
-
-
 def _user_repository(session: AsyncSession) -> PostgresUserRepository:
     return PostgresUserRepository(postgres_session=session)
 

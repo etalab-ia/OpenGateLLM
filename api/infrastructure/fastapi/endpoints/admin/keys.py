@@ -7,8 +7,7 @@ from api.dependencies import create_key_use_case_factory, get_keys_use_case_fact
 from api.domain import SortField, SortOrder
 from api.domain.key.errors import KeyAlreadyExistsError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
-from api.infrastructure.context import RequestContext
-from api.infrastructure.fastapi import AccessController
+from api.infrastructure.fastapi import AccessController, RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (

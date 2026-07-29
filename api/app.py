@@ -6,7 +6,7 @@ import sentry_sdk
 from starlette.middleware.sessions import SessionMiddleware
 
 from api.endpoints.monitoring import setup_prometheus
-from api.infrastructure.context import RequestContext, request_context
+from api.infrastructure.fastapi import RequestContext, request_context
 from api.schemas.core.context import RequestContext as LegacyRequestContext
 from api.schemas.usage import Usage
 from api.utils.configuration import Configuration, get_configuration

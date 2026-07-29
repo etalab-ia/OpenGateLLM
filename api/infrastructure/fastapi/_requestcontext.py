@@ -35,3 +35,11 @@ class RequestContext(BaseModel):
 
 
 request_context: ContextVar[RequestContext] = ContextVar("request_context", default=RequestContext())
+
+
+def get_request_context() -> ContextVar[RequestContext]:
+    return request_context
+
+
+def get_authenticated_user() -> AuthenticatedUserView:
+    return request_context.get().user

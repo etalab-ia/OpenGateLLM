@@ -1,7 +1,7 @@
 from contextvars import ContextVar
 
 from api.domain.usage import UsageRecorder
-from api.infrastructure.context._requestcontext import RequestContext
+from api.infrastructure.fastapi._requestcontext import RequestContext
 
 
 class RequestContextUsageRecorder(UsageRecorder):

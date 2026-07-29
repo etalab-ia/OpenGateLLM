@@ -3,10 +3,9 @@ import logging
 from fastapi import APIRouter, Depends, Path, Security
 from fastapi.responses import JSONResponse
 
-from api.dependencies import get_model_use_case_factory, get_models_use_case_factory, get_request_context
+from api.dependencies import get_model_use_case_factory, get_models_use_case_factory
 from api.domain.model.errors import ModelNotFoundError
-from api.infrastructure.context import RequestContext
-from api.infrastructure.fastapi import AccessController
+from api.infrastructure.fastapi import AccessController, RequestContext, get_request_context
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import InternalServerHTTPException, ModelNotFoundHTTPException
 from api.infrastructure.fastapi.schemas.models import Model, ModelsResponse
