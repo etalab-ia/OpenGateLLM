@@ -1,9 +1,8 @@
-from contextvars import ContextVar
 from dataclasses import dataclass
 import time
-from typing import Any, ClassVar
+from typing import ClassVar
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 from api.domain.key.errors import InvalidKeyError, KeyNotFoundError
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
@@ -15,20 +14,16 @@ from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapter
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
+from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
-from api.infrastructure.fastapi.context import RequestContext
+from api.domain.user.views import AuthenticatedUserView
 from api.schemas.core.models import Metric
 from api.utils.variables import EndpointRoute
 
 
-class RequestContextCarrier(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    request_context: ContextVar[RequestContext]
-
-    def set_value_in_request_context(self, key: str, value: Any) -> None:
-        setattr(self.request_context.get(), key, value)
+class ForwardingCommand(BaseModel):
+    authenticated_user: AuthenticatedUserView
 
 
 @dataclass
@@ -56,7 +51,7 @@ type ForwardingUseCaseResult[TData] = (
 )
 
 
-class ForwardingUseCase[TCommand: RequestContextCarrier, TData]:
+class ForwardingUseCase[TCommand: ForwardingCommand, TData]:
     ROUTER_TYPE: ClassVar[RouterType]
     ENDPOINT: ClassVar[EndpointRoute]
     BODY_TYPE: ClassVar[type[BaseModel]]
@@ -72,6 +67,7 @@ class ForwardingUseCase[TCommand: RequestContextCarrier, TData]:
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
+        usage_recorder: UsageRecorder,
     ) -> None:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
         self.model_tokenizer = model_tokenizer
@@ -84,6 +80,8 @@ class ForwardingUseCase[TCommand: RequestContextCarrier, TData]:
         self.router_rate_limiter = router_rate_limiter
         self.router_repository = router_repository
 
+        self.usage_recorder = usage_recorder
+
     def _completion_tokens(self, data: TData) -> int:
         return 0
 
@@ -91,7 +89,7 @@ class ForwardingUseCase[TCommand: RequestContextCarrier, TData]:
         return router.is_prompt_billable
 
     async def execute(self, command: TCommand) -> ForwardingUseCaseResult[TData]:
-        authenticated_user = command.request_context.get().user
+        authenticated_user = command.authenticated_user
         result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=command.model)
         match result:
             case Router() as router:
@@ -99,8 +97,7 @@ class ForwardingUseCase[TCommand: RequestContextCarrier, TData]:
             case error:
                 return error
 
-        command.set_value_in_request_context(key="router_id", value=router.id)
-        command.set_value_in_request_context(key="router_name", value=router.name)
+        self.usage_recorder.record_router(router_id=router.id, router_name=router.name)
 
         if router.has_no_providers:
             return RouterHasNoProvidersError(id=router.id)
@@ -115,13 +112,12 @@ class ForwardingUseCase[TCommand: RequestContextCarrier, TData]:
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
         provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
 
-        command.set_value_in_request_context(key="provider_id", value=provider.id)
-        command.set_value_in_request_context(key="provider_model_name", value=provider.model_name)
+        self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
 
         adapter = self.provider_adapter_builder.build(endpoint=self.ENDPOINT, provider=provider)
         original_request = ProviderOriginalRequest(
             endpoint=self.ENDPOINT,
-            body=self.BODY_TYPE(**command.model_dump(exclude={"request_context"})),
+            body=self.BODY_TYPE(**command.model_dump(exclude={"authenticated_user"})),
         )
         prompt_tokens = self.model_tokenizer.compute_tokens(texts=original_request.body.get_prompts())
 
@@ -206,9 +202,11 @@ class ForwardingUseCase[TCommand: RequestContextCarrier, TData]:
             case ProviderAdapterValidationResponseError() as error:
                 return error
 
-        command.set_value_in_request_context(key="id", value=formatted_response.data.id)
-        command.set_value_in_request_context(key="prompt_tokens", value=prompt_tokens)
-        command.set_value_in_request_context(key="total_tokens", value=prompt_tokens + completion_tokens)
-        command.set_value_in_request_context(key="cost", value=formatted_response.data.usage.cost)
+        self.usage_recorder.record_usage(
+            request_id=formatted_response.data.id,
+            prompt_tokens=prompt_tokens,
+            total_tokens=prompt_tokens + completion_tokens,
+            cost=formatted_response.data.usage.cost,
+        )
 
         return ForwardingUseCaseSuccess(data=formatted_response.data, headers=rate_limit_state.build_limit_headers)

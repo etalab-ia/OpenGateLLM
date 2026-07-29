@@ -1,11 +1,11 @@
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.ocr.entities import OCR, CreateOCRBody
 from api.domain.router.entities import Router
-from api.use_cases._forwarding import ForwardingUseCase, ForwardingUseCaseSuccess, RequestContextCarrier
+from api.use_cases._forwarding import ForwardingCommand, ForwardingUseCase, ForwardingUseCaseSuccess
 from api.utils.variables import EndpointRoute
 
 
-class CreateOCRCommand(CreateOCRBody, RequestContextCarrier): ...
+class CreateOCRCommand(CreateOCRBody, ForwardingCommand): ...
 
 
 CreateOCRUseCaseSuccess = ForwardingUseCaseSuccess

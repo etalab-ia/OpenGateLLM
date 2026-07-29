@@ -14,8 +14,8 @@ from api.dependencies import (
 from api.domain import SortField, SortOrder
 from api.domain.role.entities import Limit
 from api.domain.role.errors import RoleAlreadyExistsError, RoleHasUsersError, RoleNotFoundError
+from api.infrastructure.context import RequestContext
 from api.infrastructure.fastapi import AccessController
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (

@@ -13,8 +13,8 @@ from api.dependencies import (
 )
 from api.domain import SortField, SortOrder
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
+from api.infrastructure.context import RequestContext
 from api.infrastructure.fastapi import AccessController
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (

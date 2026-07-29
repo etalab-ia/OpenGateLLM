@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.infrastructure.fastapi.context import request_context
+from api.infrastructure.context import request_context
 from api.sql.models import Usage, User
 from api.utils.configuration import configuration
 

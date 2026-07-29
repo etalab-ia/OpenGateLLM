@@ -1,4 +1,3 @@
-from contextvars import ContextVar
 import datetime as dt
 from http import HTTPMethod
 from unittest.mock import AsyncMock, MagicMock, call, create_autospec, patch
@@ -25,9 +24,9 @@ from api.domain.router.errors import (
     RouterNotFoundError,
     RouterRateLimitExceededError,
 )
+from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.tests.integration.factories.vllm import VllmRerankResponseFactory
 from api.tests.unit.use_case.factories import AutenticatedUserFactor, ProviderFactory, RouterFactory
@@ -79,6 +78,11 @@ def router_rate_limiter():
 
 
 @pytest.fixture
+def usage_recorder():
+    return create_autospec(UsageRecorder, instance=True, spec_set=True)
+
+
+@pytest.fixture
 def router_repository():
     return AsyncMock()
 
@@ -94,6 +98,7 @@ def use_case(
     provider_repository,
     router_rate_limiter,
     router_repository,
+    usage_recorder,
     rerank_router,
     rerank_provider,
     sample_rerank,
@@ -120,6 +125,7 @@ def use_case(
         provider_repository=provider_repository,
         router_rate_limiter=router_rate_limiter,
         router_repository=router_repository,
+        usage_recorder=usage_recorder,
     )
 
 
@@ -134,20 +140,14 @@ def user_with_router_access():
 
 
 @pytest.fixture
-def request_context() -> ContextVar:
-    return ContextVar("request_context")
-
-
-@pytest.fixture
-def make_command(request_context):
+def make_command():
     def _make(user) -> CreateRerankCommand:
-        request_context.set(RequestContext(user=user))
         return CreateRerankCommand(
             query="query",
             documents=["doc a", "doc b"],
             model="rerank-router",
             top_n=2,
-            request_context=request_context,
+            authenticated_user=user,
         )
 
     return _make
@@ -225,9 +225,8 @@ def rate_limit_state_factory(tpm_exceeded: bool = False, tpd_exceeded: bool = Fa
     return limit_state
 
 
-def assert_request_context(
-    ctx,
-    user_email: str | None = None,
+def assert_recorded(
+    usage_recorder,
     request_id: str | None = None,
     router_id: int | None = None,
     router_name: str | None = None,
@@ -236,21 +235,26 @@ def assert_request_context(
     prompt_tokens: int | None = None,
     total_tokens: int | None = None,
     cost: float | None = None,
-    kwh: float | None = None,
-    kgco2eq: float | None = None,
 ):
-    assert ctx.user is not None
-    assert ctx.user.email == user_email
-    assert ctx.id == request_id
-    assert ctx.router_id == router_id
-    assert ctx.router_name == router_name
-    assert ctx.provider_id == provider_id
-    assert ctx.provider_model_name == provider_model_name
-    assert ctx.prompt_tokens == prompt_tokens
-    assert ctx.total_tokens == total_tokens
-    assert ctx.cost == cost
-    assert ctx.kwh == kwh
-    assert ctx.kgco2eq == kgco2eq
+    if router_id is None:
+        usage_recorder.record_router.assert_not_called()
+    else:
+        usage_recorder.record_router.assert_called_once_with(router_id=router_id, router_name=router_name)
+
+    if provider_id is None:
+        usage_recorder.record_provider.assert_not_called()
+    else:
+        usage_recorder.record_provider.assert_called_once_with(provider_id=provider_id, provider_model_name=provider_model_name)
+
+    if prompt_tokens is None:
+        usage_recorder.record_usage.assert_not_called()
+    else:
+        usage_recorder.record_usage.assert_called_once_with(
+            request_id=request_id,
+            prompt_tokens=prompt_tokens,
+            total_tokens=total_tokens,
+            cost=cost,
+        )
 
 
 def _mock_adapter(*, formatted_request=None, formatted_response=None, request_error=None, response_error=None):
@@ -280,8 +284,7 @@ class TestCreateRerankUseCase:
         # Assert
         assert isinstance(result, RouterNotFoundError)
 
-        ctx = default_command.request_context.get()
-        assert_request_context(ctx, user_email=admin_user.email)
+        assert_recorded(use_case.usage_recorder)
 
     @pytest.mark.asyncio
     async def test_should_return_router_has_no_providers_error_when_router_has_no_providers(self, use_case, default_command, admin_user):
@@ -296,8 +299,7 @@ class TestCreateRerankUseCase:
         assert isinstance(result, RouterHasNoProvidersError)
         assert result.id == 1
 
-        ctx = default_command.request_context.get()
-        assert_request_context(ctx, user_email=admin_user.email, router_id=rerank_router.id, router_name=rerank_router.name)
+        assert_recorded(use_case.usage_recorder, router_id=rerank_router.id, router_name=rerank_router.name)
 
     @pytest.mark.asyncio
     async def test_should_return_router_has_wrong_type_error_when_router_is_not_text_classification(self, use_case, default_command, admin_user):
@@ -313,8 +315,7 @@ class TestCreateRerankUseCase:
         assert result.actual_type == RouterType.TEXT_GENERATION
         assert result.expected_type == RouterType.TEXT_CLASSIFICATION
 
-        ctx = default_command.request_context.get()
-        assert_request_context(ctx, user_email=admin_user.email, router_id=rerank_router.id, router_name=rerank_router.name)
+        assert_recorded(use_case.usage_recorder, router_id=rerank_router.id, router_name=rerank_router.name)
 
     @pytest.mark.asyncio
     async def test_should_return_user_has_insufficient_budget_error_when_router_is_paid_and_user_budget_is_zero(
@@ -347,10 +348,8 @@ class TestCreateRerankUseCase:
         provider_repository.get_all_providers_of_router.assert_not_awaited()
         provider_load_balancer.find_best_provider.assert_not_awaited()
 
-        ctx = command.request_context.get()
-        assert_request_context(
-            ctx,
-            user_email=user_with_zero_budget.email,
+        assert_recorded(
+            use_case.usage_recorder,
             router_id=paid_rerank_router.id,
             router_name=paid_rerank_router.name,
         )
@@ -429,8 +428,7 @@ class TestCreateRerankUseCase:
         assert isinstance(result, UserHasNoAccessToRouterError)
         assert result.id == rerank_router.id
 
-        ctx = command.request_context.get()
-        assert_request_context(ctx, user_email=user_without_router_access.email, router_id=rerank_router.id, router_name=rerank_router.name)
+        assert_recorded(use_case.usage_recorder, router_id=rerank_router.id, router_name=rerank_router.name)
 
     @pytest.mark.asyncio
     async def test_should_call_model_tokenizer_with_request_prompts_before_rate_limit_check(
@@ -485,10 +483,8 @@ class TestCreateRerankUseCase:
         router_rate_limiter.update_rate_limit_state.assert_not_called()
         provider_load_balancer.find_best_provider.assert_called_once()
 
-        ctx = command.request_context.get()
-        assert_request_context(
-            ctx,
-            user_email=user_with_router_access.email,
+        assert_recorded(
+            use_case.usage_recorder,
             router_id=rerank_router.id,
             router_name=rerank_router.name,
             provider_id=rerank_provider.id,
@@ -510,10 +506,8 @@ class TestCreateRerankUseCase:
         # Assert
         assert result == validation_error
 
-        ctx = default_command.request_context.get()
-        assert_request_context(
-            ctx,
-            user_email=admin_user.email,
+        assert_recorded(
+            use_case.usage_recorder,
             router_id=rerank_router.id,
             router_name=rerank_router.name,
             provider_id=rerank_provider.id,
@@ -535,10 +529,8 @@ class TestCreateRerankUseCase:
         assert result == provider_error
         provider_metrics_logger.decrement_inflight.assert_called_once_with(provider_id=rerank_provider.id)
 
-        ctx = default_command.request_context.get()
-        assert_request_context(
-            ctx,
-            user_email=admin_user.email,
+        assert_recorded(
+            use_case.usage_recorder,
             router_id=rerank_router.id,
             router_name=rerank_router.name,
             provider_id=rerank_provider.id,
@@ -571,10 +563,8 @@ class TestCreateRerankUseCase:
         assert result == validation_error
         provider_metrics_logger.decrement_inflight.assert_not_called()
 
-        ctx = default_command.request_context.get()
-        assert_request_context(
-            ctx,
-            user_email=admin_user.email,
+        assert_recorded(
+            use_case.usage_recorder,
             router_id=rerank_router.id,
             router_name=rerank_router.name,
             provider_id=rerank_provider.id,
@@ -639,10 +629,8 @@ class TestCreateRerankUseCase:
         router_rate_limiter.get_rate_limit_state.assert_not_awaited()
         router_rate_limiter.update_rate_limit_state.assert_not_awaited()
 
-        ctx = default_command.request_context.get()
-        assert_request_context(
-            ctx,
-            user_email=admin_user.email,
+        assert_recorded(
+            use_case.usage_recorder,
             request_id=sample_rerank.id,
             router_id=rerank_router.id,
             router_name=rerank_router.name,
@@ -735,10 +723,8 @@ class TestCreateRerankUseCase:
             prompt_tokens=15,
         )
 
-        ctx = command.request_context.get()
-        assert_request_context(
-            ctx,
-            user_email=user_with_router_access.email,
+        assert_recorded(
+            use_case.usage_recorder,
             request_id=sample_rerank.id,
             router_id=rerank_router.id,
             router_name=rerank_router.name,
@@ -754,12 +740,10 @@ class TestCreateRerankUseCase:
         self,
         use_case,
         provider_adapter_builder,
-        request_context,
         admin_user,
         mock_successful_rerank_flow,
     ):
         # Arrange
-        request_context.set(RequestContext(user=admin_user))
         command = CreateRerankCommand(
             query="query",
             documents=["doc a", "doc b"],
@@ -769,7 +753,7 @@ class TestCreateRerankUseCase:
             return_text=True,
             raw_scores=False,
             truncation_direction="left",
-            request_context=request_context,
+            authenticated_user=admin_user,
         )
 
         # Act

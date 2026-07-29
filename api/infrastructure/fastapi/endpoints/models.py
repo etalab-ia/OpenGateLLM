@@ -5,8 +5,8 @@ from fastapi.responses import JSONResponse
 
 from api.dependencies import get_model_use_case_factory, get_models_use_case_factory, get_request_context
 from api.domain.model.errors import ModelNotFoundError
+from api.infrastructure.context import RequestContext
 from api.infrastructure.fastapi import AccessController
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import InternalServerHTTPException, ModelNotFoundHTTPException
 from api.infrastructure.fastapi.schemas.models import Model, ModelsResponse

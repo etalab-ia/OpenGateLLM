@@ -7,8 +7,8 @@ from jose import jwt
 import pytest
 
 from api.domain.role.entities import PermissionType
+from api.infrastructure.context import RequestContext, request_context
 from api.infrastructure.fastapi._accesscontroler import AccessController
-from api.infrastructure.fastapi.context import RequestContext, request_context
 from api.infrastructure.fastapi.endpoints.exceptions import (
     AccountExpiredHTTPException,
     InvalidAPIKeyHTTPException,

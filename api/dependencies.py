@@ -18,11 +18,12 @@ from api.domain.provider import (
 )
 from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
+from api.domain.usage import UsageRecorder
 from api.domain.user import UserPasswordEncoder
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
+from api.infrastructure.context import RequestContextUsageRecorder, request_context
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
-from api.infrastructure.fastapi.context import request_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.postgres import (
@@ -134,6 +135,10 @@ def _router_rate_limiter() -> RouterRateLimiter:
     return RedisRouterRateLimiter(redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy)
 
 
+def _usage_recorder() -> UsageRecorder:
+    return RequestContextUsageRecorder(request_context=request_context)
+
+
 # repositories
 def _key_repository(key_encoder: KeyEncoder = Depends(_key_encoder), session: AsyncSession = Depends(get_postgres_session)) -> KeyRepository:
     return PostgresKeyRepository(key_encoder=key_encoder, postgres_session=session)
@@ -219,6 +224,7 @@ def create_embeddings_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
+        usage_recorder=_usage_recorder(),
     )
 
 
@@ -263,6 +269,7 @@ def create_ocr_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
+        usage_recorder=_usage_recorder(),
     )
 
 
@@ -310,6 +317,7 @@ def create_rerank_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
+        usage_recorder=_usage_recorder(),
     )
 
 

@@ -1,17 +1,16 @@
-from contextvars import ContextVar
 import logging
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Security
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
-from api.dependencies import create_rerank_use_case_factory, get_request_context
+from api.dependencies import create_rerank_use_case_factory, get_authenticated_user
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
+from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi import AccessController
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.fastapi.decorators import hooks
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
@@ -50,16 +49,16 @@ router = APIRouter(prefix="/v1", tags=[RouterName.RERANK.title()])
 async def create_rerank(
     body: CreateRerankBody = Body(description="The rerank creation request."),
     create_rerank_use_case: CreateRerankUseCase = Depends(create_rerank_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> JSONResponse:
     try:
-        command = CreateRerankCommand(**body.model_dump(), request_context=request_context)
+        command = CreateRerankCommand(**body.model_dump(), authenticated_user=authenticated_user)
         result = await create_rerank_use_case.execute(command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing rerank use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "model_name": body.model,
                 "error_type": type(e).__name__,
             },

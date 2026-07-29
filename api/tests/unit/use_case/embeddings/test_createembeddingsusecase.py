@@ -1,4 +1,3 @@
-from contextvars import ContextVar
 import datetime as dt
 from http import HTTPMethod
 from unittest.mock import AsyncMock, MagicMock, call, create_autospec, patch
@@ -26,9 +25,9 @@ from api.domain.router.errors import (
     RouterNotFoundError,
     RouterRateLimitExceededError,
 )
+from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
-from api.infrastructure.fastapi.context import RequestContext
 from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.tests.integration.factories.vllm import VllmEmbeddingsResponseFactory
 from api.tests.unit.use_case.factories import AutenticatedUserFactor, ProviderFactory, RouterFactory
@@ -80,6 +79,11 @@ def router_rate_limiter():
 
 
 @pytest.fixture
+def usage_recorder():
+    return create_autospec(UsageRecorder, instance=True, spec_set=True)
+
+
+@pytest.fixture
 def router_repository():
     return AsyncMock()
 
@@ -95,6 +99,7 @@ def use_case(
     provider_repository,
     router_rate_limiter,
     router_repository,
+    usage_recorder,
     embeddings_router,
     embeddings_provider,
     sample_embeddings,
@@ -121,6 +126,7 @@ def use_case(
         provider_repository=provider_repository,
         router_rate_limiter=router_rate_limiter,
         router_repository=router_repository,
+        usage_recorder=usage_recorder,
     )
 
 
@@ -135,18 +141,12 @@ def user_with_router_access():
 
 
 @pytest.fixture
-def request_context() -> ContextVar:
-    return ContextVar("request_context")
-
-
-@pytest.fixture
-def make_command(request_context):
+def make_command():
     def _make(user) -> CreateEmbeddingsCommand:
-        request_context.set(RequestContext(user=user))
         return CreateEmbeddingsCommand(
             input="hello world",
             model="embeddings-router",
-            request_context=request_context,
+            authenticated_user=user,
         )
 
     return _make
@@ -224,9 +224,8 @@ def rate_limit_state_factory(tpm_exceeded: bool = False, tpd_exceeded: bool = Fa
     return limit_state
 
 
-def assert_request_context(
-    ctx,
-    user_email: str | None = None,
+def assert_recorded(
+    usage_recorder,
     request_id: str | None = None,
     router_id: int | None = None,
     router_name: str | None = None,
@@ -235,21 +234,26 @@ def assert_request_context(
     prompt_tokens: int | None = None,
     total_tokens: int | None = None,
     cost: float | None = None,
-    kwh: float | None = None,
-    kgco2eq: float | None = None,
 ):
-    assert ctx.user is not None
-    assert ctx.user.email == user_email
-    assert ctx.id == request_id
-    assert ctx.router_id == router_id
-    assert ctx.router_name == router_name
-    assert ctx.provider_id == provider_id
-    assert ctx.provider_model_name == provider_model_name
-    assert ctx.prompt_tokens == prompt_tokens
-    assert ctx.total_tokens == total_tokens
-    assert ctx.cost == cost
-    assert ctx.kwh == kwh
-    assert ctx.kgco2eq == kgco2eq
+    if router_id is None:
+        usage_recorder.record_router.assert_not_called()
+    else:
+        usage_recorder.record_router.assert_called_once_with(router_id=router_id, router_name=router_name)
+
+    if provider_id is None:
+        usage_recorder.record_provider.assert_not_called()
+    else:
+        usage_recorder.record_provider.assert_called_once_with(provider_id=provider_id, provider_model_name=provider_model_name)
+
+    if prompt_tokens is None:
+        usage_recorder.record_usage.assert_not_called()
+    else:
+        usage_recorder.record_usage.assert_called_once_with(
+            request_id=request_id,
+            prompt_tokens=prompt_tokens,
+            total_tokens=total_tokens,
+            cost=cost,
+        )
 
 
 def _mock_adapter(*, formatted_request=None, formatted_response=None, request_error=None, response_error=None):
@@ -279,8 +283,7 @@ class TestCreateEmbeddingsUseCase:
         # Assert
         assert isinstance(result, RouterNotFoundError)
 
-        ctx = default_command.request_context.get()
-        assert_request_context(ctx, user_email=admin_user.email)
+        assert_recorded(use_case.usage_recorder)
 
     @pytest.mark.asyncio
     async def test_should_return_router_has_no_providers_error_when_router_has_no_providers(self, use_case, default_command, admin_user):
@@ -295,8 +298,7 @@ class TestCreateEmbeddingsUseCase:
         assert isinstance(result, RouterHasNoProvidersError)
         assert result.id == 1
 
-        ctx = default_command.request_context.get()
-        assert_request_context(ctx, user_email=admin_user.email, router_id=embeddings_router.id, router_name=embeddings_router.name)
+        assert_recorded(use_case.usage_recorder, router_id=embeddings_router.id, router_name=embeddings_router.name)
 
     @pytest.mark.asyncio
     async def test_should_return_router_has_wrong_type_error_when_router_is_not_text_embeddings_inference(
@@ -314,8 +316,7 @@ class TestCreateEmbeddingsUseCase:
         assert result.actual_type == RouterType.TEXT_GENERATION
         assert result.expected_type == RouterType.TEXT_EMBEDDINGS_INFERENCE
 
-        ctx = default_command.request_context.get()
-        assert_request_context(ctx, user_email=admin_user.email, router_id=embeddings_router.id, router_name=embeddings_router.name)
+        assert_recorded(use_case.usage_recorder, router_id=embeddings_router.id, router_name=embeddings_router.name)
 
     @pytest.mark.asyncio
     async def test_should_return_user_has_insufficient_budget_error_when_router_is_paid_and_user_budget_is_zero(
@@ -348,10 +349,8 @@ class TestCreateEmbeddingsUseCase:
         provider_repository.get_all_providers_of_router.assert_not_awaited()
         provider_load_balancer.find_best_provider.assert_not_awaited()
 
-        ctx = command.request_context.get()
-        assert_request_context(
-            ctx,
-            user_email=user_with_zero_budget.email,
+        assert_recorded(
+            use_case.usage_recorder,
             router_id=paid_embeddings_router.id,
             router_name=paid_embeddings_router.name,
         )
@@ -430,8 +429,7 @@ class TestCreateEmbeddingsUseCase:
         assert isinstance(result, UserHasNoAccessToRouterError)
         assert result.id == embeddings_router.id
 
-        ctx = command.request_context.get()
-        assert_request_context(ctx, user_email=user_without_router_access.email, router_id=embeddings_router.id, router_name=embeddings_router.name)
+        assert_recorded(use_case.usage_recorder, router_id=embeddings_router.id, router_name=embeddings_router.name)
 
     @pytest.mark.asyncio
     async def test_should_call_model_tokenizer_with_request_prompts_before_rate_limit_check(
@@ -486,10 +484,8 @@ class TestCreateEmbeddingsUseCase:
         router_rate_limiter.update_rate_limit_state.assert_not_called()
         provider_load_balancer.find_best_provider.assert_called_once()
 
-        ctx = command.request_context.get()
-        assert_request_context(
-            ctx,
-            user_email=user_with_router_access.email,
+        assert_recorded(
+            use_case.usage_recorder,
             router_id=embeddings_router.id,
             router_name=embeddings_router.name,
             provider_id=embeddings_provider.id,
@@ -511,10 +507,8 @@ class TestCreateEmbeddingsUseCase:
         # Assert
         assert result == validation_error
 
-        ctx = default_command.request_context.get()
-        assert_request_context(
-            ctx,
-            user_email=admin_user.email,
+        assert_recorded(
+            use_case.usage_recorder,
             router_id=embeddings_router.id,
             router_name=embeddings_router.name,
             provider_id=embeddings_provider.id,
@@ -536,10 +530,8 @@ class TestCreateEmbeddingsUseCase:
         assert result == provider_error
         provider_metrics_logger.decrement_inflight.assert_called_once_with(provider_id=embeddings_provider.id)
 
-        ctx = default_command.request_context.get()
-        assert_request_context(
-            ctx,
-            user_email=admin_user.email,
+        assert_recorded(
+            use_case.usage_recorder,
             router_id=embeddings_router.id,
             router_name=embeddings_router.name,
             provider_id=embeddings_provider.id,
@@ -572,10 +564,8 @@ class TestCreateEmbeddingsUseCase:
         assert result == validation_error
         provider_metrics_logger.decrement_inflight.assert_not_called()
 
-        ctx = default_command.request_context.get()
-        assert_request_context(
-            ctx,
-            user_email=admin_user.email,
+        assert_recorded(
+            use_case.usage_recorder,
             router_id=embeddings_router.id,
             router_name=embeddings_router.name,
             provider_id=embeddings_provider.id,
@@ -640,10 +630,8 @@ class TestCreateEmbeddingsUseCase:
         router_rate_limiter.get_rate_limit_state.assert_not_awaited()
         router_rate_limiter.update_rate_limit_state.assert_not_awaited()
 
-        ctx = default_command.request_context.get()
-        assert_request_context(
-            ctx,
-            user_email=admin_user.email,
+        assert_recorded(
+            use_case.usage_recorder,
             request_id=sample_embeddings.id,
             router_id=embeddings_router.id,
             router_name=embeddings_router.name,
@@ -736,10 +724,8 @@ class TestCreateEmbeddingsUseCase:
             prompt_tokens=15,
         )
 
-        ctx = command.request_context.get()
-        assert_request_context(
-            ctx,
-            user_email=user_with_router_access.email,
+        assert_recorded(
+            use_case.usage_recorder,
             request_id=sample_embeddings.id,
             router_id=embeddings_router.id,
             router_name=embeddings_router.name,
@@ -755,7 +741,6 @@ class TestCreateEmbeddingsUseCase:
         self,
         use_case,
         provider_adapter_builder,
-        request_context,
         admin_user,
         mock_successful_embeddings_flow,
     ):
@@ -769,14 +754,13 @@ class TestCreateEmbeddingsUseCase:
                 ],
             }
         ]
-        request_context.set(RequestContext(user=admin_user))
         command = CreateEmbeddingsCommand(
             input=None,
             model="embeddings-router",
             messages=messages,
             continue_final_message=True,
             add_special_tokens=True,
-            request_context=request_context,
+            authenticated_user=admin_user,
         )
 
         # Act
