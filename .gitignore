@@ -212,7 +212,6 @@ uv.lock
 compose.yml
 compose.yaml
 compose.**.yml
-oauth2-proxy.cfg
 playground/.web
 playground/.states
 playground/.gitignore

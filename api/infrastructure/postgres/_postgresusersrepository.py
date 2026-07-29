@@ -1,3 +1,5 @@
+from typing import Any
+
 from sqlalchemy import Integer, cast, delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +32,7 @@ _USER_COLUMNS = (
     UserTable.password,
     UserTable.sub,
     UserTable.iss,
+    UserTable.claims,
     UserTable.role_id.label("role"),
     UserTable.organization_id.label("organization"),
     UserTable.budget,
@@ -53,6 +56,7 @@ class PostgresUserRepository(UserRepository):
             password=row.password,
             sub=row.sub,
             iss=row.iss,
+            claims=row.claims,
             role=row.role,
             organization_id=row.organization,
             budget=row.budget,
@@ -78,6 +82,7 @@ class PostgresUserRepository(UserRepository):
         name: str | None = None,
         sub: str | None = None,
         iss: str | None = None,
+        claims: dict[str, Any] | None = None,
         organization_id: int | None = None,
         budget: float | None = None,
         expires: int | None = None,
@@ -92,6 +97,7 @@ class PostgresUserRepository(UserRepository):
                     email=email,
                     name=name,
                     password=password,
+                    claims=claims,
                     sub=sub,
                     iss=iss,
                     role_id=role_id,
@@ -108,7 +114,9 @@ class PostgresUserRepository(UserRepository):
                 return OrganizationNotFoundError(id=organization_id)
             if "user_role_id_fkey" in str(e.orig):
                 return RoleNotFoundError(id=role_id)
-            return UserAlreadyExistsError(email=email)
+            if "ix_user_email" in str(e.orig) or "unique_user_sub_iss" in str(e.orig):
+                return UserAlreadyExistsError(email=email)
+            raise
 
         return self._row_to_user(row)
 
@@ -130,6 +138,13 @@ class PostgresUserRepository(UserRepository):
         row = result.one_or_none()
         if row is None:
             return UserNotFoundError(email=email)
+        return self._row_to_user(row)
+
+    async def get_user_by_iss_and_sub(self, iss: str, sub: str) -> User | UserNotFoundError:
+        result = await self.postgres_session.execute(select(*_USER_COLUMNS).where(UserTable.iss == iss, UserTable.sub == sub))
+        row = result.one_or_none()
+        if row is None:
+            return UserNotFoundError()
         return self._row_to_user(row)
 
     async def get_users(
@@ -182,6 +197,7 @@ class PostgresUserRepository(UserRepository):
                 password=user.password.get_secret_value() if user.password is not None else None,
                 sub=user.sub,
                 iss=user.iss,
+                claims=user.claims,
                 role_id=user.role,
                 organization_id=user.organization_id,
                 budget=user.budget,
@@ -199,7 +215,7 @@ class PostgresUserRepository(UserRepository):
                 return OrganizationNotFoundError(id=user.organization_id)
             if "user_role_id_fkey" in str(e.orig):
                 return RoleNotFoundError(id=user.role)
-            if "ix_user_email" in str(e.orig):
+            if "ix_user_email" in str(e.orig) or "unique_user_sub_iss" in str(e.orig):
                 return UserAlreadyExistsError(email=user.email)
             raise
 

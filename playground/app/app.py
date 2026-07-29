@@ -2,6 +2,7 @@ import reflex as rx
 
 from app.core.configuration import PlaygroundPages, configuration
 from app.features.account.page import account_page
+from app.features.auth.page import admin_deny_page, sso_deny_page, sso_error_page
 from app.features.auth.state import AuthState
 from app.features.chat.page import chat_page_content
 from app.features.keys.page import keys_page
@@ -18,7 +19,6 @@ from app.features.usage.page import usage_page
 from app.features.usage.state import UsageState
 from app.features.users.page import users_page
 from app.features.users.state import UsersState
-from app.shared.components.page import access_denied_page
 from app.shared.layouts.authenticated import authenticated_page
 
 
@@ -34,35 +34,17 @@ def chat() -> rx.Component:
 
 def account() -> rx.Component:
     """Account settings page."""
-    return authenticated_page(
-        rx.cond(
-            ~AuthState.is_master,
-            account_page(),
-            access_denied_page(message="Master user cannot access this page."),
-        )
-    )
+    return authenticated_page(account_page())
 
 
 def keys() -> rx.Component:
     """API Keys management page."""
-    return authenticated_page(
-        rx.cond(
-            ~AuthState.is_master,
-            keys_page(),
-            access_denied_page(message="Master user cannot access this page."),
-        )
-    )
+    return authenticated_page(keys_page())
 
 
 def usage() -> rx.Component:
     """Usage page."""
-    return authenticated_page(
-        rx.cond(
-            ~AuthState.is_master,
-            usage_page(),
-            access_denied_page(message="Master user cannot access this page."),
-        )
-    )
+    return authenticated_page(usage_page())
 
 
 def roles() -> rx.Component:
@@ -71,7 +53,7 @@ def roles() -> rx.Component:
         rx.cond(
             AuthState.is_admin,
             roles_page(),
-            access_denied_page(message="You need admin permissions to access this page."),
+            admin_deny_page(),
         )
     )
 
@@ -82,7 +64,7 @@ def users() -> rx.Component:
         rx.cond(
             AuthState.is_admin,
             users_page(),
-            access_denied_page(message="You need admin permissions to access this page."),
+            admin_deny_page(),
         )
     )
 
@@ -93,7 +75,7 @@ def organizations() -> rx.Component:
         rx.cond(
             AuthState.is_admin,
             organizations_page(),
-            access_denied_page(message="You need admin permissions to access this page."),
+            admin_deny_page(),
         )
     )
 
@@ -104,7 +86,7 @@ def routers() -> rx.Component:
         rx.cond(
             AuthState.is_admin,
             routers_page(),
-            access_denied_page(message="You need admin permissions to access this page."),
+            admin_deny_page(),
         )
     )
 
@@ -115,7 +97,7 @@ def providers() -> rx.Component:
         rx.cond(
             AuthState.is_admin,
             providers_page(),
-            access_denied_page(message="You need admin permissions to access this page."),
+            admin_deny_page(),
         )
     )
 
@@ -134,8 +116,12 @@ app = rx.App(
 )
 
 # Public pages
+login = [AuthState.oidc_login] if configuration.settings.auth_login_type == "oidc" else []
 
-app.add_page(component=index, route="/")
+app.add_page(component=index, route="/", on_load=login)
+if configuration.settings.auth_login_type == "oidc":
+    app.add_page(component=sso_deny_page, route="/deny")
+    app.add_page(component=sso_error_page, route="/error")
 if PlaygroundPages.ACCOUNT not in configuration.settings.playground_disabled_pages:
     app.add_page(component=account, route="/account")
 if PlaygroundPages.KEYS not in configuration.settings.playground_disabled_pages:
@@ -144,13 +130,13 @@ if PlaygroundPages.USAGE not in configuration.settings.playground_disabled_pages
     app.add_page(component=usage, route="/usage", on_load=[UsageState.load_entities])
 
 # Admin pages
-if PlaygroundPages.ROLES not in configuration.settings.playground_disabled_pages:
-    app.add_page(component=roles, route="/roles", on_load=[RolesState.load_entities])
-if PlaygroundPages.USERS not in configuration.settings.playground_disabled_pages:
-    app.add_page(component=users, route="/users", on_load=[UsersState.load_entities])
 if PlaygroundPages.ORGANIZATIONS not in configuration.settings.playground_disabled_pages:
     app.add_page(component=organizations, route="/organizations", on_load=[OrganizationsState.load_entities])
-if PlaygroundPages.ROUTERS not in configuration.settings.playground_disabled_pages:
-    app.add_page(component=routers, route="/routers", on_load=[RoutersState.load_entities])
 if PlaygroundPages.PROVIDERS not in configuration.settings.playground_disabled_pages:
     app.add_page(component=providers, route="/providers", on_load=[ProvidersState.load_entities])
+if PlaygroundPages.ROLES not in configuration.settings.playground_disabled_pages:
+    app.add_page(component=roles, route="/roles", on_load=[RolesState.load_entities])
+if PlaygroundPages.ROUTERS not in configuration.settings.playground_disabled_pages:
+    app.add_page(component=routers, route="/routers", on_load=[RoutersState.load_entities])
+if PlaygroundPages.USERS not in configuration.settings.playground_disabled_pages:
+    app.add_page(component=users, route="/users", on_load=[UsersState.load_entities])

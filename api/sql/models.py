@@ -1,7 +1,7 @@
 import datetime as dt
 from enum import StrEnum
 from http import HTTPMethod
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
@@ -117,6 +117,7 @@ class User(Base):
     name: Mapped[str | None]
     sub: Mapped[str | None]
     iss: Mapped[str | None]
+    claims: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=True)
     role_id: Mapped[int] = mapped_column(ForeignKey(column="role.id", ondelete="RESTRICT"))
     organization_id: Mapped[int | None] = mapped_column(ForeignKey(column="organization.id", ondelete="RESTRICT"))
     budget: Mapped[float | None]
@@ -134,7 +135,7 @@ class User(Base):
     provider: Mapped[list["Provider"]] = relationship(back_populates="user", passive_deletes=True)
 
     __table_args__ = (
-        UniqueConstraint("sub", "iss", name="unique_user_email_sub_iss"),
+        UniqueConstraint("sub", "iss", name="unique_user_sub_iss"),
         UniqueConstraint("id", "organization_id", name="unique_user_id_organization_id"),
     )
 

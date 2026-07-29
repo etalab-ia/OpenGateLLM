@@ -1,7 +1,7 @@
 # -------------------------------- dependencies ---------------------------------
 dependencies:
   postgres: # required
-    url: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/postgres
+    url: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-changeme}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/postgres
     echo: False
     pool_size: 5
     connect_args:
@@ -45,6 +45,18 @@ settings:
   auth_secret_key: changeme
   auth_bootsrap_admin_username: admin
   auth_bootsrap_admin_password: changeme
+  # auth_login_type: password
+  # auth_login_session_duration: 3600
+  # auth_playground_url: http://playground:8501
+  # auth_sso_default_role_id: 1
+  # auth_sso_default_organization_id: 1
+  # auth_sso_oidc_issuer_url: https://...
+  # auth_sso_client_id: ${OAUTH2_PROXY_CLIENT_ID}
+  # auth_sso_client_secret: ${OAUTH2_PROXY_CLIENT_SECRET}
+  # auth_sso_cookie_secret: ${OAUTH2_PROXY_COOKIE_SECRET}
+  # auth_sso_cookie_secure: False
+  # auth_sso_logout_redirect_uri: https://...
+  # auth_sso_oidc_scope: openid email profile roles siret organization_label given_name usual_name
 
   # rate_limiting_strategy: fixed_window
 
@@ -66,6 +78,7 @@ settings:
   # playground_swagger_url: http://localhost:8000/swagger
   # playground_reference_url: http://localhost:8000/redoc
   # playground_documentation_url: https://docs.opengatellm.org
+  # playground_sso_access_denied_documentation_url: https://docs.opengatellm.org
 
 # ----------------------------------- models ------------------------------------
 # models:

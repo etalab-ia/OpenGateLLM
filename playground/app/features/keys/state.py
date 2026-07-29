@@ -67,7 +67,7 @@ class KeysState(EntityState):
                     url=f"{self.opengatellm_url}/v1/me/keys",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
 
                 response.raise_for_status()
@@ -75,7 +75,7 @@ class KeysState(EntityState):
                 self.entities = []
 
                 for key in data.get("data", []):
-                    if key["name"] not in ["playground", "_system_search_tool"]:
+                    if key["name"] not in ["_system_playground_key", "_system_search_tool"]:
                         self.entities.append(self._format_key(key))
 
             self.has_more_page = len(self.entities) == self.per_page
@@ -117,7 +117,7 @@ class KeysState(EntityState):
                 response = await client.delete(
                     url=f"{self.opengatellm_url}/v1/me/keys/{self.entity_to_delete.id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -195,7 +195,7 @@ class KeysState(EntityState):
                     url=f"{self.opengatellm_url}/v1/me/keys",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
                 data = response.json()

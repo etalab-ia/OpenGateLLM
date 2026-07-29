@@ -104,6 +104,20 @@ class TestUpdateUser:
         assert isinstance(result, UserAlreadyExistsError)
         assert result.email == "taken@test.com"
 
+    async def test_returns_user_already_exists_error_when_sub_and_iss_are_duplicate(self, repository, db_session):
+        # Arrange
+        UserSQLFactory(email="taken@test.com", sub="sub-123", iss="https://issuer.example.com")
+        user = UserSQLFactory(email="other@test.com", sub="sub-456", iss="https://other-issuer.example.com")
+        await db_session.flush()
+        existing_user = await _get_user_entity(repository, user.id)
+
+        # Act
+        result = await repository.update_user(user=existing_user.model_copy(update={"sub": "sub-123", "iss": "https://issuer.example.com"}))
+
+        # Assert
+        assert isinstance(result, UserAlreadyExistsError)
+        assert result.email == "other@test.com"
+
     async def test_returns_role_not_found_error_when_role_does_not_exist(self, repository, db_session):
         # Arrange
         user = UserSQLFactory()

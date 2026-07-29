@@ -19,7 +19,7 @@ class RerankResult(BaseModel):
 
 
 class RerankResponse(BaseModel):
-    object: Literal["list"] = "list"
+    object: Annotated[Literal["list"], Field(default="list", description="Type of object.")]
     id: Annotated[str, Field(default=..., description="A unique identifier for the request.")]
     results: Annotated[list[RerankResult], Field(default=..., description="The list of reranked texts.")]
     model: Annotated[str, Field(default=..., description="The model used to generate the reranking.")]

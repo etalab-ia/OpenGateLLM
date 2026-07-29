@@ -74,6 +74,31 @@ class TestCreateUser:
         assert isinstance(result, UserAlreadyExistsError)
         assert result.email == "duplicate@test.com"
 
+    async def test_returns_user_already_exists_error_when_sub_and_iss_are_duplicate(self, repository, db_session):
+        # Arrange
+        role = RoleSQLFactory()
+        await db_session.flush()
+        await repository.create_user(
+            email="first@test.com",
+            password="s3cr3t",
+            role_id=role.id,
+            sub="sub-123",
+            iss="https://issuer.example.com",
+        )
+
+        # Act
+        result = await repository.create_user(
+            email="second@test.com",
+            password="other",
+            role_id=role.id,
+            sub="sub-123",
+            iss="https://issuer.example.com",
+        )
+
+        # Assert
+        assert isinstance(result, UserAlreadyExistsError)
+        assert result.email == "second@test.com"
+
     async def test_returns_role_not_found_error_when_role_does_not_exist(self, repository, db_session):
         # Act
         result = await repository.create_user(email="user@test.com", password="s3cr3t", role_id=999999)

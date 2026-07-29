@@ -1,15 +1,18 @@
 from unittest.mock import AsyncMock
 
+from fastapi import Depends
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import auth_login_use_case_factory
+from api.dependencies import _key_encoder, _user_password_encoder, auth_login_use_case_factory, get_postgres_session
+from api.domain.user import UserPasswordEncoder
 from api.domain.user.errors import InvalidUserPasswordError, UserNotFoundError
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
-from api.infrastructure.postgres import PostgresUserRepository
+from api.infrastructure.postgres import PostgresKeyRepository, PostgresUserRepository
 from api.tests.integration.factories.sql import RoleSQLFactory
-from api.utils.variables import EndpointRoute
+from api.use_cases.auth import AuthLoginUseCase
+from api.utils.variables import SYSTEM_PLAYGROUND_KEY_NAME, EndpointRoute
 
 URL = f"/v1{EndpointRoute.AUTH_LOGIN}"
 
@@ -23,16 +26,33 @@ def _valid_body(**overrides) -> dict:
     return body
 
 
+def _auth_login_use_case_factory(auth_login_type: str):
+    def factory(
+        postgres_session=Depends(get_postgres_session),
+        key_encoder=Depends(_key_encoder),
+        password_encoder: UserPasswordEncoder = Depends(_user_password_encoder),
+    ) -> AuthLoginUseCase:
+        return AuthLoginUseCase(
+            key_repository=PostgresKeyRepository(key_encoder=key_encoder, postgres_session=postgres_session),
+            user_repository=PostgresUserRepository(postgres_session=postgres_session),
+            user_password_encoder=password_encoder,
+            auth_login_type=auth_login_type,
+        )
+
+    return factory
+
+
 @pytest.mark.asyncio(loop_scope="session")
 class TestAuthLogin:
     @pytest_asyncio.fixture(autouse=True)
-    async def setup(self, db_session):
+    async def setup(self, db_session, app):
         role = RoleSQLFactory()
         await db_session.flush()
         password_encoder = BcryptUserPasswordEncoder()
         repository = PostgresUserRepository(postgres_session=db_session)
         encoded_password = password_encoder.encode_password(password="s3cr3t")
         await repository.create_user(email="login-user@test.com", password=encoded_password, role_id=role.id)
+        app.dependency_overrides[auth_login_use_case_factory] = _auth_login_use_case_factory("password")
 
     async def test_happy_path(self, client: AsyncClient):
         response = await client.post(url=URL, json=_valid_body())
@@ -40,11 +60,21 @@ class TestAuthLogin:
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["object"] == "key"
-        assert data["name"] == "playground"
+        assert data["name"] == SYSTEM_PLAYGROUND_KEY_NAME
         assert isinstance(data["id"], int)
         assert data["value"].startswith("sk-")
         assert isinstance(data["expires"], int)
         assert isinstance(data["created"], int)
+
+    async def test_returns_200_when_login_type_is_oidc(self, client: AsyncClient, app):
+        app.dependency_overrides[auth_login_use_case_factory] = _auth_login_use_case_factory("oidc")
+
+        response = await client.post(url=URL, json=_valid_body())
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["object"] == "key"
+        assert data["name"] == SYSTEM_PLAYGROUND_KEY_NAME
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

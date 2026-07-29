@@ -4,7 +4,6 @@ import httpx
 import pycountry
 import reflex as rx
 
-from app.core.configuration import configuration
 from app.features.providers.models import Provider
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
@@ -116,7 +115,7 @@ class ProvidersState(EntityState):
                         url=f"{self.opengatellm_url}/v1/admin/routers",
                         params={"offset": offset, "limit": 100},
                         headers={"Authorization": f"Bearer {self.api_key}"},
-                        timeout=configuration.settings.playground_opengatellm_timeout,
+                        timeout=self.opengatellm_timeout,
                     )
 
                     response.raise_for_status()
@@ -132,7 +131,7 @@ class ProvidersState(EntityState):
                     f"{self.opengatellm_url}/v1/admin/providers",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
 
                 response.raise_for_status()
@@ -144,7 +143,7 @@ class ProvidersState(EntityState):
                         response = await client.get(
                             url=f"{self.opengatellm_url}/v1/admin/users/{provider['user_id']}",
                             headers={"Authorization": f"Bearer {self.api_key}"},
-                            timeout=configuration.settings.playground_opengatellm_timeout,
+                            timeout=self.opengatellm_timeout,
                         )
                         if response.status_code == 404:
                             self.provider_owners[provider["user_id"]] = "Master"
@@ -158,7 +157,7 @@ class ProvidersState(EntityState):
                         response = await client.get(
                             url=f"{self.opengatellm_url}/v1/admin/routers/{provider['router_id']}",
                             headers={"Authorization": f"Bearer {self.api_key}"},
-                            timeout=configuration.settings.playground_opengatellm_timeout,
+                            timeout=self.opengatellm_timeout,
                         )
 
                         if response.status_code == 200:
@@ -211,7 +210,7 @@ class ProvidersState(EntityState):
                 response = await client.delete(
                     url=f"{self.opengatellm_url}/v1/admin/providers/{self.entity_to_delete.id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -283,7 +282,7 @@ class ProvidersState(EntityState):
                     url=f"{self.opengatellm_url}/v1/admin/providers",
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     json=payload,
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
                 response.raise_for_status()
 
@@ -349,7 +348,7 @@ class ProvidersState(EntityState):
                     url=f"{self.opengatellm_url}/v1/admin/providers/{self.entity.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
-                    timeout=configuration.settings.playground_opengatellm_timeout,
+                    timeout=self.opengatellm_timeout,
                 )
             response.raise_for_status()
 
