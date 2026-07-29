@@ -6,6 +6,7 @@ import pytest
 
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import TooBusyModelError
+from api.domain.provider import ProviderAdapter
 from api.domain.provider.entities import (
     Metric,
     ProviderFormattedRequest,
@@ -27,8 +28,6 @@ from api.domain.router.errors import (
 from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
-from api.infrastructure.http.adapters import HttpProviderAdapter
-from api.tests.integration.factories.vllm import VllmRerankResponseFactory
 from api.tests.unit.use_case.factories import AutenticatedUserFactor, ProviderFactory, RouterFactory
 from api.use_cases.reranks import CreateRerankCommand, CreateRerankUseCase, CreateRerankUseCaseSuccess
 
@@ -107,7 +106,7 @@ def use_case(
     provider_repository.get_all_providers_of_router.return_value = [rerank_provider]
     provider_load_balancer.find_best_provider.return_value = rerank_provider
     provider_metrics_logger.increment_inflight.return_value = True
-    provider_client.forward_request.return_value = ProviderOriginalResponse(data=VllmRerankResponseFactory())
+    provider_client.forward_request.return_value = ProviderOriginalResponse(data={})
     rate_limit_state = rate_limit_state_factory()
     rate_limit_state.rpm = RpmRateLimitState(value=100, remaining=99, reset=int(dt.datetime.now(dt.UTC).timestamp()) + 30)
     router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
@@ -258,9 +257,7 @@ def assert_recorded(
 
 
 def _mock_adapter(*, formatted_request=None, formatted_response=None, request_error=None, response_error=None):
-    adapter = create_autospec(
-        HttpProviderAdapter, instance=True, spec_set=True
-    )  # Autospec mock: unexpected kwargs / wrong signature should fail tests.
+    adapter = create_autospec(ProviderAdapter, instance=True, spec_set=True)
     adapter.format_request.return_value = formatted_request or ProviderFormattedRequest(
         method=HTTPMethod.POST,
         url="https://provider.example/rerank",

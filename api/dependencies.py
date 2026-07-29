@@ -60,10 +60,6 @@ from api.utils.configuration import configuration
 from api.utils.context import global_context
 
 
-def get_secret_key() -> str:
-    return configuration.settings.auth_secret_key
-
-
 # helpers
 def _model_tokenizer() -> ModelTokenizer:
     return TiktokenModelTokenizer(model=global_context._tokenizer)
