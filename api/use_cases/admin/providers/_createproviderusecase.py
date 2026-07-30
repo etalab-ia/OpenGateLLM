@@ -1,11 +1,17 @@
 from dataclasses import dataclass
 
-from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
-from api.domain.provider import ProviderGateway, ProviderRepository
+from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
+from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import BasicAuth, HostingZone, Metric, Provider, ProviderType
-from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
+from api.domain.provider.errors import (
+    InvalidProviderTypeError,
+    ProviderAlreadyExistsError,
+    ProviderInvalidResponseError,
+    ProviderNotReachableError,
+)
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError
+from api.use_cases.services import ProviderCapabilitiesProbe
 
 
 @dataclass
@@ -34,6 +40,8 @@ type CreateProviderUseCaseResult = (
     CreateProviderUseCaseSuccess
     | InvalidProviderTypeError
     | ProviderNotReachableError
+    | ProviderInvalidResponseError
+    | ModelNotFoundError
     | InconsistentModelMaxContextLengthError
     | InconsistentModelVectorSizeError
     | RouterNotFoundError
@@ -42,10 +50,15 @@ type CreateProviderUseCaseResult = (
 
 
 class CreateProviderUseCase:
-    def __init__(self, router_repository: RouterRepository, provider_repository: ProviderRepository, provider_gateway: ProviderGateway):
+    def __init__(
+        self,
+        router_repository: RouterRepository,
+        provider_repository: ProviderRepository,
+        provider_capabilities_probe: ProviderCapabilitiesProbe,
+    ):
         self.router_repository = router_repository
         self.provider_repository = provider_repository
-        self.provider_gateway = provider_gateway
+        self.provider_capabilities_probe = provider_capabilities_probe
 
     async def execute(self, command: CreateProviderCommand) -> CreateProviderUseCaseResult:
         router = await self.router_repository.get_router_by_id(router_id=command.router_id)
@@ -55,7 +68,7 @@ class CreateProviderUseCase:
         if not command.provider_type.is_compatible_with(router_type=router.type):
             return InvalidProviderTypeError(provider_type=command.provider_type.value, router_type=router.type.value)
 
-        result = await self.provider_gateway.get_capabilities(
+        result = await self.provider_capabilities_probe.get_capabilities(
             router_type=router.type,
             provider_type=command.provider_type,
             url=command.url,
@@ -65,6 +78,10 @@ class CreateProviderUseCase:
         )
         match result:
             case ProviderNotReachableError() as error:
+                return error
+            case ModelNotFoundError() as error:
+                return error
+            case ProviderInvalidResponseError() as error:
                 return error
             case provider_capabilities:
                 pass

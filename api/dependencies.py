@@ -12,7 +12,6 @@ from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.provider import (
     ProviderAdapterBuilder,
     ProviderClient,
-    ProviderGateway,
     ProviderLoadBalancer,
     ProviderMetricsLogger,
     ProviderRepository,
@@ -26,7 +25,6 @@ from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsCompute
 from api.infrastructure.fastapi.context import request_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
-from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
     PostgresAuthenticatedUserQuery,
     PostgresKeyRepository,
@@ -56,6 +54,7 @@ from api.use_cases.embeddings import CreateEmbeddingsUseCase
 from api.use_cases.health import GetHealthModelsUseCase
 from api.use_cases.models import GetModelsUseCase, GetModelUseCase
 from api.use_cases.reranks import CreateRerankUseCase
+from api.use_cases.services import ProviderCapabilitiesProbe
 from api.utils.configuration import configuration
 from api.utils.context import global_context
 
@@ -122,13 +121,6 @@ def _provider_client() -> ProviderClient:
     return HttpProviderClient()
 
 
-def _provider_gateway(
-    provider_client: ProviderClient = Depends(_provider_client),
-    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
-) -> ProviderGateway:
-    return ModelProviderGateway(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
-
-
 def _provider_load_balancer(redis_client: Redis = Depends(get_redis_client)) -> ProviderLoadBalancer:
     return RedisProviderLoadBalancer(redis_client=redis_client)
 
@@ -168,6 +160,13 @@ def _permission_repository(session: AsyncSession) -> PermissionRepository:
 
 def _provider_repository(session: AsyncSession) -> ProviderRepository:
     return PostgresProviderRepository(postgres_session=session)
+
+
+def _provider_capabilities_probe(
+    provider_client: ProviderClient = Depends(_provider_client),
+    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
+) -> ProviderCapabilitiesProbe:
+    return ProviderCapabilitiesProbe(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
 
 
 # health use cases
@@ -362,12 +361,12 @@ def update_router_use_case_factory(postgres_session: AsyncSession = Depends(get_
 # provider use cases
 def create_provider_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
-    provider_client: ProviderClient = Depends(_provider_client),
+    provider_capabilities_probe: ProviderCapabilitiesProbe = Depends(_provider_capabilities_probe),
 ) -> CreateProviderUseCase:
     return CreateProviderUseCase(
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
-        provider_gateway=_provider_gateway(provider_client=provider_client, provider_adapter_builder=HttpProviderAdapterBuilder()),
+        provider_capabilities_probe=provider_capabilities_probe,
     )
 
 

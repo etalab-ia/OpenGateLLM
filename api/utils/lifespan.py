@@ -9,7 +9,7 @@ from tiktoken.core import Encoding
 
 from api.dependencies import get_postgres_session
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
-from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
+from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.helpers._identityaccessmanager import IdentityAccessManager
 from api.helpers._langfusemanager import LangfuseManager
@@ -19,7 +19,6 @@ from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
-from api.infrastructure.model import ModelProviderGateway
 from api.infrastructure.postgres import (
     PostgresLimitRepository,
     PostgresPermissionRepository,
@@ -36,6 +35,7 @@ from api.use_cases.admin import (
     BootstrapAdminUseCaseSuccess,
 )
 from api.use_cases.models import BootstrapModelsUseCase, BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
+from api.use_cases.services import ProviderCapabilitiesProbe
 from api.utils.configuration import get_configuration
 from api.utils.context import global_context
 from api.utils.logging import init_logger
@@ -122,14 +122,15 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
 async def bootstrap_models(configuration: Configuration, postgres_session: AsyncSession, bootstrap_admin_user_id: int) -> int:
     router_repository = PostgresRouterRepository(postgres_session=postgres_session, app_title=configuration.settings.app_title)
     provider_repository = PostgresProviderRepository(postgres_session=postgres_session)
-    provider_client = HttpProviderClient()
-    provider_adapter_builder = HttpProviderAdapterBuilder()
-    provider_gateway = ModelProviderGateway(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
+    provider_capabilities_probe = ProviderCapabilitiesProbe(
+        provider_client=HttpProviderClient(),
+        provider_adapter_builder=HttpProviderAdapterBuilder(),
+    )
 
     result = await BootstrapModelsUseCase(
         router_repository=router_repository,
         provider_repository=provider_repository,
-        provider_gateway=provider_gateway,
+        provider_capabilities_probe=provider_capabilities_probe,
     ).execute(routers_to_create=configuration.models, bootstrap_admin_user_id=bootstrap_admin_user_id)
 
     match result:
@@ -147,6 +148,8 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
             raise RuntimeError(f"Provider {error.model_name} already exists ({error.url}) for the same router ({error.router_id}).")
         case ProviderNotReachableError() as error:
             raise RuntimeError(f"Provider {error.model_name} not reachable ({error.status_code}): {error.detail}")
+        case ProviderInvalidResponseError() as error:
+            raise RuntimeError(f"Provider {error.model_name} returned an invalid response: {error.detail}")
         case InconsistentModelVectorSizeError() as error:
             raise RuntimeError(f"Inconsistent model vector size ({error.router_name}).")
         case InconsistentModelMaxContextLengthError() as error:
