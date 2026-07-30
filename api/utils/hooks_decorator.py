@@ -80,6 +80,14 @@ def hooks(func):
                 global_context.langfuse_client.end_root_observation(langfuse_obs=langfuse_obs, status=e.status_code, error=str(e.detail))
             raise e  # Re-raise the exception for FastAPI to handle
 
+        except Exception as e:
+            usage = set_usage_from_context(usage=usage)
+            usage.status = 500
+            asyncio.create_task(log_usage(usage=usage))
+            if global_context.langfuse_client is not None and langfuse_obs is not None:
+                global_context.langfuse_client.end_root_observation(langfuse_obs=langfuse_obs, status=500, error=str(e))
+            raise e  # Re-raise the exception for FastAPI to handle
+
     return wrapper
 
 
