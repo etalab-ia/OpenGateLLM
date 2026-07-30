@@ -18,11 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 def _observation_name(endpoint: str | None) -> str | None:
-    """Normalize the request path into a stable observation name (e.g. "/v1/chat/completions" -> "chat-completions").
-
-    Keeps Langfuse trace names consistent across success and failure: the root span, the child generation
-    (see ObservationName) and therefore the trace all share the same slug, whichever observations get created.
-    """
+    """Normalize the request path into a stable observation name (e.g. "/v1/chat/completions" -> "chat-completions")."""
     if not endpoint:
         return None
     return re.sub(r"^/v\d+/", "", endpoint).strip("/").replace("/", "-")
