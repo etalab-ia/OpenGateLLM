@@ -14,7 +14,13 @@ from api.dependencies import (
 from api.domain import SortOrder
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.entities import ProviderSortField
-from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError, ProviderNotReachableError
+from api.domain.provider.errors import (
+    InvalidProviderTypeError,
+    ProviderAlreadyExistsError,
+    ProviderInvalidResponseError,
+    ProviderNotFoundError,
+    ProviderNotReachableError,
+)
 from api.domain.router.errors import RouterNotFoundError
 from api.infrastructure.fastapi import AccessController
 from api.infrastructure.fastapi.context import RequestContext
@@ -28,6 +34,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     ModelNotFoundHTTPException,
     NotAdminUserHTTPException,
     ProviderAlreadyExistsHTTPException,
+    ProviderInvalidResponseHTTPException,
     ProviderNotFoundHTTPException,
     ProviderNotReachableHTTPException,
     RouterNotFoundHTTPException,
@@ -71,6 +78,7 @@ logger = logging.getLogger(__name__)
             InconsistentModelVectorSizeHTTPException,
             InvalidProviderTypeHTTPException,
             ProviderNotReachableHTTPException,
+            ProviderInvalidResponseHTTPException,
             ModelNotFoundHTTPException,
             ProviderAlreadyExistsHTTPException,
             RouterNotFoundHTTPException,
@@ -131,6 +139,9 @@ async def create_provider(
 
         case ModelNotFoundError(name=model_name):
             raise ModelNotFoundHTTPException(name=model_name)
+
+        case ProviderInvalidResponseError(model_name=model_name, detail=detail):
+            raise ProviderInvalidResponseHTTPException(name=model_name, detail=detail)
 
         case ProviderAlreadyExistsError(model_name=model_name, url=url, router_id=router_id):
             raise ProviderAlreadyExistsHTTPException(model_name=model_name, url=url, router_id=router_id)

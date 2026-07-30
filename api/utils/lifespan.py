@@ -9,7 +9,7 @@ from tiktoken.core import Encoding
 
 from api.dependencies import get_postgres_session
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
-from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
+from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.helpers._identityaccessmanager import IdentityAccessManager
 from api.helpers._langfusemanager import LangfuseManager
@@ -148,6 +148,8 @@ async def bootstrap_models(configuration: Configuration, postgres_session: Async
             raise RuntimeError(f"Provider {error.model_name} already exists ({error.url}) for the same router ({error.router_id}).")
         case ProviderNotReachableError() as error:
             raise RuntimeError(f"Provider {error.model_name} not reachable ({error.status_code}): {error.detail}")
+        case ProviderInvalidResponseError() as error:
+            raise RuntimeError(f"Provider {error.model_name} returned an invalid response: {error.detail}")
         case InconsistentModelVectorSizeError() as error:
             raise RuntimeError(f"Inconsistent model vector size ({error.router_name}).")
         case InconsistentModelMaxContextLengthError() as error:

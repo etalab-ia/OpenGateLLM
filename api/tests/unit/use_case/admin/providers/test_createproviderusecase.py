@@ -5,7 +5,12 @@ import pytest
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.entities import HostingZone, ProviderCapabilities, ProviderType
-from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
+from api.domain.provider.errors import (
+    InvalidProviderTypeError,
+    ProviderAlreadyExistsError,
+    ProviderInvalidResponseError,
+    ProviderNotReachableError,
+)
 from api.domain.router.errors import RouterNotFoundError
 from api.tests.unit.use_case.factories import ProviderFactory, RouterFactory
 from api.use_cases.admin.providers import CreateProviderCommand, CreateProviderUseCase, CreateProviderUseCaseSuccess
@@ -383,6 +388,26 @@ class TestCreateProviderUseCase:
         # Assert
         assert isinstance(result, ModelNotFoundError)
         assert result.name == "my-model"
+        provider_repository.create_provider.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_should_return_provider_invalid_response_error_when_provider_returns_no_embedding(
+        self, use_case, router_repository, provider_repository, provider_capabilities_probe, sample_router, default_command
+    ):
+        # Arrange
+
+        router_repository.get_router_by_id.return_value = sample_router
+        provider_capabilities_probe.get_capabilities.return_value = ProviderInvalidResponseError(
+            model_name="my-model", detail="no embedding returned"
+        )
+
+        # Act
+        result = await use_case.execute(default_command)
+
+        # Assert
+        assert isinstance(result, ProviderInvalidResponseError)
+        assert result.model_name == "my-model"
+        assert result.detail == "no embedding returned"
         provider_repository.create_provider.assert_not_called()
 
     @pytest.mark.asyncio

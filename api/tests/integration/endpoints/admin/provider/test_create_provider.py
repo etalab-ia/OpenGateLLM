@@ -9,7 +9,12 @@ from api.dependencies import create_provider_use_case_factory
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.entities import ProviderType
-from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
+from api.domain.provider.errors import (
+    InvalidProviderTypeError,
+    ProviderAlreadyExistsError,
+    ProviderInvalidResponseError,
+    ProviderNotReachableError,
+)
 from api.domain.router.errors import RouterNotFoundError
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_models_responses
@@ -88,6 +93,11 @@ class TestCreateProvider:
                 ModelNotFoundError(name="my-model"),
                 404,
                 "Model my-model not found.",
+            ),
+            (
+                ProviderInvalidResponseError(model_name="my-model", detail="no embedding returned"),
+                424,
+                "Model provider my-model returned an invalid response: no embedding returned",
             ),
             (
                 ProviderAlreadyExistsError(model_name="my-model", url=DEFAULT_PROVIDER_URL, router_id=1),

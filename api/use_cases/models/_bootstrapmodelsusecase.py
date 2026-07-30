@@ -4,7 +4,7 @@ import logging
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider import ProviderRepository
-from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
+from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.schemas.core.configuration import Model as ModelConfiguration
@@ -31,6 +31,7 @@ type BootstrapModelsUseCaseResult = (
     | ModelNotFoundError
     | ProviderAlreadyExistsError
     | ProviderNotReachableError
+    | ProviderInvalidResponseError
     | RouterNameAlreadyExistsError
 )
 
@@ -99,6 +100,9 @@ class BootstrapModelsUseCase:
                         await self.router_repository.delete_all_routers()
                         return error
                     case ModelNotFoundError() as error:
+                        await self.router_repository.delete_all_routers()
+                        return error
+                    case ProviderInvalidResponseError() as error:
                         await self.router_repository.delete_all_routers()
                         return error
                     case provider_capabilities:

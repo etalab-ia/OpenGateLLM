@@ -3,7 +3,7 @@ from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import ModelNotFoundError
 from api.domain.provider import ProviderAdapter, ProviderAdapterBuilder, ProviderClient
 from api.domain.provider.entities import Provider, ProviderCapabilities, ProviderOriginalRequest, ProviderOriginalResponse, ProviderType
-from api.domain.provider.errors import ProviderNotReachableError
+from api.domain.provider.errors import ProviderInvalidResponseError, ProviderNotReachableError
 from api.utils.variables import EndpointRoute
 
 
@@ -20,7 +20,7 @@ class ProviderCapabilitiesProbe:
         key: str | None,
         timeout: int,
         model_name: str,
-    ) -> ProviderCapabilities | ModelNotFoundError | ProviderNotReachableError:
+    ) -> ProviderCapabilities | ModelNotFoundError | ProviderNotReachableError | ProviderInvalidResponseError:
         provider = Provider(
             id=0,
             user_id=0,
@@ -51,6 +51,8 @@ class ProviderCapabilitiesProbe:
             match result:
                 case ProviderNotReachableError() as error:
                     return error
+                case ProviderInvalidResponseError() as error:
+                    return error
                 case _:
                     vector_size = result
 
@@ -74,7 +76,7 @@ class ProviderCapabilitiesProbe:
 
         return model.max_context_length
 
-    async def _get_vector_size(self, adapter: ProviderAdapter) -> int | ProviderNotReachableError:
+    async def _get_vector_size(self, adapter: ProviderAdapter) -> int | ProviderNotReachableError | ProviderInvalidResponseError:
         original_request = ProviderOriginalRequest(
             endpoint=EndpointRoute.EMBEDDINGS,
             body=CreateEmbeddingsBody(model=adapter.provider.model_name, input="hello world"),
@@ -88,6 +90,9 @@ class ProviderCapabilitiesProbe:
                 return ProviderNotReachableError(model_name=adapter.provider.model_name, status_code=error.status_code, detail=error.detail)
 
         formatted_response = adapter.format_response(original_response=response, original_request=original_request)
+        if not formatted_response.data.data:
+            return ProviderInvalidResponseError(model_name=adapter.provider.model_name, detail="no embedding returned")
+
         vector_size = len(formatted_response.data.data[0].embedding)
 
         return vector_size

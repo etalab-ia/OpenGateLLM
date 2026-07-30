@@ -3,7 +3,12 @@ from dataclasses import dataclass
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import BasicAuth, HostingZone, Metric, Provider, ProviderType
-from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotReachableError
+from api.domain.provider.errors import (
+    InvalidProviderTypeError,
+    ProviderAlreadyExistsError,
+    ProviderInvalidResponseError,
+    ProviderNotReachableError,
+)
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNotFoundError
 from api.use_cases.services import ProviderCapabilitiesProbe
@@ -35,6 +40,7 @@ type CreateProviderUseCaseResult = (
     CreateProviderUseCaseSuccess
     | InvalidProviderTypeError
     | ProviderNotReachableError
+    | ProviderInvalidResponseError
     | ModelNotFoundError
     | InconsistentModelMaxContextLengthError
     | InconsistentModelVectorSizeError
@@ -74,6 +80,8 @@ class CreateProviderUseCase:
             case ProviderNotReachableError() as error:
                 return error
             case ModelNotFoundError() as error:
+                return error
+            case ProviderInvalidResponseError() as error:
                 return error
             case provider_capabilities:
                 pass
