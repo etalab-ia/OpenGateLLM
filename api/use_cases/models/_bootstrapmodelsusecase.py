@@ -3,11 +3,12 @@ from dataclasses import dataclass
 import logging
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
-from api.domain.provider import ProviderGateway, ProviderRepository
-from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
+from api.domain.provider import ProviderRepository
+from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router import RouterRepository
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.schemas.core.configuration import Model as ModelConfiguration
+from api.use_cases.services import ProviderCapabilitiesProbe
 
 logger = logging.getLogger(__name__)
 
@@ -30,15 +31,21 @@ type BootstrapModelsUseCaseResult = (
     | ModelNotFoundError
     | ProviderAlreadyExistsError
     | ProviderNotReachableError
+    | ProviderInvalidResponseError
     | RouterNameAlreadyExistsError
 )
 
 
 class BootstrapModelsUseCase:
-    def __init__(self, router_repository: RouterRepository, provider_repository: ProviderRepository, provider_gateway: ProviderGateway):
+    def __init__(
+        self,
+        router_repository: RouterRepository,
+        provider_repository: ProviderRepository,
+        provider_capabilities_probe: ProviderCapabilitiesProbe,
+    ):
         self.router_repository = router_repository
         self.provider_repository = provider_repository
-        self.provider_gateway = provider_gateway
+        self.provider_capabilities_probe = provider_capabilities_probe
 
     async def execute(
         self,
@@ -80,7 +87,7 @@ class BootstrapModelsUseCase:
             )
 
             for i, provider_to_create in enumerate(router_to_create.providers):
-                result = await self.provider_gateway.get_capabilities(
+                result = await self.provider_capabilities_probe.get_capabilities(
                     router_type=router.type,
                     provider_type=provider_to_create.type,
                     url=provider_to_create.url,
@@ -93,6 +100,9 @@ class BootstrapModelsUseCase:
                         await self.router_repository.delete_all_routers()
                         return error
                     case ModelNotFoundError() as error:
+                        await self.router_repository.delete_all_routers()
+                        return error
+                    case ProviderInvalidResponseError() as error:
                         await self.router_repository.delete_all_routers()
                         return error
                     case provider_capabilities:

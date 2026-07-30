@@ -146,6 +146,11 @@ class Provider(BaseModel):
         return self.type.is_compatible_with(router.type)
 
 
+class ProviderCapabilities(BaseModel):
+    max_context_length: int | None
+    vector_size: int | None = None
+
+
 class ProviderOriginalRequest(BaseModel):
     endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
     body: Annotated[CreateEmbeddingsBody | CreateRerankBody | None, Field(default=None, description="The JSON body to use for the request.")]

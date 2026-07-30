@@ -18,6 +18,12 @@ class ProviderNotReachableError:
 
 
 @dataclass
+class ProviderInvalidResponseError:
+    model_name: str
+    detail: str
+
+
+@dataclass
 class ProviderAlreadyExistsError:
     model_name: str
     url: str

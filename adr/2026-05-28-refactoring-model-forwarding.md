@@ -109,6 +109,7 @@ The new architecture follows the principles of clean architecture: the model for
 * **Domain contracts for forwarding:** provider client, provider load balancer, router rate limiter, model tokenizer and environmental impact computer are exposed as domain abstractions. The use case depends on these contracts, not on Redis, HTTP, Ecologit or Tiktoken directly.
 * **HTTP client simplified:** `HttpProviderClient` only sends an already formatted request to the selected provider and returns the raw provider response or a model error. It no longer owns endpoint selection, usage computation, metrics or rate limiting.
 * **Endpoint adapters extracted:** provider-specific adapters convert OpenGate requests and responses to each provider format. `build_adapter` selects the right adapter from the source endpoint and provider type, while common usage computation stays in the base adapter.
+* **Provider gateway replaced by a capabilities probe:** the `ProviderGateway` contract and its `ModelProviderGateway` implementation are replaced by a single `ProviderCapabilitiesProbe` class in the use case layer. Probing a provider for its capabilities (max context length, vector size) is an acquisition concern, not a repository. The class holds no technology of its own: it composes the `ProviderClient` and `ProviderAdapterBuilder` domain contracts and sequences two calls, which makes it an application service shared by `CreateProviderUseCase` and `BootstrapModelsUseCase` rather than an adapter. No abstraction is declared for it, since it is not a boundary the domain needs to invert. It does not appear in the diagram below: the model forwarding use case does not probe capabilities.
 * **Redis responsibilities isolated:** Redis implementations handle provider load balancing, provider metrics and router rate limits behind dedicated contracts. The use case decides when those operations happen.
 * **Usage and impacts made explicit:** prompt tokens are computed before rate limiting, response usage is computed after provider response formatting, and environmental impacts are delegated to the Ecologit implementation through a domain contract.
 * **FastAPI endpoint thinned:** the HTTP endpoint builds the command, calls the use case and maps domain errors to HTTP exceptions. It no longer contains forwarding logic.
@@ -134,7 +135,6 @@ subgraph DL[**Domain layer**]
         provider_adapter_builder[ProviderAdapterBuilder]
         provider_adapter[ProviderAdapter]
         provider_repository[ProviderRepository]
-        provider_gateway[ProviderGateway]
         provider_load_balancer[ProviderLoadBalancer]
         provider_client[ProviderClient]
         provider_metrics_logger[ProviderMetricsLogger]
@@ -187,7 +187,6 @@ use_case --> router_rate_limiter
 use_case --> provider_repository
 use_case --> provider_adapter_builder
 use_case --> provider_adapter
-use_case --> provider_gateway
 use_case --> provider_load_balancer
 use_case --> provider_client
 use_case --> provider_metrics_logger
@@ -197,8 +196,6 @@ use_case --> user_with_role_query
 use_case --> usage_computer
 usage_computer --> model_environmental_impacts_computer
 usage_computer --> model_tokenizer
-
-
 
 provider_adapter_builder --> http_provider_adapter_builder
 provider_client --> http_provider_client

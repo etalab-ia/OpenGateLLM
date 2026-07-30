@@ -4,8 +4,8 @@ import pytest
 
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
-from api.domain.provider import ProviderCapabilities
-from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotReachableError
+from api.domain.provider.entities import ProviderCapabilities
+from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.tests.unit.use_case.factories import (
     ModelConfigurationFactory,
@@ -29,18 +29,22 @@ def provider_repository():
 
 
 @pytest.fixture
-def provider_gateway():
+def provider_capabilities_probe():
     return AsyncMock()
 
 
 @pytest.fixture
-def use_case(router_repository, provider_repository, provider_gateway):
-    return BootstrapModelsUseCase(router_repository=router_repository, provider_repository=provider_repository, provider_gateway=provider_gateway)
+def use_case(router_repository, provider_repository, provider_capabilities_probe):
+    return BootstrapModelsUseCase(
+        router_repository=router_repository,
+        provider_repository=provider_repository,
+        provider_capabilities_probe=provider_capabilities_probe,
+    )
 
 
 class TestBootstrapModelsUseCase:
     @pytest.mark.asyncio
-    async def test_skips_when_routers_already_exist(self, use_case, router_repository, provider_repository, provider_gateway):
+    async def test_skips_when_routers_already_exist(self, use_case, router_repository, provider_repository, provider_capabilities_probe):
         # Arrange
         existing_routers = [RouterFactory(id=1), RouterFactory(id=2)]
         router_repository.get_all_routers.return_value = existing_routers
@@ -51,11 +55,13 @@ class TestBootstrapModelsUseCase:
         # Assert
         assert result == BootstrapModelsUseCaseSkipped(number_of_routers=2)
         router_repository.create_router.assert_not_awaited()
-        provider_gateway.get_capabilities.assert_not_awaited()
+        provider_capabilities_probe.get_capabilities.assert_not_awaited()
         provider_repository.create_provider.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_successfully_creates_router_with_single_provider(self, use_case, router_repository, provider_repository, provider_gateway):
+    async def test_successfully_creates_router_with_single_provider(
+        self, use_case, router_repository, provider_repository, provider_capabilities_probe
+    ):
         # Arrange
         model_provider = ModelProviderConfigurationFactory()
         model_configuration = ModelConfigurationFactory(providers=[model_provider])
@@ -64,7 +70,7 @@ class TestBootstrapModelsUseCase:
 
         router_repository.get_all_routers.return_value = []
         router_repository.create_router.return_value = router
-        provider_gateway.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
+        provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
         provider_repository.create_provider.return_value = provider
 
         # Act
@@ -82,7 +88,7 @@ class TestBootstrapModelsUseCase:
             user_id=BOOTSTRAP_ADMIN_USER_ID,
             aliases=model_configuration.aliases,
         )
-        provider_gateway.get_capabilities.assert_awaited_once_with(
+        provider_capabilities_probe.get_capabilities.assert_awaited_once_with(
             router_type=router.type,
             provider_type=model_provider.type,
             url=model_provider.url,
@@ -111,7 +117,7 @@ class TestBootstrapModelsUseCase:
 
     @pytest.mark.asyncio
     async def test_successfully_creates_multiple_routers_with_multiple_providers(
-        self, use_case, router_repository, provider_repository, provider_gateway
+        self, use_case, router_repository, provider_repository, provider_capabilities_probe
     ):
         # Arrange
         first_model = ModelConfigurationFactory(
@@ -133,7 +139,7 @@ class TestBootstrapModelsUseCase:
 
         router_repository.get_all_routers.return_value = []
         router_repository.create_router.side_effect = [first_router, second_router]
-        provider_gateway.get_capabilities.side_effect = [
+        provider_capabilities_probe.get_capabilities.side_effect = [
             ProviderCapabilities(max_context_length=4096, vector_size=None),
             ProviderCapabilities(max_context_length=4096, vector_size=None),
             ProviderCapabilities(max_context_length=512, vector_size=768),
@@ -153,13 +159,13 @@ class TestBootstrapModelsUseCase:
         # Assert
         assert result == BootstrapModelsUseCaseSuccess(number_of_routers=2)
         assert router_repository.create_router.await_count == 2
-        assert provider_gateway.get_capabilities.await_count == 3
+        assert provider_capabilities_probe.get_capabilities.await_count == 3
         assert provider_repository.create_provider.await_count == 3
         router_repository.delete_all_routers.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_returns_router_name_already_exists_error_when_duplicate_name(
-        self, use_case, router_repository, provider_repository, provider_gateway
+        self, use_case, router_repository, provider_repository, provider_capabilities_probe
     ):
         # Arrange
         routers_to_create = [
@@ -177,7 +183,7 @@ class TestBootstrapModelsUseCase:
         # Assert
         assert result == RouterNameAlreadyExistsError(name="duplicate")
         router_repository.create_router.assert_not_awaited()
-        provider_gateway.get_capabilities.assert_not_awaited()
+        provider_capabilities_probe.get_capabilities.assert_not_awaited()
         provider_repository.create_provider.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -218,7 +224,7 @@ class TestBootstrapModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_gateway,
+        provider_capabilities_probe,
     ):
         # Arrange
         model_configuration = ModelConfigurationFactory(
@@ -237,17 +243,21 @@ class TestBootstrapModelsUseCase:
         assert result.model_name == "model-a"
         assert result.url == "https://provider.com/"
         router_repository.create_router.assert_not_awaited()
-        provider_gateway.get_capabilities.assert_not_awaited()
+        provider_capabilities_probe.get_capabilities.assert_not_awaited()
         provider_repository.create_provider.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_returns_provider_not_reachable_error_and_rolls_back(self, use_case, router_repository, provider_repository, provider_gateway):
+    async def test_returns_provider_not_reachable_error_and_rolls_back(
+        self, use_case, router_repository, provider_repository, provider_capabilities_probe
+    ):
         # Arrange
         model_configuration = ModelConfigurationFactory()
         router = RouterFactory(id=1, name=model_configuration.name, type=RouterType.TEXT_GENERATION)
         router_repository.get_all_routers.return_value = []
         router_repository.create_router.return_value = router
-        provider_gateway.get_capabilities.return_value = ProviderNotReachableError(model_name="my-model", status_code=500, detail="error_detail")
+        provider_capabilities_probe.get_capabilities.return_value = ProviderNotReachableError(
+            model_name="my-model", status_code=500, detail="error_detail"
+        )
 
         # Act
         result = await use_case.execute(routers_to_create=[model_configuration], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID)
@@ -258,13 +268,34 @@ class TestBootstrapModelsUseCase:
         router_repository.delete_all_routers.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_returns_model_not_found_error_and_rolls_back(self, use_case, router_repository, provider_repository, provider_gateway):
+    async def test_returns_provider_invalid_response_error_and_rolls_back(
+        self, use_case, router_repository, provider_repository, provider_capabilities_probe
+    ):
+        # Arrange
+        model_configuration = ModelConfigurationFactory()
+        router = RouterFactory(id=1, name=model_configuration.name, type=RouterType.TEXT_EMBEDDINGS_INFERENCE)
+        router_repository.get_all_routers.return_value = []
+        router_repository.create_router.return_value = router
+        provider_capabilities_probe.get_capabilities.return_value = ProviderInvalidResponseError(
+            model_name="my-model", detail="no embedding returned"
+        )
+
+        # Act
+        result = await use_case.execute(routers_to_create=[model_configuration], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID)
+
+        # Assert
+        assert result == ProviderInvalidResponseError(model_name="my-model", detail="no embedding returned")
+        provider_repository.create_provider.assert_not_awaited()
+        router_repository.delete_all_routers.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_returns_model_not_found_error_and_rolls_back(self, use_case, router_repository, provider_repository, provider_capabilities_probe):
         # Arrange
         model_configuration = ModelConfigurationFactory()
         router = RouterFactory(id=1, name=model_configuration.name, type=RouterType.TEXT_GENERATION)
         router_repository.get_all_routers.return_value = []
         router_repository.create_router.return_value = router
-        provider_gateway.get_capabilities.return_value = ModelNotFoundError(name="my-model")
+        provider_capabilities_probe.get_capabilities.return_value = ModelNotFoundError(name="my-model")
 
         # Act
         result = await use_case.execute(routers_to_create=[model_configuration], bootstrap_admin_user_id=BOOTSTRAP_ADMIN_USER_ID)
@@ -280,7 +311,7 @@ class TestBootstrapModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_gateway,
+        provider_capabilities_probe,
     ):
         # Arrange
         model_configuration = ModelConfigurationFactory(
@@ -292,7 +323,7 @@ class TestBootstrapModelsUseCase:
         router = RouterFactory(id=1, name=model_configuration.name, type=RouterType.TEXT_GENERATION, max_context_length=4096, vector_size=None)
         router_repository.get_all_routers.return_value = []
         router_repository.create_router.return_value = router
-        provider_gateway.get_capabilities.side_effect = [
+        provider_capabilities_probe.get_capabilities.side_effect = [
             ProviderCapabilities(max_context_length=4096, vector_size=None),
             ProviderCapabilities(max_context_length=2048, vector_size=None),
         ]
@@ -309,7 +340,9 @@ class TestBootstrapModelsUseCase:
         router_repository.delete_all_routers.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_returns_inconsistent_vector_size_error_and_rolls_back(self, use_case, router_repository, provider_repository, provider_gateway):
+    async def test_returns_inconsistent_vector_size_error_and_rolls_back(
+        self, use_case, router_repository, provider_repository, provider_capabilities_probe
+    ):
         # Arrange
         model_configuration = ModelConfigurationFactory(
             type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
@@ -323,7 +356,7 @@ class TestBootstrapModelsUseCase:
         )
         router_repository.get_all_routers.return_value = []
         router_repository.create_router.return_value = router
-        provider_gateway.get_capabilities.side_effect = [
+        provider_capabilities_probe.get_capabilities.side_effect = [
             ProviderCapabilities(max_context_length=512, vector_size=768),
             ProviderCapabilities(max_context_length=512, vector_size=384),
         ]
@@ -345,7 +378,7 @@ class TestBootstrapModelsUseCase:
         router_repository.delete_all_routers.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_returns_success_with_no_routers_to_create(self, use_case, router_repository, provider_repository, provider_gateway):
+    async def test_returns_success_with_no_routers_to_create(self, use_case, router_repository, provider_repository, provider_capabilities_probe):
         # Arrange
         router_repository.get_all_routers.return_value = []
 
@@ -355,7 +388,7 @@ class TestBootstrapModelsUseCase:
         # Assert
         assert result == BootstrapModelsUseCaseSuccess(number_of_routers=0)
         router_repository.create_router.assert_not_awaited()
-        provider_gateway.get_capabilities.assert_not_awaited()
+        provider_capabilities_probe.get_capabilities.assert_not_awaited()
         provider_repository.create_provider.assert_not_awaited()
 
 
