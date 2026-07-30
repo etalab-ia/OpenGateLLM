@@ -290,7 +290,7 @@ class BaseModelProvider(ABC):
 
         return langfuse_obs
 
-    def _end_langfuse_observation(self, langfuse_obs: Any, latency: int | None, ttft: int | None = None, ctx=None):
+    def _update_langfuse_observation(self, langfuse_obs: Any, latency: int | None, ttft: int | None = None, ctx=None):
         if global_context.langfuse_client is not None and langfuse_obs is not None:
             if ctx is None:
                 ctx = request_context.get()
@@ -300,6 +300,10 @@ class BaseModelProvider(ABC):
                     usage_details={"input": ctx.usage.prompt_tokens, "output": ctx.usage.completion_tokens},
                     metadata={"latency_ms": latency, "ttft_ms": ttft, "cost": ctx.usage.cost, "router_name": ctx.router_name},
                 )
+
+    def _end_langfuse_observation(self, langfuse_obs: Any) -> None:
+        if global_context.langfuse_client is not None and langfuse_obs is not None:
+            global_context.langfuse_client.end_observation(langfuse_obs)
 
     @staticmethod
     def _elapsed_ms(start_time: float) -> int:
@@ -365,17 +369,18 @@ class BaseModelProvider(ABC):
                         logger.debug(traceback.format_exc())
                         message = response.text
                     raise HTTPException(status_code=response.status_code, detail=message)
+
+            # add additional data to the response
+            latency = self._elapsed_ms(start_time=start_time)
+            response = self._format_response(request_content=request_content, response=response, request_latency=latency)
+            await self._log_performance_metric(redis_client=redis_client, ttft=None, latency=latency)
+
+            self._update_langfuse_observation(langfuse_obs=langfuse_obs, latency=latency)
+
+            return response
         finally:
             await redis_retry(redis_client.decr, name=inflight_key, max_retries=2)
-
-        # add additional data to the response
-        latency = self._elapsed_ms(start_time=start_time)
-        response = self._format_response(request_content=request_content, response=response, request_latency=latency)
-        await self._log_performance_metric(redis_client=redis_client, ttft=None, latency=latency)
-
-        self._end_langfuse_observation(langfuse_obs=langfuse_obs, latency=latency)
-
-        return response
+            self._end_langfuse_observation(langfuse_obs=langfuse_obs)
 
     def _get_extra_stream_chunk(self, request_content: RequestContent, buffer: list[dict], latency: float | None = None) -> dict | None:
         """
@@ -474,7 +479,7 @@ class BaseModelProvider(ABC):
                             latency = self._elapsed_ms(start_time=start_time)
                             extra_chunk = self._get_extra_stream_chunk(request_content=request_content, buffer=buffer, latency=latency)
 
-                            self._end_langfuse_observation(langfuse_obs=langfuse_obs, latency=latency, ttft=ttft, ctx=ctx)
+                            self._update_langfuse_observation(langfuse_obs=langfuse_obs, latency=latency, ttft=ttft, ctx=ctx)
 
                             if extra_chunk is not None:
                                 yield f"data: {dumps(extra_chunk)}\n\n", response.status_code
@@ -510,5 +515,4 @@ class BaseModelProvider(ABC):
                         await redis_retry(redis_client.decr, name=inflight_key, max_retries=2)
                     except Exception:
                         logger.error("Unable to decrement redis requests inflight key")
-                if global_context.langfuse_client is not None and langfuse_obs is not None:
-                    global_context.langfuse_client.end_observation(langfuse_obs)
+                self._end_langfuse_observation(langfuse_obs=langfuse_obs)
