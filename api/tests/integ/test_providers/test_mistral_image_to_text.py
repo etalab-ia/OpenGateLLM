@@ -3,9 +3,9 @@ import datetime as dt
 from fastapi.testclient import TestClient
 import pytest
 
+from api.domain.ocr.entities import OCR
 from api.schemas.admin.providers import ProviderType
 from api.schemas.models import ModelType
-from api.schemas.ocr import OCR
 from api.tests.integ.utils import (
     create_provider,
     create_role,
@@ -35,7 +35,7 @@ def setup_mistral_image_to_text(client: TestClient):
         )
         role_id = create_role(router_id=router_id, client=client)
         user_id = create_user(role_id=role_id, client=client)
-        _, key = create_token(user_id=user_id, token_name=f"test-token-{dt.datetime.now().strftime("%Y%m%d%H%M%S")}", client=client)
+        _, key = create_token(user_id=user_id, token_name=f"test-token-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}", client=client)
 
         yield key, process.model_name
     except Exception as e:

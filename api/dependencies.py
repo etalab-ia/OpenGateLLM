@@ -1,5 +1,4 @@
 from collections.abc import AsyncGenerator
-from contextvars import ContextVar
 from typing import Any
 
 from fastapi import Depends
@@ -18,11 +17,12 @@ from api.domain.provider import (
 )
 from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
-from api.domain.user import UserPasswordEncoder
-from api.domain.user.views import AuthenticatedUserView
+from api.domain.usage import UsageRecorder
+from api.domain.user import AuthenticatedUserQuery, UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
-from api.infrastructure.fastapi.context import request_context
+from api.infrastructure.fastapi import RequestContextUsageRecorder
+from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.postgres import (
@@ -37,7 +37,6 @@ from api.infrastructure.postgres import (
 )
 from api.infrastructure.redis import RedisProviderLoadBalancer, RedisProviderMetricsLogger, RedisRouterRateLimiter
 from api.infrastructure.tiktoken import TiktokenModelTokenizer
-from api.schemas.core.context import RequestContext
 from api.use_cases.admin.keys import CreateKeyUseCase, GetKeysUseCase, GetOneKeyUseCase
 from api.use_cases.admin.providers import (
     CreateProviderUseCase,
@@ -53,22 +52,11 @@ from api.use_cases.auth import AuthLoginUseCase
 from api.use_cases.embeddings import CreateEmbeddingsUseCase
 from api.use_cases.health import GetHealthModelsUseCase
 from api.use_cases.models import GetModelsUseCase, GetModelUseCase
+from api.use_cases.ocr import CreateOCRUseCase
 from api.use_cases.reranks import CreateRerankUseCase
 from api.use_cases.services import ProviderCapabilitiesProbe
 from api.utils.configuration import configuration
 from api.utils.context import global_context
-
-
-def get_request_context() -> ContextVar[RequestContext]:
-    return request_context
-
-
-def get_authenticated_user() -> AuthenticatedUserView:
-    return request_context.get().user
-
-
-def get_secret_key() -> str:
-    return configuration.settings.auth_secret_key
 
 
 # databases
@@ -92,7 +80,7 @@ async def get_redis_client() -> AsyncGenerator[Redis, Any]:
 
 
 # queries
-def _authenticated_user_query(session: AsyncSession = Depends(get_postgres_session)) -> PostgresAuthenticatedUserQuery:
+def _authenticated_user_query(session: AsyncSession = Depends(get_postgres_session)) -> AuthenticatedUserQuery:
     return PostgresAuthenticatedUserQuery(postgres_session=session)
 
 
@@ -133,11 +121,11 @@ def _router_rate_limiter() -> RouterRateLimiter:
     return RedisRouterRateLimiter(redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy)
 
 
+def _usage_recorder() -> UsageRecorder:
+    return RequestContextUsageRecorder(request_context=request_context)
+
+
 # repositories
-def _key_repository(key_encoder: KeyEncoder = Depends(_key_encoder), session: AsyncSession = Depends(get_postgres_session)) -> KeyRepository:
-    return PostgresKeyRepository(key_encoder=key_encoder, postgres_session=session)
-
-
 def _user_repository(session: AsyncSession) -> PostgresUserRepository:
     return PostgresUserRepository(postgres_session=session)
 
@@ -167,6 +155,10 @@ def _provider_capabilities_probe(
     provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
 ) -> ProviderCapabilitiesProbe:
     return ProviderCapabilitiesProbe(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
+
+
+def _key_repository(key_encoder: KeyEncoder = Depends(_key_encoder), session: AsyncSession = Depends(get_postgres_session)) -> KeyRepository:
+    return PostgresKeyRepository(key_encoder=key_encoder, postgres_session=session)
 
 
 # health use cases
@@ -218,6 +210,7 @@ def create_embeddings_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
+        usage_recorder=_usage_recorder(),
     )
 
 
@@ -241,6 +234,29 @@ def get_models_use_case_factory(postgres_session: AsyncSession = Depends(get_pos
 
 def get_model_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetModelUseCase:
     return GetModelUseCase(router_repository=_router_repository(postgres_session))
+
+
+# ocr use cases
+def create_ocr_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    redis_client: Redis = Depends(get_redis_client),
+    model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
+    model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
+    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
+    provider_client: ProviderClient = Depends(_provider_client),
+) -> CreateOCRUseCase:
+    return CreateOCRUseCase(
+        model_environmental_impacts_computer=model_environmental_impacts_computer,
+        model_tokenizer=model_tokenizer,
+        provider_adapter_builder=provider_adapter_builder,
+        provider_client=provider_client,
+        provider_load_balancer=_provider_load_balancer(redis_client),
+        provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_repository=_provider_repository(postgres_session),
+        router_rate_limiter=_router_rate_limiter(),
+        router_repository=_router_repository(postgres_session),
+        usage_recorder=_usage_recorder(),
+    )
 
 
 # user use cases
@@ -287,6 +303,7 @@ def create_rerank_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
+        usage_recorder=_usage_recorder(),
     )
 
 

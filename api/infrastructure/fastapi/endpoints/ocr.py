@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Security
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
-from api.dependencies import create_rerank_use_case_factory
+from api.dependencies import create_ocr_use_case_factory
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
@@ -22,17 +22,17 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RateLimitExceededHTTPException,
     WrongModelTypeHTTPException,
 )
-from api.infrastructure.fastapi.schemas.rerank import CreateRerankBody, RerankResponse
-from api.use_cases.reranks import CreateRerankCommand, CreateRerankUseCase, CreateRerankUseCaseSuccess
+from api.infrastructure.fastapi.schemas.ocr import CreateOCRBody, OCRResponse
+from api.use_cases.ocr import CreateOCRCommand, CreateOCRUseCase, CreateOCRUseCaseSuccess
 from api.utils.dependencies import get_postgres_session
 from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/v1", tags=[RouterName.RERANK.title()])
+router = APIRouter(prefix="/v1", tags=[RouterName.OCR.upper()])
 
 
 @router.post(
-    path=EndpointRoute.RERANK,
+    path=EndpointRoute.OCR,
     dependencies=[Security(dependency=AccessController())],
     status_code=200,
     responses=get_documentation_responses(
@@ -44,20 +44,23 @@ router = APIRouter(prefix="/v1", tags=[RouterName.RERANK.title()])
             InsufficientBudgetHTTPException,
         ]
     ),
-    response_model=RerankResponse,
+    response_model=OCRResponse,
 )
 @hooks(postgres_session_provider=get_postgres_session)
-async def create_rerank(
-    body: CreateRerankBody = Body(description="The rerank creation request."),
-    create_rerank_use_case: CreateRerankUseCase = Depends(create_rerank_use_case_factory),
+async def create_ocr(
+    body: CreateOCRBody = Body(description="The OCR creation request."),
+    create_ocr_use_case: CreateOCRUseCase = Depends(create_ocr_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> JSONResponse:
+    """
+    Extracts text from files using Mistral Document AI pipeline
+    """
     try:
-        command = CreateRerankCommand(body=body.model_dump(), authenticated_user=authenticated_user)
-        result = await create_rerank_use_case.execute(command)
+        command = CreateOCRCommand(body=body.model_dump(), authenticated_user=authenticated_user)
+        result = await create_ocr_use_case.execute(command)
     except Exception as e:
         logger.exception(
-            "Unexpected error while executing rerank use case",
+            "Unexpected error while executing ocr use case",
             extra={
                 "authenticated_user_id": authenticated_user.id,
                 "model_name": body.model,
@@ -67,8 +70,8 @@ async def create_rerank(
         raise InternalServerHTTPException()
 
     match result:
-        case CreateRerankUseCaseSuccess(data=data, headers=headers):
-            return JSONResponse(content=RerankResponse.model_validate(data.model_dump()).model_dump(), status_code=200, headers=headers)
+        case CreateOCRUseCaseSuccess(data=data, headers=headers):
+            return JSONResponse(content=OCRResponse.model_validate(data.model_dump()).model_dump(), status_code=200, headers=headers)
         case NoAvailableProviderError():
             raise ModelIsTooBusyExceptionHTTPException()
         case ProviderAdapterValidationRequestError(errors=errors):

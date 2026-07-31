@@ -6,18 +6,19 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from pydantic import ValidationError
 
-from api.dependencies import _authenticated_user_query, _key_repository, get_request_context
+from api.dependencies import _authenticated_user_query, _key_repository
 from api.domain.key import KeyEncoder, KeyRepository
 from api.domain.key.entities import Key
 from api.domain.key.errors import KeyNotFoundError
 from api.domain.user import AuthenticatedUserQuery
+from api.infrastructure.fastapi._requestcontext import RequestContext
+from api.infrastructure.fastapi.dependencies import get_request_context
 from api.infrastructure.fastapi.endpoints.exceptions import (
     AccountExpiredHTTPException,
     InvalidAPIKeyHTTPException,
     InvalidAuthenticationSchemeHTTPException,
     NotAdminUserHTTPException,
 )
-from api.schemas.core.context import RequestContext
 
 http_bearer = HTTPBearer()
 

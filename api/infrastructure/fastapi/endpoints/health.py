@@ -3,9 +3,10 @@ import logging
 from fastapi import APIRouter, Depends, Security
 from fastapi.responses import JSONResponse
 
-from api.dependencies import get_health_models_use_case_factory, get_request_context
-from api.infrastructure.fastapi import AccessController
-from api.infrastructure.fastapi.context import RequestContext
+from api.dependencies import get_health_models_use_case_factory
+from api.infrastructure.fastapi import RequestContext
+from api.infrastructure.fastapi.accesscontroller import AccessController
+from api.infrastructure.fastapi.dependencies import get_request_context
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import InternalServerHTTPException
 from api.infrastructure.fastapi.schemas.health import ModelHealthStatus, ModelsHealthResponse

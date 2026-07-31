@@ -2,12 +2,11 @@ import datetime as dt
 from http import HTTPMethod
 from unittest.mock import AsyncMock, MagicMock, call, create_autospec, patch
 
-from openai.types import Embedding
 import pytest
 
-from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import TooBusyModelError
+from api.domain.ocr.entities import OCR, CreateOCRBody, OCRDocumentURLChunk, OCRPageObject, OCRUsage
 from api.domain.provider import ProviderAdapter
 from api.domain.provider.entities import (
     Metric,
@@ -30,13 +29,13 @@ from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, ProviderFactory, RouterFactory
-from api.use_cases.embeddings import CreateEmbeddingsCommand, CreateEmbeddingsUseCase, CreateEmbeddingsUseCaseSuccess
+from api.use_cases.ocr import CreateOCRCommand, CreateOCRUseCase, CreateOCRUseCaseSuccess
 
 
 @pytest.fixture
 def model_tokenizer():
     tokenizer = MagicMock()
-    tokenizer.compute_tokens.return_value = 10
+    tokenizer.compute_tokens.return_value = 0
     return tokenizer
 
 
@@ -99,23 +98,22 @@ def use_case(
     router_rate_limiter,
     router_repository,
     usage_recorder,
-    embeddings_router,
-    embeddings_provider,
-    sample_embeddings,
-) -> CreateEmbeddingsUseCase:
-    router_repository.get_router_by_name_or_alias.return_value = embeddings_router
-    provider_repository.get_all_providers_of_router.return_value = [embeddings_provider]
-    provider_load_balancer.find_best_provider.return_value = embeddings_provider
+    ocr_router,
+    ocr_provider,
+    sample_ocr,
+) -> CreateOCRUseCase:
+    router_repository.get_router_by_name_or_alias.return_value = ocr_router
+    provider_repository.get_all_providers_of_router.return_value = [ocr_provider]
+    provider_load_balancer.find_best_provider.return_value = ocr_provider
     provider_metrics_logger.increment_inflight.return_value = True
     provider_client.forward_request.return_value = ProviderOriginalResponse(data={})
     rate_limit_state = rate_limit_state_factory()
     rate_limit_state.rpm = RpmRateLimitState(value=100, remaining=99, reset=int(dt.datetime.now(dt.UTC).timestamp()) + 30)
     router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
-    model_tokenizer.compute_tokens.return_value = 15
-    mock_adapter = _mock_adapter(formatted_response=sample_embeddings)
+    mock_adapter = _mock_adapter(formatted_response=sample_ocr)
     provider_adapter_builder.build.return_value = mock_adapter
 
-    return CreateEmbeddingsUseCase(
+    return CreateOCRUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
         provider_adapter_builder=provider_adapter_builder,
@@ -141,9 +139,12 @@ def user_with_router_access():
 
 @pytest.fixture
 def make_command():
-    def _make(user) -> CreateEmbeddingsCommand:
-        return CreateEmbeddingsCommand(
-            body=CreateEmbeddingsBody(input="hello world", model="embeddings-router"),
+    def _make(user) -> CreateOCRCommand:
+        return CreateOCRCommand(
+            body=CreateOCRBody(
+                document=OCRDocumentURLChunk(document_url="https://example.com/document.pdf"),
+                model="ocr-router",
+            ),
             authenticated_user=user,
         )
 
@@ -161,32 +162,33 @@ def user_without_router_access():
 
 
 @pytest.fixture
-def embeddings_router():
+def ocr_router():
     return RouterFactory(
         id=1,
-        name="embeddings-router",
-        type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
+        name="ocr-router",
+        type=RouterType.IMAGE_TO_TEXT,
         providers=1,
         load_balancing_strategy="shuffle",
     )
 
 
 @pytest.fixture
-def embeddings_provider():
-    return ProviderFactory(id=1, router_id=1, type=ProviderType.TEI, model_name="bge-embeddings")
+def ocr_provider():
+    return ProviderFactory(id=1, router_id=1, type=ProviderType.MISTRAL, model_name="mistral-ocr")
 
 
 @pytest.fixture
-def sample_embeddings():
-    return Embeddings(
-        id="embeddings-1",
-        model="embeddings-router",
-        data=[Embedding(embedding=[0.1, 0.2, 0.3], index=0, object="embedding")],
+def sample_ocr():
+    return OCR(
+        id="ocr-1",
+        model="ocr-router",
+        pages=[OCRPageObject(index=0, images=[], markdown="# Document")],
+        usage_info=OCRUsage(pages_processed=1),
     )
 
 
 @pytest.fixture
-def mock_embeddings_latency_120ms():
+def mock_ocr_latency_120ms():
     with patch(
         "api.use_cases._providerrequestforwardingusecase.time.perf_counter",
         side_effect=[0, 0.12],
@@ -204,7 +206,7 @@ def mock_usage_cost():
 
 
 @pytest.fixture
-def mock_successful_embeddings_flow(mock_embeddings_latency_120ms, mock_usage_cost):
+def mock_successful_ocr_flow(mock_ocr_latency_120ms, mock_usage_cost):
     yield
 
 
@@ -258,7 +260,7 @@ def _mock_adapter(*, formatted_request=None, formatted_response=None, request_er
     adapter = create_autospec(ProviderAdapter, instance=True, spec_set=True)
     adapter.format_request.return_value = formatted_request or ProviderFormattedRequest(
         method=HTTPMethod.POST,
-        url="https://provider.example/embeddings",
+        url="https://provider.example/ocr",
         body={},
     )
     adapter.format_response.return_value = response_error or ProviderFormattedResponse(data=formatted_response, metrics=ResponseMetrics(latency=120))
@@ -267,11 +269,11 @@ def _mock_adapter(*, formatted_request=None, formatted_response=None, request_er
     return adapter
 
 
-class TestCreateEmbeddingsUseCase:
+class TestCreateOCRUseCase:
     @pytest.mark.asyncio
     async def test_should_return_router_not_found_error_when_router_does_not_exist(self, use_case, default_command, admin_user):
         # Arrange
-        use_case.router_repository.get_router_by_name_or_alias.return_value = RouterNotFoundError(name="embeddings-router")
+        use_case.router_repository.get_router_by_name_or_alias.return_value = RouterNotFoundError(name="ocr-router")
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -284,8 +286,8 @@ class TestCreateEmbeddingsUseCase:
     @pytest.mark.asyncio
     async def test_should_return_router_has_no_providers_error_when_router_has_no_providers(self, use_case, default_command, admin_user):
         # Arrange
-        embeddings_router = RouterFactory(id=1, name="embeddings-router", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, providers=0)
-        use_case.router_repository.get_router_by_name_or_alias.return_value = embeddings_router
+        ocr_router = RouterFactory(id=1, name="ocr-router", type=RouterType.IMAGE_TO_TEXT, providers=0)
+        use_case.router_repository.get_router_by_name_or_alias.return_value = ocr_router
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -294,15 +296,13 @@ class TestCreateEmbeddingsUseCase:
         assert isinstance(result, RouterHasNoProvidersError)
         assert result.id == 1
 
-        assert_recorded(use_case.usage_recorder, router_id=embeddings_router.id, router_name=embeddings_router.name)
+        assert_recorded(use_case.usage_recorder, router_id=ocr_router.id, router_name=ocr_router.name)
 
     @pytest.mark.asyncio
-    async def test_should_return_router_has_wrong_type_error_when_router_is_not_text_embeddings_inference(
-        self, use_case, default_command, admin_user
-    ):
+    async def test_should_return_router_has_wrong_type_error_when_router_is_not_image_to_text(self, use_case, default_command, admin_user):
         # Arrange
-        embeddings_router = RouterFactory(id=1, name="embeddings-router", type=RouterType.TEXT_GENERATION, providers=1)
-        use_case.router_repository.get_router_by_name_or_alias.return_value = embeddings_router
+        ocr_router = RouterFactory(id=1, name="ocr-router", type=RouterType.TEXT_GENERATION, providers=1)
+        use_case.router_repository.get_router_by_name_or_alias.return_value = ocr_router
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -310,9 +310,9 @@ class TestCreateEmbeddingsUseCase:
         # Assert
         assert isinstance(result, RouterHasWrongTypeError)
         assert result.actual_type == RouterType.TEXT_GENERATION
-        assert result.expected_type == RouterType.TEXT_EMBEDDINGS_INFERENCE
+        assert result.expected_type == RouterType.IMAGE_TO_TEXT
 
-        assert_recorded(use_case.usage_recorder, router_id=embeddings_router.id, router_name=embeddings_router.name)
+        assert_recorded(use_case.usage_recorder, router_id=ocr_router.id, router_name=ocr_router.name)
 
     @pytest.mark.asyncio
     async def test_should_return_user_has_insufficient_budget_error_when_router_is_paid_and_user_budget_is_zero(
@@ -326,16 +326,16 @@ class TestCreateEmbeddingsUseCase:
             limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
         )
         command = make_command(user_with_zero_budget)
-        paid_embeddings_router = RouterFactory(
+        paid_ocr_router = RouterFactory(
             id=1,
-            name="embeddings-router",
-            type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
+            name="ocr-router",
+            type=RouterType.IMAGE_TO_TEXT,
             providers=1,
             load_balancing_strategy="shuffle",
             cost_prompt_tokens=0.001,
             cost_completion_tokens=0.002,
         )
-        use_case.router_repository.get_router_by_name_or_alias.return_value = paid_embeddings_router
+        use_case.router_repository.get_router_by_name_or_alias.return_value = paid_ocr_router
 
         # Act
         result = await use_case.execute(command=command)
@@ -347,13 +347,45 @@ class TestCreateEmbeddingsUseCase:
 
         assert_recorded(
             use_case.usage_recorder,
-            router_id=paid_embeddings_router.id,
-            router_name=paid_embeddings_router.name,
+            router_id=paid_ocr_router.id,
+            router_name=paid_ocr_router.name,
         )
 
     @pytest.mark.asyncio
+    async def test_should_return_insufficient_budget_when_router_bills_completion_only_and_user_budget_is_zero(
+        self, use_case, user_with_router_access, provider_load_balancer, provider_repository, make_command
+    ):
+        # OCR produces completion tokens, so a completion-only-priced router must gate on budget too.
+        # Arrange
+        user_with_zero_budget = AuthenticatedUserFactory(
+            id=user_with_router_access.id,
+            without_permission=True,
+            budget=0,
+            limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
+        )
+        command = make_command(user_with_zero_budget)
+        completion_only_router = RouterFactory(
+            id=1,
+            name="ocr-router",
+            type=RouterType.IMAGE_TO_TEXT,
+            providers=1,
+            load_balancing_strategy="shuffle",
+            cost_prompt_tokens=0.0,
+            cost_completion_tokens=0.002,
+        )
+        use_case.router_repository.get_router_by_name_or_alias.return_value = completion_only_router
+
+        # Act
+        result = await use_case.execute(command=command)
+
+        # Assert
+        assert isinstance(result, UserHasInsufficientBudgetError)
+        provider_repository.get_all_providers_of_router.assert_not_awaited()
+        provider_load_balancer.find_best_provider.assert_not_awaited()
+
+    @pytest.mark.asyncio
     async def test_should_not_check_budget_when_router_is_free(
-        self, use_case, user_with_router_access, provider_load_balancer, make_command, mock_successful_embeddings_flow
+        self, use_case, user_with_router_access, provider_load_balancer, make_command, mock_successful_ocr_flow
     ):
         # Arrange
         user_with_zero_budget = AuthenticatedUserFactory(
@@ -363,26 +395,26 @@ class TestCreateEmbeddingsUseCase:
             limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
         )
         command = make_command(user_with_zero_budget)
-        free_embeddings_router = RouterFactory(
+        free_ocr_router = RouterFactory(
             id=1,
-            name="embeddings-router",
-            type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
+            name="ocr-router",
+            type=RouterType.IMAGE_TO_TEXT,
             providers=1,
             load_balancing_strategy="shuffle",
             free=True,
         )
-        use_case.router_repository.get_router_by_name_or_alias.return_value = free_embeddings_router
+        use_case.router_repository.get_router_by_name_or_alias.return_value = free_ocr_router
 
         # Act
         result = await use_case.execute(command=command)
 
         # Assert
-        assert isinstance(result, CreateEmbeddingsUseCaseSuccess)
+        assert isinstance(result, CreateOCRUseCaseSuccess)
         provider_load_balancer.find_best_provider.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_should_not_check_budget_when_user_has_unlimited_budget_and_router_is_paid(
-        self, use_case, user_with_router_access, provider_load_balancer, make_command, mock_successful_embeddings_flow
+        self, use_case, user_with_router_access, provider_load_balancer, make_command, mock_successful_ocr_flow
     ):
         # Arrange
         user_with_unlimited_budget = AuthenticatedUserFactory(
@@ -392,55 +424,55 @@ class TestCreateEmbeddingsUseCase:
             limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
         )
         command = make_command(user_with_unlimited_budget)
-        paid_embeddings_router = RouterFactory(
+        paid_ocr_router = RouterFactory(
             id=1,
-            name="embeddings-router",
-            type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
+            name="ocr-router",
+            type=RouterType.IMAGE_TO_TEXT,
             providers=1,
             load_balancing_strategy="shuffle",
             cost_prompt_tokens=0.001,
             cost_completion_tokens=0.002,
         )
-        use_case.router_repository.get_router_by_name_or_alias.return_value = paid_embeddings_router
+        use_case.router_repository.get_router_by_name_or_alias.return_value = paid_ocr_router
 
         # Act
         result = await use_case.execute(command=command)
 
         # Assert
-        assert isinstance(result, CreateEmbeddingsUseCaseSuccess)
+        assert isinstance(result, CreateOCRUseCaseSuccess)
         provider_load_balancer.find_best_provider.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_should_return_user_has_no_access_error_when_user_cannot_access_router(
-        self, use_case, user_without_router_access, embeddings_router, make_command
+        self, use_case, user_without_router_access, ocr_router, make_command
     ):
         # Arrange
         command = make_command(user_without_router_access)
-        use_case.router_repository.get_router_by_name_or_alias.return_value = embeddings_router
+        use_case.router_repository.get_router_by_name_or_alias.return_value = ocr_router
 
         # Act
         result = await use_case.execute(command=command)
 
         # Assert
         assert isinstance(result, UserHasNoAccessToRouterError)
-        assert result.id == embeddings_router.id
+        assert result.id == ocr_router.id
 
-        assert_recorded(use_case.usage_recorder, router_id=embeddings_router.id, router_name=embeddings_router.name)
+        assert_recorded(use_case.usage_recorder, router_id=ocr_router.id, router_name=ocr_router.name)
 
     @pytest.mark.asyncio
-    async def test_should_call_model_tokenizer_with_request_prompts_before_rate_limit_check(
+    async def test_should_call_model_tokenizer_with_empty_prompts_before_rate_limit_check(
         self, use_case, user_with_router_access, model_tokenizer, make_command
     ):
         # Arrange
         command = make_command(user_with_router_access)
-        use_case.router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state_factory(tpm_exceeded=True)
+        use_case.router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state_factory(rpm_exceeded=True)
 
         # Act
         result = await use_case.execute(command=command)
 
         # Assert
         assert isinstance(result, RouterRateLimitExceededError)
-        model_tokenizer.compute_tokens.assert_called_once_with(texts=["hello world"])
+        model_tokenizer.compute_tokens.assert_called_once_with(texts=[])
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -459,8 +491,8 @@ class TestCreateEmbeddingsUseCase:
         user_with_router_access,
         provider_load_balancer,
         router_rate_limiter,
-        embeddings_router,
-        embeddings_provider,
+        ocr_router,
+        ocr_provider,
         make_command,
         limit_type,
         rate_limit_state,
@@ -474,7 +506,7 @@ class TestCreateEmbeddingsUseCase:
 
         # Assert
         assert isinstance(result, RouterRateLimitExceededError)
-        assert result.id == embeddings_router.id
+        assert result.id == ocr_router.id
         assert result.limit_type == limit_type
         assert result.headers == rate_limit_state.build_limit_headers
         router_rate_limiter.update_rate_limit_state.assert_not_called()
@@ -482,18 +514,18 @@ class TestCreateEmbeddingsUseCase:
 
         assert_recorded(
             use_case.usage_recorder,
-            router_id=embeddings_router.id,
-            router_name=embeddings_router.name,
-            provider_id=embeddings_provider.id,
-            provider_model_name=embeddings_provider.model_name,
+            router_id=ocr_router.id,
+            router_name=ocr_router.name,
+            provider_id=ocr_provider.id,
+            provider_model_name=ocr_provider.model_name,
         )
 
     @pytest.mark.asyncio
     async def test_should_return_provider_adapter_validation_request_error_when_request_is_invalid(
-        self, use_case, provider_adapter_builder, embeddings_router, embeddings_provider, default_command, admin_user
+        self, use_case, provider_adapter_builder, ocr_router, ocr_provider, default_command, admin_user
     ):
         # Arrange
-        validation_error = ProviderAdapterValidationRequestError(provider_type=ProviderType.TEI, errors=[{"msg": "invalid"}])
+        validation_error = ProviderAdapterValidationRequestError(provider_type=ProviderType.MISTRAL, errors=[{"msg": "invalid"}])
         mock_adapter = _mock_adapter(request_error=validation_error)
         provider_adapter_builder.build.return_value = mock_adapter
 
@@ -505,15 +537,15 @@ class TestCreateEmbeddingsUseCase:
 
         assert_recorded(
             use_case.usage_recorder,
-            router_id=embeddings_router.id,
-            router_name=embeddings_router.name,
-            provider_id=embeddings_provider.id,
-            provider_model_name=embeddings_provider.model_name,
+            router_id=ocr_router.id,
+            router_name=ocr_router.name,
+            provider_id=ocr_provider.id,
+            provider_model_name=ocr_provider.model_name,
         )
 
     @pytest.mark.asyncio
     async def test_should_return_error_when_provider_forward_request_fails(
-        self, use_case, provider_metrics_logger, provider_client, embeddings_router, embeddings_provider, default_command, admin_user
+        self, use_case, provider_metrics_logger, provider_client, ocr_router, ocr_provider, default_command, admin_user
     ):
         # Arrange
         provider_error = TooBusyModelError(status_code=503, detail="busy")
@@ -524,14 +556,14 @@ class TestCreateEmbeddingsUseCase:
 
         # Assert
         assert result == provider_error
-        provider_metrics_logger.decrement_inflight.assert_called_once_with(provider_id=embeddings_provider.id)
+        provider_metrics_logger.decrement_inflight.assert_called_once_with(provider_id=ocr_provider.id)
 
         assert_recorded(
             use_case.usage_recorder,
-            router_id=embeddings_router.id,
-            router_name=embeddings_router.name,
-            provider_id=embeddings_provider.id,
-            provider_model_name=embeddings_provider.model_name,
+            router_id=ocr_router.id,
+            router_name=ocr_router.name,
+            provider_id=ocr_provider.id,
+            provider_model_name=ocr_provider.model_name,
         )
 
     @pytest.mark.asyncio
@@ -541,15 +573,15 @@ class TestCreateEmbeddingsUseCase:
         provider_metrics_logger,
         provider_client,
         provider_adapter_builder,
-        embeddings_router,
-        embeddings_provider,
+        ocr_router,
+        ocr_provider,
         default_command,
         admin_user,
     ):
         # Arrange
         provider_metrics_logger.increment_inflight.return_value = False
         provider_client.forward_request.return_value = ProviderOriginalResponse(data={}, metrics=ResponseMetrics(latency=80))
-        validation_error = ProviderAdapterValidationResponseError(provider_type=ProviderType.TEI, errors=[{"msg": "invalid"}])
+        validation_error = ProviderAdapterValidationResponseError(provider_type=ProviderType.MISTRAL, errors=[{"msg": "invalid"}])
         mock_adapter = _mock_adapter(response_error=validation_error)
         provider_adapter_builder.build.return_value = mock_adapter
 
@@ -562,63 +594,68 @@ class TestCreateEmbeddingsUseCase:
 
         assert_recorded(
             use_case.usage_recorder,
-            router_id=embeddings_router.id,
-            router_name=embeddings_router.name,
-            provider_id=embeddings_provider.id,
-            provider_model_name=embeddings_provider.model_name,
+            router_id=ocr_router.id,
+            router_name=ocr_router.name,
+            provider_id=ocr_provider.id,
+            provider_model_name=ocr_provider.model_name,
         )
 
     @pytest.mark.asyncio
-    async def test_should_return_embeddings_when_admin_user_and_flow_succeeds(
+    async def test_should_return_ocr_when_admin_user_and_flow_succeeds(
         self,
         use_case,
         provider_repository,
         provider_load_balancer,
         provider_metrics_logger,
-        embeddings_router,
-        embeddings_provider,
-        sample_embeddings,
+        ocr_router,
+        ocr_provider,
+        sample_ocr,
         router_rate_limiter,
         model_tokenizer,
         model_environmental_impacts_computer,
         default_command,
         admin_user,
-        mock_successful_embeddings_flow,
+        mock_successful_ocr_flow,
     ):
+        # Arrange
+        model_tokenizer.compute_tokens.side_effect = [0, 42]  # prompt tokens, then completion tokens (extracted markdown)
+
         # Act
         result = await use_case.execute(command=default_command)
 
         # Assert
-        assert isinstance(result, CreateEmbeddingsUseCaseSuccess)
-        assert result.data.id == sample_embeddings.id
-        assert result.data.data == sample_embeddings.data
-        assert result.data.model == sample_embeddings.model
+        assert isinstance(result, CreateOCRUseCaseSuccess)
+        assert result.data.id == sample_ocr.id
+        assert result.data.pages == sample_ocr.pages
+        assert result.data.model == sample_ocr.model
+        assert result.data.usage_info == sample_ocr.usage_info
         assert result.data.usage == Usage(
-            prompt_tokens=15,
-            completion_tokens=0,
-            total_tokens=15,
+            prompt_tokens=0,
+            completion_tokens=42,
+            total_tokens=42,
             cost=0.03,
             impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
         )
         assert result.headers == RouterRateLimitState.admin_rate_limit_state().build_limit_headers
-        provider_repository.get_all_providers_of_router.assert_awaited_once_with(router_id=embeddings_router.id)
+        provider_repository.get_all_providers_of_router.assert_awaited_once_with(router_id=ocr_router.id)
         provider_load_balancer.find_best_provider.assert_awaited_once_with(
-            strategy=embeddings_router.load_balancing_strategy,
-            providers=[embeddings_provider],
+            strategy=ocr_router.load_balancing_strategy,
+            providers=[ocr_provider],
         )
         provider_metrics_logger.log_metric.assert_has_awaits(
             [
-                call(provider_id=embeddings_provider.id, metric=Metric.LATENCY, value=120),
-                call(provider_id=embeddings_provider.id, metric=Metric.NORMALIZED_LATENCY, value=120),
+                call(provider_id=ocr_provider.id, metric=Metric.LATENCY, value=120),
+                call(provider_id=ocr_provider.id, metric=Metric.NORMALIZED_LATENCY, value=120),
             ]
         )
-        provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=embeddings_provider.id)
-        model_tokenizer.compute_tokens.assert_called_once_with(texts=["hello world"])
+        provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=ocr_provider.id)
+        model_tokenizer.compute_tokens.assert_has_calls([call(texts=[]), call(texts=["# Document"])])
+        assert model_tokenizer.compute_tokens.call_count == 2
         model_environmental_impacts_computer.compute.assert_called_once_with(
-            model_active_params=embeddings_provider.model_active_params,
-            model_total_params=embeddings_provider.model_total_params,
-            model_zone=embeddings_provider.model_hosting_zone,
-            completion_tokens=0,
+            model_active_params=ocr_provider.model_active_params,
+            model_total_params=ocr_provider.model_total_params,
+            model_zone=ocr_provider.model_hosting_zone,
+            completion_tokens=42,
             request_latency=120,
         )
 
@@ -628,13 +665,13 @@ class TestCreateEmbeddingsUseCase:
 
         assert_recorded(
             use_case.usage_recorder,
-            request_id=sample_embeddings.id,
-            router_id=embeddings_router.id,
-            router_name=embeddings_router.name,
-            provider_id=embeddings_provider.id,
-            provider_model_name=embeddings_provider.model_name,
-            prompt_tokens=15,
-            total_tokens=15,
+            request_id=sample_ocr.id,
+            router_id=ocr_router.id,
+            router_name=ocr_router.name,
+            provider_id=ocr_provider.id,
+            provider_model_name=ocr_provider.model_name,
+            prompt_tokens=0,
+            total_tokens=42,
             cost=result.data.usage.cost,
         )
 
@@ -650,11 +687,11 @@ class TestCreateEmbeddingsUseCase:
         model_tokenizer,
         model_environmental_impacts_computer,
         user_with_router_access,
-        embeddings_router,
-        embeddings_provider,
-        sample_embeddings,
+        ocr_router,
+        ocr_provider,
+        sample_ocr,
         make_command,
-        mock_successful_embeddings_flow,
+        mock_successful_ocr_flow,
     ):
         # Arrange
         command = make_command(user_with_router_access)
@@ -665,44 +702,45 @@ class TestCreateEmbeddingsUseCase:
             reset=int(dt.datetime.now(dt.UTC).timestamp()) + 30,
         )
         router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
-        model_tokenizer.compute_tokens.return_value = 15
-        mock_adapter = _mock_adapter(formatted_response=sample_embeddings)
+        mock_adapter = _mock_adapter(formatted_response=sample_ocr)
         provider_adapter_builder.build.return_value = mock_adapter
+        model_tokenizer.compute_tokens.side_effect = [0, 42]  # prompt tokens, then completion tokens (extracted markdown)
 
         # Act
         result = await use_case.execute(command=command)
 
         # Assert
-        assert isinstance(result, CreateEmbeddingsUseCaseSuccess)
-        assert result.data.id == sample_embeddings.id
-        assert result.data.data == sample_embeddings.data
-        assert result.data.model == sample_embeddings.model
+        assert isinstance(result, CreateOCRUseCaseSuccess)
+        assert result.data.id == sample_ocr.id
+        assert result.data.pages == sample_ocr.pages
+        assert result.data.model == sample_ocr.model
         assert result.data.usage == Usage(
-            prompt_tokens=15,
-            completion_tokens=0,
-            total_tokens=15,
+            prompt_tokens=0,
+            completion_tokens=42,
+            total_tokens=42,
             cost=0.03,
             impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
         )
         assert result.headers == rate_limit_state.build_limit_headers
-        provider_repository.get_all_providers_of_router.assert_awaited_once_with(router_id=embeddings_router.id)
+        provider_repository.get_all_providers_of_router.assert_awaited_once_with(router_id=ocr_router.id)
         provider_load_balancer.find_best_provider.assert_awaited_once_with(
-            strategy=embeddings_router.load_balancing_strategy,
-            providers=[embeddings_provider],
+            strategy=ocr_router.load_balancing_strategy,
+            providers=[ocr_provider],
         )
         provider_metrics_logger.log_metric.assert_has_awaits(
             [
-                call(provider_id=embeddings_provider.id, metric=Metric.LATENCY, value=120),
-                call(provider_id=embeddings_provider.id, metric=Metric.NORMALIZED_LATENCY, value=120),
+                call(provider_id=ocr_provider.id, metric=Metric.LATENCY, value=120),
+                call(provider_id=ocr_provider.id, metric=Metric.NORMALIZED_LATENCY, value=120),
             ]
         )
-        provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=embeddings_provider.id)
-        model_tokenizer.compute_tokens.assert_called_once_with(texts=["hello world"])
+        provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=ocr_provider.id)
+        model_tokenizer.compute_tokens.assert_has_calls([call(texts=[]), call(texts=["# Document"])])
+        assert model_tokenizer.compute_tokens.call_count == 2
         model_environmental_impacts_computer.compute.assert_called_once_with(
-            model_active_params=embeddings_provider.model_active_params,
-            model_total_params=embeddings_provider.model_total_params,
-            model_zone=embeddings_provider.model_hosting_zone,
-            completion_tokens=0,
+            model_active_params=ocr_provider.model_active_params,
+            model_total_params=ocr_provider.model_total_params,
+            model_zone=ocr_provider.model_hosting_zone,
+            completion_tokens=42,
             request_latency=120,
         )
 
@@ -710,65 +748,24 @@ class TestCreateEmbeddingsUseCase:
         router_rate_limiter.get_rate_limit_state.assert_awaited_once_with(
             user_id=user_with_router_access.id,
             router_limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
-            router_id=embeddings_router.id,
-            prompt_tokens=15,
+            router_id=ocr_router.id,
+            prompt_tokens=0,
         )
         router_rate_limiter.update_rate_limit_state.assert_awaited_once_with(
             user_id=user_with_router_access.id,
             router_limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
-            router_id=embeddings_router.id,
-            prompt_tokens=15,
+            router_id=ocr_router.id,
+            prompt_tokens=0,
         )
 
         assert_recorded(
             use_case.usage_recorder,
-            request_id=sample_embeddings.id,
-            router_id=embeddings_router.id,
-            router_name=embeddings_router.name,
-            provider_id=embeddings_provider.id,
-            provider_model_name=embeddings_provider.model_name,
-            prompt_tokens=15,
-            total_tokens=15,
+            request_id=sample_ocr.id,
+            router_id=ocr_router.id,
+            router_name=ocr_router.name,
+            provider_id=ocr_provider.id,
+            provider_model_name=ocr_provider.model_name,
+            prompt_tokens=0,
+            total_tokens=42,
             cost=result.data.usage.cost,
         )
-
-    @pytest.mark.asyncio
-    async def test_should_forward_extra_fields_to_provider_adapter_without_raising(
-        self,
-        use_case,
-        provider_adapter_builder,
-        admin_user,
-        mock_successful_embeddings_flow,
-    ):
-        # Arrange
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image_url", "image_url": {"url": "https://example.com/image.jpg"}},
-                    {"type": "text", "text": "Represent the given image."},
-                ],
-            }
-        ]
-        command = CreateEmbeddingsCommand(
-            body=CreateEmbeddingsBody(
-                input=None,
-                model="embeddings-router",
-                messages=messages,
-                continue_final_message=True,
-                add_special_tokens=True,
-            ),
-            authenticated_user=admin_user,
-        )
-
-        # Act
-        result = await use_case.execute(command=command)
-
-        # Assert
-        assert isinstance(result, CreateEmbeddingsUseCaseSuccess)
-        original_request = provider_adapter_builder.build.return_value.format_request.call_args.kwargs["original_request"]
-        body = original_request.body.model_dump()
-        assert body["messages"] == messages
-        assert body["continue_final_message"] is True
-        assert body["add_special_tokens"] is True
-        assert body["input"] is None

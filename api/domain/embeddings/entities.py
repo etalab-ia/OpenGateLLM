@@ -7,7 +7,7 @@ from openai.types import CreateEmbeddingResponse
 from openai.types.chat import ChatCompletionContentPartParam
 from pydantic import Field
 
-from api.domain import BaseModel
+from api.domain import BaseModel, ForwardableBody
 from api.domain.usage.entities import Usage
 
 
@@ -21,7 +21,7 @@ class EncodingFormat(StrEnum):
     BASE64 = "base64"
 
 
-class CreateEmbeddingsBody(BaseModel):
+class CreateEmbeddingsBody(ForwardableBody):
     input: list[int] | list[list[int]] | str | list[str] | None
     messages: list[EmbeddingMessage] | None = None
     model: str

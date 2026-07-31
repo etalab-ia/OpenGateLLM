@@ -59,6 +59,14 @@ class Router(BaseModel):
     def has_no_providers(self) -> bool:
         return self.providers == 0
 
+    @property
+    def is_prompt_billable(self) -> bool:
+        return self.cost_prompt_tokens != 0
+
+    @property
+    def is_billable(self) -> bool:
+        return self.cost_prompt_tokens != 0 or self.cost_completion_tokens != 0
+
 
 class TpmRateLimitState(BaseModel):
     value: int | None = None

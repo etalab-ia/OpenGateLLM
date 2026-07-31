@@ -116,7 +116,7 @@ class UserFactory(factory.Factory):
     updated = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
 
 
-class AutenticatedUserFactor(factory.Factory):
+class AuthenticatedUserFactory(factory.Factory):
     class Meta:
         model = AuthenticatedUserView
 

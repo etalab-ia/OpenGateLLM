@@ -7,7 +7,7 @@ from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import ModelNotFoundError
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router.errors import RouterNotFoundError
-from api.tests.unit.use_case.factories import AutenticatedUserFactor, RouterFactory
+from api.tests.unit.use_case.factories import AuthenticatedUserFactory, RouterFactory
 from api.use_cases.models import GetModelCommand, GetModelUseCase, GetModelUseCaseSucess
 
 
@@ -42,7 +42,9 @@ def router():
 
 @pytest.fixture
 def default_command():
-    return GetModelCommand(authenticated_user=AutenticatedUserFactor(id=1, limits=[Limit(router_id=1, value=100, type=LimitType.RPM)]), name="gpt-4")
+    return GetModelCommand(
+        authenticated_user=AuthenticatedUserFactory(id=1, limits=[Limit(router_id=1, value=100, type=LimitType.RPM)]), name="gpt-4"
+    )
 
 
 class TestGetModelUseCase:
@@ -98,7 +100,7 @@ class TestGetModelUseCase:
         default_command,
     ):
         # Arrange
-        default_command.authenticated_user = AutenticatedUserFactor(id=2, limits=[], permissions=[])
+        default_command.authenticated_user = AuthenticatedUserFactory(id=2, limits=[], permissions=[])
 
         router_repository.get_router_by_name_or_alias.return_value = router
 
@@ -118,7 +120,7 @@ class TestGetModelUseCase:
         default_command,
     ):
         # Arrange
-        default_command.authenticated_user = AutenticatedUserFactor(id=1, limits=[Limit(router_id=1, value=0, type=LimitType.RPM)], permissions=[])
+        default_command.authenticated_user = AuthenticatedUserFactory(id=1, limits=[Limit(router_id=1, value=0, type=LimitType.RPM)], permissions=[])
         router_repository.get_router_by_name_or_alias.return_value = router
 
         # Act
@@ -137,7 +139,9 @@ class TestGetModelUseCase:
         default_command,
     ):
         # Arrange
-        default_command.authenticated_user = AutenticatedUserFactor(id=1, limits=[Limit(router_id=1, value=None, type=LimitType.RPM)], permissions=[])
+        default_command.authenticated_user = AuthenticatedUserFactory(
+            id=1, limits=[Limit(router_id=1, value=None, type=LimitType.RPM)], permissions=[]
+        )
         router_repository.get_router_by_name_or_alias.return_value = router
         router_repository.get_organization_name.return_value = "Anthropic"
 
