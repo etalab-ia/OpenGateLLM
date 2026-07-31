@@ -10,7 +10,7 @@ models:
       - type: albert
         key: ${ALBERT_API_KEY}
         timeout: 120
-        model_name: mistralai/Ministral-3-8B-Instruct-2512
+        model_name: ministral-3-8b-instruct-2512
         model_total_params: 8
         model_active_params: 8
         model_hosting_zone: FRA

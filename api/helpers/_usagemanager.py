@@ -79,7 +79,7 @@ class UsageManager:
                         completion_tokens=row.completion_tokens,
                         total_tokens=row.total_tokens,
                         cost=row.cost,
-                        impacts=EnvironmentalImpacts(kWh=row.kwh, kgCO2eq=row.kgco2eq),
+                        impacts=EnvironmentalImpacts(kWh=(row.kwh or 0.0), kgCO2eq=(row.kgco2eq or 0.0)),
                         metrics=MetricsUsage(latency=row.latency, ttft=row.ttft),
                     ),
                 )
