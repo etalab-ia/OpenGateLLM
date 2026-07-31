@@ -247,7 +247,7 @@ class TestModelsAdapter:
         assert result.data.data[0].id == response_data["data"][0]["id"]
         assert result.data.data[0].type is ModelType.TEXT_GENERATION
         assert result.data.data[0].max_context_length == response_data["data"][0]["max_context_length"]
-        assert result.data.data[0].aliases == []
+        assert result.data.data[0].aliases == response_data["data"][0]["aliases"]
         assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
 
     def test_format_response_correctly_when_provider_is_openai(self, openai_models_adapter: OpenaiModelsAdapter):

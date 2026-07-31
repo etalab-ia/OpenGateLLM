@@ -70,7 +70,7 @@ class ProviderCapabilitiesProbe:
 
         formatted_response = adapter.format_response(original_response=response, original_request=original_request)
         model_name = adapter.provider.model_name
-        model = next((model for model in formatted_response.data.data if model.id == model_name or model_name in model.aliases), None)
+        model = next((m for m in formatted_response.data.data if m.id == model_name or model_name in m.aliases), None)
         if model is None:
             return ModelNotFoundError(name=model_name)
 
