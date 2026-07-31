@@ -70,11 +70,21 @@ class OCRImageObject(BaseModel):
     top_left_y: Annotated[int | None, Field(default=None, description="Y coordinate of top-left corner of the extracted image")]
 
 
+class OCRTableObject(BaseModel):
+    content: Annotated[str | None, Field(default=None, description="The content of the extracted table, in the requested table format")]
+    format: Annotated[str | None, Field(default=None, description="The format of the extracted table: 'markdown' or 'html'")]
+    id: Annotated[str | None, Field(default=None, description="Table ID for the extracted table in a page")]
+
+
 class OCRPageObject(BaseModel):
     dimensions: Annotated[OCRPageDimensions | None, Field(default=None, description="The dimensions of the PDF Page's screenshot image")]
+    footer: Annotated[str | None, Field(default=None, description="The footer of the page, returned when extract_footer is enabled")]
+    header: Annotated[str | None, Field(default=None, description="The header of the page, returned when extract_header is enabled")]
+    hyperlinks: Annotated[list[str], Field(default=[], description="The hyperlinks extracted from the page.")]
     images: Annotated[list[OCRImageObject], Field(default=..., description="List of all extracted images in the page.")]
     index: Annotated[int, Field(default=..., description="The page index in a pdf document starting from 0")]
     markdown: Annotated[str | None, Field(default=None, description="The markdown string response of the page")]
+    tables: Annotated[list[OCRTableObject], Field(default=[], description="The tables extracted from the page, in the requested table_format.")]
 
 
 class OCRResponse(BaseModel):
