@@ -1,6 +1,10 @@
 from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
 from api.domain.model.entities import ModelType as RouterType
-from api.use_cases._forwarding import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseSuccess
+from api.use_cases._providerrequestforwardingusecase import (
+    ForwardingCommand,
+    ProviderRequestForwardingUseCase,
+    ProviderRequestForwardingUseCaseSuccess,
+)
 from api.utils.variables import EndpointRoute
 
 

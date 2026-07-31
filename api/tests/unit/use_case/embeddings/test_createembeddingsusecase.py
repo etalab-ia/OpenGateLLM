@@ -188,7 +188,7 @@ def sample_embeddings():
 @pytest.fixture
 def mock_embeddings_latency_120ms():
     with patch(
-        "api.use_cases._forwarding.time.perf_counter",
+        "api.use_cases._providerrequestforwardingusecase.py.time.perf_counter",
         side_effect=[0, 0.12],
     ):
         yield
