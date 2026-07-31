@@ -20,7 +20,7 @@ class CreateOCRUseCase(ProviderRequestForwardingUseCase[CreateOCRCommand, OCR]):
     ENDPOINT = EndpointRoute.OCR
 
     def _completion_tokens(self, data: OCR) -> int:
-        return self.model_tokenizer.compute_tokens(texts=data.get_output_texts())
+        return self.model_tokenizer.compute_tokens(texts=data.get_completions())
 
     def _is_billable(self, router: Router) -> bool:
         return router.is_billable

@@ -88,7 +88,7 @@ class OCR(BaseModel):
     usage: Usage | None = Field(default=None, description="Usage information for the request.")
     usage_info: OCRUsage | None = Field(default=None, description="Usage information for the request.")
 
-    def get_output_texts(self) -> list[str]:
+    def get_completions(self) -> list[str]:
         texts = [page.markdown for page in self.pages if page.markdown]
         if self.document_annotation:
             texts.append(self.document_annotation)
