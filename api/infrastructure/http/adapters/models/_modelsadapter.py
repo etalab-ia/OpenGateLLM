@@ -28,6 +28,7 @@ class ModelsAdapter(HttpProviderAdapter):
                 data=[
                     Model(
                         id=model["id"],
+                        aliases=model.get("aliases", []),
                         created=model.get("created", 0),
                         owned_by=model.get("owned_by", "unknown"),
                         max_context_length=model.get("max_context_length", None),
