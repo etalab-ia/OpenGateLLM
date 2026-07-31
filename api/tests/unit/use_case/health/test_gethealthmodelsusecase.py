@@ -17,7 +17,7 @@ from api.domain.provider.errors import ProviderAdapterValidationResponseError, U
 from api.domain.role.entities import Limit, LimitType
 from api.infrastructure.http.adapters.metrics.mistral import MistralMetricsAdapter
 from api.infrastructure.http.adapters.metrics.vllm import VllmMetricsAdapter
-from api.tests.unit.use_case.factories import AutenticatedUserFactor, ProviderFactory, RouterFactory
+from api.tests.unit.use_case.factories import AuthenticatedUserFactory, ProviderFactory, RouterFactory
 from api.use_cases.health import GetHealthModelsCommand, GetHealthModelsUseCase, GetHealthModelsUseCaseSuccess
 from api.utils.variables import EndpointRoute
 
@@ -51,12 +51,12 @@ def provider_repository():
 
 @pytest.fixture
 def admin_user():
-    return AutenticatedUserFactor(id=1, admin=True)
+    return AuthenticatedUserFactory(id=1, admin=True)
 
 
 @pytest.fixture
 def user_with_router_access():
-    return AutenticatedUserFactor(
+    return AuthenticatedUserFactory(
         id=1,
         limits=[Limit(router_id=1, value=100, type=LimitType.RPM)],
         permissions=[],
@@ -65,7 +65,7 @@ def user_with_router_access():
 
 @pytest.fixture
 def user_without_access():
-    return AutenticatedUserFactor(id=1, limits=[], permissions=[])
+    return AuthenticatedUserFactory(id=1, limits=[], permissions=[])
 
 
 @pytest.fixture

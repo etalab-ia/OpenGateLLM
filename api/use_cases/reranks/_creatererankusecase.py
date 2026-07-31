@@ -4,7 +4,7 @@ from api.use_cases._forwarding import ForwardingCommand, ForwardingUseCase, Forw
 from api.utils.variables import EndpointRoute
 
 
-class CreateRerankCommand(CreateRerankBody, ForwardingCommand): ...
+class CreateRerankCommand(ForwardingCommand[CreateRerankBody]): ...
 
 
 CreateRerankUseCaseSuccess = ForwardingUseCaseSuccess
@@ -13,4 +13,3 @@ CreateRerankUseCaseSuccess = ForwardingUseCaseSuccess
 class CreateRerankUseCase(ForwardingUseCase[CreateRerankCommand, Rerank]):
     ROUTER_TYPE = RouterType.TEXT_CLASSIFICATION
     ENDPOINT = EndpointRoute.RERANK
-    BODY_TYPE = CreateRerankBody

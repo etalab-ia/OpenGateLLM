@@ -5,7 +5,7 @@ from api.use_cases._forwarding import ForwardingCommand, ForwardingUseCase, Forw
 from api.utils.variables import EndpointRoute
 
 
-class CreateOCRCommand(CreateOCRBody, ForwardingCommand): ...
+class CreateOCRCommand(ForwardingCommand[CreateOCRBody]): ...
 
 
 CreateOCRUseCaseSuccess = ForwardingUseCaseSuccess
@@ -14,7 +14,6 @@ CreateOCRUseCaseSuccess = ForwardingUseCaseSuccess
 class CreateOCRUseCase(ForwardingUseCase[CreateOCRCommand, OCR]):
     ROUTER_TYPE = RouterType.IMAGE_TO_TEXT
     ENDPOINT = EndpointRoute.OCR
-    BODY_TYPE = CreateOCRBody
 
     @staticmethod
     def _extract_output_texts(ocr: OCR) -> list[str]:

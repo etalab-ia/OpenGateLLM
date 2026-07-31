@@ -6,7 +6,7 @@ import pytest
 
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import TooBusyModelError
-from api.domain.ocr.entities import OCR, OCRDocumentURLChunk, OCRPageObject, OCRUsage
+from api.domain.ocr.entities import OCR, CreateOCRBody, OCRDocumentURLChunk, OCRPageObject, OCRUsage
 from api.domain.provider import ProviderAdapter
 from api.domain.provider.entities import (
     Metric,
@@ -28,7 +28,7 @@ from api.domain.router.errors import (
 from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
-from api.tests.unit.use_case.factories import AutenticatedUserFactor, ProviderFactory, RouterFactory
+from api.tests.unit.use_case.factories import AuthenticatedUserFactory, ProviderFactory, RouterFactory
 from api.use_cases.ocr import CreateOCRCommand, CreateOCRUseCase, CreateOCRUseCaseSuccess
 
 
@@ -129,20 +129,22 @@ def use_case(
 
 @pytest.fixture
 def admin_user():
-    return AutenticatedUserFactor(id=1, admin=True)
+    return AuthenticatedUserFactory(id=1, admin=True)
 
 
 @pytest.fixture
 def user_with_router_access():
-    return AutenticatedUserFactor(id=1, without_permission=True, limits=[Limit(router_id=1, type=LimitType.RPM, value=100)])
+    return AuthenticatedUserFactory(id=1, without_permission=True, limits=[Limit(router_id=1, type=LimitType.RPM, value=100)])
 
 
 @pytest.fixture
 def make_command():
     def _make(user) -> CreateOCRCommand:
         return CreateOCRCommand(
-            document=OCRDocumentURLChunk(document_url="https://example.com/document.pdf"),
-            model="ocr-router",
+            body=CreateOCRBody(
+                document=OCRDocumentURLChunk(document_url="https://example.com/document.pdf"),
+                model="ocr-router",
+            ),
             authenticated_user=user,
         )
 
@@ -156,7 +158,7 @@ def default_command(make_command, admin_user):
 
 @pytest.fixture
 def user_without_router_access():
-    return AutenticatedUserFactor(id=1, without_permission=True, limits=[])
+    return AuthenticatedUserFactory(id=1, without_permission=True, limits=[])
 
 
 @pytest.fixture
@@ -317,7 +319,7 @@ class TestCreateOCRUseCase:
         self, use_case, user_with_router_access, provider_load_balancer, provider_repository, make_command
     ):
         # Arrange
-        user_with_zero_budget = AutenticatedUserFactor(
+        user_with_zero_budget = AuthenticatedUserFactory(
             id=user_with_router_access.id,
             without_permission=True,
             budget=0,
@@ -355,7 +357,7 @@ class TestCreateOCRUseCase:
     ):
         # OCR produces completion tokens, so a completion-only-priced router must gate on budget too.
         # Arrange
-        user_with_zero_budget = AutenticatedUserFactor(
+        user_with_zero_budget = AuthenticatedUserFactory(
             id=user_with_router_access.id,
             without_permission=True,
             budget=0,
@@ -386,7 +388,7 @@ class TestCreateOCRUseCase:
         self, use_case, user_with_router_access, provider_load_balancer, make_command, mock_successful_ocr_flow
     ):
         # Arrange
-        user_with_zero_budget = AutenticatedUserFactor(
+        user_with_zero_budget = AuthenticatedUserFactory(
             id=user_with_router_access.id,
             without_permission=True,
             budget=0,
@@ -415,7 +417,7 @@ class TestCreateOCRUseCase:
         self, use_case, user_with_router_access, provider_load_balancer, make_command, mock_successful_ocr_flow
     ):
         # Arrange
-        user_with_unlimited_budget = AutenticatedUserFactor(
+        user_with_unlimited_budget = AuthenticatedUserFactory(
             id=user_with_router_access.id,
             without_permission=True,
             unlimited_budget=True,

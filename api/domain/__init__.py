@@ -1,12 +1,20 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
 
 class BaseModel(BaseModel):
     model_config = ConfigDict(extra="allow")
+
+
+class ForwardableBody(BaseModel, ABC):
+    model: str | None = None
+
+    @abstractmethod
+    def get_prompts(self) -> list[str]:
+        pass
 
 
 class SortField(StrEnum):
@@ -20,10 +28,7 @@ class SortOrder(StrEnum):
     DESC = "desc"
 
 
-T = TypeVar("T")
-
-
 @dataclass
-class EntitiesPage(Generic[T]):
+class EntitiesPage[T]:
     total: int
     data: list[T]

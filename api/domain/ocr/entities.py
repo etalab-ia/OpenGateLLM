@@ -2,7 +2,7 @@ from typing import Any, Literal
 
 from pydantic import Field
 
-from api.domain import BaseModel
+from api.domain import BaseModel, ForwardableBody
 from api.domain.usage.entities import Usage
 
 
@@ -34,7 +34,7 @@ class OCRImageURLChunk(BaseModel):
     type: Literal["image_url"] = "image_url"
 
 
-class CreateOCRBody(BaseModel):
+class CreateOCRBody(ForwardableBody):
     bbox_annotation_format: OCRResponseFormat | None = None
     document: OCRDocumentURLChunk | OCRImageURLChunk
     document_annotation_format: OCRResponseFormat | None = None

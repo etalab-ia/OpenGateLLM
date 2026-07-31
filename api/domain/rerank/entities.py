@@ -1,10 +1,10 @@
 from pydantic import Field
 
-from api.domain import BaseModel
+from api.domain import BaseModel, ForwardableBody
 from api.domain.usage.entities import Usage
 
 
-class CreateRerankBody(BaseModel):
+class CreateRerankBody(ForwardableBody):
     query: str
     documents: list[str]
     model: str

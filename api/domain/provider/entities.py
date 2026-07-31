@@ -154,7 +154,8 @@ class ProviderCapabilities(BaseModel):
 class ProviderOriginalRequest(BaseModel):
     endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
     body: Annotated[
-        CreateEmbeddingsBody | CreateOCRBody | CreateRerankBody | None, Field(default=None, description="The JSON body to use for the request.")
+        CreateEmbeddingsBody | CreateOCRBody | CreateRerankBody | None,
+        Field(default=None, description="The JSON body to use for the request."),
     ]
     form: Annotated[dict | None, Field(default=None, description="The form-encoded data to use for the request.")]
     files: Annotated[dict | None, Field(default=None, description="The files to use for the request.")]

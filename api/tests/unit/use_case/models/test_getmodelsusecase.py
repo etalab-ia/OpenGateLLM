@@ -5,7 +5,7 @@ import pytest
 
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.role.entities import Limit, LimitType, PermissionType
-from api.tests.unit.use_case.factories import AutenticatedUserFactor, RouterFactory
+from api.tests.unit.use_case.factories import AuthenticatedUserFactory, RouterFactory
 from api.use_cases.models import GetModelsCommand, GetModelsUseCase, GetModelsUseCaseSucess
 
 
@@ -67,7 +67,7 @@ def sample_routers():
 @pytest.fixture
 def default_command():
     return GetModelsCommand(
-        authenticated_user=AutenticatedUserFactor(
+        authenticated_user=AuthenticatedUserFactory(
             id=1,
             limits=[Limit(router_id=1, value=100, type=LimitType.RPM), Limit(router_id=2, value=None, type=LimitType.RPM)],
         )
@@ -113,7 +113,7 @@ class TestGetModelsUseCase:
         default_command,
     ):
         # Arrange
-        default_command.user = AutenticatedUserFactor(id=1, limits=[], permissions=[PermissionType.ADMIN])
+        default_command.user = AuthenticatedUserFactory(id=1, limits=[], permissions=[PermissionType.ADMIN])
         router_repository.get_all_routers.return_value = sample_routers
         router_repository.get_organization_name.side_effect = ["OpenAI", "Anthropic"]
 
@@ -135,7 +135,7 @@ class TestGetModelsUseCase:
         default_command,
     ):
         # Arrange
-        default_command.authenticated_user = AutenticatedUserFactor(id=1, limits=[], permissions=[])
+        default_command.authenticated_user = AuthenticatedUserFactory(id=1, limits=[], permissions=[])
         router_repository.get_all_routers.return_value = sample_routers
 
         # Act
@@ -154,7 +154,7 @@ class TestGetModelsUseCase:
         default_command,
     ):
         # Arrange
-        default_command.authenticated_user = AutenticatedUserFactor(
+        default_command.authenticated_user = AuthenticatedUserFactory(
             id=1,
             limits=[
                 Limit(router_id=1, value=0, type=LimitType.RPM),
@@ -183,7 +183,9 @@ class TestGetModelsUseCase:
         default_command,
     ):
         # Arrange
-        default_command.authenticated_user = AutenticatedUserFactor(id=1, limits=[Limit(router_id=1, value=None, type=LimitType.RPM)], permissions=[])
+        default_command.authenticated_user = AuthenticatedUserFactory(
+            id=1, limits=[Limit(router_id=1, value=None, type=LimitType.RPM)], permissions=[]
+        )
         router_repository.get_all_routers.return_value = sample_routers
         router_repository.get_organization_name.return_value = "OpenAI"
 

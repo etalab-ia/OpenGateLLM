@@ -4,7 +4,7 @@ from api.use_cases._forwarding import ForwardingCommand, ForwardingUseCase, Forw
 from api.utils.variables import EndpointRoute
 
 
-class CreateEmbeddingsCommand(CreateEmbeddingsBody, ForwardingCommand): ...
+class CreateEmbeddingsCommand(ForwardingCommand[CreateEmbeddingsBody]): ...
 
 
 CreateEmbeddingsUseCaseSuccess = ForwardingUseCaseSuccess
@@ -13,4 +13,3 @@ CreateEmbeddingsUseCaseSuccess = ForwardingUseCaseSuccess
 class CreateEmbeddingsUseCase(ForwardingUseCase[CreateEmbeddingsCommand, Embeddings]):
     ROUTER_TYPE = RouterType.TEXT_EMBEDDINGS_INFERENCE
     ENDPOINT = EndpointRoute.EMBEDDINGS
-    BODY_TYPE = CreateEmbeddingsBody

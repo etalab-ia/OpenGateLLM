@@ -53,10 +53,10 @@ async def create_ocr(
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> JSONResponse:
     """
-    Extracts text from files using OCR.
+    Extracts text from files using Mistral Document AI pipeline
     """
     try:
-        command = CreateOCRCommand(**body.model_dump(), authenticated_user=authenticated_user)
+        command = CreateOCRCommand(body=body.model_dump(), authenticated_user=authenticated_user)
         result = await create_ocr_use_case.execute(command)
     except Exception as e:
         logger.exception(

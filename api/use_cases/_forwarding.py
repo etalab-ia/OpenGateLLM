@@ -4,6 +4,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel
 
+from api.domain import ForwardableBody
 from api.domain.key.errors import InvalidKeyError, KeyNotFoundError
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ModelType as RouterType
@@ -22,8 +23,16 @@ from api.schemas.core.models import Metric
 from api.utils.variables import EndpointRoute
 
 
-class ForwardingCommand(BaseModel):
+class ForwardingCommand[TBody: ForwardableBody](BaseModel):
+    body: TBody
     authenticated_user: AuthenticatedUserView
+
+    @property
+    def model(self) -> str | None:
+        return self.body.model
+
+    def get_prompts(self) -> list[str]:
+        return self.body.get_prompts()
 
 
 @dataclass
@@ -54,7 +63,6 @@ type ForwardingUseCaseResult[TData] = (
 class ForwardingUseCase[TCommand: ForwardingCommand, TData]:
     ROUTER_TYPE: ClassVar[RouterType]
     ENDPOINT: ClassVar[EndpointRoute]
-    BODY_TYPE: ClassVar[type[BaseModel]]
 
     def __init__(
         self,
@@ -115,11 +123,8 @@ class ForwardingUseCase[TCommand: ForwardingCommand, TData]:
         self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
 
         adapter = self.provider_adapter_builder.build(endpoint=self.ENDPOINT, provider=provider)
-        original_request = ProviderOriginalRequest(
-            endpoint=self.ENDPOINT,
-            body=self.BODY_TYPE(**command.model_dump(exclude={"authenticated_user"})),
-        )
-        prompt_tokens = self.model_tokenizer.compute_tokens(texts=original_request.body.get_prompts())
+        original_request = ProviderOriginalRequest(endpoint=self.ENDPOINT, body=command.body)
+        prompt_tokens = self.model_tokenizer.compute_tokens(texts=command.get_prompts())
 
         if not authenticated_user.is_admin:
             limits = [limit for limit in authenticated_user.limits if limit.router_id == router.id]
