@@ -248,5 +248,5 @@ def chat_params_sidebar() -> rx.Component:
         width="320px",
         height="100%",
         background_color=rx.color("mauve", 2),
-        border_left=f"1px solid {rx.color('mauve', 3)}",
+        border_left=f"1px solid {rx.color("mauve", 3)}",
     )

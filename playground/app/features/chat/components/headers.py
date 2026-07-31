@@ -19,6 +19,6 @@ def chat_header() -> rx.Component:
         width="100%",
         align_items="center",
         padding="12px",
-        border_bottom=f"1px solid {rx.color('mauve', 3)}",
+        border_bottom=f"1px solid {rx.color("mauve", 3)}",
         background_color=rx.color("mauve", 2),
     )
