@@ -80,7 +80,7 @@ class LangfuseManager:
             logger.debug(f"Failed to end Langfuse observation: {e}", exc_info=True)
 
     @staticmethod
-    def end_root_observation(langfuse_obs, status: int | None) -> None:
+    def end_root_observation(langfuse_obs, status: int | None, error: str | None = None) -> None:
         """Update the root span with request metadata and end it. Works for both streaming and non-streaming responses."""
         try:
             ctx = request_context.get()
@@ -93,6 +93,8 @@ class LangfuseManager:
             }
             if ctx.ttft is not None:
                 metadata["ttft_ms"] = ctx.ttft
+            if error is not None:
+                metadata["error"] = error
             langfuse_obs.update(metadata=metadata)
         except Exception as e:
             logger.debug(f"Failed to update Langfuse root observation: {e}", exc_info=True)

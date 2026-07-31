@@ -251,6 +251,14 @@ class ProviderNotReachableHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=f"Model provider {name} not reachable ({status_code}): {detail}")
 
 
+class ProviderInvalidResponseHTTPException(HTTPException):
+    status_code = 424
+    detail = "Model provider {name} returned an invalid response: {detail}"
+
+    def __init__(self, name: str, detail: str) -> None:
+        super().__init__(status_code=self.status_code, detail=f"Model provider {name} returned an invalid response: {detail}")
+
+
 # 429
 class RateLimitExceededHTTPException(HTTPException):
     status_code = 429
