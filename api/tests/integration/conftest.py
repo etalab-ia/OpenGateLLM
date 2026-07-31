@@ -11,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from api.app import create_app
+from api.dependencies import get_postgres_session, get_redis_client
 from api.helpers.models import ModelRegistry
-from api.infrastructure.dependencies import get_postgres_session, get_redis_client
 from api.schemas.core.configuration import Configuration, Dependencies, Settings
 from api.sql.models import Base
 from api.tests.integration import factories

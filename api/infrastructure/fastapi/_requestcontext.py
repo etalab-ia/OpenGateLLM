@@ -1,5 +1,3 @@
-from contextvars import ContextVar
-
 from pydantic import BaseModel, ConfigDict
 
 from api.domain.key.entities import Key
@@ -32,14 +30,3 @@ class RequestContext(BaseModel):
     cost: float | None = None
     kwh: float | None = None
     kgco2eq: float | None = None
-
-
-request_context: ContextVar[RequestContext] = ContextVar("request_context", default=RequestContext())
-
-
-def get_request_context() -> ContextVar[RequestContext]:
-    return request_context
-
-
-def get_authenticated_user() -> AuthenticatedUserView:
-    return request_context.get().user

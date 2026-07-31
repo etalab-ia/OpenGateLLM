@@ -22,7 +22,8 @@ from api.domain.user.errors import (
     UserNotFoundError,
 )
 from api.domain.user.views import AuthenticatedUserView
-from api.infrastructure.fastapi import AccessController, get_authenticated_user
+from api.infrastructure.fastapi.accesscontroller import AccessController
+from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (

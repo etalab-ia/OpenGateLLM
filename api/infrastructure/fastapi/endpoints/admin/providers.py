@@ -21,7 +21,9 @@ from api.domain.provider.errors import (
     ProviderNotReachableError,
 )
 from api.domain.router.errors import RouterNotFoundError
-from api.infrastructure.fastapi import AccessController, RequestContext, get_request_context
+from api.infrastructure.fastapi import RequestContext
+from api.infrastructure.fastapi.accesscontroller import AccessController
+from api.infrastructure.fastapi.dependencies import get_request_context
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (

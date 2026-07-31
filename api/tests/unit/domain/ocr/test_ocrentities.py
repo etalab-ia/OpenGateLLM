@@ -27,4 +27,4 @@ class TestCreateOCRBodyGetPrompts:
         result = body.get_prompts()
 
         # Assert
-        assert result == []
+        assert result == ["Extract the invoice number."]

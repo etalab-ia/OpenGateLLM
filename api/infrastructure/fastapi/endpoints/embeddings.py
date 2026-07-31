@@ -10,8 +10,9 @@ from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapter
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
-from api.infrastructure.fastapi import AccessController, get_authenticated_user
+from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.decorators import hooks
+from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InsufficientBudgetHTTPException,

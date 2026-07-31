@@ -49,8 +49,7 @@ class CreateOCRBody(BaseModel):
     table_format: Literal["markdown", "html"] | None = None
 
     def get_prompts(self) -> list[str]:
-        # OCR requests carry no textual prompt: rate limiting and cost are based on 0 prompt tokens.
-        return []
+        return [self.document_annotation_prompt] if self.document_annotation_prompt else []
 
 
 class OCRUsage(BaseModel):
