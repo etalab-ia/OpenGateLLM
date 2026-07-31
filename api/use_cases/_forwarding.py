@@ -36,13 +36,13 @@ class ForwardingCommand[TBody: ForwardableBody](BaseModel):
 
 
 @dataclass
-class ForwardingUseCaseSuccess[TData]:
+class ProviderRequestForwardingUseCaseSuccess[TData]:
     data: TData
     headers: dict[str, str]
 
 
-type ForwardingUseCaseResult[TData] = (
-    ForwardingUseCaseSuccess[TData]
+type ProviderRequestForwardingUseCaseResult[TData] = (
+    ProviderRequestForwardingUseCaseSuccess[TData]
     | InvalidKeyError
     | KeyNotFoundError
     | NoAvailableProviderError
@@ -60,7 +60,7 @@ type ForwardingUseCaseResult[TData] = (
 )
 
 
-class ForwardingUseCase[TCommand: ForwardingCommand, TData]:
+class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
     ROUTER_TYPE: ClassVar[RouterType]
     ENDPOINT: ClassVar[EndpointRoute]
 
@@ -96,7 +96,7 @@ class ForwardingUseCase[TCommand: ForwardingCommand, TData]:
     def _is_billable(self, router: Router) -> bool:
         return router.is_prompt_billable
 
-    async def execute(self, command: TCommand) -> ForwardingUseCaseResult[TData]:
+    async def execute(self, command: TCommand) -> ProviderRequestForwardingUseCaseResult[TData]:
         authenticated_user = command.authenticated_user
         result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=command.model)
         match result:
@@ -214,4 +214,4 @@ class ForwardingUseCase[TCommand: ForwardingCommand, TData]:
             cost=formatted_response.data.usage.cost,
         )
 
-        return ForwardingUseCaseSuccess(data=formatted_response.data, headers=rate_limit_state.build_limit_headers)
+        return ProviderRequestForwardingUseCaseSuccess(data=formatted_response.data, headers=rate_limit_state.build_limit_headers)

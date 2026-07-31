@@ -1,17 +1,17 @@
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.ocr.entities import OCR, CreateOCRBody
 from api.domain.router.entities import Router
-from api.use_cases._forwarding import ForwardingCommand, ForwardingUseCase, ForwardingUseCaseSuccess
+from api.use_cases._forwarding import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseSuccess
 from api.utils.variables import EndpointRoute
 
 
 class CreateOCRCommand(ForwardingCommand[CreateOCRBody]): ...
 
 
-CreateOCRUseCaseSuccess = ForwardingUseCaseSuccess
+CreateOCRUseCaseSuccess = ProviderRequestForwardingUseCaseSuccess
 
 
-class CreateOCRUseCase(ForwardingUseCase[CreateOCRCommand, OCR]):
+class CreateOCRUseCase(ProviderRequestForwardingUseCase[CreateOCRCommand, OCR]):
     ROUTER_TYPE = RouterType.IMAGE_TO_TEXT
     ENDPOINT = EndpointRoute.OCR
 
