@@ -18,7 +18,7 @@ class EcologitModelEnvironmentalImpactsComputer(ModelEnvironmentalImpactsCompute
         electricity_mix: ElectricityMix = electricity_mixes.find_electricity_mix(zone=model_zone.value)
 
         if not model_active_params or not model_total_params or not completion_tokens:
-            return EnvironmentalImpacts(kWh=0, kgCO2eq=0)
+            return EnvironmentalImpacts(kWh=0.0, kgCO2eq=0.0)
 
         impacts = compute_llm_impacts(
             model_active_parameter_count=model_active_params,
@@ -36,4 +36,4 @@ class EcologitModelEnvironmentalImpactsComputer(ModelEnvironmentalImpactsCompute
             request_latency=request_latency / 1000,  # convert to seconds
         )
 
-        return EnvironmentalImpacts(kWh=impacts.energy.value, kgCO2eq=impacts.gwp.value)
+        return EnvironmentalImpacts(kWh=(impacts.energy.value or 0.0), kgCO2eq=(impacts.gwp.value or 0.0))
