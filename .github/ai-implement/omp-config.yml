@@ -1,0 +1,22 @@
+# CI overlay for oh-my-pi (omp) during ai-implement runs.
+# Loaded via: omp --config .github/ai-implement/omp-config.yml
+
+tools:
+  approvalMode: yolo
+
+plan:
+  enabled: true
+  defaultOnStartup: true
+
+magicKeywords:
+  enabled: true
+  ultrathink: true
+  orchestrate: true
+  workflow: true
+
+skills:
+  enabled: true
+
+# Keep CI quieter / cheaper where possible
+memory:
+  backend: off

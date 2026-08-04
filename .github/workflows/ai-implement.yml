@@ -1,0 +1,289 @@
+# Triggered when an issue receives the label `ai-implement`.
+#
+# Pipeline: graphify (code knowledge graph) → oh-my-pi plan → subagents implement → review → PR
+# using `.github/PULL_REQUEST_TEMPLATE.md`.
+#
+# Required repository secrets (at least one LLM key matching the model provider):
+#   - ANTHROPIC_API_KEY  (default provider)
+#   - OPENAI_API_KEY / GEMINI_API_KEY / OPENROUTER_API_KEY / … as needed
+#
+# Optional secrets / variables:
+#   - AI_IMPLEMENT_GITHUB_TOKEN  secret: PAT with contents+pull_requests+issues
+#     (recommended so the opened PR can trigger other workflows; falls back to GITHUB_TOKEN)
+#   - AI_IMPLEMENT_MODEL         variable: omp model id (default anthropic/claude-sonnet-4-20250514)
+#   - AI_IMPLEMENT_TIMEOUT       variable: seconds (default 5400)
+#
+# Manual label setup (one-time):
+#   gh label create ai-implement --color 7B61FF --description "AI implement via oh-my-pi + graphify"
+
+name: AI implement (oh-my-pi + graphify)
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number to implement
+        required: true
+        type: string
+
+concurrency:
+  group: ai-implement-${{ github.event.issue.number || inputs.issue_number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  implement:
+    name: Plan · implement · review · PR
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.label.name == 'ai-implement'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Resolve issue number
+        id: meta
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          LABELED_ISSUE: ${{ github.event.issue.number }}
+          DISPATCH_ISSUE: ${{ inputs.issue_number }}
+          ACTOR_ASSOCIATION: ${{ github.event.issue.author_association || 'NONE' }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            ISSUE_NUMBER="$DISPATCH_ISSUE"
+          else
+            ISSUE_NUMBER="$LABELED_ISSUE"
+          fi
+          if ! [[ "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid issue number: $ISSUE_NUMBER"
+            exit 1
+          fi
+
+          # Label events: only OWNER/MEMBER/COLLABORATOR may trigger (defense in depth).
+          if [ "$EVENT_NAME" = "issues" ]; then
+            case "$ACTOR_ASSOCIATION" in
+              OWNER|MEMBER|COLLABORATOR) ;;
+              *)
+                echo "::error::Actor @$ACTOR association '$ACTOR_ASSOCIATION' is not allowed to trigger ai-implement"
+                exit 1
+                ;;
+            esac
+          fi
+
+          BRANCH_NAME="ai/issue-${ISSUE_NUMBER}"
+          {
+            echo "issue_number=$ISSUE_NUMBER"
+            echo "branch_name=$BRANCH_NAME"
+            echo "base_branch=${{ github.event.repository.default_branch }}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Comment — started
+        env:
+          GH_TOKEN: ${{ secrets.AI_IMPLEMENT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.meta.outputs.issue_number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "${{ github.repository }}" --body "$(cat <<EOF
+          🤖 **AI implement** started (oh-my-pi + graphify).
+
+          Pipeline: graphify → plan → subagents → review → PR (using the repo PR template).
+
+          Tracking: $RUN_URL
+          EOF
+          )"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AI_IMPLEMENT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          ref: ${{ steps.meta.outputs.base_branch }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup uv (Python)
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+
+      - name: Install oh-my-pi (omp) + graphify
+        run: |
+          set -euo pipefail
+          npm install -g @oh-my-pi/pi-coding-agent
+          uv tool install graphifyy
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          omp --version
+          graphify --version || graphify --help | head -5
+
+      - name: Install graphify skill for Pi / project
+        run: |
+          set -euo pipefail
+          # User-global Pi skill + project AGENTS.md / prompt alias when supported
+          graphify install --platform pi || true
+          graphify install --platform pi --project || true
+          graphify pi install || true
+
+      - name: Build graphify AST graph
+        env:
+          GRAPHIFY_VIZ_NODE_LIMIT: "0"
+        run: |
+          set -euo pipefail
+          # Local tree-sitter AST pass (no LLM). Semantic doc pass is optional later via omp.
+          graphify . --no-viz
+          test -f graphify-out/graph.json
+          ls -la graphify-out/ | head -20
+
+      - name: Fetch issue context
+        id: issue
+        env:
+          GH_TOKEN: ${{ secrets.AI_IMPLEMENT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.meta.outputs.issue_number }}
+        run: |
+          set -euo pipefail
+          ISSUE_JSON=$(gh issue view "$ISSUE_NUMBER" --repo "${{ github.repository }}" --json title,body,author,labels)
+          TITLE=$(echo "$ISSUE_JSON" | jq -r '.title')
+          AUTHOR=$(echo "$ISSUE_JSON" | jq -r '.author.login')
+          BODY=$(echo "$ISSUE_JSON" | jq -r '.body // ""')
+
+          # Write body to a file to avoid multiline output pitfalls
+          printf '%s' "$BODY" > /tmp/issue-body.md
+          {
+            echo "title<<EOF"
+            echo "$TITLE"
+            echo "EOF"
+            echo "author=$AUTHOR"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Render agent prompt
+        env:
+          ISSUE_NUMBER: ${{ steps.meta.outputs.issue_number }}
+          ISSUE_TITLE: ${{ steps.issue.outputs.title }}
+          ISSUE_AUTHOR: ${{ steps.issue.outputs.author }}
+          BRANCH_NAME: ${{ steps.meta.outputs.branch_name }}
+          BASE_BRANCH: ${{ steps.meta.outputs.base_branch }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+          import os
+
+          template = Path(".github/ai-implement/PROMPT.md").read_text(encoding="utf-8")
+          issue_body = Path("/tmp/issue-body.md").read_text(encoding="utf-8")
+          replacements = {
+              "{{ISSUE_NUMBER}}": os.environ["ISSUE_NUMBER"],
+              "{{ISSUE_TITLE}}": os.environ["ISSUE_TITLE"],
+              "{{ISSUE_AUTHOR}}": os.environ["ISSUE_AUTHOR"],
+              "{{ISSUE_BODY}}": issue_body,
+              "{{BRANCH_NAME}}": os.environ["BRANCH_NAME"],
+              "{{BASE_BRANCH}}": os.environ["BASE_BRANCH"],
+              "{{REPO}}": os.environ["REPO"],
+          }
+          rendered = template
+          for key, value in replacements.items():
+              rendered = rendered.replace(key, value)
+          out = Path("/tmp/ai-implement-prompt.md")
+          out.write_text(rendered, encoding="utf-8")
+          print(f"Wrote prompt ({out.stat().st_size} bytes)")
+          PY
+
+      - name: Create working branch
+        env:
+          BRANCH_NAME: ${{ steps.meta.outputs.branch_name }}
+          BASE_BRANCH: ${{ steps.meta.outputs.base_branch }}
+        run: |
+          set -euo pipefail
+          git fetch origin "$BASE_BRANCH"
+          git checkout -B "$BRANCH_NAME" "origin/$BASE_BRANCH"
+
+      - name: Run oh-my-pi (plan → subagents → review → PR)
+        id: omp
+        env:
+          # Prefer a PAT so follow-up CI on the PR can run
+          GH_TOKEN: ${{ secrets.AI_IMPLEMENT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.AI_IMPLEMENT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OMP_MODEL: ${{ vars.AI_IMPLEMENT_MODEL || 'anthropic/claude-sonnet-4-20250514' }}
+          OMP_TIMEOUT: ${{ vars.AI_IMPLEMENT_TIMEOUT || '5400' }}
+          GRAPHIFY_VIZ_NODE_LIMIT: "0"
+        run: |
+          set -euo pipefail
+          if [ -z "${ANTHROPIC_API_KEY:-}${OPENAI_API_KEY:-}${GEMINI_API_KEY:-}${OPENROUTER_API_KEY:-}" ]; then
+            echo "::error::No LLM API key secret found. Set ANTHROPIC_API_KEY (or another provider key)."
+            exit 1
+          fi
+
+          # plan-yolo: read-only plan first, auto-approve, then implement
+          # approval-mode yolo: non-interactive tool approval for CI
+          # workflowz is requested inside the prompt for multi-subagent orchestration
+          # Prompt via stdin to avoid ARG_MAX limits on large issue bodies
+          timeout "${OMP_TIMEOUT}" omp \
+            --config .github/ai-implement/omp-config.yml \
+            --model "$OMP_MODEL" \
+            --plan-yolo \
+            --approval-mode yolo \
+            --print \
+            < /tmp/ai-implement-prompt.md \
+            | tee /tmp/omp-output.txt
+
+      - name: Upload omp session / logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-implement-${{ steps.meta.outputs.issue_number }}-${{ github.run_id }}
+          path: |
+            /tmp/omp-output.txt
+            /tmp/ai-implement-prompt.md
+            graphify-out/GRAPH_REPORT.md
+            graphify-out/graph.json
+          if-no-files-found: ignore
+
+      - name: Comment — result
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.AI_IMPLEMENT_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.meta.outputs.issue_number }}
+          BRANCH_NAME: ${{ steps.meta.outputs.branch_name }}
+          JOB_STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          PR_URL=""
+          if gh pr view "$BRANCH_NAME" --repo "${{ github.repository }}" --json url -q .url >/tmp/pr-url.txt 2>/dev/null; then
+            PR_URL=$(cat /tmp/pr-url.txt)
+          fi
+
+          if [ "$JOB_STATUS" = "success" ] && [ -n "$PR_URL" ]; then
+            BODY="✅ **AI implement** finished.
+
+          PR: $PR_URL
+          Branch: \`$BRANCH_NAME\`
+          Run: $RUN_URL"
+          elif [ "$JOB_STATUS" = "success" ]; then
+            BODY="⚠️ **AI implement** job succeeded but no PR was found for \`$BRANCH_NAME\`.
+
+          Check the run logs / artifacts: $RUN_URL"
+          else
+            BODY="❌ **AI implement** failed (\`$JOB_STATUS\`).
+
+          Check the run logs / artifacts: $RUN_URL"
+          fi
+
+          gh issue comment "$ISSUE_NUMBER" --repo "${{ github.repository }}" --body "$BODY"

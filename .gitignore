@@ -231,3 +231,6 @@ kilo.jsonc
 .kilocode/
 .claude
 .cursor
+.omp/
+.pi/
+graphify-out/
