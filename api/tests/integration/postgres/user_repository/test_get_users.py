@@ -172,6 +172,19 @@ class TestGetUsers:
         assert first_page.data[0].id == user_1.id
         assert [u.id for u in second_page.data] == [user_2.id, user_3.id]
 
+    async def test_returns_empty_page_when_offset_exceeds_total(self, repository, db_session):
+        # Arrange: the windowed count rides on the rows, an empty page must still report the real total
+        role = RoleSQLFactory()
+        UserSQLFactory(role=role)
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_users(role_id=role.id, limit=10, offset=100)
+
+        # Assert
+        assert result.data == []
+        assert result.total == 1
+
     async def test_sorts_by_email_asc(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()

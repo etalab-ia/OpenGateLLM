@@ -7,6 +7,7 @@ from api.domain.model.entities import ModelType as RouterType
 from api.domain.router import RouterRepository
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
+from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Provider as ProviderTable
@@ -155,18 +156,14 @@ class PostgresRouterRepository(RouterRepository):
     ) -> RouterPage:
         distinct_routers = (self._select_all_routers_statement().distinct(RouterTable.id).order_by(RouterTable.id, ProviderTable.id)).subquery()
 
-        count_query = select(func.count()).select_from(distinct_routers)
-        total = (await self.postgres_session.execute(count_query)).scalar_one()
-
         sort_column = distinct_routers.c[sort_by.value]
         sort_order_clause = asc(sort_column) if sort_order == SortOrder.ASC else desc(sort_column)
 
         routers_query = select(distinct_routers, func.count().over().label("total")).order_by(sort_order_clause).limit(limit).offset(offset)
-        result = await self.postgres_session.execute(routers_query)
+        count_query = select(func.count()).select_from(distinct_routers)
+        rows, total = await fetch_page_with_total(self.postgres_session, routers_query, count_query)
 
-        routers = [self._row_to_router_with_aliases(row) for row in result.all()]
-
-        return RouterPage(total=total, data=routers)
+        return RouterPage(total=total, data=[self._row_to_router_with_aliases(row) for row in rows])
 
     @with_lock(namespace="router", key="name")
     async def create_router(

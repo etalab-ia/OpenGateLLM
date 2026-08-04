@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from contextlib import contextmanager
 from contextvars import ContextVar
 
 import asyncpg
@@ -11,11 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from api.app import create_app
-from api.dependencies import get_postgres_session, get_redis_client
+from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
 from api.helpers.models import ModelRegistry
 from api.schemas.core.configuration import Configuration, Dependencies, Settings
 from api.sql.models import Base
 from api.tests.integration import factories
+from api.utils.context import global_context
 from api.utils.dependencies import get_model_registry
 from api.utils.dependencies import get_postgres_session as get_postgres_session_utils
 from api.utils.dependencies import get_redis_client as get_redis_client_utils
@@ -107,6 +109,30 @@ def _all_sql_factories():
     return result
 
 
+@contextmanager
+def override_global_context(**overrides):
+    previous = {key: getattr(global_context, key, None) for key in overrides}
+    for key, value in overrides.items():
+        setattr(global_context, key, value)
+    try:
+        yield
+    finally:
+        for key, value in previous.items():
+            setattr(global_context, key, value)
+
+
+@contextmanager
+def bind_sql_factories(session):
+    all_factories = _all_sql_factories()
+    for factory in all_factories:
+        factory._meta.sqlalchemy_session = session
+    try:
+        yield
+    finally:
+        for factory in all_factories:
+            factory._meta.sqlalchemy_session = None
+
+
 def pytest_addoption(parser):
     parser.addoption(
         "--commit-db",
@@ -124,28 +150,23 @@ async def db_session(test_postgres_engine, request) -> AsyncGenerator[AsyncSessi
         session = AsyncSession(bind=connection, expire_on_commit=False)
         await session.begin_nested()
 
-        all_sql_factories = _all_sql_factories()
-        for factory in all_sql_factories:
-            factory._meta.sqlalchemy_session = session
-
         @event.listens_for(session.sync_session, "after_transaction_end")
         def restart_savepoint(sess, trans):
             if trans.nested and not trans._parent.nested:
                 sess.begin_nested()
 
         token = _current_db_session.set(session)
-        try:
-            yield session
-        finally:
-            _current_db_session.reset(token)
-            event.remove(session.sync_session, "after_transaction_end", restart_savepoint)
-            for factory in all_sql_factories:
-                factory._meta.sqlalchemy_session = None
-            await session.close()
-            if request.config.getoption("--commit-db"):
-                await postgres_outer_transaction.commit()
-            else:
-                await postgres_outer_transaction.rollback()
+        with bind_sql_factories(session):
+            try:
+                yield session
+            finally:
+                _current_db_session.reset(token)
+                event.remove(session.sync_session, "after_transaction_end", restart_savepoint)
+                await session.close()
+                if request.config.getoption("--commit-db"):
+                    await postgres_outer_transaction.commit()
+                else:
+                    await postgres_outer_transaction.rollback()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -192,6 +213,7 @@ async def app(model_registry, test_configuration, test_redis_pool):
 
     app.dependency_overrides[get_postgres_session] = override_get_postgres_session
     app.dependency_overrides[get_postgres_session_utils] = override_get_postgres_session  # @TODO: remove after legacy migration
+    app.dependency_overrides[get_autocommit_postgres_session] = override_get_postgres_session
     app.dependency_overrides[get_redis_client] = override_get_redis_client
     app.dependency_overrides[get_redis_client_utils] = override_get_redis_client  # @TODO: remove after legacy migration
     app.dependency_overrides[get_model_registry] = lambda: model_registry

@@ -20,6 +20,7 @@ from api.helpers.models import ModelRegistry
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.postgres import (
+    AutocommitSession,
     PostgresLimitRepository,
     PostgresPermissionRepository,
     PostgresProviderRepository,
@@ -48,7 +49,9 @@ async def lifespan(_: FastAPI):
     configuration = get_configuration()
 
     global_context.redis_pool = await create_redis_pool(configuration)
-    global_context.postgres_engine, global_context.postgres_session_factory = create_postgres_session_factory(configuration)
+    global_context.postgres_engine = create_postgres_engine(configuration)
+    global_context.postgres_session_factory = create_postgres_session_factory(engine=global_context.postgres_engine)
+    global_context.autocommit_postgres_session_factory = create_autocommit_postgres_session_factory(engine=global_context.postgres_engine)
 
     async for postgres_session in get_postgres_session():
         bootstrap_admin_user_id = await bootstrap_admin_role_and_user(configuration=configuration, postgres_session=postgres_session)
@@ -84,10 +87,16 @@ async def create_redis_pool(configuration: Configuration) -> redis.ConnectionPoo
     return pool
 
 
-def create_postgres_session_factory(configuration: Configuration) -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
-    engine = create_async_engine(**configuration.dependencies.postgres.model_dump())
-    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    return engine, session_factory
+def create_postgres_engine(configuration: Configuration) -> AsyncEngine:
+    return create_async_engine(**configuration.dependencies.postgres.model_dump())
+
+
+def create_postgres_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+
+def create_autocommit_postgres_session_factory(engine: AsyncEngine) -> async_sessionmaker[AutocommitSession]:
+    return async_sessionmaker(engine, class_=AutocommitSession, expire_on_commit=False)
 
 
 async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_session: AsyncSession) -> int:

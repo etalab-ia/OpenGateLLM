@@ -28,6 +28,7 @@ from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.http import HttpAuthSsoSessionValidator, HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.postgres import (
+    AutocommitSession,
     PostgresAuthenticatedUserQuery,
     PostgresKeyRepository,
     PostgresLimitRepository,
@@ -77,6 +78,12 @@ async def get_postgres_session() -> AsyncGenerator[AsyncSession]:
             raise
 
 
+async def get_autocommit_postgres_session() -> AsyncGenerator[AutocommitSession]:
+    session_factory = global_context.autocommit_postgres_session_factory
+    async with session_factory() as postgres_session:
+        yield postgres_session
+
+
 async def get_redis_client() -> AsyncGenerator[Redis, Any]:
     client = redis.Redis(connection_pool=global_context.redis_pool)
     yield client
@@ -84,7 +91,7 @@ async def get_redis_client() -> AsyncGenerator[Redis, Any]:
 
 
 # queries
-def _authenticated_user_query(session: AsyncSession = Depends(get_postgres_session)) -> AuthenticatedUserQuery:
+def _authenticated_user_query(session: AutocommitSession = Depends(get_autocommit_postgres_session)) -> AuthenticatedUserQuery:
     return PostgresAuthenticatedUserQuery(postgres_session=session)
 
 
@@ -141,6 +148,13 @@ def _usage_recorder() -> UsageRecorder:
 
 
 # repositories
+def _authentication_key_repository(
+    key_encoder: KeyEncoder = Depends(_key_encoder),
+    session: AutocommitSession = Depends(get_autocommit_postgres_session),
+) -> KeyRepository:
+    return PostgresKeyRepository(key_encoder=key_encoder, postgres_session=session)
+
+
 def _key_repository(key_encoder: KeyEncoder = Depends(_key_encoder), session: AsyncSession = Depends(get_postgres_session)) -> KeyRepository:
     return PostgresKeyRepository(key_encoder=key_encoder, postgres_session=session)
 
@@ -246,7 +260,7 @@ def get_health_models_use_case_factory(
 
 # embeddings use cases
 def create_embeddings_use_case_factory(
-    postgres_session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
     redis_client: Redis = Depends(get_redis_client),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
@@ -291,7 +305,7 @@ def get_model_use_case_factory(postgres_session: AsyncSession = Depends(get_post
 
 # ocr use cases
 def create_ocr_use_case_factory(
-    postgres_session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
     redis_client: Redis = Depends(get_redis_client),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
@@ -339,7 +353,7 @@ def update_user_use_case_factory(postgres_session: AsyncSession = Depends(get_po
 
 # rerank use cases
 def create_rerank_use_case_factory(
-    postgres_session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
     redis_client: Redis = Depends(get_redis_client),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
