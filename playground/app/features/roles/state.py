@@ -22,7 +22,6 @@ class RolesState(EntityState):
         router_dict_reverse = {v: k for k, v in self.routers_dict.items()}
 
         permissions_admin = True if "admin" in role["permissions"] else False
-        permissions_create_public_collection = True if "create_public_collection" in role["permissions"] else False
         permissions_read_metric = True if "read_metric" in role["permissions"] else False
         permissions_provide_models = True if "provide_models" in role["permissions"] else False
 
@@ -39,7 +38,6 @@ class RolesState(EntityState):
             id=role["id"],
             name=role["name"],
             permissions_admin=permissions_admin,
-            permissions_create_public_collection=permissions_create_public_collection,
             permissions_read_metric=permissions_read_metric,
             permissions_provide_models=permissions_provide_models,
             limits=limits,
@@ -264,8 +262,6 @@ class RolesState(EntityState):
         permissions = []
         if self.entity_to_create.permissions_admin:
             permissions.append("admin")
-        if self.entity_to_create.permissions_create_public_collection:
-            permissions.append("create_public_collection")
         if self.entity_to_create.permissions_read_metric:
             permissions.append("read_metric")
         if self.entity_to_create.permissions_provide_models:
@@ -370,8 +366,6 @@ class RolesState(EntityState):
             count = 0
             if role.permissions_admin:
                 count += 1
-            if role.permissions_create_public_collection:
-                count += 1
             if role.permissions_read_metric:
                 count += 1
             if role.permissions_provide_models:
@@ -394,8 +388,6 @@ class RolesState(EntityState):
         permissions = []
         if self.entity.permissions_admin:
             permissions.append("admin")
-        if self.entity.permissions_create_public_collection:
-            permissions.append("create_public_collection")
         if self.entity.permissions_read_metric:
             permissions.append("read_metric")
         if self.entity.permissions_provide_models:

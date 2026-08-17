@@ -45,12 +45,10 @@ class TestCreatePermissions:
         PermissionSQLFactory(role=role, permission=PermissionType.READ_METRIC)
         await db_session.flush()
         # Act
-        result = await repository.create_permissions(
-            role_id=role.id, permissions=[PermissionType.READ_METRIC, PermissionType.CREATE_PUBLIC_COLLECTION]
-        )
+        result = await repository.create_permissions(role_id=role.id, permissions=[PermissionType.READ_METRIC, PermissionType.PROVIDE_MODELS])
 
         # Assert
-        assert result == [PermissionType.CREATE_PUBLIC_COLLECTION]
+        assert result == [PermissionType.PROVIDE_MODELS]
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -58,7 +56,7 @@ class TestDeletePermissionsByRoleId:
     async def test_deletes_all_permissions_for_role_and_returns_them(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory(permissions=[PermissionType.ADMIN, PermissionType.READ_METRIC])
-        other_role = RoleSQLFactory(permissions=[PermissionType.CREATE_PUBLIC_COLLECTION])
+        other_role = RoleSQLFactory(permissions=[PermissionType.PROVIDE_MODELS])
         await db_session.flush()
 
         # Act
@@ -68,4 +66,4 @@ class TestDeletePermissionsByRoleId:
         assert set(result) == {PermissionType.ADMIN, PermissionType.READ_METRIC}
         remaining = (await db_session.execute(select(PermissionTable).where(PermissionTable.role_id == other_role.id))).scalars().all()
         assert len(remaining) == 1
-        assert remaining[0].permission == PermissionType.CREATE_PUBLIC_COLLECTION
+        assert remaining[0].permission == PermissionType.PROVIDE_MODELS

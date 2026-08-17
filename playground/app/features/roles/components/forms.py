@@ -23,13 +23,6 @@ def role_settings_form_fields() -> rx.Component:
             disabled=RolesState.edit_entity_loading,
         ),
         entity_form_checkbox_field(
-            label="Create public collection",
-            value=RolesState.entity.permissions_create_public_collection,
-            on_change=lambda value: RolesState.set_edit_entity_attribut("permissions_create_public_collection", value),
-            description="Allow creating public collections. Public collections are visible to all users.",
-            disabled=RolesState.edit_entity_loading,
-        ),
-        entity_form_checkbox_field(
             label="Read metrics",
             value=RolesState.entity.permissions_read_metric,
             on_change=lambda value: RolesState.set_edit_entity_attribut("permissions_read_metric", value),
@@ -64,12 +57,6 @@ def role_create_form_fields() -> rx.Component:
             value=RolesState.entity_to_create.permissions_admin,
             on_change=lambda value: RolesState.set_new_entity_attribut("permissions_admin", value),
             description="Give admistration rights to manage users, roles, and permissions.",
-        ),
-        entity_form_checkbox_field(
-            label="Create public collection",
-            value=RolesState.entity_to_create.permissions_create_public_collection,
-            on_change=lambda value: RolesState.set_new_entity_attribut("permissions_create_public_collection", value),
-            description="Allow creating public collections. Public collections are visible to all users.",
         ),
         entity_form_checkbox_field(
             label="Read metrics",

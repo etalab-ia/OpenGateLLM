@@ -1,5 +1,5 @@
 import datetime as dt
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import Field, constr, field_validator
@@ -7,14 +7,13 @@ from pydantic import Field, constr, field_validator
 from api.schemas import BaseModel
 
 
-class PermissionType(str, Enum):
+class PermissionType(StrEnum):
     ADMIN = "admin"
-    CREATE_PUBLIC_COLLECTION = "create_public_collection"
     READ_METRIC = "read_metric"
     PROVIDE_MODELS = "provide_models"
 
 
-class LimitType(str, Enum):
+class LimitType(StrEnum):
     TPM = "tpm"
     TPD = "tpd"
     RPM = "rpm"

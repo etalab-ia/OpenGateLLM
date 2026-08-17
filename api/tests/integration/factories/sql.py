@@ -77,11 +77,7 @@ class PermissionSQLFactory(BaseSQLFactory):
     created = factory.LazyFunction(lambda: datetime.now())
 
     class Params:
-        admin = factory.Trait(
-            permission=PermissionType.ADMIN,
-            role=factory.SubFactory(RoleSQLFactory, admin=True),
-        )
-        create_public_collection = factory.Trait(permission=PermissionType.CREATE_PUBLIC_COLLECTION)
+        admin = factory.Trait(permission=PermissionType.ADMIN, role=factory.SubFactory(RoleSQLFactory, admin=True))
         read_metric = factory.Trait(permission=PermissionType.READ_METRIC)
         provide_models = factory.Trait(permission=PermissionType.PROVIDE_MODELS)
 
