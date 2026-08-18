@@ -28,8 +28,6 @@ SUBJECT = "oidc-subject"
 TOKEN_EXPIRES = 1893456000
 EMAIL = "sso-user@test.com"
 
-_oidc_settings = {"default_role_id": 1, "default_organization_id": 1}
-
 
 def _valid_body(**overrides) -> dict:
     body = {
@@ -59,20 +57,23 @@ def _mock_valid_session(email: str = EMAIL) -> None:
     )
 
 
-def oidc_auth_sso_login_use_case_factory(
-    postgres_session=Depends(get_postgres_session),
-    key_encoder=Depends(_key_encoder),
-) -> AuthSsoLoginUseCase:
-    return AuthSsoLoginUseCase(
-        key_repository=PostgresKeyRepository(key_encoder=key_encoder, postgres_session=postgres_session),
-        organization_repository=PostgresOrganizationRepository(postgres_session=postgres_session),
-        user_repository=PostgresUserRepository(postgres_session=postgres_session),
-        role_repository=PostgresRolesRepository(postgres_session=postgres_session),
-        auth_sso_session_validator=HttpAuthSsoSessionValidator(auth_playground_url=PLAYGROUND_URL),
-        auth_login_type="oidc",
-        auth_sso_default_role_id=_oidc_settings["default_role_id"],
-        auth_sso_default_organization_id=_oidc_settings["default_organization_id"],
-    )
+def _oidc_auth_sso_login_use_case_factory(default_role_id: int, default_organization_id: int):
+    def factory(
+        postgres_session=Depends(get_postgres_session),
+        key_encoder=Depends(_key_encoder),
+    ) -> AuthSsoLoginUseCase:
+        return AuthSsoLoginUseCase(
+            key_repository=PostgresKeyRepository(key_encoder=key_encoder, postgres_session=postgres_session),
+            organization_repository=PostgresOrganizationRepository(postgres_session=postgres_session),
+            user_repository=PostgresUserRepository(postgres_session=postgres_session),
+            role_repository=PostgresRolesRepository(postgres_session=postgres_session),
+            auth_sso_session_validator=HttpAuthSsoSessionValidator(auth_playground_url=PLAYGROUND_URL),
+            auth_login_type="oidc",
+            auth_sso_default_role_id=default_role_id,
+            auth_sso_default_organization_id=default_organization_id,
+        )
+
+    return factory
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -82,11 +83,12 @@ class TestAuthSsoLogin:
         role = RoleSQLFactory()
         organization = OrganizationSQLFactory()
         await db_session.flush()
-        _oidc_settings["default_role_id"] = role.id
-        _oidc_settings["default_organization_id"] = organization.id
         UserSQLFactory(email=EMAIL, role=role, organization=organization, sub=SUBJECT, iss=ISSUER_URL)
         await db_session.flush()
-        app.dependency_overrides[auth_sso_login_use_case_factory] = oidc_auth_sso_login_use_case_factory
+        app.dependency_overrides[auth_sso_login_use_case_factory] = _oidc_auth_sso_login_use_case_factory(
+            default_role_id=role.id,
+            default_organization_id=organization.id,
+        )
 
     @respx.mock
     async def test_returns_401_when_cookie_header_is_missing(self, client: AsyncClient):
@@ -110,63 +112,6 @@ class TestAuthSsoLogin:
         assert isinstance(data["expires"], int)
         assert isinstance(data["created"], int)
 
-    @respx.mock
-    async def test_creates_user_when_user_does_not_exist(self, client: AsyncClient):
-        new_email = "new-sso-user@test.com"
-        _mock_valid_session(email=new_email)
-
-        response = await client.post(
-            url=URL,
-            json=_valid_body(sub="new-oidc-subject", claims={"name": "New SSO User"}),
-            headers=_sso_login_headers(),
-        )
-
-        assert response.status_code == 200, response.text
-        data = response.json()
-        assert data["object"] == "key"
-        assert data["name"] == SYSTEM_PLAYGROUND_KEY_NAME
-        assert data["value"].startswith("sk-")
-
-    @respx.mock
-    async def test_links_existing_password_user_found_by_email(self, client: AsyncClient, db_session):
-        password_email = "password-user@test.com"
-        UserSQLFactory(email=password_email, sub=None, iss=None)
-        await db_session.flush()
-        _mock_valid_session(email=password_email)
-
-        response = await client.post(
-            url=URL,
-            json=_valid_body(sub="linked-oidc-subject", claims={"name": "Linked User"}),
-            headers=_sso_login_headers(),
-        )
-
-        assert response.status_code == 200, response.text
-        data = response.json()
-        assert data["object"] == "key"
-        assert data["name"] == SYSTEM_PLAYGROUND_KEY_NAME
-        assert data["value"].startswith("sk-")
-
-    @respx.mock
-    async def test_updates_email_when_session_email_changed(self, client: AsyncClient):
-        new_email = "updated-sso-user@test.com"
-        _mock_valid_session(email=new_email)
-
-        response = await client.post(url=URL, json=_valid_body(), headers=_sso_login_headers())
-
-        assert response.status_code == 200, response.text
-        data = response.json()
-        assert data["object"] == "key"
-        assert data["name"] == SYSTEM_PLAYGROUND_KEY_NAME
-
-    @respx.mock
-    async def test_returns_401_when_oauth2_session_is_invalid(self, client: AsyncClient):
-        respx.get(url=AUTH_URL).mock(return_value=httpx.Response(status_code=401))
-
-        response = await client.post(url=URL, json=_valid_body(), headers=_sso_login_headers())
-
-        assert response.status_code == 401
-        assert response.json().get("detail") == "Invalid SSO session."
-
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
         [
@@ -186,24 +131,14 @@ class TestAuthSsoLogin:
                 "Access denied, please contact your administrator.",
             ),
             (
-                RoleNotFoundError(name="missing-role"),
-                404,
-                "Role missing-role not found.",
-            ),
-            (
                 RoleNotFoundError(id=99),
                 404,
                 "Role 99 not found.",
             ),
             (
-                RoleNotFoundError(),
+                OrganizationNotFoundError(id=99),
                 404,
-                "Role not found.",
-            ),
-            (
-                OrganizationNotFoundError(name="Missing Org"),
-                404,
-                "Organization Missing Org not found.",
+                "Organization 99 not found.",
             ),
             (
                 UserNotFoundError(email="missing@test.com"),

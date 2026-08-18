@@ -45,6 +45,7 @@ class TestUpdateUser:
                     "password": SecretStr("encoded:new-secret"),
                     "role": new_role.id,
                     "organization_id": new_organization.id,
+                    "claims": {"name": "Updated Name"},
                 }
             )
         )
@@ -58,6 +59,7 @@ class TestUpdateUser:
         assert result.priority == 3
         assert result.role == new_role.id
         assert result.organization_id == new_organization.id
+        assert result.claims == {"name": "Updated Name"}
         assert result.password == SecretStr("encoded:new-secret")
         assert result.expires is None
         row = (await db_session.execute(select(UserTable.password).where(UserTable.id == user.id))).scalar_one()

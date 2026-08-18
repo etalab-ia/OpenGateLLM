@@ -117,8 +117,8 @@ async def sso_login(
             raise SsoProviderNotAvailableHTTPException()
         case RoleNotFoundError(id=role_id, name=name):
             raise RoleNotFoundHTTPException(role_id=role_id, name=name)
-        case OrganizationNotFoundError(name=name):
-            raise OrganizationNotFoundHTTPException(name=name)
+        case OrganizationNotFoundError(id=organization_id, name=name):
+            raise OrganizationNotFoundHTTPException(organization_id=organization_id, name=name)
         case UserNotFoundError(email=email):
             raise UserNotFoundHTTPException(email=email)
         case UserAlreadyExistsError(email=email):

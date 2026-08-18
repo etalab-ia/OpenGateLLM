@@ -133,6 +133,7 @@ class TestCreateUser:
             name="Full User",
             sub="sub-123",
             iss="https://issuer.example.com",
+            claims={"name": "Full User", "groups": ["admin"]},
             organization_id=organization.id,
             budget=100.0,
             priority=5,
@@ -143,6 +144,7 @@ class TestCreateUser:
         assert result.name == "Full User"
         assert result.sub == "sub-123"
         assert result.iss == "https://issuer.example.com"
+        assert result.claims == {"name": "Full User", "groups": ["admin"]}
         assert result.organization_id == organization.id
         assert result.budget == 100.0
         assert result.priority == 5

@@ -6,7 +6,7 @@ import pytest
 from api.domain.auth.errors import SSOAccessDeniedError, SsoInvalidSessionError, SsoProviderNotAvailableError
 from api.domain.key.entities import Key
 from api.domain.role.errors import RoleNotFoundError
-from api.domain.user.errors import UserNotFoundError
+from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
 from api.tests.unit.use_case.factories import UserFactory
 from api.use_cases.auth import AuthSsoLoginCommand, AuthSsoLoginUseCase, AuthSsoLoginUseCaseSuccess
 
@@ -86,6 +86,21 @@ def _playground_key(user_id: int = 1) -> Key:
     )
 
 
+def _existing_user(**overrides):
+    values = {
+        "id": 1,
+        "email": EMAIL,
+        "name": None,
+        "sub": SUBJECT,
+        "iss": ISSUER_URL,
+        "role": DEFAULT_ROLE_ID,
+        "organization_id": DEFAULT_ORGANIZATION_ID,
+        "claims": {"name": "Test User"},
+    }
+    values.update(overrides)
+    return UserFactory(**values)
+
+
 class TestAuthSsoLoginUseCase:
     @pytest.mark.asyncio
     async def test_should_return_invalid_session_error_when_login_type_is_password(
@@ -97,6 +112,7 @@ class TestAuthSsoLoginUseCase:
         auth_sso_session_validator,
         default_command,
     ):
+        # Arrange
         use_case = AuthSsoLoginUseCase(
             key_repository=key_repository,
             organization_repository=organization_repository,
@@ -108,8 +124,10 @@ class TestAuthSsoLoginUseCase:
             auth_sso_default_organization_id=DEFAULT_ORGANIZATION_ID,
         )
 
+        # Act
         result = await use_case.execute(default_command)
 
+        # Assert
         assert isinstance(result, SsoInvalidSessionError)
         auth_sso_session_validator.validate_session.assert_not_awaited()
 
@@ -122,23 +140,16 @@ class TestAuthSsoLoginUseCase:
         auth_sso_session_validator,
         default_command,
     ):
-        user = UserFactory(
-            id=1,
-            email=EMAIL,
-            name=None,
-            sub=SUBJECT,
-            iss=ISSUER_URL,
-            role=DEFAULT_ROLE_ID,
-            organization_id=DEFAULT_ORGANIZATION_ID,
-            claims={"name": "Test User"},
-        )
+        # Arrange
+        user = _existing_user()
         auth_sso_session_validator.validate_session.return_value = EMAIL
         user_repository.get_user_by_iss_and_sub.return_value = user
-        refreshed_key = _playground_key(user_id=1)
-        key_repository.upsert_key.return_value = refreshed_key
+        key_repository.upsert_key.return_value = _playground_key(user_id=1)
 
+        # Act
         result = await use_case.execute(default_command)
 
+        # Assert
         assert isinstance(result, AuthSsoLoginUseCaseSuccess)
         assert result.key.id == 42
         auth_sso_session_validator.validate_session.assert_awaited_once_with(session_cookie=SESSION_COOKIE)
@@ -157,28 +168,21 @@ class TestAuthSsoLoginUseCase:
         auth_sso_session_validator,
         default_command,
     ):
-        user = UserFactory(
-            id=1,
-            email=EMAIL,
-            name=None,
-            sub=SUBJECT,
-            iss=ISSUER_URL,
-            role=DEFAULT_ROLE_ID,
-            organization_id=DEFAULT_ORGANIZATION_ID,
-            claims={"old": True},
-        )
+        # Arrange
+        user = _existing_user(claims={"old": True})
         updated_user = user.model_copy(update={"role": 20, "organization_id": 5, "claims": default_command.claims, "name": "Custom Name"})
         auth_sso_session_validator.validate_session.return_value = EMAIL
         user_repository.get_user_by_iss_and_sub.return_value = user
         user_repository.update_user.return_value = updated_user
         key_repository.upsert_key.return_value = _playground_key()
-
         use_case.get_role_id = AsyncMock(return_value=20)
         use_case.get_organization_id = AsyncMock(return_value=5)
         use_case.get_user_name = AsyncMock(return_value="Custom Name")
 
+        # Act
         result = await use_case.execute(default_command)
 
+        # Assert
         assert isinstance(result, AuthSsoLoginUseCaseSuccess)
         user_repository.update_user.assert_awaited_once()
         updated = user_repository.update_user.await_args.kwargs["user"]
@@ -197,25 +201,19 @@ class TestAuthSsoLoginUseCase:
         auth_sso_session_validator,
         default_command,
     ):
+        # Arrange
         new_email = "new@test.com"
-        user = UserFactory(
-            id=1,
-            email=EMAIL,
-            name=None,
-            sub=SUBJECT,
-            iss=ISSUER_URL,
-            role=DEFAULT_ROLE_ID,
-            organization_id=DEFAULT_ORGANIZATION_ID,
-            claims={"name": "Test User"},
-        )
+        user = _existing_user()
         updated_user = user.model_copy(update={"email": new_email})
         auth_sso_session_validator.validate_session.return_value = new_email
         user_repository.get_user_by_iss_and_sub.return_value = user
         user_repository.update_user.return_value = updated_user
         key_repository.upsert_key.return_value = _playground_key()
 
+        # Act
         result = await use_case.execute(default_command)
 
+        # Assert
         assert isinstance(result, AuthSsoLoginUseCaseSuccess)
         user_repository.update_user.assert_awaited_once()
         assert user_repository.update_user.await_args.kwargs["user"].email == new_email
@@ -229,14 +227,11 @@ class TestAuthSsoLoginUseCase:
         auth_sso_session_validator,
         default_command,
     ):
-        existing_user = UserFactory(
+        # Arrange
+        existing_user = _existing_user(
             id=2,
-            email=EMAIL,
-            name=None,
             sub="other-sub",
             iss="https://other-issuer.example.com",
-            role=DEFAULT_ROLE_ID,
-            organization_id=DEFAULT_ORGANIZATION_ID,
             claims=None,
         )
         updated_user = existing_user.model_copy(
@@ -252,8 +247,10 @@ class TestAuthSsoLoginUseCase:
         user_repository.update_user.return_value = updated_user
         key_repository.upsert_key.return_value = _playground_key(user_id=2)
 
+        # Act
         result = await use_case.execute(default_command)
 
+        # Assert
         assert isinstance(result, AuthSsoLoginUseCaseSuccess)
         user_repository.create_user.assert_not_awaited()
         user_repository.update_user.assert_awaited_once()
@@ -271,11 +268,14 @@ class TestAuthSsoLoginUseCase:
         auth_sso_session_validator,
         default_command,
     ):
+        # Arrange
         error = SsoProviderNotAvailableError(message="Playground unavailable")
         auth_sso_session_validator.validate_session.return_value = error
 
+        # Act
         result = await use_case.execute(default_command)
 
+        # Assert
         assert isinstance(result, SsoProviderNotAvailableError)
         assert result.message == "Playground unavailable"
 
@@ -286,13 +286,35 @@ class TestAuthSsoLoginUseCase:
         auth_sso_session_validator,
         default_command,
     ):
+        # Arrange
         error = SsoInvalidSessionError(message="Invalid or expired oauth2-proxy session")
         auth_sso_session_validator.validate_session.return_value = error
 
+        # Act
         result = await use_case.execute(default_command)
 
+        # Assert
         assert isinstance(result, SsoInvalidSessionError)
         assert result.message == "Invalid or expired oauth2-proxy session"
+
+    @pytest.mark.asyncio
+    async def test_should_return_sso_provider_not_available_error_when_access_policy_raises(
+        self,
+        use_case,
+        user_repository,
+        auth_sso_session_validator,
+        default_command,
+    ):
+        # Arrange
+        auth_sso_session_validator.validate_session.return_value = EMAIL
+        use_case.has_access = AsyncMock(side_effect=RuntimeError("policy failed"))
+
+        # Act
+        result = await use_case.execute(default_command)
+
+        # Assert
+        assert isinstance(result, SsoProviderNotAvailableError)
+        user_repository.get_user_by_iss_and_sub.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_create_user_when_user_does_not_exist(
@@ -303,24 +325,18 @@ class TestAuthSsoLoginUseCase:
         auth_sso_session_validator,
         default_command,
     ):
-        created_user = UserFactory(
-            id=7,
-            email=EMAIL,
-            name=None,
-            sub=SUBJECT,
-            iss=ISSUER_URL,
-            role=DEFAULT_ROLE_ID,
-            organization_id=DEFAULT_ORGANIZATION_ID,
-            claims={"name": "Test User"},
-        )
+        # Arrange
+        created_user = _existing_user(id=7)
         auth_sso_session_validator.validate_session.return_value = EMAIL
         user_repository.get_user_by_iss_and_sub.return_value = UserNotFoundError()
         user_repository.get_user_by_email.return_value = UserNotFoundError(email=EMAIL)
         user_repository.create_user.return_value = created_user
         key_repository.upsert_key.return_value = _playground_key(user_id=7)
 
+        # Act
         result = await use_case.execute(default_command)
 
+        # Assert
         assert isinstance(result, AuthSsoLoginUseCaseSuccess)
         user_repository.create_user.assert_awaited_once_with(
             role_id=DEFAULT_ROLE_ID,
@@ -340,16 +356,43 @@ class TestAuthSsoLoginUseCase:
         auth_sso_session_validator,
         default_command,
     ):
+        # Arrange
         error = RoleNotFoundError(id=DEFAULT_ROLE_ID)
         auth_sso_session_validator.validate_session.return_value = EMAIL
         user_repository.get_user_by_iss_and_sub.return_value = UserNotFoundError()
         user_repository.get_user_by_email.return_value = UserNotFoundError(email=EMAIL)
         user_repository.create_user.return_value = error
 
+        # Act
         result = await use_case.execute(default_command)
 
+        # Assert
         assert isinstance(result, RoleNotFoundError)
         assert result.id == DEFAULT_ROLE_ID
+
+    @pytest.mark.asyncio
+    async def test_should_return_user_already_exists_error_when_update_user_fails(
+        self,
+        use_case,
+        key_repository,
+        user_repository,
+        auth_sso_session_validator,
+        default_command,
+    ):
+        # Arrange
+        user = _existing_user(claims={"old": True})
+        error = UserAlreadyExistsError(email=EMAIL)
+        auth_sso_session_validator.validate_session.return_value = EMAIL
+        user_repository.get_user_by_iss_and_sub.return_value = user
+        user_repository.update_user.return_value = error
+
+        # Act
+        result = await use_case.execute(default_command)
+
+        # Assert
+        assert isinstance(result, UserAlreadyExistsError)
+        assert result.email == EMAIL
+        key_repository.upsert_key.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_deny_access_when_has_access_returns_false(
@@ -359,10 +402,13 @@ class TestAuthSsoLoginUseCase:
         auth_sso_session_validator,
         default_command,
     ):
+        # Arrange
         auth_sso_session_validator.validate_session.return_value = EMAIL
         use_case.has_access = AsyncMock(return_value=False)
 
+        # Act
         result = await use_case.execute(default_command)
 
+        # Assert
         assert isinstance(result, SSOAccessDeniedError)
         user_repository.get_user_by_iss_and_sub.assert_not_awaited()

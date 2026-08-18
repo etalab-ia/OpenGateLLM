@@ -15,7 +15,7 @@ def validator() -> HttpAuthSsoSessionValidator:
     return HttpAuthSsoSessionValidator(auth_playground_url=PLAYGROUND_URL)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 class TestHttpAuthSsoSessionValidator:
     @respx.mock
     async def test_should_return_email_when_oauth2_proxy_accepts_session(self, validator: HttpAuthSsoSessionValidator):
@@ -47,6 +47,15 @@ class TestHttpAuthSsoSessionValidator:
 
         assert isinstance(result, SsoInvalidSessionError)
         assert result.message == "No email in oauth2-proxy session"
+
+    @respx.mock
+    async def test_should_return_invalid_session_error_when_oauth2_proxy_returns_unexpected_status(self, validator: HttpAuthSsoSessionValidator):
+        respx.get(url=AUTH_URL).mock(return_value=httpx.Response(status_code=500))
+
+        result = await validator.validate_session(session_cookie=SESSION_COOKIE)
+
+        assert isinstance(result, SsoInvalidSessionError)
+        assert result.message == "Unexpected oauth2-proxy response: 500"
 
     @respx.mock
     async def test_should_return_sso_provider_not_available_error_when_playground_is_unreachable(self, validator: HttpAuthSsoSessionValidator):
