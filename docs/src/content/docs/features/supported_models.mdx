@@ -3,8 +3,8 @@ title: Supported models
 sidebar:
   label: "[lucide:cpu] Supported models"
 ---
-import { Aside, LinkButton, TabItem, Tabs } from '@astrojs/starlight/components';
-import { Icon } from 'astro-icon/components';
+import { Aside, Card, LinkButton } from '@astrojs/starlight/components';
+import ProviderCardGrid from '../../../components/ProviderCardGrid.astro';
 
 <Aside type="caution">
 🚧 This page is under construction. 🚧
@@ -26,75 +26,70 @@ The model type determines the capabilities of the model and enables a specific s
 
 ## Supported self-hosted API providers
 
-<Tabs>
-  <TabItem value="vllm" label="vLLM" icon="lobe:vllm-color">
-    vLLM is open-source production-grade LLM server. It supports a wide range of models and is a great choice for self-hosted models.
-
-    **Supported model types:**
-    | Model type | Example model |
-    | --- | --- |
-    | `text-generation` | [openai/gpt-oss-120b](https://huggingface.co/openai/gpt-oss-120b) |
-    | `image-text-to-text` | [mistralai/Mistral-Small-3.2-24B-Instruct-2506](https://huggingface.co/mistralai/Mistral-Small-3.2-24B-Instruct-2506) |
-    | `text-classification` | [BAAI/bge-reranker-v2-m3](https://huggingface.co/BAAI/bge-reranker-v2-m3) |
-    | `text-embeddings-inference` | [intfloat/e5-mistral-7b-instruct](https://huggingface.co/intfloat/e5-mistral-7b-instruct) |
-    | `automatic-speech-recognition` | [openai/whisper-large-v3](https://huggingface.co/openai/whisper-large-v3) |
-
-    <LinkButton href="https://docs.vllm.ai/" icon="external">vLLM documentation</LinkButton>
-  </TabItem>
-
-  <TabItem value="mistral" label="Mistral On-Prem" icon="lobe:mistral-color">
-    Mistral On-Prem is the solution of Mistral AI to self-hosted their commercial models.
-
-    **Supported model types:**
-    | Model type | Example model |
-    | --- | --- |
-    | `text-generation` | [mistral-medium-2508](https://docs.mistral.ai/models/mistral-medium-2508) |
-    | `image-text-to-text` | [mistral-medium-2508](https://docs.mistral.ai/models/mistral-medium-2508) |
-    | `image-to-text` | [ocr-3-25-12](https://docs.mistral.ai/models/ocr-3-25-12) |
-    | `text-embeddings-inference` | [mistral-embed-23-12](https://docs.mistral.ai/models/mistral-embed-23-12) |
-    | `automatic-speech-recognition` | [voxtral-mini-2507](https://docs.mistral.ai/models/voxtral-mini-2507) |
-    
-    <LinkButton href="https://docs.mistral.ai/" icon="external">Mistral documentation</LinkButton>
-  </TabItem>
-
-  <TabItem label="Text Embeddings Inference" icon="lobe:huggingface-color">
-    Hugging Face Text Embeddings Inference is an open-source API dedicated for embeddings and reranking. Is a great choice for self-hosted models.
-
-    **Supported model types:**
-    | Model type | Example model |
-    | --- | --- |
-    | `text-embeddings-inference` | [BAAI/bge-m3](https://huggingface.co/BAAI/bge-m3) |
-    | `text-classification` | [BAAI/bge-reranker-v2-m3](https://huggingface.co/BAAI/bge-reranker-v2-m3) |
-  
-  <LinkButton href="https://github.com/huggingface/text-embeddings-inference" icon="external">Text Embeddings Inference documentation</LinkButton>
-  </TabItem>
-
-  <TabItem label="Ollama" icon="lobe:ollama">
-    Ollama is a local-first model runtime for self-hosted models.
-
-    To add it as a provider, you need to set `openai` as the provider type.
-
-    **Supported model types:**
-    | Model type | Example model |
-    | --- | --- |
-    | `text-generation` | [qwen3.5:14b](https://ollama.com/library/qwen3.5:14b) |
-
-    <LinkButton href="https://ollama.com/" icon="external">Ollama documentation</LinkButton>
-  </TabItem>
-
-  <TabItem label="WhisperX" icon="lobe:openai">
-    WhisperX is a open-source framework to run Whisper with fast inference and a Pyannote diarization integration. 
-    To run WhisperX, you need to deploy an API server with OpenAI compatible API. 
-    We recommend to use the following repository [etalab-ia/whisperx-openai-api](https://github.com/etalab-ia/whisperx-openai-api).
-
-    To add it as a provider, you need to set `openai` as the provider type.
-
-    **Supported model types:**
-    | Model type | Example model |
-    | --- | --- |
-    | `automatic-speech-recognition` | [openai/whisper-large-v3](https://huggingface.co/openai/whisper-large-v3) |
-
-    <LinkButton href="https://github.com/etalab-ia/whisperx-openai-api" icon="external">WhisperX documentation</LinkButton>
-  </TabItem>
-
-</Tabs>
+<ProviderCardGrid>
+	<Card title="Mistral On-Prem" icon="lobe:mistral-color">
+		Mistral On-Prem is the solution of Mistral AI to self-hosted their commercial models.
+    <br></br>
+		<LinkButton
+			href="https://mistral.ai/products/studio/"
+			variant="secondary"
+			icon="external"
+			iconPlacement="start"
+			style="font-size: var(--sl-text-sm); padding: 0.25rem 0.7rem; gap: 0.35em;"
+		>
+			See documentation
+		</LinkButton>
+	</Card>
+	<Card title="Ollama" icon="lobe:ollama">
+		Ollama is a local-first model runtime for self-hosted models. To add it as a provider, you need to set `openai` as the provider type.
+    <br></br>
+		<LinkButton
+			href="https://ollama.com/"
+			variant="secondary"
+			icon="external"
+			iconPlacement="start"
+			style="font-size: var(--sl-text-sm); padding: 0.25rem 0.7rem; gap: 0.35em;"
+		>
+			See documentation
+		</LinkButton>
+	</Card>
+	<Card title="Text Embeddings Inference" icon="lobe:huggingface-color">
+		Hugging Face Text Embeddings Inference is an open-source API dedicated for embeddings and reranking. Is a great choice for self-hosted models.
+    <br></br>
+		<LinkButton
+			href="https://github.com/huggingface/text-embeddings-inference"
+			variant="secondary"
+			icon="external"
+			iconPlacement="start"
+			style="font-size: var(--sl-text-sm); padding: 0.25rem 0.7rem; gap: 0.35em;"
+		>
+			See documentation
+		</LinkButton>
+	</Card>
+	<Card title="vLLM" icon="lobe:vllm-color">
+		vLLM is open-source production-grade LLM server. It supports a wide range of models and is a great choice for self-hosted models.
+    <br></br>
+		<LinkButton
+			href="https://docs.vllm.ai/"
+			variant="secondary"
+			icon="external"
+			iconPlacement="start"
+			style="font-size: var(--sl-text-sm); padding: 0.25rem 0.7rem; gap: 0.35em;"
+		>
+			See documentation
+		</LinkButton>
+	</Card>
+	<Card title="WhisperX" icon="lobe:openai">
+		WhisperX is a open-source framework to run Whisper with fast inference and a Pyannote diarization integration. Deploy it behind an OpenAI-compatible API and set `openai` as the provider type.
+    <br></br>
+		<LinkButton
+			href="https://github.com/etalab-ia/whisperx-openai-api"
+			variant="secondary"
+			icon="external"
+			iconPlacement="start"
+			style="font-size: var(--sl-text-sm); padding: 0.25rem 0.7rem; gap: 0.35em;"
+		>
+			See documentation
+		</LinkButton>
+	</Card>
+</ProviderCardGrid>

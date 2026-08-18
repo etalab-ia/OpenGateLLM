@@ -30,34 +30,6 @@ docker build --build-arg CONFIG_FILE=config.yml --file playground/Dockerfile --t
 OpenGateLLM supports **all identity providers that support the OIDC protocol** (eg. Google, Azure, etc.). 
 You can use the [oauth2-proxy documentation](https://oauth2-proxy.github.io/oauth2-proxy/configuration/providers/) to configure your identity provider.
 
-<Tabs>
-  <TabItem value="proconnect" label="ProConnect" icon="local:proconnect">
-    ProConnect is the identity provider used for SSO on the OpenGateLLM Playground in French public administration deployments. To activate SSO, create a client on [partenaires.moncomptepro.beta.gouv.fr](https://partenaires.moncomptepro.beta.gouv.fr/).
-
-    **Logout URL**
-
-    ProConnect requires an RP-initiated logout call to the issuer `/session/end` endpoint. See section 2.4.1 in the [ProConnect technical documentation](https://partenaires.proconnect.gouv.fr/docs/fournisseur-service/implementation_technique) for details.
-
-    Set `auth_sso_logout_redirect_uri` to the ProConnect logout URL. Build it from the issuer root URL and the OAuth2 Proxy sign-in URL (used as the post-logout redirect URI). Example values:
-
-    - `oauth2_proxy_login_url`: `http://localhost:8501/oauth2/sign_in`
-    - `issuer_url`: `https://fca.integ01.dev-agentconnect.fr/api/v2`
-
-    ```python
-    import secrets
-    from urllib.parse import quote
-
-    def build_proconnect_logout_url(issuer_url: str, oauth2_proxy_login_url: str) -> str:
-        issuer_url = issuer_url.rstrip("/")
-        encoded_redirect = quote(oauth2_proxy_login_url, safe="")
-        state = secrets.token_urlsafe(32)
-        return f"{issuer_url}/session/end?id_token_hint={{id_token}}&post_logout_redirect_uri={encoded_redirect}&state={quote(state, safe='')}"
-    ```
-
-    The `{id_token}` placeholder is substituted by OAuth2 Proxy when the user signs out.
-  </TabItem>
-</Tabs>
-
 ## Access policy
 
 ### Default access policy
@@ -76,17 +48,11 @@ On each login, the API also keeps the local user in sync with the identity provi
 
 ### Custom access policy
 
-SSO access, user name, organization, and role resolution are handled by the API use case behind `POST /v1/auth/sso/login`: [`AuthSsoLoginUseCase`](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/use_cases/auth/_authssologinusecase.py).
+SSO access, user name, organization, and role resolution are handled by the API use case behind `POST /v1/auth/sso/login`: [*AuthSsoLoginUseCase*](https://github.com/etalab-ia/OpenGateLLM/blob/main/api/use_cases/auth/_authssologinusecase.py).
 
-To customize this behavior, override the use case file in the API container. The class exposes hook methods you can replace:
+To customize this behavior, override the use case file in the API container and mount your customized file over the built-in use case path.
 
-- `async has_access(claims) -> bool` — Whether the user may access the Playground after OIDC authentication. Returning `False` yields `403`.
-- `async get_user_name(claims) -> str \| None` — Display name stored on the user.
-- `async get_organization_id(claims) -> int` — OpenGateLLM organization assigned on create/update.
-- `async get_role_id(claims) -> int` — OpenGateLLM role assigned on create/update.
-
-Mount your customized file over the built-in use case path. Example with Docker Compose:
-
+Example with Docker Compose:
 ```yaml
 services:
   api:

@@ -1,0 +1,26 @@
+---
+import { CardGrid } from '@astrojs/starlight/components';
+---
+
+<div class="provider-card-grid">
+	<CardGrid>
+		<slot />
+	</CardGrid>
+</div>
+
+<style>
+	.provider-card-grid :global(.card) {
+		height: 100%;
+	}
+
+	.provider-card-grid :global(.card .body) {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+	}
+
+	.provider-card-grid :global(.card .sl-link-button) {
+		margin-block: 0;
+		margin-top: auto;
+	}
+</style>

@@ -11,7 +11,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.38.4",
+    "@astrojs/starlight": "0.38.5",
     "@iconify-json/lobe": "npm:@proj-airi/lobe-icons@^1.0.19",
     "@iconify-json/lucide": "^1.2.105",
     "@mermaid-js/layout-elk": "^0.2.1",
