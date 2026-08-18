@@ -76,7 +76,7 @@ class ChatState(AuthState):
                 if not self.model and self.available_models:
                     self.model = self.available_models[0]
 
-        except Exception as e:
+        except Exception:
             rx.toast.error("Error loading models.", position="bottom-right")
             self.available_models = []
             self.model = ""

@@ -19,4 +19,4 @@ class AuthSsoLoginBody(BaseModel):
     sub: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="Subject identifier from the OIDC id_token.")]
     iss: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="Issuer identifier from the OIDC id_token.")]
     exp: Annotated[int, Field(description="Expiration timestamp (seconds since epoch) from the OIDC id_token.")]
-    claims: Annotated[dict[str, Any], Field(default_factory=dict, description="OIDC claims from the identity provider access token /userinfo endpoint, optionally formatted by the Playground custom claims script.")]  # fmt: off
+    claims: Annotated[dict[str, Any], Field(default_factory=dict, description="OIDC claims from the identity provider access token /userinfo endpoint.")]  # fmt: off

@@ -160,7 +160,6 @@ class SettingsLoginOIDC(Settings):
     auth_sso_logout_redirect_uri: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="The logout redirect uri for SSO.")]  # fmt: off
     auth_sso_oidc_scope: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default="openid email", description="OIDC scope for id_token validation.")]  # fmt: off
     auth_sso_cookie_secure: bool = Field(default=False, description="Whether the cookie is secure. Set to True if the application is served over HTTPS.")  # fmt: off
-    auth_sso_custom_claims_script_path: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Path to a Python file mounted into the Playground container (e.g. through a Docker volume) that exposes a `format_claims(claims: dict) -> dict` function. This function is called with the OIDC claims fetched from the identity provider `/userinfo` endpoint (access token claims only), right before they are sent to the API for SSO login, so it can transform, enrich or override them with custom logic. This mirrors LiteLLM's custom SSO handler, see https://docs.litellm.ai/docs/proxy/custom_sso#option-2-custom-sso-handler-post-authentication for the underlying pattern.")]  # fmt: off
 
     @field_validator("auth_sso_cookie_secret", mode="after")
     def set_auth_sso_cookie_secret(cls, value: str | None) -> str:
