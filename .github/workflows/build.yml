@@ -125,11 +125,14 @@ jobs:
       matrix:
         environment: [dev, staging, prod]
         include:
-          - public_host: albert.playground.dev.etalab.gouv.fr
+          - environment: dev
+            public_host: albert.playground.dev.etalab.gouv.fr
             private_host: albert.api.001.dev.etalab.gouv.fr:8002
-          - public_host: albert.playground.staging.etalab.gouv.fr
+          - environment: staging
+            public_host: albert.playground.staging.etalab.gouv.fr
             private_host: albert.api.001.staging.etalab.gouv.fr:8002
-          - public_host: albert.playground.etalab.gouv.fr
+          - environment: prod
+            public_host: albert.playground.etalab.gouv.fr
             private_host: albert.api.private.etalab.gouv.fr:8002
 
     steps:
