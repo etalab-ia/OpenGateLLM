@@ -10,6 +10,8 @@ import reflex as rx
 from app.core.configuration import configuration
 from app.shared.components.toasts import httpx_error_toast
 
+_userinfo_endpoints: dict[str, str] = {}
+
 
 class AuthState(rx.State):
     """Authentication state."""
@@ -30,6 +32,7 @@ class AuthState(rx.State):
     user_updated: int | None = None
     user_permissions: list[str] = []
     user_limits: list[dict] = []
+    session_expiration: int | None = None
 
     # Loading state
     is_loading: bool = False
@@ -38,23 +41,12 @@ class AuthState(rx.State):
     opengatellm_url: str = configuration.settings.playground_opengatellm_url
     opengatellm_timeout: int = configuration.settings.playground_opengatellm_timeout
     login_type: str = configuration.settings.auth_login_type
-    playground_url: str | None = None if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_playground_url
     sso_logout_redirect_uri: str | None = None if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_logout_redirect_uri  # fmt: off
     sso_oidc_issuer_url: str | None = None if configuration.settings.auth_login_type != "oidc" else configuration.settings.auth_sso_oidc_issuer_url
 
     # Form fields
     email_input: str = ""
     password_input: str = ""
-
-    @rx.event
-    def set_email_input(self, value: str):
-        """Set email input value."""
-        self.email_input = value
-
-    @rx.event
-    def set_password_input(self, value: str):
-        """Set password input value."""
-        self.password_input = value
 
     async def _password_login(self, client: httpx.AsyncClient, email: str, password: str):
         response = await client.post(
@@ -81,6 +73,25 @@ class AuthState(rx.State):
         )
         return response
 
+    def _apply_session(self, user_data: dict, api_key: str, api_key_id: int, expires: int | None) -> None:
+        self.is_authenticated = True
+        self.auth_error_message = ""
+        self.user_id = user_data.get("id")
+        self.user_email = user_data.get("email")
+        self.user_name = user_data.get("name")
+        self.api_key = api_key
+        self.api_key_id = api_key_id
+        self.user_organization = user_data.get("organization")
+        self.user_budget = user_data.get("budget")
+        self.user_priority = user_data.get("priority", 0)
+        self.user_created = user_data.get("created")
+        self.user_updated = user_data.get("updated")
+        self.user_permissions = user_data.get("permissions", [])
+        self.user_limits = user_data.get("limits", [])
+        self.email_input = ""
+        self.password_input = ""
+        self.session_expiration = expires
+
     @staticmethod
     def _oauth2_extract_token_from_headers(headers: dict[str, str], key: str) -> str | None:
         value = headers.get(key)
@@ -93,16 +104,33 @@ class AuthState(rx.State):
 
     @staticmethod
     def _decode_jwt_payload(token: str) -> dict:
-        payload_b64 = token.split(".")[1]
+        parts = token.split(".")
+        if len(parts) != 3:
+            raise ValueError("Invalid JWT.")
+        payload_b64 = parts[1]
         payload_b64 += "=" * (-len(payload_b64) % 4)
-        return json.loads(urlsafe_b64decode(payload_b64))
+        payload = json.loads(urlsafe_b64decode(payload_b64))
+        if not isinstance(payload, dict):
+            raise ValueError("Invalid JWT payload.")
+        return payload
 
     @staticmethod
-    def _token_is_expired(exp: int | None) -> bool:
-        try:
-            return bool(exp and exp < time.time())
-        except Exception:
+    def _token_is_expired(exp: int) -> bool:
+        return exp < time.time()
+
+    def _session_expired(self) -> bool:
+        if self.session_expiration is None:
             return False
+        return self._token_is_expired(self.session_expiration)
+
+    def _expire_session(self):
+        self._clear_auth_state()
+        return rx.toast.warning("Your session has expired. Please log in again.", position="bottom-right")
+
+    @rx.event
+    def ensure_session(self):
+        if self.is_authenticated and self._session_expired():
+            return self._expire_session()
 
     @rx.event
     async def basic_login(self):
@@ -119,50 +147,38 @@ class AuthState(rx.State):
         response = None
         try:
             async with httpx.AsyncClient() as client:
-                # Create API key
                 response = await self._password_login(client=client, email=email, password=password)
                 response.raise_for_status()
-                api_key = response.json().get("value")
-                api_key_id = response.json().get("id")
+                login_data = response.json()
 
-                # Get user info
-                response = await self._get_user_info(client=client, api_key=api_key)
+                response = await self._get_user_info(client=client, api_key=login_data["value"])
                 response.raise_for_status()
-
                 user_data = response.json()
-
-                # Update state
-                self.is_authenticated = True
-                self.auth_error_message = ""
-                self.user_id = user_data.get("id")
-                self.user_email = user_data.get("email")
-                self.user_name = user_data.get("name")
-                self.api_key = api_key
-                self.api_key_id = api_key_id
-                self.user_organization = user_data.get("organization")
-                self.user_budget = user_data.get("budget")
-                self.user_priority = user_data.get("priority", 0)
-                self.user_created = user_data.get("created")
-                self.user_updated = user_data.get("updated")
-                self.user_permissions = user_data.get("permissions", [])
-                self.user_limits = user_data.get("limits", [])
-
-                yield rx.toast.success("Successfully logged in!", position="bottom-right")
+                self._apply_session(user_data=user_data, api_key=login_data["value"], api_key_id=login_data["id"], expires=login_data["expires"])
                 yield
-
-                # Load models after successful login (if ChatState)
-                if hasattr(self, "load_models"):
-                    async for _ in self.load_models():
-                        yield
-
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
         finally:
             self.is_loading = False
             yield
 
-    @staticmethod
-    def _parse_userinfo_response(response: httpx.Response) -> dict:
+    async def _fetch_claims_from_userinfo(self, client: httpx.AsyncClient, access_token: str) -> dict:
+        if not self.sso_oidc_issuer_url:
+            raise ValueError("OIDC issuer URL is not configured.")
+
+        issuer = self.sso_oidc_issuer_url.rstrip("/")
+        userinfo_url = _userinfo_endpoints.get(issuer)
+        if not userinfo_url:
+            response = await client.get(url=f"{issuer}/.well-known/openid-configuration", timeout=self.opengatellm_timeout)
+            response.raise_for_status()
+            userinfo_url = response.json().get("userinfo_endpoint")
+            if not isinstance(userinfo_url, str) or not userinfo_url:
+                raise ValueError("userinfo_endpoint missing from OIDC discovery document.")
+            _userinfo_endpoints[issuer] = userinfo_url
+
+        response = await client.get(url=userinfo_url, headers={"Authorization": f"Bearer {access_token}"}, timeout=self.opengatellm_timeout)
+        response.raise_for_status()
+
         content_type = response.headers.get("content-type", "")
         if "application/json" in content_type:
             return response.json()
@@ -171,14 +187,6 @@ class AuthState(rx.State):
         if text.count(".") == 2:
             return AuthState._decode_jwt_payload(text)
         return json.loads(text)
-
-    async def _fetch_claims_from_userinfo(self, client: httpx.AsyncClient, access_token: str) -> dict:
-        userinfo_url = f"{self.sso_oidc_issuer_url.rstrip('/')}/userinfo"
-        response = await client.get(url=userinfo_url, headers={"Authorization": f"Bearer {access_token}"}, timeout=self.opengatellm_timeout)
-        response.raise_for_status()
-        claims = self._parse_userinfo_response(response)
-
-        return claims
 
     @staticmethod
     def _http_error_detail(response: httpx.Response) -> str:
@@ -206,35 +214,38 @@ class AuthState(rx.State):
 
     @rx.event
     async def oidc_login(self):
-        if self.is_authenticated:
-            return
-
         headers = self.router.headers.raw_headers
         session_cookie = headers.get("cookie")
         if not session_cookie:
             yield self._redirect_to_status_page(route="/error", message="Session cookie not found in headers.")
             return
 
-        id_token = None
-        for key in ["authorization", "x-forwarded-id-token"]:
-            id_token = self._oauth2_extract_token_from_headers(headers=headers, key=key)
-            if id_token:
-                break
-
+        id_token = self._oauth2_extract_token_from_headers(headers=headers, key="x-forwarded-id-token")
         if not id_token:
             yield self._redirect_to_status_page(route="/error", message="ID token not found in headers.")
             return
 
         access_token = self._oauth2_extract_token_from_headers(headers=headers, key="x-auth-request-access-token")
-        token_claims = self._decode_jwt_payload(id_token)
+        if not access_token:
+            yield self._redirect_to_status_page(route="/error", message="Access token not found in headers.")
+            return
+
+        try:
+            token_claims = self._decode_jwt_payload(id_token)
+        except Exception:
+            yield self._redirect_to_status_page(route="/error", message="Invalid ID token.")
+            return
+
         sub = token_claims.get("sub")
         iss = token_claims.get("iss")
         exp = token_claims.get("exp")
-        if not sub or not iss or exp is None:
+        if not sub or not iss or not isinstance(exp, int):
             yield self._redirect_to_status_page(route="/error", message="Mandatory OIDC claims not found in ID token.")
             return
         if self._token_is_expired(exp):
             yield self.oidc_logout()
+            return
+        if self.is_authenticated and self.session_expiration == exp:
             return
 
         self.is_loading = True
@@ -247,7 +258,7 @@ class AuthState(rx.State):
                 response = await self._sso_login(client=client, session_cookie=session_cookie, sub=sub, iss=iss, exp=exp, claims=access_claims)
                 match response.status_code:
                     case 200:
-                        pass
+                        login_data = response.json()
                     case 401:  # SsoInvalidSessionHTTPException
                         yield self.oidc_logout()
                         return
@@ -258,27 +269,10 @@ class AuthState(rx.State):
                         yield self._redirect_to_status_page(route="/error", message=self._http_error_detail(response))
                         return
 
-                api_key = response.json().get("value")
-                api_key_id = response.json().get("id")
-
-                response = await self._get_user_info(client=client, api_key=api_key)
+                response = await self._get_user_info(client=client, api_key=login_data["value"])
                 response.raise_for_status()
                 user_data = response.json()
-
-                self.is_authenticated = True
-                self.auth_error_message = ""
-                self.user_id = user_data.get("id")
-                self.user_email = user_data.get("email")
-                self.user_name = user_data.get("name")
-                self.api_key = api_key
-                self.api_key_id = api_key_id
-                self.user_organization = user_data.get("organization")
-                self.user_budget = user_data.get("budget")
-                self.user_priority = user_data.get("priority", 0)
-                self.user_created = user_data.get("created")
-                self.user_updated = user_data.get("updated")
-                self.user_permissions = user_data.get("permissions", [])
-                self.user_limits = user_data.get("limits", [])
+                self._apply_session(user_data=user_data, api_key=login_data["value"], api_key_id=login_data["id"], expires=exp)
 
         except Exception as e:
             yield self._redirect_to_status_page(route="/error", message=self._exception_message(exception=e, response=response))
@@ -310,6 +304,9 @@ class AuthState(rx.State):
         self.user_updated = None
         self.user_permissions = []
         self.user_limits = []
+        self.email_input = ""
+        self.password_input = ""
+        self.session_expiration = None
 
     @rx.event
     def oidc_logout(self):

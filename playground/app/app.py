@@ -115,28 +115,32 @@ app = rx.App(
     head_components=[rx.el.link(rel="icon", type="image/svg+xml", href="/favicon.svg")],
 )
 
-# Public pages
-login = [AuthState.oidc_login] if configuration.settings.auth_login_type == "oidc" else []
 
-app.add_page(component=index, route="/", on_load=login)
+def _on_load(*handlers):
+    login = AuthState.oidc_login if configuration.settings.auth_login_type == "oidc" else AuthState.ensure_session
+    return [login, *handlers]
+
+
+# Public pages
+app.add_page(component=index, route="/", on_load=_on_load())
 if configuration.settings.auth_login_type == "oidc":
     app.add_page(component=sso_deny_page, route="/deny")
     app.add_page(component=sso_error_page, route="/error")
 if PlaygroundPages.ACCOUNT not in configuration.settings.playground_disabled_pages:
-    app.add_page(component=account, route="/account")
+    app.add_page(component=account, route="/account", on_load=_on_load())
 if PlaygroundPages.KEYS not in configuration.settings.playground_disabled_pages:
-    app.add_page(component=keys, route="/keys", on_load=[KeysState.load_entities])
+    app.add_page(component=keys, route="/keys", on_load=_on_load(KeysState.load_entities))
 if PlaygroundPages.USAGE not in configuration.settings.playground_disabled_pages:
-    app.add_page(component=usage, route="/usage", on_load=[UsageState.load_entities])
+    app.add_page(component=usage, route="/usage", on_load=_on_load(UsageState.load_entities))
 
 # Admin pages
 if PlaygroundPages.ORGANIZATIONS not in configuration.settings.playground_disabled_pages:
-    app.add_page(component=organizations, route="/organizations", on_load=[OrganizationsState.load_entities])
+    app.add_page(component=organizations, route="/organizations", on_load=_on_load(OrganizationsState.load_entities))
 if PlaygroundPages.PROVIDERS not in configuration.settings.playground_disabled_pages:
-    app.add_page(component=providers, route="/providers", on_load=[ProvidersState.load_entities])
+    app.add_page(component=providers, route="/providers", on_load=_on_load(ProvidersState.load_entities))
 if PlaygroundPages.ROLES not in configuration.settings.playground_disabled_pages:
-    app.add_page(component=roles, route="/roles", on_load=[RolesState.load_entities])
+    app.add_page(component=roles, route="/roles", on_load=_on_load(RolesState.load_entities))
 if PlaygroundPages.ROUTERS not in configuration.settings.playground_disabled_pages:
-    app.add_page(component=routers, route="/routers", on_load=[RoutersState.load_entities])
+    app.add_page(component=routers, route="/routers", on_load=_on_load(RoutersState.load_entities))
 if PlaygroundPages.USERS not in configuration.settings.playground_disabled_pages:
-    app.add_page(component=users, route="/users", on_load=[UsersState.load_entities])
+    app.add_page(component=users, route="/users", on_load=_on_load(UsersState.load_entities))
