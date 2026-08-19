@@ -2,8 +2,8 @@ from typing import Annotated, Literal
 
 from pydantic import Field, StringConstraints
 
+from api.domain import BaseModel
 from api.domain.router.entities import RouterLoadBalancingStrategy
-from api.infrastructure.fastapi.schemas import BaseModel
 from api.schemas.models import ModelType
 
 

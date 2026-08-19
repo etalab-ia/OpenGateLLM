@@ -51,6 +51,7 @@ from api.use_cases.admin.providers import (
 from api.use_cases.admin.roles import CreateRoleUseCase, DeleteRoleUseCase, GetRolesUseCase, GetRoleUseCase, UpdateRoleUseCase
 from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
 from api.use_cases.admin.users import CreateUserUseCase, DeleteUserUseCase, GetOneUserUseCase, GetUsersUseCase, UpdateUserUseCase
+from api.use_cases.audio import CreateAudioTranscriptionsUseCase
 from api.use_cases.auth import AuthLoginUseCase, AuthSsoLoginUseCase
 from api.use_cases.embeddings import CreateEmbeddingsUseCase
 from api.use_cases.health import GetHealthModelsUseCase
@@ -170,6 +171,30 @@ def _permission_repository(session: AsyncSession) -> PermissionRepository:
 
 def _provider_repository(session: AsyncSession) -> ProviderRepository:
     return PostgresProviderRepository(postgres_session=session)
+
+
+# audio use cases
+def create_audio_transcriptions_use_case_factory(
+    postgres_session: AsyncSession = Depends(get_postgres_session),
+    redis_client: Redis = Depends(get_redis_client),
+    model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
+    model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
+    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
+    provider_client: ProviderClient = Depends(_provider_client),
+) -> CreateAudioTranscriptionsUseCase:
+    return CreateAudioTranscriptionsUseCase(
+        model_environmental_impacts_computer=model_environmental_impacts_computer,
+        model_tokenizer=model_tokenizer,
+        provider_adapter_builder=provider_adapter_builder,
+        provider_client=provider_client,
+        provider_load_balancer=_provider_load_balancer(redis_client),
+        provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_repository=_provider_repository(postgres_session),
+        router_rate_limiter=_router_rate_limiter(),
+        router_repository=_router_repository(postgres_session),
+        usage_recorder=_usage_recorder(),
+        audio_file_size_limit=configuration.settings.audio_file_size_limit,
+    )
 
 
 # auth use cases

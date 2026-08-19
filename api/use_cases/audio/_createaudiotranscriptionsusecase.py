@@ -2,9 +2,13 @@ from dataclasses import dataclass
 
 from api.domain.audio.entities import AudioTranscriptions, CreateAudioTranscriptionsBody
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
+from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ModelType as RouterType
+from api.domain.provider import ProviderAdapterBuilder, ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
 from api.domain.provider.entities import ProviderFormattedResponse
+from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState
+from api.domain.usage import UsageRecorder
 from api.use_cases._providerrequestforwardingusecase import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseError
 from api.utils.variables import EndpointRoute
 
@@ -36,6 +40,34 @@ CreateAudioTranscriptionsUseCaseResult = (
 class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAudioTranscriptionsCommand, AudioTranscriptions]):
     ROUTER_TYPE = RouterType.AUTOMATIC_SPEECH_RECOGNITION
     ENDPOINT = EndpointRoute.AUDIO_TRANSCRIPTIONS
+
+    def __init__(
+        self,
+        model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer,
+        model_tokenizer: ModelTokenizer,
+        provider_adapter_builder: ProviderAdapterBuilder,
+        provider_client: ProviderClient,
+        provider_load_balancer: ProviderLoadBalancer,
+        provider_metrics_logger: ProviderMetricsLogger,
+        provider_repository: ProviderRepository,
+        router_rate_limiter: RouterRateLimiter,
+        router_repository: RouterRepository,
+        usage_recorder: UsageRecorder,
+        audio_file_size_limit: int | None = None,
+    ) -> None:
+        super().__init__(
+            model_environmental_impacts_computer=model_environmental_impacts_computer,
+            model_tokenizer=model_tokenizer,
+            provider_adapter_builder=provider_adapter_builder,
+            provider_client=provider_client,
+            provider_load_balancer=provider_load_balancer,
+            provider_metrics_logger=provider_metrics_logger,
+            provider_repository=provider_repository,
+            router_rate_limiter=router_rate_limiter,
+            router_repository=router_repository,
+            usage_recorder=usage_recorder,
+        )
+        self.audio_file_size_limit = audio_file_size_limit
 
     async def execute(self, command: CreateAudioTranscriptionsCommand) -> CreateAudioTranscriptionsUseCaseResult:
         authenticated_user = command.authenticated_user

@@ -46,7 +46,7 @@ class AudioTranscriptionsResponse(BaseModel):
     usage: Annotated[Usage, Field(default_factory=Usage, description="Usage information for the request.")] = Field(default_factory=Usage, description="Usage information for the request.")  # fmt: off
 
 
-class CreateAudioTranscriptionsBody(BaseModel):
+class CreateAudioTranscriptionsForm(BaseModel):
     file: UploadFile
     model: str
     language: AudioTranscriptionLanguage | None
@@ -58,13 +58,13 @@ class CreateAudioTranscriptionsBody(BaseModel):
     @classmethod
     def as_form(
         cls,
-        file: Annotated[UploadFile, File(default=..., description="The audio file object (not file name) to transcribe, in one of these formats: mp3 or wwav.")] = File(default=..., description="The audio file object (not file name) to transcribe, in one of these formats: mp3 or wav."),
-        model: Annotated[str, Form(default=..., description="ID of the model to use. Call `/v1/models` endpoint to get the list of available models, only `automatic-speech-recognition` model type is supported.")] = Form(default=..., description="ID of the model to use. Call `/v1/models` endpoint to get the list of available models, only `automatic-speech-recognition` model type is supported."),
-        language: Annotated[AudioTranscriptionLanguage | None, Form(default=None, description="The language of the output audio. If the output language is different than the audio language, the audio language will be translated into the output language. Output language must be supplied in ISO-639-1 format (e.g. en, fr) format.")] = Form(default=None, description="The language of the output audio. If the output language is different than the audio language, the audio language will be translated into the output language. Output language must be supplied in ISO-639-1 format (e.g. en, fr) format."),
-        prompt: Annotated[str, Form(default="", description="An optional text to tell the model what to do with the input audio.")] = Form(default="", description="An optional text to tell the model what to do with the input audio."),
-        response_format: Annotated[AudioTranscriptionsResponseFormat, Form(default=AudioTranscriptionsResponseFormat.JSON, description="The format of the transcript output: `json` (default), `text`, `diarized_json` to return per-segment speaker labels, `srt` or `vtt` for subtitle formats.")] = Form(default=AudioTranscriptionsResponseFormat.JSON, description="The format of the transcript output: `json` (default), `text`, `diarized_json` to return per-segment speaker labels, `srt` or `vtt` for subtitle formats."),
-        temperature: Annotated[float, Form(default=0.0, ge=0.0, le=1.0, description="The sampling temperature, between 0 and 1. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. If set to 0, the model will use log probability to automatically increase the temperature until certain thresholds are hit.")] = Form(default=0.0, ge=0.0, le=1.0, description="The sampling temperature, between 0 and 1. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. If set to 0, the model will use log probability to automatically increase the temperature until certain thresholds are hit."),
-    ) -> "CreateAudioTranscriptionsBody":
+        file: UploadFile = File(default=..., description="The audio file object (not file name) to transcribe, in one of these formats: mp3 or wav."),
+        model: str = Form(default=..., description="ID of the model to use. Call `/v1/models` endpoint to get the list of available models, only `automatic-speech-recognition` model type is supported."),
+        language: AudioTranscriptionLanguage | None = Form(default=None, description="The language of the output audio. If the output language is different than the audio language, the audio language will be translated into the output language. Output language must be supplied in ISO-639-1 format (e.g. en, fr) format."),
+        prompt: str = Form(default="", description="An optional text to tell the model what to do with the input audio."),
+        response_format: AudioTranscriptionsResponseFormat = Form(default=AudioTranscriptionsResponseFormat.JSON, description="The format of the transcript output: `json` (default), `text`, `diarized_json` to return per-segment speaker labels, `srt` or `vtt` for subtitle formats."),
+        temperature: float = Form(default=0.0, ge=0.0, le=1.0, description="The sampling temperature, between 0 and 1. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. If set to 0, the model will use log probability to automatically increase the temperature until certain thresholds are hit."),
+    ) -> "CreateAudioTranscriptionsForm":
         try:
             return cls(
                 file=file,
