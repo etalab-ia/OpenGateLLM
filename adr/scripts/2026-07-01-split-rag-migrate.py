@@ -1,7 +1,7 @@
 """Migrate RAG metadata from an OpenGateLLM Postgres database to OpenGateRAG.
 
-Copies `organization`, `user` (RAG quota/permission fields), `collection`, and
-`document` rows. Chunks and embeddings live in Elasticsearch and are not copied.
+Copies `user` (RAG quota/permission fields), `collection`, and `document` rows.
+Chunks and embeddings live in Elasticsearch and are not copied.
 
 The script is idempotent (`ON CONFLICT (id) DO NOTHING`), never deletes source
 data, and can be dry-run with `DRY_RUN=true`.
@@ -137,11 +137,6 @@ def batched(rows: list[dict[str, Any]], size: int) -> list[list[dict[str, Any]]]
 # ============================== FETCH ==============================
 
 
-async def fetch_organizations(source: AsyncConnection) -> list[dict[str, Any]]:
-    result = await source.execute(text("SELECT id, name, created, updated FROM organization ORDER BY id"))
-    return [dict(row._mapping) for row in result.fetchall()]
-
-
 async def fetch_users(source: AsyncConnection, source_columns: dict[str, set[str]]) -> list[dict[str, Any]]:
     user_columns = source_columns["user"]
     role_columns = source_columns.get("role", set())
@@ -265,15 +260,9 @@ async def migrate(config: Config, source: AsyncConnection, destination: AsyncCon
     if await table_exists(source, "permission"):
         source_columns["permission"] = await columns_of(source, "permission")
 
-    copy_organizations = await table_exists(source, "organization") and await table_exists(destination, "organization")
-    if copy_organizations:
-        await require_columns(source, "Source", "organization", ["id", "name", "created", "updated"])
-        await require_columns(destination, "Destination", "organization", ["id", "name", "created", "updated"])
-
     destination_visibility = await enum_labels(destination, "collectionvisibility")
     logger.info(f"Destination collectionvisibility labels: {destination_visibility or '(none / not an enum)'}")
 
-    organizations = await fetch_organizations(source) if copy_organizations else []
     users = await fetch_users(source, source_columns)
     collections = await fetch_collections(source)
     documents = await fetch_documents(source, source_document_columns)
@@ -281,7 +270,6 @@ async def migrate(config: Config, source: AsyncConnection, destination: AsyncCon
     public_collection_users = sum(1 for user in users if user["create_public_collection"])
     users_with_storage_limit = sum(1 for user in users if user["storage_limit"] is not None)
 
-    logger.info(f"Source organizations: {len(organizations)}" + ("" if copy_organizations else " (skipped: table missing)"))
     logger.info(
         f"Source users: {len(users)} ({public_collection_users} with create_public_collection, {users_with_storage_limit} with storage_limit)"
     )
@@ -311,18 +299,6 @@ async def migrate(config: Config, source: AsyncConnection, destination: AsyncCon
     if config.dry_run:
         logger.info("DRY_RUN=true: no rows will be written to the destination database.")
         return
-
-    if copy_organizations:
-        await insert_rows(
-            destination,
-            """
-            INSERT INTO organization (id, name, created, updated)
-            VALUES (:id, :name, :created, :updated)
-            ON CONFLICT (id) DO NOTHING
-            """,
-            organizations,
-            "organization",
-        )
 
     await insert_rows(
         destination,
@@ -355,8 +331,6 @@ async def migrate(config: Config, source: AsyncConnection, destination: AsyncCon
         "document",
     )
 
-    if copy_organizations:
-        await reset_sequence(destination, "organization")
     await reset_sequence(destination, "user")
     await reset_sequence(destination, "collection")
     await reset_sequence(destination, "document")
@@ -364,8 +338,6 @@ async def migrate(config: Config, source: AsyncConnection, destination: AsyncCon
 
 async def sanity_check(source: AsyncConnection, destination: AsyncConnection) -> None:
     pairs = [("user", "id"), ("collection", "id"), ("document", "id")]
-    if await table_exists(source, "organization") and await table_exists(destination, "organization"):
-        pairs.insert(0, ("organization", "id"))
 
     for table, _column in pairs:
         source_count = await count_rows(source, table)
