@@ -3,7 +3,7 @@
 		overflow-x: auto;
 		max-width: 100%;
 	}
-	.sl-markdown-content table {
+	.sl-markdown-content .config-table-wrapper table {
 		--config-col-attribute: 16rem;
 		--config-col-scope: 6rem;
 		--config-col-type: 6rem;
@@ -16,51 +16,51 @@
 		width: max-content;
 		font-size: var(--config-table-font-size);
 	}
-	.sl-markdown-content table th,
-	.sl-markdown-content table td {
+	.sl-markdown-content .config-table-wrapper table th,
+	.sl-markdown-content .config-table-wrapper table td {
 		vertical-align: top;
 		overflow-wrap: anywhere;
 		word-break: break-word;
 		font-size: inherit;
 		background-color: var(--sl-color-bg);
 	}
-	.sl-markdown-content table th:nth-child(1),
-	.sl-markdown-content table td:nth-child(1) {
+	.sl-markdown-content .config-table-wrapper table th:nth-child(1),
+	.sl-markdown-content .config-table-wrapper table td:nth-child(1) {
 		width: var(--config-col-attribute);
 	}
-	.sl-markdown-content table th:nth-child(2),
-	.sl-markdown-content table td:nth-child(2) {
+	.sl-markdown-content .config-table-wrapper table th:nth-child(2),
+	.sl-markdown-content .config-table-wrapper table td:nth-child(2) {
 		width: var(--config-col-scope);
 	}
-	.sl-markdown-content table th:nth-child(3),
-	.sl-markdown-content table td:nth-child(3) {
+	.sl-markdown-content .config-table-wrapper table th:nth-child(3),
+	.sl-markdown-content .config-table-wrapper table td:nth-child(3) {
 		width: var(--config-col-type);
 	}
-	.sl-markdown-content table th:nth-child(4),
-	.sl-markdown-content table td:nth-child(4) {
+	.sl-markdown-content .config-table-wrapper table th:nth-child(4),
+	.sl-markdown-content .config-table-wrapper table td:nth-child(4) {
 		width: var(--config-col-description);
 	}
-	.sl-markdown-content table th:nth-child(5),
-	.sl-markdown-content table td:nth-child(5) {
+	.sl-markdown-content .config-table-wrapper table th:nth-child(5),
+	.sl-markdown-content .config-table-wrapper table td:nth-child(5) {
 		width: var(--config-col-default);
 	}
-	.sl-markdown-content table th:nth-child(6),
-	.sl-markdown-content table td:nth-child(6) {
+	.sl-markdown-content .config-table-wrapper table th:nth-child(6),
+	.sl-markdown-content .config-table-wrapper table td:nth-child(6) {
 		width: var(--config-col-values);
 	}
-	.sl-markdown-content table th:nth-child(7),
-	.sl-markdown-content table td:nth-child(7) {
+	.sl-markdown-content .config-table-wrapper table th:nth-child(7),
+	.sl-markdown-content .config-table-wrapper table td:nth-child(7) {
 		width: var(--config-col-examples);
 	}
-	.sl-markdown-content table .config-scope-badges,
-	.sl-markdown-content table .config-type-badges {
+	.sl-markdown-content .config-table-wrapper table .config-scope-badges,
+	.sl-markdown-content .config-table-wrapper table .config-type-badges {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.25rem;
 	}
-	.sl-markdown-content table .config-scope-badges .sl-badge,
-	.sl-markdown-content table .config-type-badges .sl-badge {
+	.sl-markdown-content .config-table-wrapper table .config-scope-badges .sl-badge,
+	.sl-markdown-content .config-table-wrapper table .config-type-badges .sl-badge {
 		overflow-wrap: normal;
 		word-break: keep-all;
 		white-space: nowrap;

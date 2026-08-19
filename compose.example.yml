@@ -28,6 +28,12 @@ services:
       - "REDIS_PORT=${REDIS_PORT:-6379}"
     ports:
       - "${PLAYGROUND_PORT:-8501}:8501"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -sf http://localhost:8501/ping || exit 1" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     depends_on:
       api:
         condition: service_healthy

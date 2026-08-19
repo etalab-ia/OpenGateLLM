@@ -3,8 +3,24 @@ title: Users management
 sidebar:
   label: "[lucide:users] Users management"
 ---
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import IconLinkCard from "../../../../components/IconLinkCard.astro";
 
-<Aside type="caution">
-🚧 This page is under construction. 🚧
-</Aside>
+This section presents how to configure the dependencies used by the application. Below, you will find those required for the system to run, as well as optional ones depending on your needs.
+
+Optional dependencies are like plugins that can extend the functionality of OpenGateLLM. For example, enabling Prometheus activates the `/metrics` endpoint.
+
+## Users management
+
+<CardGrid>
+<IconLinkCard title="Roles and permissions" href="/features/users_management/roles_and_permissions" icon="lucide:crown" />
+<IconLinkCard title="Organizations" href="/features/users_management/organizations" icon="lucide:building-2" />
+<IconLinkCard title="Users" href="/features/users_management/users" icon="lucide:users" />
+</CardGrid>
+
+## Playground authentication
+
+<CardGrid>
+<IconLinkCard title="Basic authentication" href="/features/users_management/basic_authentication" icon="lucide:user-key" />
+<IconLinkCard title="Single Sign-On (SSO)" href="/features/users_management/sso" icon="lucide:shield-check" />
+</CardGrid>

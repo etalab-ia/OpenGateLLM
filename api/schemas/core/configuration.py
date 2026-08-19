@@ -237,7 +237,7 @@ class Dependencies(ConfigBaseModel):
     celery: CeleryDependency | None = Field(default=None, json_schema_extra={"deprecated": True})  # fmt: off
     langfuse: LangfuseDependency | None = Field(default=None, description="See the [LangfuseDependency section](#langfusedependency) for more information.")  # fmt: off
     postgres: PostgresDependency = Field(..., description="Postgres is a required dependency of OpenGateLLM to store API data.")  # fmt: off
-    redis: RedisDependency  = Field(..., description="Redis is a required dependency of OpenGateLLM to store rate limiting counters and performance metrics.")  # fmt: off
+    redis: RedisDependency  = Field(..., description="Redis is a required dependency for the API to store rate limiting counters and performance metrics. It is an optional dependency for the Playground to use as stage manage (see [Reflex documentation](https://reflex.dev/docs/api-reference/config/)).")  # fmt: off
     sentry: SentryDependency | None = Field(default=None, description="Sentry is an optional dependency of OpenGateLLM. Sentry helps you identify, diagnose, and fix errors in real-time.")  # fmt: off
 
     @model_validator(mode="after")
@@ -278,7 +278,7 @@ class Settings(ConfigBaseModel):
     # general
     disabled_routers: list[RouterName] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["embeddings"]], json_schema_extra={"default": []})  # fmt: off
     hidden_routers: list[RouterName] = Field(default_factory=list, description="Routers are enabled but hidden in the swagger and the documentation of the API.", examples=[["admin"]], json_schema_extra={"default": []})  # fmt: off
-    app_title: str = Field(default=DEFAULT_APP_NAME, description="Display title of your API in swagger UI, see https://fastapi.tiangolo.com/tutorial/metadata for more information.", examples=["My API"])  # fmt: off
+    app_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application (dsiplayed on Playground, Swagger and Redoc UI).", examples=["My API"])  # fmt: off
 
     # routing
     routing_max_retries: int = Field(default=3, ge=1, description="Maximum number of retries for routing tasks.")  # fmt: off
@@ -310,7 +310,7 @@ class Settings(ConfigBaseModel):
     auth_bootsrap_admin_username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(default="admin", description="Username of the admin user created at the first startup.")  # fmt: off
     auth_bootsrap_admin_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72)] = Field(default="changeme", description="Password of the admin user created at the first startup.")  # fmt: off
     auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a new API key to be valid.")  # fmt: off
-    auth_login_session_duration: int = Field(default=3600, ge=1, description="Duration of the playground postgres_session in seconds.")  # fmt: off
+    auth_login_session_duration: int = Field(default=3600, ge=1, description="Duration of login session for the playground in seconds. Also used as oauth2-proxy cookie expiration when SSO is enabled.")  # fmt: off
 
     # rate_limiting
     rate_limiting_strategy: LimitingStrategy = Field(default=LimitingStrategy.FIXED_WINDOW, description="Rate limiting strategy for the API.")  # fmt: off
@@ -333,6 +333,17 @@ class Settings(ConfigBaseModel):
         return self
 
 
+class SettingsLoginPassword(Settings):
+    auth_login_type: Literal["password"] = Field(default="password", description="Login type for the API.")  # fmt: off
+
+
+class SettingsLoginOIDC(Settings):
+    auth_login_type: Literal["oidc"] = Field(default="oidc", description="Login type for the API.")  # fmt: off
+    auth_playground_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="Playground URL. Used by oauth2-proxy for redirect whitelisting and by the API to validate SSO sessions via /oauth2/auth. Use an internal URL reachable from the API (for example http://playground:8501) for API configuration and a public URL reachable from the internet (for example https://playground.my-domain.com) for Playground configuration.")  # fmt: off
+    auth_sso_default_role_id: int = Field(ge=1, description="Default role ID for SSO users.")  # fmt: off
+    auth_sso_default_organization_id: int = Field(ge=1, description="Default organization ID for SSO users.")  # fmt: off
+
+
 # load config ----------------------------------------------------------------------------------------------------------------------------------------
 @custom_validation_error()
 class ConfigFile(ConfigBaseModel):
@@ -348,14 +359,25 @@ class ConfigFile(ConfigBaseModel):
     """
 
     models: list[Model] = Field(default_factory=list, description="Models used by the API.")  # fmt: off
-    dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies used by the API.")  # fmt: off
-    settings: Settings = Field(default_factory=Settings, description="General settings configuration fields.")  # fmt: off
+    dependencies: Dependencies = Field(default_factory=Dependencies, description="Dependencies required by the applications (API and Playground).")  # fmt: off
+    settings: Annotated[SettingsLoginPassword | SettingsLoginOIDC, Field(discriminator="auth_login_type", default_factory=SettingsLoginPassword, description="General settings configuration fields.")]  # fmt: off
 
     @field_validator("settings", mode="before")
     def set_default_settings(cls, settings) -> Any:
         if settings is None:
-            return Settings()
+            return SettingsLoginPassword()
+        elif isinstance(settings, dict):
+            settings.setdefault("auth_login_type", "password")
+            return settings
         return settings
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize(cls, data: Any) -> Any:
+        if isinstance(data, dict) and isinstance(data.get("settings"), dict):
+            settings = data["settings"]
+            settings.setdefault("auth_login_type", "password")
+        return data
 
     @model_validator(mode="after")
     def validate_models(self) -> Any:

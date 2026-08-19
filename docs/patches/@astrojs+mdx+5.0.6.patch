@@ -1,0 +1,15 @@
+diff --git a/node_modules/@astrojs/mdx/dist/plugins.js b/node_modules/@astrojs/mdx/dist/plugins.js
+index e4fea0d..1deb22a 100644
+--- a/node_modules/@astrojs/mdx/dist/plugins.js
++++ b/node_modules/@astrojs/mdx/dist/plugins.js
+@@ -33,7 +33,9 @@ function createMdxProcessor(mdxOptions, extraOptions) {
+ function getRemarkPlugins(mdxOptions) {
+   let remarkPlugins = [];
+   if (!isPerformanceBenchmark) {
+-    if (mdxOptions.gfm) {
++    // Astro 6.4+ may leave markdown.gfm undefined; default to true so GFM tables work in MDX.
++    // https://github.com/withastro/astro/issues/16971
++    if (mdxOptions.gfm ?? true) {
+       remarkPlugins.push(remarkGfm);
+     }
+     if (mdxOptions.smartypants !== false) {

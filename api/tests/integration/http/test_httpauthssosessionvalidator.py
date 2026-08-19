@@ -1,0 +1,66 @@
+import httpx
+import pytest
+import respx
+
+from api.domain.auth.errors import SsoInvalidSessionError, SsoProviderNotAvailableError
+from api.infrastructure.http import HttpAuthSsoSessionValidator
+
+PLAYGROUND_URL = "http://playground:8501"
+AUTH_URL = f"{PLAYGROUND_URL}/oauth2/auth"
+SESSION_COOKIE = "_oauth2_proxy_opengatellm=valid-session"
+
+
+@pytest.fixture
+def validator() -> HttpAuthSsoSessionValidator:
+    return HttpAuthSsoSessionValidator(auth_playground_url=PLAYGROUND_URL)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestHttpAuthSsoSessionValidator:
+    @respx.mock
+    async def test_should_return_email_when_oauth2_proxy_accepts_session(self, validator: HttpAuthSsoSessionValidator):
+        respx.get(url=AUTH_URL).mock(
+            return_value=httpx.Response(
+                status_code=202,
+                headers={"X-Auth-Request-Email": "user@test.com", "X-Auth-Request-User": "user"},
+            )
+        )
+
+        result = await validator.validate_session(session_cookie=SESSION_COOKIE)
+
+        assert result == "user@test.com"
+        assert respx.calls.last.request.headers["cookie"] == SESSION_COOKIE
+
+    @respx.mock
+    async def test_should_return_invalid_session_error_when_session_is_expired(self, validator: HttpAuthSsoSessionValidator):
+        respx.get(url=AUTH_URL).mock(return_value=httpx.Response(status_code=401))
+
+        result = await validator.validate_session(session_cookie=SESSION_COOKIE)
+
+        assert isinstance(result, SsoInvalidSessionError)
+
+    @respx.mock
+    async def test_should_return_invalid_session_error_when_email_header_is_missing(self, validator: HttpAuthSsoSessionValidator):
+        respx.get(url=AUTH_URL).mock(return_value=httpx.Response(status_code=202, headers={}))
+
+        result = await validator.validate_session(session_cookie=SESSION_COOKIE)
+
+        assert isinstance(result, SsoInvalidSessionError)
+        assert result.message == "No email in oauth2-proxy session"
+
+    @respx.mock
+    async def test_should_return_invalid_session_error_when_oauth2_proxy_returns_unexpected_status(self, validator: HttpAuthSsoSessionValidator):
+        respx.get(url=AUTH_URL).mock(return_value=httpx.Response(status_code=500))
+
+        result = await validator.validate_session(session_cookie=SESSION_COOKIE)
+
+        assert isinstance(result, SsoInvalidSessionError)
+        assert result.message == "Unexpected oauth2-proxy response: 500"
+
+    @respx.mock
+    async def test_should_return_sso_provider_not_available_error_when_playground_is_unreachable(self, validator: HttpAuthSsoSessionValidator):
+        respx.get(url=AUTH_URL).mock(side_effect=httpx.ConnectError("Connection refused"))
+
+        result = await validator.validate_session(session_cookie=SESSION_COOKIE)
+
+        assert isinstance(result, SsoProviderNotAvailableError)

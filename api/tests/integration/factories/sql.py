@@ -96,10 +96,11 @@ class UserSQLFactory(BaseSQLFactory):
     id = None
     role = factory.SubFactory(RoleSQLFactory)
     sub = None
+    iss = None
+    claims = None
     organization_id = None
     organization = factory.SubFactory(OrganizationSQLFactory)
     password = "$2b$12$I7iMWv/FqLtb7Az6iX9uTuPkvGWU1xh.Gtwb3qb0.fm8kCYJkLRwq"
-    iss = None
     priority = 0
     expires = None
     created = factory.LazyFunction(lambda: datetime.now())

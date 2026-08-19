@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
 from api.domain import SortOrder
 from api.domain.organization.errors import OrganizationNotFoundError
@@ -22,6 +23,7 @@ class UserRepository(ABC):
         name: str | None = None,
         sub: str | None = None,
         iss: str | None = None,
+        claims: dict[str, Any] | None = None,
         organization_id: int | None = None,
         budget: float | None = None,
         expires: int | None = None,
@@ -35,6 +37,10 @@ class UserRepository(ABC):
 
     @abstractmethod
     async def get_user_by_email(self, email: str) -> User | UserNotFoundError:
+        pass
+
+    @abstractmethod
+    async def get_user_by_iss_and_sub(self, iss: str, sub: str) -> User | UserNotFoundError:
         pass
 
     @abstractmethod

@@ -126,15 +126,14 @@ jobs:
         environment: [dev, staging, prod]
         include:
           - environment: dev
-            public_url: https://albert.playground.dev.etalab.gouv.fr
-            private_url: http://albert.api.001.dev.etalab.gouv.fr:8002
+            public_host: albert.playground.dev.etalab.gouv.fr
+            private_host: albert.api.001.dev.etalab.gouv.fr:8002
           - environment: staging
-            public_url: https://albert.playground.staging.etalab.gouv.fr
-            private_url: http://albert.api.001.staging.etalab.gouv.fr:8002
-
+            public_host: albert.playground.staging.etalab.gouv.fr
+            private_host: albert.api.001.staging.etalab.gouv.fr:8002
           - environment: prod
-            public_url: https://albert.playground.etalab.gouv.fr
-            private_url: http://albert.api.private.etalab.gouv.fr:8002
+            public_host: albert.playground.etalab.gouv.fr
+            private_host: albert.api.private.etalab.gouv.fr:8002
 
     steps:
       - name: Checkout repository
@@ -152,15 +151,31 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Decrypt playground config
+        uses: taichunmin/github-actions-ansible-vault@v1
+        with:
+          vault_key: ${{ secrets.VAULT_KEY }}
+          command: |
+            ansible-vault decrypt .github/assets/config.playground.yml.j2
+
+      - name: Render public playground config
+        uses: cuchi/jinja2-action@v1.3.0
+        with:
+          template: .github/assets/config.playground.yml.j2
+          output_file: .github/assets/config.playground.yml
+          strict: true
+          variables: |
+            playground_type=public
+            playground_host=${{ matrix.public_host }}
+
       - name: Build and push Albert public playground images to GitLab
         uses: docker/build-push-action@v6
         with:
           context: .
           build-args: |
-            REFLEX_BACKEND_URL=${{ matrix.public_url }}
-            REFLEX_FRONTEND_URL=${{ matrix.public_url }}
-            CONFIG_FILE=.github/assets/playground.config.yml
-            PLAYGROUND_DISABLED_PAGES=[roles,users,organizations,routers,providers]
+            REFLEX_BACKEND_URL=https://${{ matrix.public_host }}
+            REFLEX_FRONTEND_URL=https://${{ matrix.public_host }}
+            CONFIG_FILE=.github/assets/config.playground.yml
             FAVICON=.github/assets/logo.svg
             LOGO=.github/assets/logo.svg
           file: ./playground/Dockerfile
@@ -169,15 +184,24 @@ jobs:
           tags: ${{ env.GITLAB_PLAYGROUND_IMAGE_NAME }}/${{ matrix.environment }}:${{ env.IMAGE_TAG }}
           cache-from: type=registry,ref=${{ env.GITHUB_PLAYGROUND_IMAGE_NAME }}:cache
 
+      - name: Render private playground config
+        uses: cuchi/jinja2-action@v1.3.0
+        with:
+          template: .github/assets/config.playground.yml.j2
+          output_file: .github/assets/config.playground.yml
+          strict: true
+          variables: |
+            playground_host=${{ matrix.public_host }}
+            playground_type=private
+
       - name: Build and push Albert private playground images to GitLab
         uses: docker/build-push-action@v6
         with:
           context: .
           build-args: |
-            REFLEX_BACKEND_URL=${{ matrix.private_url }}
-            REFLEX_FRONTEND_URL=${{ matrix.private_url }}
-            CONFIG_FILE=.github/assets/playground.config.yml
-            PLAYGROUND_DISABLED_PAGES=[]
+            REFLEX_BACKEND_URL=http://${{ matrix.private_host }}
+            REFLEX_FRONTEND_URL=http://${{ matrix.private_host }}
+            CONFIG_FILE=.github/assets/config.playground.yml
             FAVICON=.github/assets/logo.svg
             LOGO=.github/assets/logo.svg
           file: ./playground/Dockerfile

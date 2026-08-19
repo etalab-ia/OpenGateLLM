@@ -2,7 +2,7 @@ from enum import StrEnum
 
 DEFAULT_APP_NAME: str = "OpenGateLLM"
 DEFAULT_TIMEOUT: int = 300
-
+SYSTEM_PLAYGROUND_KEY_NAME: str = "_system_playground_key"
 
 PREFIX__CELERY_QUEUE_ROUTING: str = "ogl_qr"
 PREFIX__REDIS_METRIC_GAUGE: str = "ogl_mg"
@@ -42,6 +42,7 @@ class EndpointRoute(StrEnum):
     ADMIN_USERS = f"/{RouterName.ADMIN}/users"
     AUDIO_TRANSCRIPTIONS = f"/{RouterName.AUDIO}/transcriptions"
     AUTH_LOGIN = f"/{RouterName.AUTH}/login"
+    AUTH_SSO_LOGIN = f"/{RouterName.AUTH}/sso/login"
     CHAT_COMPLETIONS = f"/{RouterName.CHAT}/completions"
     EMBEDDINGS = f"/{RouterName.EMBEDDINGS}"
     HEALTH = f"/{RouterName.HEALTH}"

@@ -4,6 +4,28 @@ from api.schemas.admin.roles import LimitType
 
 
 # 400
+class InconsistentModelMaxContextLengthHTTPException(HTTPException):
+    status_code = 400
+    detail = "Inconsistent max context length for {model_name}. Expected: {expected_length}. Actual: {actual_length}"
+
+    def __init__(self, input_max_context_length: int, model_max_context_length: int, model_name: str) -> None:
+        super().__init__(
+            status_code=self.status_code,
+            detail=f"Inconsistent max context length for {model_name}. Expected: {model_max_context_length}. Actual: {input_max_context_length}",
+        )
+
+
+class InconsistentModelVectorSizeHTTPException(HTTPException):
+    status_code = 400
+    detail = "Inconsistent vector size for {model_name}. Expected: {expected_size}. Actual: {actual_size}"
+
+    def __init__(self, input_vector_size: int, model_vector_size: int, model_name: str) -> None:
+        super().__init__(
+            status_code=self.status_code,
+            detail=f"Inconsistent vector size for {model_name}. Expected: {model_vector_size}. Actual: {input_vector_size}",
+        )
+
+
 class InvalidProviderTypeHTTPException(HTTPException):
     status_code = 400
     detail = "Invalid model provider type {input_type} for {expected_type} router."
@@ -53,6 +75,14 @@ class InvalidAuthenticationSchemeHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
+class SsoInvalidSessionHTTPException(HTTPException):
+    status_code = 401
+    detail = "Invalid SSO session."
+
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)
+
+
 # 403
 class AccountExpiredHTTPException(HTTPException):
     status_code = 403
@@ -70,26 +100,12 @@ class NotAdminUserHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
-class InconsistentModelMaxContextLengthHTTPException(HTTPException):
+class SSOAccessDeniedHTTPException(HTTPException):
     status_code = 403
-    detail = "Inconsistent max context length for {model_name}. Expected: {expected_length}. Actual: {actual_length}"
+    detail = "Access denied, please contact your administrator."
 
-    def __init__(self, input_max_context_length: int, model_max_context_length: int, model_name: str) -> None:
-        super().__init__(
-            status_code=self.status_code,
-            detail=f"Inconsistent max context length for {model_name}. Expected: {model_max_context_length}. Actual: {input_max_context_length}",
-        )
-
-
-class InconsistentModelVectorSizeHTTPException(HTTPException):
-    status_code = 403
-    detail = "Inconsistent vector size for {model_name}. Expected: {expected_size}. Actual: {actual_size}"
-
-    def __init__(self, input_vector_size: int, model_vector_size: int, model_name: str) -> None:
-        super().__init__(
-            status_code=self.status_code,
-            detail=f"Inconsistent vector size for {model_name}. Expected: {model_vector_size}. Actual: {input_vector_size}",
-        )
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)
 
 
 # 404
@@ -103,18 +119,32 @@ class ModelNotFoundHTTPException(HTTPException):
 
 class RoleNotFoundHTTPException(HTTPException):
     status_code = 404
-    detail = "Role {role_id} not found."
+    detail = "Role {role_id}|{name} not found."
 
-    def __init__(self, role_id: int) -> None:
-        super().__init__(status_code=self.status_code, detail=f"Role {role_id} not found.")
+    def __init__(self, role_id: int | None = None, name: str | None = None) -> None:
+        if role_id is not None:
+            detail = f"Role {role_id} not found."
+        elif name is not None:
+            detail = f"Role {name} not found."
+        else:
+            detail = "Role not found."
+
+        super().__init__(status_code=self.status_code, detail=detail)
 
 
 class OrganizationNotFoundHTTPException(HTTPException):
     status_code = 404
-    detail = "Organization {organization_id} not found."
+    detail = "Organization {organization_id}|{name} not found."
 
-    def __init__(self, organization_id: int) -> None:
-        super().__init__(status_code=self.status_code, detail=f"Organization {organization_id} not found.")
+    def __init__(self, organization_id: int | None = None, name: str | None = None) -> None:
+        if organization_id is not None:
+            detail = f"Organization {organization_id} not found."
+        elif name is not None:
+            detail = f"Organization {name} not found."
+        else:
+            detail = "Organization not found."
+
+        super().__init__(status_code=self.status_code, detail=detail)
 
 
 class RouterNotFoundHTTPException(HTTPException):
@@ -135,7 +165,7 @@ class ProviderNotFoundHTTPException(HTTPException):
 
 class UserNotFoundHTTPException(HTTPException):
     status_code = 404
-    detail = "User {user_id} not found."
+    detail = "User {user_id}|{email} not found."
 
     def __init__(self, user_id: int | None = None, email: str | None = None) -> None:
 
@@ -297,3 +327,11 @@ class ModelIsTooBusyExceptionHTTPException(HTTPException):
             detail="Model is too busy, please try again later.",
             headers={"Retry-After": "10"},
         )
+
+
+class SsoProviderNotAvailableHTTPException(HTTPException):
+    status_code = 503
+    detail = "SSO provider is not available."
+
+    def __init__(self) -> None:
+        super().__init__(status_code=self.status_code, detail=self.detail)

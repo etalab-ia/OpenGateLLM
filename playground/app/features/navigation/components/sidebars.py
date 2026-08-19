@@ -45,10 +45,10 @@ def navigation_sidebar() -> rx.Component:
     user_items = [item for page, item in user_items if page not in configuration.settings.playground_disabled_pages]
 
     admin_items = [
-        (PlaygroundPages.ROUTERS, nav_item("Routers", "network", "/routers")),
+        (PlaygroundPages.ORGANIZATIONS, nav_item("Organizations", "building", "/organizations")),
         (PlaygroundPages.PROVIDERS, nav_item("Providers", "container", "/providers")),
         (PlaygroundPages.ROLES, nav_item("Roles", "shield", "/roles")),
-        (PlaygroundPages.ORGANIZATIONS, nav_item("Organizations", "building", "/organizations")),
+        (PlaygroundPages.ROUTERS, nav_item("Routers", "network", "/routers")),
         (PlaygroundPages.USERS, nav_item("Users", "users", "/users")),
     ]
     admin_items = [item for page, item in admin_items if page not in configuration.settings.playground_disabled_pages]
@@ -60,11 +60,8 @@ def navigation_sidebar() -> rx.Component:
                 nav_item("Chat", "message-square", "/"),
                 *(
                     [
-                        rx.cond(~AuthState.is_master, rx.divider()),
-                        rx.cond(
-                            ~AuthState.is_master,
-                            rx.box(*user_items, width="100%"),
-                        ),
+                        rx.divider(),
+                        rx.box(*user_items, width="100%"),
                     ]
                     if user_items
                     else []
@@ -120,7 +117,11 @@ def navigation_sidebar() -> rx.Component:
                     rx.button(
                         rx.icon("log-out", size=16),
                         "Logout",
-                        on_click=AuthState.logout,
+                        on_click=rx.cond(
+                            configuration.settings.auth_login_type == "oidc",
+                            AuthState.oidc_logout,
+                            AuthState.password_logout,
+                        ),
                         variant="soft",
                         color_scheme="red",
                         width="100%",

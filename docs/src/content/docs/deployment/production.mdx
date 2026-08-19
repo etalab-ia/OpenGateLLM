@@ -101,6 +101,17 @@ This guide provides practical defaults and hardening recommendations for running
   
 For more information, see [configuration file documentation](/configuration/configuration_file).
 
+- Restrict network access to `/v1/auth/sso/login` so only the Playground can reach it.
+  The API validates the oauth2-proxy session by calling `{auth_playground_url}/oauth2/auth` instead of re-validating OIDC tokens with the identity provider.
+  So, configure `auth_playground_url` in the API configuration file with internet accessible Playground URL (eg. `http://playground:8501` in Docker network).
+
+  For example with Nginx configuration:
+  ```nginx
+  location ~ ^/v1/auth/sso/login(/|$) {
+    return 404;
+  }
+  ```
+
 ## Model configuration and routing
 
 - **Do not use configuration file to declare models, prefer to use the API to declare models, by endpoints or on the Playground UI (see [Models configuration](/getting-started/models/)).**
