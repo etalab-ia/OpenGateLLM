@@ -19,7 +19,7 @@ def _valid_body(role_id: int, **overrides) -> dict:
     body = {
         "email": "newuser@test.com",
         "password": "s3cr3tpw",
-        "role": role_id,
+        "role_id": role_id,
     }
     body.update(overrides)
     return body
@@ -46,13 +46,13 @@ class TestCreateUser:
         data = response.json()
         assert data["email"] == "newuser@test.com"
         assert isinstance(data["id"], int)
-        assert data["role"] == role.id
+        assert data["role_id"] == role.id
 
     @pytest.mark.parametrize(
         "body,expected_msg",
         [
-            ({"email": "newuser@test.com", "role": 1}, "Field required"),
-            ({"email": "newuser@test.com", "role": 1, "password": None}, "Input should be a valid string"),
+            ({"email": "newuser@test.com", "role_id": 1}, "Field required"),
+            ({"email": "newuser@test.com", "role_id": 1, "password": None}, "Input should be a valid string"),
         ],
         ids=["missing_password", "null_password"],
     )

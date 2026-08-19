@@ -39,7 +39,7 @@ class TestUpdateUser:
         assert data["name"] == "Updated Name"
         assert data["budget"] == 50.5
         assert data["priority"] == 2
-        assert data["role"] == user.role_id
+        assert data["role_id"] == user.role_id
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

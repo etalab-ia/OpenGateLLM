@@ -29,7 +29,7 @@ class TestCreateUser:
         assert isinstance(result, User)
         assert result.email == "user@test.com"
         assert isinstance(result.id, int)
-        assert result.role == role.id
+        assert result.role_id == role.id
 
     async def test_creates_user_when_password_is_omitted_and_password_is_null_in_db(self, repository, db_session):
         # Arrange
@@ -43,7 +43,7 @@ class TestCreateUser:
         # Assert
         assert isinstance(result, User)
         assert result.email == "nopassword@test.com"
-        assert result.role == role.id
+        assert result.role_id == role.id
 
         row = (await db_session.execute(select(UserTable.password).where(UserTable.email == "nopassword@test.com"))).scalar_one()
         assert row is None

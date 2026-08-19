@@ -43,7 +43,7 @@ class TestUpdateUser:
                     "budget": 50.5,
                     "priority": 3,
                     "password": SecretStr("encoded:new-secret"),
-                    "role": new_role.id,
+                    "role_id": new_role.id,
                     "organization_id": new_organization.id,
                     "claims": {"name": "Updated Name"},
                 }
@@ -57,7 +57,7 @@ class TestUpdateUser:
         assert result.name == "Updated Name"
         assert result.budget == 50.5
         assert result.priority == 3
-        assert result.role == new_role.id
+        assert result.role_id == new_role.id
         assert result.organization_id == new_organization.id
         assert result.claims == {"name": "Updated Name"}
         assert result.password == SecretStr("encoded:new-secret")
@@ -127,7 +127,7 @@ class TestUpdateUser:
         existing_user = await _get_user_entity(repository, user.id)
 
         # Act
-        result = await repository.update_user(user=existing_user.model_copy(update={"role": 999999}))
+        result = await repository.update_user(user=existing_user.model_copy(update={"role_id": 999999}))
 
         # Assert
         assert isinstance(result, RoleNotFoundError)

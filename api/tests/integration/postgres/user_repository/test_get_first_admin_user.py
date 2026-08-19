@@ -32,7 +32,7 @@ class TestGetFirstAdminUser:
         assert isinstance(result, User)
         assert result.id == admin_user.id
         assert result.email == admin_user.email
-        assert result.role == admin_user.role_id
+        assert result.role_id == admin_user.role_id
 
     async def test_returns_none_when_user_exists_without_admin_permission(self, repository, db_session):
         # Arrange

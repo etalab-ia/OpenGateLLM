@@ -23,7 +23,7 @@ class TestUserNeedToUpdate:
             sub=_MATCHING_IDENTITY["sub"],
             claims=_MATCHING_IDENTITY["claims"],
             organization_id=_MATCHING_IDENTITY["organization_id"],
-            role=_MATCHING_IDENTITY["role_id"],
+            role_id=_MATCHING_IDENTITY["role_id"],
         )
 
         # Act / Assert
@@ -50,7 +50,7 @@ class TestUserNeedToUpdate:
             sub=_MATCHING_IDENTITY["sub"],
             claims=_MATCHING_IDENTITY["claims"],
             organization_id=_MATCHING_IDENTITY["organization_id"],
-            role=_MATCHING_IDENTITY["role_id"],
+            role_id=_MATCHING_IDENTITY["role_id"],
         )
         identity = {**_MATCHING_IDENTITY, field: value}
 

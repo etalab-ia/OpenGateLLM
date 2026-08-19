@@ -27,7 +27,7 @@ class TestGetUserById:
         assert isinstance(result, User)
         assert result.id == user.id
         assert result.email == user.email
-        assert result.role == role.id
+        assert result.role_id == role.id
         assert result.organization_id == organization.id
 
     async def test_returns_user_not_found_error_when_user_does_not_exist(self, repository, db_session):
