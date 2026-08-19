@@ -8,7 +8,6 @@ from api.infrastructure.fastapi.schemas import BaseModel
 
 class PermissionType(StrEnum):
     ADMIN = "admin"
-    CREATE_PUBLIC_COLLECTION = "create_public_collection"
     READ_METRIC = "read_metric"
     PROVIDE_MODELS = "provide_models"
 

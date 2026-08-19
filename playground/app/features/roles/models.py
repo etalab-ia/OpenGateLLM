@@ -7,7 +7,6 @@ class Role(Entity):
     id: int | None = None
     name: str | None = None
     permissions_admin: bool | None = None
-    permissions_create_public_collection: bool | None = None
     permissions_read_metric: bool | None = None
     permissions_provide_models: bool | None = None
     limits: list[dict] | None = None

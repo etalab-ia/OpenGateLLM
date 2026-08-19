@@ -72,7 +72,6 @@ class Role(Base):
     name: Mapped[str] = mapped_column(unique=True, index=True)
     created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
     updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())
-    storage_limit: Mapped[int | None] = mapped_column(default=None)
 
     user: Mapped[list["User"]] = relationship(back_populates="role", passive_deletes=True)
     limits: Mapped[list["Limit"]] = relationship(back_populates="role", cascade="all, delete-orphan", passive_deletes=True)
@@ -128,7 +127,6 @@ class User(Base):
 
     usage: Mapped[list["Usage"]] = relationship(back_populates="user", passive_deletes=True)
     token: Mapped[list["Token"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
-    collection: Mapped[list["Collection"]] = relationship(back_populates="user", passive_deletes=True)
     role: Mapped["Role"] = relationship(back_populates="user", passive_deletes=True)
     organization: Mapped["Organization"] = relationship(back_populates="user", passive_deletes=True)
     router: Mapped[list["Router"]] = relationship(back_populates="user", passive_deletes=True)
@@ -165,33 +163,6 @@ class Organization(Base):
     updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())
 
     user: Mapped["User"] = relationship(back_populates="organization", passive_deletes=True)
-
-
-class Collection(Base):
-    __tablename__ = "collection"
-
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey(column="user.id", ondelete="CASCADE"))
-    name: Mapped[str]
-    description: Mapped[str | None]
-    visibility: Mapped[CollectionVisibility]
-    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
-    updated: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now(), onupdate=func.now())
-
-    user: Mapped["User"] = relationship(back_populates="collection")
-    document: Mapped[list["Document"]] = relationship(back_populates="collection", cascade="all, delete-orphan", passive_deletes=True)
-
-
-class Document(Base):
-    __tablename__ = "document"
-
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    collection_id: Mapped[int] = mapped_column(ForeignKey(column="collection.id", ondelete="CASCADE"))
-    name: Mapped[str]
-    size: Mapped[int] = mapped_column(default=0)
-    created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
-
-    collection: Mapped["Collection"] = relationship(back_populates="document", passive_deletes=True)
 
 
 class Router(Base):

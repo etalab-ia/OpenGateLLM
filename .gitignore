@@ -218,12 +218,13 @@ playground/.gitignore
 playground/requirements.txt
 run.sh
 bruno
+.vault
+
+# docs
 docs/.astro
 docs/node_modules
 node_modules/
 .astro/
-.vault
-
 # Coding assitants
 .kilo/
 kilo.jsonc
