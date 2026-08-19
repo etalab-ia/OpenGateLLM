@@ -1,6 +1,6 @@
 [project]
 name = "opengatellm"
-version = "0.5.0"
+version = "0.6.0"
 description = "OpenGateLLM project"
 requires-python = ">=3.12"
 license = { text = "MIT" }
