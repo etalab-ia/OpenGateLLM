@@ -33,8 +33,8 @@ _USER_COLUMNS = (
     UserTable.sub,
     UserTable.iss,
     UserTable.claims,
-    UserTable.role_id.label("role"),
-    UserTable.organization_id.label("organization"),
+    UserTable.role_id,
+    UserTable.organization_id,
     UserTable.budget,
     _unix_timestamp(UserTable.expires).label("expires"),
     _unix_timestamp(UserTable.created).label("created"),
@@ -57,8 +57,8 @@ class PostgresUserRepository(UserRepository):
             sub=row.sub,
             iss=row.iss,
             claims=row.claims,
-            role=row.role,
-            organization_id=row.organization,
+            role_id=row.role_id,
+            organization_id=row.organization_id,
             budget=row.budget,
             priority=row.priority,
             expires=row.expires,
@@ -198,7 +198,7 @@ class PostgresUserRepository(UserRepository):
                 sub=user.sub,
                 iss=user.iss,
                 claims=user.claims,
-                role_id=user.role,
+                role_id=user.role_id,
                 organization_id=user.organization_id,
                 budget=user.budget,
                 expires=expires_value,
@@ -214,7 +214,7 @@ class PostgresUserRepository(UserRepository):
             if "user_organization_id_fkey" in str(e.orig):
                 return OrganizationNotFoundError(id=user.organization_id)
             if "user_role_id_fkey" in str(e.orig):
-                return RoleNotFoundError(id=user.role)
+                return RoleNotFoundError(id=user.role_id)
             if "ix_user_email" in str(e.orig) or "unique_user_sub_iss" in str(e.orig):
                 return UserAlreadyExistsError(email=user.email)
             raise
