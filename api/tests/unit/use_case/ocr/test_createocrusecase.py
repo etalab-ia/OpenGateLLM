@@ -141,7 +141,7 @@ def user_with_router_access():
 def make_command():
     def _make(user) -> CreateOCRCommand:
         return CreateOCRCommand(
-            body=CreateOCRBody(
+            payload=CreateOCRBody(
                 document=OCRDocumentURLChunk(document_url="https://example.com/document.pdf"),
                 model="ocr-router",
             ),

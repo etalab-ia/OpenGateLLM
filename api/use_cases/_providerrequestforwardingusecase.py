@@ -4,7 +4,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel
 
-from api.domain import ForwardableBody
+from api.domain import ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
@@ -22,16 +22,16 @@ from api.schemas.core.models import Metric
 from api.utils.variables import EndpointRoute
 
 
-class ForwardingCommand[TBody: ForwardableBody](BaseModel):
-    body: TBody
+class ForwardingCommand[TPayload: ForwardablePayload](BaseModel):
+    payload: TPayload
     authenticated_user: AuthenticatedUserView
 
     @property
     def model(self) -> str | None:
-        return self.body.model
+        return self.payload.model
 
     def get_prompts(self) -> list[str]:
-        return self.body.get_prompts()
+        return self.payload.get_prompts()
 
 
 @dataclass
@@ -86,9 +86,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         self.router_repository = router_repository
 
         self.usage_recorder = usage_recorder
-
-    def _completion_tokens(self, data: TData) -> int:
-        return 0
 
     def _is_billable(self, router: Router) -> bool:
         return router.is_prompt_billable
@@ -159,8 +156,8 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
     async def _send_request(
         self,
         router: Router,
-        body: ForwardableBody,
         prompt_tokens: int,
+        payload: ForwardablePayload,
     ) -> (
         ProviderFormattedResponse
         | ProviderAdapterValidationRequestError
@@ -173,7 +170,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
         self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
 
-        original_request = ProviderOriginalRequest(endpoint=self.ENDPOINT, body=body)
+        original_request = ProviderOriginalRequest(endpoint=self.ENDPOINT, payload=payload)
         adapter = self.provider_adapter_builder.build(endpoint=self.ENDPOINT, provider=provider)
         match adapter.format_request(original_request=original_request):
             case ProviderFormattedRequest() as formatted_request:
@@ -199,7 +196,8 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         result = adapter.format_response(original_request=original_request, original_response=original_response)
         match result:
             case ProviderFormattedResponse() as formatted_response:
-                completion_tokens = self._completion_tokens(formatted_response.data)
+                completion_tokens = self.model_tokenizer.compute_tokens(texts=formatted_response.get_completions())
+
                 environmental_impacts = self.model_environmental_impacts_computer.compute(
                     model_active_params=provider.model_active_params,
                     model_total_params=provider.model_total_params,
@@ -214,13 +212,14 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
                     cost_completion_tokens=router.cost_completion_tokens,
                 )
 
-                formatted_response.data.usage = Usage(
-                    prompt_tokens=prompt_tokens,
-                    completion_tokens=completion_tokens,
-                    total_tokens=prompt_tokens + completion_tokens,
-                    cost=cost,
-                    impacts=environmental_impacts,
-                )
+                if formatted_response.data is not None:
+                    formatted_response.data.usage = Usage(
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        total_tokens=prompt_tokens + completion_tokens,
+                        cost=cost,
+                        impacts=environmental_impacts,
+                    )
 
                 await self.provider_metrics_logger.log_metric(
                     provider_id=provider.id,
@@ -236,10 +235,10 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
                 return error
 
         self.usage_recorder.record_usage(
-            request_id=formatted_response.data.id,
+            request_id=formatted_response.id,
             prompt_tokens=prompt_tokens,
             total_tokens=prompt_tokens + completion_tokens,
-            cost=formatted_response.data.usage.cost,
+            cost=cost,
         )
 
         return formatted_response
@@ -263,7 +262,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
             case error:
                 return error
 
-        result = await self._send_request(router=router, body=command.body, prompt_tokens=prompt_tokens)
+        result = await self._send_request(router=router, prompt_tokens=prompt_tokens, payload=command.payload)
         match result:
             case ProviderFormattedResponse() as formatted_response:
                 pass

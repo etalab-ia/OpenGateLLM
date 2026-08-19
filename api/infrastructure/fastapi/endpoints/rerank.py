@@ -53,7 +53,7 @@ async def create_rerank(
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> JSONResponse:
     try:
-        command = CreateRerankCommand(body=body.model_dump(), authenticated_user=authenticated_user)
+        command = CreateRerankCommand(payload=body.model_dump(), authenticated_user=authenticated_user)
         result = await create_rerank_use_case.execute(command)
     except Exception as e:
         logger.exception(

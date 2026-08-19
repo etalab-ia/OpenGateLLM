@@ -155,7 +155,7 @@ class TestEmbeddingsAdapter:
     def test_format_request_preserve_extra_fields(self, adapter):
         # Arrange
         original_request = ProviderOriginalRequestFactory(embeddings=True)
-        original_request.body.extra_field = "extra_value"
+        original_request.payload.extra_field = "extra_value"
 
         # Act
         result = adapter.format_request(original_request)
@@ -189,7 +189,7 @@ class TestEmbeddingsAdapter:
     def test_format_request_excludes_none_fields(self, adapter):
         # Arrange
         original_request = ProviderOriginalRequestFactory(embeddings=True)
-        original_request.body.dimensions = None
+        original_request.payload.dimensions = None
 
         # Act
         result = adapter.format_request(original_request)
@@ -267,7 +267,7 @@ class TestEmbeddingsAdapter:
 
         adapter._extract_request_id = Mock(return_value="req-123")
         original_request = ProviderOriginalRequestFactory(embeddings=True)
-        original_request.body.encoding_format = EncodingFormat.BASE64
+        original_request.payload.encoding_format = EncodingFormat.BASE64
         original_response = ProviderOriginalResponse(data=response_data)
 
         # Act

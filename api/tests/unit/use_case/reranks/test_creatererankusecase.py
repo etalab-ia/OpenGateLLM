@@ -142,7 +142,7 @@ def user_with_router_access():
 def make_command():
     def _make(user) -> CreateRerankCommand:
         return CreateRerankCommand(
-            body=CreateRerankBody(query="query", documents=["doc a", "doc b"], model="rerank-router", top_n=2),
+            payload=CreateRerankBody(query="query", documents=["doc a", "doc b"], model="rerank-router", top_n=2),
             authenticated_user=user,
         )
 
@@ -739,7 +739,7 @@ class TestCreateRerankUseCase:
     ):
         # Arrange
         command = CreateRerankCommand(
-            body=CreateRerankBody(
+            payload=CreateRerankBody(
                 query="query",
                 documents=["doc a", "doc b"],
                 model="rerank-router",
@@ -758,7 +758,7 @@ class TestCreateRerankUseCase:
         # Assert
         assert isinstance(result, CreateRerankUseCaseSuccess)
         original_request = provider_adapter_builder.build.return_value.format_request.call_args.kwargs["original_request"]
-        body = original_request.body.model_dump()
+        body = original_request.payload.model_dump()
         assert body["truncate"] is True
         assert body["return_text"] is True
         assert body["raw_scores"] is False

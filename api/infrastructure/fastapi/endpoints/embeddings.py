@@ -52,7 +52,7 @@ async def create_embeddings(
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> JSONResponse:
     try:
-        command = CreateEmbeddingsCommand(body=body.model_dump(), authenticated_user=authenticated_user)
+        command = CreateEmbeddingsCommand(payload=body.model_dump(), authenticated_user=authenticated_user)
         result = await create_embeddings_use_case.execute(command)
     except Exception as e:
         logger.exception(

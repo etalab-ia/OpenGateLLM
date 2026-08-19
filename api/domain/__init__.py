@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -9,12 +9,11 @@ class BaseModel(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-class ForwardableBody(BaseModel, ABC):
-    model: str | None = None
+class ForwardablePayload(BaseModel, ABC):
+    model: str | None
 
-    @abstractmethod
     def get_prompts(self) -> list[str]:
-        pass
+        return []
 
 
 class SortField(StrEnum):

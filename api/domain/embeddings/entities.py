@@ -7,7 +7,8 @@ from openai.types import CreateEmbeddingResponse
 from openai.types.chat import ChatCompletionContentPartParam
 from pydantic import Field
 
-from api.domain import BaseModel, ForwardableBody
+from api.domain import BaseModel, ForwardablePayload
+from api.domain.model.entities import ModelJsonResponse
 from api.domain.usage.entities import Usage
 
 
@@ -21,7 +22,7 @@ class EncodingFormat(StrEnum):
     BASE64 = "base64"
 
 
-class CreateEmbeddingsBody(ForwardableBody):
+class CreateEmbeddingsBody(ForwardablePayload):
     input: list[int] | list[list[int]] | str | list[str] | None
     messages: list[EmbeddingMessage] | None = None
     model: str
@@ -50,10 +51,11 @@ class CreateEmbeddingsBody(ForwardableBody):
             return []
 
 
-class Embeddings(CreateEmbeddingResponse):
+class Embeddings(CreateEmbeddingResponse, ModelJsonResponse):
     object: Literal["list"] = "list"
-    id: str = Field(default=None, description="A unique identifier for the embedding.")
-    usage: Usage = Field(default_factory=Usage, description="Usage information for the request.")
+    id: str
+    model: str
+    usage: Usage = Field(default_factory=Usage)
 
     @classmethod
     def _from_provider_response(cls, data: Any, *, encoding_format: EncodingFormat = EncodingFormat.FLOAT) -> "Embeddings":

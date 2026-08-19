@@ -143,7 +143,7 @@ def user_with_router_access():
 def make_command():
     def _make(user) -> CreateEmbeddingsCommand:
         return CreateEmbeddingsCommand(
-            body=CreateEmbeddingsBody(input="hello world", model="embeddings-router"),
+            payload=CreateEmbeddingsBody(input="hello world", model="embeddings-router"),
             authenticated_user=user,
         )
 
@@ -751,7 +751,7 @@ class TestCreateEmbeddingsUseCase:
             }
         ]
         command = CreateEmbeddingsCommand(
-            body=CreateEmbeddingsBody(
+            payload=CreateEmbeddingsBody(
                 input=None,
                 model="embeddings-router",
                 messages=messages,
@@ -767,7 +767,7 @@ class TestCreateEmbeddingsUseCase:
         # Assert
         assert isinstance(result, CreateEmbeddingsUseCaseSuccess)
         original_request = provider_adapter_builder.build.return_value.format_request.call_args.kwargs["original_request"]
-        body = original_request.body.model_dump()
+        body = original_request.payload.model_dump()
         assert body["messages"] == messages
         assert body["continue_final_message"] is True
         assert body["add_special_tokens"] is True

@@ -6,6 +6,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from api.dependencies import create_audio_transcriptions_use_case_factory, get_postgres_session
+from api.domain.audio.entities import CreateAudioTranscriptionsFile
+from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
@@ -16,6 +18,7 @@ from api.infrastructure.fastapi.decorators import hooks
 from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
+    FileSizeLimitExceededHTTPException,
     InsufficientBudgetHTTPException,
     InternalServerHTTPException,
     ModelIsTooBusyExceptionHTTPException,
@@ -47,6 +50,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.AUDIO.title()])
             RateLimitExceededHTTPException,
             WrongModelTypeHTTPException,
             InsufficientBudgetHTTPException,
+            FileSizeLimitExceededHTTPException,
         ]
     ),
     response_model=AudioTranscriptionsResponse,
@@ -58,7 +62,15 @@ async def create_audio_transcription(
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> JSONResponse:
     try:
-        command = CreateAudioTranscriptionsCommand(body=data.model_dump(), authenticated_user=authenticated_user)
+        payload = data.model_dump(mode="json", exclude={"file"})
+        payload["file"] = CreateAudioTranscriptionsFile(
+            name=data.file.filename,
+            file=data.file.file,
+            content_type=data.file.content_type,
+            size=data.file.size,
+        )
+
+        command = CreateAudioTranscriptionsCommand(payload=payload, authenticated_user=authenticated_user)
         result = await create_audio_transcriptions_use_case.execute(command)
     except Exception as e:
         logger.exception(
@@ -81,6 +93,8 @@ async def create_audio_transcription(
             )
         case CreateAudioTranscriptionsTextUseCaseSuccess(text=text, headers=headers, media_type=media_type):
             return PlainTextResponse(content=text, status_code=200, headers=headers, media_type=media_type)
+        case AudioFileSizeLimitExceededError(size=size, expected_size=expected_size):
+            raise FileSizeLimitExceededHTTPException(size=size, expected_size=expected_size)
         case NoAvailableProviderError():
             raise ModelIsTooBusyExceptionHTTPException()
         case ProviderAdapterValidationRequestError(errors=errors):

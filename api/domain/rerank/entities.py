@@ -1,10 +1,11 @@
 from pydantic import Field
 
-from api.domain import BaseModel, ForwardableBody
+from api.domain import BaseModel, ForwardablePayload
+from api.domain.model.entities import ModelJsonResponse
 from api.domain.usage.entities import Usage
 
 
-class CreateRerankBody(ForwardableBody):
+class CreateRerankBody(ForwardablePayload):
     query: str
     documents: list[str]
     model: str
@@ -19,8 +20,8 @@ class RerankResult(BaseModel):
     index: int
 
 
-class Rerank(BaseModel):
+class Rerank(ModelJsonResponse):
     id: str
-    results: list[RerankResult]
     model: str
+    results: list[RerankResult]
     usage: Usage = Field(default_factory=Usage)

@@ -25,12 +25,13 @@ class MistralAudioTranscriptionsAdapter(AudioTranscriptionsAdapter):
 
     def format_request(self, original_request: ProviderOriginalRequest) -> ProviderFormattedRequest | ProviderAdapterValidationRequestError:
         try:
-            body = MistralCreateAudioTranscriptionsBody.model_validate(original_request.form)
+            body = MistralCreateAudioTranscriptionsBody.model_validate(original_request.payload.model_dump(mode="json", exclude={"file"}))
         except ValidationError as e:
             return ProviderAdapterValidationRequestError(provider_type=self.provider.type, errors=e.errors())
 
-        text = original_request.form.prompt or f"Transcribe this audio in this language : {original_request.form.language or 'en'}"  # fmt: off
-        input_audio = base64.b64encode(original_request.files["file"][1]).decode("utf-8")
+        text = body.prompt or f"Transcribe this audio in this language : {body.language or 'en'}"  # fmt: off
+        file = original_request.payload.file.file
+        input_audio = base64.b64encode(file).decode("utf-8")
         target_url = self._build_target_url(base_url=self.provider.url, target_endpoint_route=self.TARGET_ENDPOINT_ROUTE)
         return ProviderFormattedRequest(
             method=self.TARGET_ENDPOINT_METHOD,
@@ -53,12 +54,9 @@ class MistralAudioTranscriptionsAdapter(AudioTranscriptionsAdapter):
         original_request: ProviderOriginalRequest,
     ) -> ProviderFormattedResponse:
         text = original_response.data["choices"][0]["message"]["content"]
-        if original_request.form.response_format == AudioTranscriptionsResponseFormat.TEXT:
-            return ProviderFormattedResponse(text=text)
-
-        formatted_response = ProviderFormattedResponse(data=AudioTranscriptions(text=text))
         request_id = self._extract_request_id(original_response=original_response)
-        formatted_response.data.id = request_id
-        formatted_response.data.model = original_request.form.model
+        if original_request.payload.response_format == AudioTranscriptionsResponseFormat.TEXT:
+            return ProviderFormattedResponse(id=request_id, text=text)
 
-        return formatted_response
+        data = AudioTranscriptions(id=request_id, text=text, model=original_request.payload.model)
+        return ProviderFormattedResponse(id=request_id, data=data)

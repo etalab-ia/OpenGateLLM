@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from api.domain.audio.entities import AudioTranscriptions, CreateAudioTranscriptionsBody
+from api.domain.audio.entities import AudioTranscriptions, AudioTranscriptionsResponseFormat, CreateAudioTranscriptionsForm
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ModelType as RouterType
@@ -13,7 +13,14 @@ from api.use_cases._providerrequestforwardingusecase import ForwardingCommand, P
 from api.utils.variables import EndpointRoute
 
 
-class CreateAudioTranscriptionsCommand(ForwardingCommand[CreateAudioTranscriptionsBody]): ...
+class CreateAudioTranscriptionsCommand(ForwardingCommand[CreateAudioTranscriptionsForm]):
+    @property
+    def file_size(self) -> int:
+        return self.payload.file.size
+
+    @property
+    def media_type(self) -> AudioTranscriptionsResponseFormat:
+        return self.payload.response_format.media_type
 
 
 @dataclass
@@ -72,8 +79,8 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
     async def execute(self, command: CreateAudioTranscriptionsCommand) -> CreateAudioTranscriptionsUseCaseResult:
         authenticated_user = command.authenticated_user
 
-        if self.audio_file_size_limit is not None and command.file.size > self.audio_file_size_limit:
-            return AudioFileSizeLimitExceededError(size=command.file.size, expected_size=self.audio_file_size_limit)
+        if self.audio_file_size_limit is not None and command.file_size > self.audio_file_size_limit:
+            return AudioFileSizeLimitExceededError(size=command.file_size, expected_size=self.audio_file_size_limit)
 
         result = await self._resolve_router(authenticated_user=authenticated_user, model_name_or_alias=command.model)
         match result:
@@ -91,7 +98,7 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
             case error:
                 return error
 
-        result = await self._send_request(router=router, body=command.body, prompt_tokens=prompt_tokens)
+        result = await self._send_request(router=router, prompt_tokens=prompt_tokens, payload=command.payload)
         match result:
             case ProviderFormattedResponse() as formatted_response:
                 pass
@@ -102,11 +109,11 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
             return CreateAudioTranscriptionsJsonUseCaseSuccess(
                 data=formatted_response.data,
                 headers=rate_limit_state.build_limit_headers,
-                media_type=command.response_format.media_type,
+                media_type=command.media_type,
             )
         else:
             return CreateAudioTranscriptionsTextUseCaseSuccess(
                 text=formatted_response.text,
                 headers=rate_limit_state.build_limit_headers,
-                media_type=command.response_format.media_type,
+                media_type=command.media_type,
             )

@@ -25,9 +25,9 @@ class TeiRerankAdapter(RerankAdapter):
         try:
             body = TeiCreateRerankBody.model_validate(
                 {
-                    "query": original_request.body.query,
-                    "texts": original_request.body.documents,
-                    **original_request.body.model_dump(exclude_none=True),
+                    "query": original_request.payload.query,
+                    "texts": original_request.payload.documents,
+                    **original_request.payload.model_dump(exclude_none=True),
                 }
             )
         except ValidationError as e:
@@ -35,24 +35,24 @@ class TeiRerankAdapter(RerankAdapter):
 
         target_url = self._build_target_url(base_url=self.provider.url, target_endpoint_route=self.TARGET_ENDPOINT_ROUTE)
 
-        return ProviderFormattedRequest(method=self.TARGET_ENDPOINT_METHOD, url=target_url, body=body.model_dump())
+        return ProviderFormattedRequest(method=self.TARGET_ENDPOINT_METHOD, url=target_url, body=body)
 
     def format_response(
         self,
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
-    ) -> ProviderFormattedResponse:
-        results = sorted(original_response.data, key=lambda x: x["score"], reverse=True)[: original_request.body.top_n]
+    ) -> ProviderFormattedResponse | ProviderAdapterValidationResponseError:
+        results = sorted(original_response.data, key=lambda x: x["score"], reverse=True)[: original_request.payload.top_n]
         for result in results:
             result["relevance_score"] = result.pop("score")
 
         results = [RerankResult(**result) for result in results]
         request_id = self._extract_request_id(original_response=original_response)
-        data = Rerank(id=request_id, model=original_request.body.model, results=results)
+        data = Rerank(id=request_id, model=original_request.payload.model, results=results)
 
         try:
             data = self.RESPONSE_TYPE.model_validate(data)
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 
-        return ProviderFormattedResponse(data=data)
+        return ProviderFormattedResponse(id=request_id, data=data)
