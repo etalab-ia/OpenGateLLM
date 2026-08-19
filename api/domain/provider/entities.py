@@ -5,13 +5,13 @@ from typing import Annotated, Literal
 import pycountry
 from pydantic import Field
 
-from api.domain import BaseModel, EntitiesPage
-from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
+from api.domain import BaseModel, EntitiesPage, ForwardableBody
+from api.domain.audio.entities import AudioTranscriptions
+from api.domain.embeddings.entities import Embeddings
 from api.domain.model.entities import Models, ModelType
-from api.domain.ocr.entities import OCR, CreateOCRBody
-from api.domain.rerank.entities import CreateRerankBody, Rerank
+from api.domain.ocr.entities import OCR
+from api.domain.rerank.entities import Rerank
 from api.domain.router.entities import Router
-from api.schemas.audio import AudioTranscription
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk
 from api.utils.variables import EndpointRoute
 
@@ -153,10 +153,7 @@ class ProviderCapabilities(BaseModel):
 
 class ProviderOriginalRequest(BaseModel):
     endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
-    body: Annotated[
-        CreateEmbeddingsBody | CreateOCRBody | CreateRerankBody | None,
-        Field(default=None, description="The JSON body to use for the request."),
-    ]
+    body: Annotated[ForwardableBody | None, Field(default=None, description="The JSON body to use for the request.")]
     form: Annotated[dict | None, Field(default=None, description="The form-encoded data to use for the request.")]
     files: Annotated[dict | None, Field(default=None, description="The files to use for the request.")]
 
@@ -187,5 +184,5 @@ class ProviderMetrics(BaseModel):
 
 
 class ProviderFormattedResponse(BaseModel):
-    data: Annotated[AudioTranscription | ChatCompletion | ChatCompletionChunk | Embeddings | Models  | OCR | ProviderMetrics | Rerank | None, Field(default=None, description="The JSON data to use for the response.")]  # fmt: off
+    data: Annotated[AudioTranscriptions | ChatCompletion | ChatCompletionChunk | Embeddings | Models  | OCR | ProviderMetrics | Rerank | None, Field(default=None, description="The JSON data to use for the response.")]  # fmt: off
     text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]

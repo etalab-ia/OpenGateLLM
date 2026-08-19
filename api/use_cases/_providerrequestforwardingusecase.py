@@ -5,7 +5,6 @@ from typing import ClassVar
 from pydantic import BaseModel
 
 from api.domain import ForwardableBody
-from api.domain.key.errors import InvalidKeyError, KeyNotFoundError
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
@@ -41,11 +40,8 @@ class ProviderRequestForwardingUseCaseSuccess[TData]:
     headers: dict[str, str]
 
 
-type ProviderRequestForwardingUseCaseResult[TData] = (
-    ProviderRequestForwardingUseCaseSuccess[TData]
-    | InvalidKeyError
-    | KeyNotFoundError
-    | NoAvailableProviderError
+type ProviderRequestForwardingUseCaseError = (
+    NoAvailableProviderError
     | ProviderAdapterValidationRequestError
     | ProviderAdapterValidationResponseError
     | RouterRateLimitExceededError
@@ -58,6 +54,7 @@ type ProviderRequestForwardingUseCaseResult[TData] = (
     | UserHasNoAccessToRouterError
     | UserHasInsufficientBudgetError
 )
+type ProviderRequestForwardingUseCaseResult[TData] = ProviderRequestForwardingUseCaseSuccess[TData] | ProviderRequestForwardingUseCaseError
 
 
 class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
@@ -96,9 +93,19 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
     def _is_billable(self, router: Router) -> bool:
         return router.is_prompt_billable
 
-    async def execute(self, command: TCommand) -> ProviderRequestForwardingUseCaseResult[TData]:
-        authenticated_user = command.authenticated_user
-        result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=command.model)
+    async def _resolve_router(
+        self,
+        authenticated_user: AuthenticatedUserView,
+        model_name_or_alias: str,
+    ) -> (
+        Router
+        | RouterNotFoundError
+        | RouterHasNoProvidersError
+        | RouterHasWrongTypeError
+        | UserHasNoAccessToRouterError
+        | UserHasInsufficientBudgetError
+    ):
+        result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=model_name_or_alias)
         match result:
             case Router() as router:
                 pass
@@ -117,14 +124,14 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         if self._is_billable(router) and authenticated_user.has_insufficient_budget:
             return UserHasInsufficientBudgetError()
 
-        providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
-        provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
+        return router
 
-        self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
-
-        adapter = self.provider_adapter_builder.build(endpoint=self.ENDPOINT, provider=provider)
-        original_request = ProviderOriginalRequest(endpoint=self.ENDPOINT, body=command.body)
-        prompt_tokens = self.model_tokenizer.compute_tokens(texts=command.get_prompts())
+    async def _check_rate_limits(
+        self,
+        authenticated_user: AuthenticatedUserView,
+        router: Router,
+        prompt_tokens: int,
+    ) -> RouterRateLimitState | RouterRateLimitExceededError:
 
         if not authenticated_user.is_admin:
             limits = [limit for limit in authenticated_user.limits if limit.router_id == router.id]
@@ -147,6 +154,27 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         else:
             rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
 
+        return rate_limit_state
+
+    async def _send_request(
+        self,
+        router: Router,
+        body: ForwardableBody,
+        prompt_tokens: int,
+    ) -> (
+        ProviderFormattedResponse
+        | ProviderAdapterValidationRequestError
+        | TooBusyModelError
+        | UnknownModelError
+        | StatusCodeModelError
+        | ProviderAdapterValidationResponseError
+    ):
+        providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
+        provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
+        self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
+
+        original_request = ProviderOriginalRequest(endpoint=self.ENDPOINT, body=body)
+        adapter = self.provider_adapter_builder.build(endpoint=self.ENDPOINT, provider=provider)
         match adapter.format_request(original_request=original_request):
             case ProviderFormattedRequest() as formatted_request:
                 pass
@@ -213,5 +241,33 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
             total_tokens=prompt_tokens + completion_tokens,
             cost=formatted_response.data.usage.cost,
         )
+
+        return formatted_response
+
+    async def execute(self, command: TCommand) -> ProviderRequestForwardingUseCaseResult[TData]:
+        authenticated_user = command.authenticated_user
+
+        result = await self._resolve_router(authenticated_user=authenticated_user, model_name_or_alias=command.model)
+        match result:
+            case Router() as router:
+                pass
+            case error:
+                return error
+
+        prompt_tokens = self.model_tokenizer.compute_tokens(texts=command.get_prompts())
+
+        result = await self._check_rate_limits(authenticated_user=authenticated_user, router=router, prompt_tokens=prompt_tokens)
+        match result:
+            case RouterRateLimitState() as rate_limit_state:
+                pass
+            case error:
+                return error
+
+        result = await self._send_request(router=router, body=command.body, prompt_tokens=prompt_tokens)
+        match result:
+            case ProviderFormattedResponse() as formatted_response:
+                pass
+            case error:
+                return error
 
         return ProviderRequestForwardingUseCaseSuccess(data=formatted_response.data, headers=rate_limit_state.build_limit_headers)
