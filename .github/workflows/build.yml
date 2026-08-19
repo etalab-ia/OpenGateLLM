@@ -167,6 +167,7 @@ jobs:
           variables: |
             playground_type=public
             playground_host=${{ matrix.public_host }}
+            auth_sso_client_secret=${{ secrets.AUTH_SSO_CLIENT_SECRET }}
 
       - name: Build and push Albert public playground images to GitLab
         uses: docker/build-push-action@v6
@@ -193,6 +194,7 @@ jobs:
           variables: |
             playground_host=${{ matrix.public_host }}
             playground_type=private
+            auth_sso_client_secret=${{ secrets.AUTH_SSO_CLIENT_SECRET }}
 
       - name: Build and push Albert private playground images to GitLab
         uses: docker/build-push-action@v6
