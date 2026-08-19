@@ -1,6 +1,6 @@
 from http import HTTPMethod
 
-from api.domain.audio.entities import AudioTranscription
+from api.domain.audio.entities import AudioTranscriptions
 from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
 from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.utils.variables import EndpointRoute
@@ -10,7 +10,7 @@ class AudioTranscriptionsAdapter(HttpProviderAdapter):
     SOURCE_ENDPOINT = EndpointRoute.AUDIO_TRANSCRIPTIONS
     TARGET_ENDPOINT_ROUTE = "/v1/audio/transcriptions"
     TARGET_ENDPOINT_METHOD = HTTPMethod.POST
-    RESPONSE_TYPE = AudioTranscription
+    RESPONSE_TYPE = AudioTranscriptions
 
     def format_response(
         self,

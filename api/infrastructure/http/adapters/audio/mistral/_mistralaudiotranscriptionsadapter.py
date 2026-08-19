@@ -5,7 +5,7 @@ from mistralai.client.models import AudioChunk, ChatCompletionRequest, TextChunk
 from pydantic import ValidationError
 
 from api.domain import BaseModel
-from api.domain.audio.entities import AudioTranscription, AudioTranscriptionResponseFormat
+from api.domain.audio.entities import AudioTranscriptions, AudioTranscriptionsResponseFormat
 from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
 from api.domain.provider.errors import ProviderAdapterValidationRequestError
 from api.infrastructure.http.adapters.audio import AudioTranscriptionsAdapter
@@ -53,10 +53,10 @@ class MistralAudioTranscriptionsAdapter(AudioTranscriptionsAdapter):
         original_request: ProviderOriginalRequest,
     ) -> ProviderFormattedResponse:
         text = original_response.data["choices"][0]["message"]["content"]
-        if original_request.form.response_format == AudioTranscriptionResponseFormat.TEXT:
+        if original_request.form.response_format == AudioTranscriptionsResponseFormat.TEXT:
             return ProviderFormattedResponse(text=text)
 
-        formatted_response = ProviderFormattedResponse(data=AudioTranscription(text=text))
+        formatted_response = ProviderFormattedResponse(data=AudioTranscriptions(text=text))
         request_id = self._extract_request_id(original_response=original_response)
         formatted_response.data.id = request_id
         formatted_response.data.model = original_request.form.model

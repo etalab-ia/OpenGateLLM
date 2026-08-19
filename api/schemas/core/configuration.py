@@ -322,6 +322,9 @@ class Settings(ConfigBaseModel):
     # search
     search_opengaterag_url: Annotated[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None, Field(default=None, description="OpenGateRAG URL for search.", deprecated=True)]  # fmt: off
 
+    # audio
+    audio_file_size_limit: Annotated[int | None, Field(default=None, ge=0, description="Maximum size of the audio file in bytes. If not provided, the audio file size limit is not applied.", examples=[100_000_000])]  # fmt: off
+
     @model_validator(mode="after")
     def validate_model(self) -> Any:
         if self.auth_secret_key is None:
