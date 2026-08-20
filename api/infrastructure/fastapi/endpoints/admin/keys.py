@@ -3,7 +3,12 @@ import logging
 
 from fastapi import Body, Depends, Path, Query, Security
 
-from api.dependencies import create_key_use_case_factory, get_keys_use_case_factory, get_one_key_use_case_factory
+from api.dependencies import (
+    create_key_use_case_factory,
+    delete_key_use_case_factory,
+    get_keys_use_case_factory,
+    get_one_key_use_case_factory,
+)
 from api.domain import SortField, SortOrder
 from api.domain.key.errors import KeyAlreadyExistsError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
@@ -23,6 +28,9 @@ from api.use_cases.admin.keys import (
     CreateKeyCommand,
     CreateKeyUseCase,
     CreateKeyUseCaseSuccess,
+    DeleteKeyCommand,
+    DeleteKeyUseCase,
+    DeleteKeyUseCaseSuccess,
     GetKeysCommand,
     GetKeysUseCase,
     GetKeysUseCaseSuccess,
@@ -100,6 +108,38 @@ async def get_key(
 
     match result:
         case GetOneKeyUseCaseSuccess(key=key):
+            return KeyResponse.model_validate(key, from_attributes=True)
+        case KeyNotFoundError(id=not_found_key_id):
+            raise KeyNotFoundHTTPException(not_found_key_id)
+
+
+@router.delete(
+    path=EndpointRoute.ADMIN_KEYS + "/{key_id}",
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    status_code=200,
+    responses=get_documentation_responses([KeyNotFoundHTTPException, NotAdminUserHTTPException]),
+)
+async def delete_key(
+    key_id: int = Path(description="The ID of the key to delete."),
+    delete_key_use_case: DeleteKeyUseCase = Depends(delete_key_use_case_factory),
+    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+) -> KeyResponse:
+    command = DeleteKeyCommand(key_id=key_id)
+    try:
+        result = await delete_key_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing delete_key use case",
+            extra={
+                "authenticated_user_id": request_context.get().user.id,
+                "key_id": key_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
+
+    match result:
+        case DeleteKeyUseCaseSuccess(key=key):
             return KeyResponse.model_validate(key, from_attributes=True)
         case KeyNotFoundError(id=not_found_key_id):
             raise KeyNotFoundHTTPException(not_found_key_id)

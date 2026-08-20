@@ -1,5 +1,5 @@
 from pydantic import FutureDatetime
-from sqlalchemy import asc, desc, func, insert, or_, select, update
+from sqlalchemy import asc, delete, desc, func, insert, or_, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -98,3 +98,11 @@ class PostgresKeyRepository(KeyRepository):
         await self.postgres_session.execute(update(KeyTable).values(token=registered_value).where(KeyTable.id == row.id))
 
         return Key(id=row.id, name=row.name, user_id=row.user_id, value=value, expires=row.expires, created=row.created)
+
+    async def delete_key(self, key_id: int) -> Key | KeyNotFoundError:
+        result = await self.postgres_session.execute(delete(KeyTable).where(KeyTable.id == key_id).returning(KeyTable))
+        row = result.scalar_one_or_none()
+        if row is None:
+            return KeyNotFoundError(id=key_id)
+
+        return Key(id=row.id, name=row.name, user_id=row.user_id, value=row.token, expires=row.expires, created=row.created)
