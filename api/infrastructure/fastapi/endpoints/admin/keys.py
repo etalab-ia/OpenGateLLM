@@ -1,4 +1,3 @@
-from contextvars import ContextVar
 import logging
 
 from fastapi import Body, Depends, Path, Query, Security
@@ -7,8 +6,9 @@ from api.dependencies import create_key_use_case_factory, get_keys_use_case_fact
 from api.domain import SortField, SortOrder
 from api.domain.key.errors import KeyAlreadyExistsError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
-from api.infrastructure.fastapi import RequestContext
+from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
+from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
@@ -30,7 +30,6 @@ from api.use_cases.admin.keys import (
     GetOneKeyUseCase,
     GetOneKeyUseCaseSuccess,
 )
-from api.utils.dependencies import get_request_context
 from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
@@ -45,7 +44,7 @@ logger = logging.getLogger(__name__)
 async def create_key(
     body: CreateKeyBody = Body(description="The key creation request."),
     create_key_use_case: CreateKeyUseCase = Depends(create_key_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeyResponse:
     """
     Create a new key for a user.
@@ -58,7 +57,7 @@ async def create_key(
         logger.exception(
             "Unexpected error while executing create_key use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "error_type": type(e).__name__,
             },
         )
@@ -82,7 +81,7 @@ async def create_key(
 async def get_key(
     key_id: int = Path(description="The ID of the key to get."),
     get_one_key_use_case: GetOneKeyUseCase = Depends(get_one_key_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeyResponse:
     command = GetOneKeyCommand(key_id=key_id)
     try:
@@ -91,7 +90,7 @@ async def get_key(
         logger.exception(
             "Unexpected error while executing get_key use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "key_id": key_id,
                 "error_type": type(e).__name__,
             },
@@ -118,7 +117,7 @@ async def get_keys(
     sort_by: SortField = Query(default=SortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_keys_use_case: GetKeysUseCase = Depends(get_keys_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeysResponse:
     command = GetKeysCommand(user_id=user, offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order)
     try:
@@ -127,7 +126,7 @@ async def get_keys(
         logger.exception(
             "Unexpected error while executing get_keys use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "offset": command.offset,
                 "limit": command.limit,
                 "sort_by": command.sort_by,
