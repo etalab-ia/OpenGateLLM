@@ -51,7 +51,7 @@ Reference implementations of these patterns:
 - [ ] HTTP exceptions in api/infrastructure/fastapi/endpoints/exceptions.py
 - [ ] Endpoint in api/infrastructure/fastapi/endpoints/
 - [ ] Import the endpoint module so the route is registered (side-effect import)
-- [ ] EndpointRoute in api/utils/variables.py if needed
+- [ ] EndpointRoute in api/utils/variables.py if needed — migrated routes use `(path, module_path)` pointing at the endpoint module (see `ADMIN_KEYS`)
 - [ ] Tests: unit use case (every distinct execute() branch) + integration endpoint (happy path, auth, error mapping) + repository if new query/column + domain entity if new method + ForwardScenario if the use case calls a provider
 ```
 
