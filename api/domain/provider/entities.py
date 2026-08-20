@@ -3,16 +3,11 @@ from http import HTTPMethod
 from typing import Annotated, Literal
 
 import pycountry
-from pydantic import Field
+from pydantic import Field, model_validator
 
-from api.domain import BaseModel, EntitiesPage
-from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
-from api.domain.model.entities import Models, ModelType
-from api.domain.ocr.entities import OCR, CreateOCRBody
-from api.domain.rerank.entities import CreateRerankBody, Rerank
+from api.domain import BaseModel, EntitiesPage, ForwardablePayload
+from api.domain.model.entities import ModelJsonResponse, ModelType
 from api.domain.router.entities import Router
-from api.schemas.audio import AudioTranscription
-from api.schemas.chat import ChatCompletion, ChatCompletionChunk
 from api.utils.variables import EndpointRoute
 
 # Add world as a country code, default value of the carbon footprint computation framework
@@ -153,12 +148,7 @@ class ProviderCapabilities(BaseModel):
 
 class ProviderOriginalRequest(BaseModel):
     endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
-    body: Annotated[
-        CreateEmbeddingsBody | CreateOCRBody | CreateRerankBody | None,
-        Field(default=None, description="The JSON body to use for the request."),
-    ]
-    form: Annotated[dict | None, Field(default=None, description="The form-encoded data to use for the request.")]
-    files: Annotated[dict | None, Field(default=None, description="The files to use for the request.")]
+    payload: Annotated[ForwardablePayload | None, Field(default=None, description="The payload to use for the request.")]
 
 
 class ResponseMetrics(BaseModel):
@@ -180,12 +170,29 @@ class ProviderOriginalResponse(BaseModel):
     text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
 
 
-class ProviderMetrics(BaseModel):
+class ProviderMetrics(ModelJsonResponse):
     object: Literal["providerMetrics"] = "providerMetrics"
     waiting_requests: float
     running_requests: float
 
 
 class ProviderFormattedResponse(BaseModel):
-    data: Annotated[AudioTranscription | ChatCompletion | ChatCompletionChunk | Embeddings | Models  | OCR | ProviderMetrics | Rerank | None, Field(default=None, description="The JSON data to use for the response.")]  # fmt: off
+    id: Annotated[str, Field(description="The request identifier.")]
+    data: Annotated[ModelJsonResponse | None, Field(default=None, description="The JSON data to use for the response.")]
     text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
+
+    @model_validator(mode="after")
+    def validate_data_and_text(self) -> "ProviderFormattedResponse":
+        if self.data is not None and self.text is not None:
+            raise ValueError("data and text cannot be set at the same time")
+
+        if self.data is None and self.text is None:
+            raise ValueError("data and text cannot be None at the same time")
+
+        return self
+
+    def get_completions(self) -> list[str]:
+        if self.data is not None:
+            return self.data.get_completions()
+        else:
+            return [self.text.strip()]

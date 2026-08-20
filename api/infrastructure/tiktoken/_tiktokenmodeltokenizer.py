@@ -8,4 +8,6 @@ class TiktokenModelTokenizer(ModelTokenizer):
         self.model = model
 
     def compute_tokens(self, texts: list[str]) -> int:
-        return len(self.model.encode(" ".join(texts).strip()))
+        if texts:
+            return len(self.model.encode(" ".join(texts).strip()))
+        return 0

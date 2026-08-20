@@ -2,8 +2,8 @@ from typing import Annotated, Literal
 
 from pydantic import Field, StringConstraints, model_validator
 
+from api.domain import BaseModel
 from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType, QoSMetric
-from api.infrastructure.fastapi.schemas import BaseModel
 from api.schemas.core.configuration import ModelProvider
 
 

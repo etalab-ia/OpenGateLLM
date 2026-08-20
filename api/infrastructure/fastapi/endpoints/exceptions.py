@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+from humanize import naturalsize
 
 from api.schemas.admin.roles import LimitType
 
@@ -261,6 +262,13 @@ class DeleteUserWithProvidersHTTPException(HTTPException):
 
 
 # 413
+class FileSizeLimitExceededHTTPException(HTTPException):
+    status_code = 413
+    detail = "File size limit exceeded. Expected: {expected_size}. Actual: {size}."
+
+    def __init__(self, size: int, expected_size: int) -> None:
+        size, expected_size = naturalsize(size), naturalsize(expected_size)
+        super().__init__(status_code=self.status_code, detail=f"File size limit exceeded. Expected: {expected_size}. Actual: {size}.")
 
 
 # 422

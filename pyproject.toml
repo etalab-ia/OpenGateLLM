@@ -26,6 +26,7 @@ api = [
     "ecologits==0.9.3",
     "fastapi==0.135.1",
     "gunicorn==25.1.0",
+    "humanize==4.16.0",
     "itsdangerous==2.2.0",
     "langfuse==4.0.6",
     "limits==5.8.0",

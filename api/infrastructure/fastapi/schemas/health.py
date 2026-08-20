@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from api.infrastructure.fastapi.schemas import BaseModel
+from api.domain import BaseModel
 
 
 class HealthStatus(StrEnum):

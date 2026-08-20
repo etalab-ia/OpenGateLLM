@@ -1,6 +1,8 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from api.domain import BaseModel
 
 
 class ModelCosts(BaseModel):
@@ -17,6 +19,11 @@ class ModelType(StrEnum):
     TEXT_GENERATION = "text-generation"
 
 
+class ModelJsonResponse(BaseModel):
+    def get_completions(self) -> list[str]:
+        return []
+
+
 class Model(BaseModel):
     id: str
     type: ModelType
@@ -27,7 +34,7 @@ class Model(BaseModel):
     costs: ModelCosts = Field(default_factory=ModelCosts)
 
 
-class Models(BaseModel):
+class Models(ModelJsonResponse):
     data: list[Model]
 
 

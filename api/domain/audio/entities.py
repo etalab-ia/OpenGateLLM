@@ -1,8 +1,10 @@
 from enum import StrEnum
+from typing import Any
 
 from pydantic import Field
 
-from api.domain import BaseModel
+from api.domain import BaseModel, ForwardablePayload
+from api.domain.model.entities import ModelJsonResponse
 from api.domain.usage.entities import Usage
 from api.utils.variables import SUPPORTED_LANGUAGES
 
@@ -10,7 +12,7 @@ SUPPORTED_LANGUAGES = list(SUPPORTED_LANGUAGES.keys()) + list(SUPPORTED_LANGUAGE
 AudioTranscriptionLanguage = StrEnum("AudioTranscriptionLanguage", {str(lang).upper(): str(lang) for lang in sorted(set(SUPPORTED_LANGUAGES))})
 
 
-class AudioTranscriptionResponseFormat(StrEnum):
+class AudioTranscriptionsResponseFormat(StrEnum):
     JSON = ("json", "application/json")
     TEXT = ("text", "text/plain")
     DIARIZED_JSON = ("diarized_json", "application/json")
@@ -35,9 +37,33 @@ class Segment(BaseModel):
     speaker: str | None = Field(default=None, description="Speaker label assigned by diarization, if available.")
 
 
-class AudioTranscription(BaseModel):
-    id: str = Field(default=..., description="A unique identifier for the audio transcription.")
-    text: str = Field(default=..., description="The transcription text.")
-    model: str = Field(default=..., description="The model used to generate the transcription.")
-    segments: list[Segment] | None = Field(default=None, description="Diarized segments, only set when response format is `diarized_json` or `verbose_json`.")  # fmt: off
-    usage: Usage = Field(default_factory=Usage, description="Usage information for the request.")
+class AudioTranscriptions(ModelJsonResponse):
+    id: str
+    model: str
+    text: str
+    usage: Usage = Field(default_factory=Usage)
+
+    def get_completions(self) -> list[str]:
+        return [self.text]
+
+
+class CreateAudioTranscriptionsFile(BaseModel):
+    name: str
+    file: Any
+    content_type: str
+    size: int
+
+
+class CreateAudioTranscriptionsForm(ForwardablePayload):
+    file: CreateAudioTranscriptionsFile
+    model: str
+    language: AudioTranscriptionLanguage | None
+    prompt: str
+    response_format: AudioTranscriptionsResponseFormat
+    temperature: float
+
+    def get_prompts(self) -> list[str]:
+        return [self.prompt]
+
+    def get_files(self) -> dict:
+        return {"file": (self.file.name, self.file.file, self.file.content_type)}

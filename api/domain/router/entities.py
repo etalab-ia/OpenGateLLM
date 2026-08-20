@@ -60,10 +60,6 @@ class Router(BaseModel):
         return self.providers == 0
 
     @property
-    def is_prompt_billable(self) -> bool:
-        return self.cost_prompt_tokens != 0
-
-    @property
     def is_billable(self) -> bool:
         return self.cost_prompt_tokens != 0 or self.cost_completion_tokens != 0
 

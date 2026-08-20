@@ -11,7 +11,4 @@ The modules below are safe to re-export: they depend on the domain only, never o
 from ._requestcontext import RequestContext
 from ._requestcontextusagerecorder import RequestContextUsageRecorder
 
-__all__ = [
-    "RequestContext",
-    "RequestContextUsageRecorder",
-]
+__all__ = ["RequestContext", "RequestContextUsageRecorder"]

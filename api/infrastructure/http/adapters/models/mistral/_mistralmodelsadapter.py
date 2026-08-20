@@ -11,7 +11,9 @@ class MistralModelsAdapter(ModelsAdapter):
         prompt_tokens: int = 0,
         latency: int = 0,
     ) -> ProviderFormattedResponse:
+        request_id = self._extract_request_id(original_response=original_response)
         return ProviderFormattedResponse(
+            id=request_id,
             data=Models(
                 data=[
                     Model(

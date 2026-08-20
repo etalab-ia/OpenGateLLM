@@ -95,7 +95,8 @@ def configure_metrics(
 ):
     adapter = MistralMetricsAdapter(provider=provider) if provider.type == ProviderType.MISTRAL else VllmMetricsAdapter(provider=provider)
     adapter.format_response = MagicMock(
-        return_value=format_response_result or ProviderFormattedResponse(data=ProviderMetrics(waiting_requests=waiting, running_requests=running))
+        return_value=format_response_result
+        or ProviderFormattedResponse(id="req-123", data=ProviderMetrics(waiting_requests=waiting, running_requests=running))
     )
     provider_adapter_builder.build.return_value = adapter
     provider_client.forward_request.return_value = ProviderOriginalResponse(text=METRICS_TEXT)

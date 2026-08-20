@@ -31,14 +31,12 @@ class ProviderOriginalRequestFactory(factory.Factory):
         model = ProviderOriginalRequest
 
     endpoint = factory.Faker("random_element", elements=list(EndpointRoute))
-    body = None
-    form = None
-    files = None
+    payload = None
 
     class Params:
         embeddings = factory.Trait(
             endpoint=EndpointRoute.EMBEDDINGS,
-            body=factory.LazyAttribute(
+            payload=factory.LazyAttribute(
                 lambda self: CreateEmbeddingsBody(
                     model="openweight-embeddings",
                     input=_random_embeddings_input(),
@@ -51,7 +49,7 @@ class ProviderOriginalRequestFactory(factory.Factory):
         metrics = factory.Trait(endpoint=EndpointRoute.METRICS)
         rerank = factory.Trait(
             endpoint=EndpointRoute.RERANK,
-            body=factory.LazyAttribute(
+            payload=factory.LazyAttribute(
                 lambda self: CreateRerankBody(
                     model="openweight-rerank",
                     query=fake.sentence(),

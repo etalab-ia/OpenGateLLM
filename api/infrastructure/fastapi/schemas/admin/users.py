@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 from pydantic import AfterValidator, ConfigDict, Field, StringConstraints
 
-from api.infrastructure.fastapi.schemas import BaseModel
+from api.domain import BaseModel
 
 
 def _must_be_future(expires: int) -> int:

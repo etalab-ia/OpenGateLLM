@@ -31,9 +31,7 @@ class HttpProviderAdapter(ProviderAdapter):
         formatted_request = ProviderFormattedRequest(
             method=self.TARGET_ENDPOINT_METHOD,
             url=target_url,
-            body=original_request.body.model_dump(exclude_none=True) if original_request.body else {},
-            form=original_request.form if original_request.form else {},
-            files=original_request.files if original_request.files else {},
+            body=original_request.payload.model_dump(exclude_none=True) if original_request.payload else {},
         )
 
         if "model" in formatted_request.body:
@@ -46,17 +44,13 @@ class HttpProviderAdapter(ProviderAdapter):
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
     ) -> ProviderFormattedResponse | ProviderAdapterValidationResponseError:
+        request_id = self._extract_request_id(original_response=original_response)
         try:
-            formatted_response = ProviderFormattedResponse(data=self.RESPONSE_TYPE(**original_response.data))
+            data = self.RESPONSE_TYPE(**{**original_response.data, "id": request_id, "model": original_request.payload.model})
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 
-        request_id = self._extract_request_id(original_response=original_response)
-        formatted_response.data.id = request_id
-        if original_request.body is not None and hasattr(original_request.body, "model"):
-            formatted_response.data.model = original_request.body.model
-
-        return formatted_response
+        return ProviderFormattedResponse(id=request_id, data=data)
 
     @staticmethod
     def _build_target_url(base_url: str, target_endpoint_route: str | None) -> str:

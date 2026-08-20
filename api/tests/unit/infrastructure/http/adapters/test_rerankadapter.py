@@ -154,7 +154,7 @@ class TestRerankAdapter:
     def test_format_request_preserve_extra_fields(self, adapter):
         # Arrange
         original_request = ProviderOriginalRequestFactory(rerank=True)
-        original_request.body.extra_field = "extra_value"
+        original_request.payload.extra_field = "extra_value"
 
         # Act
         result = adapter.format_request(original_request)
@@ -188,7 +188,7 @@ class TestRerankAdapter:
     def test_format_request_excludes_none_fields(self, adapter):
         # Arrange
         original_request = ProviderOriginalRequestFactory(rerank=True)
-        original_request.body.top_n = None
+        original_request.payload.top_n = None
 
         # Act
         result = adapter.format_request(original_request)
@@ -239,7 +239,7 @@ class TestRerankAdapter:
         # Arrange
         adapter._extract_request_id = Mock(return_value="req-123")
         original_request = ProviderOriginalRequestFactory(rerank=True)
-        original_request.body.top_n = None
+        original_request.payload.top_n = None
         original_response = ProviderOriginalResponse(data=response_data)
 
         # Act
@@ -266,7 +266,7 @@ class TestRerankAdapter:
         # Arrange
         adapter._extract_request_id = Mock(return_value="req-123")
         original_request = ProviderOriginalRequestFactory(rerank=True)
-        original_request.body.top_n = 2
+        original_request.payload.top_n = 2
         original_response = ProviderOriginalResponse(data=response_data)
 
         # Act

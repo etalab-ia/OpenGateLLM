@@ -79,7 +79,7 @@ class ProviderCapabilitiesProbe:
     async def _get_vector_size(self, adapter: ProviderAdapter) -> int | ProviderNotReachableError | ProviderInvalidResponseError:
         original_request = ProviderOriginalRequest(
             endpoint=EndpointRoute.EMBEDDINGS,
-            body=CreateEmbeddingsBody(model=adapter.provider.model_name, input="hello world"),
+            payload=CreateEmbeddingsBody(model=adapter.provider.model_name, input="hello world"),
         )
         formatted_request = adapter.format_request(original_request=original_request)
         response = await self.provider_client.forward_request(provider=adapter.provider, formatted_request=formatted_request)

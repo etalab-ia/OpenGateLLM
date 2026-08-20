@@ -44,7 +44,7 @@ jobs:
           CONFIG_FILE: ${{ github.workspace }}/config.example.yml
         run: |
           uv venv
-          uv pip install -p .venv/bin/python ".[api,playground,dev]"
+          uv pip install --quiet -p .venv/bin/python ".[api,playground,dev]"
           . .venv/bin/activate
           PYTHONPATH=. python ./scripts/docs/generate_configuration_documentation.py --output ./docs/src/content/docs/configuration/configuration_file.mdx
           if ! docker compose --file ./compose.example.yml up --detach --wait; then

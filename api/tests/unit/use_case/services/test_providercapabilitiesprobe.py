@@ -47,21 +47,22 @@ def model_entity(model_id: str = DEFAULT_MODEL_ID, aliases: list[str] | None = N
 
 
 def models_formatted_response(*models: Model) -> ProviderFormattedResponse:
-    return ProviderFormattedResponse(data=Models(data=list(models)))
+    return ProviderFormattedResponse(id="req-123", data=Models(data=list(models)))
 
 
 def embeddings_formatted_response(dimensions: int = 3) -> ProviderFormattedResponse:
     return ProviderFormattedResponse(
+        id="req-123",
         data=Embeddings(
             id="embeddings-1",
             model=DEFAULT_MODEL_ID,
             data=[Embedding(embedding=[0.1] * dimensions, index=0, object="embedding")],
-        )
+        ),
     )
 
 
 def empty_embeddings_formatted_response() -> ProviderFormattedResponse:
-    return ProviderFormattedResponse(data=Embeddings(id="embeddings-1", model=DEFAULT_MODEL_ID, data=[]))
+    return ProviderFormattedResponse(id="req-123", data=Embeddings(id="embeddings-1", model=DEFAULT_MODEL_ID, data=[]))
 
 
 def provider_adapter_stub(
@@ -137,7 +138,7 @@ class TestProviderCapabilitiesProbe:
             EndpointRoute.EMBEDDINGS,
         ]
         assert provider_adapter_builder.build.call_args.kwargs["provider"].type == ProviderType.TEI
-        assert built_embeddings_adapter.format_request.call_args.kwargs["original_request"].body.model == DEFAULT_MODEL_ID
+        assert built_embeddings_adapter.format_request.call_args.kwargs["original_request"].payload.model == DEFAULT_MODEL_ID
         assert provider_client.forward_request.await_count == 2
 
     @pytest.mark.asyncio
