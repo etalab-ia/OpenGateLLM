@@ -1,15 +1,29 @@
 import logging
+from typing import assert_never
 
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Body, Depends, Response, Security
 
-from api.dependencies import get_me_use_case_factory
+from api.dependencies import get_me_use_case_factory, update_me_info_use_case_factory
+from api.domain.user.errors import IncorrectCurrentPasswordError, UserAlreadyExistsError, UserNotFoundError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
-from api.infrastructure.fastapi.endpoints.exceptions import InternalServerHTTPException
-from api.infrastructure.fastapi.schemas.me import MeResponse
-from api.use_cases.me import GetMeCommand, GetMeUseCase, GetMeUseCaseSuccess
+from api.infrastructure.fastapi.endpoints.exceptions import (
+    InternalServerHTTPException,
+    InvalidCurrentPasswordHTTPException,
+    UserAlreadyExistsHTTPException,
+    UserNotFoundHTTPException,
+)
+from api.infrastructure.fastapi.schemas.me import MeResponse, UpdateMeInfoBody
+from api.use_cases.me import (
+    GetMeCommand,
+    GetMeUseCase,
+    GetMeUseCaseSuccess,
+    UpdateMeInfoCommand,
+    UpdateMeInfoUseCase,
+    UpdateMeInfoUseCaseSuccess,
+)
 from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
@@ -53,3 +67,51 @@ async def get_me(
     match result:
         case GetMeUseCaseSuccess(authenticated_user=user):
             return MeResponse.model_validate(user, from_attributes=True)
+
+
+@router.patch(
+    path=EndpointRoute.ME_INFO,
+    dependencies=[Security(dependency=AccessController())],
+    status_code=204,
+    response_class=Response,
+    responses=get_documentation_responses([UserNotFoundHTTPException, UserAlreadyExistsHTTPException, InvalidCurrentPasswordHTTPException]),
+)
+async def update_me_info(
+    body: UpdateMeInfoBody = Body(description="The user update request."),
+    update_me_info_use_case: UpdateMeInfoUseCase = Depends(update_me_info_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
+) -> Response:
+    """
+    Update information about the current user.
+    """
+
+    command = UpdateMeInfoCommand(
+        user_id=authenticated_user.id,
+        email=body.email,
+        name=body.name,
+        current_password=body.current_password,
+        new_password=body.password,
+    )
+    try:
+        result = await update_me_info_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing update_me_info use case",
+            extra={
+                "authenticated_user_id": authenticated_user.id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
+
+    match result:
+        case UpdateMeInfoUseCaseSuccess():
+            return Response(status_code=204)
+        case UserNotFoundError(id=not_found_id):
+            raise UserNotFoundHTTPException(user_id=not_found_id)
+        case UserAlreadyExistsError(email=email):
+            raise UserAlreadyExistsHTTPException(email=email)
+        case IncorrectCurrentPasswordError():
+            raise InvalidCurrentPasswordHTTPException()
+        case _ as unreachable:
+            assert_never(unreachable)

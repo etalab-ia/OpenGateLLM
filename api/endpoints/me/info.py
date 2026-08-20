@@ -1,9 +1,10 @@
 from fastapi import Body, Depends, Request, Response, Security
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.endpoints.me import router
 from api.helpers._accesscontroller import AccessController
-from api.schemas.me.info import UpdateUserInfo
+from api.schemas.me.info import UpdateUserInfo, UserInfo
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
 from api.utils.variables import EndpointRoute
@@ -29,3 +30,16 @@ async def update_user(
     )
 
     return Response(status_code=204)
+
+
+@router.get(path=EndpointRoute.ME_INFO, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=UserInfo)
+async def get_user(request: Request, postgres_session: AsyncSession = Depends(get_postgres_session)) -> JSONResponse:
+    """
+    Get information about the current user.
+    """
+
+    user_info = await global_context.identity_access_manager.get_user_info(
+        postgres_session=postgres_session, user_id=request_context.get().user_info.id
+    )
+
+    return JSONResponse(content=user_info.model_dump(), status_code=200)

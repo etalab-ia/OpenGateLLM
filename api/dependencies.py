@@ -56,7 +56,7 @@ from api.use_cases.audio import CreateAudioTranscriptionsUseCase
 from api.use_cases.auth import AuthLoginUseCase, AuthSsoLoginUseCase
 from api.use_cases.embeddings import CreateEmbeddingsUseCase
 from api.use_cases.health import GetHealthModelsUseCase
-from api.use_cases.me import GetMeUseCase
+from api.use_cases.me import GetMeUseCase, UpdateMeInfoUseCase
 from api.use_cases.models import GetModelsUseCase, GetOneModelUseCase
 from api.use_cases.ocr import CreateOCRUseCase
 from api.use_cases.reranks import CreateRerankUseCase
@@ -312,6 +312,10 @@ def delete_key_use_case_factory(key_repository: KeyRepository = Depends(_key_rep
 # me use cases
 def get_me_use_case_factory() -> GetMeUseCase:
     return GetMeUseCase()
+
+
+def update_me_info_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateMeInfoUseCase:
+    return UpdateMeInfoUseCase(user_repository=_user_repository(postgres_session), user_password_encoder=_user_password_encoder())
 
 
 # models use cases

@@ -19,10 +19,3 @@ class UserInfo(BaseModel):
     priority: int = Field(default=0,description="The user priority (higher = higher priority). This value influences scheduling/queue priority for non-streaming model invocations.")  # fmt: off
     created: int = Field(description="The user creation timestamp.")
     updated: int = Field(description="The user update timestamp.")
-
-
-class UpdateUserInfo(BaseModel):
-    name: str | None = Field(default=None, description="The user name.")
-    email: str | None = Field(default=None, max_length=254, description="The user email.")
-    current_password: str | None = Field(default=None, max_length=72, description="The current user password.")
-    password: str | None = Field(default=None, max_length=72, description="The new user password. If None, the user password is not changed.")

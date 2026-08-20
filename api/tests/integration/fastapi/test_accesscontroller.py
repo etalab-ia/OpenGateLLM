@@ -84,7 +84,9 @@ def reset_request_context() -> ContextVar[RequestContext]:
 
 @pytest.fixture
 def request_obj() -> Mock:
-    return Mock()
+    request = Mock()
+    request.url.path = "/v1/models"
+    return request
 
 
 @pytest.mark.asyncio(loop_scope="session")

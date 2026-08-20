@@ -16,3 +16,10 @@ class MeResponse(BaseModel):
     permissions: Annotated[list[PermissionType], Field(description="The user permissions.")]
     limits: Annotated[list[Limit], Field(description="The user rate limits.")]
     expires: Annotated[int | None, Field(default=None, description="The user expiration timestamp. If None, the user will never expire.")]
+
+
+class UpdateMeInfoBody(BaseModel):
+    name: Annotated[str | None, Field(default=None, description="The user name.")]
+    email: Annotated[str | None, Field(default=None, max_length=254, description="The user email.")]
+    current_password: Annotated[str | None, Field(default=None, max_length=72, description="The current user password.")]
+    password: Annotated[str | None, Field(default=None, description="The new user password. If None, the user password is not changed.")]  # fmt: off
