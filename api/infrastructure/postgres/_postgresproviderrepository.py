@@ -6,6 +6,7 @@ from api.domain import SortOrder
 from api.domain.provider import ProviderRepository
 from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderPage, ProviderSortField, ProviderType, QoSMetric
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
+from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Provider as ProviderTable
 
@@ -77,15 +78,13 @@ class PostgresProviderRepository(ProviderRepository):
             select_query = select_query.where(ProviderTable.router_id == router_id)
             count_query = count_query.where(ProviderTable.router_id == router_id)
 
-        total = (await self.postgres_session.execute(count_query)).scalar_one()
         sort_column = getattr(ProviderTable, sort_by.value)
         sort_order_clause = asc(sort_column) if sort_order == SortOrder.ASC else desc(sort_column)
 
-        providers_query = select_query.order_by(sort_order_clause).limit(limit).offset(offset)
+        providers_query = select_query.add_columns(func.count().over().label("total")).order_by(sort_order_clause).limit(limit).offset(offset)
+        rows, total = await fetch_page_with_total(self.postgres_session, providers_query, count_query)
 
-        rows = (await self.postgres_session.execute(providers_query)).scalars().all()
-
-        return ProviderPage(total=total, data=[self._row_to_provider(row) for row in rows])
+        return ProviderPage(total=total, data=[self._row_to_provider(row[0]) for row in rows])
 
     async def get_one_provider(self, provider_id: int) -> Provider | ProviderNotFoundError:
         select_query = select(ProviderTable).where(ProviderTable.id == provider_id)

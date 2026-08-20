@@ -1,4 +1,3 @@
-import json
 from unittest.mock import AsyncMock, MagicMock
 
 from httpx import AsyncClient
@@ -6,46 +5,44 @@ import pytest
 import pytest_asyncio
 import respx
 
-from api.dependencies import create_rerank_use_case_factory
+from api.dependencies import create_audio_transcriptions_use_case_factory
+from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
+from api.schemas.admin.providers import ProviderCarbonFootprintZone
 from api.schemas.admin.roles import LimitType
 from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.conftest import override_global_context
-from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_rerank_responses
+from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_audio_transcriptions_responses
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
-from api.tests.integration.factories.tei import TeiRerankResponseFactory
+from api.tests.integration.factories.vllm import VllmAudioTranscriptionsResponseFactory
+from api.use_cases.audio import CreateAudioTranscriptionsTextUseCaseSuccess
 from api.utils.variables import EndpointRoute
 
-URL = f"/v1{EndpointRoute.RERANK}"
+URL = f"/v1{EndpointRoute.AUDIO_TRANSCRIPTIONS}"
 
-DEFAULT_MODEL_NAME = "rerank-router"
-DEFAULT_QUERY = "The sun is shining."
-DEFAULT_DOCUMENTS = [
-    "The document is about the weather.",
-    "The document is about the news.",
-    "The document is about the sports.",
-]
-SAMPLE_VALIDATION_ERRORS = [{"type": "missing", "loc": ["query"], "msg": "Field required", "input": {}}]
+DEFAULT_MODEL_NAME = "audio-router"
+AUDIO_BYTES = b"fake-mp3-bytes"
+SAMPLE_VALIDATION_ERRORS = [{"type": "missing", "loc": ["file"], "msg": "Field required", "input": {}}]
 
 
-def _valid_body(**overrides) -> dict:
-    body = {
-        "model": DEFAULT_MODEL_NAME,
-        "query": DEFAULT_QUERY,
-        "documents": DEFAULT_DOCUMENTS,
-    }
-    body.update(overrides)
-    return body
+def _valid_files() -> dict:
+    return {"file": ("speech.mp3", AUDIO_BYTES, "audio/mpeg")}
+
+
+def _valid_data(**overrides) -> dict:
+    data = {"model": DEFAULT_MODEL_NAME}
+    data.update(overrides)
+    return data
 
 
 @pytest.mark.asyncio(loop_scope="session")
-class TestCreateRerank:
+class TestCreateAudioTranscriptions:
     @pytest_asyncio.fixture(autouse=True)
     async def setup(self, db_session, test_redis_pool):
         self.user = UserSQLFactory(name="Alice", email="alice@example.com")
@@ -53,73 +50,77 @@ class TestCreateRerank:
         self.router_owner = UserSQLFactory(name="Bob", email="bob@example.com", admin_user=True)
 
         mock_tokenizer = MagicMock()
-        mock_tokenizer.encode.return_value = [0] * 10
+        mock_tokenizer.encode.side_effect = lambda text: [0] * 10 if text else []  # default prompt is empty
         with override_global_context(redis_pool=test_redis_pool, _tokenizer=mock_tokenizer):
             yield
 
     @respx.mock
     async def test_happy_path(self, client: AsyncClient, db_session):
-        admin_key = await create_key(db_session, name="admin_rerank_key", user=self.router_owner)
-        router = RouterSQLFactory(
+        admin_key = await create_key(db_session, name="admin_audio_key", user=self.router_owner)
+        RouterSQLFactory(
             user=self.router_owner,
             name=DEFAULT_MODEL_NAME,
-            type=ModelType.TEXT_CLASSIFICATION,
+            type=ModelType.AUTOMATIC_SPEECH_RECOGNITION,
             providers=1,
-            providers__type=ProviderType.TEI,
+            providers__type=ProviderType.VLLM,
             providers__url=DEFAULT_PROVIDER_URL,
+            providers__model_hosting_zone=ProviderCarbonFootprintZone.FRA,  # pin to an ecologits-resolvable zone (impacts now computed from transcription tokens)
         )
         await db_session.flush()
 
-        mock_rerank_responses(
+        mock_audio_transcriptions_responses(
             respx_mock=respx,
-            provider_type=ProviderType.TEI,
-            body=TeiRerankResponseFactory(count=len(DEFAULT_DOCUMENTS)),
-            status_code=TeiRerankResponseFactory._status_code,
+            provider_type=ProviderType.VLLM,
+            body=VllmAudioTranscriptionsResponseFactory(),
+            status_code=VllmAudioTranscriptionsResponseFactory._status_code,
         )
 
         response = await client.post(
             url=URL,
             headers={"Authorization": f"Bearer {admin_key.token}"},
-            json=_valid_body(),
+            files=_valid_files(),
+            data=_valid_data(),
         )
 
         assert response.status_code == 200, response.text
         data = response.json()
-        assert data["object"] == "list"
         assert data["model"] == DEFAULT_MODEL_NAME
-        assert len(data["results"]) == len(DEFAULT_DOCUMENTS)
-        assert all("relevance_score" in result and "index" in result for result in data["results"])
+        assert "id" in data
+        assert "text" in data
+        assert data["usage"]["prompt_tokens"] == 0
+        assert data["usage"]["completion_tokens"] == 10  # tokens of the transcription (mock tokenizer: 10 per non-empty text)
 
     @respx.mock
     async def test_omitted_optional_fields_are_excluded_from_provider_body(self, client: AsyncClient, db_session):
-        admin_key = await create_key(db_session, name="admin_rerank_exclude_none_key", user=self.router_owner)
+        admin_key = await create_key(db_session, name="admin_audio_exclude_none_key", user=self.router_owner)
         RouterSQLFactory(
             user=self.router_owner,
             name=DEFAULT_MODEL_NAME,
-            type=ModelType.TEXT_CLASSIFICATION,
+            type=ModelType.AUTOMATIC_SPEECH_RECOGNITION,
             providers=1,
-            providers__type=ProviderType.TEI,
+            providers__type=ProviderType.VLLM,
             providers__url=DEFAULT_PROVIDER_URL,
+            providers__model_hosting_zone=ProviderCarbonFootprintZone.FRA,
         )
         await db_session.flush()
 
-        route = mock_rerank_responses(
+        route = mock_audio_transcriptions_responses(
             respx_mock=respx,
-            provider_type=ProviderType.TEI,
-            body=TeiRerankResponseFactory(count=len(DEFAULT_DOCUMENTS)),
-            status_code=TeiRerankResponseFactory._status_code,
+            provider_type=ProviderType.VLLM,
+            body=VllmAudioTranscriptionsResponseFactory(),
+            status_code=VllmAudioTranscriptionsResponseFactory._status_code,
         )
 
         response = await client.post(
             url=URL,
             headers={"Authorization": f"Bearer {admin_key.token}"},
-            json=_valid_body(),
+            files=_valid_files(),
+            data=_valid_data(),
         )
 
         assert response.status_code == 200, response.text
-        provider_json = json.loads(route.calls[0].request.content)
-        assert "top_n" not in provider_json
-        assert None not in provider_json.values()
+        provider_body = route.calls[0].request.content
+        assert b'name="language"' not in provider_body
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
@@ -145,9 +146,14 @@ class TestCreateRerank:
                 "Insufficient budget.",
             ),
             (
-                RouterHasWrongTypeError(id=1, actual_type=RouterType.TEXT_GENERATION, expected_type=RouterType.TEXT_CLASSIFICATION),
+                AudioFileSizeLimitExceededError(size=100, expected_size=50),
+                413,
+                "File size limit exceeded. Expected: 50 Bytes. Actual: 100 Bytes.",
+            ),
+            (
+                RouterHasWrongTypeError(id=1, actual_type=RouterType.TEXT_GENERATION, expected_type=RouterType.AUTOMATIC_SPEECH_RECOGNITION),
                 422,
-                "Model has wrong type. Expected: text-classification. Actual: text-generation.",
+                "Model has wrong type. Expected: automatic-speech-recognition. Actual: text-generation.",
             ),
             (
                 NoAvailableProviderError(router_id=1),
@@ -179,12 +185,13 @@ class TestCreateRerank:
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
         mock_use_case = AsyncMock()
         mock_use_case.execute.return_value = use_case_result
-        app.dependency_overrides[create_rerank_use_case_factory] = lambda: mock_use_case
+        app.dependency_overrides[create_audio_transcriptions_use_case_factory] = lambda: mock_use_case
 
         response = await client.post(
             url=URL,
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(),
+            files=_valid_files(),
+            data=_valid_data(),
         )
 
         assert response.status_code == expected_status
@@ -193,23 +200,44 @@ class TestCreateRerank:
     @pytest.mark.parametrize(
         "use_case_result",
         [
-            ProviderAdapterValidationRequestError(provider_type=ProviderType.TEI, errors=SAMPLE_VALIDATION_ERRORS),
-            ProviderAdapterValidationResponseError(provider_type=ProviderType.TEI, errors=SAMPLE_VALIDATION_ERRORS),
+            ProviderAdapterValidationRequestError(provider_type=ProviderType.VLLM, errors=SAMPLE_VALIDATION_ERRORS),
+            ProviderAdapterValidationResponseError(provider_type=ProviderType.VLLM, errors=SAMPLE_VALIDATION_ERRORS),
         ],
     )
     async def test_adapter_validation_error_returns_422_with_errors(self, client: AsyncClient, app, use_case_result):
         mock_use_case = AsyncMock()
         mock_use_case.execute.return_value = use_case_result
-        app.dependency_overrides[create_rerank_use_case_factory] = lambda: mock_use_case
+        app.dependency_overrides[create_audio_transcriptions_use_case_factory] = lambda: mock_use_case
 
         response = await client.post(
             url=URL,
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(),
+            files=_valid_files(),
+            data=_valid_data(),
         )
 
         assert response.status_code == 422
         assert response.json().get("detail") == SAMPLE_VALIDATION_ERRORS
+
+    async def test_text_success_returns_plain_text(self, client: AsyncClient, app):
+        mock_use_case = AsyncMock()
+        mock_use_case.execute.return_value = CreateAudioTranscriptionsTextUseCaseSuccess(
+            text="hello world",
+            headers={},
+            media_type="text/plain",
+        )
+        app.dependency_overrides[create_audio_transcriptions_use_case_factory] = lambda: mock_use_case
+
+        response = await client.post(
+            url=URL,
+            headers={"Authorization": f"Bearer {self.key.token}"},
+            files=_valid_files(),
+            data=_valid_data(response_format="text"),
+        )
+
+        assert response.status_code == 200
+        assert response.text == "hello world"
+        assert "text/plain" in response.headers["content-type"]
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",
@@ -220,7 +248,7 @@ class TestCreateRerank:
         ],
     )
     async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):
-        response = await client.post(url=URL, headers=headers, json=_valid_body())
+        response = await client.post(url=URL, headers=headers, files=_valid_files(), data=_valid_data())
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail

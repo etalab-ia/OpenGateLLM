@@ -6,7 +6,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from pydantic import ValidationError
 
-from api.dependencies import _authenticated_user_query, _key_repository
+from api.dependencies import _authenticated_user_query, _authentication_key_repository
 from api.domain.key import KeyEncoder, KeyRepository
 from api.domain.key.entities import Key
 from api.domain.key.errors import KeyNotFoundError
@@ -35,7 +35,7 @@ class AccessController:
         self,
         request: Request,
         api_key: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
-        key_repository: KeyRepository = Depends(_key_repository),
+        key_repository: KeyRepository = Depends(_authentication_key_repository),
         authenticated_user_query: AuthenticatedUserQuery = Depends(_authenticated_user_query),
         request_context: ContextVar[RequestContext] = Depends(get_request_context),
     ) -> None:

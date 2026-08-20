@@ -16,10 +16,10 @@ from api.schemas.admin.providers import ProviderCarbonFootprintZone
 from api.schemas.admin.roles import LimitType
 from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
+from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_ocr_responses
 from api.tests.integration.factories.mistral import MistralOcrResponseFactory
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
-from api.utils.context import global_context
 from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.OCR}"
@@ -45,18 +45,11 @@ class TestCreateOCR:
         self.user = UserSQLFactory(name="Alice", email="alice@example.com")
         self.key = await create_key(db_session, name="user_key", user=self.user)
         self.router_owner = UserSQLFactory(name="Bob", email="bob@example.com", admin_user=True)
-        previous_redis_pool = global_context.redis_pool
-        previous_tokenizer = getattr(global_context, "_tokenizer", None)
-        global_context.redis_pool = test_redis_pool
 
         mock_tokenizer = MagicMock()
         mock_tokenizer.encode.side_effect = lambda text: [0] * 10 if text else []  # OCR requests carry no textual prompt
-        global_context._tokenizer = mock_tokenizer
-
-        yield
-
-        global_context.redis_pool = previous_redis_pool
-        global_context._tokenizer = previous_tokenizer
+        with override_global_context(redis_pool=test_redis_pool, _tokenizer=mock_tokenizer):
+            yield
 
     @respx.mock
     async def test_happy_path(self, client: AsyncClient, db_session):

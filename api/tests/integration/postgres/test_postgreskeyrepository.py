@@ -123,6 +123,17 @@ class TestGetKeysPage:
         assert result.total == 1
         assert result.data[0].name == "active-key"
 
+    async def test_returns_empty_page_when_offset_exceeds_total(self, repository, db_session):
+        # the windowed count rides on the rows, an empty page must still report the real total
+        user = UserSQLFactory()
+        KeySQLFactory(user=user, name="key_a", never_expires=True)
+        await db_session.flush()
+
+        result = await repository.get_keys_page(user_id=user.id, limit=10, offset=100)
+
+        assert result.data == []
+        assert result.total == 1
+
     async def test_sort_by_name_desc(self, repository, db_session):
         user = UserSQLFactory()
         KeySQLFactory(user=user, name="key_a", never_expires=True)

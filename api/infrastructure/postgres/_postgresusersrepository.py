@@ -16,6 +16,7 @@ from api.domain.user.errors import (
     UserAlreadyExistsError,
     UserNotFoundError,
 )
+from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Permission as PermissionTable
 from api.sql.models import User as UserTable
@@ -169,7 +170,7 @@ class PostgresUserRepository(UserRepository):
 
         count_query = select(func.count()).select_from(UserTable)
 
-        statement = select(*_USER_COLUMNS).offset(offset=offset).limit(limit=limit).order_by(order_clause)
+        statement = select(*_USER_COLUMNS, func.count().over().label("total")).offset(offset=offset).limit(limit=limit).order_by(order_clause)
         conditions = []
         if role_id is not None:
             conditions.append(UserTable.role_id == role_id)
@@ -178,12 +179,9 @@ class PostgresUserRepository(UserRepository):
         if email is not None:
             conditions.append(UserTable.email.like(f"%{email.lower()}%"))
 
-        total = (await self.postgres_session.execute(count_query.where(*conditions))).scalar_one()
+        rows, total = await fetch_page_with_total(self.postgres_session, statement.where(*conditions), count_query.where(*conditions))
 
-        result = await self.postgres_session.execute(statement=statement.where(*conditions))
-        users = [self._row_to_user(row) for row in result.all()]
-
-        return UserPage(total=total, data=users)
+        return UserPage(total=total, data=[self._row_to_user(row) for row in rows])
 
     @with_lock(namespace="user", key="user.id")
     async def update_user(self, user: User) -> User | UserNotFoundError | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError:

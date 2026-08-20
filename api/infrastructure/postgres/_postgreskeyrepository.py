@@ -9,6 +9,7 @@ from api.domain.key import KeyEncoder, KeyRepository
 from api.domain.key.entities import Key, KeyPage
 from api.domain.key.errors import KeyAlreadyExistsError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
+from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.sql.models import Token as KeyTable
 
 
@@ -45,14 +46,13 @@ class PostgresKeyRepository(KeyRepository):
         if exclude_expired:
             filters.append(or_(KeyTable.expires.is_(None), KeyTable.expires >= func.now()))
 
-        key_query = select(KeyTable).where(*filters).order_by(order_fn(sort_column)).offset(offset).limit(limit)
+        key_query = select(KeyTable, func.count().over().label("total")).where(*filters).order_by(order_fn(sort_column)).offset(offset).limit(limit)
         count_query = select(func.count()).select_from(KeyTable).where(*filters)
+        rows, total = await fetch_page_with_total(self.postgres_session, key_query, count_query)
 
-        total = (await self.postgres_session.execute(count_query)).scalar_one()
-        result = await self.postgres_session.execute(key_query)
         keys = [
-            Key(id=row.id, name=row.name, user_id=row.user_id, value=row.token, expires=row.expires, created=row.created)
-            for row in result.scalars().all()
+            Key(id=row[0].id, name=row[0].name, user_id=row[0].user_id, value=row[0].token, expires=row[0].expires, created=row[0].created)
+            for row in rows
         ]
 
         return KeyPage(total=total, data=keys)

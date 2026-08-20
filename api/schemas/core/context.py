@@ -29,6 +29,7 @@ class GlobalContext(BaseModel):
     tokenizer: UsageTokenizer | None = None
     redis_pool: ConnectionPool | None = None
     postgres_session_factory: async_sessionmaker | None = None
+    autocommit_postgres_session_factory: async_sessionmaker | None = None
     postgres_engine: AsyncEngine | None = None
     langfuse_client: LangfuseManager | None = None
 
