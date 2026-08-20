@@ -52,7 +52,7 @@ class TestAuth:
             json={
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
-                "role": role_without_permissions["id"],
+                "role_id": role_without_permissions["id"],
                 "password": "test-password",
             },
         )
@@ -72,7 +72,7 @@ class TestAuth:
             json={
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
-                "role": role_without_permissions["id"],
+                "role_id": role_without_permissions["id"],
                 "expires": past_expiration,
                 "password": "test-password",
             },
@@ -86,7 +86,7 @@ class TestAuth:
             json={
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
-                "role": role_without_permissions["id"],
+                "role_id": role_without_permissions["id"],
                 "expires": future_expiration,
                 "password": "test-password",
             },
@@ -128,7 +128,7 @@ class TestAuth:
             json={
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
-                "role": role_without_permissions["id"],
+                "role_id": role_without_permissions["id"],
                 "expires": future_expiration,
                 "password": "test-password",
             },
@@ -173,7 +173,7 @@ class TestAuth:
             json={
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
-                "role": role_without_permissions["id"],
+                "role_id": role_without_permissions["id"],
                 "password": "test-password",
             },
         )
@@ -214,7 +214,7 @@ class TestAuth:
             json={
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
-                "role": role_id,
+                "role_id": role_id,
                 "password": "test-password",
             },
         )
@@ -299,7 +299,7 @@ class TestAuth:
             json={
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
-                "role": 1,
+                "role_id": 1,
                 "budget": initial_budget,
                 "password": "test-password",
             },
@@ -369,7 +369,7 @@ class TestAuth:
             json={
                 "email": f"user1_{str(uuid4())}@example.com",
                 "name": f"user1_{str(uuid4())}",
-                "role": role_without_permissions["id"],
+                "role_id": role_without_permissions["id"],
                 "password": "test-password",
             },
         )
@@ -400,7 +400,7 @@ class TestAuth:
             json={
                 "email": f"user2_{str(uuid4())}@example.com",
                 "name": f"user2_{str(uuid4())}",
-                "role": role_without_permissions["id"],
+                "role_id": role_without_permissions["id"],
                 "password": "test-password",
             },
         )

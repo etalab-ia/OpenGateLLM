@@ -9,11 +9,11 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 import httpx
 
+from api.infrastructure.fastapi.schemas.admin.users import CreateUserBody
 from api.schemas.admin.providers import CreateProvider, ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.roles import CreateRole, Limit, LimitType
 from api.schemas.admin.routers import CreateRouter
 from api.schemas.admin.tokens import CreateToken
-from api.schemas.admin.users import CreateUser
 from api.schemas.core.configuration import Metric
 from api.schemas.models import ModelType
 from api.utils.variables import EndpointRoute
@@ -208,10 +208,10 @@ def create_role(router_id: int, client: TestClient) -> int:
 
 
 def create_user(role_id: int, client: TestClient) -> int:
-    payload = CreateUser(
+    payload = CreateUserBody(
         name=f"test-user-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}",
         email=f"test-user-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}@example.com",
-        role=role_id,
+        role_id=role_id,
         password="test-password",
     )
     response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}", json=payload.model_dump())
