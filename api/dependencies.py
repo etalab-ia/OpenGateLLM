@@ -189,7 +189,7 @@ def _provider_repository(session: AsyncSession) -> ProviderRepository:
 
 # audio use cases
 def create_audio_transcriptions_use_case_factory(
-    postgres_session: AsyncSession = Depends(get_postgres_session),
+    postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
     redis_client: Redis = Depends(get_redis_client),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
