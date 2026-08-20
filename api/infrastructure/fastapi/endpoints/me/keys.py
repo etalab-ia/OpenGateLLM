@@ -6,7 +6,9 @@ from api.dependencies import create_me_key_use_case_factory, get_keys_use_case_f
 from api.domain import SortField, SortOrder
 from api.domain.key.errors import KeyAlreadyExistsError, KeyExpirationInvalidError
 from api.domain.user.errors import UserNotFoundError
+from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
+from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InternalServerHTTPException,
@@ -25,7 +27,6 @@ from api.use_cases.admin.keys import (
     GetKeysUseCase,
     GetKeysUseCaseSuccess,
 )
-from api.utils.dependencies import get_authenticated_user_id
 from api.utils.variables import EndpointRoute
 
 logger = logging.getLogger(__name__)
@@ -40,20 +41,21 @@ logger = logging.getLogger(__name__)
 async def create_key(
     body: CreateKeyBody = Body(description="The key creation request."),
     create_me_key_use_case: CreateKeyUseCase = Depends(create_me_key_use_case_factory),
-    authenticated_user_id: int = Depends(get_authenticated_user_id),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeyResponse:
     """
     Create a new API key for the authenticated user.
     """
 
-    command = CreateKeyCommand(user_id=authenticated_user_id, name=body.name, expire=body.expires)
+    command = CreateKeyCommand(user_id=authenticated_user.id, name=body.name, expire=body.expires)
     try:
         result = await create_me_key_use_case.execute(command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing create_me_key use case",
             extra={
-                "authenticated_user_id": authenticated_user_id,
+                "authenticated_user_id": authenticated_user.id,
+                "name": body.name,
                 "error_type": type(e).__name__,
             },
         )
@@ -82,14 +84,14 @@ async def get_keys(
     sort_by: SortField = Query(default=SortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_keys_use_case: GetKeysUseCase = Depends(get_keys_use_case_factory),
-    authenticated_user_id: int = Depends(get_authenticated_user_id),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeysResponse:
     """
     Get all your keys.
     """
 
     command = GetKeysCommand(
-        user_id=authenticated_user_id,
+        user_id=authenticated_user.id,
         offset=offset,
         limit=limit,
         sort_by=sort_by,
@@ -101,7 +103,7 @@ async def get_keys(
         logger.exception(
             "Unexpected error while executing get_keys use case",
             extra={
-                "authenticated_user_id": authenticated_user_id,
+                "authenticated_user_id": authenticated_user.id,
                 "offset": command.offset,
                 "limit": command.limit,
                 "sort_by": command.sort_by,

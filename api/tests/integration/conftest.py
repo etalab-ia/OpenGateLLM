@@ -17,6 +17,7 @@ from api.helpers.models import ModelRegistry
 from api.schemas.core.configuration import Configuration, Dependencies, Settings
 from api.sql.models import Base
 from api.tests.integration import factories
+from api.utils.configuration import configuration as global_configuration
 from api.utils.context import global_context
 from api.utils.dependencies import get_model_registry
 from api.utils.dependencies import get_postgres_session as get_postgres_session_utils
@@ -44,9 +45,12 @@ def test_configuration():
             disabled_routers=[],
             hidden_routers=[],
             monitoring_prometheus_enabled=False,
+            auth_secret_key="test-secret-key",
+            auth_key_max_expiration_days=None,
         ),
         dependencies=Dependencies.model_construct(sentry=None),
     )
+    global_configuration.settings = configuration.settings
     return configuration
 
 
