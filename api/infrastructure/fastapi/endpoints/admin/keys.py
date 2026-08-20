@@ -9,7 +9,7 @@ from api.dependencies import (
     get_one_key_use_case_factory,
 )
 from api.domain import SortField, SortOrder
-from api.domain.key.errors import KeyAlreadyExistsError, KeyNotFoundError
+from api.domain.key.errors import KeyAlreadyExistsError, KeyExpirationInvalidError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -19,6 +19,7 @@ from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
     InternalServerHTTPException,
     KeyAlreadyExistsHTTPException,
+    KeyExpirationInvalidHTTPException,
     KeyNotFoundHTTPException,
     NotAdminUserHTTPException,
     UserNotFoundHTTPException,
@@ -47,7 +48,9 @@ logger = logging.getLogger(__name__)
     path=EndpointRoute.ADMIN_KEYS,
     dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=201,
-    responses=get_documentation_responses([KeyAlreadyExistsHTTPException, NotAdminUserHTTPException, UserNotFoundHTTPException]),
+    responses=get_documentation_responses(
+        [KeyAlreadyExistsHTTPException, KeyExpirationInvalidHTTPException, NotAdminUserHTTPException, UserNotFoundHTTPException]
+    ),
 )
 async def create_key(
     body: CreateKeyBody = Body(description="The key creation request."),
@@ -76,6 +79,8 @@ async def create_key(
             return KeyResponse.model_validate(key, from_attributes=True)
         case KeyAlreadyExistsError(name=name):
             raise KeyAlreadyExistsHTTPException(name)
+        case KeyExpirationInvalidError(max_expiration_days=max_expiration_days):
+            raise KeyExpirationInvalidHTTPException(max_expiration_days)
         case UserNotFoundError(id=user_id):
             raise UserNotFoundHTTPException(user_id)
 

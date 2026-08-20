@@ -283,7 +283,10 @@ def create_embeddings_use_case_factory(
 
 # keys use cases
 def create_key_use_case_factory(key_repository: KeyRepository = Depends(_key_repository)) -> CreateKeyUseCase:
-    return CreateKeyUseCase(key_repository=key_repository)
+    return CreateKeyUseCase(
+        key_repository=key_repository,
+        key_max_expiration_days=configuration.settings.auth_key_max_expiration_days,
+    )
 
 
 def get_keys_use_case_factory(key_repository: KeyRepository = Depends(_key_repository)) -> GetKeysUseCase:
