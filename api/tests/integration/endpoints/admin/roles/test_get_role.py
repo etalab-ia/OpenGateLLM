@@ -4,7 +4,7 @@ from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import get_role_use_case_factory
+from api.dependencies import get_one_role_use_case_factory
 from api.domain.role.entities import LimitType, PermissionType
 from api.domain.role.errors import RoleNotFoundError
 from api.tests.helpers import INVALID_API_KEY, create_key
@@ -50,7 +50,7 @@ class TestGetRole:
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
         mock_use_case = AsyncMock()
         mock_use_case.execute.return_value = use_case_result
-        app.dependency_overrides[get_role_use_case_factory] = lambda: mock_use_case
+        app.dependency_overrides[get_one_role_use_case_factory] = lambda: mock_use_case
 
         response = await client.get(
             url=f"{URL}/999",

@@ -9,24 +9,24 @@ from api.domain.user.views import AuthenticatedUserView
 
 
 @dataclass
-class GetModelUseCaseSucess:
+class GetOneModelUseCaseSuccess:
     model: Model
 
 
 @dataclass
-class GetModelCommand:
+class GetOneModelCommand:
     authenticated_user: AuthenticatedUserView
     name: str
 
 
-type GetModelUseCaseResult = GetModelUseCaseSucess | ModelNotFoundError
+type GetOneModelUseCaseResult = GetOneModelUseCaseSuccess | ModelNotFoundError
 
 
-class GetModelUseCase:
+class GetOneModelUseCase:
     def __init__(self, router_repository: RouterRepository):
         self.router_repository = router_repository
 
-    async def execute(self, command: GetModelCommand) -> GetModelUseCaseResult:
+    async def execute(self, command: GetOneModelCommand) -> GetOneModelUseCaseResult:
         result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=command.name)
         match result:
             case Router() as router:
@@ -48,4 +48,4 @@ class GetModelUseCase:
             costs=ModelCosts(prompt_tokens=router.cost_prompt_tokens, completion_tokens=router.cost_completion_tokens),
         )
 
-        return GetModelUseCaseSucess(model=model)
+        return GetOneModelUseCaseSuccess(model=model)

@@ -49,14 +49,14 @@ from api.use_cases.admin.providers import (
     GetProvidersUseCase,
     UpdateProviderUseCase,
 )
-from api.use_cases.admin.roles import CreateRoleUseCase, DeleteRoleUseCase, GetRolesUseCase, GetRoleUseCase, UpdateRoleUseCase
+from api.use_cases.admin.roles import CreateRoleUseCase, DeleteRoleUseCase, GetOneRoleUseCase, GetRolesUseCase, UpdateRoleUseCase
 from api.use_cases.admin.routers import CreateRouterUseCase, DeleteRouterUseCase, GetOneRouterUseCase, GetRoutersUseCase, UpdateRouterUseCase
 from api.use_cases.admin.users import CreateUserUseCase, DeleteUserUseCase, GetOneUserUseCase, GetUsersUseCase, UpdateUserUseCase
 from api.use_cases.audio import CreateAudioTranscriptionsUseCase
 from api.use_cases.auth import AuthLoginUseCase, AuthSsoLoginUseCase
 from api.use_cases.embeddings import CreateEmbeddingsUseCase
 from api.use_cases.health import GetHealthModelsUseCase
-from api.use_cases.models import GetModelsUseCase, GetModelUseCase
+from api.use_cases.models import GetModelsUseCase, GetOneModelUseCase
 from api.use_cases.ocr import CreateOCRUseCase
 from api.use_cases.reranks import CreateRerankUseCase
 from api.use_cases.services import ProviderCapabilitiesProbe
@@ -299,8 +299,8 @@ def get_models_use_case_factory(postgres_session: AsyncSession = Depends(get_pos
     return GetModelsUseCase(router_repository=_router_repository(postgres_session))
 
 
-def get_model_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetModelUseCase:
-    return GetModelUseCase(router_repository=_router_repository(postgres_session))
+def get_one_model_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneModelUseCase:
+    return GetOneModelUseCase(router_repository=_router_repository(postgres_session))
 
 
 # ocr use cases
@@ -399,8 +399,8 @@ def get_roles_use_case_factory(postgres_session: AsyncSession = Depends(get_post
     )
 
 
-def get_role_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetRoleUseCase:
-    return GetRoleUseCase(
+def get_one_role_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneRoleUseCase:
+    return GetOneRoleUseCase(
         role_repository=_role_repository(postgres_session),
     )
 
