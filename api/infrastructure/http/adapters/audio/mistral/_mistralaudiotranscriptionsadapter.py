@@ -30,7 +30,7 @@ class MistralAudioTranscriptionsAdapter(AudioTranscriptionsAdapter):
             return ProviderAdapterValidationRequestError(provider_type=self.provider.type, errors=e.errors())
 
         text = body.prompt or f"Transcribe this audio in this language : {body.language or 'en'}"  # fmt: off
-        file = original_request.payload.file.file
+        file = original_request.payload.file.file.read()
         input_audio = base64.b64encode(file).decode("utf-8")
         target_url = self._build_target_url(base_url=self.provider.url, target_endpoint_route=self.TARGET_ENDPOINT_ROUTE)
         return ProviderFormattedRequest(
