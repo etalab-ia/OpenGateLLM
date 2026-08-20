@@ -2,7 +2,7 @@ name: Testing
 
 # PR targeting main:
 #   draft  → unit (no coverage, no badge commit) + integration
-#   ready  → unit (coverage; badge commit only if % changed) + integration + e2e
+#   ready  → unit (coverage + badge commit) + integration + e2e
 # workflow_call / workflow_dispatch → all jobs; unit with coverage (badge commit only on a ready PR to main)
 
 on:
@@ -47,7 +47,6 @@ jobs:
           pytest -s api/tests/unit --config-file=pyproject.toml
 
       - name: Run unit tests with coverage and publish unit badge
-        id: coverage
         if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
         run: |
           . .venv/bin/activate
@@ -58,13 +57,11 @@ jobs:
           # Export coverage data to XML for badge computation
           python -m coverage xml -o coverage.xml
 
-          # Build unit coverage badge JSON only when the percentage changed
+          # Build unit coverage badge JSON
           mkdir -p .github/badges
           python - <<'PY'
           import json
-          import os
           import xml.etree.ElementTree as ET
-          from pathlib import Path
 
           coverage = float(ET.parse("coverage.xml").getroot().get("line-rate"))
           coverage_pct = f"{coverage * 100:.2f}"
@@ -75,39 +72,20 @@ jobs:
           else:
               color = "red"
 
-          message = f"{coverage_pct}%"
-          badge_path = Path(".github/badges/coverage.json")
-          existing_message = None
-          if badge_path.exists():
-              try:
-                  existing_message = json.loads(badge_path.read_text(encoding="utf-8")).get("message")
-              except (OSError, json.JSONDecodeError):
-                  existing_message = None
-
-          github_output = os.environ["GITHUB_OUTPUT"]
-          if existing_message == message:
-              print(f"Coverage unchanged at {message}; skipping badge update")
-              with open(github_output, "a", encoding="utf-8") as output:
-                  output.write("badge_changed=false\n")
-          else:
-              badge = {
-                  "schemaVersion": 1,
-                  "label": "coverage",
-                  "message": message,
-                  "color": color,
-              }
-              with badge_path.open("w", encoding="utf-8") as badge_file:
-                  json.dump(badge, badge_file)
-              print(f"Coverage badge updated: {existing_message} -> {message}")
-              with open(github_output, "a", encoding="utf-8") as output:
-                  output.write("badge_changed=true\n")
+          badge = {
+              "schemaVersion": 1,
+              "label": "coverage",
+              "message": f"{coverage_pct}%",
+              "color": color,
+          }
+          with open(".github/badges/coverage.json", "w", encoding="utf-8") as badge_file:
+              json.dump(badge, badge_file)
           PY
 
       - name: Commit unit coverage badge
         if: >-
           github.event.pull_request.draft == false &&
-          github.event.pull_request.base.ref == 'main' &&
-          steps.coverage.outputs.badge_changed == 'true'
+          github.event.pull_request.base.ref == 'main'
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: Update unit coverage badge
