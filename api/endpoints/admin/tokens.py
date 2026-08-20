@@ -1,5 +1,5 @@
-from fastapi import Body, Depends, Path, Request, Security
-from fastapi.responses import JSONResponse, Response
+from fastapi import Body, Depends, Request, Security
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.role.entities import PermissionType
@@ -34,23 +34,3 @@ async def create_token(
     )
 
     return JSONResponse(status_code=201, content={"id": token_id, "token": token})
-
-
-@router.delete(
-    path=EndpointRoute.ADMIN_TOKENS + "/{token}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
-    status_code=204,
-)
-async def delete_token(
-    request: Request,
-    user: int = Path(description="The user ID of the user to delete the token for."),
-    token: int = Path(description="The token ID of the token to delete."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-) -> Response:
-    """
-    Delete a token.
-    """
-
-    await global_context.identity_access_manager.delete_token(postgres_session=postgres_session, user_id=user, token_id=token)
-
-    return Response(status_code=204)
