@@ -138,11 +138,11 @@ class TestAuth:
 
         # Create token for this user
         response = client.post_with_permissions(
-            url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
+            url=f"/v1{EndpointRoute.ADMIN_KEYS}",
             json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires": future_expiration + 60},
         )
         assert response.status_code == 201, response.text
-        token = response.json()["token"]
+        token = response.json()["value"]
 
         # Test API access with token before expiration
         headers = {"Authorization": f"Bearer {token}"}
@@ -182,7 +182,7 @@ class TestAuth:
 
         # Create a token for this user
         response = client.post_with_permissions(
-            url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
+            url=f"/v1{EndpointRoute.ADMIN_KEYS}",
             json={
                 "name": f"test_token_{str(uuid4())}",
                 "user": user_id,
@@ -223,11 +223,11 @@ class TestAuth:
 
         # Create a token for this user
         response = client.post_with_permissions(
-            url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
+            url=f"/v1{EndpointRoute.ADMIN_KEYS}",
             json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires": int((time.time()) + 60 * 10), "password": "test-password"},
         )
         assert response.status_code == 201, response.text
-        token = response.json()["token"]
+        token = response.json()["value"]
 
         # Test token limits
         def get_content_len(n: int) -> str:
@@ -309,11 +309,11 @@ class TestAuth:
 
         # Create a token for this user
         response = client.post_with_permissions(
-            url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
+            url=f"/v1{EndpointRoute.ADMIN_KEYS}",
             json={"name": f"test_token_{str(uuid4())}", "user": user_id, "expires": int((time.time()) + 60 * 10)},
         )
         assert response.status_code == 201, response.text
-        token = response.json()["token"]
+        token = response.json()["value"]
 
         # Test the budget
         prompt = "Hello, how are you?"
@@ -378,12 +378,12 @@ class TestAuth:
 
         # Create token for first user using admin credentials
         response = client.post_with_permissions(
-            url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
+            url=f"/v1{EndpointRoute.ADMIN_KEYS}",
             json={"name": token_name, "user": user1_id},
         )
         assert response.status_code == 201, response.text
         user1_token_id = response.json()["id"]
-        user1_token = response.json()["token"]
+        user1_token = response.json()["value"]
 
         # Get first user's token
         headers1 = {"Authorization": f"Bearer {user1_token}"}
@@ -409,12 +409,12 @@ class TestAuth:
 
         # Create token for second user with the same name using admin credentials
         response = client.post_with_permissions(
-            url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
+            url=f"/v1{EndpointRoute.ADMIN_KEYS}",
             json={"name": token_name, "user": user2_id, "expires": int((time.time()) + 300)},
         )
         assert response.status_code == 201, response.text
         user2_token_id = response.json()["id"]
-        user2_token = response.json()["token"]
+        user2_token = response.json()["value"]
 
         # Get second user's token
         headers2 = {"Authorization": f"Bearer {user2_token}"}

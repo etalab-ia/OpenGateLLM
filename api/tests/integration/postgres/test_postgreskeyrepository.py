@@ -233,3 +233,32 @@ class TestUpsertKey:
         # Assert
         assert isinstance(result, UserNotFoundError)
         assert result.id == 999999
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestDeleteKey:
+    async def test_delete_key_should_return_key_and_remove_it_when_key_exists(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        token = KeySQLFactory(user=user, name="to-delete", never_expires=True)
+        await db_session.flush()
+        key_id = token.id
+
+        # Act
+        result = await repository.delete_key(key_id=key_id)
+
+        # Assert
+        assert isinstance(result, Key)
+        assert result.id == key_id
+        assert result.name == "to-delete"
+        assert result.user_id == user.id
+        remaining = await db_session.scalar(select(KeyTable).where(KeyTable.id == key_id))
+        assert remaining is None
+
+    async def test_delete_key_should_return_key_not_found_when_key_does_not_exist(self, repository, db_session):
+        # Act
+        result = await repository.delete_key(key_id=999999)
+
+        # Assert
+        assert isinstance(result, KeyNotFoundError)
+        assert result.id == 999999

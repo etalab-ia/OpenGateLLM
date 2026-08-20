@@ -32,3 +32,7 @@ class KeyRepository(ABC):
     @abstractmethod
     async def upsert_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | UserNotFoundError:
         pass
+
+    @abstractmethod
+    async def delete_key(self, key_id: int) -> Key | KeyNotFoundError:
+        pass
