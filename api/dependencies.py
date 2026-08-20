@@ -289,6 +289,13 @@ def create_key_use_case_factory(key_repository: KeyRepository = Depends(_key_rep
     )
 
 
+def create_me_key_use_case_factory(key_repository: KeyRepository = Depends(_key_repository)) -> CreateKeyUseCase:
+    return CreateKeyUseCase(
+        key_repository=key_repository,
+        key_max_expiration_days=configuration.settings.auth_key_max_expiration_days,
+    )
+
+
 def get_keys_use_case_factory(key_repository: KeyRepository = Depends(_key_repository)) -> GetKeysUseCase:
     return GetKeysUseCase(key_repository=key_repository)
 

@@ -201,7 +201,7 @@ class KeysState(EntityState):
                 data = response.json()
 
                 # Store the created key to display in dialog
-                self.created_key = data.get("key", "")
+                self.created_key = data.get("value", "")
                 self.is_created_dialog_open = True
 
                 # Reset the create form, keeping the default 1-year expiry
