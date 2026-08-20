@@ -143,7 +143,7 @@ def tokens(test_client: TestClient, users: tuple[dict, dict]) -> tuple[dict, dic
 
     # create token admin
     response = test_client.post(
-        url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
+        url=f"/v1{EndpointRoute.ADMIN_KEYS}",
         json={"user": user_with_permissions["id"], "name": "test-token-admin", "expires": int(time.time()) + 300},
         headers=test_client.headers,
     )
@@ -152,7 +152,7 @@ def tokens(test_client: TestClient, users: tuple[dict, dict]) -> tuple[dict, dic
 
     # create token user
     response = test_client.post(
-        url=f"/v1{EndpointRoute.ADMIN_TOKENS}",
+        url=f"/v1{EndpointRoute.ADMIN_KEYS}",
         json={"user": user_without_permissions["id"], "name": "test-token-user", "expires": int(time.time()) + 300},
         headers=test_client.headers,
     )
@@ -169,16 +169,16 @@ def client(test_client: TestClient, tokens: tuple[dict, dict]) -> Generator[Test
     client = test_client
 
     # user
-    client.get_without_permissions = partial(client.get, headers={"Authorization": f"Bearer {token_without_permissions['token']}"})
-    client.post_without_permissions = partial(client.post, headers={"Authorization": f"Bearer {token_without_permissions['token']}"})
-    client.delete_without_permissions = partial(client.delete, headers={"Authorization": f"Bearer {token_without_permissions['token']}"})
-    client.patch_without_permissions = partial(client.patch, headers={"Authorization": f"Bearer {token_without_permissions['token']}"})
+    client.get_without_permissions = partial(client.get, headers={"Authorization": f"Bearer {token_without_permissions['value']}"})
+    client.post_without_permissions = partial(client.post, headers={"Authorization": f"Bearer {token_without_permissions['value']}"})
+    client.delete_without_permissions = partial(client.delete, headers={"Authorization": f"Bearer {token_without_permissions['value']}"})
+    client.patch_without_permissions = partial(client.patch, headers={"Authorization": f"Bearer {token_without_permissions['value']}"})
 
     # admin
-    client.get_with_permissions = partial(client.get, headers={"Authorization": f"Bearer {token_with_permissions['token']}"})
-    client.post_with_permissions = partial(client.post, headers={"Authorization": f"Bearer {token_with_permissions['token']}"})
-    client.delete_with_permissions = partial(client.delete, headers={"Authorization": f"Bearer {token_with_permissions['token']}"})
-    client.patch_with_permissions = partial(client.patch, headers={"Authorization": f"Bearer {token_with_permissions['token']}"})
+    client.get_with_permissions = partial(client.get, headers={"Authorization": f"Bearer {token_with_permissions['value']}"})
+    client.post_with_permissions = partial(client.post, headers={"Authorization": f"Bearer {token_with_permissions['value']}"})
+    client.delete_with_permissions = partial(client.delete, headers={"Authorization": f"Bearer {token_with_permissions['value']}"})
+    client.patch_with_permissions = partial(client.patch, headers={"Authorization": f"Bearer {token_with_permissions['value']}"})
 
     # root
     client.get_master = partial(client.get, headers=test_client.headers)

@@ -43,6 +43,17 @@ class InsufficientBudgetHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
+class KeyExpirationInvalidHTTPException(HTTPException):
+    status_code = 400
+    detail = "Key expiration timestamp cannot be greater than {max_expiration_days} days from now."
+
+    def __init__(self, max_expiration_days: int) -> None:
+        super().__init__(
+            status_code=self.status_code,
+            detail=f"Key expiration timestamp cannot be greater than {max_expiration_days} days from now.",
+        )
+
+
 # 401
 class InvalidAPIKeyHTTPException(HTTPException):
     status_code = 401
