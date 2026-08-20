@@ -33,7 +33,7 @@ class UsersState(EntityState):
         organization_dict_reverse = {v: k for k, v in self.organizations_dict.items()}
         role_dict_reverse = {v: k for k, v in self.roles_dict.items()}
 
-        role_name = role_dict_reverse[user["role"]]
+        role_name = role_dict_reverse[user["role_id"]]
         organization_name = organization_dict_reverse.get(user["organization_id"], None)
 
         return User(
@@ -249,7 +249,7 @@ class UsersState(EntityState):
         payload = {
             "email": self.entity_to_create.email,
             "password": self.entity_to_create.password,
-            "role": role_id,
+            "role_id": role_id,
             "priority": self.entity_to_create.priority,
         }
 
@@ -325,7 +325,7 @@ class UsersState(EntityState):
         payload = {
             "email": self.entity.email,
             "name": self.entity.name,
-            "role": role_id,
+            "role_id": role_id,
             "expires": self.entity.expires,
             "priority": self.entity.priority,
         }
@@ -336,7 +336,7 @@ class UsersState(EntityState):
         if self.entity.password:
             payload["password"] = self.entity.password
         if organization_id:
-            payload["organization"] = organization_id
+            payload["organization_id"] = organization_id
 
         response = None
         try:

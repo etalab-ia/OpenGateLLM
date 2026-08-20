@@ -62,7 +62,7 @@ class UpdateUserUseCase:
         updated_user = existing_user.model_copy(
             update={
                 "email": command.email if command.email is not None else existing_user.email,
-                "role": command.role_id if command.role_id is not None else existing_user.role,
+                "role_id": command.role_id if command.role_id is not None else existing_user.role_id,
                 "priority": command.priority if command.priority is not None else existing_user.priority,
                 "name": command.name,
                 "organization_id": command.organization_id,

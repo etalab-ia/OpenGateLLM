@@ -56,7 +56,7 @@ class BootstrapAdminUseCase:
         result = await self.user_repository.get_first_admin_user()
         match result:
             case User() as user:
-                return BootstrapAdminUseCaseSkipped(user_id=user.id, email=user.email, role_id=user.role)
+                return BootstrapAdminUseCaseSkipped(user_id=user.id, email=user.email, role_id=user.role_id)
 
         result = await self.role_repository.get_role_with_permissions_and_limits_by_name(role_name=self.BOOTSTRAP_ADMIN_ROLE_NAME)
         match result:
@@ -70,8 +70,8 @@ class BootstrapAdminUseCase:
         result = await self.user_repository.get_user_by_email(email=command.email)
         match result:
             case User() as user:
-                if user.role != role.id:
-                    await self.user_repository.update_user(user=user.model_copy(update={"role": role.id}))
+                if user.role_id != role.id:
+                    await self.user_repository.update_user(user=user.model_copy(update={"role_id": role.id}))
             case UserNotFoundError():
                 encoded_password = self.user_password_encoder.encode_password(password=command.password)
                 user = await self.user_repository.create_user(

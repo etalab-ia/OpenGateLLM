@@ -59,7 +59,7 @@ class TestBootstrapAdminUserUseCase:
     ):
         # Arrange
         role = RoleFactory(id=42)
-        user = UserFactory(id=10, email="admin@opengatellm.org", role=42)
+        user = UserFactory(id=10, email="admin@opengatellm.org", role_id=42)
         user_repository.get_first_admin_user.return_value = UserNotFoundError()
         role_repository.get_role_with_permissions_and_limits_by_name.return_value = RoleNotFoundError(
             name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_ROLE_NAME
@@ -87,7 +87,7 @@ class TestBootstrapAdminUserUseCase:
     @pytest.mark.asyncio
     async def test_skips_when_admin_user_already_exists(self, use_case, user_repository, role_repository, command):
         # Arrange
-        existing_user = UserFactory(id=7, email="admin@opengatellm.org", role=99)
+        existing_user = UserFactory(id=7, email="admin@opengatellm.org", role_id=99)
         user_repository.get_first_admin_user.return_value = existing_user
 
         # Act
@@ -109,7 +109,7 @@ class TestBootstrapAdminUserUseCase:
             name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_ROLE_NAME,
             permissions=[PermissionType.ADMIN],
         )
-        user = UserFactory(id=11, email="admin@opengatellm.org", role=5)
+        user = UserFactory(id=11, email="admin@opengatellm.org", role_id=5)
         user_repository.get_first_admin_user.return_value = UserNotFoundError()
         role_repository.get_role_with_permissions_and_limits_by_name.return_value = existing_role
         user_repository.get_user_by_email.return_value = UserNotFoundError(email=command.email)
@@ -134,8 +134,8 @@ class TestBootstrapAdminUserUseCase:
     async def test_updates_existing_user_when_email_conflicts_and_has_no_admin(self, use_case, user_repository, role_repository, command):
         # Arrange
         role = RoleFactory(id=3)
-        existing_user = UserFactory(id=20, email="admin@opengatellm.org", role=1)
-        updated_user = existing_user.model_copy(update={"role": 3})
+        existing_user = UserFactory(id=20, email="admin@opengatellm.org", role_id=1)
+        updated_user = existing_user.model_copy(update={"role_id": 3})
         user_repository.get_first_admin_user.return_value = UserNotFoundError()
         role_repository.get_role_with_permissions_and_limits_by_name.return_value = RoleNotFoundError(
             name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_ROLE_NAME

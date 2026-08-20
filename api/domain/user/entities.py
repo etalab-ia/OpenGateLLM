@@ -23,7 +23,7 @@ class User(BaseModel):
     sub: str | None
     iss: str | None
     claims: dict[str, Any] | None
-    role: int
+    role_id: int
     organization_id: int | None
     budget: float | None
     expires: int | None
@@ -47,7 +47,7 @@ class User(BaseModel):
             or self.claims != claims
             or self.name != name
             or self.organization_id != organization_id
-            or self.role != role_id
+            or self.role_id != role_id
             or self.iss != iss
             or self.sub != sub
         )

@@ -152,7 +152,7 @@ class AuthSsoLoginUseCase:
                     "email": email,
                     "name": user_name,
                     "organization_id": organization_id,
-                    "role": role_id,
+                    "role_id": role_id,
                     "iss": command.iss,
                     "sub": command.sub,
                     "claims": command.claims,

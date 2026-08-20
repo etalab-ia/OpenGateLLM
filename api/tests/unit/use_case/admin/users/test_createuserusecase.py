@@ -52,7 +52,7 @@ class TestCreateUserUseCase:
             id=42,
             email="newuser@test.com",
             name="New User",
-            role=10,
+            role_id=10,
             organization_id=5,
             budget=100.0,
             priority=2,

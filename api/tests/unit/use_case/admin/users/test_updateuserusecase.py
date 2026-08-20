@@ -46,7 +46,7 @@ class TestUpdateUserUseCase:
         # Assert
         assert isinstance(result, UpdateUserUseCaseSuccess)
         assert result.user.email == "new@example.com"
-        assert result.user.role == 3
+        assert result.user.role_id == 3
         user_repository.get_user_by_id.assert_called_once_with(user_id=sample_user.id)
         user_repository.update_user.assert_called_once()
 
@@ -63,7 +63,7 @@ class TestUpdateUserUseCase:
         assert isinstance(result, UpdateUserUseCaseSuccess)
         # Non-nullable columns keep their current value.
         assert result.user.email == sample_user.email
-        assert result.user.role == sample_user.role
+        assert result.user.role_id == sample_user.role_id
         assert result.user.priority == sample_user.priority
         assert result.user.password == sample_user.password
         # Nullable columns are cleared.

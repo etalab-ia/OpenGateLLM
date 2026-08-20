@@ -93,7 +93,7 @@ def _existing_user(**overrides):
         "name": None,
         "sub": SUBJECT,
         "iss": ISSUER_URL,
-        "role": DEFAULT_ROLE_ID,
+        "role_id": DEFAULT_ROLE_ID,
         "organization_id": DEFAULT_ORGANIZATION_ID,
         "claims": {"name": "Test User"},
     }
@@ -170,7 +170,7 @@ class TestAuthSsoLoginUseCase:
     ):
         # Arrange
         user = _existing_user(claims={"old": True})
-        updated_user = user.model_copy(update={"role": 20, "organization_id": 5, "claims": default_command.claims, "name": "Custom Name"})
+        updated_user = user.model_copy(update={"role_id": 20, "organization_id": 5, "claims": default_command.claims, "name": "Custom Name"})
         auth_sso_session_validator.validate_session.return_value = EMAIL
         user_repository.get_user_by_iss_and_sub.return_value = user
         user_repository.update_user.return_value = updated_user
@@ -187,7 +187,7 @@ class TestAuthSsoLoginUseCase:
         user_repository.update_user.assert_awaited_once()
         updated = user_repository.update_user.await_args.kwargs["user"]
         assert updated.email == EMAIL
-        assert updated.role == 20
+        assert updated.role_id == 20
         assert updated.organization_id == 5
         assert updated.name == "Custom Name"
         assert updated.claims == default_command.claims
