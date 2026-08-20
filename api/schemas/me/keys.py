@@ -31,8 +31,3 @@ class Key(BaseModel):
     token: str
     expires: int | None = None
     created: int
-
-
-class Keys(BaseModel):
-    object: Literal["list"] = "list"
-    data: list[Key]

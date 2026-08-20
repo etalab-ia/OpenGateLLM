@@ -23,7 +23,7 @@ class KeysState(EntityState):
         return Key(
             id=key["id"],
             name=key["name"],
-            token=key["token"],
+            token=key["value"],
             expires=dt.datetime.fromtimestamp(key["expires"]).strftime("%Y-%m-%d %H:%M") if key["expires"] else "never",
             created=dt.datetime.fromtimestamp(key["created"]).strftime("%Y-%m-%d %H:%M"),
         )
@@ -56,8 +56,8 @@ class KeysState(EntityState):
         params = {
             "offset": (self.page - 1) * self.per_page,
             "limit": self.per_page,
-            "order_by": self.order_by_value,
-            "order_direction": self.order_direction_value,
+            "sort_by": self.order_by_value,
+            "sort_order": self.order_direction_value,
         }
 
         response = None
