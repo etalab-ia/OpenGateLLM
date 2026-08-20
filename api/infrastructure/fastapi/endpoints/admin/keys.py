@@ -121,7 +121,7 @@ async def get_key(
 async def delete_key(
     key_id: int = Path(description="The ID of the key to delete."),
     delete_key_use_case: DeleteKeyUseCase = Depends(delete_key_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeyResponse:
     command = DeleteKeyCommand(key_id=key_id)
     try:
@@ -130,7 +130,7 @@ async def delete_key(
         logger.exception(
             "Unexpected error while executing delete_key use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "key_id": key_id,
                 "error_type": type(e).__name__,
             },

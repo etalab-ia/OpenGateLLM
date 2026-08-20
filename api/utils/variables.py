@@ -37,7 +37,6 @@ class EndpointRoute(StrEnum):
     ADMIN_PROVIDERS = f"/{RouterName.ADMIN}/providers"
     ADMIN_ROLES = f"/{RouterName.ADMIN}/roles"
     ADMIN_ROUTERS = f"/{RouterName.ADMIN}/routers"
-    ADMIN_TOKENS = f"/{RouterName.ADMIN}/tokens"  # @TODO: deprecated, use ADMIN_KEYS instead
     ADMIN_KEYS = f"/{RouterName.ADMIN}/keys"
     ADMIN_USERS = f"/{RouterName.ADMIN}/users"
     AUDIO_TRANSCRIPTIONS = f"/{RouterName.AUDIO}/transcriptions"

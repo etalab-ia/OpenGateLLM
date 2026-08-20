@@ -228,10 +228,10 @@ def create_token(user_id: int, token_name: str, client: TestClient) -> str:
         expires=int((time.time()) + 60 * 10),
         password="test-password",
     )
-    response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_TOKENS}", json=payload.model_dump())
+    response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_KEYS}", json=payload.model_dump())
     assert response.status_code == 201, response.text
 
     key_id = response.json()["id"]
-    key = response.json()["token"]
+    key = response.json()["value"]
 
     return key_id, key
