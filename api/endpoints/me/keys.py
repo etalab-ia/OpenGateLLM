@@ -1,33 +1,13 @@
-from fastapi import Body, Depends, Path, Request, Response, Security
+from fastapi import Depends, Path, Request, Response, Security
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.endpoints.me import router
 from api.helpers._accesscontroller import AccessController
-from api.schemas.me.keys import CreateKey, CreateKeyResponse, Key
+from api.schemas.me.keys import Key
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
 from api.utils.variables import EndpointRoute
-
-
-@router.post(path=EndpointRoute.ME_KEYS, dependencies=[Security(dependency=AccessController())], status_code=201, response_model=CreateKeyResponse)
-async def create_key(
-    request: Request,
-    body: CreateKey = Body(description="The token creation request."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-) -> JSONResponse:
-    """
-    Create a new API key.
-    """
-
-    token_id, token = await global_context.identity_access_manager.create_token(
-        postgres_session=postgres_session,
-        user_id=request_context.get().user_info.id,
-        name=body.name,
-        expires=body.expires,
-    )
-
-    return JSONResponse(status_code=201, content={"id": token_id, "key": token})
 
 
 @router.delete(path=EndpointRoute.ME_KEYS + "/{key}", dependencies=[Security(dependency=AccessController())], status_code=204)

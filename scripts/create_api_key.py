@@ -37,7 +37,7 @@ if __name__ == "__main__":
         },
     )
     assert response.status_code == 201, response.text
-    api_key = response.json()["key"]
+    api_key = response.json()["value"]
 
     console.print(f"✔ API key created successfully for user {args.email}", style="bold green")
     console.print(api_key)
