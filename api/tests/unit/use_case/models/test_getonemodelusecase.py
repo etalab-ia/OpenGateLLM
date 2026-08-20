@@ -8,7 +8,7 @@ from api.domain.model.errors import ModelNotFoundError
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router.errors import RouterNotFoundError
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, RouterFactory
-from api.use_cases.models import GetModelCommand, GetModelUseCase, GetModelUseCaseSucess
+from api.use_cases.models import GetOneModelCommand, GetOneModelUseCase, GetOneModelUseCaseSuccess
 
 
 @pytest.fixture
@@ -21,7 +21,7 @@ def router_repository():
 
 @pytest.fixture
 def use_case(router_repository):
-    return GetModelUseCase(router_repository=router_repository)
+    return GetOneModelUseCase(router_repository=router_repository)
 
 
 @pytest.fixture
@@ -42,12 +42,12 @@ def router():
 
 @pytest.fixture
 def default_command():
-    return GetModelCommand(
+    return GetOneModelCommand(
         authenticated_user=AuthenticatedUserFactory(id=1, limits=[Limit(router_id=1, value=100, type=LimitType.RPM)]), name="gpt-4"
     )
 
 
-class TestGetModelUseCase:
+class TestGetOneModelUseCase:
     @pytest.mark.asyncio
     async def test_should_return_a_list_with_one_model_when_a_name_is_given(self, router_repository, router, use_case, default_command):
         # Arrange
@@ -58,7 +58,7 @@ class TestGetModelUseCase:
         result = await use_case.execute(command=default_command)
 
         # Assert
-        assert isinstance(result, GetModelUseCaseSucess)
+        assert isinstance(result, GetOneModelUseCaseSuccess)
         assert result.model.id == "gpt-4"
         router_repository.get_router_by_name_or_alias.assert_awaited_once_with(name_or_alias="gpt-4")
 
@@ -73,7 +73,7 @@ class TestGetModelUseCase:
         result = await use_case.execute(command=default_command)
 
         # Assert
-        assert isinstance(result, GetModelUseCaseSucess)
+        assert isinstance(result, GetOneModelUseCaseSuccess)
         assert result.model.id == "gpt-4"
         assert "gpt-4-turbo" in result.model.aliases
         router_repository.get_router_by_name_or_alias.assert_awaited_once_with(name_or_alias="gpt-4-turbo")
@@ -149,5 +149,5 @@ class TestGetModelUseCase:
         result = await use_case.execute(command=default_command)
 
         # Assert
-        assert isinstance(result, GetModelUseCaseSucess)
+        assert isinstance(result, GetOneModelUseCaseSuccess)
         assert result.model.id == "gpt-4"

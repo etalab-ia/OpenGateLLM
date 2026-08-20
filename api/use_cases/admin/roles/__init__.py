@@ -1,7 +1,7 @@
 from ._createroleusecase import CreateRoleCommand, CreateRoleUseCase, CreateRoleUseCaseSuccess
 from ._deleteroleusecase import DeleteRoleCommand, DeleteRoleUseCase, DeleteRoleUseCaseSuccess
+from ._getoneroleusecase import GetOneRoleCommand, GetOneRoleUseCase, GetOneRoleUseCaseSuccess
 from ._getrolesusecase import GetRolesCommand, GetRolesUseCase, GetRolesUseCaseSuccess
-from ._getroleusecase import GetRoleCommand, GetRoleUseCase, GetRoleUseCaseSuccess
 from ._updateroleusecase import UpdateRoleCommand, UpdateRoleUseCase, UpdateRoleUseCaseSuccess
 
 __all__ = [
@@ -11,12 +11,12 @@ __all__ = [
     "UpdateRoleCommand",
     "UpdateRoleUseCase",
     "UpdateRoleUseCaseSuccess",
+    "GetOneRoleCommand",
+    "GetOneRoleUseCase",
+    "GetOneRoleUseCaseSuccess",
     "GetRolesCommand",
     "GetRolesUseCase",
     "GetRolesUseCaseSuccess",
-    "GetRoleCommand",
-    "GetRoleUseCase",
-    "GetRoleUseCaseSuccess",
     "DeleteRoleCommand",
     "DeleteRoleUseCase",
     "DeleteRoleUseCaseSuccess",
