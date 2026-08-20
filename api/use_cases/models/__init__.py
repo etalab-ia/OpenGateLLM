@@ -1,6 +1,6 @@
 from ._bootstrapmodelsusecase import BootstrapModelsUseCase, BootstrapModelsUseCaseSkipped, BootstrapModelsUseCaseSuccess
 from ._getmodelsusecase import GetModelsCommand, GetModelsUseCase, GetModelsUseCaseSucess
-from ._getmodelusecase import GetModelCommand, GetModelUseCase, GetModelUseCaseSucess
+from ._getonemodelusecase import GetOneModelCommand, GetOneModelUseCase, GetOneModelUseCaseSuccess
 
 __all__ = [
     "BootstrapModelsUseCase",
@@ -9,7 +9,7 @@ __all__ = [
     "GetModelsCommand",
     "GetModelsUseCase",
     "GetModelsUseCaseSucess",
-    "GetModelCommand",
-    "GetModelUseCase",
-    "GetModelUseCaseSucess",
+    "GetOneModelCommand",
+    "GetOneModelUseCase",
+    "GetOneModelUseCaseSuccess",
 ]

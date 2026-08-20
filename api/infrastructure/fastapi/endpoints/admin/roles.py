@@ -5,7 +5,7 @@ from fastapi import Body, Depends, Path, Query, Security
 from api.dependencies import (
     create_role_use_case_factory,
     delete_role_use_case_factory,
-    get_role_use_case_factory,
+    get_one_role_use_case_factory,
     get_roles_use_case_factory,
     update_role_use_case_factory,
 )
@@ -32,12 +32,12 @@ from api.use_cases.admin.roles import (
     DeleteRoleCommand,
     DeleteRoleUseCase,
     DeleteRoleUseCaseSuccess,
-    GetRoleCommand,
+    GetOneRoleCommand,
+    GetOneRoleUseCase,
+    GetOneRoleUseCaseSuccess,
     GetRolesCommand,
     GetRolesUseCase,
     GetRolesUseCaseSuccess,
-    GetRoleUseCase,
-    GetRoleUseCaseSuccess,
     UpdateRoleCommand,
     UpdateRoleUseCase,
     UpdateRoleUseCaseSuccess,
@@ -169,12 +169,12 @@ async def get_roles(
 )
 async def get_role(
     role_id: int = Path(description="The ID of the role to get."),
-    get_role_use_case: GetRoleUseCase = Depends(get_role_use_case_factory),
+    get_one_role_use_case: GetOneRoleUseCase = Depends(get_one_role_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RoleResponse:
-    command = GetRoleCommand(role_id=role_id)
+    command = GetOneRoleCommand(role_id=role_id)
     try:
-        result = await get_role_use_case.execute(command)
+        result = await get_one_role_use_case.execute(command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing get_role use case",
@@ -187,7 +187,7 @@ async def get_role(
         raise InternalServerHTTPException()
 
     match result:
-        case GetRoleUseCaseSuccess(role=role):
+        case GetOneRoleUseCaseSuccess(role=role):
             return RoleResponse.model_validate(role, from_attributes=True)
         case RoleNotFoundError(id=role_id):
             raise RoleNotFoundHTTPException(role_id)

@@ -4,7 +4,7 @@ from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import get_model_use_case_factory
+from api.dependencies import get_one_model_use_case_factory
 from api.domain.model.errors import ModelNotFoundError
 from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
@@ -136,7 +136,7 @@ class TestGetModel:
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
         mock_use_case = AsyncMock()
         mock_use_case.execute.return_value = use_case_result
-        app.dependency_overrides[get_model_use_case_factory] = lambda: mock_use_case
+        app.dependency_overrides[get_one_model_use_case_factory] = lambda: mock_use_case
 
         response = await client.get(
             url=f"{URL}/non_existent_model",

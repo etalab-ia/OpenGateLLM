@@ -63,18 +63,18 @@ Read existing code for the same resource (or the closest pattern above) before w
 
 | Kind | Pattern | Example |
 |------|---------|---------|
-| Use case file | `_<verb><noun>usecase.py` | `_getrolesusecase.py` |
-| Use case class | `<Verb><Noun>UseCase` | `GetRolesUseCase` |
-| Command | `<Verb><Noun>Command` | `GetRolesCommand` |
-| Success | `<Verb><Noun>UseCaseSuccess` | `GetRolesUseCaseSuccess` |
+| Use case file | `_<verb><noun>usecase.py` | `_getrolesusecase.py`, `_getoneroleusecase.py` |
+| Use case class | `<Verb><Noun>UseCase` | `GetRolesUseCase`, `GetOneRoleUseCase` |
+| Command | `<Verb><Noun>Command` | `GetRolesCommand`, `GetOneRoleCommand` |
+| Success | `<Verb><Noun>UseCaseSuccess` | `GetRolesUseCaseSuccess`, `GetOneRoleUseCaseSuccess` |
 | Domain error | `<Noun><Problem>Error` | `RoleNotFoundError` |
 | HTTP exception | `<Noun><Problem>HTTPException` | `RoleNotFoundHTTPException` |
 | Request body | `<Verb><Noun>Body` | `CreateRoleBody` |
 | Response | `<Noun>Response` / `<Noun>sResponse` | `RoleResponse`, `RolesResponse` |
-| DI factory | `<verb>_<noun>_use_case_factory` | `get_roles_use_case_factory` |
+| DI factory | `<verb>_<noun>_use_case_factory` | `get_roles_use_case_factory`, `get_one_role_use_case_factory` |
 | Entity unit tests | `api/tests/unit/domain/<domain>/test_<domain>entities.py` | `test_ocrentities.py`, `test_userentities.py` |
 
-Verbs: `Create`, `Update`, `Delete`, `Get` (single), `Get<Plural>` (list), `GetOne` (disambiguation).
+Verbs: `Create`, `Update`, `Delete`, `GetOne` (single / get-by-id), `Get<Plural>` (list). When a resource has both a list and a get-by-id use case, the single-resource name is `GetOne<Noun>` — never `Get<Noun>` (`GetRoleUseCase` → `GetOneRoleUseCase`, `GetModelUseCase` → `GetOneModelUseCase`). Pair them: `GetRolesUseCase` + `GetOneRoleUseCase`, `GetModelsUseCase` + `GetOneModelUseCase`.
 
 The domain and API term for an API credential is **key** (`Key`, `CreateKeyResponse`, `/admin/keys`). Do not introduce `token` for that resource.
 
