@@ -87,9 +87,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
 
         self.usage_recorder = usage_recorder
 
-    def _is_billable(self, router: Router) -> bool:
-        return router.is_prompt_billable
-
     async def _resolve_router(
         self,
         authenticated_user: AuthenticatedUserView,
@@ -118,7 +115,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         if authenticated_user.cannot_access_router(router_id=router.id):
             return UserHasNoAccessToRouterError(id=router.id)
 
-        if self._is_billable(router) and authenticated_user.has_insufficient_budget:
+        if router.is_billable and authenticated_user.has_insufficient_budget:
             return UserHasInsufficientBudgetError()
 
         return router

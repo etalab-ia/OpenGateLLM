@@ -296,9 +296,9 @@ class TestMetricsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_format_response_extract_request_id_not_called(self, adapter, response_data):
+    def test_format_response_extracts_request_id(self, adapter, response_data):
         # Arrange
-        adapter._extract_request_id = Mock()
+        adapter._extract_request_id = Mock(return_value="req-123")
         original_response = ProviderOriginalResponse(text=response_data["text"])
         original_request = ProviderOriginalRequestFactory(metrics=True)
 
@@ -308,8 +308,9 @@ class TestMetricsAdapter:
         # Assert
         assert isinstance(result, ProviderFormattedResponse)
         assert isinstance(result.data, ProviderMetrics)
+        assert result.id == "req-123"
         assert getattr(result.data, "id", "not found") == "not found"
-        adapter._extract_request_id.assert_not_called()
+        adapter._extract_request_id.assert_called_once_with(original_response=original_response)
 
     @pytest.mark.parametrize(
         argnames=("adapter"),

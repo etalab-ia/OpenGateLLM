@@ -25,3 +25,6 @@ class Rerank(ModelJsonResponse):
     model: str
     results: list[RerankResult]
     usage: Usage = Field(default_factory=Usage)
+
+    def get_completions(self) -> list[str]:
+        return []

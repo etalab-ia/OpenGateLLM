@@ -23,7 +23,9 @@ class ModelsAdapter(HttpProviderAdapter):
         original_response: ProviderOriginalResponse,
         original_request: ProviderOriginalRequest,
     ) -> ProviderFormattedResponse:
+        request_id = self._extract_request_id(original_response=original_response)
         return ProviderFormattedResponse(
+            id=request_id,
             data=Models(
                 data=[
                     Model(
@@ -36,5 +38,5 @@ class ModelsAdapter(HttpProviderAdapter):
                     )
                     for model in original_response.data["data"]
                 ]
-            )
+            ),
         )

@@ -29,7 +29,7 @@ class TeiRerankAdapter(RerankAdapter):
                     "texts": original_request.payload.documents,
                     **original_request.payload.model_dump(exclude_none=True),
                 }
-            )
+            ).model_dump()
         except ValidationError as e:
             return ProviderAdapterValidationRequestError(provider_type=self.provider.type, errors=e.errors())
 

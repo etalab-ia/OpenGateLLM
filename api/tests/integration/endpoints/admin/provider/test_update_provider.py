@@ -66,12 +66,12 @@ class TestUpdateProvider:
             ),
             (
                 InconsistentModelMaxContextLengthError(expected_max_context_length=4096, actual_max_context_length=2048, router_name="my-router"),
-                403,
+                400,
                 "Inconsistent max context length for my-router. Expected: 4096. Actual: 2048",
             ),
             (
                 InconsistentModelVectorSizeError(expected_vector_size=768, actual_vector_size=384, router_name="my-router"),
-                403,
+                400,
                 "Inconsistent vector size for my-router. Expected: 768. Actual: 384",
             ),
         ],

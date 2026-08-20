@@ -24,7 +24,7 @@ class ModelJsonResponse(BaseModel):
         return []
 
 
-class Model(ModelJsonResponse):
+class Model(BaseModel):
     id: str
     type: ModelType
     aliases: list[str] = []
@@ -34,7 +34,7 @@ class Model(ModelJsonResponse):
     costs: ModelCosts = Field(default_factory=ModelCosts)
 
 
-class Models(BaseModel):
+class Models(ModelJsonResponse):
     data: list[Model]
 
 

@@ -1,6 +1,6 @@
 import pytest
 
-from api.domain.rerank.entities import CreateRerankBody
+from api.domain.rerank.entities import CreateRerankBody, Rerank, RerankResult
 
 
 @pytest.fixture
@@ -41,3 +41,19 @@ class TestCreateRerankBodyGetPrompts:
 
         # Assert
         assert result == ["q ", "d1  ", " d2"]
+
+
+class TestRerankGetCompletions:
+    def test_returns_empty_list(self):
+        # Arrange
+        rerank = Rerank(
+            id="rerank-1",
+            model="rerank-router",
+            results=[RerankResult(relevance_score=0.9, index=0)],
+        )
+
+        # Act
+        result = rerank.get_completions()
+
+        # Assert
+        assert result == []

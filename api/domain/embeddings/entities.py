@@ -58,7 +58,14 @@ class Embeddings(CreateEmbeddingResponse, ModelJsonResponse):
     usage: Usage = Field(default_factory=Usage)
 
     @classmethod
-    def _from_provider_response(cls, data: Any, *, encoding_format: EncodingFormat = EncodingFormat.FLOAT) -> "Embeddings":
+    def _from_provider_response(
+        cls,
+        data: Any,
+        *,
+        encoding_format: EncodingFormat = EncodingFormat.FLOAT,
+        id: str,
+        model: str,
+    ) -> "Embeddings":
         if isinstance(data, dict) and encoding_format == EncodingFormat.BASE64:
             data = {
                 **data,
@@ -74,4 +81,4 @@ class Embeddings(CreateEmbeddingResponse, ModelJsonResponse):
                     for item in data.get("data", [])
                 ],
             }
-        return cls(**data)
+        return cls(**{**data, "id": id, "model": model})

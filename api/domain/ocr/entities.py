@@ -54,7 +54,7 @@ class CreateOCRBody(ForwardablePayload):
 
 
 class OCRUsage(BaseModel):
-    doc_size_bytes: int | None
+    doc_size_bytes: int | None = None
     pages_processed: int
 
 
@@ -65,29 +65,29 @@ class OCRPageDimensions(BaseModel):
 
 
 class OCRImageObject(BaseModel):
-    bottom_right_x: int | None
-    bottom_right_y: int | None
+    bottom_right_x: int | None = None
+    bottom_right_y: int | None = None
     id: str
-    image_annotation: str | None
-    image_base64: str | None
-    top_left_x: int | None
-    top_left_y: int | None
+    image_annotation: str | None = None
+    image_base64: str | None = None
+    top_left_x: int | None = None
+    top_left_y: int | None = None
 
 
 class OCRPageObject(BaseModel):
-    dimensions: OCRPageDimensions | None
+    dimensions: OCRPageDimensions | None = None
     images: list[OCRImageObject]
     index: int
-    markdown: str | None
+    markdown: str | None = None
 
 
 class OCR(ModelJsonResponse):
     id: str
     model: str
-    document_annotation: str | None
+    document_annotation: str | None = None
     pages: list[OCRPageObject]
     usage: Usage = Field(default_factory=Usage)
-    usage_info: OCRUsage | None
+    usage_info: OCRUsage | None = None
 
     def get_completions(self) -> list[str]:
         texts = [page.markdown for page in self.pages if page.markdown]
