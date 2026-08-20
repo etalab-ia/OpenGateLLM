@@ -1,4 +1,3 @@
-from contextvars import ContextVar
 import logging
 
 from fastapi import Body, Depends, Path, Query, Security
@@ -13,9 +12,9 @@ from api.dependencies import (
 from api.domain import SortField, SortOrder
 from api.domain.role.entities import Limit
 from api.domain.role.errors import RoleAlreadyExistsError, RoleHasUsersError, RoleNotFoundError
-from api.infrastructure.fastapi import RequestContext
+from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
-from api.infrastructure.fastapi.dependencies import get_request_context
+from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
@@ -57,7 +56,7 @@ logger = logging.getLogger(__name__)
 async def create_role(
     body: CreateRoleBody = Body(description="The role creation request."),
     create_role_use_case: CreateRoleUseCase = Depends(create_role_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RoleResponse:
     try:
         command = CreateRoleCommand(name=body.name, permissions=body.permissions, limits=body.limits)
@@ -66,7 +65,7 @@ async def create_role(
         logger.exception(
             "Unexpected error while executing create_role use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "role_name": body.name,
                 "error_type": type(e).__name__,
             },
@@ -90,7 +89,7 @@ async def update_role(
     role_id: int = Path(description="The ID of the role to update."),
     body: CreateRoleBody = Body(description="The role update request."),
     update_role_use_case: UpdateRoleUseCase = Depends(update_role_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RoleResponse:
     command = UpdateRoleCommand(
         role_id=role_id,
@@ -106,7 +105,7 @@ async def update_role(
         logger.exception(
             "Unexpected error while executing update_role use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "role_name": body.name,
                 "error_type": type(e).__name__,
             },
@@ -134,7 +133,7 @@ async def get_roles(
     sort_by: SortField = Query(default=SortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
     get_roles_use_case: GetRolesUseCase = Depends(get_roles_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RolesResponse:
     try:
         command = GetRolesCommand(offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order)
@@ -143,7 +142,7 @@ async def get_roles(
         logger.exception(
             "Unexpected error while executing get_roles use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "offset": command.offset,
                 "limit": command.limit,
                 "sort_by": command.sort_by,
@@ -171,7 +170,7 @@ async def get_roles(
 async def get_role(
     role_id: int = Path(description="The ID of the role to get."),
     get_role_use_case: GetRoleUseCase = Depends(get_role_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RoleResponse:
     command = GetRoleCommand(role_id=role_id)
     try:
@@ -180,7 +179,7 @@ async def get_role(
         logger.exception(
             "Unexpected error while executing get_role use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "role_id": role_id,
                 "error_type": type(e).__name__,
             },
@@ -203,7 +202,7 @@ async def get_role(
 async def delete_role(
     role_id: int = Path(description="The ID of the role to delete."),
     delete_role_use_case: DeleteRoleUseCase = Depends(delete_role_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RoleResponse:
     try:
         command = DeleteRoleCommand(role_id=role_id)
@@ -212,7 +211,7 @@ async def delete_role(
         logger.exception(
             "Unexpected error while executing delete_role use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "role_id": role_id,
                 "error_type": type(e).__name__,
             },

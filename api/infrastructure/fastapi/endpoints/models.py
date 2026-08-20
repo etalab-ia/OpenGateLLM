@@ -5,9 +5,9 @@ from fastapi.responses import JSONResponse
 
 from api.dependencies import get_model_use_case_factory, get_models_use_case_factory
 from api.domain.model.errors import ModelNotFoundError
-from api.infrastructure.fastapi import RequestContext
+from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
-from api.infrastructure.fastapi.dependencies import get_request_context
+from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import InternalServerHTTPException, ModelNotFoundHTTPException
 from api.infrastructure.fastapi.schemas.models import Model, ModelsResponse
@@ -28,19 +28,19 @@ router = APIRouter(prefix="/v1", tags=[RouterName.MODELS.title()])
 )
 async def get_models(
     get_models_use_case: GetModelsUseCase = Depends(get_models_use_case_factory),
-    request_context: RequestContext = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> ModelNotFoundHTTPException | JSONResponse:
     """
     Lists the currently available models and provides basic information.
     """
-    command = GetModelsCommand(authenticated_user=request_context.get().user)
+    command = GetModelsCommand(authenticated_user=authenticated_user)
     try:
         result = await get_models_use_case.execute(command=command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing get_models use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "error_type": type(e).__name__,
             },
         )
@@ -61,19 +61,19 @@ async def get_models(
 async def get_model(
     model: str = Path(description="The name of the model to get."),
     get_model_use_case: GetModelUseCase = Depends(get_model_use_case_factory),
-    request_context: RequestContext = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> JSONResponse:
     """
     Get a model by name and provide basic information.
     """
-    command = GetModelCommand(authenticated_user=request_context.get().user, name=model)
+    command = GetModelCommand(authenticated_user=authenticated_user, name=model)
     try:
         result = await get_model_use_case.execute(command=command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing get_model use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "model_name": model,
                 "error_type": type(e).__name__,
             },

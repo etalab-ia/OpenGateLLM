@@ -12,15 +12,13 @@ from api.use_cases.admin.keys import GetOneKeyCommand, GetOneKeyUseCaseSuccess
 
 
 @pytest.fixture
-def mock_request_context():
-    mock_ctx = MagicMock()
-    mock_ctx.get.return_value = MagicMock(user=MagicMock(id=1))
-    return mock_ctx
+def mock_authenticated_user():
+    return MagicMock(id=1)
 
 
 class TestGetKeyEndpoint:
     @pytest.mark.asyncio
-    async def test_should_map_key_to_key_response(self, mock_request_context):
+    async def test_should_map_key_to_key_response(self, mock_authenticated_user):
         key = Key(
             id=1,
             name="my-key",
@@ -32,7 +30,7 @@ class TestGetKeyEndpoint:
         mock_use_case = MagicMock()
         mock_use_case.execute = AsyncMock(return_value=GetOneKeyUseCaseSuccess(key=key))
 
-        result = await get_key(key_id=1, get_one_key_use_case=mock_use_case, request_context=mock_request_context)
+        result = await get_key(key_id=1, get_one_key_use_case=mock_use_case, authenticated_user=mock_authenticated_user)
 
         assert isinstance(result, KeyResponse)
         assert result.id == 1
@@ -41,12 +39,12 @@ class TestGetKeyEndpoint:
         mock_use_case.execute.assert_awaited_once_with(GetOneKeyCommand(key_id=1))
 
     @pytest.mark.asyncio
-    async def test_should_raise_key_not_found_http_exception(self, mock_request_context):
+    async def test_should_raise_key_not_found_http_exception(self, mock_authenticated_user):
         mock_use_case = MagicMock()
         mock_use_case.execute = AsyncMock(return_value=KeyNotFoundError(id=99))
 
         with pytest.raises(KeyNotFoundHTTPException) as exc_info:
-            await get_key(key_id=99, get_one_key_use_case=mock_use_case, request_context=mock_request_context)
+            await get_key(key_id=99, get_one_key_use_case=mock_use_case, authenticated_user=mock_authenticated_user)
 
         assert exc_info.value.status_code == 404
         assert exc_info.value.detail == "Key 99 not found."

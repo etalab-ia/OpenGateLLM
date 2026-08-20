@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, Security
 from fastapi.responses import JSONResponse
 
 from api.dependencies import get_health_models_use_case_factory
-from api.infrastructure.fastapi import RequestContext
+from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
-from api.infrastructure.fastapi.dependencies import get_request_context
+from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import InternalServerHTTPException
 from api.infrastructure.fastapi.schemas.health import ModelHealthStatus, ModelsHealthResponse
@@ -34,20 +34,20 @@ def get_health() -> JSONResponse:
 )
 async def get_health_models(
     get_health_models_use_case: GetHealthModelsUseCase = Depends(get_health_models_use_case_factory),
-    request_context: RequestContext = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> JSONResponse:
     """
     Get the health of the models.
     """
 
-    command = GetHealthModelsCommand(authenticated_user=request_context.get().user)
+    command = GetHealthModelsCommand(authenticated_user=authenticated_user)
     try:
         result = await get_health_models_use_case.execute(command=command)
     except Exception as e:
         logger.exception(
             "Unexpected error while executing get_health_models use case",
             extra={
-                "authenticated_user_id": request_context.get().user.id,
+                "authenticated_user_id": authenticated_user.id,
                 "error_type": type(e).__name__,
             },
         )

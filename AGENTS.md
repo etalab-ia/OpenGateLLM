@@ -304,7 +304,7 @@ async def get_roles(
     sort_by: SortField = Query(default=SortField.ID, ...),
     sort_order: SortOrder = Query(default=SortOrder.ASC, ...),
     get_roles_use_case: GetRolesUseCase = Depends(get_roles_use_case_factory),
-    request_context: ContextVar[RequestContext] = Depends(get_request_context),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RolesResponse:
     command = GetRolesCommand(offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order)
     try:
@@ -321,6 +321,7 @@ async def get_roles(
 ```
 
 - Auth: `AccessController` from `api.infrastructure.fastapi` (`only_admin=True` for admin routes)
+- Auth user: `authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user)` when only the user is needed. Keep `get_request_context` only when the full `RequestContext` is required.
 - Sort query params: `sort_by` / `sort_order`
 - Document errors: `responses=get_documentation_responses([...])`
 - `case RoleNotFoundError(id=role_id, name=name)` **captures** `None`; it does not require an id. Pass both through to the HTTP exception (which already has a generic `"Role not found."` fallback). Map the fields the use case actually returns (`id=` from FK failures, not `name=` unless that path exists).
@@ -356,6 +357,7 @@ Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key
 
 - File names: entity tests **must** be `test_<domain>entities.py` (`test_ocrentities.py`, `test_userentities.py`) — not `test_<entity>.py`
 - Test names: unit `test_should_<behavior>` ; endpoint `test_happy_path`, `test_error_maps_to_correct_http_status`, `test_rejects_non_admin_user` ; postgres `test_returns_*` / `test_creates_*`
+- Mocks: every mock object and mock fixture is prefixed with `mock_` (`mock_use_case`, `mock_authenticated_user`)
 - Comments: `# Arrange` / `# Act` / `# Assert` (same as `test_createuserusecase.py`)
 - Async integration: `@pytest.mark.asyncio(loop_scope="session")` (including HTTP adapters)
 - Postgres: `repository` fixture from `db_session` — do not construct the repo inside each test
@@ -378,7 +380,7 @@ Entity helpers used by the use case belong in domain unit tests, not extra use-c
 
 ```python
 @pytest.fixture
-def model_tokenizer():
+def mock_model_tokenizer():
     tokenizer = MagicMock()
     tokenizer.compute_tokens.side_effect = lambda texts: len(texts)
     return tokenizer

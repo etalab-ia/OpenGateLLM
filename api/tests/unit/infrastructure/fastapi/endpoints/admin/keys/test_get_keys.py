@@ -11,15 +11,13 @@ from api.use_cases.admin.keys import GetKeysCommand, GetKeysUseCaseSuccess
 
 
 @pytest.fixture
-def mock_request_context():
-    mock_ctx = MagicMock()
-    mock_ctx.get.return_value = MagicMock(user=MagicMock(id=1))
-    return mock_ctx
+def mock_authenticated_user():
+    return MagicMock(id=1)
 
 
 class TestGetKeysEndpoint:
     @pytest.mark.asyncio
-    async def test_should_map_key_page_to_keys_response(self, mock_request_context):
+    async def test_should_map_key_page_to_keys_response(self, mock_authenticated_user):
         key = Key(
             id=1,
             name="my-key",
@@ -38,7 +36,7 @@ class TestGetKeysEndpoint:
             sort_by=SortField.ID,
             sort_order=SortOrder.ASC,
             get_keys_use_case=mock_use_case,
-            request_context=mock_request_context,
+            authenticated_user=mock_authenticated_user,
         )
 
         assert isinstance(result, KeysResponse)
