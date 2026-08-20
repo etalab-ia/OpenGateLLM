@@ -1,12 +1,10 @@
-from typing import Literal
-
-from fastapi import Body, Depends, Path, Query, Request, Response, Security
+from fastapi import Body, Depends, Path, Request, Response, Security
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.endpoints.me import router
 from api.helpers._accesscontroller import AccessController
-from api.schemas.me.keys import CreateKey, CreateKeyResponse, Key, Keys
+from api.schemas.me.keys import CreateKey, CreateKeyResponse, Key
 from api.utils.context import global_context, request_context
 from api.utils.dependencies import get_postgres_session
 from api.utils.variables import EndpointRoute
@@ -66,29 +64,3 @@ async def get_key(
     key = Key(id=key.id, name=key.name, token=key.token, expires=key.expires, created=key.created)
 
     return JSONResponse(content=key.model_dump(), status_code=200)
-
-
-@router.get(path=EndpointRoute.ME_KEYS, dependencies=[Security(dependency=AccessController())], status_code=200, response_model=Keys)
-async def get_keys(
-    request: Request,
-    offset: int = Query(default=0, ge=0, description="The offset of the tokens to get."),
-    limit: int = Query(default=10, ge=1, le=100, description="The limit of the tokens to get."),
-    order_by: Literal["id", "name", "created"] = Query(default="id", description="The field to order the tokens by."),
-    order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the tokens by."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-) -> JSONResponse:
-    """
-    Get all your tokens.
-    """
-
-    data = await global_context.identity_access_manager.get_tokens(
-        postgres_session=postgres_session,
-        user_id=request_context.get().user_info.id,
-        offset=offset,
-        limit=limit,
-        order_by=order_by,
-        order_direction=order_direction,
-    )
-    data = [Key(id=key.id, name=key.name, token=key.token, expires=key.expires, created=key.created) for key in data]
-
-    return JSONResponse(content=Keys(data=data).model_dump(), status_code=200)
