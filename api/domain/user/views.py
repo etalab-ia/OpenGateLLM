@@ -39,3 +39,19 @@ class AuthenticatedUserView(BaseModel):
             return True
 
         return False
+
+
+class UserInfo(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    id: int
+    email: str
+    name: str | None
+    organization_id: int | None
+    budget: float | None
+    permissions: list[PermissionType]
+    limits: list[Limit]
+    expires: int | None
+    priority: int
+    created: int
+    updated: int

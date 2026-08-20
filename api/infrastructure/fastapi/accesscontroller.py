@@ -24,8 +24,9 @@ http_bearer = HTTPBearer()
 
 
 class AccessController:
-    def __init__(self, only_admin: bool = False):
+    def __init__(self, only_admin: bool = False, allow_expired: bool = False):
         self.only_admin = only_admin
+        self.allow_expired = allow_expired
 
     @staticmethod
     def _set_value_in_request_context(request_context: ContextVar[RequestContext], key: str, value: Any) -> None:
@@ -66,7 +67,7 @@ class AccessController:
 
         user = await authenticated_user_query.get_user_by_id(user_id=key.user_id)
 
-        if user.has_expired:
+        if user.has_expired and not self.allow_expired:
             raise AccountExpiredHTTPException()
 
         if self.only_admin and not user.is_admin:
