@@ -9,7 +9,7 @@ from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import InternalServerHTTPException
 from api.infrastructure.fastapi.endpoints.me import router
-from api.infrastructure.fastapi.schemas.me import UserInfoResponse
+from api.infrastructure.fastapi.schemas.me.info import UserInfoResponse
 from api.use_cases.me import GetUserInfoCommand, GetUserInfoUseCase, GetUserInfoUseCaseSuccess
 from api.utils.variables import EndpointRoute
 
