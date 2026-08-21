@@ -10,6 +10,8 @@ class AuthenticatedUserView(BaseModel):
 
     id: int
     email: str
+    name: str | None
+    organization_id: int | None
     budget: float | None
     permissions: list[PermissionType]
     limits: list[Limit]

@@ -58,6 +58,8 @@ class PostgresAuthenticatedUserQuery(AuthenticatedUserQuery):
         statement = select(
             UserTable.id,
             UserTable.email,
+            UserTable.name,
+            UserTable.organization_id,
             UserTable.budget,
             cast(func.extract("epoch", UserTable.expires), Integer).label("expires"),
             permissions_subquery,

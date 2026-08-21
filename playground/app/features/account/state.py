@@ -21,15 +21,6 @@ class AccountState(AuthState):
     password_change_loading: bool = False
 
     @rx.var
-    def user_created_formatted(self) -> str:
-        """Format created timestamp."""
-        if self.user_created is None:
-            return "N/A"
-        import datetime
-
-        return datetime.datetime.fromtimestamp(self.user_created).strftime("%Y-%m-%d %H:%M")
-
-    @rx.var
     def user_budget_formatted(self) -> str:
         """Format budget, showing 'Unlimited' if None."""
         if self.user_budget is None:

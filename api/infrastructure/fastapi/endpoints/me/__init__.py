@@ -4,4 +4,4 @@ from api.utils.variables import RouterName
 
 router = APIRouter(prefix="/v1", tags=[RouterName.ME.title()])
 
-from . import keys  # noqa: F401 E402
+from . import info, keys  # noqa: F401 E402

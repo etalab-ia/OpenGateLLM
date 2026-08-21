@@ -51,6 +51,11 @@ def admin_access_controller() -> AccessController:
 
 
 @pytest.fixture
+def allow_expired_access_controller() -> AccessController:
+    return AccessController(allow_expired=True)
+
+
+@pytest.fixture
 def secret_key() -> str:
     return "MY_SECRET_KEY"
 
@@ -389,6 +394,35 @@ class TestAccessController:
                 authenticated_user_query=authenticated_user_query,
                 request_context=reset_request_context,
             )
+
+    async def test_should_allow_expired_user_when_allow_expired_is_true(
+        self,
+        allow_expired_access_controller: AccessController,
+        request_obj: Mock,
+        key_repository: PostgresKeyRepository,
+        authenticated_user_query: PostgresAuthenticatedUserQuery,
+        reset_request_context: ContextVar[RequestContext],
+        secret_key: str,
+        db_session,
+    ):
+        # Arrange
+        user = UserSQLFactory(expires=datetime.now() - timedelta(days=1))
+        key = await create_key(db_session, secret_key=secret_key, user=user, never_expires=True)
+        api_key = HTTPAuthorizationCredentials(scheme="Bearer", credentials=key.token)
+
+        # Act
+        await allow_expired_access_controller(
+            request=request_obj,
+            api_key=api_key,
+            key_repository=key_repository,
+            authenticated_user_query=authenticated_user_query,
+            request_context=reset_request_context,
+        )
+
+        # Assert
+        context = reset_request_context.get()
+        assert context.user is not None
+        assert context.user.id == user.id
 
     async def test_should_raise_not_admin_user_when_only_admin_is_required(
         self,

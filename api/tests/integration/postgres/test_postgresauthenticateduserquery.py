@@ -23,7 +23,7 @@ class TestGetAuthenticatedUserById:
         LimitSQLFactory(role=role, router=router, type=LimitType.TPM, value=100)
         LimitSQLFactory(role=role, router=router, type=LimitType.RPM, value=10)
 
-        user = UserSQLFactory(role=role, priority=5, budget=42.5)
+        user = UserSQLFactory(role=role, name="Alice", priority=5, budget=42.5)
         await db_session.flush()
 
         # Act
@@ -33,6 +33,8 @@ class TestGetAuthenticatedUserById:
         assert isinstance(result, AuthenticatedUserView)
         assert result.id == user.id
         assert result.email == user.email
+        assert result.name == "Alice"
+        assert result.organization_id == user.organization_id
         assert result.budget == 42.5
         assert set(result.permissions) == {PermissionType.ADMIN, PermissionType.READ_METRIC}
         assert len(result.limits) == 2

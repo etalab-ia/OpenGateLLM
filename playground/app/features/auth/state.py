@@ -24,12 +24,9 @@ class AuthState(rx.State):
     api_key: str | None = None
     api_key_id: int | None = None
 
-    # Extended user info
-    user_organization: int | None = None
+    user_organization_id: int | None = None
     user_budget: float | None = None
-    user_priority: int | None = None
-    user_created: int | None = None
-    user_updated: int | None = None
+    user_expires: int | None = None
     user_permissions: list[str] = []
     user_limits: list[dict] = []
     session_expiration: int | None = None
@@ -81,11 +78,9 @@ class AuthState(rx.State):
         self.user_name = user_data.get("name")
         self.api_key = api_key
         self.api_key_id = api_key_id
-        self.user_organization = user_data.get("organization")
+        self.user_organization_id = user_data.get("organization_id")
         self.user_budget = user_data.get("budget")
-        self.user_priority = user_data.get("priority", 0)
-        self.user_created = user_data.get("created")
-        self.user_updated = user_data.get("updated")
+        self.user_expires = user_data.get("expires")
         self.user_permissions = user_data.get("permissions", [])
         self.user_limits = user_data.get("limits", [])
         self.email_input = ""
@@ -297,11 +292,9 @@ class AuthState(rx.State):
         self.user_name = None
         self.api_key = None
         self.api_key_id = None
-        self.user_organization = None
+        self.user_organization_id = None
         self.user_budget = None
-        self.user_priority = None
-        self.user_created = None
-        self.user_updated = None
+        self.user_expires = None
         self.user_permissions = []
         self.user_limits = []
         self.email_input = ""

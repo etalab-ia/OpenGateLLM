@@ -11,7 +11,7 @@ import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
 - Docker and Docker Compose
 </Aside>
 
-OpenGateLLM uses a combination of unit and integration tests to ensure the quality of the code.
+OpenGateLLM uses a combination of unit, integration, and end-to-end tests to ensure the quality of the code.
 
 <FileTree>
 - api/
@@ -87,3 +87,20 @@ To run the tests with VSCode, you can create a `.vscode/settings.json` file with
       "python.envFile": "${workspaceFolder}/.env"
   }
 ```
+
+## Continuous integration
+
+The [Testing](https://github.com/etalab-ia/OpenGateLLM/blob/main/.github/workflows/run_tests.yml) workflow selects jobs from the pull request state and the trigger type.
+
+On a pull request targeting `main` (when `api/**` or the workflow file itself changes):
+
+| PR status | Unit tests | Integration tests | e2e tests |
+|-----------|------------|-------------------|-----------|
+| Draft | Yes, without coverage or badge commit | Yes | No |
+| Ready for review | Yes, with coverage and badge commit | Yes | Yes |
+
+Manual runs (`workflow_dispatch`) and reusable calls (`workflow_call`) run all jobs. Unit tests include coverage. The coverage badge is committed only on a non-draft pull request targeting `main`.
+
+<Aside type="note">
+Jobs skip when the actor is `github-actions[bot]`, so the coverage badge commit does not retrigger the workflow.
+</Aside>
