@@ -367,11 +367,8 @@ def update_user_use_case_factory(postgres_session: AsyncSession = Depends(get_po
 
 
 # me use cases
-def get_user_info_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetUserInfoUseCase:
-    return GetUserInfoUseCase(
-        user_repository=_user_repository(postgres_session),
-        role_repository=_role_repository(postgres_session),
-    )
+def get_user_info_use_case_factory() -> GetUserInfoUseCase:
+    return GetUserInfoUseCase()
 
 
 # rerank use cases

@@ -1,14 +1,10 @@
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock
 
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 
-from api.dependencies import get_user_info_use_case_factory
 from api.domain.role.entities import LimitType, PermissionType
-from api.domain.role.errors import RoleNotFoundError
-from api.domain.user.errors import UserNotFoundError
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import LimitSQLFactory, PermissionSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
@@ -36,29 +32,15 @@ class TestGetUserInfo:
         assert data["id"] == self.user.id
         assert data["email"] == "alice@example.com"
         assert data["name"] == "Alice"
-        assert data["organization"] == self.user.organization_id
+        assert data["organization_id"] == self.user.organization_id
         assert data["budget"] == 42.5
         assert data["permissions"] == [PermissionType.READ_METRIC]
-        assert data["priority"] == 3
+        assert data["expires"] is None
         assert {"router_id": self.router.id, "type": LimitType.TPM, "value": 100} in data["limits"]
-        assert all(limit["value"] != 0 for limit in data["limits"])
-
-    @pytest.mark.parametrize(
-        "use_case_result,expected_status,expected_detail",
-        [
-            (UserNotFoundError(id=1), 404, "User 1 not found."),
-            (RoleNotFoundError(id=2), 404, "Role 2 not found."),
-        ],
-    )
-    async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
-        mock_use_case = AsyncMock()
-        mock_use_case.execute.return_value = use_case_result
-        app.dependency_overrides[get_user_info_use_case_factory] = lambda: mock_use_case
-
-        response = await client.get(url=URL, headers={"Authorization": f"Bearer {self.key.token}"})
-
-        assert response.status_code == expected_status
-        assert response.json().get("detail") == expected_detail
+        assert "organization" not in data
+        assert "priority" not in data
+        assert "created" not in data
+        assert "updated" not in data
 
     async def test_allows_expired_user(self, client: AsyncClient, db_session):
         expired_user = UserSQLFactory(role=self.user.role, expires=datetime.now() - timedelta(days=1))

@@ -124,21 +124,18 @@ class AuthenticatedUserFactory(factory.Factory):
     id = factory.Sequence(lambda n: n + 1)
     email = factory.Faker("email")
     name = factory.Faker("name")
-    organization = factory.Faker("random_int", min=1, max=1000)
+    organization_id = factory.Faker("random_int", min=1, max=1000)
     budget = factory.Faker("pyfloat", left_digits=5, right_digits=2, positive=True)
     permissions = factory.LazyFunction(lambda: random.sample(list(PermissionType), k=random.randint(1, len(PermissionType))))
     limits = factory.LazyFunction(lambda: [LimitFactory() for _ in range(random.randint(1, 3))])
     expires = factory.LazyFunction(lambda: int((datetime.now(UTC) + timedelta(days=365)).timestamp()))
-    priority = factory.Faker("random_int", min=0, max=10)
-    created = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
-    updated = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
 
     class Params:
         unlimited_budget = factory.Trait(budget=None)
         no_expiration = factory.Trait(expires=None)
         admin = factory.Trait(permissions=[PermissionType.ADMIN])
         without_permission = factory.Trait(permissions=[])
-        no_organization = factory.Trait(organization=None, name=None)
+        no_organization = factory.Trait(organization_id=None, name=None)
 
 
 # Configuration factories
