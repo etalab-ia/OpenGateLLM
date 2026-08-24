@@ -115,7 +115,7 @@ class KeysState(EntityState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.delete(
-                    url=f"{self.opengatellm_url}/v1/keys/{self.entity_to_delete.id}",
+                    url=f"{self.opengatellm_url}/v1/me/keys/{self.entity_to_delete.id}",
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=self.opengatellm_timeout,
                 )
