@@ -66,8 +66,6 @@ async def lifespan(_: FastAPI):
     global_context.tokenizer = create_tokenizer(configuration=configuration)
     global_context._tokenizer = initialize_tokenizer(configuration=configuration)
 
-    await global_context.limiter.reset()
-
     yield
 
     if global_context.redis_pool:

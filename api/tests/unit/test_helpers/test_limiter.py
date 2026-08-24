@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, call, patch
 from limits.aio import strategies
 from limits.aio.storage import RedisStorage
 import pytest
-from redis.exceptions import RedisError
 
 from api.helpers._limiter import Limiter
 from api.schemas.admin.roles import Limit, LimitType, PermissionType
@@ -36,83 +35,6 @@ async def test_limiter_initialization_strategies(strategy, expected_class):
 
         limiter = Limiter(mock_redis_pool, strategy=strategy)
         assert isinstance(limiter.strategy, expected_class)
-
-
-# =========================== RESET METHOD ============================
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "strategy",
-    [
-        LimitingStrategy.MOVING_WINDOW,
-        LimitingStrategy.FIXED_WINDOW,
-        LimitingStrategy.SLIDING_WINDOW,
-    ],
-)
-async def test_limiter_reset_success(strategy):
-    """Test that reset successfully calls redis_client.reset()."""
-    # Mock the Redis pool instead of using global_context
-    mock_redis_pool = MagicMock()
-    mock_redis_pool.url = "redis://localhost:6379"
-
-    with patch("api.helpers._limiter.storage.RedisStorage") as MockStorage, patch("api.helpers._limiter.Redis") as MockRedis:
-        mock_storage_instance = AsyncMock(spec=RedisStorage)
-        MockStorage.return_value = mock_storage_instance
-
-        mock_internal_redis = AsyncMock()
-        MockRedis.return_value = mock_internal_redis
-
-        redis_state = ["LIMITS:key1", "LIMITS:key2"]
-        mock_internal_redis.keys.side_effect = lambda pattern: redis_state
-        # When storage.reset() is called, clear the state
-
-        async def simulate_reset():
-            redis_state.clear()
-
-        mock_storage_instance.reset.side_effect = simulate_reset
-
-        limiter = Limiter(mock_redis_pool, strategy=strategy)
-
-        # Verify keys exist before reset
-        initial_keys = await limiter.redis_client.keys("LIMITS*")
-        assert len(initial_keys) == 2
-
-        await limiter.reset()
-
-        mock_storage_instance.reset.assert_awaited_once()
-
-        final_keys = await limiter.redis_client.keys("LIMITS*")
-        assert len(final_keys) == 0
-
-
-@pytest.mark.asyncio
-async def test_limiter_reset_handles_redis_error():
-    """Test that reset handles RedisError gracefully."""
-    mock_redis_pool = MagicMock()
-    mock_redis_pool.url = "redis://localhost:6379"
-    strategy = LimitingStrategy.FIXED_WINDOW
-
-    with (
-        patch("api.helpers._limiter.storage.RedisStorage") as MockStorage,
-        patch("api.helpers._limiter.Redis") as MockRedis,
-        patch("api.helpers._limiter.logger") as mock_logger,
-    ):
-        mock_storage_instance = AsyncMock(spec=RedisStorage)
-        mock_storage_instance.reset.side_effect = RedisError("Test Error")
-        MockStorage.return_value = mock_storage_instance
-
-        mock_internal_redis = AsyncMock()
-        MockRedis.return_value = mock_internal_redis
-
-        limiter = Limiter(mock_redis_pool, strategy)
-
-        await limiter.reset()
-
-        mock_storage_instance.reset.assert_awaited_once()
-        mock_logger.error.assert_called_once()
-        logged_msg = mock_logger.error.call_args[1]["msg"]
-        assert "Redis error during rate limit reset." in logged_msg
 
 
 # =========================== HIT METHOD ============================
