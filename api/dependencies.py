@@ -42,6 +42,7 @@ from api.infrastructure.postgres import (
 from api.infrastructure.redis import RedisProviderLoadBalancer, RedisProviderMetricsLogger, RedisRouterRateLimiter
 from api.infrastructure.tiktoken import TiktokenModelTokenizer
 from api.use_cases.admin.keys import CreateKeyUseCase, DeleteKeyUseCase, GetKeysUseCase, GetOneKeyUseCase
+from api.use_cases.admin.organizations import CreateOrganizationUseCase
 from api.use_cases.admin.providers import (
     CreateProviderUseCase,
     DeleteProviderUseCase,
@@ -307,6 +308,11 @@ def get_one_key_use_case_factory(key_repository: KeyRepository = Depends(_key_re
 
 def delete_key_use_case_factory(key_repository: KeyRepository = Depends(_key_repository)) -> DeleteKeyUseCase:
     return DeleteKeyUseCase(key_repository=key_repository)
+
+
+# organizations use cases
+def create_organization_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateOrganizationUseCase:
+    return CreateOrganizationUseCase(organization_repository=_organization_repository(postgres_session))
 
 
 # models use cases
