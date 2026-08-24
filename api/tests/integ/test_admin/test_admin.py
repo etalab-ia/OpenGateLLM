@@ -388,7 +388,7 @@ class TestAuth:
         # Get first user's token
         headers1 = {"Authorization": f"Bearer {user1_token}"}
         response = client.get(
-            url=f"/v1{EndpointRoute.KEYS}/{user1_token_id}",
+            url=f"/v1/me/keys/{user1_token_id}",
             headers=headers1,
         )
         assert response.status_code == 200, response.text
@@ -418,7 +418,7 @@ class TestAuth:
 
         # Get second user's token
         headers2 = {"Authorization": f"Bearer {user2_token}"}
-        response = client.get(url=f"/v1{EndpointRoute.KEYS}/{user2_token_id}", headers=headers2)
+        response = client.get(url=f"/v1/me/keys/{user2_token_id}", headers=headers2)
         assert response.status_code == 200, response.text
         user2_token_data = response.json()
 
@@ -428,7 +428,7 @@ class TestAuth:
         # Do it again to expose collision when creating a token with the same name
         # Get first user's token again to check it was not affected
         headers1 = {"Authorization": f"Bearer {user1_token}"}
-        response = client.get(url=f"/v1{EndpointRoute.KEYS}/{user1_token_id}", headers=headers1)
+        response = client.get(url=f"/v1/me/keys/{user1_token_id}", headers=headers1)
         assert response.status_code == 200, response.text
         user1_token_data = response.json()
 
