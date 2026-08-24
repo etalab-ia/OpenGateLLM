@@ -15,14 +15,14 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     UserAlreadyExistsHTTPException,
     UserNotFoundHTTPException,
 )
-from api.infrastructure.fastapi.schemas.me import MeResponse, UpdateMeInfoBody
+from api.infrastructure.fastapi.schemas.me import MeResponse, UpdateMeBody
 from api.use_cases.me import (
     GetMeCommand,
     GetMeUseCase,
     GetMeUseCaseSuccess,
-    UpdateMeInfoCommand,
-    UpdateMeInfoUseCase,
-    UpdateMeInfoUseCaseSuccess,
+    UpdateMeCommand,
+    UpdateMeUseCase,
+    UpdateMeUseCaseSuccess,
 )
 from api.utils.variables import EndpointRoute, RouterName
 
@@ -70,22 +70,30 @@ async def get_me(
 
 
 @router.patch(
-    path=EndpointRoute.ME_INFO,
+    path=f"{EndpointRoute.ME}/info",
+    dependencies=[Security(dependency=AccessController())],
+    status_code=204,
+    response_class=Response,
+    responses=get_documentation_responses([UserNotFoundHTTPException, UserAlreadyExistsHTTPException, InvalidCurrentPasswordHTTPException]),
+    deprecated=True,
+)
+@router.patch(
+    path=EndpointRoute.ME,
     dependencies=[Security(dependency=AccessController())],
     status_code=204,
     response_class=Response,
     responses=get_documentation_responses([UserNotFoundHTTPException, UserAlreadyExistsHTTPException, InvalidCurrentPasswordHTTPException]),
 )
-async def update_me_info(
-    body: UpdateMeInfoBody = Body(description="The user update request."),
-    update_me_info_use_case: UpdateMeInfoUseCase = Depends(update_me_info_use_case_factory),
+async def update_me(
+    body: UpdateMeBody = Body(description="The user update request."),
+    update_me_info_use_case: UpdateMeUseCase = Depends(update_me_info_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> Response:
     """
     Update information about the current user.
     """
 
-    command = UpdateMeInfoCommand(
+    command = UpdateMeCommand(
         user_id=authenticated_user.id,
         email=body.email,
         name=body.name,
@@ -96,7 +104,7 @@ async def update_me_info(
         result = await update_me_info_use_case.execute(command)
     except Exception as e:
         logger.exception(
-            "Unexpected error while executing update_me_info use case",
+            "Unexpected error while executing update_me use case",
             extra={
                 "authenticated_user_id": authenticated_user.id,
                 "error_type": type(e).__name__,
@@ -105,7 +113,7 @@ async def update_me_info(
         raise InternalServerHTTPException()
 
     match result:
-        case UpdateMeInfoUseCaseSuccess():
+        case UpdateMeUseCaseSuccess():
             return Response(status_code=204)
         case UserNotFoundError(id=not_found_id):
             raise UserNotFoundHTTPException(user_id=not_found_id)

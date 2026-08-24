@@ -54,7 +54,7 @@ class AccountState(AuthState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
-                    url=f"{self.opengatellm_url}/v1/me/info",
+                    url=f"{self.opengatellm_url}/v1/me",
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     json={"current_password": self.current_password, "password": self.new_password},
                     timeout=self.opengatellm_timeout,
@@ -91,7 +91,7 @@ class AccountState(AuthState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.patch(
-                    url=f"{self.opengatellm_url}/v1/me/info",
+                    url=f"{self.opengatellm_url}/v1/me",
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
                     json={"name": self.edit_name.strip()},
                     timeout=self.opengatellm_timeout,

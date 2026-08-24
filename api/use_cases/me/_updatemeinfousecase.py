@@ -8,7 +8,7 @@ from api.domain.user.errors import IncorrectCurrentPasswordError, UserAlreadyExi
 
 
 @dataclass
-class UpdateMeInfoCommand:
+class UpdateMeCommand:
     user_id: int
     email: str | None = None
     name: str | None = None
@@ -17,19 +17,19 @@ class UpdateMeInfoCommand:
 
 
 @dataclass
-class UpdateMeInfoUseCaseSuccess:
+class UpdateMeUseCaseSuccess:
     user: User
 
 
-type UpdateMeInfoUseCaseResult = UpdateMeInfoUseCaseSuccess | UserNotFoundError | UserAlreadyExistsError | IncorrectCurrentPasswordError
+type UpdateMeUseCaseResult = UpdateMeUseCaseSuccess | UserNotFoundError | UserAlreadyExistsError | IncorrectCurrentPasswordError
 
 
-class UpdateMeInfoUseCase:
+class UpdateMeUseCase:
     def __init__(self, user_repository: UserRepository, user_password_encoder: UserPasswordEncoder):
         self.user_repository = user_repository
         self.user_password_encoder = user_password_encoder
 
-    async def execute(self, command: UpdateMeInfoCommand) -> UpdateMeInfoUseCaseResult:
+    async def execute(self, command: UpdateMeCommand) -> UpdateMeUseCaseResult:
         existing_user = await self.user_repository.get_user_by_id(user_id=command.user_id)
         if isinstance(existing_user, UserNotFoundError):
             return existing_user
@@ -57,6 +57,6 @@ class UpdateMeInfoUseCase:
 
         match result:
             case User() as user:
-                return UpdateMeInfoUseCaseSuccess(user)
+                return UpdateMeUseCaseSuccess(user)
             case error:
                 return error

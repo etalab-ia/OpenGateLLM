@@ -5,7 +5,7 @@ import pytest
 
 from api.domain.user.errors import IncorrectCurrentPasswordError, UserAlreadyExistsError, UserNotFoundError
 from api.tests.unit.use_case.factories import UserFactory
-from api.use_cases.me import UpdateMeInfoCommand, UpdateMeInfoUseCase, UpdateMeInfoUseCaseSuccess
+from api.use_cases.me import UpdateMeCommand, UpdateMeUseCase, UpdateMeUseCaseSuccess
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def user_password_encoder():
 
 @pytest.fixture
 def use_case(user_repository, user_password_encoder):
-    return UpdateMeInfoUseCase(user_repository=user_repository, user_password_encoder=user_password_encoder)
+    return UpdateMeUseCase(user_repository=user_repository, user_password_encoder=user_password_encoder)
 
 
 @pytest.fixture
@@ -39,10 +39,10 @@ class TestUpdateMeInfoUseCase:
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(UpdateMeInfoCommand(user_id=sample_user.id, email="new@example.com", name="New Name"))
+        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id, email="new@example.com", name="New Name"))
 
         # Assert
-        assert isinstance(result, UpdateMeInfoUseCaseSuccess)
+        assert isinstance(result, UpdateMeUseCaseSuccess)
         assert result.user.email == "new@example.com"
         assert result.user.name == "New Name"
         user_repository.get_user_by_id.assert_called_once_with(user_id=sample_user.id)
@@ -55,10 +55,10 @@ class TestUpdateMeInfoUseCase:
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(UpdateMeInfoCommand(user_id=sample_user.id))
+        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id))
 
         # Assert
-        assert isinstance(result, UpdateMeInfoUseCaseSuccess)
+        assert isinstance(result, UpdateMeUseCaseSuccess)
         assert result.user.email == sample_user.email
         assert result.user.name == sample_user.name
         assert result.user.role_id == sample_user.role_id
@@ -75,10 +75,10 @@ class TestUpdateMeInfoUseCase:
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(UpdateMeInfoCommand(user_id=sample_user.id, current_password="old"))
+        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id, current_password="old"))
 
         # Assert
-        assert isinstance(result, UpdateMeInfoUseCaseSuccess)
+        assert isinstance(result, UpdateMeUseCaseSuccess)
         assert result.user.password == SecretStr("encoded-old")
         user_password_encoder.encode_password.assert_not_called()
 
@@ -91,10 +91,10 @@ class TestUpdateMeInfoUseCase:
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(UpdateMeInfoCommand(user_id=sample_user.id, new_password="secret"))
+        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id, new_password="secret"))
 
         # Assert
-        assert isinstance(result, UpdateMeInfoUseCaseSuccess)
+        assert isinstance(result, UpdateMeUseCaseSuccess)
         assert result.user.password == SecretStr("encoded-secret")
         user_password_encoder.encode_password.assert_called_once_with(password="secret")
         user_password_encoder.validate_password.assert_not_called()
@@ -107,10 +107,10 @@ class TestUpdateMeInfoUseCase:
         user_password_encoder.validate_password.return_value = True
 
         # Act
-        result = await use_case.execute(UpdateMeInfoCommand(user_id=sample_user.id, current_password="old", new_password="secret"))
+        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id, current_password="old", new_password="secret"))
 
         # Assert
-        assert isinstance(result, UpdateMeInfoUseCaseSuccess)
+        assert isinstance(result, UpdateMeUseCaseSuccess)
         assert result.user.password == SecretStr("encoded-secret")
         user_password_encoder.validate_password.assert_called_once_with(password="old", encoded_password="encoded-old")
 
@@ -120,7 +120,7 @@ class TestUpdateMeInfoUseCase:
         user_repository.get_user_by_id.return_value = UserNotFoundError(id=99)
 
         # Act
-        result = await use_case.execute(UpdateMeInfoCommand(user_id=99, email="new@example.com"))
+        result = await use_case.execute(UpdateMeCommand(user_id=99, email="new@example.com"))
 
         # Assert
         assert isinstance(result, UserNotFoundError)
@@ -136,7 +136,7 @@ class TestUpdateMeInfoUseCase:
         user_password_encoder.validate_password.return_value = False
 
         # Act
-        result = await use_case.execute(UpdateMeInfoCommand(user_id=sample_user.id, current_password="wrong", new_password="secret"))
+        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id, current_password="wrong", new_password="secret"))
 
         # Assert
         assert isinstance(result, IncorrectCurrentPasswordError)
@@ -151,7 +151,7 @@ class TestUpdateMeInfoUseCase:
         user_repository.get_user_by_id.return_value = sample_user.model_copy(update={"password": None})
 
         # Act
-        result = await use_case.execute(UpdateMeInfoCommand(user_id=sample_user.id, current_password="old", new_password="secret"))
+        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id, current_password="old", new_password="secret"))
 
         # Assert
         assert isinstance(result, IncorrectCurrentPasswordError)
@@ -165,7 +165,7 @@ class TestUpdateMeInfoUseCase:
         user_repository.update_user.return_value = UserAlreadyExistsError(email="taken@example.com")
 
         # Act
-        result = await use_case.execute(UpdateMeInfoCommand(user_id=sample_user.id, email="taken@example.com"))
+        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id, email="taken@example.com"))
 
         # Assert
         assert isinstance(result, UserAlreadyExistsError)

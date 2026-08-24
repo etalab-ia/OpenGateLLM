@@ -18,7 +18,7 @@ class MeResponse(BaseModel):
     expires: Annotated[int | None, Field(default=None, description="The user expiration timestamp. If None, the user will never expire.")]
 
 
-class UpdateMeInfoBody(BaseModel):
+class UpdateMeBody(BaseModel):
     name: Annotated[str | None, Field(default=None, description="The user name.")]
     email: Annotated[str | None, Field(default=None, max_length=254, description="The user email.")]
     current_password: Annotated[str | None, Field(default=None, max_length=72, description="The current user password.")]
