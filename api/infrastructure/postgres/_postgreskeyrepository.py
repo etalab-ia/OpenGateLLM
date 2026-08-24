@@ -99,8 +99,12 @@ class PostgresKeyRepository(KeyRepository):
 
         return Key(id=row.id, name=row.name, user_id=row.user_id, value=value, expires=row.expires, created=row.created)
 
-    async def delete_key(self, key_id: int) -> Key | KeyNotFoundError:
-        result = await self.postgres_session.execute(delete(KeyTable).where(KeyTable.id == key_id).returning(KeyTable))
+    async def delete_key(self, key_id: int, user_id: int | None = None) -> Key | KeyNotFoundError:
+        filters = [KeyTable.id == key_id]
+        if user_id is not None:
+            filters.append(KeyTable.user_id == user_id)
+
+        result = await self.postgres_session.execute(delete(KeyTable).where(*filters).returning(KeyTable))
         row = result.scalar_one_or_none()
         if row is None:
             return KeyNotFoundError(id=key_id)
