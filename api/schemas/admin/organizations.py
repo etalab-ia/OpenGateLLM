@@ -6,16 +6,8 @@ from pydantic import Field, constr
 from api.schemas import BaseModel
 
 
-class OrganizationRequest(BaseModel):
-    name: constr(strip_whitespace=True, min_length=1) = Field(description="The organization name.")
-
-
 class OrganizationUpdateRequest(BaseModel):
     name: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="The new organization name.")
-
-
-class OrganizationsResponse(BaseModel):
-    id: int
 
 
 class Organization(BaseModel):
