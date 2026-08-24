@@ -64,7 +64,7 @@ class AuthState(rx.State):
 
     async def _get_user_info(self, client: httpx.AsyncClient, api_key: str):
         response = await client.get(
-            url=f"{self.opengatellm_url}/v1/me/info",
+            url=f"{self.opengatellm_url}/v1/me",
             headers={"Authorization": f"Bearer {api_key}"},
             timeout=self.opengatellm_timeout,
         )

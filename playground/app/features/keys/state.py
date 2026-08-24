@@ -64,7 +64,7 @@ class KeysState(EntityState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    url=f"{self.opengatellm_url}/v1/me/keys",
+                    url=f"{self.opengatellm_url}/v1/keys",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=self.opengatellm_timeout,
@@ -192,7 +192,7 @@ class KeysState(EntityState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    url=f"{self.opengatellm_url}/v1/me/keys",
+                    url=f"{self.opengatellm_url}/v1/keys",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=self.opengatellm_timeout,

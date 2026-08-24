@@ -11,7 +11,7 @@ from api.tests.helpers import create_key
 from api.tests.integration.factories.sql import UserSQLFactory
 from api.utils.variables import EndpointRoute
 
-URL = f"/v1{EndpointRoute.ME_KEYS}"
+URL = f"/v1{EndpointRoute.KEYS}"
 
 
 def _valid_body(**overrides) -> dict:

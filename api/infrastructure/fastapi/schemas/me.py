@@ -6,7 +6,7 @@ from api.domain import BaseModel
 from api.infrastructure.fastapi.schemas.admin.roles import Limit, PermissionType
 
 
-class UserInfoResponse(BaseModel):
+class MeResponse(BaseModel):
     object: Annotated[Literal["userInfo"], Field(default="userInfo", description="The user info object type.")]
     id: Annotated[int, Field(description="The user ID.")]
     email: Annotated[str, Field(description="The user email.")]

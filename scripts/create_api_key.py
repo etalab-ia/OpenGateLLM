@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     # Create a new API key
     response = requests.post(
-        url=f"{args.api_url}/v1/me/keys",
+        url=f"{args.api_url}/v1/keys",
         headers={"Authorization": f"Bearer {tmp_api_key}"},
         json={
             "name": f"my-first-key-{uuid4()}",

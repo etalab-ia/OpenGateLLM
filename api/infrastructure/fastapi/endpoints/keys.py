@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import Body, Depends, Query, Security
+from fastapi import APIRouter, Body, Depends, Query, Security
 
 from api.dependencies import create_me_key_use_case_factory, get_keys_use_case_factory
 from api.domain import SortField, SortOrder
@@ -16,9 +16,8 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     KeyExpirationInvalidHTTPException,
     UserNotFoundHTTPException,
 )
-from api.infrastructure.fastapi.endpoints.me import router
 from api.infrastructure.fastapi.schemas.admin.keys import KeyResponse, KeysResponse
-from api.infrastructure.fastapi.schemas.me.keys import CreateKeyBody
+from api.infrastructure.fastapi.schemas.keys import CreateKeyBody
 from api.use_cases.admin.keys import (
     CreateKeyCommand,
     CreateKeyUseCase,
@@ -27,13 +26,22 @@ from api.use_cases.admin.keys import (
     GetKeysUseCase,
     GetKeysUseCaseSuccess,
 )
-from api.utils.variables import EndpointRoute
+from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
 
+router = APIRouter(prefix="/v1", tags=[RouterName.KEYS.title()])
+
 
 @router.post(
-    path=EndpointRoute.ME_KEYS,
+    path="/me/keys",
+    dependencies=[Security(dependency=AccessController())],
+    status_code=201,
+    responses=get_documentation_responses([KeyAlreadyExistsHTTPException, KeyExpirationInvalidHTTPException, UserNotFoundHTTPException]),
+    deprecated=True,
+)
+@router.post(
+    path=EndpointRoute.KEYS,
     dependencies=[Security(dependency=AccessController())],
     status_code=201,
     responses=get_documentation_responses([KeyAlreadyExistsHTTPException, KeyExpirationInvalidHTTPException, UserNotFoundHTTPException]),
@@ -73,7 +81,14 @@ async def create_key(
 
 
 @router.get(
-    path=EndpointRoute.ME_KEYS,
+    path="/me/keys",
+    dependencies=[Security(dependency=AccessController())],
+    status_code=200,
+    responses=get_documentation_responses([]),
+    deprecated=True,
+)
+@router.get(
+    path=EndpointRoute.KEYS,
     dependencies=[Security(dependency=AccessController())],
     status_code=200,
     responses=get_documentation_responses([]),

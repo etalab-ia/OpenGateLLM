@@ -69,7 +69,7 @@ class TestCreateApp:
 
     async def test_enabled_router_is_reachable(self, createapp_client: AsyncClient, createapp_configuration: Configuration):
         # Act
-        response = await createapp_client.get(url=f"/v1{EndpointRoute.ME_INFO}")
+        response = await createapp_client.get(url=f"/v1{EndpointRoute.ME}")
 
         # Assert
         assert response.status_code == 401, f"Expected 401, got {response.status_code}: {response.text}"

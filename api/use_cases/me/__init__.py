@@ -1,7 +1,3 @@
-from ._getuserinfousecase import GetUserInfoCommand, GetUserInfoUseCase, GetUserInfoUseCaseSuccess
+from ._getmeusecase import GetMeCommand, GetMeUseCase, GetMeUseCaseSuccess
 
-__all__ = [
-    "GetUserInfoCommand",
-    "GetUserInfoUseCase",
-    "GetUserInfoUseCaseSuccess",
-]
+__all__ = ["GetMeCommand", "GetMeUseCase", "GetMeUseCaseSuccess"]
