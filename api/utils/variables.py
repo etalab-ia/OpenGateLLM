@@ -3,6 +3,9 @@ from enum import StrEnum
 DEFAULT_APP_NAME: str = "OpenGateLLM"
 DEFAULT_TIMEOUT: int = 300
 SYSTEM_PLAYGROUND_KEY_NAME: str = "_system_playground_key"
+MIN_PASSWORD_LENGTH: int = 6
+MAX_PASSWORD_LENGTH: int = 72
+
 
 PREFIX__CELERY_QUEUE_ROUTING: str = "ogl_qr"
 PREFIX__REDIS_METRIC_GAUGE: str = "ogl_mg"
@@ -18,6 +21,7 @@ class RouterName(StrEnum):
     CHAT = ("chat", "api.endpoints.chat")
     EMBEDDINGS = ("embeddings", "api.infrastructure.fastapi.endpoints.embeddings")
     HEALTH = ("health", "api.infrastructure.fastapi.endpoints.health")
+    KEYS = ("keys", "api.infrastructure.fastapi.endpoints.keys")
     ME = ("me", "api.infrastructure.fastapi.endpoints.me")
     MODELS = ("models", "api.infrastructure.fastapi.endpoints.models")
     MONITORING = ("monitoring", "api.infrastructure.fastapi.endpoints.health")
@@ -44,8 +48,7 @@ class EndpointRoute(StrEnum):
     ADMIN_PROVIDERS = f"/{RouterName.ADMIN}/providers"
     ADMIN_ROLES = f"/{RouterName.ADMIN}/roles"
     ADMIN_ROUTERS = f"/{RouterName.ADMIN}/routers"
-    ADMIN_KEYS = (f"/{RouterName.ADMIN}/keys", "api.infrastructure.fastapi.endpoints.admin.keys")
-    ADMIN_TOKENS = ADMIN_KEYS  # @TODO: deprecated, use ADMIN_KEYS instead
+    ADMIN_KEYS = f"/{RouterName.ADMIN}/keys"
     ADMIN_USERS = f"/{RouterName.ADMIN}/users"
     AUDIO_TRANSCRIPTIONS = f"/{RouterName.AUDIO}/transcriptions"
     AUTH_LOGIN = f"/{RouterName.AUTH}/login"
@@ -54,9 +57,9 @@ class EndpointRoute(StrEnum):
     EMBEDDINGS = f"/{RouterName.EMBEDDINGS}"
     HEALTH = f"/{RouterName.HEALTH}"
     HEALTH_MODELS = f"/{RouterName.HEALTH}/models"
+    KEYS = f"/{RouterName.KEYS}"
     METRICS = "/metrics"
-    ME_INFO = f"/{RouterName.ME}/info"
-    ME_KEYS = f"/{RouterName.ME}/keys"
+    ME = f"/{RouterName.ME}"
     ME_USAGE = f"/{RouterName.ME}/usage"
     MODELS = f"/{RouterName.MODELS}"
     OCR = f"/{RouterName.OCR}"

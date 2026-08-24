@@ -31,10 +31,12 @@ Reference implementations of these patterns:
 | Pattern | Example |
 |---------|---------|
 | Create with domain errors | `keys.py` + `_createkeyusecase.py` |
-| List + get-by-id | `routers.py` (`GetRoutersUseCase` + `GetOneRouterUseCase`) |
+| List + get-by-id | `routers.py` (`GetRoutersUseCase` + `GetOneRouterUseCase`), self-service `keys.py` |
 | Paginated list | `roles.py`, `users.py` (`EntitiesPage`, `*sResponse`) |
 | Full CRUD | `roles.py`, `routers.py` |
 | Model-forward (autocommit) | embeddings, OCR, rerank, audio transcriptions |
+
+Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `GetKeysUseCase`, `GetOneKeyUseCase`). Pass `user_id=authenticated_user.id` on the command to scope the operation to the current user. Admin get-one omits `user_id` (it defaults to `None`) so it can load any key.
 
 ---
 
@@ -320,7 +322,7 @@ async def get_roles(
             )
 ```
 
-- Auth: `AccessController` from `api.infrastructure.fastapi` (`only_admin=True` for admin routes, `allow_expired=True` when expired users must still reach the route, e.g. GET `/v1/me/info`)
+- Auth: `AccessController` from `api.infrastructure.fastapi` (`only_admin=True` for admin routes, `allow_expired=True` when expired users must still reach the route, e.g. GET `/v1/me`)
 - Auth user: `authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user)` when only the user is needed. Keep `get_request_context` only when the full `RequestContext` is required.
 - Sort query params: `sort_by` / `sort_order`
 - Document errors: `responses=get_documentation_responses([...])`

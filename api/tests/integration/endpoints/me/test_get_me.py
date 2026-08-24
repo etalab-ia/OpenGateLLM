@@ -9,11 +9,11 @@ from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import LimitSQLFactory, PermissionSQLFactory, RouterSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
-URL = f"/v1{EndpointRoute.ME_INFO}"
+URL = f"/v1{EndpointRoute.ME}"
 
 
 @pytest.mark.asyncio(loop_scope="session")
-class TestGetUserInfo:
+class TestGetMe:
     @pytest_asyncio.fixture(autouse=True)
     async def setup(self, db_session):
         self.user = UserSQLFactory(regular_user=True, name="Alice", email="alice@example.com", budget=42.5, priority=3)

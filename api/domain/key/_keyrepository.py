@@ -34,5 +34,5 @@ class KeyRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete_key(self, key_id: int) -> Key | KeyNotFoundError:
+    async def delete_key(self, key_id: int, user_id: int | None = None) -> Key | KeyNotFoundError:
         pass

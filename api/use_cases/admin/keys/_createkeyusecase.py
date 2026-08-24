@@ -21,7 +21,7 @@ class CreateKeyUseCaseSuccess:
     key: Key
 
 
-type CreateKeyUseCaseResult = KeyAlreadyExistsError | CreateKeyUseCaseSuccess | KeyExpirationInvalidError | UserNotFoundError
+type CreateKeyUseCaseResult = CreateKeyUseCaseSuccess | KeyAlreadyExistsError | KeyExpirationInvalidError | UserNotFoundError
 
 
 class CreateKeyUseCase:

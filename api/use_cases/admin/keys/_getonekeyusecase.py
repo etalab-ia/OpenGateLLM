@@ -8,6 +8,7 @@ from api.domain.key.errors import KeyNotFoundError
 @dataclass
 class GetOneKeyCommand:
     key_id: int
+    user_id: int | None = None
 
 
 @dataclass
@@ -27,5 +28,8 @@ class GetOneKeyUseCase:
 
         if isinstance(result, KeyNotFoundError):
             return result
+
+        if command.user_id is not None and result.user_id != command.user_id:
+            return KeyNotFoundError(id=command.key_id)
 
         return GetOneKeyUseCaseSuccess(key=result)
