@@ -262,3 +262,36 @@ class TestDeleteKey:
         # Assert
         assert isinstance(result, KeyNotFoundError)
         assert result.id == 999999
+
+    async def test_delete_key_should_return_key_and_remove_it_when_user_id_matches(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        token = KeySQLFactory(user=user, name="owned-key", never_expires=True)
+        await db_session.flush()
+        key_id = token.id
+
+        # Act
+        result = await repository.delete_key(key_id=key_id, user_id=user.id)
+
+        # Assert
+        assert isinstance(result, Key)
+        assert result.id == key_id
+        remaining = await db_session.scalar(select(KeyTable).where(KeyTable.id == key_id))
+        assert remaining is None
+
+    async def test_delete_key_should_return_key_not_found_when_user_id_does_not_match(self, repository, db_session):
+        # Arrange
+        owner = UserSQLFactory()
+        other_user = UserSQLFactory()
+        token = KeySQLFactory(user=owner, name="owned-key", never_expires=True)
+        await db_session.flush()
+        key_id = token.id
+
+        # Act
+        result = await repository.delete_key(key_id=key_id, user_id=other_user.id)
+
+        # Assert
+        assert isinstance(result, KeyNotFoundError)
+        assert result.id == key_id
+        remaining = await db_session.scalar(select(KeyTable).where(KeyTable.id == key_id))
+        assert remaining is not None

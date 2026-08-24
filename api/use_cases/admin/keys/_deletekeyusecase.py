@@ -8,6 +8,7 @@ from api.domain.key.errors import KeyNotFoundError
 @dataclass
 class DeleteKeyCommand:
     key_id: int
+    user_id: int | None = None
 
 
 @dataclass
@@ -23,7 +24,7 @@ class DeleteKeyUseCase:
         self.key_repository = key_repository
 
     async def execute(self, command: DeleteKeyCommand) -> DeleteKeyUseCaseResult:
-        result = await self.key_repository.delete_key(key_id=command.key_id)
+        result = await self.key_repository.delete_key(key_id=command.key_id, user_id=command.user_id)
         match result:
             case Key() as key:
                 return DeleteKeyUseCaseSuccess(key=key)
