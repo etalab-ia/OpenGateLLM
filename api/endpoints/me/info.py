@@ -9,7 +9,7 @@ from api.utils.dependencies import get_postgres_session
 from api.utils.variables import EndpointRoute
 
 
-@router.patch(path=EndpointRoute.ME_INFO, dependencies=[Security(dependency=AccessController())], status_code=204)
+@router.patch(path=f"{EndpointRoute.ME}/info", dependencies=[Security(dependency=AccessController())], status_code=204)
 async def update_user(
     request: Request,
     body: UpdateUserInfo = Body(description="The user update request."),

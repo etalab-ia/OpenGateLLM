@@ -82,7 +82,7 @@ class AccessController:
         user_info = await global_context.identity_access_manager.get_user_info(postgres_session=postgres_session, user_id=token_result.user_id)
 
         # invalid token if user is expired, except for /me and /me/role endpoints
-        if user_info.expires and user_info.expires < time.time() and not request.url.path.endswith(EndpointRoute.ME_INFO):
+        if user_info.expires and user_info.expires < time.time() and not request.url.path.endswith(EndpointRoute.ME):
             raise InvalidAPIKeyException()
 
         return user_info, token_result.token_id, token_result.token_name

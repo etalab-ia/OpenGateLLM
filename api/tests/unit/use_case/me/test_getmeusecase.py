@@ -2,12 +2,12 @@ import pytest
 
 from api.domain.role.entities import PermissionType
 from api.domain.user.views import AuthenticatedUserView
-from api.use_cases.me import GetUserInfoCommand, GetUserInfoUseCase, GetUserInfoUseCaseSuccess
+from api.use_cases.me import GetMeCommand, GetMeUseCase, GetMeUseCaseSuccess
 
 
 @pytest.fixture
 def use_case():
-    return GetUserInfoUseCase()
+    return GetMeUseCase()
 
 
 @pytest.fixture
@@ -24,15 +24,15 @@ def authenticated_user():
     )
 
 
-class TestGetUserInfoUseCase:
+class TestGetMeUseCase:
     @pytest.mark.asyncio
     async def test_should_return_authenticated_user(self, use_case, authenticated_user):
         # Arrange
-        command = GetUserInfoCommand(authenticated_user=authenticated_user)
+        command = GetMeCommand(authenticated_user=authenticated_user)
 
         # Act
         result = await use_case.execute(command)
 
         # Assert
-        assert isinstance(result, GetUserInfoUseCaseSuccess)
+        assert isinstance(result, GetMeUseCaseSuccess)
         assert result.authenticated_user is authenticated_user

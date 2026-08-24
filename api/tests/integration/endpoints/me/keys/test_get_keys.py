@@ -6,7 +6,7 @@ from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import KeySQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
-URL = f"/v1{EndpointRoute.ME_KEYS}"
+URL = f"/v1{EndpointRoute.KEYS}"
 
 
 @pytest.mark.asyncio(loop_scope="session")

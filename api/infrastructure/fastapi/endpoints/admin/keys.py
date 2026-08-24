@@ -2,12 +2,7 @@ import logging
 
 from fastapi import Body, Depends, Path, Query, Security
 
-from api.dependencies import (
-    create_key_use_case_factory,
-    delete_key_use_case_factory,
-    get_keys_use_case_factory,
-    get_one_key_use_case_factory,
-)
+from api.dependencies import create_key_use_case_factory, delete_key_use_case_factory, get_keys_use_case_factory, get_one_key_use_case_factory
 from api.domain import SortField, SortOrder
 from api.domain.key.errors import KeyAlreadyExistsError, KeyExpirationInvalidError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
