@@ -48,8 +48,7 @@ class EndpointRoute(StrEnum):
     ADMIN_PROVIDERS = f"/{RouterName.ADMIN}/providers"
     ADMIN_ROLES = f"/{RouterName.ADMIN}/roles"
     ADMIN_ROUTERS = f"/{RouterName.ADMIN}/routers"
-    ADMIN_KEYS = (f"/{RouterName.ADMIN}/keys", "api.infrastructure.fastapi.endpoints.admin.keys")
-    ADMIN_TOKENS = ADMIN_KEYS  # @TODO: deprecated, use ADMIN_KEYS instead
+    ADMIN_KEYS = f"/{RouterName.ADMIN}/keys"
     ADMIN_USERS = f"/{RouterName.ADMIN}/users"
     AUDIO_TRANSCRIPTIONS = f"/{RouterName.AUDIO}/transcriptions"
     AUTH_LOGIN = f"/{RouterName.AUTH}/login"
