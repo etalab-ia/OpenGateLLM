@@ -388,7 +388,7 @@ class TestAuth:
         # Get first user's token
         headers1 = {"Authorization": f"Bearer {user1_token}"}
         response = client.get(
-            url=f"/v1/me/keys/{user1_token_id}",
+            url=f"/v1{EndpointRoute.KEYS}/{user1_token_id}",
             headers=headers1,
         )
         assert response.status_code == 200, response.text
@@ -418,21 +418,21 @@ class TestAuth:
 
         # Get second user's token
         headers2 = {"Authorization": f"Bearer {user2_token}"}
-        response = client.get(url=f"/v1/me/keys/{user2_token_id}", headers=headers2)
+        response = client.get(url=f"/v1{EndpointRoute.KEYS}/{user2_token_id}", headers=headers2)
         assert response.status_code == 200, response.text
         user2_token_data = response.json()
 
         # Check that tokens are different for both users
-        assert user1_token_data["token"] != user2_token_data["token"], "Tokens across users should be unique"
+        assert user1_token_data["value"] != user2_token_data["value"], "Tokens across users should be unique"
 
         # Do it again to expose collision when creating a token with the same name
         # Get first user's token again to check it was not affected
         headers1 = {"Authorization": f"Bearer {user1_token}"}
-        response = client.get(url=f"/v1/me/keys/{user1_token_id}", headers=headers1)
+        response = client.get(url=f"/v1{EndpointRoute.KEYS}/{user1_token_id}", headers=headers1)
         assert response.status_code == 200, response.text
         user1_token_data = response.json()
 
-        # Verify each user only sees their own keys in /me/keys.
+        # Verify each user only sees their own keys in /keys.
         response = client.get(url=f"/v1{EndpointRoute.KEYS}", headers=headers1)
         assert response.status_code == 200, response.text
         user1_key_ids = {key["id"] for key in response.json()["data"]}
@@ -446,4 +446,4 @@ class TestAuth:
         assert user1_token_id not in user2_key_ids, "Second user should not see first user's key"
 
         # Check that tokens are different for both users
-        assert user1_token_data["token"] != user2_token_data["token"], "Tokens with same name across users should not be modified by each other"
+        assert user1_token_data["value"] != user2_token_data["value"], "Tokens with same name across users should not be modified by each other"

@@ -1,10 +1,10 @@
 import logging
 
-from fastapi import APIRouter, Body, Depends, Query, Security
+from fastapi import APIRouter, Body, Depends, Path, Query, Security
 
-from api.dependencies import create_me_key_use_case_factory, get_keys_use_case_factory
+from api.dependencies import create_me_key_use_case_factory, get_keys_use_case_factory, get_one_key_use_case_factory
 from api.domain import SortField, SortOrder
-from api.domain.key.errors import KeyAlreadyExistsError, KeyExpirationInvalidError
+from api.domain.key.errors import KeyAlreadyExistsError, KeyExpirationInvalidError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -14,6 +14,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     InternalServerHTTPException,
     KeyAlreadyExistsHTTPException,
     KeyExpirationInvalidHTTPException,
+    KeyNotFoundHTTPException,
     UserNotFoundHTTPException,
 )
 from api.infrastructure.fastapi.schemas.admin.keys import KeyResponse, KeysResponse
@@ -25,6 +26,9 @@ from api.use_cases.admin.keys import (
     GetKeysCommand,
     GetKeysUseCase,
     GetKeysUseCaseSuccess,
+    GetOneKeyCommand,
+    GetOneKeyUseCase,
+    GetOneKeyUseCaseSuccess,
 )
 from api.utils.variables import EndpointRoute, RouterName
 
@@ -136,3 +140,46 @@ async def get_keys(
                 limit=limit,
                 data=[KeyResponse.model_validate(key, from_attributes=True) for key in key_page.data],
             )
+
+
+@router.get(
+    path="/me/keys/{key_id}",
+    dependencies=[Security(dependency=AccessController())],
+    status_code=200,
+    responses=get_documentation_responses([KeyNotFoundHTTPException]),
+    deprecated=True,
+)
+@router.get(
+    path=EndpointRoute.KEYS + "/{key_id}",
+    dependencies=[Security(dependency=AccessController())],
+    status_code=200,
+    responses=get_documentation_responses([KeyNotFoundHTTPException]),
+)
+async def get_key(
+    key_id: int = Path(description="The ID of the key to get."),
+    get_one_key_use_case: GetOneKeyUseCase = Depends(get_one_key_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
+) -> KeyResponse:
+    """
+    Get one of your API keys by ID.
+    """
+
+    command = GetOneKeyCommand(key_id=key_id, user_id=authenticated_user.id)
+    try:
+        result = await get_one_key_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing get_key use case",
+            extra={
+                "authenticated_user_id": authenticated_user.id,
+                "key_id": key_id,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
+
+    match result:
+        case GetOneKeyUseCaseSuccess(key=key):
+            return KeyResponse.model_validate(key, from_attributes=True)
+        case KeyNotFoundError(id=not_found_key_id):
+            raise KeyNotFoundHTTPException(not_found_key_id)
