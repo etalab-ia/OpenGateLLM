@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 from pydantic import AfterValidator, ConfigDict, Field, StringConstraints
 
 from api.domain import BaseModel
+from api.utils.variables import MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH
 
 
 def _must_be_future(expires: int) -> int:
@@ -18,7 +19,7 @@ FutureTimestamp = Annotated[int, AfterValidator(_must_be_future)]
 class CreateUserBody(BaseModel):
     email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254), Field(..., description="The user email.")]
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="The user name.")
-    password: Annotated[Annotated[str, StringConstraints(strip_whitespace=True, min_length=6, max_length=72)], Field(description="The user password.")]  # fmt: off
+    password: Annotated[Annotated[str, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH)], Field(description="The user password.")]  # fmt: off
     role_id: int = Field(..., description="The role ID.")
     organization_id: int | None = Field(default=None, description="The organization ID.")
     budget: float | None = Field(default=None, description="The budget.")
@@ -55,8 +56,8 @@ class UsersResponse(BaseModel):
 class UserUpdateRequest(BaseModel):
     email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] | None = Field(default=None, description="The new user email. If None, the user email is not changed.")  # fmt: off
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="The new user name. If None, the user name is not changed.")  # fmt: off
-    current_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72)] | None = Field(default=None, description="The current user password.")  # fmt: off
-    password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72)] | None = Field(default=None, description="The new user password. If None, the user password is not changed.")  # fmt: off
+    current_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH)] | None = Field(default=None, description="The current user password.")  # fmt: off
+    password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH)] | None = Field(default=None, description="The new user password. If None, the user password is not changed.")  # fmt: off
     role_id: int | None = Field(default=None, description="The new role ID. If None, the user role is not changed.")  # fmt: off
     organization_id: int | None = Field(default=None, description="The new organization ID. If None, the user will be removed from the organization if he was in one.")  # fmt: off
     budget: float | None = Field(default=None, description="The new budget. If None, the user will have no budget.")  # fmt: off
