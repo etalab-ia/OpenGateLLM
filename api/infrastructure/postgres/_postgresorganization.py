@@ -17,8 +17,10 @@ class PostgresOrganizationRepository(OrganizationRepository):
         try:
             result = await self.postgres_session.execute(insert(OrganizationTable).values(name=name).returning(OrganizationTable))
             row = result.scalar_one()
-        except IntegrityError:
-            return OrganizationAlreadyExistsError(name=name)
+        except IntegrityError as e:
+            if "organization_name_key" in str(e.orig):
+                return OrganizationAlreadyExistsError(name=name)
+            raise
 
         return Organization(id=row.id, name=row.name, users=0, created=row.created, updated=row.updated)
 
