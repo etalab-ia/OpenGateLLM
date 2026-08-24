@@ -10,8 +10,8 @@ from api.domain.user.errors import IncorrectCurrentPasswordError, UserAlreadyExi
 @dataclass
 class UpdateMeCommand:
     user_id: int
-    email: str | None = None
-    name: str | None = None
+    email: str
+    name: str
     current_password: str | None = None
     new_password: str | None = None
 
@@ -34,12 +34,12 @@ class UpdateMeUseCase:
         if isinstance(existing_user, UserNotFoundError):
             return existing_user
 
-        if command.new_password is None:
+        if command.current_password is None or command.new_password is None:
             password = existing_user.password
-        elif command.current_password is None:
-            password = SecretStr(self.user_password_encoder.encode_password(password=command.new_password))
-        elif existing_user.password is not None and self.user_password_encoder.validate_password(
-            password=command.current_password, encoded_password=existing_user.password.get_secret_value()
+
+        elif existing_user.password is None or self.user_password_encoder.validate_password(
+            password=command.current_password,
+            encoded_password=existing_user.password.get_secret_value(),
         ):
             password = SecretStr(self.user_password_encoder.encode_password(password=command.new_password))
         else:
@@ -47,8 +47,8 @@ class UpdateMeUseCase:
 
         updated_user = existing_user.model_copy(
             update={
-                "email": command.email if command.email is not None else existing_user.email,
-                "name": command.name if command.name is not None else existing_user.name,
+                "email": command.email,
+                "name": command.name,
                 "password": password,
             }
         )

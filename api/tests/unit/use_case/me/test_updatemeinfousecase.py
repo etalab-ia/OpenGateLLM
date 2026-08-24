@@ -8,6 +8,15 @@ from api.tests.unit.use_case.factories import UserFactory
 from api.use_cases.me import UpdateMeCommand, UpdateMeUseCase, UpdateMeUseCaseSuccess
 
 
+def _command(user, **overrides) -> UpdateMeCommand:
+    return UpdateMeCommand(
+        user_id=overrides.pop("user_id", user.id),
+        email=overrides.pop("email", user.email),
+        name=overrides.pop("name", user.name),
+        **overrides,
+    )
+
+
 @pytest.fixture
 def user_repository():
     return AsyncMock()
@@ -39,7 +48,7 @@ class TestUpdateMeInfoUseCase:
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id, email="new@example.com", name="New Name"))
+        result = await use_case.execute(_command(sample_user, email="new@example.com", name="New Name"))
 
         # Assert
         assert isinstance(result, UpdateMeUseCaseSuccess)
@@ -49,13 +58,13 @@ class TestUpdateMeInfoUseCase:
         user_repository.update_user.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_should_keep_existing_fields_when_fields_are_none(self, use_case, user_repository, sample_user):
+    async def test_should_keep_other_fields_when_updating_name_and_email(self, use_case, user_repository, sample_user):
         # Arrange
         user_repository.get_user_by_id.return_value = sample_user
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id))
+        result = await use_case.execute(_command(sample_user))
 
         # Assert
         assert isinstance(result, UpdateMeUseCaseSuccess)
@@ -75,7 +84,7 @@ class TestUpdateMeInfoUseCase:
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id, current_password="old"))
+        result = await use_case.execute(_command(sample_user, current_password="old"))
 
         # Assert
         assert isinstance(result, UpdateMeUseCaseSuccess)
@@ -83,20 +92,18 @@ class TestUpdateMeInfoUseCase:
         user_password_encoder.encode_password.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_encode_new_password_without_verification_when_no_current_password(
-        self, use_case, user_repository, user_password_encoder, sample_user
-    ):
+    async def test_should_ignore_new_password_when_current_password_is_none(self, use_case, user_repository, user_password_encoder, sample_user):
         # Arrange
-        user_repository.get_user_by_id.return_value = sample_user
+        user_repository.get_user_by_id.return_value = sample_user.model_copy(update={"password": SecretStr("encoded-old")})
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id, new_password="secret"))
+        result = await use_case.execute(_command(sample_user, new_password="secret"))
 
         # Assert
         assert isinstance(result, UpdateMeUseCaseSuccess)
-        assert result.user.password == SecretStr("encoded-secret")
-        user_password_encoder.encode_password.assert_called_once_with(password="secret")
+        assert result.user.password == SecretStr("encoded-old")
+        user_password_encoder.encode_password.assert_not_called()
         user_password_encoder.validate_password.assert_not_called()
 
     @pytest.mark.asyncio
@@ -107,7 +114,7 @@ class TestUpdateMeInfoUseCase:
         user_password_encoder.validate_password.return_value = True
 
         # Act
-        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id, current_password="old", new_password="secret"))
+        result = await use_case.execute(_command(sample_user, current_password="old", new_password="secret"))
 
         # Assert
         assert isinstance(result, UpdateMeUseCaseSuccess)
@@ -120,7 +127,7 @@ class TestUpdateMeInfoUseCase:
         user_repository.get_user_by_id.return_value = UserNotFoundError(id=99)
 
         # Act
-        result = await use_case.execute(UpdateMeCommand(user_id=99, email="new@example.com"))
+        result = await use_case.execute(UpdateMeCommand(user_id=99, email="new@example.com", name="New Name"))
 
         # Assert
         assert isinstance(result, UserNotFoundError)
@@ -136,7 +143,7 @@ class TestUpdateMeInfoUseCase:
         user_password_encoder.validate_password.return_value = False
 
         # Act
-        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id, current_password="wrong", new_password="secret"))
+        result = await use_case.execute(_command(sample_user, current_password="wrong", new_password="secret"))
 
         # Assert
         assert isinstance(result, IncorrectCurrentPasswordError)
@@ -144,19 +151,21 @@ class TestUpdateMeInfoUseCase:
         user_repository.update_user.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_incorrect_current_password_error_when_user_has_no_password(
+    async def test_should_encode_new_password_without_verification_when_user_has_no_password(
         self, use_case, user_repository, user_password_encoder, sample_user
     ):
         # Arrange
         user_repository.get_user_by_id.return_value = sample_user.model_copy(update={"password": None})
+        user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id, current_password="old", new_password="secret"))
+        result = await use_case.execute(_command(sample_user, current_password="old", new_password="secret"))
 
         # Assert
-        assert isinstance(result, IncorrectCurrentPasswordError)
+        assert isinstance(result, UpdateMeUseCaseSuccess)
+        assert result.user.password == SecretStr("encoded-secret")
+        user_password_encoder.encode_password.assert_called_once_with(password="secret")
         user_password_encoder.validate_password.assert_not_called()
-        user_repository.update_user.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_user_already_exists_error_when_email_is_taken(self, use_case, user_repository, sample_user):
@@ -165,7 +174,7 @@ class TestUpdateMeInfoUseCase:
         user_repository.update_user.return_value = UserAlreadyExistsError(email="taken@example.com")
 
         # Act
-        result = await use_case.execute(UpdateMeCommand(user_id=sample_user.id, email="taken@example.com"))
+        result = await use_case.execute(_command(sample_user, email="taken@example.com"))
 
         # Assert
         assert isinstance(result, UserAlreadyExistsError)

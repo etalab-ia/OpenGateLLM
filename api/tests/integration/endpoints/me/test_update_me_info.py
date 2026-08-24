@@ -10,7 +10,7 @@ from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import UserSQLFactory
 from api.utils.variables import EndpointRoute
 
-URL = f"/v1{EndpointRoute.ME_INFO}"
+URL = f"/v1{EndpointRoute.ME}"
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -33,6 +33,16 @@ class TestUpdateMeInfo:
         await db_session.refresh(self.user)
         assert self.user.email == "updated@example.com"
         assert self.user.name == "Updated Name"
+
+    async def test_rejects_current_password_without_new_password(self, client: AsyncClient):
+        response = await client.patch(
+            url=URL,
+            headers={"Authorization": f"Bearer {self.key.token}"},
+            json={"email": self.user.email, "name": self.user.name, "current_password": "old-password"},
+        )
+
+        assert response.status_code == 422, response.text
+        assert any("password is required when current_password is provided" in error["msg"] for error in response.json()["detail"])
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
@@ -62,7 +72,7 @@ class TestUpdateMeInfo:
         response = await client.patch(
             url=URL,
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json={},
+            json={"email": self.user.email, "name": self.user.name},
         )
 
         assert response.status_code == expected_status
@@ -77,7 +87,7 @@ class TestUpdateMeInfo:
         ],
     )
     async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):
-        response = await client.patch(url=URL, headers=headers, json={})
+        response = await client.patch(url=URL, headers=headers, json={"email": "user@example.com", "name": "User"})
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail
