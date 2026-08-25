@@ -21,7 +21,10 @@ jobs:
     if: >-
       github.event_name == 'workflow_call' ||
       github.event_name == 'workflow_dispatch' ||
-      github.actor != 'github-actions[bot]'
+      (
+        github.actor != 'github-actions[bot]' &&
+        github.event.pull_request.draft == true
+      )
     runs-on: ubuntu-latest
 
     steps:
@@ -51,7 +54,10 @@ jobs:
     if: >-
       github.event_name == 'workflow_call' ||
       github.event_name == 'workflow_dispatch' ||
-      github.actor != 'github-actions[bot]'
+      (
+        github.actor != 'github-actions[bot]' &&
+        github.event.pull_request.draft == true
+      )
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -61,7 +67,6 @@ jobs:
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
 
       - name: Run integration tests
-        if: github.event_name == 'pull_request' && github.event.pull_request.draft
         run: |
           # Create a local virtual environment and install dependencies
           uv venv
@@ -82,11 +87,13 @@ jobs:
     if: >-
       github.event_name == 'workflow_call' ||
       github.event_name == 'workflow_dispatch' ||
-      github.actor != 'github-actions[bot]'
+      (
+        github.actor != 'github-actions[bot]' &&
+        github.event.pull_request.draft == false
+      )
     runs-on: ubuntu-latest
     steps:
       - name: Run tests (unit & integration) with coverage and publish unit badge
-        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
         run: |
           # Create a local virtual environment and install dependencies
           uv venv
@@ -103,7 +110,7 @@ jobs:
           # Export coverage data to XML for badge computation
           python -m coverage xml -o coverage.xml
 
-          # Build unit coverage badge JSON
+          # Build coverage badge JSON
           mkdir -p .github/badges
           python - <<'PY'
           import json
@@ -127,6 +134,8 @@ jobs:
           with open(".github/badges/coverage.json", "w", encoding="utf-8") as badge_file:
               json.dump(badge, badge_file)
           PY
+
+          docker compose --file compose.example.yml down --volumes --remove-orphans
 
       - name: Commit unit coverage badge
         if: >-
