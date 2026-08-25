@@ -240,6 +240,14 @@ class RouterAlreadyExistsHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=f"Router {name} already exists.")
 
 
+class OrganizationAlreadyExistsHTTPException(HTTPException):
+    status_code = 409
+    detail = "Organization {name} already exists."
+
+    def __init__(self, name: str):
+        super().__init__(status_code=self.status_code, detail=f"Organization {name} already exists.")
+
+
 class ProviderAlreadyExistsHTTPException(HTTPException):
     status_code = 409
     detail = "Model provider {model_name} for url {url} already exists for router {router_id}."
