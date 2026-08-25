@@ -28,8 +28,9 @@ Le QoS actuel a deux faiblesses :
 - Admission **atomique Lua**, en tenant compte du **poids de la requête qui arrive**.
 - On **préfère jeter** une requête bloquante plutôt que de geler le système.
 - Health et QoS : **même source Redis** (`qos:load`), pas d’API métriques provider.
-- Load balancing **least busy** sur **la même métrique** que le QoS.
-- Lua pour admission et tête de file.
+- Load balancing **least busy filtrant** sur **la même métrique** que le QoS : moins chargé parmi les providers qui peuvent admettre le poids.
+- Limites / in-flight **par provider** ; file d’attente **par router**.
+- Lua pour admission et claim (tête de file → provider éligible).
 
 ---
 
@@ -51,17 +52,36 @@ La poids max des fichiers doit être supérieur ou égale au max par fichier dé
 
 ---
 
-## 2. Load balancing least busy
+## 2. Load balancing least busy (filtrant)
 
-Le QoS est **couplé** au least busy.
+Le QoS est **couplé** au least busy. La **limite** et la **charge** restent **par provider** (`qos:load` / `qos_limit`, §5). Le choix se fait parmi les providers **qui peuvent admettre le poids** de la requête, pas seulement le moins chargé en absolu.
 
-1. Parmi les providers du router, choisir le **moins chargé** au sens de la **métrique QoS** :  
-   `occupation = qos:load / limite` (comparable même si les limites diffèrent).
-2. Tenter l’**admission atomique** sur ce provider (**charge + poids requête ≤ limite**).
-3. Si ça ne passe pas : **tester les autres** par occupation croissante (un petit provider à 10 % peut ne pas tenir 300 Mo alors qu’un gros à 40 % si).
-4. Si **aucun** ne peut admettre → file d’attente du **moins chargé** (ZSET de ce provider), sauf si l’attente est désactivée / à 0.
+`occupation(p) = qos:load(p) / qos_limit(p)`  
+(comparable même si les limites diffèrent — 1 GPU vs 8 GPU)
 
-Sous la limite (la requête **tient** sur au moins un provider) : **pas de ZSET**, prioritaire et non prioritaire passent tout de suite.
+### Chemin direct (pas de file)
+
+1. Lire `qos:load` de chaque provider du router (éventuellement après une purge légère §5 si on centralise dans un Lua).
+2. Garder les **éligibles** : `qos:load(p) + poids ≤ qos_limit(p)`.
+3. Parmi les éligibles, prendre `p* = argmin occupation(p)`.
+4. **Admission Lua** atomique sur `p*` (§5 : purge ZSET in-flight + check + `ZADD` / incr `qos:load`).
+5. Si le Lua refuse (course : la charge a bougé) → retenter une fois sur le prochain éligible ; sinon enfiler (§6) ou 503.
+
+Sous la limite (au moins un provider éligible) : **pas de ZSET d’attente**, prioritaire et non prioritaire passent tout de suite.
+
+### Exemple
+
+| Provider | `qos_limit` | `qos:load` | Occupation | Requête 300 Mo |
+|---|---|---|---|---|
+| A (1 GPU) | 400 Mo | 50 Mo | 12,5 % | **non** (50+300 > 400) |
+| B (8 GPU) | 2000 Mo | 800 Mo | 40 % | **oui** |
+
+Sans filtre d’éligibilité : on choisirait A (moins chargé) → refus → file collée à A alors que B peut prendre.  
+Avec filtre : on admet sur **B**.
+
+### Si aucun provider n’est éligible
+
+→ une seule file d’attente **par router** (§6), pas une file par provider. Les limites restent celles de chaque provider au moment du claim.
 
 ---
 
@@ -85,50 +105,105 @@ Pas de fallback vLLM/Mistral.
 
 ## 4. Attente, timeout et 503
 
-Deux durées **par provider**, **strictement inférieures** au `timeout` du provider (aujourd’hui défaut 300 s) :
+La file d’attente est **par router** : les durées d’attente vivent au **router**. Elles doivent rester **strictement inférieures** au plus petit `timeout` des providers du router (aujourd’hui défaut 300 s).
 
-| Paramètre | Rôle |
+| Paramètre (router) | Rôle |
 |---|---|
 | `qos_wait_timeout` | Combien de temps la requête HTTP attend une place (poll ~1 s). |
-| `qos_queue_max_wait` | Combien de temps max dans la ZSET avant d’être jetée. |
+| `qos_queue_max_wait` | Combien de temps max dans la ZSET d’attente avant d’être jetée. |
+| `max_queue_size` | Cap `ZCARD` de `qos:wait:{router_id}` (§6). |
 
-Pour le trafic interactif V1, les deux peuvent être égaux.
+Pour le trafic interactif V1, `qos_wait_timeout` et `qos_queue_max_wait` peuvent être égaux.
 
 | `qos_wait_timeout` | Comportement |
 |---|---|
 | `null` | Pas de file, pas de 503 QoS. Statut vert/orange/rouge seulement. |
-| `0` | 503 immédiat, pas de ZSET. |
+| `0` | 503 immédiat, pas de ZSET d’attente. |
 | `N` s | Attente jusqu’à N (plafonnée par `qos_queue_max_wait`). |
 
 Erreur : **503** + header **`Retry-After`** (secondes).
 
 ### Règle `Retry-After`
 
-Quand un utilisateur reçoit une 503, il obtient une durée estimée pour réessayer.
+Le header est renvoyé quand on **refuse** (la requête HTTP est déjà terminée) :
 
-On n’a pas la durée réelle des requêtes en cours. On réutilise la **timeserie Redis des dernières latences** du provider (`ogl_ts:latency:{provider_id}`, déjà alimentée au forward, rétention 30 min). Médiane (p50) de cette fenêtre, convertie en secondes. Ce n’est pas parfait (requêtes **terminées** seulement, pas le temps passé en file, série vide au démarrage) mais ça suffit pour une estimation.
+| Cas | Dans `qos:wait:{router_id}` ? |
+|---|---|
+| `qos_wait_timeout = 0` | non |
+| `max_queue_size` atteint | non |
+| `qos_wait_timeout` / `qos_queue_max_wait` dépassé | éjecté |
 
-`charge` = `qos:load`. Provider visé, ou le moins chargé si aucun n’admet.
+On estime un back-off, on ne promet pas un slot.
 
-Si la série est vide : retomber sur une constante (ex. `min(30, timeout_provider - 1)`).
+#### Durée `D` (déjà dans Redis)
+
+Timeserie `ogl_ts:latency:{provider_id}` (alimentée au forward, rétention 30 min). **p50** de la fenêtre, en secondes. Ce sont des jobs **terminés**, hors temps en file. Série vide : fallback `min(30, timeout_provider - 1)`.
+
+Provider de référence pour `D` / `qos:load` / `limite` : le **moins chargé parmi les éligibles** si un refus Lua vient d’échouer ; sinon le **moins chargé du router** (aucun n’admet ce poids).
+
+Le heartbeat (~30 s) ne mesure **pas** cette durée.
+
+`D` = p50 (moins de sur-attente). p90 plus tard si trop de 503 en boucle.
+
+#### Travail devant le client
+
+La formule `D × (qos:load + poids) / limite` ne voit **que l’in-flight**. À 256/256 et 500 waiters, l’occupation vaut ~1 → on annonce ~`D`. Le client revient trop tôt, reprend une 503, éventuellement derrière `max_queue_size`. Les 503 `max_queue_size` sont les plus trompeurs : la file n’a pas bougé.
+
+Il faut le **poids déjà en file router** (une seule ZSET) et la capacité du provider de référence :
+
+| Grandeur | Source |
+|---|---|
+| `qos:load` | somme des poids in-flight du provider de référence (§5) |
+| `W_queue` | somme des poids dans la file router — entier `qos:wait:load:{router_id}` (même pattern que `qos:load`, O(1), pas de `ZRANGE` / `SCAN`) |
+| `poids` | la requête refusée |
+| `limite` | `qos_limit` du provider de référence |
+
+Si la métrique est le nombre de requêtes, `W_queue = ZCARD(qos:wait:{router_id})` et `poids = 1`.
+
+Approximation V1 : on divise le travail file **router** par la limite **d’un** provider. Avec plusieurs providers, la capacité réelle est plus haute → `Retry-After` un cran pessimiste (acceptable). Plus tard : `Σ qos:load(p)` / `Σ qos_limit(p)` ou drain parallèle estimé.
+
+#### Formule
 
 ```
+ETA = D × (qos:load + W_queue + poids) / limite
+
 Retry-After = clamp(
   1,
-  timeout_provider - 1,
-  ceil( latency_p50 × (qos:load + poids) / limite )
+  qos_queue_max_wait,   # plafond interactif ; pas timeout_provider (voir plus bas)
+  ceil(ETA × (0.5 + rand()))   # jitter 50 %–150 %
 )
 ```
 
-Exemples avec `latency_p50 = 60 s`, limite 500 Mo :
+`qos:load + W_queue + poids` = travail **déjà admis (sur le provider de référence) + déjà en file router + cette requête** si elle réessayait maintenant. Diviser par `limite` → « générations » de capacité ; × `D` → secondes.
 
-| Charge (`qos:load`) | Requête | Occupation | Retry-After |
-|---|---|---|---|
-| 300 Mo | 300 Mo | 1,2 | 72 s |
-| 500 Mo | 1 req / négligeable | 1,0 | 60 s |
-| 100 Mo | 50 Mo (admise) | — | pas de 503 |
+Ce n’est **pas** le temps jusqu’au prochain slot (`≈ D / parallèle`, souvent < 1 s) : trop agressif, orage de retries. C’est un back-off qui **grossit avec la file**.
 
-Idée : à saturation, attendre **à peu près le temps d’une génération de requêtes** avant de réessayer, sans jamais atteindre le timeout provider (la requête cliente mourrait avant). Le TTL / heartbeat in-flight ne mesure **pas** cette durée : il ne sert qu’à purger les zombies.
+| Situation (`D = 60 s`) | Calcul | Retry-After (sans jitter) |
+|---|---|---|
+| 500 Mo / 500 Mo, file vide, poids négligeable | `60 × (500+0+ε)/500` | ~60 s |
+| 300 Mo + requête 300 Mo / 500 Mo, file vide | `60 × 600/500` | 72 s |
+| 256 req / 256, **file vide** | `60 × (256+0+1)/256` | ~60 s |
+| 256 req / 256, **256 en file router** | `60 × (256+256+1)/256` | ~120 s |
+| 256 / 256, **file pleine** (`max_queue_size = 512`) | `60 × (256+512+1)/256` | ~180 s |
+| requête admise | — | pas de 503 |
+
+#### Plafond : ne pas reclamper sur `timeout` provider
+
+Le `timeout` provider borne **un forward**, pas un nouvel essai après 503. Le client n’a plus de connexion.
+
+Reclamper sur `timeout_provider - 1` (ex. 299 s) **recasse** l’estimation dès que la file est profonde : l’ETA honnête est tronqué, le client revient trop tôt — exactement le biais d’ignorer `W_queue`.
+
+Le plafond utile en V1 interactif, c’est `qos_queue_max_wait` (déjà `< min(timeout)` des providers). Si on veut un `Retry-After` plus long que l’attente HTTP max, le poser explicitement, pas le timeout d’inférence.
+
+#### Jitter
+
+Sans jitter, tout le monde reçoit le même entier au même instant → stampede sur Redis et le GPU. `× (0.5 + rand())` suffit. Le header reste un entier de secondes.
+
+#### Ce que ça ne promet pas
+
+- D’ici `Retry-After`, des rôles plus prioritaires peuvent s’insérer, `D` et le least-busy filtrant peuvent changer.
+- Après éjection, on **ne retranche pas** le temps déjà attendu : le client n’est plus dans `qos:wait`, les autres si.
+- Option plus tard : `W_queue` = seulement les waiters **devant** ce rôle (score ZSET meilleur). En V1, toute la file : un cran pessimiste, plus simple.
 
 ---
 
@@ -178,22 +253,47 @@ Si Redis est down : on **laisse passer** (fail-open).
 Aujourd’hui : `user.priority`.  
 Cible : **`role.priority`** (entier, plus élevé = plus prioritaire). Les utilisateurs héritent du rôle. Le plafond `routing_max_priority` reste.
 
-### ZSET d’attente, une par provider
+### ZSET d’attente, **une par router**
 
-Distincte de la ZSET **in-flight** du §5. Uniquement si la requête **ne tient sur aucun provider**. Score = **priorité** + **timestamp (milliseconds)** (haute prio et arrivée ancienne devant) — ce score sert à l’ordre, **pas** à l’expiration. On ne récupère que le **premier** (`ZRANGE` / claim Lua).
+Distincte des ZSET **in-flight** du §5, qui restent **par provider** (`qos:inflight` / `qos:load` / `qos:weight`). On n’enfile **que** si la requête **ne tient sur aucun provider** (§2). Même modèle que l’in-flight : ZSET + compteur de poids O(1), **pas** de `SCAN` / `KEYS`.
+
+| Clé | Portée | Rôle |
+|---|---|---|
+| `qos:wait:{router_id}` | Router | **ZSET** d’attente. Score = **priorité** + **timestamp (ms)** — ordre seulement, **pas** d’expiration. |
+| `qos:wait:hb:{router_id}:{request_id}` | Router | Clé de présence / heartbeat O(1). |
+| `qos:wait:weight:{router_id}` | Router (hash) | `request_id` → poids (claim + purge sans relire le body). |
+| `qos:wait:load:{router_id}` | Router (entier) | Somme des poids en file — miroir de `qos:load`, pour `Retry-After` / `W_queue` (§4). |
 
 Cycle :
 
-1. Entrer dans `qos:wait:{provider_id}` du provider least-busy.
-2. Chaque seconde : heartbeat + « suis-je le premier **et** le slot (avec *mon* poids) est-il libre ? »
-3. Oui → **un Lua** : `ZREM` wait + admission §5 (`ZADD` inflight + incr `qos:load`) + forward.
-4. Non → attendre, jusqu’à `qos_queue_max_wait` / `qos_wait_timeout` → 503 + `Retry-After`.
+1. Si `max_queue_size` atteint (`ZCARD qos:wait:{router_id}`) → 503 + `Retry-After`, sans entrer.
+2. `ZADD` wait + `HSET` poids + incr `qos:wait:load` + créer la clé de présence.
+3. Chaque seconde : heartbeat + tenter un **claim** (Lua ci-dessous).
+4. Succès → forward sur le provider choisi par le claim.
+5. Sinon → attendre jusqu’à `qos_queue_max_wait` / `qos_wait_timeout` → 503 + `Retry-After`.
 
-Si le premier n’est jamais retiré (crash, disconnect, Redis), **toute la file est bloquée**.
+### Claim Lua (tête de file → meilleur provider éligible)
 
-`max_queue_size` : compter les waiters **par provider** (`ZCARD` de `qos:wait`). Si plafond atteint → **503 + `Retry-After`**, sans entrer en file.
+Un script, avec en args la liste `(provider_id, qos_limit)` du router :
 
-`null` = pas de cap (tu assumes le scale). Un entier = file max, indépendant de `qos_wait_timeout`.
+1. Lire le premier de `qos:wait:{router_id}` (`ZRANGE` 0 0).
+2. Si la clé de présence hb est absente → `ZREM` + `HDEL` poids + décr `qos:wait:load`, passer au suivant (anti-blocage zombie).
+3. Pour **chaque** provider : purge in-flight §5 (`ZRANGEBYSCORE` expirés → retrancher `qos:load` / `HDEL` / `ZREMRANGEBYSCORE`).
+4. Lire le poids dans `qos:wait:weight`. Éligibles = `qos:load(p) + poids ≤ qos_limit(p)`.
+5. Si aucun éligible → no-op (le waiter re-polle à la seconde suivante).
+6. Sinon `p* = argmin occupation(p)` parmi les éligibles (`occupation = qos:load / qos_limit`).
+7. Atomique : `ZREM` wait + `DEL` hb + `HDEL` poids wait + décr `qos:wait:load` + admission §5 sur `p*` (`ZADD` inflight avec score `now + ttl_heartbeat`, `HSET` `qos:weight`, incr `qos:load`).
+
+Seul le **premier** vivant claim (sauf purge zombie). Plus de collage à un provider : dès qu’**un** provider du router a de la place pour ce poids, la tête part dessus, en préférant le moins chargé **parmi ceux qui peuvent l’admettre**.
+
+### Head-of-line (poids)
+
+La file router **ne supprime pas** le HOL : si le 1er demande 400 Mo et qu’aucun provider n’a 400 Mo libres, les 10 Mo derrière attendent. V1 : garder « premier seulement ». Plus tard : **skip** si la tête ne rentre nulle part, claim le premier qui rentre quelque part (avec aging pour ne pas affamer les gros).
+
+### Cap de file
+
+`max_queue_size` : `ZCARD` de `qos:wait:{router_id}` (**par router**). Plafond atteint → **503 + `Retry-After`**, sans entrer.  
+`null` = pas de cap. Un entier = file max, indépendant de `qos_wait_timeout`.
 
 ---
 
@@ -201,24 +301,24 @@ Si le premier n’est jamais retiré (crash, disconnect, Redis), **toute la file
 
 Le heartbeat couvre **toute la vie** de la requête (file et in-flight). Tant que le worker est vivant et la connexion active, on **repousse l’expiration**. Si le worker crash, si Redis ne répond plus, ou si le client coupe : plus de renouvellement → le prochain Lua **purge**.
 
-On ne SCAN pas des clés `inflight:*`. En file, le score de `qos:wait` est l’ordre de priorité : l’expiration vit sur une **clé de présence** O(1). In-flight, le score de `qos:inflight` **est** l’expiration ; la charge reste `qos:load`.
+On ne SCAN pas des clés `inflight:*` ni `wait:*`. En file, le score de `qos:wait:{router_id}` est l’ordre de priorité : l’expiration vit sur une **clé de présence** O(1). In-flight, le score de `qos:inflight:{provider_id}` **est** l’expiration ; la charge reste `qos:load:{provider_id}`.
 
 | Phase | Structure | Compte dans `qos:load` | Heartbeat | Expire si heartbeat manqué |
 |---|---|---|---|---|
-| En file | Membre `qos:wait` + clé `qos:wait:hb:{provider_id}:{request_id}` | Non | Chaque **1 s** (même rythme que le poll) | **3 s** |
-| In-flight | Membre `qos:inflight` (score = expiration) + poids dans `qos:weight` | Oui | Chaque **~10 s** : `ZADD` avec `now + ~30 s` | **~30 s** (≈ 3 heartbeats) |
+| En file | Membre `qos:wait:{router_id}` + `qos:wait:hb:{router_id}:{request_id}` + poids dans `qos:wait:weight` | Non | Chaque **1 s** (même rythme que le poll / claim) | **3 s** |
+| In-flight | Membre `qos:inflight:{provider_id}` (score = expiration) + poids dans `qos:weight:{provider_id}` | Oui | Chaque **~10 s** : `ZADD` avec `now + ~30 s` | **~30 s** (≈ 3 heartbeats) |
 
 ### En file
 
-Toutes les secondes : poll (« suis-je premier + y a-t-il de la place pour *mon* poids ? ») **et** `EXPIRE` de la clé de présence à 3 s.
+Toutes les secondes : tenter le claim §6 **et** `EXPIRE` de la clé de présence à 3 s.
 
-Si le premier de `qos:wait` n’a plus de heartbeat → on le **retire**, on passe au suivant. On accepte de **perdre** une prioritaire zombie plutôt que de bloquer la file.
+Si le premier de `qos:wait:{router_id}` n’a plus de heartbeat → le claim Lua le **retire**, on passe au suivant. On accepte de **perdre** une prioritaire zombie plutôt que de bloquer la file.
 
 ### In-flight
 
-Dès l’admission atomique (Lua §5, éventuellement précédé du `ZREM` wait) :
+Dès l’admission atomique (Lua §5, éventuellement dans le même claim §6) :
 
-1. `ZADD` inflight + `HSET` poids + incr `qos:load`, score `now + ~30 s`.
+1. `ZADD` inflight + `HSET` poids + incr `qos:load` sur le **provider choisi**, score `now + ~30 s`.
 2. Tant que le forward tourne (y compris stream), un task asyncio **repousse le score** toutes les ~10 s.
 3. Fin normale, disconnect FastAPI, ou erreur provider → Lua de sortie immédiat (le heartbeat n’est que le filet).
 
@@ -231,9 +331,9 @@ Le heartbeat ne remplace pas les sorties explicites :
 | Événement | Action |
 |---|---|
 | Requête terminée (succès ou erreur provider) | Lua sortie in-flight (`ZREM` + `HDEL` + décr `qos:load`) |
-| Client / proxy coupe (`disconnect`) | Lua sortie file ou in-flight |
-| Plus premier / jeter après `qos_queue_max_wait` | `ZREM` wait + `DEL` clé de présence |
-| Crash worker / Redis saturé malgré retry | Rien à exécuter → le prochain Lua d’admission purge à l’expiration |
+| Client / proxy coupe (`disconnect`) | Lua sortie file (`ZREM` wait + `DEL` hb + `HDEL` poids + décr `qos:wait:load`) ou in-flight |
+| Jeter après `qos_queue_max_wait` | `ZREM` wait + `DEL` hb + `HDEL` poids + décr `qos:wait:load` |
+| Crash worker / Redis saturé malgré retry | Rien à exécuter → claim / admit suivant purge à l’expiration |
 
 Retry Redis conservé sur heartbeat / sortie. Si un renouvellement in-flight échoue plusieurs fois, on **préfère jeter** (arrêter le forward si possible, ou laisser expirer le membre) plutôt que de garder une charge fantôme indéfiniment.
 
@@ -276,18 +376,21 @@ Le dur : **statut de job, retry, monitoring**. Piste : framework de jobs **branc
 
 **Router**
 
-- `load_balancing_strategy` : `least_busy` dès que le QoS est actif
+- `load_balancing_strategy` : `least_busy` dès que le QoS est actif (least busy **filtrant**, §2)
 - contrainte : tous les providers ont la **même** `qos_metric`
+- `qos_wait_timeout` (`null` \| `0` \| N)
+- `qos_queue_max_wait`
+- `max_queue_size` (`null` \| entier)
+- `qos_wait_timeout` et `qos_queue_max_wait` **&lt;** `min(timeout)` des providers du router
 
 **Provider**
 
 - `qos_metric` : `inflight` \| `audio_bytes` \| `null`
-- `qos_limit`
+- `qos_limit` (capacité infra — 1 GPU ≠ 8 GPU)
 - `qos_yellow_ratio` (défaut `0.9`)
-- `qos_wait_timeout` (`null` \| `0` \| N)
-- `qos_queue_max_wait`
-- `timeout` (existant) : `qos_wait_timeout` et `qos_queue_max_wait` **&lt; timeout**
-- Heartbeat in-flight : intervalle ~10 s, expiration ~30 s (pas un TTL calé sur la durée moyenne)
+- `timeout` (existant)
+- Heartbeat in-flight : intervalle ~10 s, expiration ~30 s (filet anti-zombie sur `qos:inflight`, pas une mesure de durée)
+- Pas de file d’attente dédiée : l’attente est au router
 
 **Role**
 
@@ -297,9 +400,9 @@ Le dur : **statut de job, retry, monitoring**. Piste : framework de jobs **branc
 
 ## Phasage
 
-1. **V1 QoS + least busy** — ZSET in-flight + `qos:load`, Lua (requêtes **et** poids audio), wait/`null`/`0`, 503 + `Retry-After`, health par provider / meilleur statut router, plus d’API métriques pour ça.
-2. **Priorisation** — ZSET + heartbeat + `role.priority`.
-3. **Métrique tokens / pondération** — étude ; éventuellement revoir les rate limits.
+1. **V1 QoS + least busy filtrant** — ZSET in-flight + `qos:load` **par provider**, admission Lua (requêtes **et** poids audio), éligibilité puis `argmin occupation`, wait/`null`/`0`, 503 + `Retry-After`, health par provider / meilleur statut router, plus d’API métriques pour ça.
+2. **Priorisation** — ZSET d’attente + `qos:wait:load` **par router**, claim multi-provider, heartbeat, `role.priority`.
+3. **Métrique tokens / pondération** — étude ; éventuellement revoir les rate limits ; optionnellement skip HOL.
 4. **Batch** — option A ou B + persistance job.
 
 ---
