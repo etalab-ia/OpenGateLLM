@@ -43,6 +43,8 @@ jobs:
         run: |
           . .venv/bin/activate
           pytest -s api/tests/unit --config-file=pyproject.toml
+        env:
+          CONFIG_FILE: config.example.yml
 
   integration-tests:
     name: Integration tests (draft PR only)
