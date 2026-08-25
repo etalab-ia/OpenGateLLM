@@ -83,7 +83,7 @@ jobs:
           docker compose --file compose.example.yml down --volumes --remove-orphans
 
   coverage-badge:
-    name: Coverage badge
+    name: Unit & integration with coverage badge
     if: >-
       github.event_name == 'workflow_call' ||
       github.event_name == 'workflow_dispatch' ||
