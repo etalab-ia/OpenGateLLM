@@ -180,7 +180,7 @@ Cible : **`role.priority`** (entier, plus élevé = plus prioritaire). Les utili
 
 ### ZSET d’attente, une par provider
 
-Distincte de la ZSET **in-flight** du §5. Uniquement si la requête **ne tient sur aucun provider**. Score = **priorité** + **timestamp** (haute prio et arrivée ancienne devant) — ce score sert à l’ordre, **pas** à l’expiration. On ne récupère que le **premier** (`ZRANGE` / claim Lua).
+Distincte de la ZSET **in-flight** du §5. Uniquement si la requête **ne tient sur aucun provider**. Score = **priorité** + **timestamp (milliseconds)** (haute prio et arrivée ancienne devant) — ce score sert à l’ordre, **pas** à l’expiration. On ne récupère que le **premier** (`ZRANGE` / claim Lua).
 
 Cycle :
 
