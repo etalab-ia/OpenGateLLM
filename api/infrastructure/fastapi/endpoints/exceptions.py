@@ -256,6 +256,14 @@ class RoleHasUsersHTTPException(HTTPException):
         super().__init__(status_code=409, detail=f"Role {role_id} has {number_of_users} users and cannot be removed.")
 
 
+class OrganizationHasUsersHTTPException(HTTPException):
+    status_code = 409
+    detail = "Organization {organization_id} has {number_of_users} users and cannot be removed."
+
+    def __init__(self, organization_id: int, number_of_users: int) -> None:
+        super().__init__(status_code=409, detail=f"Organization {organization_id} has {number_of_users} users and cannot be removed.")
+
+
 class DeleteUserWithRoutersHTTPException(HTTPException):
     status_code = 409
     detail = "User cannot be deleted because the user owns routers: {router_ids}."
