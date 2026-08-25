@@ -34,17 +34,12 @@ jobs:
 
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
 
-      - name: Set up Docker Compose
-        run: |
-          cp config.example.yml config.yml
-
       - name: Install test dependencies
         run: |
           uv venv
           uv pip install --quiet -p .venv/bin/python ".[api,dev,test]"
 
-      - name: Run unit tests
-        if: github.event_name == 'pull_request' && github.event.pull_request.draft
+      - name: Run tests
         run: |
           . .venv/bin/activate
           pytest -s api/tests/unit --config-file=pyproject.toml
@@ -66,20 +61,22 @@ jobs:
 
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
 
-      - name: Run integration tests
+      - name: Install test dependencies
         run: |
-          # Create a local virtual environment and install dependencies
           uv venv
           uv pip install --quiet -p .venv/bin/python ".[api,dev,test]"
 
-          # Activate venv for the test run
-          . .venv/bin/activate
-
+      - name: Set up Docker Compose
+        run: |
           docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis
-
-          # Run integration tests
+  
+      - name: Run tests
+        run: |
+          . .venv/bin/activate
           CONFIG_FILE=./config.example.yml pytest api/tests/integration --config-file=pyproject.toml
 
+      - name: Tear down Docker Compose
+        run: |
           docker compose --file compose.example.yml down --volumes --remove-orphans
 
   coverage-badge:
@@ -93,21 +90,28 @@ jobs:
       )
     runs-on: ubuntu-latest
     steps:
-      - name: Run tests (unit & integration) with coverage and publish unit badge
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+
+      - name: Install test dependencies
         run: |
-          # Create a local virtual environment and install dependencies
           uv venv
           uv pip install --quiet -p .venv/bin/python ".[api,dev,test]"
 
-          # Activate venv for the test run
-          . .venv/bin/activate
-
+      - name: Set up Docker Compose
+        run: |
           docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis
-
-          # Run unit & integration tests with coverage
+  
+      - name: Run tests
+        run: |
+          . .venv/bin/activate
           pytest -s api/tests/unit api/tests/integration --config-file=pyproject.toml --cov=./api --cov-report=html --cov-report=term-missing --cov-branch --cov-report=xml
 
-          # Export coverage data to XML for badge computation
+      - name: Export coverage data to XML for badge computation
+        run: |
           python -m coverage xml -o coverage.xml
 
           # Build coverage badge JSON
@@ -135,8 +139,6 @@ jobs:
               json.dump(badge, badge_file)
           PY
 
-          docker compose --file compose.example.yml down --volumes --remove-orphans
-
       - name: Commit unit coverage badge
         if: >-
           github.event.pull_request.draft == false &&
@@ -147,6 +149,10 @@ jobs:
           file_pattern: .github/badges/coverage.json
           commit_user_name: "GitHub Actions"
           commit_user_email: "actions@github.com"
+
+      - name: Tear down Docker Compose
+        run: |
+          docker compose --file compose.example.yml down --volumes --remove-orphans
 
   e2e-tests:
     name: e2e tests
@@ -160,23 +166,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref || github.ref_name }}
 
     - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
 
-    - name: Run integration tests
+    - name: Install test dependencies
       run: |
-        # Create a local virtual environment and install dependencies
         uv venv
         uv pip install --quiet -p .venv/bin/python ".[api,dev,test]"
 
-        # Activate venv for the test run
-        . .venv/bin/activate
-
-        # Start dependencies services
+    - name: Set up Docker Compose
+      run: |
         docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis
 
-        # Run integration tests
+    - name: Run tests
+      run: |
+        . .venv/bin/activate
         PYTHONPATH=. pytest api/tests/integ --config-file=pyproject.toml --cov=./api --cov-report=xml
       env:
         CONFIG_FILE: ./api/tests/integ/config.test.yml
         ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}
+
+    - name: Tear down Docker Compose
+      run: |
+        docker compose --file compose.example.yml down --volumes --remove-orphans
