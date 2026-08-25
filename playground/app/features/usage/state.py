@@ -60,7 +60,7 @@ class UsageState(EntityState):
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
-                    url=f"{self.opengatellm_url}/v1/me/usage",
+                    url=f"{self.opengatellm_url}/v1/usage",
                     params=params,
                     headers={"Authorization": f"Bearer {self.api_key}"},
                     timeout=self.opengatellm_timeout,

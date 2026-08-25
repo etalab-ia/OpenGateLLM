@@ -17,7 +17,7 @@ on:
 
 jobs:
   unit-tests:
-    name: Unit tests
+    name: Unit tests (draft PR only)
     if: >-
       github.event_name == 'workflow_call' ||
       github.event_name == 'workflow_dispatch' ||
@@ -43,9 +43,11 @@ jobs:
         run: |
           . .venv/bin/activate
           pytest -s api/tests/unit --config-file=pyproject.toml
+        env:
+          CONFIG_FILE: config.example.yml
 
   integration-tests:
-    name: Integration tests
+    name: Integration tests (draft PR only)
     if: >-
       github.event_name == 'workflow_call' ||
       github.event_name == 'workflow_dispatch' ||
@@ -79,7 +81,7 @@ jobs:
 
   coverage-badge:
     name: Unit & integration tests with coverage badge
-    if: github.actor != 'github-actions[bot]' && github.event.pull_request.draft == false
+    if: github.actor != 'github-actions[bot]' && github.event.pull_request.draft == false && github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -130,20 +132,17 @@ jobs:
               json.dump(badge, badge_file)
           PY
 
-      - name: Commit unit coverage badge
-        if: >-
-          github.event.pull_request.draft == false &&
-          github.event.pull_request.base.ref == 'main'
+      - name: Commit tests coverage badge
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: Update unit coverage badge
+          commit_message: "chore(tests): update tests coverage badge"
           file_pattern: .github/badges/coverage.json
           commit_user_name: "GitHub Actions"
           commit_user_email: "actions@github.com"
 
   e2e-tests:
     name: e2e tests
-    if: github.actor != 'github-actions[bot]' && github.event.pull_request.draft == false
+    if: github.actor != 'github-actions[bot]' && github.event.pull_request.draft == false && github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4

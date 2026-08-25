@@ -7,6 +7,7 @@ from ._postgrespermissionrepository import PostgresPermissionRepository
 from ._postgresproviderrepository import PostgresProviderRepository
 from ._postgresrolesrepository import PostgresRolesRepository
 from ._postgresrouterrepository import PostgresRouterRepository
+from ._postgresusagerepository import PostgresUsageRepository
 from ._postgresusersrepository import PostgresUserRepository
 
 __all__ = [
@@ -20,5 +21,6 @@ __all__ = [
     "PostgresProviderRepository",
     "PostgresRolesRepository",
     "PostgresRouterRepository",
+    "PostgresUsageRepository",
     "PostgresUserRepository",
 ]

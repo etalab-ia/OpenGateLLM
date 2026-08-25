@@ -14,7 +14,6 @@ from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.helpers._identityaccessmanager import IdentityAccessManager
 from api.helpers._langfusemanager import LangfuseManager
 from api.helpers._limiter import Limiter
-from api.helpers._usagemanager import UsageManager
 from api.helpers._usagetokenizer import UsageTokenizer
 from api.helpers.models import ModelRegistry
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
@@ -58,7 +57,6 @@ async def lifespan(_: FastAPI):
         await bootstrap_models(configuration=configuration, postgres_session=postgres_session, bootstrap_admin_user_id=bootstrap_admin_user_id)
 
     global_context.model_registry = await create_model_registry(configuration, global_context.postgres_session_factory)
-    global_context.usage_manager = create_usage_manager()
 
     global_context.langfuse_client = create_langfuse_client(configuration=configuration)
     global_context.identity_access_manager = create_identity_access_manager(configuration=configuration)
@@ -176,10 +174,6 @@ async def create_model_registry(
         retry_countdown=configuration.settings.routing_retry_countdown,
     )
     return registry
-
-
-def create_usage_manager() -> UsageManager:
-    return UsageManager()
 
 
 def create_identity_access_manager(configuration: Configuration) -> IdentityAccessManager:

@@ -19,7 +19,7 @@ from api.domain.provider import (
 )
 from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
-from api.domain.usage import UsageRecorder
+from api.domain.usage import UsageRecorder, UsageRepository
 from api.domain.user import AuthenticatedUserQuery, UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
@@ -37,6 +37,7 @@ from api.infrastructure.postgres import (
     PostgresProviderRepository,
     PostgresRolesRepository,
     PostgresRouterRepository,
+    PostgresUsageRepository,
     PostgresUserRepository,
 )
 from api.infrastructure.redis import RedisProviderLoadBalancer, RedisProviderMetricsLogger, RedisRouterRateLimiter
@@ -62,6 +63,7 @@ from api.use_cases.models import GetModelsUseCase, GetOneModelUseCase
 from api.use_cases.ocr import CreateOCRUseCase
 from api.use_cases.reranks import CreateRerankUseCase
 from api.use_cases.services import ProviderCapabilitiesProbe
+from api.use_cases.usage import GetUsagesUseCase
 from api.utils.configuration import configuration
 from api.utils.context import global_context
 
@@ -189,6 +191,10 @@ def _provider_repository(session: AsyncSession) -> ProviderRepository:
     return PostgresProviderRepository(postgres_session=session)
 
 
+def _usage_repository(session: AsyncSession = Depends(get_postgres_session)) -> UsageRepository:
+    return PostgresUsageRepository(postgres_session=session)
+
+
 # audio use cases
 def create_audio_transcriptions_use_case_factory(
     postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
@@ -313,6 +319,8 @@ def delete_key_use_case_factory(key_repository: KeyRepository = Depends(_key_rep
 # organizations use cases
 def create_organization_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateOrganizationUseCase:
     return CreateOrganizationUseCase(organization_repository=_organization_repository(postgres_session))
+
+
 # me use cases
 def get_me_use_case_factory() -> GetMeUseCase:
     return GetMeUseCase()
@@ -320,6 +328,11 @@ def get_me_use_case_factory() -> GetMeUseCase:
 
 def update_me_info_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateMeUseCase:
     return UpdateMeUseCase(user_repository=_user_repository(postgres_session), user_password_encoder=_user_password_encoder())
+
+
+# usage use cases
+def get_usages_use_case_factory(usage_repository: UsageRepository = Depends(_usage_repository)) -> GetUsagesUseCase:
+    return GetUsagesUseCase(usage_repository=usage_repository)
 
 
 # models use cases
