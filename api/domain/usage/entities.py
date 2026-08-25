@@ -31,8 +31,6 @@ class UsageRecord(BaseModel):
     completion_tokens: int | None
     total_tokens: int | None
     cost: float | None
-    latency: int | None
-    ttft: int | None
     impacts: EnvironmentalImpacts
     created: datetime
 

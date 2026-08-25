@@ -81,8 +81,6 @@ class TestUsage:
         assert usages.data[0].usage.prompt_tokens is not None
         assert usages.data[0].usage.completion_tokens is not None
         assert usages.data[0].usage.total_tokens is not None
-        assert usages.data[0].usage.metrics.latency is not None
-        assert usages.data[0].usage.metrics.ttft is not None
 
     @pytest.mark.asyncio
     async def test_get_me_usage_unstream_response(self, client: TestClient, setup_model_and_user):
@@ -112,5 +110,3 @@ class TestUsage:
         assert usages.data[0].usage.prompt_tokens is not None
         assert usages.data[0].usage.completion_tokens is not None
         assert usages.data[0].usage.total_tokens is not None
-        assert usages.data[0].usage.metrics.latency is not None
-        assert usages.data[0].usage.metrics.ttft is None  # no stream, so no ttft

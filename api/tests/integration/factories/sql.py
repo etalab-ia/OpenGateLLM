@@ -253,4 +253,4 @@ class UsageSQLFactory(BaseSQLFactory):
 
     class Params:
         failed = factory.Trait(status=500)
-        embeddings = factory.Trait(endpoint="/v1/embeddings", ttft=None)
+        embeddings = factory.Trait(endpoint="/v1/embeddings")

@@ -17,11 +17,6 @@ class EndpointUsage(StrEnum):
     SEARCH = "/v1/search"
 
 
-class MetricsUsage(BaseModel):
-    latency: Annotated[int | None, Field(default=None, description="Request latency in milliseconds.")]
-    ttft: Annotated[int | None, Field(default=None, description="Time to first token in milliseconds.")]
-
-
 class EnvironmentalImpacts(BaseModel):
     kWh: Annotated[float, Field(default=0.0, description="Energy consumption in kWh.")]
     kgCO2eq: Annotated[float, Field(default=0.0, description="Carbon footprint in kgCO2eq (global warming potential).")]
@@ -33,7 +28,6 @@ class UsageDetail(BaseModel):
     total_tokens: Annotated[int | None, Field(default=None, description="Total number of tokens (e.g. input and output tokens).")]
     cost: Annotated[float | None, Field(default=None, description="Total cost of the request.")]
     impacts: Annotated[EnvironmentalImpacts, Field(default_factory=EnvironmentalImpacts)]
-    metrics: Annotated[MetricsUsage, Field(default_factory=MetricsUsage)]
 
 
 class UsageResponse(BaseModel):
@@ -59,7 +53,6 @@ class UsageResponse(BaseModel):
                     "total_tokens": data.total_tokens,
                     "cost": data.cost,
                     "impacts": data.impacts,
-                    "metrics": {"latency": data.latency, "ttft": data.ttft},
                 },
                 "created": int(data.created.timestamp()),
             }

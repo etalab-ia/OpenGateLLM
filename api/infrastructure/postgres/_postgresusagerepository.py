@@ -52,8 +52,6 @@ class PostgresUsageRepository(UsageRepository):
             completion_tokens=int(row.completion_tokens) if row.completion_tokens is not None else None,
             total_tokens=row.total_tokens,
             cost=row.cost,
-            latency=row.latency,
-            ttft=row.ttft,
             impacts=EnvironmentalImpacts(kWh=(row.kwh or 0.0), kgCO2eq=(row.kgco2eq or 0.0)),
             created=row.created,
         )

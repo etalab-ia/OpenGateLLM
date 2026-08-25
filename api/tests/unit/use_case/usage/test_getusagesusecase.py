@@ -30,8 +30,6 @@ class TestGetUsagesUseCase:
             completion_tokens=20,
             total_tokens=30,
             cost=0.1,
-            latency=100,
-            ttft=50,
             impacts=EnvironmentalImpacts(kWh=0.01, kgCO2eq=0.02),
             created=datetime(2026, 8, 1, tzinfo=UTC),
         )
