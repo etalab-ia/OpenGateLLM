@@ -357,6 +357,7 @@ Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key
 
 ### Style
 
+- Packages: every test directory **must** contain an (empty) `__init__.py`. Without it pytest's default `prepend` import mode derives the module name from the basename alone, so two same-named files in two non-package directories collide (`import file mismatch`, e.g. `unit/.../keys/test_get_key.py` vs `integration/endpoints/keys/test_get_key.py`). Add it in the same change as the new directory
 - File names: entity tests **must** be `test_<domain>entities.py` (`test_ocrentities.py`, `test_userentities.py`) — not `test_<entity>.py`
 - Test names: unit `test_should_<behavior>` ; endpoint `test_happy_path`, `test_error_maps_to_correct_http_status`, `test_rejects_non_admin_user` ; postgres `test_returns_*` / `test_creates_*`
 - Mocks: every mock object and mock fixture is prefixed with `mock_` (`mock_use_case`, `mock_authenticated_user`)

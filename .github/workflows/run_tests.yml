@@ -1,8 +1,8 @@
 name: Testing
 
 # PR targeting main:
-#   draft  → unit (no coverage, no badge commit) + integration
-#   ready  → unit (coverage + badge commit) + integration + e2e
+#   draft  → unit + integration
+#   ready  → unit & integration (coverage + badge commit) + e2e
 # workflow_call / workflow_dispatch → all jobs; unit with coverage (badge commit only on a ready PR to main)
 
 on:
@@ -21,7 +21,10 @@ jobs:
     if: >-
       github.event_name == 'workflow_call' ||
       github.event_name == 'workflow_dispatch' ||
-      github.actor != 'github-actions[bot]'
+      (
+        github.actor != 'github-actions[bot]' &&
+        github.event.pull_request.draft == true
+      )
     runs-on: ubuntu-latest
 
     steps:
@@ -31,33 +34,78 @@ jobs:
 
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
 
-      - name: Set up Docker Compose
+      - name: Install test dependencies
         run: |
-          cp config.example.yml config.yml
+          uv venv
+          uv pip install --quiet -p .venv/bin/python ".[api,dev,test]"
+
+      - name: Run tests
+        run: |
+          . .venv/bin/activate
+          pytest -s api/tests/unit --config-file=pyproject.toml
+
+  integration-tests:
+    name: Integration tests
+    if: >-
+      github.event_name == 'workflow_call' ||
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.actor != 'github-actions[bot]' &&
+        github.event.pull_request.draft == true
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
 
       - name: Install test dependencies
         run: |
           uv venv
           uv pip install --quiet -p .venv/bin/python ".[api,dev,test]"
 
-      - name: Run unit tests
-        if: github.event_name == 'pull_request' && github.event.pull_request.draft
+      - name: Set up Docker Compose
+        run: |
+          docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis
+  
+      - name: Run tests
         run: |
           . .venv/bin/activate
-          pytest -s api/tests/unit --config-file=pyproject.toml
+          pytest -s api/tests/integration --config-file=pyproject.toml
+        env:
+          CONFIG_FILE: config.example.yml
 
-      - name: Run unit tests with coverage and publish unit badge
-        if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+  coverage-badge:
+    name: Unit & integration tests with coverage badge
+    if: github.actor != 'github-actions[bot]' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+
+      - name: Install test dependencies
+        run: |
+          uv venv
+          uv pip install --quiet -p .venv/bin/python ".[api,dev,test]"
+
+      - name: Set up Docker Compose
+        run: |
+          docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis
+  
+      - name: Run tests
         run: |
           . .venv/bin/activate
-
-          # Run unit tests with coverage
-          pytest -s api/tests/unit --config-file=pyproject.toml --cov=./api --cov-report=html --cov-report=term-missing --cov-branch --cov-report=xml
-
-          # Export coverage data to XML for badge computation
-          python -m coverage xml -o coverage.xml
-
-          # Build unit coverage badge JSON
+          pytest -s api/tests/unit api/tests/integration --config-file=pyproject.toml --cov=./api --cov-report=html --cov-report=term-missing --cov-branch --cov-report=xml
+        env:
+          CONFIG_FILE: config.example.yml
+      
+      - name: Build coverage badge from coverage.xml
+        run: |
           mkdir -p .github/badges
           python - <<'PY'
           import json
@@ -93,64 +141,29 @@ jobs:
           commit_user_name: "GitHub Actions"
           commit_user_email: "actions@github.com"
 
-  integration-tests:
-    name: Integration tests
-    if: >-
-      github.event_name == 'workflow_call' ||
-      github.event_name == 'workflow_dispatch' ||
-      github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
-
-      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
-
-      - name: Run integration tests
-        run: |
-          # Create a local virtual environment and install dependencies
-          uv venv
-          uv pip install --quiet -p .venv/bin/python ".[api,dev,test]"
-
-          # Activate venv for the test run
-          . .venv/bin/activate
-
-          docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis
-
-          # Run integration tests
-          CONFIG_FILE=./config.example.yml pytest api/tests/integration --config-file=pyproject.toml
-
-          docker compose --file compose.example.yml down --volumes --remove-orphans
-
   e2e-tests:
     name: e2e tests
-    if: >-
-      github.event_name == 'workflow_call' ||
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.actor != 'github-actions[bot]' &&
-        github.event.pull_request.draft == false
-      )
+    if: github.actor != 'github-actions[bot]' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref || github.ref_name }}
 
     - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
 
-    - name: Run integration tests
+    - name: Install test dependencies
       run: |
-        # Create a local virtual environment and install dependencies
         uv venv
         uv pip install --quiet -p .venv/bin/python ".[api,dev,test]"
 
-        # Activate venv for the test run
-        . .venv/bin/activate
-
-        # Start dependencies services
+    - name: Set up Docker Compose
+      run: |
         docker compose --file compose.example.yml up --detach --quiet-pull --wait postgres redis
 
-        # Run integration tests
+    - name: Run tests
+      run: |
+        . .venv/bin/activate
         PYTHONPATH=. pytest api/tests/integ --config-file=pyproject.toml --cov=./api --cov-report=xml
       env:
         CONFIG_FILE: ./api/tests/integ/config.test.yml
