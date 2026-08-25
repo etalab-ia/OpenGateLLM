@@ -1,26 +1,46 @@
-# ADR - 2026-08-25 - Priorization QoS and Batch
+# ADR - 2026-08-25 - QoS and priority
 
-* **Status:** Accepted
+* **Status:** Draft
 * **Date:** 2026-08-25
 * **Authors:** Development Team
-* **Decision Outcome:** Prioritize QoS and Batch
+* **Decision Outcome:** QoS and priority
 
 ---
 
 # QoS, load balancing, file d’attente et priorisation
 
-Refonte du QoS actuel (compteur Redis `INCR`/`DECR` + métriques vLLM/Mistral). Objectif : **protéger chaque provider**, **envoyer au moins chargé**, **aligner le health**, puis **prioriser** grâce à une vraie attente. Le batch est un chantier suivant.
+## Contexte
+
+Actuellement un système de queueing et de priorisation est implémenté avec Celery et RabbitMQ. Lors du refactoring du endpoint /v1/chat/completions en clean architecture nous allons enlever toute dépendance avec système. **Nous repartons d'une feuille blanche, sans considération du code existant**, avec les objectifs suivants : **protéger chaque provider**, **envoyer au moins chargé**, **aligner le health**, puis **prioriser** grâce à une vraie attente. Le batch est un chantier suivant.
+
+Plusieurs besoins :
+
+1. priorisation : permettre de prioriser certaines requêtes par rapport à d'autres 
+
+    Cela permet d'assurer un traitement des requêtes de certaines clients par rapport à d'autres dans les périodes de fortes charges.
+
+2. qualité de service (QoS): permettre de limiter le nombre de requêtes traité par un provider pour garantir une qualité de service.
+
+    Cela permet 2 choses : 
+        - pour les moteurs d'inférence qui ne supportent pas la charge (comme WhisperX), cela évite au modèle de crasher
+        - pour les moteurs d'inférence qui supportent la charge (comme vLLM/Mistral), cela permet de fluidifier le traitement des requêtes si le moteur d'inférence n'est pas optimisé pour la charge.
+
+3. batch : permettre d'exécuter des requêtes quand les providers sont disponibles.
+
+    Cela permet de tirer parti des providers tout le long de la journée et de mieux répartir la charge sur les providers pour éviter des saturations.
+
+Ces 3 concepts sont liés. En effet, le batch a besoin d'un indicateur de la charge des providers pour exécuter des requêtes quand ils sont disponibles. La priorisation suppose qu'il existe un mécanisme d'attente pour permettre aux requêtes prioritaires de passer devant les requêtes non prioritaires.
+
+Le QoS répond à ces 2 besoins en définissant 3 niveaux de charge (vert, orange et rouge) et fait attendre les requêtes dans un boucle jusqu'à ce qu'un provider soit disponible. La charge d'un provider peut être mesurée de plusieurs manières : le nombre de requêtes en cours, le poids des fichiers traités par le modèle, tokens in-flight, ...
 
 ## Problème
 
-Sans attente, la priorisation ne sert à rien. Il faut un **plafond de charge** et une **file** pour que les prioritaires passent devant.
-
-Cas immédiat : **WhisperX / Visio**. Trop d’audio en parallèle ne ralentit pas seulement : **le process crash**. D’où une limite en **poids de fichiers** dès le V1, pas seulement en nombre de requêtes.
+Sans attente, la priorisation ne sert à rien. Il faut un **plafond de charge** et une **queue** pour que les prioritaires passent devant.
 
 Le QoS actuel a deux faiblesses :
 
 1. **Compteur Redis unique** (`INCR`/`DECR`) qui ne redescend plus si Redis est saturé, si le worker crash, ou si le client coupe.
-2. **Métriques provider** (vLLM, Mistral) : latence, chiffre pas live, concurrence, service tiers instable, métrique absente chez beaucoup de providers. **On n’en fait plus un fallback.**
+2. **Métriques provider** (vLLM, Mistral) : latence, chiffre pas live, concurrence, service tiers instable, métrique absente chez beaucoup de providers.
 
 ## Principes
 
