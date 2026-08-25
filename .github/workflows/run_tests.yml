@@ -114,11 +114,8 @@ jobs:
         env:
           CONFIG_FILE: config.example.yml
       
-      - name: Export coverage data to XML for badge computation
+      - name: Build coverage badge from coverage.xml
         run: |
-          python -m coverage xml -o coverage.xml
-
-          # Build coverage badge JSON
           mkdir -p .github/badges
           python - <<'PY'
           import json
