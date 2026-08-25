@@ -76,20 +76,10 @@ jobs:
           pytest -s api/tests/integration --config-file=pyproject.toml
         env:
           CONFIG_FILE: config.example.yml
-      
-      - name: Tear down Docker Compose
-        run: |
-          docker compose --file compose.example.yml down --volumes --remove-orphans
 
   coverage-badge:
-    name: Unit & integration with coverage badge
-    if: >-
-      github.event_name == 'workflow_call' ||
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.actor != 'github-actions[bot]' &&
-        github.event.pull_request.draft == false
-      )
+    name: Unit & integration tests with coverage badge
+    if: github.actor != 'github-actions[bot]' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -151,19 +141,9 @@ jobs:
           commit_user_name: "GitHub Actions"
           commit_user_email: "actions@github.com"
 
-      - name: Tear down Docker Compose
-        run: |
-          docker compose --file compose.example.yml down --volumes --remove-orphans
-
   e2e-tests:
     name: e2e tests
-    if: >-
-      github.event_name == 'workflow_call' ||
-      github.event_name == 'workflow_dispatch' ||
-      (
-        github.actor != 'github-actions[bot]' &&
-        github.event.pull_request.draft == false
-      )
+    if: github.actor != 'github-actions[bot]' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -188,7 +168,3 @@ jobs:
       env:
         CONFIG_FILE: ./api/tests/integ/config.test.yml
         ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}
-
-    - name: Tear down Docker Compose
-      run: |
-        docker compose --file compose.example.yml down --volumes --remove-orphans
