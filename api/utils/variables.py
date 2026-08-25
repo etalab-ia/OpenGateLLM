@@ -27,6 +27,7 @@ class RouterName(StrEnum):
     MONITORING = ("monitoring", "api.infrastructure.fastapi.endpoints.health")
     OCR = ("ocr", "api.infrastructure.fastapi.endpoints.ocr")
     RERANK = ("rerank", "api.infrastructure.fastapi.endpoints.rerank")
+    USAGE = ("usage", "api.infrastructure.fastapi.endpoints.usage")
 
     def __new__(cls, value: str, module_path: str):
         obj = str.__new__(cls, value)
@@ -64,6 +65,7 @@ class EndpointRoute(StrEnum):
     MODELS = f"/{RouterName.MODELS}"
     OCR = f"/{RouterName.OCR}"
     RERANK = f"/{RouterName.RERANK}"
+    USAGE = f"/{RouterName.USAGE}"
 
 
 # Supported language from https://github.com/huggingface/transformers/blob/main/src/transformers/models/whisper/tokenization_whisper.py

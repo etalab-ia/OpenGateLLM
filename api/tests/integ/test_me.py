@@ -5,8 +5,8 @@ import time
 from fastapi.testclient import TestClient
 import pytest
 
+from api.infrastructure.fastapi.schemas.usage import UsagesResponse
 from api.schemas.admin.providers import ProviderType
-from api.schemas.me.usage import Usages
 from api.schemas.models import ModelType
 from api.tests.integ.utils import (
     create_provider,
@@ -70,10 +70,10 @@ class TestUsage:
         await sleep(2)
 
         # get usage
-        response = client.get(url=f"/v1{EndpointRoute.ME_USAGE}", headers={"Authorization": f"Bearer {key}"}, params={"start_time": start_time})
+        response = client.get(url=f"/v1{EndpointRoute.USAGE}", headers={"Authorization": f"Bearer {key}"}, params={"start_time": start_time})
         assert response.status_code == 200, response.text
         data = response.json()
-        usages = Usages(**data)
+        usages = UsagesResponse(**data)
 
         assert len(usages.data) == 1
         assert usages.data[0].endpoint == f"/v1{EndpointRoute.CHAT_COMPLETIONS}"
@@ -101,10 +101,10 @@ class TestUsage:
         response.json()
         await sleep(2)
 
-        response = client.get(url=f"/v1{EndpointRoute.ME_USAGE}", headers={"Authorization": f"Bearer {key}"}, params={"start_time": start_time})
+        response = client.get(url=f"/v1{EndpointRoute.USAGE}", headers={"Authorization": f"Bearer {key}"}, params={"start_time": start_time})
         assert response.status_code == 200, response.text
         data = response.json()
-        usages = Usages(**data)
+        usages = UsagesResponse(**data)
 
         assert len(usages.data) == 1
         assert usages.data[0].endpoint == f"/v1{EndpointRoute.CHAT_COMPLETIONS}"

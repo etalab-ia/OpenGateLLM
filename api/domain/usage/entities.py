@@ -1,4 +1,6 @@
-from api.domain import BaseModel
+from datetime import datetime
+
+from api.domain import BaseModel, EntitiesPage
 
 
 class EnvironmentalImpacts(BaseModel):
@@ -19,3 +21,20 @@ class Usage(BaseModel):
         prompt_tokens_cost = prompt_tokens / cost_tokens_scale * cost_prompt_tokens
         completion_tokens_cost = completion_tokens / cost_tokens_scale * cost_completion_tokens
         return round(number=prompt_tokens_cost + completion_tokens_cost, ndigits=6)
+
+
+class UsageRecord(BaseModel):
+    model: str | None
+    key: str | None
+    endpoint: str | None
+    prompt_tokens: int | None
+    completion_tokens: int | None
+    total_tokens: int | None
+    cost: float | None
+    latency: int | None
+    ttft: int | None
+    impacts: EnvironmentalImpacts
+    created: datetime
+
+
+UsagePage = EntitiesPage["UsageRecord"]

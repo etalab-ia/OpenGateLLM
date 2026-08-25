@@ -11,7 +11,7 @@ from api.domain.role.entities import LimitType, PermissionType
 from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.models import ModelType
-from api.sql.models import Limit, Organization, Permission, Provider, Role, Router, RouterAlias, Token, User
+from api.sql.models import Limit, Organization, Permission, Provider, Role, Router, RouterAlias, Token, Usage, User
 
 fake = Faker("fr_FR")
 
@@ -223,3 +223,34 @@ class LimitSQLFactory(BaseSQLFactory):
 
     role = factory.SubFactory(RoleSQLFactory)
     router = factory.SubFactory(RouterSQLFactory)
+
+
+class UsageSQLFactory(BaseSQLFactory):
+    class Meta:
+        model = Usage
+
+    user_id = None
+    user = factory.SubFactory(UserSQLFactory)
+    token_id = None
+    router_id = None
+    provider_id = None
+    user_email = factory.LazyAttribute(lambda o: o.user.email if o.user is not None else None)
+    token_name = factory.Sequence(lambda n: f"key_{n}")
+    router_name = factory.Sequence(lambda n: f"model_{n}")
+    provider_model_name = None
+    endpoint = "/v1/chat/completions"
+    method = "POST"
+    latency = 100
+    ttft = 50
+    status = 200
+    prompt_tokens = 10
+    completion_tokens = 20
+    total_tokens = 30
+    cost = 0.1
+    kwh = 0.01
+    kgco2eq = 0.02
+    created = factory.LazyFunction(datetime.now)
+
+    class Params:
+        failed = factory.Trait(status=500)
+        embeddings = factory.Trait(endpoint="/v1/embeddings", ttft=None)

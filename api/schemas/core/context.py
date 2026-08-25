@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from api.helpers._identityaccessmanager import IdentityAccessManager
     from api.helpers._langfusemanager import LangfuseManager
     from api.helpers._limiter import Limiter
-    from api.helpers._usagemanager import UsageManager
     from api.helpers._usagetokenizer import UsageTokenizer
     from api.helpers.models import ModelRegistry
 
@@ -24,7 +23,6 @@ class GlobalContext(BaseModel):
 
     identity_access_manager: IdentityAccessManager | None = None
     limiter: Limiter | None = None
-    usage_manager: UsageManager | None = None
     model_registry: ModelRegistry | None = None
     tokenizer: UsageTokenizer | None = None
     redis_pool: ConnectionPool | None = None
