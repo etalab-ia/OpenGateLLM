@@ -13,6 +13,8 @@ from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.models import ModelType
 from api.sql.models import Limit, Organization, Permission, Provider, Role, Router, RouterAlias, Token, User
 
+fake = Faker("fr_FR")
+
 
 class BaseSQLFactory(SQLAlchemyModelFactory):
     class Meta:
@@ -24,13 +26,13 @@ class OrganizationSQLFactory(BaseSQLFactory):
     class Meta:
         model = Organization
 
-    name = factory.Faker("company", locale="fr_FR")
+    name = factory.Sequence(lambda n: f"{fake.company()} {n}")
     created = factory.LazyFunction(lambda: datetime.now())
     updated = factory.LazyFunction(lambda: datetime.now())
 
     class Params:
-        administration = factory.Trait(name=factory.Faker("bothify", text="Administration ####"))
-        ministere = factory.Trait(name=factory.Faker("bothify", text="Ministere ####"))
+        administration = factory.Trait(name=factory.Sequence(lambda n: f"Administration {n}"))
+        ministere = factory.Trait(name=factory.Sequence(lambda n: f"Ministere {n}"))
 
 
 class RoleSQLFactory(BaseSQLFactory):
@@ -124,7 +126,7 @@ class KeySQLFactory(BaseSQLFactory):
     user_id = None
     user = factory.SubFactory(UserSQLFactory)
     token = "tmp"
-    name = factory.Faker("word")
+    name = factory.Sequence(lambda n: f"key_{n}")
     expires = factory.LazyFunction(lambda: datetime.now() + timedelta(days=30))
     created = factory.LazyFunction(lambda: datetime.now())
 
@@ -143,7 +145,7 @@ class RouterSQLFactory(BaseSQLFactory):
     user_id = None
     id = None
     user = factory.SubFactory(UserSQLFactory)
-    name = factory.Faker("bothify", text="router_####")
+    name = factory.Sequence(lambda n: f"router-{n}")  # not "router_<n>": several tests use explicit "router_1" … "router_7" names
     type = factory.Faker("random_element", elements=list(ModelType))
     load_balancing_strategy = factory.Faker("random_element", elements=list(RouterLoadBalancingStrategy))
     cost_prompt_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
