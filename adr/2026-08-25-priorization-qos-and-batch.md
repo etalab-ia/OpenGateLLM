@@ -24,10 +24,10 @@ Le QoS actuel a deux faiblesses :
 
 ## Principes
 
-- On compte **nous-mêmes** dans Redis.
+- On compte **nous-mêmes** dans Redis (`qos:load`, pas de `SCAN` / `KEYS`).
 - Admission **atomique Lua**, en tenant compte du **poids de la requête qui arrive**.
 - On **préfère jeter** une requête bloquante plutôt que de geler le système.
-- Health et QoS : **même source Redis**, pas d’API métriques provider.
+- Health et QoS : **même source Redis** (`qos:load`), pas d’API métriques provider.
 - Load balancing **least busy** sur **la même métrique** que le QoS.
 - Lua pour admission et tête de file.
 
@@ -56,7 +56,7 @@ La poids max des fichiers doit être supérieur ou égale au max par fichier dé
 Le QoS est **couplé** au least busy.
 
 1. Parmi les providers du router, choisir le **moins chargé** au sens de la **métrique QoS** :  
-   `occupation = charge / limite` (comparable même si les limites diffèrent).
+   `occupation = qos:load / limite` (comparable même si les limites diffèrent).
 2. Tenter l’**admission atomique** sur ce provider (**charge + poids requête ≤ limite**).
 3. Si ça ne passe pas : **tester les autres** par occupation croissante (un petit provider à 10 % peut ne pas tenir 300 Mo alors qu’un gros à 40 % si).
 4. Si **aucun** ne peut admettre → file d’attente du **moins chargé** (ZSET de ce provider), sauf si l’attente est désactivée / à 0.
@@ -67,7 +67,7 @@ Sous la limite (la requête **tient** sur au moins un provider) : **pas de ZSET*
 
 ## 3. Health
 
-Statut **par provider**, mêmes compteurs que le QoS.
+Statut **par provider**, même source que le QoS : `occupation = qos:load / limite`.
 
 Seuil orange **configurable** (défaut 90 % de la limite).
 
@@ -104,44 +104,70 @@ Erreur : **503** + header **`Retry-After`** (secondes).
 
 ### Règle `Retry-After`
 
-On n’a pas la durée réelle des requêtes en cours. On utilise le **TTL des clés in-flight** (durée moyenne un peu majorée) et le **taux d’occupation** du provider visé (ou du moins chargé si aucun n’admet) :
+Quand un utilisateur reçoit une 503, il obtient une durée estimée pour réessayer.
+
+On n’a pas la durée réelle des requêtes en cours. On réutilise la **timeserie Redis des dernières latences** du provider (`ogl_ts:latency:{provider_id}`, déjà alimentée au forward, rétention 30 min). Médiane (p50) de cette fenêtre, convertie en secondes. Ce n’est pas parfait (requêtes **terminées** seulement, pas le temps passé en file, série vide au démarrage) mais ça suffit pour une estimation.
+
+`charge` = `qos:load`. Provider visé, ou le moins chargé si aucun n’admet.
+
+Si la série est vide : retomber sur une constante (ex. `min(30, timeout_provider - 1)`).
 
 ```
 Retry-After = clamp(
   1,
   timeout_provider - 1,
-  ceil( ttl_inflight × (charge + poids) / limite )
+  ceil( latency_p50 × (qos:load + poids) / limite )
 )
 ```
 
-Exemples avec `ttl_inflight = 60 s`, limite 500 Mo :
+Exemples avec `latency_p50 = 60 s`, limite 500 Mo :
 
-| Charge | Requête | Occupation | Retry-After |
+| Charge (`qos:load`) | Requête | Occupation | Retry-After |
 |---|---|---|---|
 | 300 Mo | 300 Mo | 1,2 | 72 s |
 | 500 Mo | 1 req / négligeable | 1,0 | 60 s |
 | 100 Mo | 50 Mo (admise) | — | pas de 503 |
 
-Idée : à saturation, attendre **à peu près le temps d’une génération de requêtes** avant de réessayer, sans jamais atteindre le timeout provider (la requête cliente mourrait avant).
+Idée : à saturation, attendre **à peu près le temps d’une génération de requêtes** avant de réessayer, sans jamais atteindre le timeout provider (la requête cliente mourrait avant). Le TTL / heartbeat in-flight ne mesure **pas** cette durée : il ne sert qu’à purger les zombies.
 
 ---
 
-## 5. Comptage : une clé Redis par requête, avec TTL
+## 5. Comptage : ZSET in-flight + somme de poids (Lua)
 
 Un `INCR`/`DECR` global ne redescend plus si :
 
 | Incident | Mitigation |
 |---|---|
-| Client / proxy coupe | Disconnect FastAPI → delete de la clé |
+| Client / proxy coupe | Disconnect FastAPI → Lua de sortie (retrait ZSET + décrément somme) |
 | Pool Redis saturé | Retry (jamais 100 %) |
-| Worker crash | **TTL** : plus de code à exécuter |
+| Worker crash | **Expiration** : plus de code à exécuter |
 
-**Modèle :** une **clé par requête**, expiration, charge = **nombre de clés** ou **somme des poids** (JSON : octets, plus tard tokens).
+On ne compte **pas** des clés avec `SCAN` / `KEYS` (coût O(n) à chaque admission et à chaque poll).
 
-- TTL in-flight ≈ durée moyenne, un peu au-dessus (ordre de 1 min).
-- Worker crash → les clés meurent au TTL. On **sous-admet** un moment, le temps que l’infra revienne — utile (WhisperX, GPU).
+**Modèle Redis, par provider :**
 
-Admission Lua : lire la charge, ajouter le poids, créer la clé **si et seulement si** ≤ limite. Pas d’overshoot volontaire.
+| Clé | Rôle |
+|---|---|
+| `qos:inflight:{provider_id}` | **ZSET** : un membre par requête en cours (`request_id`). Score = **timestamp d’expiration**. |
+| `qos:load:{provider_id}` | **Entier** : somme des poids (1 par requête, ou octets audio). Source de vérité pour l’admission, le least-busy et le health. |
+| `qos:weight:{provider_id}` | **Hash** : `request_id` → poids, pour retrancher le bon montant à la purge. |
+
+Least-busy, health et « est-ce que ça rentre ? » lisent **`qos:load`**, pas le cardinal de la ZSET (le cardinal reste utile pour debug / nombre de requêtes si la métrique est `inflight`).
+
+**Admission (un seul script Lua) :**
+
+1. Purger : `ZRANGEBYSCORE` des membres dont le score (expiration) est dépassé, retrancher leurs poids de `qos:load`, `HDEL` + `ZREMRANGEBYSCORE`.
+2. Lire `qos:load`.
+3. Si `charge + poids_requête > limite` → refuser (le caller enfile ou 503).
+4. Sinon : `ZADD` le `request_id` (score = `now + ttl_heartbeat`), `HSET` le poids, incrémenter `qos:load` — **atomique**.
+
+Pas d’overshoot volontaire.
+
+Le TTL n’est pas « un peu au-dessus de la durée moyenne » pour **mesurer** la charge. C’est uniquement le **filet** anti-zombie. La mesure, c’est `qos:load`, toujours aligné avec la ZSET dans le même round-trip Lua. Un worker crash → plus de heartbeat → le prochain Lua d’admission **purge** le membre (fenêtre fantôme = intervalle de heartbeat, pas la durée du job). Utile (WhisperX, GPU) : on sous-admet un moment, le temps que l’infra revienne.
+
+**Sortie normale** (fin de requête, disconnect) : Lua inverse — `ZREM` + `HDEL` + décrément du poids. Retry Redis conservé ; si ça échoue, le prochain admit **purge à l’expiration**.
+
+Si Redis est down : on **laisse passer** (fail-open).
 
 ---
 
@@ -152,77 +178,65 @@ Admission Lua : lire la charge, ajouter le poids, créer la clé **si et seuleme
 Aujourd’hui : `user.priority`.  
 Cible : **`role.priority`** (entier, plus élevé = plus prioritaire). Les utilisateurs héritent du rôle. Le plafond `routing_max_priority` reste.
 
-### ZSET, un par provider
+### ZSET d’attente, une par provider
 
-Uniquement si la requête **ne tient sur aucun provider**. Sorted set Redis : score = **priorité** + **timestamp** (haute prio et arrivée ancienne devant). On ne récupère que le **premier** (`ZRANGE` / claim Lua).
+Distincte de la ZSET **in-flight** du §5. Uniquement si la requête **ne tient sur aucun provider**. Score = **priorité** + **timestamp** (haute prio et arrivée ancienne devant) — ce score sert à l’ordre, **pas** à l’expiration. On ne récupère que le **premier** (`ZRANGE` / claim Lua).
 
 Cycle :
 
-1. Entrer dans la ZSET du provider least-busy.
+1. Entrer dans `qos:wait:{provider_id}` du provider least-busy.
 2. Chaque seconde : heartbeat + « suis-je le premier **et** le slot (avec *mon* poids) est-il libre ? »
-3. Oui → claim atomique, clé in-flight, forward.
+3. Oui → **un Lua** : `ZREM` wait + admission §5 (`ZADD` inflight + incr `qos:load`) + forward.
 4. Non → attendre, jusqu’à `qos_queue_max_wait` / `qos_wait_timeout` → 503 + `Retry-After`.
 
 Si le premier n’est jamais retiré (crash, disconnect, Redis), **toute la file est bloquée**.
 
-`max_queue_size` : compter les waiters **par provider** (même Redis que la ZSET : `ZCARD`). Si plafond atteint → **503 + `Retry-After`**, sans entrer en file.
+`max_queue_size` : compter les waiters **par provider** (`ZCARD` de `qos:wait`). Si plafond atteint → **503 + `Retry-After`**, sans entrer en file.
 
 `null` = pas de cap (tu assumes le scale). Un entier = file max, indépendant de `qos_wait_timeout`.
-
-Voici la section **Heartbeat** à coller à la place de l’ancienne. Le TTL « durée moyenne un peu majorée » disparaît : la clé ne vit que tant qu’on la renouvelle, **en file et in-flight**.
-
-Rule : sI Redis down, on laisse passer. 
 
 ---
 
 ## Heartbeat
 
-La clé Redis de la requête existe **dès l’entrée en file** (ou dès l’admission si on ne passe pas par la ZSET). Elle n’a **pas** un TTL calé sur la durée moyenne d’une requête. Un TTL long sous-compte les jobs longs (stream, transcription) dès qu’il expire alors que le travail continue ; un TTL court laisse des fantômes après un crash.
+Le heartbeat couvre **toute la vie** de la requête (file et in-flight). Tant que le worker est vivant et la connexion active, on **repousse l’expiration**. Si le worker crash, si Redis ne répond plus, ou si le client coupe : plus de renouvellement → le prochain Lua **purge**.
 
-À la place : un **heartbeat** sur toute la vie de la requête. Tant que le worker est vivant et la connexion active, on **renouvelle le TTL**. Si le worker crash, si Redis ne répond plus, ou si le client coupe : plus de renouvellement → la clé expire toute seule.
+On ne SCAN pas des clés `inflight:*`. En file, le score de `qos:wait` est l’ordre de priorité : l’expiration vit sur une **clé de présence** O(1). In-flight, le score de `qos:inflight` **est** l’expiration ; la charge reste `qos:load`.
 
-| Phase | Rôle de la clé | Heartbeat | TTL (expire si heartbeat manqué) |
-|---|---|---|---|
-| En file | Présence dans la ZSET (ne compte **pas** dans la charge QoS) | Chaque **1 s** (même rythme que le poll) | **3 s** |
-| In-flight | Compte dans la charge QoS (poids : 1 requête ou octets) | Chaque **~10 s** | **~30 s** (≈ 3 heartbeats) |
-
-On peut garder **deux clés** (ou deux préfixes) : `queue:{provider}:{request_id}` et `inflight:{provider}:{request_id}`. Au claim, on crée l’in-flight et on supprime la clé de file. Seules les clés `inflight:*` entrent dans le Lua d’admission.
+| Phase | Structure | Compte dans `qos:load` | Heartbeat | Expire si heartbeat manqué |
+|---|---|---|---|---|
+| En file | Membre `qos:wait` + clé `qos:wait:hb:{provider_id}:{request_id}` | Non | Chaque **1 s** (même rythme que le poll) | **3 s** |
+| In-flight | Membre `qos:inflight` (score = expiration) + poids dans `qos:weight` | Oui | Chaque **~10 s** : `ZADD` avec `now + ~30 s` | **~30 s** (≈ 3 heartbeats) |
 
 ### En file
 
-Toutes les secondes : poll (« suis-je premier + y a-t-il de la place pour *mon* poids ? ») **et** `EXPIRE` à 3 s.
+Toutes les secondes : poll (« suis-je premier + y a-t-il de la place pour *mon* poids ? ») **et** `EXPIRE` de la clé de présence à 3 s.
 
-Si le premier de la ZSET n’a plus de heartbeat → on le **retire**, on passe au suivant. On accepte de **perdre** une prioritaire zombie plutôt que de bloquer la file.
+Si le premier de `qos:wait` n’a plus de heartbeat → on le **retire**, on passe au suivant. On accepte de **perdre** une prioritaire zombie plutôt que de bloquer la file.
 
 ### In-flight
 
-Dès l’admission atomique (Lua : premier + place + claim) :
+Dès l’admission atomique (Lua §5, éventuellement précédé du `ZREM` wait) :
 
-1. Créer la clé `inflight` avec le poids, TTL ~30 s.
-2. Tant que le forward tourne (y compris stream), un task asyncio **renouvelle** ce TTL toutes les ~10 s.
-3. Fin normale, disconnect FastAPI, ou erreur provider → **delete** immédiat de la clé (le heartbeat n’est que le filet).
+1. `ZADD` inflight + `HSET` poids + incr `qos:load`, score `now + ~30 s`.
+2. Tant que le forward tourne (y compris stream), un task asyncio **repousse le score** toutes les ~10 s.
+3. Fin normale, disconnect FastAPI, ou erreur provider → Lua de sortie immédiat (le heartbeat n’est que le filet).
 
-Un WhisperX de 5 min reste compté jusqu’à la fin. Un worker qui crash au milieu : au plus ~30 s de charge fantôme, puis la place se libère. C’est assez court pour ne pas figer le QoS, assez long pour encaisser un hic Redis sans sous-compter une requête encore vivante.
-
-Lua inchangé sur le claim : « premier + place pour ce poids + création in-flight atomique ».
+Un WhisperX de 5 min reste dans `qos:load` jusqu’à la fin. Un worker qui crash au milieu : au plus ~30 s de charge fantôme, puis la place se libère. C’est assez court pour ne pas figer le QoS, assez long pour encaisser un hic Redis sans sous-compter une requête encore vivante.
 
 ### Toujours supprimer dès qu’on peut
 
-Le heartbeat ne remplace pas les deletes explicites :
+Le heartbeat ne remplace pas les sorties explicites :
 
 | Événement | Action |
 |---|---|
-| Requête terminée (succès ou erreur provider) | `DEL` in-flight |
-| Client / proxy coupe (`disconnect`) | `DEL` file ou in-flight |
-| Plus premier / jeter après `qos_queue_max_wait` | Retirer de la ZSET + `DEL` clé de file |
-| Crash worker / Redis saturé malgré retry | Rien à exécuter → expiration du TTL |
+| Requête terminée (succès ou erreur provider) | Lua sortie in-flight (`ZREM` + `HDEL` + décr `qos:load`) |
+| Client / proxy coupe (`disconnect`) | Lua sortie file ou in-flight |
+| Plus premier / jeter après `qos_queue_max_wait` | `ZREM` wait + `DEL` clé de présence |
+| Crash worker / Redis saturé malgré retry | Rien à exécuter → le prochain Lua d’admission purge à l’expiration |
 
-Retry Redis conservé sur `EXPIRE` / `DEL`. Si un renouvellement in-flight échoue plusieurs fois, on **préfère jeter** (arrêter le forward si possible, ou laisser mourir la clé) plutôt que de garder une charge fantôme indéfiniment.
+Retry Redis conservé sur heartbeat / sortie. Si un renouvellement in-flight échoue plusieurs fois, on **préfère jeter** (arrêter le forward si possible, ou laisser expirer le membre) plutôt que de garder une charge fantôme indéfiniment.
 
-
----
-
-Le `Retry-After` ne peut plus s’appuyer sur « TTL = durée moyenne ». Il reste le taux d’occupation, et éventuellement un **percentile de durée observé** (métrique à part, pas le TTL des clés).
 ---
 
 ## 7. Suite : tokens et rate limiting
@@ -273,7 +287,7 @@ Le dur : **statut de job, retry, monitoring**. Piste : framework de jobs **branc
 - `qos_wait_timeout` (`null` \| `0` \| N)
 - `qos_queue_max_wait`
 - `timeout` (existant) : `qos_wait_timeout` et `qos_queue_max_wait` **&lt; timeout**
-- TTL in-flight : dérivé du timeout ou champ dédié
+- Heartbeat in-flight : intervalle ~10 s, expiration ~30 s (pas un TTL calé sur la durée moyenne)
 
 **Role**
 
@@ -283,15 +297,10 @@ Le dur : **statut de job, retry, monitoring**. Piste : framework de jobs **branc
 
 ## Phasage
 
-1. **V1 QoS + least busy** — clés TTL, Lua (requêtes **et** poids audio), wait/`null`/`0`, 503 + `Retry-After`, health par provider / meilleur statut router, plus d’API métriques pour ça.
+1. **V1 QoS + least busy** — ZSET in-flight + `qos:load`, Lua (requêtes **et** poids audio), wait/`null`/`0`, 503 + `Retry-After`, health par provider / meilleur statut router, plus d’API métriques pour ça.
 2. **Priorisation** — ZSET + heartbeat + `role.priority`.
 3. **Métrique tokens / pondération** — étude ; éventuellement revoir les rate limits.
 4. **Batch** — option A ou B + persistance job.
-
----
-
-Un point encore utile à trancher plus tard, pas bloquant pour la note : le TTL in-flight est-il **un champ provider** ou **dérivé du timeout** (ex. `timeout / 5`) ? Le `Retry-After` en dépend.
-
 
 ---
 
