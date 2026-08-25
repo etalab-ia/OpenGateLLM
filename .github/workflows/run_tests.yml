@@ -73,8 +73,10 @@ jobs:
       - name: Run tests
         run: |
           . .venv/bin/activate
-          CONFIG_FILE=./config.example.yml pytest api/tests/integration --config-file=pyproject.toml
-
+          pytest -s api/tests/integration --config-file=pyproject.toml
+        env:
+          CONFIG_FILE: config.example.yml
+      
       - name: Tear down Docker Compose
         run: |
           docker compose --file compose.example.yml down --volumes --remove-orphans
@@ -109,7 +111,9 @@ jobs:
         run: |
           . .venv/bin/activate
           pytest -s api/tests/unit api/tests/integration --config-file=pyproject.toml --cov=./api --cov-report=html --cov-report=term-missing --cov-branch --cov-report=xml
-
+        env:
+          CONFIG_FILE: config.example.yml
+      
       - name: Export coverage data to XML for badge computation
         run: |
           python -m coverage xml -o coverage.xml
