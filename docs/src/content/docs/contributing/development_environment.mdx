@@ -60,6 +60,8 @@ To simplify development, we have created a make command that allows you to launc
 
 ## Commit
 
+### Commit convention
+
 Please respect the following convention for your commits:
 
 ```
@@ -67,6 +69,33 @@ Please respect the following convention for your commits:
 
 # example
 feat(collections): collection name retriever
+```
+
+### Rebase (required)
+
+Keep a **linear history**: update your branch with rebase, never with merge commits (`git merge main` / `git pull` without `--rebase`). 
+Linear history keeps reviews and bisects readable.
+
+Update your branch on top of `main`:
+
+```bash
+git pull --rebase origin main
+```
+
+Rewrite or clean up your last `x` commits before opening/updating a PR:
+
+```bash
+git rebase -i HEAD~x
+```
+For each commit, you can use the following options:
+- f (fixup) : apply the commit on the previous commit (like a squash but without the commit message)
+- s (squash) : merge the commit into the previous commit (like a fixup but with the commit message)
+- r (reword) : change the commit message
+
+If the branch was already pushed, update the remote with `git push --force-with-lease` after a rebase.
+Example:
+```bash
+git rebase -i HEAD~3
 ```
 
 ## Linter

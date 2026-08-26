@@ -10,3 +10,9 @@ class OrganizationAlreadyExistsError:
 class OrganizationNotFoundError:
     id: int | None = None
     name: str | None = None
+
+
+@dataclass
+class OrganizationHasUsersError:
+    id: int
+    number_of_users: int
