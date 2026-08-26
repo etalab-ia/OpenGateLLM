@@ -39,7 +39,20 @@ In addition, OpenGateLLM exposes the following metrics for inference:
 
 ## Grafana dashboard
 
-*Work in progress, check our [roadmap](https://github.com/etalab-ia/OpenGateLLM/milestone/4/) for more information.*
+Two ready-to-use Grafana dashboards are provided in the [`grafana/`](https://github.com/etalab-ia/OpenGateLLM/tree/main/grafana) folder of the repository:
+
+| Dashboard | File | Content |
+| --- | --- | --- |
+| Inference | [`grafana/inference.json`](https://github.com/etalab-ia/OpenGateLLM/blob/main/grafana/inference.json) | LLM oriented metrics: request rate and success rate, request duration, time to first token, token consumption and output generation speed, all broken down by model and endpoint. |
+| Traffic | [`grafana/traffic.json`](https://github.com/etalab-ia/OpenGateLLM/blob/main/grafana/traffic.json) | API oriented metrics from *prometheus-fastapi-instrumentator*: request count, 2xx/5xx ratio, request duration percentiles, requests per second, process memory and CPU usage. |
+
+Both dashboards are filtered with template variables (*Datasource*, and *Model*, *Endpoint* and *Percentile* for the inference dashboard) so you can focus on a given model or endpoint.
+
+To import a dashboard, in Grafana go to **Dashboards** > **New** > **Import**, upload the JSON file (or paste its content) and select your Prometheus datasource.
+
+<Aside type="caution" title="Metrics namespace">
+The dashboards expect the OpenGateLLM metrics to be exposed with the default `ogl_` namespace and to be scraped by the Prometheus datasource you select at import time.
+</Aside>
 
 ## Configuration
 

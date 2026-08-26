@@ -35,6 +35,14 @@ settings:
 
 <LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>
 
+## Real-time metrics
+
+In addition to the usage data stored in PostgreSQL, OpenGateLLM can expose real-time inference metrics (request rate, request duration, time to first token, token consumption and output generation speed) in Prometheus format on the `/metrics` endpoint.
+
+Ready-to-use Grafana dashboards built on these metrics are available in the [`grafana/`](https://github.com/etalab-ia/OpenGateLLM/tree/main/grafana) folder of the repository. See the [Prometheus documentation](/configuration/dependencies/prometheus/) for the list of exposed metrics, the dashboards and the configuration.
+
+<LinkButton href="/configuration/dependencies/prometheus/" icon="external">Prometheus documentation</LinkButton>
+
 ## Model health monitoring
 
 OpenGateLLM provides a health check endpoint to monitor the health of the models. This endpoint is available at `/health/models` and returns a JSON response with the health status of the models.
