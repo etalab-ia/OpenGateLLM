@@ -8,7 +8,7 @@ from pydantic import StringConstraints, ValidationError
 from api.domain.provider import ProviderAdapter
 from api.domain.provider.entities import Provider, ProviderRawResponse, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
-from api.infrastructure.http import HttpProviderRequest
+from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
 from api.utils.variables import EndpointRoute
 
 

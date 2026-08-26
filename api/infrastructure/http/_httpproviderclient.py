@@ -9,8 +9,9 @@ from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, Unk
 from api.domain.provider import ProviderAdapterBuilder, ProviderClient, ProviderClientResponse
 from api.domain.provider.entities import Provider, ProviderRawResponse, ProviderRequest
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, UnsupportedProviderEndpointError
-from api.infrastructure.http import HttpProviderRequest
 from api.infrastructure.http.adapters import HttpProviderAdapter
+
+from ._httpproviderrequest import HttpProviderRequest
 
 logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ from api.domain import BaseModel
 from api.domain.audio.entities import AudioTranscriptions, AudioTranscriptionsResponseFormat
 from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationRequestError
-from api.infrastructure.http import HttpProviderRequest
+from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
 from api.infrastructure.http.adapters.audio import AudioTranscriptionsAdapter
 from api.schemas.audio import AudioTranscriptionLanguage
 

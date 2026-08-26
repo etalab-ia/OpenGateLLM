@@ -1,5 +1,5 @@
 from api.domain.provider.entities import ProviderRequest
-from api.infrastructure.http import HttpProviderRequest
+from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
 from api.infrastructure.http.adapters.chat import ChatCompletionsAdapter
 
 

@@ -6,7 +6,7 @@ from api.domain import BaseModel
 from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.rerank.entities import Rerank, RerankResult
-from api.infrastructure.http import HttpProviderRequest
+from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
 from api.infrastructure.http.adapters.rerank import RerankAdapter
 
 
