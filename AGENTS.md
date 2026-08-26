@@ -164,6 +164,20 @@ CreateKeyCommand(user_id=body.user, ...)
 "user": data.user_id  # Key entity → CreateKeyResponse
 ```
 
+### Update requests are full replacements
+
+`Update<Noun>Body` requires **every persisted field** — there is no partial update on clean-architecture endpoints.
+
+- No `default=None` meaning "skip this field". A missing field is a 422.
+- `| None` only where `null` is a valid stored value, and it then **sets** the column to `null` (clear the organization, the budget, the QoS policy…).
+- Lists replace the stored list; an empty list clears it (role `permissions` / `limits`, router `aliases`).
+- The use case applies the command as a replacement: `entity.with_x(command.x)` for every field, never `if command.x is not None`.
+- Exception: write-only secrets (`password`, `current_password`) stay optional — omitting them leaves the secret unchanged.
+
+Do not reuse a `Create<Noun>Body` for an update: its optional fields carry the wrong meaning.
+
+Callers (playground `edit_entity`, e2e tests) must send the whole current form state, not a diff.
+
 ### Timestamps
 
 - API: Unix seconds as `int` (`created`, `updated`, `expires`)
