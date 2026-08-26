@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from api.domain.organization.entities import Organization
-from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationHasUsersError, OrganizationNotFoundError
+from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationNotFoundError
 
 
 class OrganizationRepository(ABC):
@@ -18,5 +18,5 @@ class OrganizationRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete_organization(self, organization_id: int) -> Organization | OrganizationNotFoundError | OrganizationHasUsersError:
+    async def delete_organization(self, organization_id: int) -> Organization | OrganizationNotFoundError:
         pass

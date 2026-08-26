@@ -35,5 +35,5 @@ class DeleteOrganizationUseCase:
         match delete_result:
             case Organization() as organization:
                 return DeleteOrganizationUseCaseSuccess(organization=organization)
-            case OrganizationNotFoundError() | OrganizationHasUsersError() as error:
+            case OrganizationNotFoundError() as error:
                 return error

@@ -1,8 +1,9 @@
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from api.domain.organization.entities import Organization
-from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationHasUsersError, OrganizationNotFoundError
+from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationNotFoundError
 from api.infrastructure.postgres import PostgresOrganizationRepository
 from api.sql.models import Organization as OrganizationTable
 from api.tests.integration.factories.sql import OrganizationSQLFactory, UserSQLFactory
@@ -139,20 +140,12 @@ class TestDeleteOrganization:
         assert isinstance(result, OrganizationNotFoundError)
         assert result.id == 999999
 
-    async def test_delete_organization_should_return_has_users_error_when_organization_still_has_users(self, repository, db_session):
+    async def test_delete_organization_should_raise_integrity_error_when_organization_still_has_users(self, repository, db_session):
         # Arrange
         organization = OrganizationSQLFactory(name="Org With Users To Delete")
         UserSQLFactory(organization=organization)
-        UserSQLFactory(organization=organization)
         await db_session.flush()
 
-        # Act
-        result = await repository.delete_organization(organization_id=organization.id)
-
-        # Assert
-        assert isinstance(result, OrganizationHasUsersError)
-        assert result.id == organization.id
-        assert result.number_of_users == 2
-
-        stored = await db_session.scalar(select(OrganizationTable).where(OrganizationTable.id == organization.id))
-        assert stored is not None
+        # Act / Assert
+        with pytest.raises(IntegrityError):
+            await repository.delete_organization(organization_id=organization.id)

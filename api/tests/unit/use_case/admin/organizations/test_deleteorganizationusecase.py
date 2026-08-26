@@ -69,15 +69,15 @@ class TestDeleteOrganizationUseCase:
         organization_repository.delete_organization.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_propagate_delete_error_when_organization_changed_after_the_check(self, use_case, organization_repository):
+    async def test_should_propagate_delete_error_when_organization_disappeared_after_the_check(self, use_case, organization_repository):
         # Arrange
         organization_repository.get_organization_by_id.return_value = OrganizationFactory(id=42, users=0)
-        organization_repository.delete_organization.return_value = OrganizationHasUsersError(id=42, number_of_users=1)
+        organization_repository.delete_organization.return_value = OrganizationNotFoundError(id=42)
         command = DeleteOrganizationCommand(organization_id=42)
 
         # Act
         result = await use_case.execute(command)
 
         # Assert
-        assert isinstance(result, OrganizationHasUsersError)
-        assert result.number_of_users == 1
+        assert isinstance(result, OrganizationNotFoundError)
+        assert result.id == 42
