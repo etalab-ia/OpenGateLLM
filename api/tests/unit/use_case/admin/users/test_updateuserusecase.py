@@ -33,6 +33,23 @@ def sample_user():
     return UserFactory(id=42, organization_id=7, budget=100.0, expires=None, priority=1)
 
 
+def full_command(user, **overrides) -> UpdateUserCommand:
+    """Command replacing every persisted field with the current user values, unless overridden."""
+    command = UpdateUserCommand(
+        user_id=user.id,
+        email=user.email,
+        name=user.name,
+        role_id=user.role_id,
+        organization_id=user.organization_id,
+        budget=user.budget,
+        expires=user.expires,
+        priority=user.priority,
+    )
+    for field, value in overrides.items():
+        setattr(command, field, value)
+    return command
+
+
 class TestUpdateUserUseCase:
     @pytest.mark.asyncio
     async def test_should_return_updated_user_when_user_exists(self, use_case, user_repository, sample_user):
@@ -41,7 +58,7 @@ class TestUpdateUserUseCase:
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(UpdateUserCommand(user_id=sample_user.id, email="new@example.com", role_id=3))
+        result = await use_case.execute(full_command(sample_user, email="new@example.com", role_id=3))
 
         # Assert
         assert isinstance(result, UpdateUserUseCaseSuccess)
@@ -51,26 +68,55 @@ class TestUpdateUserUseCase:
         user_repository.update_user.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_should_keep_non_nullable_fields_and_clear_nullable_fields_when_fields_are_none(self, use_case, user_repository, sample_user):
+    async def test_should_clear_nullable_fields_when_command_fields_are_none(self, use_case, user_repository, sample_user):
         # Arrange
         user_repository.get_user_by_id.return_value = sample_user
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(UpdateUserCommand(user_id=sample_user.id))
+        result = await use_case.execute(full_command(sample_user, name=None, organization_id=None, budget=None, expires=None))
 
         # Assert
         assert isinstance(result, UpdateUserUseCaseSuccess)
-        # Non-nullable columns keep their current value.
-        assert result.user.email == sample_user.email
-        assert result.user.role_id == sample_user.role_id
-        assert result.user.priority == sample_user.priority
-        assert result.user.password == sample_user.password
-        # Nullable columns are cleared.
         assert result.user.name is None
         assert result.user.organization_id is None
         assert result.user.budget is None
         assert result.user.expires is None
+        # The other persisted fields keep the values sent by the command.
+        assert result.user.email == sample_user.email
+        assert result.user.role_id == sample_user.role_id
+        assert result.user.priority == sample_user.priority
+        assert result.user.password == sample_user.password
+
+    @pytest.mark.asyncio
+    async def test_should_replace_every_persisted_field_with_the_command_values(self, use_case, user_repository, sample_user):
+        # Arrange
+        user_repository.get_user_by_id.return_value = sample_user
+        user_repository.update_user.side_effect = lambda user: user
+
+        # Act
+        result = await use_case.execute(
+            full_command(
+                sample_user,
+                email="new@example.com",
+                name="New Name",
+                role_id=3,
+                organization_id=8,
+                budget=42.0,
+                expires=1893456000,
+                priority=5,
+            )
+        )
+
+        # Assert
+        assert isinstance(result, UpdateUserUseCaseSuccess)
+        assert result.user.email == "new@example.com"
+        assert result.user.name == "New Name"
+        assert result.user.role_id == 3
+        assert result.user.organization_id == 8
+        assert result.user.budget == 42.0
+        assert result.user.expires == 1893456000
+        assert result.user.priority == 5
 
     @pytest.mark.asyncio
     async def test_should_keep_current_password_when_no_new_password(self, use_case, user_repository, user_password_encoder, sample_user):
@@ -79,7 +125,7 @@ class TestUpdateUserUseCase:
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(UpdateUserCommand(user_id=sample_user.id, current_password="old"))
+        result = await use_case.execute(full_command(sample_user, current_password="old"))
 
         # Assert
         assert isinstance(result, UpdateUserUseCaseSuccess)
@@ -95,7 +141,7 @@ class TestUpdateUserUseCase:
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(UpdateUserCommand(user_id=sample_user.id, new_password="secret"))
+        result = await use_case.execute(full_command(sample_user, new_password="secret"))
 
         # Assert
         assert isinstance(result, UpdateUserUseCaseSuccess)
@@ -111,7 +157,7 @@ class TestUpdateUserUseCase:
         user_password_encoder.validate_password.return_value = True
 
         # Act
-        result = await use_case.execute(UpdateUserCommand(user_id=sample_user.id, current_password="old", new_password="secret"))
+        result = await use_case.execute(full_command(sample_user, current_password="old", new_password="secret"))
 
         # Assert
         assert isinstance(result, UpdateUserUseCaseSuccess)
@@ -124,7 +170,7 @@ class TestUpdateUserUseCase:
         user_repository.get_user_by_id.return_value = UserNotFoundError(id=99)
 
         # Act
-        result = await use_case.execute(UpdateUserCommand(user_id=99, email="new@example.com"))
+        result = await use_case.execute(full_command(UserFactory(id=99), email="new@example.com"))
 
         # Assert
         assert isinstance(result, UserNotFoundError)
@@ -140,7 +186,7 @@ class TestUpdateUserUseCase:
         user_password_encoder.validate_password.return_value = False
 
         # Act
-        result = await use_case.execute(UpdateUserCommand(user_id=sample_user.id, current_password="wrong", new_password="secret"))
+        result = await use_case.execute(full_command(sample_user, current_password="wrong", new_password="secret"))
 
         # Assert
         assert isinstance(result, IncorrectCurrentPasswordError)
@@ -155,7 +201,7 @@ class TestUpdateUserUseCase:
         user_repository.get_user_by_id.return_value = sample_user.model_copy(update={"password": None})
 
         # Act
-        result = await use_case.execute(UpdateUserCommand(user_id=sample_user.id, current_password="old", new_password="secret"))
+        result = await use_case.execute(full_command(sample_user, current_password="old", new_password="secret"))
 
         # Assert
         assert isinstance(result, IncorrectCurrentPasswordError)
@@ -169,7 +215,7 @@ class TestUpdateUserUseCase:
         user_repository.update_user.return_value = RoleNotFoundError(id=3)
 
         # Act
-        result = await use_case.execute(UpdateUserCommand(user_id=sample_user.id, role_id=3))
+        result = await use_case.execute(full_command(sample_user, role_id=3))
 
         # Assert
         assert isinstance(result, RoleNotFoundError)
@@ -184,7 +230,7 @@ class TestUpdateUserUseCase:
         user_repository.update_user.return_value = OrganizationNotFoundError(id=8)
 
         # Act
-        result = await use_case.execute(UpdateUserCommand(user_id=sample_user.id, organization_id=8))
+        result = await use_case.execute(full_command(sample_user, organization_id=8))
 
         # Assert
         assert isinstance(result, OrganizationNotFoundError)
@@ -197,7 +243,7 @@ class TestUpdateUserUseCase:
         user_repository.update_user.return_value = UserAlreadyExistsError(email="taken@example.com")
 
         # Act
-        result = await use_case.execute(UpdateUserCommand(user_id=sample_user.id, email="taken@example.com"))
+        result = await use_case.execute(full_command(sample_user, email="taken@example.com"))
 
         # Assert
         assert isinstance(result, UserAlreadyExistsError)
