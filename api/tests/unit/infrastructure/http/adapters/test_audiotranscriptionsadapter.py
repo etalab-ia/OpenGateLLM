@@ -2,7 +2,7 @@ import base64
 from tempfile import SpooledTemporaryFile
 
 from api.domain.audio.entities import AudioTranscriptionsResponseFormat, CreateAudioTranscriptionsFile, CreateAudioTranscriptionsForm
-from api.domain.provider.entities import ProviderOriginalRequest, ProviderOriginalResponse, ProviderType
+from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderType
 from api.infrastructure.http.adapters.audio import AudioTranscriptionsAdapter
 from api.infrastructure.http.adapters.audio.mistral import MistralAudioTranscriptionsAdapter
 from api.tests.unit.use_case.factories import ProviderFactory
@@ -18,7 +18,7 @@ def mock_audio_file() -> SpooledTemporaryFile:
     return file
 
 
-def _original_request(**overrides) -> ProviderOriginalRequest:
+def _original_request(**overrides) -> ProviderRequest:
     form = CreateAudioTranscriptionsForm(
         file=CreateAudioTranscriptionsFile(name="speech.mp3", file=mock_audio_file(), content_type="audio/mpeg", size=11),
         model="audio-router",
@@ -30,10 +30,9 @@ def _original_request(**overrides) -> ProviderOriginalRequest:
     payload = {
         "endpoint": EndpointRoute.AUDIO_TRANSCRIPTIONS,
         "payload": form,
-        "files": form.get_files(),
     }
     payload.update(overrides)
-    return ProviderOriginalRequest(**payload)
+    return ProviderRequest(**payload)
 
 
 class TestAudioTranscriptionsAdapter:
@@ -44,7 +43,7 @@ class TestAudioTranscriptionsAdapter:
         original_request = _original_request()
 
         # Act
-        result = adapter.format_request(original_request=original_request)
+        result = adapter.to_http_request(request=original_request)
 
         # Assert
         assert result.form["model"] == "whisper-1"
@@ -56,10 +55,10 @@ class TestAudioTranscriptionsAdapter:
         # Arrange
         provider = ProviderFactory(type=ProviderType.VLLM, url="https://vllm.test", model_name="whisper-1")
         adapter = AudioTranscriptionsAdapter(provider=provider)
-        original_response = ProviderOriginalResponse(data={"text": "hello world"})
+        original_response = ProviderRawResponse(data={"text": "hello world"})
 
         # Act
-        result = adapter.format_response(original_request=_original_request(), original_response=original_response)
+        result = adapter.to_domain_response(request=_original_request(), raw_response=original_response)
 
         # Assert
         assert result.data.text == "hello world"
@@ -73,7 +72,7 @@ class TestMistralAudioTranscriptionsAdapter:
         adapter = MistralAudioTranscriptionsAdapter(provider=provider)
 
         # Act
-        result = adapter.format_request(original_request=_original_request())
+        result = adapter.to_http_request(request=_original_request())
 
         # Assert
         assert result.url == "https://mistral.test/v1/chat/completions"

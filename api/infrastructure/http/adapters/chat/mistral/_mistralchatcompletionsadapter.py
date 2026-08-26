@@ -1,10 +1,11 @@
-from api.domain.provider.entities import ProviderFormattedRequest, ProviderOriginalRequest
+from api.domain.provider.entities import ProviderRequest
+from api.infrastructure.http import HttpProviderRequest
 from api.infrastructure.http.adapters.chat import ChatCompletionsAdapter
 
 
 class MistralChatCompletionsAdapter(ChatCompletionsAdapter):
-    def format_request(self, original_request: ProviderOriginalRequest) -> ProviderFormattedRequest:
-        body = original_request.payload.model_dump(exclude_none=True)
+    def to_http_request(self, request: ProviderRequest) -> HttpProviderRequest:
+        body = request.payload.model_dump(exclude_none=True)
         body["random_seed"] = body["random_seed"] or body["seed"]
         supported_fields = [
             "frequency_penalty",
@@ -30,4 +31,4 @@ class MistralChatCompletionsAdapter(ChatCompletionsAdapter):
         body = {key: value for key, value in body.items() if key in supported_fields}
         target_url = self._build_target_url(base_url=self.provider.url, target_endpoint_route=self.TARGET_ENDPOINT_ROUTE)
 
-        return ProviderFormattedRequest(method=self.TARGET_ENDPOINT_METHOD, url=target_url, body=body)
+        return HttpProviderRequest(method=self.TARGET_ENDPOINT_METHOD, url=target_url, body=body)

@@ -1,38 +1,48 @@
 import base64
+from unittest.mock import patch
 from urllib.parse import urljoin
 
 import httpx
 import pytest
 import respx
 
+from api.domain.embeddings.entities import CreateEmbeddingsBody
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider.entities import ProviderOriginalResponse, ProviderType
-from api.infrastructure.http import HttpProviderClient
+from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderType
+from api.domain.provider.errors import ProviderAdapterValidationRequestError, UnsupportedProviderEndpointError
+from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
+from api.infrastructure.http.adapters.models.vllm import VllmModelsAdapter
 from api.tests.integration.factories.mistral import MistralMetricsResponseFactory
 from api.tests.integration.factories.vllm import VllmEmbeddingsResponseFactory, VllmMetricsResponseFactory, VllmModelsResponseFactory
-from api.tests.unit.infrastructure.factories import ProviderFormattedRequestFactory
 from api.tests.unit.use_case.factories import ProviderFactory
+from api.utils.variables import EndpointRoute
 
 DEFAULT_PROVIDER_URL = "http://my-test-provider/"
 DEFAULT_MODEL_ID = "test/my-model"
 
 
-def provider_factory():
-    return ProviderFactory(
+def provider_factory(**overrides):
+    values = dict(
         type=ProviderType.VLLM,
         url=DEFAULT_PROVIDER_URL,
         key="test-key",
         timeout=1,
         model_name=DEFAULT_MODEL_ID,
     )
+    values.update(overrides)
+    return ProviderFactory(**values)
+
+
+def http_provider_client() -> HttpProviderClient:
+    return HttpProviderClient(adapter_builder=HttpProviderAdapterBuilder())
 
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestHttpProviderClient:
     @respx.mock
-    async def test_forward_request_models(self):
+    async def test_forward_models(self):
         provider = provider_factory()
-        formatted_request = ProviderFormattedRequestFactory(vllm_models=True, base_url=provider.url)
+        request = ProviderRequest(endpoint=EndpointRoute.MODELS)
 
         body = VllmModelsResponseFactory(model_id=DEFAULT_MODEL_ID)
         url = urljoin(DEFAULT_PROVIDER_URL, "/v1/models")
@@ -44,24 +54,21 @@ class TestHttpProviderClient:
             )
         )
 
-        result = await HttpProviderClient().forward_request(provider=provider, formatted_request=formatted_request)
+        result = await http_provider_client().forward(provider=provider, request=request)
 
-        assert isinstance(result, ProviderOriginalResponse)
+        assert isinstance(result, ProviderRawResponse)
         assert result.data == body
         assert result.text is None
         assert route.called is True
         assert route.calls[0].request.headers.get("Authorization") == "Bearer test-key"
 
     @respx.mock
-    async def test_forward_request_embeddings(self):
-        provider = ProviderFactory(
-            type=ProviderType.VLLM,
-            url=DEFAULT_PROVIDER_URL,
-            key=None,
-            timeout=1,
-            model_name=DEFAULT_MODEL_ID,
+    async def test_forward_embeddings(self):
+        provider = provider_factory(key=None)
+        request = ProviderRequest(
+            endpoint=EndpointRoute.EMBEDDINGS,
+            payload=CreateEmbeddingsBody(model="openweight-embeddings", input=["hello world"]),
         )
-        formatted_request = ProviderFormattedRequestFactory(vllm_embeddings=True, base_url=provider.url)
 
         body = VllmEmbeddingsResponseFactory(model_id=DEFAULT_MODEL_ID, dimensions=8)
         url = urljoin(DEFAULT_PROVIDER_URL, "/v1/embeddings")
@@ -73,18 +80,18 @@ class TestHttpProviderClient:
             )
         )
 
-        result = await HttpProviderClient().forward_request(provider=provider, formatted_request=formatted_request)
+        result = await http_provider_client().forward(provider=provider, request=request)
 
-        assert isinstance(result, ProviderOriginalResponse)
+        assert isinstance(result, ProviderRawResponse)
         assert result.data == body
         assert result.text is None
         assert route.called is True
         assert route.calls[0].request.headers.get("Authorization") is None
 
     @respx.mock
-    async def test_forward_request_metrics_text_response(self):
+    async def test_forward_metrics_text_response(self):
         provider = provider_factory()
-        formatted_request = ProviderFormattedRequestFactory(vllm_metrics=True, base_url=provider.url)
+        request = ProviderRequest(endpoint=EndpointRoute.METRICS)
 
         body = VllmMetricsResponseFactory(model_name=DEFAULT_MODEL_ID, running=2.0, waiting=1.0)
         url = urljoin(DEFAULT_PROVIDER_URL, "/metrics")
@@ -96,24 +103,25 @@ class TestHttpProviderClient:
             )
         )
 
-        result = await HttpProviderClient().forward_request(provider=provider, formatted_request=formatted_request)
+        result = await http_provider_client().forward(provider=provider, request=request)
 
-        assert isinstance(result, ProviderOriginalResponse)
+        assert isinstance(result, ProviderRawResponse)
         assert result.data is None
         assert result.text == body["text"]
         assert route.called is True
         assert route.calls[0].request.headers.get("Authorization") == "Bearer test-key"
 
     @respx.mock
-    async def test_forward_request_uses_basic_auth_when_formatted_request_has_auth(self):
+    async def test_forward_uses_basic_auth_when_provider_has_basic_auth(self):
         provider = ProviderFactory(
             type=ProviderType.MISTRAL,
             url=DEFAULT_PROVIDER_URL,
             key=None,
             timeout=1,
             model_name=DEFAULT_MODEL_ID,
+            basic_auth={"username": "metrics", "password": "secret"},
         )
-        formatted_request = ProviderFormattedRequestFactory(mistral_metrics=True, base_url=provider.url)
+        request = ProviderRequest(endpoint=EndpointRoute.METRICS)
 
         body = MistralMetricsResponseFactory(model_name=DEFAULT_MODEL_ID)
         url = urljoin(DEFAULT_PROVIDER_URL, "/metrics")
@@ -125,9 +133,9 @@ class TestHttpProviderClient:
             )
         )
 
-        result = await HttpProviderClient().forward_request(provider=provider, formatted_request=formatted_request)
+        result = await http_provider_client().forward(provider=provider, request=request)
 
-        assert isinstance(result, ProviderOriginalResponse)
+        assert isinstance(result, ProviderRawResponse)
         assert result.text == body["text"]
         assert route.called is True
         expected_auth = "Basic " + base64.b64encode(b"metrics:secret").decode()
@@ -146,27 +154,27 @@ class TestHttpProviderClient:
         ],
     )
     @respx.mock
-    async def test_forward_request_returns_too_busy_error_when_provider_request_fails(self, exception, expected_detail):
+    async def test_forward_returns_too_busy_error_when_provider_request_fails(self, exception, expected_detail):
         provider = provider_factory()
-        formatted_request = ProviderFormattedRequestFactory(vllm_models=True, base_url=provider.url)
+        request = ProviderRequest(endpoint=EndpointRoute.MODELS)
 
         url = urljoin(DEFAULT_PROVIDER_URL, "/v1/models")
         route = respx.get(url=url).mock(side_effect=exception)
 
-        result = await HttpProviderClient().forward_request(provider=provider, formatted_request=formatted_request)
+        result = await http_provider_client().forward(provider=provider, request=request)
 
         assert result == TooBusyModelError(status_code=500, detail=expected_detail)
         assert route.called is True
 
     @respx.mock
-    async def test_forward_request_returns_unknown_error_when_provider_request_raises_unexpected_exception(self):
+    async def test_forward_returns_unknown_error_when_provider_request_raises_unexpected_exception(self):
         provider = provider_factory()
-        formatted_request = ProviderFormattedRequestFactory(vllm_models=True, base_url=provider.url)
+        request = ProviderRequest(endpoint=EndpointRoute.MODELS)
 
         url = urljoin(DEFAULT_PROVIDER_URL, "/v1/models")
         route = respx.get(url=url).mock(side_effect=ValueError("invalid provider response"))
 
-        result = await HttpProviderClient().forward_request(provider=provider, formatted_request=formatted_request)
+        result = await http_provider_client().forward(provider=provider, request=request)
 
         assert result == UnknownModelError(status_code=500, detail="invalid provider response")
         assert route.called is True
@@ -201,14 +209,32 @@ class TestHttpProviderClient:
         ],
     )
     @respx.mock
-    async def test_forward_request_returns_status_code_error_when_provider_returns_error_response(self, response, expected_detail):
+    async def test_forward_returns_status_code_error_when_provider_returns_error_response(self, response, expected_detail):
         provider = provider_factory()
-        formatted_request = ProviderFormattedRequestFactory(vllm_models=True, base_url=provider.url)
+        request = ProviderRequest(endpoint=EndpointRoute.MODELS)
 
         url = urljoin(DEFAULT_PROVIDER_URL, "/v1/models")
         route = respx.get(url=url).mock(return_value=response)
 
-        result = await HttpProviderClient().forward_request(provider=provider, formatted_request=formatted_request)
+        result = await http_provider_client().forward(provider=provider, request=request)
 
         assert result == StatusCodeModelError(status_code=response.status_code, detail=expected_detail)
         assert route.called is True
+
+    async def test_forward_returns_unsupported_provider_endpoint_error_when_adapter_is_missing(self):
+        provider = provider_factory(type=ProviderType.ALBERT)
+        request = ProviderRequest(endpoint=EndpointRoute.METRICS)
+
+        result = await http_provider_client().forward(provider=provider, request=request)
+
+        assert result == UnsupportedProviderEndpointError(endpoint=EndpointRoute.METRICS, provider_type=ProviderType.ALBERT)
+
+    async def test_forward_returns_request_validation_error_when_adapter_rejects_request(self):
+        provider = provider_factory()
+        request = ProviderRequest(endpoint=EndpointRoute.MODELS)
+        validation_error = ProviderAdapterValidationRequestError(provider_type=provider.type, errors=[{"msg": "invalid"}])
+
+        with patch.object(VllmModelsAdapter, "to_http_request", return_value=validation_error):
+            result = await http_provider_client().forward(provider=provider, request=request)
+
+        assert result is validation_error

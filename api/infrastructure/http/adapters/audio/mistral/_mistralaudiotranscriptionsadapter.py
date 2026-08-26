@@ -6,8 +6,9 @@ from pydantic import ValidationError
 
 from api.domain import BaseModel
 from api.domain.audio.entities import AudioTranscriptions, AudioTranscriptionsResponseFormat
-from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
+from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationRequestError
+from api.infrastructure.http import HttpProviderRequest
 from api.infrastructure.http.adapters.audio import AudioTranscriptionsAdapter
 from api.schemas.audio import AudioTranscriptionLanguage
 
@@ -23,17 +24,17 @@ class MistralCreateAudioTranscriptionsBody(BaseModel):
 class MistralAudioTranscriptionsAdapter(AudioTranscriptionsAdapter):
     TARGET_ENDPOINT_ROUTE = "/v1/chat/completions"
 
-    def format_request(self, original_request: ProviderOriginalRequest) -> ProviderFormattedRequest | ProviderAdapterValidationRequestError:
+    def to_http_request(self, request: ProviderRequest) -> HttpProviderRequest | ProviderAdapterValidationRequestError:
         try:
-            body = MistralCreateAudioTranscriptionsBody.model_validate(original_request.payload.model_dump(mode="json", exclude={"file"}))
+            body = MistralCreateAudioTranscriptionsBody.model_validate(request.payload.model_dump(mode="json", exclude={"file"}))
         except ValidationError as e:
             return ProviderAdapterValidationRequestError(provider_type=self.provider.type, errors=e.errors())
 
         text = body.prompt or f"Transcribe this audio in this language : {body.language or 'en'}"  # fmt: off
-        file = original_request.payload.file.file.read()
+        file = request.payload.file.file.read()
         input_audio = base64.b64encode(file).decode("utf-8")
         target_url = self._build_target_url(base_url=self.provider.url, target_endpoint_route=self.TARGET_ENDPOINT_ROUTE)
-        return ProviderFormattedRequest(
+        return HttpProviderRequest(
             method=self.TARGET_ENDPOINT_METHOD,
             url=target_url,
             body=ChatCompletionRequest(
@@ -48,15 +49,15 @@ class MistralAudioTranscriptionsAdapter(AudioTranscriptionsAdapter):
             ).model_dump(),
         )
 
-    def format_response(
+    def to_domain_response(
         self,
-        original_response: ProviderOriginalResponse,
-        original_request: ProviderOriginalRequest,
-    ) -> ProviderFormattedResponse:
-        text = original_response.data["choices"][0]["message"]["content"]
-        request_id = self._extract_request_id(original_response=original_response)
-        if original_request.payload.response_format == AudioTranscriptionsResponseFormat.TEXT:
-            return ProviderFormattedResponse(id=request_id, text=text)
+        raw_response: ProviderRawResponse,
+        request: ProviderRequest,
+    ) -> ProviderResponse:
+        text = raw_response.data["choices"][0]["message"]["content"]
+        request_id = self._extract_request_id(raw_response=raw_response)
+        if request.payload.response_format == AudioTranscriptionsResponseFormat.TEXT:
+            return ProviderResponse(id=request_id, text=text)
 
-        data = AudioTranscriptions(id=request_id, text=text, model=original_request.payload.model)
-        return ProviderFormattedResponse(id=request_id, data=data)
+        data = AudioTranscriptions(id=request_id, text=text, model=request.payload.model)
+        return ProviderResponse(id=request_id, data=data)

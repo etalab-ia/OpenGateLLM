@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from api.domain.model.entities import HealthStatus, ModelHealthStatus
 from api.domain.provider import ProviderAdapter, ProviderAdapterBuilder, ProviderClient, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse, ProviderType
+from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
 from api.domain.router import RouterRepository
 from api.domain.user.views import AuthenticatedUserView
@@ -63,22 +63,20 @@ class GetHealthModelsUseCase:
                         pass
                     case UnsupportedProviderEndpointError():
                         adapter = self.provider_adapter_builder.build(endpoint=EndpointRoute.MODELS, provider=provider)
-                        original_request = ProviderOriginalRequest(endpoint=EndpointRoute.MODELS)
-                        formatted_request = adapter.format_request(original_request=original_request)
-                        response = await self.provider_client.forward_request(provider=provider, formatted_request=formatted_request)
+                        request = ProviderRequest(endpoint=EndpointRoute.MODELS)
+                        response = await self.provider_client.forward(provider=provider, request=request)
                         match response:
-                            case ProviderOriginalResponse() as response:
+                            case ProviderRawResponse() as response:
                                 continue
                             case _:
                                 health.status = HealthStatus.RED
                                 continue
 
-                original_request = ProviderOriginalRequest(endpoint=EndpointRoute.METRICS)
-                formatted_request = adapter.format_request(original_request=original_request)
-                response = await self.provider_client.forward_request(provider=provider, formatted_request=formatted_request)
+                request = ProviderRequest(endpoint=EndpointRoute.METRICS)
+                response = await self.provider_client.forward(provider=provider, request=request)
 
                 match response:
-                    case ProviderOriginalResponse() as response:
+                    case ProviderRawResponse() as response:
                         pass
                     case _:
                         # @TODO: if another provider is healthy, we should not set the health to red
@@ -86,10 +84,10 @@ class GetHealthModelsUseCase:
                         health.status = HealthStatus.RED
                         continue
 
-                result = adapter.format_response(original_request=original_request, original_response=response)
+                result = adapter.to_domain_response(request=request, raw_response=response)
 
                 match result:
-                    case ProviderFormattedResponse() as formatted_response:
+                    case ProviderResponse() as provider_response:
                         pass
                     case ProviderAdapterValidationResponseError():
                         health.status = HealthStatus.RED
@@ -98,16 +96,16 @@ class GetHealthModelsUseCase:
                 match provider.type:
                     case ProviderType.VLLM:
                         if health.status != HealthStatus.RED:
-                            if formatted_response.data.waiting_requests > 0:
+                            if provider_response.data.waiting_requests > 0:
                                 health.status = HealthStatus.YELLOW
-                            if formatted_response.data.running_requests > 20:
+                            if provider_response.data.running_requests > 20:
                                 health.status = HealthStatus.RED
 
                     case ProviderType.MISTRAL:
                         if health.status != HealthStatus.RED:
-                            if formatted_response.data.running_requests > 58:
+                            if provider_response.data.running_requests > 58:
                                 health.status = HealthStatus.YELLOW
-                            if formatted_response.data.running_requests > 63:
+                            if provider_response.data.running_requests > 63:
                                 health.status = HealthStatus.RED
 
             models.append(health)

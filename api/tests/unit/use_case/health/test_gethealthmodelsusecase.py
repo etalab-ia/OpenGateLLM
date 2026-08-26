@@ -1,4 +1,3 @@
-from http import HTTPMethod
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -7,10 +6,9 @@ from api.domain.model.entities import HealthStatus, ModelHealthStatus
 from api.domain.model.errors import StatusCodeModelError
 from api.domain.provider.entities import (
     Provider,
-    ProviderFormattedRequest,
-    ProviderFormattedResponse,
     ProviderMetrics,
-    ProviderOriginalResponse,
+    ProviderRawResponse,
+    ProviderResponse,
     ProviderType,
 )
 from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
@@ -91,20 +89,19 @@ def configure_metrics(
     *,
     waiting: float = 0.0,
     running: float = 0.0,
-    format_response_result: ProviderFormattedResponse | ProviderAdapterValidationResponseError | None = None,
+    to_domain_response_result: ProviderResponse | ProviderAdapterValidationResponseError | None = None,
 ):
     adapter = MistralMetricsAdapter(provider=provider) if provider.type == ProviderType.MISTRAL else VllmMetricsAdapter(provider=provider)
-    adapter.format_response = MagicMock(
-        return_value=format_response_result
-        or ProviderFormattedResponse(id="req-123", data=ProviderMetrics(waiting_requests=waiting, running_requests=running))
+    adapter.to_domain_response = MagicMock(
+        return_value=to_domain_response_result
+        or ProviderResponse(id="req-123", data=ProviderMetrics(waiting_requests=waiting, running_requests=running))
     )
     provider_adapter_builder.build.return_value = adapter
-    provider_client.forward_request.return_value = ProviderOriginalResponse(text=METRICS_TEXT)
+    provider_client.forward.return_value = ProviderRawResponse(text=METRICS_TEXT)
 
 
 def configure_models_fallback(provider_adapter_builder, provider_client, *, models_response):
     models_adapter = MagicMock()
-    models_adapter.format_request.return_value = ProviderFormattedRequest(method=HTTPMethod.GET, url="https://provider.test/v1/models")
 
     def build_side_effect(endpoint, provider):
         if endpoint == EndpointRoute.METRICS:
@@ -112,7 +109,7 @@ def configure_models_fallback(provider_adapter_builder, provider_client, *, mode
         return models_adapter
 
     provider_adapter_builder.build.side_effect = build_side_effect
-    provider_client.forward_request.return_value = models_response
+    provider_client.forward.return_value = models_response
 
 
 class TestGetHealthModelsUseCase:
@@ -207,7 +204,7 @@ class TestGetHealthModelsUseCase:
         assert len(result.models) == 1
         assert result.models[0].status == HealthStatus.GREEN
         provider_adapter_builder.build.assert_called_once_with(endpoint=EndpointRoute.METRICS, provider=provider)
-        provider_client.forward_request.assert_called_once()
+        provider_client.forward.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_should_return_yellow_when_vllm_has_waiting_requests(
@@ -345,7 +342,7 @@ class TestGetHealthModelsUseCase:
         provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
         provider_repository.get_all_providers.return_value = [provider]
         configure_metrics(provider_adapter_builder, provider_client, provider)
-        provider_client.forward_request.return_value = StatusCodeModelError(status_code=500, detail="error")
+        provider_client.forward.return_value = StatusCodeModelError(status_code=500, detail="error")
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -373,7 +370,7 @@ class TestGetHealthModelsUseCase:
             provider_adapter_builder,
             provider_client,
             provider,
-            format_response_result=ProviderAdapterValidationResponseError(provider_type=provider.type, errors=[{"msg": "invalid"}]),
+            to_domain_response_result=ProviderAdapterValidationResponseError(provider_type=provider.type, errors=[{"msg": "invalid"}]),
         )
 
         # Act
@@ -401,7 +398,7 @@ class TestGetHealthModelsUseCase:
         configure_models_fallback(
             provider_adapter_builder,
             provider_client,
-            models_response=ProviderOriginalResponse(data={"data": []}),
+            models_response=ProviderRawResponse(data={"data": []}),
         )
 
         # Act
@@ -411,7 +408,7 @@ class TestGetHealthModelsUseCase:
         assert isinstance(result, GetHealthModelsUseCaseSuccess)
         assert result.models[0].status == HealthStatus.GREEN
         assert provider_adapter_builder.build.call_count == 2
-        provider_client.forward_request.assert_called_once()
+        provider_client.forward.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_should_return_red_when_models_fallback_fails(
@@ -495,4 +492,4 @@ class TestGetHealthModelsUseCase:
 
         # Assert
         provider_adapter_builder.build.assert_called_once_with(endpoint=EndpointRoute.METRICS, provider=accessible_provider)
-        provider_client.forward_request.assert_called_once()
+        provider_client.forward.assert_called_once()

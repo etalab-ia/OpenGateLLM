@@ -9,7 +9,7 @@ from api.domain.audio.entities import (
     CreateAudioTranscriptionsForm,
 )
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
-from api.domain.provider.entities import ProviderFormattedResponse
+from api.domain.provider.entities import ProviderResponse
 from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.usage import UsageRecorder
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, RouterFactory
@@ -110,7 +110,7 @@ class TestCreateAudioTranscriptionsUseCase:
 class TestCreateAudioTranscriptionsUseCaseExecute:
     @pytest.fixture(autouse=True)
     def mock_collaborator_methods(self, use_case, router, sample_transcriptions):
-        formatted_response = ProviderFormattedResponse(id=sample_transcriptions.id, data=sample_transcriptions)
+        formatted_response = ProviderResponse(id=sample_transcriptions.id, data=sample_transcriptions)
         use_case._resolve_router = AsyncMock(return_value=router)
         use_case._check_rate_limits = AsyncMock(return_value=RouterRateLimitState.admin_rate_limit_state())
         use_case._send_request = AsyncMock(return_value=formatted_response)
@@ -159,7 +159,7 @@ class TestCreateAudioTranscriptionsUseCaseExecute:
         command = make_command(admin_user, response_format=AudioTranscriptionsResponseFormat.TEXT)
         rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
         use_case._check_rate_limits.return_value = rate_limit_state
-        use_case._send_request.return_value = ProviderFormattedResponse(id="audio-1", text="hello world")
+        use_case._send_request.return_value = ProviderResponse(id="audio-1", text="hello world")
 
         # Act
         result = await use_case.execute(command=command)

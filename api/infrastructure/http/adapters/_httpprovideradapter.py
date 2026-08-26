@@ -6,14 +6,9 @@ from uuid import uuid4
 from pydantic import StringConstraints, ValidationError
 
 from api.domain.provider import ProviderAdapter
-from api.domain.provider.entities import (
-    Provider,
-    ProviderFormattedRequest,
-    ProviderFormattedResponse,
-    ProviderOriginalRequest,
-    ProviderOriginalResponse,
-)
+from api.domain.provider.entities import Provider, ProviderRawResponse, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
+from api.infrastructure.http import HttpProviderRequest
 from api.utils.variables import EndpointRoute
 
 
@@ -26,31 +21,31 @@ class HttpProviderAdapter(ProviderAdapter):
     def __init__(self, provider: Provider):
         self.provider = provider
 
-    def format_request(self, original_request: ProviderOriginalRequest) -> ProviderFormattedRequest | ProviderAdapterValidationRequestError:
+    def to_http_request(self, request: ProviderRequest) -> HttpProviderRequest | ProviderAdapterValidationRequestError:
         target_url = self._build_target_url(base_url=self.provider.url, target_endpoint_route=self.TARGET_ENDPOINT_ROUTE)
-        formatted_request = ProviderFormattedRequest(
+        http_request = HttpProviderRequest(
             method=self.TARGET_ENDPOINT_METHOD,
             url=target_url,
-            body=original_request.payload.model_dump(exclude_none=True) if original_request.payload else {},
+            body=request.payload.model_dump(exclude_none=True) if request.payload else {},
         )
 
-        if "model" in formatted_request.body:
-            formatted_request.body["model"] = self.provider.model_name
+        if "model" in http_request.body:
+            http_request.body["model"] = self.provider.model_name
 
-        return formatted_request
+        return http_request
 
-    def format_response(
+    def to_domain_response(
         self,
-        original_response: ProviderOriginalResponse,
-        original_request: ProviderOriginalRequest,
-    ) -> ProviderFormattedResponse | ProviderAdapterValidationResponseError:
-        request_id = self._extract_request_id(original_response=original_response)
+        raw_response: ProviderRawResponse,
+        request: ProviderRequest,
+    ) -> ProviderResponse | ProviderAdapterValidationResponseError:
+        request_id = self._extract_request_id(raw_response=raw_response)
         try:
-            data = self.RESPONSE_TYPE(**{**original_response.data, "id": request_id, "model": original_request.payload.model})
+            data = self.RESPONSE_TYPE(**{**raw_response.data, "id": request_id, "model": request.payload.model})
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 
-        return ProviderFormattedResponse(id=request_id, data=data)
+        return ProviderResponse(id=request_id, data=data)
 
     @staticmethod
     def _build_target_url(base_url: str, target_endpoint_route: str | None) -> str:
@@ -59,10 +54,10 @@ class HttpProviderAdapter(ProviderAdapter):
         return url
 
     @staticmethod
-    def _extract_request_id(original_response: ProviderOriginalResponse) -> str:
+    def _extract_request_id(raw_response: ProviderRawResponse) -> str:
         default_request_id = f"request-{str(uuid4()).replace('-', '')}"
 
-        if isinstance(original_response.data, dict):
-            return original_response.data.get("id", default_request_id)
+        if isinstance(raw_response.data, dict):
+            return raw_response.data.get("id", default_request_id)
 
         return default_request_id

@@ -32,7 +32,10 @@ def _mock_embeddings_response(respx_mock, body: dict, status_code: int) -> None:
 
 @pytest.fixture
 def probe() -> ProviderCapabilitiesProbe:
-    return ProviderCapabilitiesProbe(provider_client=HttpProviderClient(), provider_adapter_builder=HttpProviderAdapterBuilder())
+    return ProviderCapabilitiesProbe(
+        provider_client=HttpProviderClient(adapter_builder=HttpProviderAdapterBuilder()),
+        provider_adapter_builder=HttpProviderAdapterBuilder(),
+    )
 
 
 @pytest.mark.asyncio(loop_scope="session")

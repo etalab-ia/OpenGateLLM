@@ -4,14 +4,15 @@ from unittest.mock import Mock, patch
 from pydantic import BaseModel
 import pytest
 
-from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalResponse, ProviderType
+from api.domain.provider.entities import ProviderRawResponse, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
 from api.domain.rerank.entities import Rerank
+from api.infrastructure.http import HttpProviderRequest
 from api.infrastructure.http.adapters.rerank.tei import TeiRerankAdapter
 from api.infrastructure.http.adapters.rerank.vllm import VllmRerankAdapter
 from api.tests.integration.factories.tei import TeiRerankResponseFactory
 from api.tests.integration.factories.vllm import VllmRerankResponseFactory
-from api.tests.unit.infrastructure.factories import ProviderOriginalRequestFactory
+from api.tests.unit.infrastructure.factories import ProviderRequestFactory
 from api.tests.unit.use_case.factories import ProviderFactory
 from api.utils.variables import EndpointRoute
 
@@ -122,7 +123,7 @@ class TestRerankAdapter:
     )
     def test_extract_request_id_with_id(self, adapter):
         # Arrange
-        original_response = ProviderOriginalResponse(data={"id": "abc"})
+        original_response = ProviderRawResponse(data={"id": "abc"})
 
         # Act
         result = adapter._extract_request_id(original_response)
@@ -137,7 +138,7 @@ class TestRerankAdapter:
     )
     def test_extract_request_id_without_id(self, adapter):
         # Arrange
-        original_response = ProviderOriginalResponse(data={})
+        original_response = ProviderRawResponse(data={})
 
         # Act
         with patch("api.infrastructure.http.adapters._httpprovideradapter.uuid4", return_value="123-456-789"):
@@ -151,13 +152,13 @@ class TestRerankAdapter:
         argvalues=["tei_rerank_adapter", "vllm_rerank_adapter"],
         indirect=["adapter"],
     )
-    def test_format_request_preserve_extra_fields(self, adapter):
+    def test_to_http_request_preserve_extra_fields(self, adapter):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(rerank=True)
+        original_request = ProviderRequestFactory(rerank=True)
         original_request.payload.extra_field = "extra_value"
 
         # Act
-        result = adapter.format_request(original_request)
+        result = adapter.to_http_request(original_request)
 
         # Assert
         assert result.body["extra_field"] == "extra_value"
@@ -168,15 +169,15 @@ class TestRerankAdapter:
         argvalues=[("vllm_rerank_adapter", "test-vllm-model")],
         indirect=["adapter"],
     )
-    def test_format_request_replace_model_by_provider_model_name(self, adapter, provider_model_name):
+    def test_to_http_request_replace_model_by_provider_model_name(self, adapter, provider_model_name):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(rerank=True)
+        original_request = ProviderRequestFactory(rerank=True)
 
         # Act
-        result = adapter.format_request(original_request)
+        result = adapter.to_http_request(original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedRequest)
+        assert isinstance(result, HttpProviderRequest)
         assert "model" in result.body
         assert result.body["model"] == provider_model_name
 
@@ -185,13 +186,13 @@ class TestRerankAdapter:
         argvalues=["tei_rerank_adapter", "vllm_rerank_adapter"],
         indirect=["adapter"],
     )
-    def test_format_request_excludes_none_fields(self, adapter):
+    def test_to_http_request_excludes_none_fields(self, adapter):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(rerank=True)
+        original_request = ProviderRequestFactory(rerank=True)
         original_request.payload.top_n = None
 
         # Act
-        result = adapter.format_request(original_request)
+        result = adapter.to_http_request(original_request)
 
         # Assert
         assert "top_n" not in result.body
@@ -202,12 +203,12 @@ class TestRerankAdapter:
         argvalues=[("tei_rerank_adapter", HTTPMethod.POST), ("vllm_rerank_adapter", HTTPMethod.POST)],
         indirect=["adapter"],
     )
-    def test_format_request_return_correct_method(self, adapter, method):
+    def test_to_http_request_return_correct_method(self, adapter, method):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(rerank=True)
+        original_request = ProviderRequestFactory(rerank=True)
 
         # Act
-        result = adapter.format_request(original_request)
+        result = adapter.to_http_request(original_request)
 
         # Assert
         assert result.method == method
@@ -217,12 +218,12 @@ class TestRerankAdapter:
         argvalues=[("tei_rerank_adapter", "https://tei.test/rerank"), ("vllm_rerank_adapter", "https://vllm.test/v2/rerank")],
         indirect=["adapter"],
     )
-    def test_format_request_return_correct_url(self, adapter, url):
+    def test_to_http_request_return_correct_url(self, adapter, url):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(rerank=True)
+        original_request = ProviderRequestFactory(rerank=True)
 
         # Act
-        result = adapter.format_request(original_request)
+        result = adapter.to_http_request(original_request)
 
         # Assert
         assert result.url == url
@@ -235,18 +236,18 @@ class TestRerankAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_format_response_correctly_with_top_n(self, adapter, response_data):
+    def test_to_domain_response_correctly_with_top_n(self, adapter, response_data):
         # Arrange
         adapter._extract_request_id = Mock(return_value="req-123")
-        original_request = ProviderOriginalRequestFactory(rerank=True)
+        original_request = ProviderRequestFactory(rerank=True)
         original_request.payload.top_n = None
-        original_response = ProviderOriginalResponse(data=response_data)
+        original_response = ProviderRawResponse(data=response_data)
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request)
+        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, Rerank)
         assert len(result.data.results) == 3
         assert result.data.results[0].relevance_score == 1
@@ -262,18 +263,18 @@ class TestRerankAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_format_response_correctly_without_top_n(self, adapter, response_data):
+    def test_to_domain_response_correctly_without_top_n(self, adapter, response_data):
         # Arrange
         adapter._extract_request_id = Mock(return_value="req-123")
-        original_request = ProviderOriginalRequestFactory(rerank=True)
+        original_request = ProviderRequestFactory(rerank=True)
         original_request.payload.top_n = 2
-        original_response = ProviderOriginalResponse(data=response_data)
+        original_response = ProviderRawResponse(data=response_data)
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request)
+        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, Rerank)
         assert len(result.data.results) == 2
         assert result.data.results[0].relevance_score == 1
@@ -286,14 +287,14 @@ class TestRerankAdapter:
         argvalues=[("vllm_rerank_adapter", VllmRerankResponseFactory(extra_field="extra_value"))],
         indirect=["adapter"],
     )
-    def test_format_response_preserve_extra_fields(self, adapter, response_data):
+    def test_to_domain_response_preserve_extra_fields(self, adapter, response_data):
         # Arrange
         adapter._extract_request_id = Mock(return_value="req-123")
-        original_request = ProviderOriginalRequestFactory(rerank=True)
-        original_response = ProviderOriginalResponse(data=response_data)
+        original_request = ProviderRequestFactory(rerank=True)
+        original_response = ProviderRawResponse(data=response_data)
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request)
+        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
         assert result.data.extra_field == "extra_value"
@@ -303,14 +304,14 @@ class TestRerankAdapter:
         argvalues=[("tei_rerank_adapter", TeiRerankResponseFactory(return_text=True, sentences=["document1", "document1"]))],
         indirect=["adapter"],
     )
-    def test_format_response_preserve_extra_fields_for_tei(self, adapter, response_data):
+    def test_to_domain_response_preserve_extra_fields_for_tei(self, adapter, response_data):
         # Arrange
         adapter._extract_request_id = Mock(return_value="req-123")
-        original_request = ProviderOriginalRequestFactory(rerank=True)
-        original_response = ProviderOriginalResponse(data=response_data)
+        original_request = ProviderRequestFactory(rerank=True)
+        original_response = ProviderRawResponse(data=response_data)
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request)
+        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
         assert result.data.results[0].text == "document1"
@@ -320,17 +321,17 @@ class TestRerankAdapter:
         argvalues=[("tei_rerank_adapter", TeiRerankResponseFactory()), ("vllm_rerank_adapter", VllmRerankResponseFactory())],
         indirect=["adapter"],
     )
-    def test_format_response_returns_validation_error_on_bad_data(self, adapter, response_data):
+    def test_to_domain_response_returns_validation_error_on_bad_data(self, adapter, response_data):
         # Arrange
         class _InvalidResponsePayload(BaseModel):
             id: int
 
         adapter.RESPONSE_TYPE = _InvalidResponsePayload
-        original_request = ProviderOriginalRequestFactory(rerank=True)
-        original_response = ProviderOriginalResponse(data=response_data)
+        original_request = ProviderRequestFactory(rerank=True)
+        original_response = ProviderRawResponse(data=response_data)
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request)
+        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
         assert result.provider_type == adapter.provider.type

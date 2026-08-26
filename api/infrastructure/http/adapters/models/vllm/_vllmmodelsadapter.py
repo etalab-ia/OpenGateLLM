@@ -1,19 +1,17 @@
 from api.domain.model.entities import Model, Models
-from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
+from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderResponse
 from api.domain.router.entities import RouterType
 from api.infrastructure.http.adapters.models import ModelsAdapter
 
 
 class VllmModelsAdapter(ModelsAdapter):
-    def format_response(
+    def to_domain_response(
         self,
-        original_response: ProviderOriginalResponse,
-        original_request: ProviderOriginalRequest,
-        prompt_tokens: int = 0,
-        latency: int = 0,
-    ) -> ProviderFormattedResponse:
-        request_id = self._extract_request_id(original_response=original_response)
-        return ProviderFormattedResponse(
+        raw_response: ProviderRawResponse,
+        request: ProviderRequest,
+    ) -> ProviderResponse:
+        request_id = self._extract_request_id(raw_response=raw_response)
+        return ProviderResponse(
             id=request_id,
             data=Models(
                 data=[
@@ -24,7 +22,7 @@ class VllmModelsAdapter(ModelsAdapter):
                         max_context_length=model["max_model_len"],
                         type=RouterType.TEXT_GENERATION,  # dummy value, not used
                     )
-                    for model in original_response.data.get("data", [])
+                    for model in raw_response.data.get("data", [])
                 ]
             ),
         )

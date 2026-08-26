@@ -4,7 +4,7 @@ from api.domain.audio.entities import AudioTranscriptions, AudioTranscriptionsRe
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.provider import ProviderAdapterBuilder, ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import ProviderFormattedResponse
+from api.domain.provider.entities import ProviderResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.usage import UsageRecorder
@@ -99,20 +99,20 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
 
         result = await self._send_request(router=router, prompt_tokens=prompt_tokens, payload=command.payload)
         match result:
-            case ProviderFormattedResponse() as formatted_response:
+            case ProviderResponse() as provider_response:
                 pass
             case error:
                 return error
 
-        if formatted_response.data:
+        if provider_response.data:
             return CreateAudioTranscriptionsJsonUseCaseSuccess(
-                data=formatted_response.data,
+                data=provider_response.data,
                 headers=rate_limit_state.build_limit_headers,
                 media_type=command.media_type,
             )
         else:
             return CreateAudioTranscriptionsTextUseCaseSuccess(
-                text=formatted_response.text,
+                text=provider_response.text,
                 headers=rate_limit_state.build_limit_headers,
                 media_type=command.media_type,
             )
