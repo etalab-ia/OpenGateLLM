@@ -9,12 +9,12 @@ from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAl
 @dataclass
 class UpdateRouterCommand:
     router_id: int
-    name: str | None = None
-    router_type: RouterType | None = None
-    aliases: list[str] | None = None
-    load_balancing_strategy: RouterLoadBalancingStrategy | None = None
-    cost_prompt_tokens: float | None = None
-    cost_completion_tokens: float | None = None
+    name: str
+    router_type: RouterType
+    aliases: list[str]
+    load_balancing_strategy: RouterLoadBalancingStrategy
+    cost_prompt_tokens: float
+    cost_completion_tokens: float
 
 
 @dataclass
@@ -40,19 +40,14 @@ class UpdateRouterUseCase:
             if conflicting_aliases:
                 return RouterAliasAlreadyExistsError(aliases=list(conflicting_aliases))
 
-        router_to_persist = router
-        if command.name is not None:
-            router_to_persist = router_to_persist.with_name(command.name)
-        if command.router_type is not None:
-            router_to_persist = router_to_persist.with_type(command.router_type)
-        if command.load_balancing_strategy is not None:
-            router_to_persist = router_to_persist.with_load_balancing_strategy(command.load_balancing_strategy)
-        if command.cost_prompt_tokens is not None:
-            router_to_persist = router_to_persist.with_cost_prompt_tokens(command.cost_prompt_tokens)
-        if command.cost_completion_tokens is not None:
-            router_to_persist = router_to_persist.with_cost_completion_tokens(command.cost_completion_tokens)
-        if command.aliases is not None:
-            router_to_persist = router_to_persist.with_aliases(command.aliases)
+        router_to_persist = (
+            router.with_name(command.name)
+            .with_type(command.router_type)
+            .with_load_balancing_strategy(command.load_balancing_strategy)
+            .with_cost_prompt_tokens(command.cost_prompt_tokens)
+            .with_cost_completion_tokens(command.cost_completion_tokens)
+            .with_aliases(command.aliases)
+        )
 
         if router_to_persist == router:
             return UpdateRouterUseCaseSuccess(router=router)
