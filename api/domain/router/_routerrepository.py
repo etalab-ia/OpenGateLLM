@@ -8,10 +8,6 @@ from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAl
 
 class RouterRepository(ABC):
     @abstractmethod
-    async def get_organization_name(self, user_id) -> str:
-        pass
-
-    @abstractmethod
     async def get_all_routers(self) -> list[Router]:
         pass
 

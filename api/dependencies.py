@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.auth import AuthSsoSessionValidator
 from api.domain.key import KeyEncoder, KeyRepository
-from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
+from api.domain.model import ModelEnvironmentalImpactsComputer, ModelQuery, ModelTokenizer
 from api.domain.organization import OrganizationRepository
 from api.domain.provider import (
     ProviderAdapterBuilder,
@@ -32,6 +32,7 @@ from api.infrastructure.postgres import (
     PostgresAuthenticatedUserQuery,
     PostgresKeyRepository,
     PostgresLimitRepository,
+    PostgresModelQuery,
     PostgresOrganizationRepository,
     PostgresPermissionRepository,
     PostgresProviderRepository,
@@ -97,6 +98,10 @@ async def get_redis_client() -> AsyncGenerator[Redis, Any]:
 # queries
 def _authenticated_user_query(session: AutocommitSession = Depends(get_autocommit_postgres_session)) -> AuthenticatedUserQuery:
     return PostgresAuthenticatedUserQuery(postgres_session=session)
+
+
+def _model_query(session: AsyncSession) -> ModelQuery:
+    return PostgresModelQuery(postgres_session=session, app_title=configuration.settings.app_title)
 
 
 # helpers
@@ -176,7 +181,7 @@ def _role_repository(session: AsyncSession) -> PostgresRolesRepository:
 
 
 def _router_repository(session: AsyncSession) -> PostgresRouterRepository:
-    return PostgresRouterRepository(postgres_session=session, app_title=configuration.settings.app_title)
+    return PostgresRouterRepository(postgres_session=session)
 
 
 def _limit_repository(session: AsyncSession) -> LimitRepository:
@@ -332,11 +337,11 @@ def get_usages_use_case_factory(usage_repository: UsageRepository = Depends(_usa
 
 # models use cases
 def get_models_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetModelsUseCase:
-    return GetModelsUseCase(router_repository=_router_repository(postgres_session))
+    return GetModelsUseCase(model_query=_model_query(postgres_session))
 
 
 def get_one_model_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneModelUseCase:
-    return GetOneModelUseCase(router_repository=_router_repository(postgres_session))
+    return GetOneModelUseCase(model_query=_model_query(postgres_session))
 
 
 # ocr use cases
