@@ -82,6 +82,35 @@ The domain and API term for an API credential is **key** (`Key`, `CreateKeyRespo
 
 ---
 
+## Imports
+
+| Importing module | Style | Example |
+|------------------|-------|---------|
+| `__init__.py` re-export | relative, single dot | `from ._httpproviderclient import HttpProviderClient` |
+| Module importing a sibling in the **same** directory | relative, single dot | `from ._httpproviderrequest import HttpProviderRequest` |
+| Anything else — other directory, other package, tests | absolute | `from api.infrastructure.http.adapters import HttpProviderAdapter` |
+
+Never write a multi-dot relative import (`from ..x import`, `from ...x import`); use the absolute path instead. Reference siblings: `_requestcontextusagerecorder.py`, `_albertmodelprovider.py`.
+
+**A module inside a package must not import from its own package root.** The package `__init__.py` is still running when it pulls the submodule in, so the name it needs may not be bound yet and the import fails against a partially initialized module.
+
+```python
+# api/infrastructure/http/adapters/models/_modelsadapter.py
+
+# bad — http/__init__.py imports the adapter builder (and so this module) before it
+# binds HttpProviderRequest, so this raises ImportError and the app cannot start
+from api.infrastructure.http import HttpProviderRequest
+
+# good — the defining module, independent of __init__ ordering
+from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
+```
+
+Do not reorder `__init__.py` to break such a cycle: ruff sorts those imports alphabetically on commit and silently undoes the fix.
+
+Code **outside** the package keeps importing the public root (`from api.infrastructure.http import HttpProviderRequest`) — DI factories, `lifespan.py`, tests.
+
+---
+
 ## Schemas
 
 Location: `api/infrastructure/fastapi/schemas/`.

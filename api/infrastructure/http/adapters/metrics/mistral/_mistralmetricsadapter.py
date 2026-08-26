@@ -2,7 +2,7 @@ from prometheus_client.parser import text_string_to_metric_families
 
 from api.domain.provider.entities import ProviderMetrics, ProviderRawResponse, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
-from api.infrastructure.http import HttpProviderRequest
+from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
 from api.infrastructure.http.adapters.metrics import MetricsAdapter
 
 

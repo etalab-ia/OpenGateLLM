@@ -2,7 +2,7 @@ from http import HTTPMethod
 
 from api.domain.model.entities import Model, Models, ModelType
 from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderResponse
-from api.infrastructure.http import HttpProviderRequest
+from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
 from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.utils.variables import EndpointRoute
 
