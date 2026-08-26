@@ -313,28 +313,21 @@ class UsersState(EntityState):
 
     @rx.event
     async def edit_entity(self):
-        """Update a role."""
+        """Update a user."""
         self.edit_entity_loading = True
         yield
 
-        role_id = self.roles_dict[self.entity.role]
-        organization_id = self.organizations_dict.get(self.entity.organization)
-
         payload = {
             "email": self.entity.email,
-            "name": self.entity.name,
-            "role_id": role_id,
+            "name": self.entity.name or None,
+            "role_id": self.roles_dict[self.entity.role],
+            "organization_id": self.organizations_dict.get(self.entity.organization),
+            "budget": self.entity.budget if self.entity.budget != "" else None,
             "expires": date_to_timestamp(self.entity.expires) if self.entity.expires else None,
             "priority": self.entity.priority,
         }
-        if self.entity.budget == "":
-            payload["budget"] = None
-        else:
-            payload["budget"] = self.entity.budget
         if self.entity.password:
             payload["password"] = self.entity.password
-        if organization_id:
-            payload["organization_id"] = organization_id
 
         response = None
         try:
