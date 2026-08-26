@@ -36,15 +36,15 @@ class Role(BaseModel):
 
     @field_validator("permissions")
     @classmethod
-    def unique_permissions(cls, v: list[PermissionType]) -> list[PermissionType]:
-        return list(dict.fromkeys(v))
+    def unique_permissions(cls, permissions: list[PermissionType]) -> list[PermissionType]:
+        return list(dict.fromkeys(permissions))
 
     @field_validator("limits")
     @classmethod
-    def unique_limits(cls, v: list["Limit"]) -> list["Limit"]:
-        return list({(limit.router_id, limit.type): limit for limit in v}.values())
+    def unique_limits(cls, limits: list["Limit"]) -> list["Limit"]:
+        return list({(limit.router_id, limit.type): limit for limit in limits}.values())
 
-    def with_name(self, name: str | None) -> "Role":
+    def with_name(self, name: str) -> "Role":
         return self.model_copy(update={"name": name})
 
     def with_limits(self, limits: list["Limit"]) -> "Role":
