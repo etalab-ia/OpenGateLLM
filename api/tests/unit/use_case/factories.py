@@ -5,6 +5,7 @@ import factory
 from factory import fuzzy
 
 from api.domain.model.entities import ModelType as RouterType
+from api.domain.organization.entities import Organization
 from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderType
 from api.domain.role.entities import Limit, LimitType, PermissionType, Role
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy
@@ -38,6 +39,17 @@ class RoleFactory(factory.Factory):
     class Params:
         admin = factory.Trait(name="admin", permissions=[PermissionType.ADMIN])
         user = factory.Trait(name="user")
+
+
+class OrganizationFactory(factory.Factory):
+    class Meta:
+        model = Organization
+
+    id = factory.Sequence(lambda n: n + 1)
+    name = factory.Faker("bothify", text="organization_????")
+    users = 0
+    created = factory.LazyFunction(lambda: datetime.now(UTC))
+    updated = factory.LazyFunction(lambda: datetime.now(UTC))
 
 
 class RouterFactory(factory.Factory):

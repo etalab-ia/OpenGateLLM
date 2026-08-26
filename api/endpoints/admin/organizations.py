@@ -13,20 +13,6 @@ from api.utils.dependencies import get_postgres_session
 from api.utils.variables import EndpointRoute
 
 
-@router.delete(
-    path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
-    status_code=204,
-)
-async def delete_organization(
-    request: Request,
-    organization: int = Path(description="The ID of the organization to delete."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-) -> Response:
-    await global_context.identity_access_manager.delete_organization(postgres_session=postgres_session, organization_id=organization)
-    return Response(status_code=204)
-
-
 @router.patch(
     path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization}",
     dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
