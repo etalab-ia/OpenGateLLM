@@ -124,8 +124,8 @@ def _provider_adapter_builder() -> ProviderAdapterBuilder:
     return HttpProviderAdapterBuilder()
 
 
-def _provider_client() -> ProviderClient:
-    return HttpProviderClient()
+def _provider_client(provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder)) -> ProviderClient:
+    return HttpProviderClient(adapter_builder=provider_adapter_builder)
 
 
 def _provider_load_balancer(redis_client: Redis = Depends(get_redis_client)) -> ProviderLoadBalancer:

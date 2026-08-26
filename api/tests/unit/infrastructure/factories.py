@@ -8,8 +8,9 @@ from openai.types import Embedding
 
 from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
 from api.domain.model.entities import Model, Models, ModelType
-from api.domain.provider.entities import BasicAuth, ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest
+from api.domain.provider.entities import BasicAuth, ProviderRequest, ProviderResponse
 from api.domain.rerank.entities import CreateRerankBody, Rerank, RerankResult
+from api.infrastructure.http import HttpProviderRequest
 from api.utils.variables import EndpointRoute
 
 fake = Faker()
@@ -26,9 +27,9 @@ def _random_embeddings_input() -> list[int] | list[list[int]] | str | list[str]:
     )
 
 
-class ProviderOriginalRequestFactory(factory.Factory):
+class ProviderRequestFactory(factory.Factory):
     class Meta:
-        model = ProviderOriginalRequest
+        model = ProviderRequest
 
     endpoint = factory.Faker("random_element", elements=list(EndpointRoute))
     payload = None
@@ -60,9 +61,9 @@ class ProviderOriginalRequestFactory(factory.Factory):
         )
 
 
-class ProviderFormattedRequestFactory(factory.Factory):
+class HttpProviderRequestFactory(factory.Factory):
     class Meta:
-        model = ProviderFormattedRequest
+        model = HttpProviderRequest
         exclude = ["base_url"]
 
     base_url = "https://provider.test/"
@@ -104,7 +105,7 @@ class ProviderFormattedRequestFactory(factory.Factory):
 
 class ProviderEmbeddingsFormattedResponseFactory(factory.Factory):
     class Meta:
-        model = ProviderFormattedResponse
+        model = ProviderResponse
 
     dimensions = factory.Faker("random_int", min=1, max=1024)
 
@@ -138,7 +139,7 @@ class ProviderModelResponseFactory(factory.Factory):
 
 class ProviderModelsFormattedResponseFactory(factory.Factory):
     class Meta:
-        model = ProviderFormattedResponse
+        model = ProviderResponse
         exclude = ["count"]
 
     count: int = 1
@@ -148,7 +149,7 @@ class ProviderModelsFormattedResponseFactory(factory.Factory):
 
 class ProviderRerankFormattedResponseFactory(factory.Factory):
     class Meta:
-        model = ProviderFormattedResponse
+        model = ProviderResponse
 
     data = factory.LazyAttribute(
         lambda self: Rerank(

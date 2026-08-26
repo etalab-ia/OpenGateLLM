@@ -5,8 +5,8 @@ import pytest
 
 from api.domain.model.entities import ModelCosts, Models, ModelType
 from api.domain.provider.entities import (
-    ProviderFormattedResponse,
-    ProviderOriginalResponse,
+    ProviderRawResponse,
+    ProviderResponse,
     ProviderType,
 )
 from api.infrastructure.http.adapters.models.albert import AlbertModelsAdapter
@@ -19,7 +19,7 @@ from api.tests.integration.factories.mistral import MistralModelsResponseFactory
 from api.tests.integration.factories.openai import OpenaiModelsResponseFactory
 from api.tests.integration.factories.tei import TeiModelsResponseFactory
 from api.tests.integration.factories.vllm import VllmModelsResponseFactory
-from api.tests.unit.infrastructure.factories import ProviderOriginalRequestFactory
+from api.tests.unit.infrastructure.factories import ProviderRequestFactory
 from api.tests.unit.use_case.factories import ProviderFactory
 from api.utils.variables import EndpointRoute
 
@@ -176,12 +176,12 @@ class TestModelsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_format_request_return_correct_method(self, adapter, method):
+    def test_to_http_request_return_correct_method(self, adapter, method):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(models=True)
+        original_request = ProviderRequestFactory(models=True)
 
         # Act
-        result = adapter.format_request(original_request)
+        result = adapter.to_http_request(original_request)
 
         # Assert
         assert result.method == method
@@ -197,12 +197,12 @@ class TestModelsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_format_request_return_correct_url(self, adapter, url):
+    def test_to_http_request_return_correct_url(self, adapter, url):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(models=True)
+        original_request = ProviderRequestFactory(models=True)
 
         # Act
-        result = adapter.format_request(original_request)
+        result = adapter.to_http_request(original_request)
 
         # Assert
         assert result.url == url
@@ -218,30 +218,30 @@ class TestModelsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_format_response_has_no_usage(self, adapter, response_data):
+    def test_to_domain_response_has_no_usage(self, adapter, response_data):
         # Arrange
-        original_response = ProviderOriginalResponse(data=response_data)
-        original_request = ProviderOriginalRequestFactory(models=True)
+        original_response = ProviderRawResponse(data=response_data)
+        original_request = ProviderRequestFactory(models=True)
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request)
+        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, Models)
         assert getattr(result.data, "usage", "not found") == "not found"
 
-    def test_format_response_correctly_when_provider_is_albert(self, albert_models_adapter: AlbertModelsAdapter):
+    def test_to_domain_response_correctly_when_provider_is_albert(self, albert_models_adapter: AlbertModelsAdapter):
         # Arrange
         response_data = AlbertModelsResponseFactory(count=3)
-        original_request = ProviderOriginalRequestFactory(models=True)
-        original_response = ProviderOriginalResponse(data=response_data)
+        original_request = ProviderRequestFactory(models=True)
+        original_response = ProviderRawResponse(data=response_data)
 
         # Act
-        result = albert_models_adapter.format_response(original_response=original_response, original_request=original_request)
+        result = albert_models_adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, Models)
         assert len(result.data.data) == 3
         assert result.data.data[0].id == response_data["data"][0]["id"]
@@ -250,17 +250,17 @@ class TestModelsAdapter:
         assert result.data.data[0].aliases == response_data["data"][0]["aliases"]
         assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
 
-    def test_format_response_correctly_when_provider_is_openai(self, openai_models_adapter: OpenaiModelsAdapter):
+    def test_to_domain_response_correctly_when_provider_is_openai(self, openai_models_adapter: OpenaiModelsAdapter):
         # Arrange
         response_data = OpenaiModelsResponseFactory(count=3)
-        original_request = ProviderOriginalRequestFactory(models=True)
-        original_response = ProviderOriginalResponse(data=response_data)
+        original_request = ProviderRequestFactory(models=True)
+        original_response = ProviderRawResponse(data=response_data)
 
         # Act
-        result = openai_models_adapter.format_response(original_response=original_response, original_request=original_request)
+        result = openai_models_adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, Models)
         assert len(result.data.data) == 3
         assert result.data.data[0].id == response_data["data"][0]["id"]
@@ -270,17 +270,17 @@ class TestModelsAdapter:
         assert result.data.data[0].aliases == []
         assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
 
-    def test_format_response_correctly_when_provider_is_mistral(self, mistral_models_adapter: MistralModelsAdapter):
+    def test_to_domain_response_correctly_when_provider_is_mistral(self, mistral_models_adapter: MistralModelsAdapter):
         # Arrange
         response_data = MistralModelsResponseFactory(count=3)
-        original_request = ProviderOriginalRequestFactory(models=True)
-        original_response = ProviderOriginalResponse(data=response_data)
+        original_request = ProviderRequestFactory(models=True)
+        original_response = ProviderRawResponse(data=response_data)
 
         # Act
-        result = mistral_models_adapter.format_response(original_response=original_response, original_request=original_request)
+        result = mistral_models_adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, Models)
         assert len(result.data.data) == 3
         assert result.data.data[0].id == response_data["data"][0]["id"]
@@ -290,17 +290,17 @@ class TestModelsAdapter:
         assert result.data.data[0].aliases == []
         assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
 
-    def test_format_response_correctly_when_provider_is_tei(self, tei_models_adapter: TeiModelsAdapter):
+    def test_to_domain_response_correctly_when_provider_is_tei(self, tei_models_adapter: TeiModelsAdapter):
         # Arrange
         response_data = TeiModelsResponseFactory(count=1)
-        original_request = ProviderOriginalRequestFactory(models=True)
-        original_response = ProviderOriginalResponse(data=response_data)
+        original_request = ProviderRequestFactory(models=True)
+        original_response = ProviderRawResponse(data=response_data)
 
         # Act
-        result = tei_models_adapter.format_response(original_response=original_response, original_request=original_request)
+        result = tei_models_adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, Models)
         assert len(result.data.data) == 1
         assert result.data.data[0].id == response_data["model_id"]
@@ -310,17 +310,17 @@ class TestModelsAdapter:
         assert result.data.data[0].aliases == []
         assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
 
-    def test_format_response_correctly_when_provider_is_vllm(self, vllm_models_adapter: VllmModelsAdapter):
+    def test_to_domain_response_correctly_when_provider_is_vllm(self, vllm_models_adapter: VllmModelsAdapter):
         # Arrange
         response_data = VllmModelsResponseFactory(count=1)
-        original_request = ProviderOriginalRequestFactory(models=True)
-        original_response = ProviderOriginalResponse(data=response_data)
+        original_request = ProviderRequestFactory(models=True)
+        original_response = ProviderRawResponse(data=response_data)
 
         # Act
-        result = vllm_models_adapter.format_response(original_response=original_response, original_request=original_request)
+        result = vllm_models_adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, Models)
         assert len(result.data.data) == 1
         assert result.data.data[0].id == response_data["data"][0]["id"]
@@ -341,21 +341,21 @@ class TestModelsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_format_response_extracts_request_id(self, adapter, response_data):
+    def test_to_domain_response_extracts_request_id(self, adapter, response_data):
         # Arrange
         adapter._extract_request_id = Mock(return_value="req-123")
-        original_response = ProviderOriginalResponse(data=response_data)
-        original_request = ProviderOriginalRequestFactory(models=True)
+        original_response = ProviderRawResponse(data=response_data)
+        original_request = ProviderRequestFactory(models=True)
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request)
+        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, Models)
         assert result.id == "req-123"
         assert getattr(result.data, "id", "not found") == "not found"
-        adapter._extract_request_id.assert_called_once_with(original_response=original_response)
+        adapter._extract_request_id.assert_called_once_with(raw_response=original_response)
 
     @pytest.mark.parametrize(
         argnames=("adapter"),

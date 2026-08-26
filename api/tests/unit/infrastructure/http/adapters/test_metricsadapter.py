@@ -3,13 +3,13 @@ from unittest.mock import Mock
 
 import pytest
 
-from api.domain.provider.entities import BasicAuth, ProviderFormattedResponse, ProviderMetrics, ProviderOriginalResponse, ProviderType
+from api.domain.provider.entities import BasicAuth, ProviderMetrics, ProviderRawResponse, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
 from api.infrastructure.http.adapters.metrics.mistral import MistralMetricsAdapter
 from api.infrastructure.http.adapters.metrics.vllm import VllmMetricsAdapter
 from api.tests.integration.factories.mistral import MistralMetricsResponseFactory
 from api.tests.integration.factories.vllm import VllmMetricsResponseFactory
-from api.tests.unit.infrastructure.factories import ProviderOriginalRequestFactory
+from api.tests.unit.infrastructure.factories import ProviderRequestFactory
 from api.tests.unit.use_case.factories import ProviderFactory
 from api.utils.variables import EndpointRoute
 
@@ -139,12 +139,12 @@ class TestMetricsAdapter:
         argvalues=[("vllm_metrics_adapter", HTTPMethod.GET), ("mistral_metrics_adapter", HTTPMethod.GET)],
         indirect=["adapter"],
     )
-    def test_format_request_return_correct_method(self, adapter, method):
+    def test_to_http_request_return_correct_method(self, adapter, method):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(metrics=True)
+        original_request = ProviderRequestFactory(metrics=True)
 
         # Act
-        result = adapter.format_request(original_request)
+        result = adapter.to_http_request(original_request)
 
         # Assert
         assert result.method == method
@@ -157,12 +157,12 @@ class TestMetricsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_format_request_return_correct_url(self, adapter, url):
+    def test_to_http_request_return_correct_url(self, adapter, url):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(metrics=True)
+        original_request = ProviderRequestFactory(metrics=True)
 
         # Act
-        result = adapter.format_request(original_request)
+        result = adapter.to_http_request(original_request)
 
         # Assert
         assert result.url == url
@@ -175,45 +175,45 @@ class TestMetricsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_format_response_has_no_usage(self, adapter, response_data):
+    def test_to_domain_response_has_no_usage(self, adapter, response_data):
         # Arrange
-        original_response = ProviderOriginalResponse(text=response_data["text"])
-        original_request = ProviderOriginalRequestFactory(metrics=True)
+        original_response = ProviderRawResponse(text=response_data["text"])
+        original_request = ProviderRequestFactory(metrics=True)
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request)
+        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, ProviderMetrics)
         assert getattr(result.data, "usage", "not found") == "not found"
 
-    def test_format_request_has_no_auth(self, vllm_metrics_adapter: VllmMetricsAdapter):
+    def test_to_http_request_has_no_auth(self, vllm_metrics_adapter: VllmMetricsAdapter):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(metrics=True)
+        original_request = ProviderRequestFactory(metrics=True)
 
         # Act
-        result = vllm_metrics_adapter.format_request(original_request)
+        result = vllm_metrics_adapter.to_http_request(original_request)
 
         # Assert
         assert result.auth is None
 
-    def test_format_request_includes_provider_basic_auth(self, mistral_metrics_adapter: MistralMetricsAdapter, mistral_provider):
+    def test_to_http_request_includes_provider_basic_auth(self, mistral_metrics_adapter: MistralMetricsAdapter, mistral_provider):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(metrics=True)
+        original_request = ProviderRequestFactory(metrics=True)
 
         # Act
-        result = mistral_metrics_adapter.format_request(original_request)
+        result = mistral_metrics_adapter.to_http_request(original_request)
 
         # Assert
         assert result.auth == mistral_provider.basic_auth
 
-    def test_format_request_has_no_auth_when_provider_has_none(self, mistral_metrics_adapter_without_auth: MistralMetricsAdapter):
+    def test_to_http_request_has_no_auth_when_provider_has_none(self, mistral_metrics_adapter_without_auth: MistralMetricsAdapter):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(metrics=True)
+        original_request = ProviderRequestFactory(metrics=True)
 
         # Act
-        result = mistral_metrics_adapter_without_auth.format_request(original_request)
+        result = mistral_metrics_adapter_without_auth.to_http_request(original_request)
 
         # Assert
         assert result.auth is None
@@ -226,16 +226,16 @@ class TestMetricsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_format_response_parses_prometheus_text(self, adapter, model_name, running, waiting):
+    def test_to_domain_response_parses_prometheus_text(self, adapter, model_name, running, waiting):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(metrics=True)
-        original_response = ProviderOriginalResponse(text=build_metrics_text(model_name=model_name, running=running, waiting=waiting))
+        original_request = ProviderRequestFactory(metrics=True)
+        original_response = ProviderRawResponse(text=build_metrics_text(model_name=model_name, running=running, waiting=waiting))
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request)
+        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, ProviderMetrics)
         assert result.data.running_requests == running
         assert result.data.waiting_requests == waiting
@@ -248,10 +248,10 @@ class TestMetricsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_format_response_sums_samples_for_same_model(self, adapter, model_name):
+    def test_to_domain_response_sums_samples_for_same_model(self, adapter, model_name):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(metrics=True)
-        original_response = ProviderOriginalResponse(
+        original_request = ProviderRequestFactory(metrics=True)
+        original_response = ProviderRawResponse(
             text=(
                 f'vllm:num_requests_running{{model_name="{model_name}"}} 2.0\n'
                 f'vllm:num_requests_running{{model_name="{model_name}"}} 3.0\n'
@@ -263,10 +263,10 @@ class TestMetricsAdapter:
         )
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request)
+        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert result.data.running_requests == 5.0
         assert result.data.waiting_requests == 5.0
 
@@ -275,13 +275,13 @@ class TestMetricsAdapter:
         argvalues=["vllm_metrics_adapter", "mistral_metrics_adapter"],
         indirect=["adapter"],
     )
-    def test_format_response_returns_validation_error_on_invalid_text(self, adapter):
+    def test_to_domain_response_returns_validation_error_on_invalid_text(self, adapter):
         # Arrange
-        original_request = ProviderOriginalRequestFactory(metrics=True)
-        original_response = ProviderOriginalResponse(text="not valid prometheus text")
+        original_request = ProviderRequestFactory(metrics=True)
+        original_response = ProviderRawResponse(text="not valid prometheus text")
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request)
+        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
         assert isinstance(result, ProviderAdapterValidationResponseError)
@@ -296,21 +296,21 @@ class TestMetricsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_format_response_extracts_request_id(self, adapter, response_data):
+    def test_to_domain_response_extracts_request_id(self, adapter, response_data):
         # Arrange
         adapter._extract_request_id = Mock(return_value="req-123")
-        original_response = ProviderOriginalResponse(text=response_data["text"])
-        original_request = ProviderOriginalRequestFactory(metrics=True)
+        original_response = ProviderRawResponse(text=response_data["text"])
+        original_request = ProviderRequestFactory(metrics=True)
 
         # Act
-        result = adapter.format_response(original_response=original_response, original_request=original_request)
+        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, ProviderMetrics)
         assert result.id == "req-123"
         assert getattr(result.data, "id", "not found") == "not found"
-        adapter._extract_request_id.assert_called_once_with(original_response=original_response)
+        adapter._extract_request_id.assert_called_once_with(raw_response=original_response)
 
     @pytest.mark.parametrize(
         argnames=("adapter"),
