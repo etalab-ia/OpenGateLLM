@@ -152,8 +152,12 @@ CreateKeyCommand(user_id=body.user, ...)
 ### Timestamps
 
 - API: Unix seconds as `int` (`created`, `updated`, `expires`)
-- Domain: `datetime`
-- Convert in `@field_validator` (request) or `@model_validator(mode="before")` (response)
+- Domain and Postgres: timezone-aware UTC `datetime` — annotate entity fields with `UtcDatetime` from `api/domain/__init__.py`, and always build "now" with `datetime.now(tz=UTC)`
+- Repositories select and write the `timestamptz` columns directly — no `extract(epoch)` / `to_timestamp()`
+- Convert at the boundary only: `@field_validator` / `AfterValidator` (request) or `@model_validator(mode="before")` (response) — see `CreateKeyBody` / `KeyResponse`
+- Playground displays local time through `app/shared/utils/timestamps.py`
+
+Full rationale: `adr/2026-08-27-datetime-handling.md`.
 
 ### Aliases
 
