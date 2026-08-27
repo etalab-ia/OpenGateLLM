@@ -1,5 +1,3 @@
-import datetime as dt
-
 import httpx
 import pycountry
 import reflex as rx
@@ -7,6 +5,7 @@ import reflex as rx
 from app.features.providers.models import Provider
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
+from app.shared.utils.timestamps import format_datetime
 
 
 class ProvidersState(EntityState):
@@ -78,7 +77,7 @@ class ProvidersState(EntityState):
             qos_limit=provider["qos_limit"],
             max_context_length=provider["max_context_length"],
             vector_size=provider["vector_size"],
-            created=dt.datetime.fromtimestamp(provider["created"]).strftime("%Y-%m-%d %H:%M"),
+            created=format_datetime(provider["created"]),
         )
 
     @rx.var

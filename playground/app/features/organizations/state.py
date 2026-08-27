@@ -1,11 +1,10 @@
-import datetime as dt
-
 import httpx
 import reflex as rx
 
 from app.features.organizations.models import Organization
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
+from app.shared.utils.timestamps import format_datetime
 
 
 class OrganizationsState(EntityState):
@@ -23,8 +22,8 @@ class OrganizationsState(EntityState):
             id=organization["id"],
             name=organization["name"],
             users=organization["users"],
-            created=dt.datetime.fromtimestamp(organization["created"]).strftime("%Y-%m-%d %H:%M"),
-            updated=dt.datetime.fromtimestamp(organization["updated"]).strftime("%Y-%m-%d %H:%M"),
+            created=format_datetime(organization["created"]),
+            updated=format_datetime(organization["updated"]),
         )
 
     @rx.var

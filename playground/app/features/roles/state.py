@@ -1,5 +1,4 @@
 from collections import defaultdict
-import datetime as dt
 
 import httpx
 import reflex as rx
@@ -7,6 +6,7 @@ import reflex as rx
 from app.features.roles.models import Role
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
+from app.shared.utils.timestamps import format_datetime
 
 
 class RolesState(EntityState):
@@ -42,8 +42,8 @@ class RolesState(EntityState):
             permissions_provide_models=permissions_provide_models,
             limits=limits,
             users=role["users"],
-            created=dt.datetime.fromtimestamp(role["created"]).strftime("%Y-%m-%d %H:%M"),
-            updated=dt.datetime.fromtimestamp(role["updated"]).strftime("%Y-%m-%d %H:%M"),
+            created=format_datetime(role["created"]),
+            updated=format_datetime(role["updated"]),
         )
 
     def _format_limit(self, limit: dict[str, str | int]) -> list[dict[str, str | int]]:

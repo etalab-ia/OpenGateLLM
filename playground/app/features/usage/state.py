@@ -9,6 +9,7 @@ import reflex as rx
 from app.features.usage.models import Usage
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
+from app.shared.utils.timestamps import date_to_timestamp, format_datetime, format_local_date, local_now
 
 
 class UsageState(EntityState):
@@ -25,7 +26,7 @@ class UsageState(EntityState):
 
     def _format_usage(self, usage: dict) -> Usage:
         return Usage(
-            created=dt.datetime.fromtimestamp(usage["created"]).strftime("%Y-%m-%d %H:%M"),
+            created=format_datetime(usage["created"]),
             endpoint=usage["endpoint"],
             model=usage["model"],
             key=usage["key"],
@@ -44,8 +45,8 @@ class UsageState(EntityState):
         self.entities_loading = True
         yield
 
-        start_time = int(dt.datetime.strptime(self.get_filter_date_from_value, "%Y-%m-%d").timestamp())
-        end_time = int(dt.datetime.strptime(self.get_filter_date_to_value, "%Y-%m-%d").timestamp())
+        start_time = date_to_timestamp(self.get_filter_date_from_value)
+        end_time = date_to_timestamp(self.get_filter_date_to_value)
 
         params = {
             "offset": (self.page - 1) * self.per_page,
@@ -127,18 +128,18 @@ class UsageState(EntityState):
     @rx.var
     def get_filter_date_from_value(self) -> str:
         if self.filter_date_from_value is None:
-            return (dt.datetime.now() - dt.timedelta(days=30)).strftime("%Y-%m-%d")
+            return format_local_date(local_now() - dt.timedelta(days=30))
         return self.filter_date_from_value
 
     @rx.var
     def get_filter_date_to_value(self) -> str:
         if self.filter_date_to_value is None:
-            return (dt.datetime.now() + dt.timedelta(days=1)).strftime("%Y-%m-%d")
+            return format_local_date(local_now() + dt.timedelta(days=1))
         return self.filter_date_to_value
 
     @rx.var
     def filter_date_to_value_max(self) -> str:
-        return (dt.datetime.now() + dt.timedelta(days=1)).strftime("%Y-%m-%d")
+        return format_local_date(local_now() + dt.timedelta(days=1))
 
     @rx.event
     def set_filter_date_from(self, value: str):
