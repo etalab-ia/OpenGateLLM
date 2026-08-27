@@ -23,8 +23,6 @@ class Router(BaseModel):
     type: RouterType
     aliases: list[str] | None
     load_balancing_strategy: RouterLoadBalancingStrategy
-    vector_size: int | None
-    max_context_length: int | None
     cost_prompt_tokens: float
     cost_completion_tokens: float
     providers: int
@@ -48,12 +46,6 @@ class Router(BaseModel):
 
     def with_aliases(self, aliases: list[str]) -> "Router":
         return self.model_copy(update={"aliases": aliases})
-
-    def vector_size_is_consistent(self, vector_size: int) -> bool:
-        return self.vector_size == vector_size
-
-    def max_context_length_is_consistent(self, max_context_length) -> bool:
-        return self.max_context_length == max_context_length
 
     @property
     def has_no_providers(self) -> bool:

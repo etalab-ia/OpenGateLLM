@@ -18,7 +18,9 @@ def router_repository():
 
 @pytest.fixture
 def provider_repository():
-    return AsyncMock()
+    repository = AsyncMock()
+    repository.get_all_providers_of_router.return_value = []
+    return repository
 
 
 @pytest.fixture
@@ -76,40 +78,17 @@ class TestUpdateProviderUseCase:
         provider_repository.update_provider.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_router_not_found_error_when_current_router_does_not_exist(
-        self,
-        use_case,
-        provider_repository,
-        router_repository,
-        sample_provider,
-        default_command,
-    ):
-        # Arrange
-
-        provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.return_value = RouterNotFoundError(id=sample_provider.router_id)
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, RouterNotFoundError)
-        assert result.id == sample_provider.router_id
-        provider_repository.update_provider.assert_not_called()
-
-    @pytest.mark.asyncio
     async def test_should_return_router_not_found_error_when_new_router_does_not_exist(
         self,
         use_case,
         provider_repository,
         router_repository,
         sample_provider,
-        sample_router,
     ):
         # Arrange
 
         provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.side_effect = [sample_router, None]
+        router_repository.get_router_by_id.return_value = RouterNotFoundError(id=99)
 
         command = UpdateProviderCommand(
             provider_id=10,
@@ -140,10 +119,9 @@ class TestUpdateProviderUseCase:
         # Arrange
 
         provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.OPENAI, timeout=30)
-        current_router = RouterFactory(id=1, type=RouterType.TEXT_GENERATION)
         new_router = RouterFactory(id=2, type=RouterType.TEXT_CLASSIFICATION, providers=0)
         provider_repository.get_one_provider.return_value = provider
-        router_repository.get_router_by_id.side_effect = [current_router, new_router]
+        router_repository.get_router_by_id.return_value = new_router
 
         command = UpdateProviderCommand(
             provider_id=10,
@@ -166,16 +144,16 @@ class TestUpdateProviderUseCase:
         provider_repository.update_provider.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_inconsistent_vector_size_error_when_new_router_has_different_vector_size(
+    async def test_should_return_inconsistent_vector_size_error_when_new_router_provider_has_a_different_vector_size(
         self, use_case, provider_repository, router_repository
     ):
         # Arrange
 
-        provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.TEI)
-        current_router = RouterFactory(id=1, type=RouterType.TEXT_EMBEDDINGS_INFERENCE, vector_size=768, providers=1)
-        new_router = RouterFactory(id=2, name="other-router", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, vector_size=384, providers=1)
+        provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.TEI, vector_size=768)
+        new_router = RouterFactory(id=2, name="other-router", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, providers=1)
         provider_repository.get_one_provider.return_value = provider
-        router_repository.get_router_by_id.side_effect = [current_router, new_router]
+        provider_repository.get_all_providers_of_router.return_value = [ProviderFactory(id=20, router_id=2, type=ProviderType.TEI, vector_size=384)]
+        router_repository.get_router_by_id.return_value = new_router
 
         command = UpdateProviderCommand(
             provider_id=10,
@@ -199,16 +177,18 @@ class TestUpdateProviderUseCase:
         provider_repository.update_provider.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_inconsistent_max_context_length_error_when_new_router_has_different_max_context_length(
+    async def test_should_return_inconsistent_max_context_length_error_when_new_router_provider_has_a_different_max_context_length(
         self, use_case, provider_repository, router_repository
     ):
         # Arrange
 
-        provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.VLLM)
-        current_router = RouterFactory(id=1, type=RouterType.TEXT_GENERATION, max_context_length=4096, vector_size=None, providers=1)
-        new_router = RouterFactory(id=2, name="other-router", type=RouterType.TEXT_GENERATION, max_context_length=8192, vector_size=None, providers=1)
+        provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.VLLM, max_context_length=4096)
+        new_router = RouterFactory(id=2, name="other-router", type=RouterType.TEXT_GENERATION, providers=1)
         provider_repository.get_one_provider.return_value = provider
-        router_repository.get_router_by_id.side_effect = [current_router, new_router]
+        provider_repository.get_all_providers_of_router.return_value = [
+            ProviderFactory(id=20, router_id=2, type=ProviderType.VLLM, max_context_length=8192)
+        ]
+        router_repository.get_router_by_id.return_value = new_router
 
         command = UpdateProviderCommand(
             provider_id=10,
@@ -283,12 +263,20 @@ class TestUpdateProviderUseCase:
         self, use_case, provider_repository, router_repository, sample_provider
     ):
         # Arrange
-        current_router = RouterFactory(id=1, type=RouterType.TEXT_GENERATION, providers=0)
         new_router = RouterFactory(id=2, type=RouterType.TEXT_GENERATION, providers=1)
         updated_provider = sample_provider.with_router_id(new_router.id)
 
         provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.side_effect = [current_router, new_router]
+        provider_repository.get_all_providers_of_router.return_value = [
+            ProviderFactory(
+                id=20,
+                router_id=2,
+                type=ProviderType.VLLM,
+                max_context_length=sample_provider.max_context_length,
+                vector_size=sample_provider.vector_size,
+            )
+        ]
+        router_repository.get_router_by_id.return_value = new_router
         provider_repository.update_provider.return_value = updated_provider
 
         command = UpdateProviderCommand(
@@ -315,12 +303,11 @@ class TestUpdateProviderUseCase:
         self, use_case, provider_repository, router_repository, sample_provider
     ):
         # Arrange
-        current_router = RouterFactory(id=1, type=RouterType.TEXT_GENERATION, providers=0)
         new_router = RouterFactory(id=2, type=RouterType.TEXT_GENERATION, providers=0)
         updated_provider = sample_provider.with_router_id(new_router.id)
 
         provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.side_effect = [current_router, new_router]
+        router_repository.get_router_by_id.return_value = new_router
         provider_repository.update_provider.return_value = updated_provider
 
         command = UpdateProviderCommand(

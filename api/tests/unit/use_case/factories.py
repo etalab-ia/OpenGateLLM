@@ -4,7 +4,9 @@ import random
 import factory
 from factory import fuzzy
 
+from api.domain.model.entities import ModelCosts
 from api.domain.model.entities import ModelType as RouterType
+from api.domain.model.views import ModelView
 from api.domain.organization.entities import Organization
 from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderType
 from api.domain.role.entities import Limit, LimitType, PermissionType, Role
@@ -62,8 +64,6 @@ class RouterFactory(factory.Factory):
     type = factory.Faker("random_element", elements=list(RouterType))
     aliases = None
     load_balancing_strategy = factory.Faker("random_element", elements=list(RouterLoadBalancingStrategy))
-    vector_size = None
-    max_context_length = None
     cost_prompt_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     cost_completion_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     providers = 0
@@ -78,11 +78,7 @@ class RouterFactory(factory.Factory):
             cost_completion_tokens=factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=1, max_value=3),
         )
 
-        embedding = factory.Trait(
-            type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
-            vector_size=factory.Faker("random_element", elements=[384, 768, 1536, 3072]),
-            max_context_length=factory.Faker("random_element", elements=[512, 1024, 2048, 8192]),
-        )
+        embedding = factory.Trait(type=RouterType.TEXT_EMBEDDINGS_INFERENCE)
 
         with_providers = factory.Trait(providers=factory.Faker("random_int", min=1, max=5))
 
@@ -105,8 +101,24 @@ class ProviderFactory(factory.Factory):
     model_active_params = 0
     qos_metric = None
     qos_limit = None
+    max_context_length = None
+    vector_size = None
     created = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
     updated = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
+
+
+class ModelViewFactory(factory.Factory):
+    class Meta:
+        model = ModelView
+
+    router_id = factory.Sequence(lambda n: n + 1)
+    id = factory.Faker("bothify", text="model-????")
+    type = factory.Faker("random_element", elements=list(RouterType))
+    aliases = factory.LazyFunction(list)
+    created = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
+    owned_by = factory.Faker("bothify", text="organization_????")
+    max_context_length = None
+    costs = factory.LazyFunction(ModelCosts)
 
 
 class UserFactory(factory.Factory):

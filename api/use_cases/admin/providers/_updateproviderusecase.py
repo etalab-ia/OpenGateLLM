@@ -48,29 +48,30 @@ class UpdateProviderUseCase:
     async def execute(self, command: UpdateProviderCommand) -> UpdateProviderUseCaseResult:
         existing_provider = await self.provider_repository.get_one_provider(provider_id=command.provider_id)
         if isinstance(existing_provider, ProviderNotFoundError):
-            return ProviderNotFoundError(id=command.provider_id)
-
-        current_router = await self.router_repository.get_router_by_id(router_id=existing_provider.router_id)
-        if isinstance(current_router, RouterNotFoundError):
-            return RouterNotFoundError(id=existing_provider.router_id)
+            return existing_provider
 
         provider_to_persist = existing_provider
         if command.router_id is not None:
             new_router = await self.router_repository.get_router_by_id(router_id=command.router_id)
-            if new_router is None:
-                return RouterNotFoundError(id=command.router_id)
+            if isinstance(new_router, RouterNotFoundError):
+                return new_router
             if not existing_provider.is_compatible_with(new_router):
                 return InvalidProviderTypeError(provider_type=existing_provider.type.value, router_type=new_router.type.value)
 
-            if new_router.providers > 0:
-                if new_router.vector_size != current_router.vector_size:
+            # all providers of a router must expose the same capabilities: compare with one of the providers already attached to the target router
+            new_router_providers = await self.provider_repository.get_all_providers_of_router(router_id=new_router.id)
+            reference_provider = next((provider for provider in new_router_providers if provider.id != existing_provider.id), None)
+            if reference_provider is not None:
+                if reference_provider.vector_size != existing_provider.vector_size:
                     return InconsistentModelVectorSizeError(
-                        actual_vector_size=current_router.vector_size, expected_vector_size=new_router.vector_size, router_name=new_router.name
+                        actual_vector_size=existing_provider.vector_size,
+                        expected_vector_size=reference_provider.vector_size,
+                        router_name=new_router.name,
                     )
-                if new_router.max_context_length != current_router.max_context_length:
+                if reference_provider.max_context_length != existing_provider.max_context_length:
                     return InconsistentModelMaxContextLengthError(
-                        actual_max_context_length=current_router.max_context_length,
-                        expected_max_context_length=new_router.max_context_length,
+                        actual_max_context_length=existing_provider.max_context_length,
+                        expected_max_context_length=reference_provider.max_context_length,
                         router_name=new_router.name,
                     )
             provider_to_persist = existing_provider.with_router_id(new_router.id)

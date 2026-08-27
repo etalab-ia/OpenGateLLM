@@ -76,6 +76,8 @@ class ProvidersState(EntityState):
             model_active_params=provider["model_active_params"],
             qos_metric=_qos_metric_converter.get(provider["qos_metric"]),
             qos_limit=provider["qos_limit"],
+            max_context_length=provider["max_context_length"],
+            vector_size=provider["vector_size"],
             created=dt.datetime.fromtimestamp(provider["created"]).strftime("%Y-%m-%d %H:%M"),
         )
 

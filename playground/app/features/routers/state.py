@@ -50,8 +50,6 @@ class RoutersState(EntityState):
             type=router["type"],
             aliases=",".join(router["aliases"]) if router["aliases"] else "",
             load_balancing_strategy=_load_balancing_strategy_converter.get(router["load_balancing_strategy"]),
-            max_context_length=router["max_context_length"],
-            vector_size=router["vector_size"],
             cost_prompt_tokens=router["cost_prompt_tokens"],
             cost_completion_tokens=router["cost_completion_tokens"],
             providers=router["providers"],

@@ -11,7 +11,7 @@ from api.infrastructure.postgres import PostgresRouterRepository
 from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
-from api.tests.integration.factories.sql import OrganizationSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 
 
 def to_router_domain(router_sql, aliases: list[str] | None = None) -> Router:
@@ -22,8 +22,6 @@ def to_router_domain(router_sql, aliases: list[str] | None = None) -> Router:
         type=RouterType(router_sql.type),
         aliases=aliases or [],
         load_balancing_strategy=RouterLoadBalancingStrategy(router_sql.load_balancing_strategy),
-        vector_size=None,
-        max_context_length=None,
         cost_prompt_tokens=router_sql.cost_prompt_tokens or 0.0,
         cost_completion_tokens=router_sql.cost_completion_tokens or 0.0,
         providers=0,
@@ -33,13 +31,8 @@ def to_router_domain(router_sql, aliases: list[str] | None = None) -> Router:
 
 
 @pytest.fixture
-def app_title():
-    return "Test App"
-
-
-@pytest.fixture
-def repository(db_session, app_title):
-    return PostgresRouterRepository(db_session, app_title)
+def repository(db_session):
+    return PostgresRouterRepository(db_session)
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -78,7 +71,6 @@ class TestGetAllRouters:
 
         # Act
         await db_session.flush()
-        first_provider_router_1 = min(router_1.provider, key=lambda p: p.id)
         result_routers = await repository.get_all_routers()
 
         # Assert
@@ -91,8 +83,6 @@ class TestGetAllRouters:
         assert result_router_1.providers == 2
         assert result_router_1.cost_prompt_tokens == 0.001
         assert result_router_1.cost_completion_tokens == 0.002
-        assert result_router_1.max_context_length == first_provider_router_1.max_context_length
-        assert result_router_1.vector_size == first_provider_router_1.vector_size
         assert result_router_1.aliases == ["alias1", "alias2"]
 
         assert result_router_2.type == RouterType.TEXT_EMBEDDINGS_INFERENCE
@@ -222,31 +212,6 @@ class TestCreateRouter:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-class TestGetOrganizationName:
-    async def test_get_organization_name_should_return_the_organization_name_from_the_given_id(self, repository, db_session):
-        # Arrange
-        organization_name = "DINUM"
-        dinum_organization = OrganizationSQLFactory(name=organization_name)
-        user_with_organization = UserSQLFactory(organization=dinum_organization)
-        await db_session.flush()
-
-        # Act
-        actual_organization_name = await repository.get_organization_name(user_id=user_with_organization.id)
-        # Assert
-        assert actual_organization_name == organization_name
-
-    async def test_get_organization_name_should_return_the_app_title_when_the_user_has_no_organization(self, repository, db_session, app_title):
-        # Arrange
-        user_without_organiztion = UserSQLFactory(organization=None)
-        await db_session.flush()
-
-        # Act
-        actual_organization_name = await repository.get_organization_name(user_id=user_without_organiztion.id)
-        # Assert
-        assert actual_organization_name == app_title
-
-
-@pytest.mark.asyncio(loop_scope="session")
 class TestGetRoutersPage:
     async def test_returns_correct_page_with_limit_and_offset(self, repository, db_session):
         # Arrange
@@ -373,7 +338,6 @@ class TestGetRouterById:
             alias=["alias1", "alias2"],
         )
         await db_session.flush()
-        first_provider = min(router.provider, key=lambda p: p.id)
 
         # Act
         result = await repository.get_router_by_id(router.id)
@@ -387,8 +351,6 @@ class TestGetRouterById:
         assert result.cost_completion_tokens == 0.002
         assert result.providers == 2
         assert result.aliases == ["alias1", "alias2"]
-        assert result.max_context_length == first_provider.max_context_length
-        assert result.vector_size == first_provider.vector_size
 
     async def test_get_router_by_id_should_return_router_not_found_when_router_does_not_exist(self, repository, db_session):
         # Act
@@ -425,7 +387,6 @@ class TestGetRouterByNameOrAlias:
             alias=["alias1", "alias2"],
         )
         await db_session.flush()
-        first_provider = min(router.provider, key=lambda p: p.id)
 
         # Act
         result = await repository.get_router_by_name_or_alias("router_by_name")
@@ -439,8 +400,6 @@ class TestGetRouterByNameOrAlias:
         assert result.cost_completion_tokens == 0.002
         assert result.providers == 2
         assert result.aliases == ["alias1", "alias2"]
-        assert result.max_context_length == first_provider.max_context_length
-        assert result.vector_size == first_provider.vector_size
 
     async def test_get_router_by_name_or_alias_should_return_router_when_lookup_by_alias(self, repository, db_session):
         # Arrange
