@@ -86,6 +86,21 @@ The domain and API term for an API credential is **key** (`Key`, `CreateKeyRespo
 
 ---
 
+## Domain
+
+| Kind | Location | Form |
+|------|----------|------|
+| Entity | `domain/<context>/entities.py` | Pydantic `BaseModel` (from `api.domain`) |
+| Error | `domain/<context>/errors.py` | `@dataclass` |
+| Repository port | `domain/<context>/_<entity>repository.py` | `ABC` |
+| `Command` / `UseCaseSuccess` | `use_cases/<area>/` | `@dataclass` |
+
+**Entities are Pydantic models, never `@dataclass`.** A `@dataclass` validates nothing at construction, so it silently accepts a wrong type and skips the `UtcDatetime` normalization — an entity built with a naive `datetime` would then serialize to a shifted Unix timestamp. `BaseModel` also gives `model_copy(update=...)`, which the `with_*` helpers (`Router.with_name`, `Provider.with_timeout`, `Role.with_limits`) rely on.
+
+`@dataclass` is for the plain carriers that never hold invariants: domain errors, and the `Command` / `UseCaseSuccess` pairs of the use-case layer.
+
+---
+
 ## Schemas
 
 Location: `api/infrastructure/fastapi/schemas/`.
