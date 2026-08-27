@@ -1,8 +1,9 @@
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from api.domain.organization.entities import Organization
+from api.domain import SortOrder
+from api.domain.organization.entities import Organization, OrganizationSortField
 from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationNotFoundError
 from api.infrastructure.postgres import PostgresOrganizationRepository
 from api.sql.models import Organization as OrganizationTable
@@ -112,6 +113,66 @@ class TestGetOrganizationById:
         # Assert
         assert isinstance(result, OrganizationNotFoundError)
         assert result.id == 999999
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestGetOrganizationsPage:
+    async def test_returns_organizations_with_user_count(self, repository, db_session):
+        # Arrange
+        organization = OrganizationSQLFactory(name="Org Page With Users")
+        UserSQLFactory(organization=organization)
+        UserSQLFactory(organization=organization)
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_organizations_page(limit=100, offset=0)
+
+        # Assert
+        listed = {organization.id: organization for organization in result.data}
+        assert listed[organization.id].name == "Org Page With Users"
+        assert listed[organization.id].users == 2
+
+    async def test_returns_total_independent_of_limit(self, repository, db_session):
+        # Arrange
+        OrganizationSQLFactory(name="Org Page Total 1")
+        OrganizationSQLFactory(name="Org Page Total 2")
+        OrganizationSQLFactory(name="Org Page Total 3")
+        await db_session.flush()
+        stored = await db_session.scalar(select(func.count()).select_from(OrganizationTable))
+
+        # Act
+        result = await repository.get_organizations_page(limit=2, offset=0)
+
+        # Assert
+        assert len(result.data) == 2
+        assert result.total == stored
+
+    async def test_returns_empty_page_with_total_when_offset_is_out_of_range(self, repository, db_session):
+        # Arrange
+        OrganizationSQLFactory(name="Org Page Out Of Range")
+        await db_session.flush()
+        stored = await db_session.scalar(select(func.count()).select_from(OrganizationTable))
+
+        # Act
+        result = await repository.get_organizations_page(limit=10, offset=stored)
+
+        # Assert
+        assert result.data == []
+        assert result.total == stored
+
+    async def test_returns_organizations_sorted_by_name_descending(self, repository, db_session):
+        # Arrange
+        OrganizationSQLFactory(name="Org Page Sort A")
+        OrganizationSQLFactory(name="Org Page Sort B")
+        OrganizationSQLFactory(name="Org Page Sort C")
+        await db_session.flush()
+
+        # Act
+        result = await repository.get_organizations_page(limit=100, offset=0, sort_by=OrganizationSortField.NAME, sort_order=SortOrder.DESC)
+
+        # Assert
+        names = [organization.name for organization in result.data]
+        assert names == sorted(names, reverse=True)
 
 
 @pytest.mark.asyncio(loop_scope="session")

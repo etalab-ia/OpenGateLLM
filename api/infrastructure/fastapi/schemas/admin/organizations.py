@@ -31,3 +31,11 @@ class OrganizationResponse(BaseModel):
                 "updated": int(data.updated.timestamp()),
             }
         return data
+
+
+class OrganizationsResponse(BaseModel):
+    object: Annotated[Literal["list"], Field(default="list", description="Type of the object.")]
+    total: Annotated[int, Field(description="Total number of organizations.")]
+    offset: Annotated[int, Field(description="Offset of the organizations list.")]
+    limit: Annotated[int, Field(description="Limit of the organizations list.")]
+    data: Annotated[list[OrganizationResponse], Field(description="List of organizations.")]
