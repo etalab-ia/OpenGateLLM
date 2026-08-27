@@ -108,6 +108,8 @@ class ProviderResponse(BaseModel):
                 "model_active_params": data.model_active_params,
                 "qos_metric": data.qos_metric,
                 "qos_limit": data.qos_limit,
+                "max_context_length": data.max_context_length,
+                "vector_size": data.vector_size,
                 "created": int(data.created.timestamp()),
                 "updated": int(data.updated.timestamp()),
             }

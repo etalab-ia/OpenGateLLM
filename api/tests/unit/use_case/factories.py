@@ -115,7 +115,7 @@ class ModelViewFactory(factory.Factory):
     id = factory.Faker("bothify", text="model-????")
     type = factory.Faker("random_element", elements=list(RouterType))
     aliases = factory.LazyFunction(list)
-    created = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
     owned_by = factory.Faker("bothify", text="organization_????")
     max_context_length = None
     costs = factory.LazyFunction(ModelCosts)

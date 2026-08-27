@@ -3,8 +3,8 @@ from typing import Annotated, Literal
 from pydantic import Field, model_validator
 
 from api.domain import BaseModel
-from api.domain.model.entities import Model as ModelEntity
 from api.domain.model.entities import ModelType
+from api.domain.model.views import ModelView
 
 
 class ModelCosts(BaseModel):
@@ -25,7 +25,7 @@ class Model(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def from_model(cls, data):
-        if isinstance(data, ModelEntity):
+        if isinstance(data, ModelView):
             return {
                 "object": "model",
                 "id": data.id,

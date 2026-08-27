@@ -51,8 +51,6 @@ class RouterResponse(BaseModel):
                 "type": data.type,
                 "aliases": data.aliases,
                 "load_balancing_strategy": data.load_balancing_strategy,
-                "vector_size": data.vector_size,
-                "max_context_length": data.max_context_length,
                 "cost_prompt_tokens": data.cost_prompt_tokens,
                 "cost_completion_tokens": data.cost_completion_tokens,
                 "providers": data.providers,

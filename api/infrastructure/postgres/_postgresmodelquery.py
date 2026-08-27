@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, Select, cast, func, literal, or_, select, text
+from sqlalchemy import Select, func, literal, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.model import ModelQuery
@@ -10,10 +10,6 @@ from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 from api.sql.models import User as UserTable
-
-
-def _unix_timestamp(column):
-    return cast(func.extract("epoch", column), Integer)
 
 
 class PostgresModelQuery(ModelQuery):
@@ -73,7 +69,7 @@ class PostgresModelQuery(ModelQuery):
                 aliases_subquery,
                 max_context_length_subquery,
                 func.coalesce(OrganizationTable.name, self.app_title).label("owned_by"),
-                _unix_timestamp(RouterTable.created).label("created"),
+                RouterTable.created,
             )
             .select_from(RouterTable)
             .outerjoin(UserTable, UserTable.id == RouterTable.user_id)
