@@ -1,7 +1,8 @@
-import time
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from api.domain import UtcDatetime
 from api.domain.role.entities import Limit, PermissionType
 
 
@@ -15,7 +16,7 @@ class AuthenticatedUserView(BaseModel):
     budget: float | None
     permissions: list[PermissionType]
     limits: list[Limit]
-    expires: int | None
+    expires: UtcDatetime | None
 
     @property
     def is_admin(self) -> bool:
@@ -23,7 +24,7 @@ class AuthenticatedUserView(BaseModel):
 
     @property
     def has_expired(self) -> bool:
-        return self.expires is not None and self.expires < time.time()
+        return self.expires is not None and self.expires < datetime.now(tz=UTC)
 
     @property
     def has_insufficient_budget(self) -> bool:

@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 import pycountry
 from pydantic import Field, model_validator
 
-from api.domain import BaseModel, EntitiesPage, ForwardablePayload
+from api.domain import BaseModel, EntitiesPage, ForwardablePayload, UtcDatetime
 from api.domain.model.entities import ModelJsonResponse, ModelType
 from api.domain.router.entities import Router
 from api.utils.variables import EndpointRoute
@@ -106,8 +106,8 @@ class Provider(BaseModel):
     qos_limit: float | None = None
     max_context_length: int | None = None
     vector_size: int | None = None
-    created: int
-    updated: int
+    created: UtcDatetime
+    updated: UtcDatetime
 
     def with_router_id(self, router_id: int) -> "Provider":
         return self.model_copy(update={"router_id": router_id})

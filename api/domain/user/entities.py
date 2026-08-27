@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, SecretStr
 
-from api.domain import EntitiesPage
+from api.domain import EntitiesPage, UtcDatetime
 
 
 class UserSortField(StrEnum):
@@ -26,9 +26,9 @@ class User(BaseModel):
     role_id: int
     organization_id: int | None
     budget: float | None
-    expires: int | None
-    created: int
-    updated: int
+    expires: UtcDatetime | None
+    created: UtcDatetime
+    updated: UtcDatetime
     priority: int
     password: SecretStr | None
 

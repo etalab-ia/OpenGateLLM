@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Any
 
 from api.domain import SortOrder
@@ -26,7 +27,7 @@ class UserRepository(ABC):
         claims: dict[str, Any] | None = None,
         organization_id: int | None = None,
         budget: float | None = None,
-        expires: int | None = None,
+        expires: datetime | None = None,
         priority: int = 0,
     ) -> User | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError:
         pass

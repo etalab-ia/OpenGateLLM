@@ -1,6 +1,4 @@
-from datetime import datetime
-
-from api.domain import BaseModel, EntitiesPage
+from api.domain import BaseModel, EntitiesPage, UtcDatetime
 
 
 class EnvironmentalImpacts(BaseModel):
@@ -32,7 +30,7 @@ class UsageRecord(BaseModel):
     total_tokens: int | None
     cost: float | None
     impacts: EnvironmentalImpacts
-    created: datetime
+    created: UtcDatetime
 
 
 UsagePage = EntitiesPage["UsageRecord"]

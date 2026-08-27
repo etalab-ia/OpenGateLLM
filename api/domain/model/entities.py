@@ -2,7 +2,7 @@ from enum import StrEnum
 
 from pydantic import Field
 
-from api.domain import BaseModel
+from api.domain import BaseModel, UtcDatetime
 
 
 class ModelCosts(BaseModel):
@@ -28,7 +28,7 @@ class Model(BaseModel):
     id: str
     type: ModelType
     aliases: list[str] = []
-    created: int
+    created: UtcDatetime
     owned_by: str
     max_context_length: int | None = None
     costs: ModelCosts = Field(default_factory=ModelCosts)
