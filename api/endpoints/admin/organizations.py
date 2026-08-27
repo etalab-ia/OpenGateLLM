@@ -1,13 +1,11 @@
-from typing import Literal
-
-from fastapi import Body, Depends, Path, Query, Request, Security
-from fastapi.responses import JSONResponse, Response
+from fastapi import Body, Depends, Path, Request, Security
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.role.entities import PermissionType
 from api.endpoints.admin import router
 from api.helpers._accesscontroller import AccessController
-from api.schemas.admin.organizations import Organization, Organizations, OrganizationUpdateRequest
+from api.schemas.admin.organizations import OrganizationUpdateRequest
 from api.utils.context import global_context
 from api.utils.dependencies import get_postgres_session
 from api.utils.variables import EndpointRoute
@@ -26,42 +24,3 @@ async def update_organization(
 ) -> Response:
     await global_context.identity_access_manager.update_organization(postgres_session=postgres_session, organization_id=organization, name=body.name)
     return Response(status_code=204)
-
-
-@router.get(
-    path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization}",
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
-    status_code=200,
-    response_model=Organization,
-)
-async def get_organization(
-    request: Request,
-    organization: int = Path(description="The ID of the organization to get."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-) -> JSONResponse:
-    organizations = await global_context.identity_access_manager.get_organizations(postgres_session=postgres_session, organization_id=organization)
-    return JSONResponse(content=organizations[0].model_dump(), status_code=200)
-
-
-@router.get(
-    path=EndpointRoute.ADMIN_ORGANIZATIONS,
-    dependencies=[Security(dependency=AccessController(permissions=[PermissionType.ADMIN]))],
-    status_code=200,
-    response_model=Organizations,
-)
-async def get_organizations(
-    request: Request,
-    offset: int = Query(default=0, ge=0, description="The offset of the organizations to get."),
-    limit: int = Query(default=10, ge=1, le=100, description="The limit of the organizations to get."),
-    order_by: Literal["id", "name", "created", "updated"] = Query(default="id", description="The field to order the organizations by."),
-    order_direction: Literal["asc", "desc"] = Query(default="asc", description="The direction to order the organizations by."),
-    postgres_session: AsyncSession = Depends(get_postgres_session),
-) -> JSONResponse:
-    data = await global_context.identity_access_manager.get_organizations(
-        postgres_session=postgres_session,
-        offset=offset,
-        limit=limit,
-        order_by=order_by,
-        order_direction=order_direction,
-    )
-    return JSONResponse(content=Organizations(data=data).model_dump(), status_code=200)
