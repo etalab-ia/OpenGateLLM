@@ -16,7 +16,7 @@ Before this decision, the same instant was represented differently depending on 
 
 * `api/infrastructure/fastapi/schemas/admin/keys.py` already did the right thing — accept `int`, convert to UTC `datetime` in a validator, keep `datetime` in the domain and in SQL, convert back to `int` in the response — but nothing said it was *the* convention.
 * Several domain entities (`Role`, `Router`, `Provider`, `User`, `Model`, `AuthenticatedUserView`) carried `int` timestamps, so the Postgres adapters had to flatten `timestamptz` columns to epoch seconds (`cast(func.extract("epoch", column), Integer)`) on the way out and re-inflate them (`func.to_timestamp(...)`) on the way in. `api/domain/role/entities.py` carried a `TODO` waiting for exactly this decision.
-* Several `datetime.now()` calls were naive local time. Some were harmless (`int(datetime.now().timestamp())` yields the right epoch), but some were not: `Usage(created=datetime.now())` wrote a naive local timestamp straight into a `timestamptz` column, shifting every usage record by the server's UTC offset.
+* Several `datetime.now()` calls produced naive local datetimes. None of them corrupted data — asyncpg encodes a naive value using the Python process timezone, which is what `datetime.now()` returns, so the two conversions cancel out and the stored instant is correct. But the value's meaning then depends on the process timezone rather than on the code, and a single `datetime.utcnow()` (naive *UTC*) slipping in would be silently shifted. One genuine bug did hide there: `Chunk.created` used `Field(default=datetime.now())`, evaluated once at import, so every chunk inherited the process start time.
 * The playground formatted dates with `datetime.fromtimestamp(...)`, which happens to render local time but says nothing about which timezone it assumes, and did so with a copy of the same expression in each feature state.
 
 The cost of that spread: no single place to reason about "what timezone is this value in?", conversions duplicated in adapters that should be dumb mappers, and a class of bug (naive datetime into an aware column) that only shows up outside UTC.
@@ -100,7 +100,7 @@ Endpoints keep calling `Response.model_validate(entity, from_attributes=True)`; 
 
 * One answer to "what timezone is this?" per layer; the boundary is the only place a conversion happens.
 * Postgres adapters became plain column mappers — the `extract(epoch)` / `to_timestamp()` round trips are gone, and `PostgresRolesRepository._row_to_role` is now used by every one of its query methods (the `TODO` on `Role` is resolved).
-* Naive-datetime bugs are structurally prevented: `UtcDatetime` normalizes on the way into an entity, and `timestamptz` columns only ever receive aware values.
+* Naive datetimes can no longer reach an entity ambiguously: `UtcDatetime` normalizes on the way in, and `timestamptz` columns only ever receive aware values. Note the two layers disagree on what a naive value *means* — asyncpg reads it as process-local, `UtcDatetime` reads it as UTC — which is exactly why no naive value should exist in the first place.
 * Date arithmetic and comparison (`user.expires < datetime.now(tz=UTC)`) happen on `datetime`, not on epoch integers.
 
 **Harder / to watch**
