@@ -19,16 +19,19 @@ class TestRedisProviderMetricsLogger:
         # Arrange
         provider_id = 42
         key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{metric.value}:{provider_id}"
+        other_metric = Metric.LATENCY if metric == Metric.TTFT else Metric.TTFT
+        other_key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{other_metric.value}:{provider_id}"
 
         # Act
-        await repository.log_metric(provider_id=provider_id, metric=metric.TTFT, value=120)
-        await repository.log_metric(provider_id=provider_id, metric=metric.TTFT, value=240)
+        await repository.log_metric(provider_id=provider_id, metric=metric, value=120)
+        await repository.log_metric(provider_id=provider_id, metric=metric, value=240)
 
         # Assert
         values = await redis_client.ts().range(key=key, from_time="-", to_time="+")
         assert len(values) == 2
         assert values[0][1] == 120
         assert values[1][1] == 240
+        assert await redis_client.exists(other_key) == 0
 
     @pytest.mark.parametrize("metric", [Metric.TTFT, Metric.LATENCY])
     async def test_get_metric_history(self, repository, redis_client: AsyncRedis, metric: Metric):

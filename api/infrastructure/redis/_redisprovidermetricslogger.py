@@ -20,11 +20,9 @@ class RedisProviderMetricsLogger(ProviderMetricsLogger):
     async def log_metric(self, provider_id: int, metric: Metric, value: float) -> None:
         try:
             timestamp = int(time.time() * 1000)
-            # Maintain all metric series aligned per provider.
-            for series_metric in (Metric.TTFT, Metric.LATENCY):
-                series_key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{series_metric.value}:{provider_id}"
-                await self._ensure_timeseries_exists(series_key)
-                await self.redis_client.ts().add(key=series_key, timestamp=timestamp, value=value)
+            key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{metric.value}:{provider_id}"
+            await self._ensure_timeseries_exists(key)
+            await self.redis_client.ts().add(key=key, timestamp=timestamp, value=value)
         except Exception:
             logger.exception(f"Failed to log request metrics ({metric.value}) in redis (id: {provider_id})")
             await self._safe_redis_reset()
