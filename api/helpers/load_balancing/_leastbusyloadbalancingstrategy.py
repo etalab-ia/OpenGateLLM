@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 import logging
 import math
 import random
@@ -35,7 +35,7 @@ class LeastBusyLoadBalancingStrategy(BaseLoadBalancingStrategy):
     def apply_sync_strategy(self, candidates: list[int]) -> tuple[int, float]:
         scores = {}
         for provider_id in candidates:
-            cutoff = datetime.now() - timedelta(seconds=METRICS__TIMESERIE_RETENTION_SECONDS)
+            cutoff = datetime.now(tz=UTC) - timedelta(seconds=METRICS__TIMESERIE_RETENTION_SECONDS)
             key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{self.metric}:{provider_id}"  # currently only TTFT is supported
             try:
                 result = self.redis_client.ts().range(key, from_time=int(cutoff.timestamp() * 1000) if cutoff else 0, to_time="+")
@@ -64,7 +64,7 @@ class LeastBusyLoadBalancingStrategy(BaseLoadBalancingStrategy):
     async def apply_async_strategy(self, candidates: list[int]) -> tuple[int, float]:
         scores = {}
         for provider_id in candidates:
-            cutoff = datetime.now() - timedelta(seconds=METRICS__TIMESERIE_RETENTION_SECONDS)
+            cutoff = datetime.now(tz=UTC) - timedelta(seconds=METRICS__TIMESERIE_RETENTION_SECONDS)
             key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{self.metric}:{provider_id}"  # currently only TTFT is supported
             try:
                 result = await self.redis_client.ts().range(key, from_time=int(cutoff.timestamp() * 1000) if cutoff else 0, to_time="+")
