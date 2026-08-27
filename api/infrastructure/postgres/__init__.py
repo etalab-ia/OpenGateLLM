@@ -2,6 +2,7 @@ from ._autocommitsession import AutocommitSession, TransactionRequiredError
 from ._postgresauthenticateduserquery import PostgresAuthenticatedUserQuery
 from ._postgreskeyrepository import PostgresKeyRepository
 from ._postgreslimitrepository import PostgresLimitRepository
+from ._postgresmodelquery import PostgresModelQuery
 from ._postgresorganizationrepository import PostgresOrganizationRepository
 from ._postgrespermissionrepository import PostgresPermissionRepository
 from ._postgresproviderrepository import PostgresProviderRepository
@@ -16,6 +17,7 @@ __all__ = [
     "PostgresAuthenticatedUserQuery",
     "PostgresKeyRepository",
     "PostgresLimitRepository",
+    "PostgresModelQuery",
     "PostgresOrganizationRepository",
     "PostgresPermissionRepository",
     "PostgresProviderRepository",

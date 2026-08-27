@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, StrEnum
 from http import HTTPMethod
 from typing import Annotated
 
@@ -45,12 +45,11 @@ class RequestContent(BaseModel):
     additional_data: dict = Field(default={}, description="The additional data to add to the response.")
 
 
-class Metric(str, Enum):
+class Metric(StrEnum):
     TTFT = "ttft"  # time to first token
     LATENCY = "latency"  # requests latency
     INFLIGHT = "inflight"  # requests concurrency
     PERFORMANCE = "performance"  # custom performance metric
-    NORMALIZED_LATENCY = "normalized_latency"  # requests latency normalized by the completion tokens
 
 
 # TEI

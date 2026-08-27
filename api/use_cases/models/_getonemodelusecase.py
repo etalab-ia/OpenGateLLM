@@ -1,16 +1,14 @@
 from dataclasses import dataclass
 
-from api.domain.model.entities import Model, ModelCosts
+from api.domain.model import ModelQuery
 from api.domain.model.errors import ModelNotFoundError
-from api.domain.router import RouterRepository
-from api.domain.router.entities import Router
-from api.domain.router.errors import RouterNotFoundError
+from api.domain.model.views import ModelView
 from api.domain.user.views import AuthenticatedUserView
 
 
 @dataclass
 class GetOneModelUseCaseSuccess:
-    model: Model
+    model: ModelView
 
 
 @dataclass
@@ -23,29 +21,18 @@ type GetOneModelUseCaseResult = GetOneModelUseCaseSuccess | ModelNotFoundError
 
 
 class GetOneModelUseCase:
-    def __init__(self, router_repository: RouterRepository):
-        self.router_repository = router_repository
+    def __init__(self, model_query: ModelQuery):
+        self.model_query = model_query
 
     async def execute(self, command: GetOneModelCommand) -> GetOneModelUseCaseResult:
-        result = await self.router_repository.get_router_by_name_or_alias(name_or_alias=command.name)
+        result = await self.model_query.get_model_by_name_or_alias(name=command.name)
         match result:
-            case Router() as router:
+            case ModelView() as model:
                 pass
-            case RouterNotFoundError():
-                return ModelNotFoundError(name=command.name)
+            case ModelNotFoundError() as error:
+                return error
 
-        if router.has_no_providers or command.authenticated_user.cannot_access_router(router_id=router.id):
+        if command.authenticated_user.cannot_access_router(router_id=model.router_id):
             return ModelNotFoundError(name=command.name)
-
-        organization_name = await self.router_repository.get_organization_name(router.user_id)  # @TODO: replace by organization repository
-        model = Model(
-            id=router.name,
-            type=router.type,
-            owned_by=organization_name,
-            aliases=router.aliases,
-            created=router.created,
-            max_context_length=router.max_context_length,
-            costs=ModelCosts(prompt_tokens=router.cost_prompt_tokens, completion_tokens=router.cost_completion_tokens),
-        )
 
         return GetOneModelUseCaseSuccess(model=model)

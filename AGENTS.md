@@ -7,11 +7,11 @@ Coding conventions for this repository. New and changed code follows clean archi
 ## Architecture
 
 ```
-domain/           entities, errors, repository ports (no FastAPI, no SQL)
+domain/           entities, errors, repository ports, query ports + views (no FastAPI, no SQL)
 use_cases/        Command, UseCase, UseCaseSuccess, execute()
 infrastructure/
   fastapi/        endpoints, schemas, HTTP exceptions, AccessController
-  postgres/       Postgres*Repository adapters, AutocommitSession
+  postgres/       Postgres*Repository / Postgres*Query adapters, AutocommitSession
 dependencies.py   DI factories (transactional vs autocommit session)
 ```
 
@@ -24,6 +24,7 @@ dependencies.py   DI factories (transactional vs autocommit session)
 | Endpoints | `api/infrastructure/fastapi/endpoints/` |
 | API schemas | `api/infrastructure/fastapi/schemas/` |
 | Postgres adapters | `api/infrastructure/postgres/_postgres<entity>repository.py` |
+| Read models | `api/domain/<context>/views.py` + `_<noun>query.py` |
 | DI | `api/dependencies.py` |
 
 Reference implementations of these patterns:
@@ -34,6 +35,7 @@ Reference implementations of these patterns:
 | List + get-by-id | `routers.py` (`GetRoutersUseCase` + `GetOneRouterUseCase`), self-service `keys.py` |
 | Paginated list | `roles.py`, `users.py` (`EntitiesPage`, `*sResponse`) |
 | Full CRUD | `roles.py`, `routers.py` |
+| Read-only projection | `models.py` (`ModelQuery` + `ModelView`) |
 | Model-forward (autocommit) | embeddings, OCR, rerank, audio transcriptions |
 
 Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `GetKeysUseCase`, `GetOneKeyUseCase`). Pass `user_id=authenticated_user.id` on the command to scope the operation to the current user. Admin get-one omits `user_id` (it defaults to `None`) so it can load any key.
@@ -44,7 +46,7 @@ Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `Get
 
 ```
 - [ ] Domain entity + errors in api/domain/<context>/
-- [ ] Repository port in api/domain/<context>/_<entity>repository.py
+- [ ] Repository port in api/domain/<context>/_<entity>repository.py — or query port + view for a read-only projection (see Query and view)
 - [ ] Postgres adapter in api/infrastructure/postgres/_postgres<entity>repository.py
 - [ ] Use case in api/use_cases/<area>/_<verb><noun>usecase.py
 - [ ] Export from domain/__init__.py, use_cases/__init__.py, postgres/__init__.py
@@ -70,6 +72,8 @@ Read existing code for the same resource (or the closest pattern above) before w
 | Command | `<Verb><Noun>Command` | `GetRolesCommand`, `GetOneRoleCommand` |
 | Success | `<Verb><Noun>UseCaseSuccess` | `GetRolesUseCaseSuccess`, `GetOneRoleUseCaseSuccess` |
 | Domain error | `<Noun><Problem>Error` | `RoleNotFoundError` |
+| Read model | `<Noun>View` | `ModelView`, `AuthenticatedUserView` |
+| Query port | `<Noun>Query` in `_<noun>query.py` | `ModelQuery`, `AuthenticatedUserQuery` |
 | HTTP exception | `<Noun><Problem>HTTPException` | `RoleNotFoundHTTPException` |
 | Request body | `<Verb><Noun>Body` | `CreateRoleBody` |
 | Response | `<Noun>Response` / `<Noun>sResponse` | `RoleResponse`, `RolesResponse` |
@@ -291,6 +295,26 @@ except IntegrityError as e:
 ```
 
 Reference adapters: `_postgreskeyrepository.py`, `_postgresproviderrepository.py`, `_postgresrouterrepository.py`, `_postgresusersrepository.py`.
+
+---
+
+## Query and view (read model)
+
+A **repository** loads the aggregate a write flow mutates. A **query** loads a denormalized read model for a read-only endpoint. Use a query when the response joins several tables, or derives fields the aggregate must not own.
+
+| Kind | Location | Pattern |
+|------|----------|---------|
+| View | `api/domain/<context>/views.py` | `<Noun>View`, `BaseModel` + `ConfigDict(frozen=True)` |
+| Port | `api/domain/<context>/_<noun>query.py` | `<Noun>Query` ABC, returns `View \| DomainError` |
+| Adapter | `api/infrastructure/postgres/_postgres<noun>query.py` | `Postgres<Noun>Query` |
+| DI factory | `api/dependencies.py` | `_<noun>_query` |
+| Tests | `api/tests/integration/postgres/test_postgres<noun>query.py` | same rules as an adapter |
+
+Reference: `ModelQuery` / `ModelView` / `PostgresModelQuery` (models API), `AuthenticatedUserQuery` / `AuthenticatedUserView` (`AccessController`).
+
+A view is read-only: no `update_*` methods, no domain invariants. It may carry the id of the aggregate it was projected from (`ModelView.router_id`) so the use case can run access control on it.
+
+**Do not put a derived field on an entity just to expose it.** `vector_size` and `max_context_length` belong to `Provider`; `Router` does not mirror them. Consistency between providers of the same router is checked in the use case by reading the router's existing providers, and the models API reads the capability from the provider through `ModelQuery`.
 
 ---
 

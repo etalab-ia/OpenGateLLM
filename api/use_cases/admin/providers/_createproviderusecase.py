@@ -62,8 +62,8 @@ class CreateProviderUseCase:
 
     async def execute(self, command: CreateProviderCommand) -> CreateProviderUseCaseResult:
         router = await self.router_repository.get_router_by_id(router_id=command.router_id)
-        if router is None:
-            return RouterNotFoundError(id=command.router_id)
+        if isinstance(router, RouterNotFoundError):
+            return router
 
         if not command.provider_type.is_compatible_with(router_type=router.type):
             return InvalidProviderTypeError(provider_type=command.provider_type.value, router_type=router.type.value)
@@ -89,18 +89,22 @@ class CreateProviderUseCase:
         max_context_length = provider_capabilities.max_context_length
         vector_size = provider_capabilities.vector_size
 
-        if router.providers > 0 and not router.vector_size_is_consistent(vector_size):
-            return InconsistentModelVectorSizeError(
-                actual_vector_size=vector_size,
-                expected_vector_size=router.vector_size,
-                router_name=router.name,
-            )
-        if router.providers > 0 and not router.max_context_length_is_consistent(max_context_length):
-            return InconsistentModelMaxContextLengthError(
-                actual_max_context_length=max_context_length,
-                expected_max_context_length=router.max_context_length,
-                router_name=router.name,
-            )
+        # all providers of a router must expose the same capabilities: compare with one of the providers already attached to it
+        existing_providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
+        if existing_providers:
+            reference_provider = existing_providers[0]
+            if reference_provider.vector_size != vector_size:
+                return InconsistentModelVectorSizeError(
+                    actual_vector_size=vector_size,
+                    expected_vector_size=reference_provider.vector_size,
+                    router_name=router.name,
+                )
+            if reference_provider.max_context_length != max_context_length:
+                return InconsistentModelMaxContextLengthError(
+                    actual_max_context_length=max_context_length,
+                    expected_max_context_length=reference_provider.max_context_length,
+                    router_name=router.name,
+                )
 
         result = await self.provider_repository.create_provider(
             router_id=command.router_id,

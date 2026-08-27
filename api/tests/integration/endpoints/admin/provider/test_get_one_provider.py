@@ -22,7 +22,14 @@ class TestGetProvider:
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         router = RouterSQLFactory(user=self.admin_user)
-        provider = ProviderSQLFactory(router=router, user=self.admin_user, key="secret-key", basic_auth={"username": "u", "password": "p"})
+        provider = ProviderSQLFactory(
+            router=router,
+            user=self.admin_user,
+            key="secret-key",
+            basic_auth={"username": "u", "password": "p"},
+            max_context_length=4096,
+            vector_size=768,
+        )
         await db_session.flush()
 
         response = await client.get(
@@ -34,6 +41,8 @@ class TestGetProvider:
         data = response.json()
         assert data["id"] == provider.id
         assert data["object"] == "provider"
+        assert data["max_context_length"] == 4096
+        assert data["vector_size"] == 768
         assert "key" not in data
         assert "basic_auth" not in data
 

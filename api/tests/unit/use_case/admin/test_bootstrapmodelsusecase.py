@@ -134,8 +134,8 @@ class TestBootstrapModelsUseCase:
             providers=[ModelProviderConfigurationFactory(tei=True, model_name="embed-model", url="https://embed.com/")],
         )
 
-        first_router = RouterFactory(id=1, name="text-gen", type=RouterType.TEXT_GENERATION, max_context_length=4096, vector_size=None)
-        second_router = RouterFactory(id=2, name="embeddings", type=RouterType.TEXT_EMBEDDINGS_INFERENCE, max_context_length=512, vector_size=768)
+        first_router = RouterFactory(id=1, name="text-gen", type=RouterType.TEXT_GENERATION)
+        second_router = RouterFactory(id=2, name="embeddings", type=RouterType.TEXT_EMBEDDINGS_INFERENCE)
 
         router_repository.get_all_routers.return_value = []
         router_repository.create_router.side_effect = [first_router, second_router]
@@ -320,7 +320,7 @@ class TestBootstrapModelsUseCase:
                 ModelProviderConfigurationFactory(model_name="model-b", url="https://provider-b.com/"),
             ],
         )
-        router = RouterFactory(id=1, name=model_configuration.name, type=RouterType.TEXT_GENERATION, max_context_length=4096, vector_size=None)
+        router = RouterFactory(id=1, name=model_configuration.name, type=RouterType.TEXT_GENERATION)
         router_repository.get_all_routers.return_value = []
         router_repository.create_router.return_value = router
         provider_capabilities_probe.get_capabilities.side_effect = [
@@ -351,9 +351,7 @@ class TestBootstrapModelsUseCase:
                 ModelProviderConfigurationFactory(tei=True, model_name="embed-b", url="https://provider-b.com/"),
             ],
         )
-        router = RouterFactory(
-            id=1, name=model_configuration.name, type=RouterType.TEXT_EMBEDDINGS_INFERENCE, max_context_length=512, vector_size=768
-        )
+        router = RouterFactory(id=1, name=model_configuration.name, type=RouterType.TEXT_EMBEDDINGS_INFERENCE)
         router_repository.get_all_routers.return_value = []
         router_repository.create_router.return_value = router
         provider_capabilities_probe.get_capabilities.side_effect = [

@@ -86,6 +86,10 @@ class BootstrapModelsUseCase:
                 aliases=router_to_create.aliases,
             )
 
+            # all providers of a router must expose the same capabilities: the first one of the configuration sets the reference
+            reference_max_context_length = None
+            reference_vector_size = None
+
             for i, provider_to_create in enumerate(router_to_create.providers):
                 result = await self.provider_capabilities_probe.get_capabilities(
                     router_type=router.type,
@@ -111,21 +115,25 @@ class BootstrapModelsUseCase:
                 max_context_length = provider_capabilities.max_context_length
                 vector_size = provider_capabilities.vector_size
 
-                if i > 0 and not router.max_context_length_is_consistent(max_context_length):
-                    await self.router_repository.delete_all_routers()
-                    return InconsistentModelMaxContextLengthError(
-                        actual_max_context_length=max_context_length,
-                        expected_max_context_length=router.max_context_length,
-                        router_name=router.name,
-                    )
+                if i == 0:
+                    reference_max_context_length = max_context_length
+                    reference_vector_size = vector_size
+                else:
+                    if max_context_length != reference_max_context_length:
+                        await self.router_repository.delete_all_routers()
+                        return InconsistentModelMaxContextLengthError(
+                            actual_max_context_length=max_context_length,
+                            expected_max_context_length=reference_max_context_length,
+                            router_name=router.name,
+                        )
 
-                if i > 0 and not router.vector_size_is_consistent(vector_size):
-                    await self.router_repository.delete_all_routers()
-                    return InconsistentModelVectorSizeError(
-                        actual_vector_size=vector_size,
-                        expected_vector_size=router.vector_size,
-                        router_name=router.name,
-                    )
+                    if vector_size != reference_vector_size:
+                        await self.router_repository.delete_all_routers()
+                        return InconsistentModelVectorSizeError(
+                            actual_vector_size=vector_size,
+                            expected_vector_size=reference_vector_size,
+                            router_name=router.name,
+                        )
 
                 result = await self.provider_repository.create_provider(
                     router_id=router.id,

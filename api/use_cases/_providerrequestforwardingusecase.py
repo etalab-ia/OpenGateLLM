@@ -223,11 +223,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
                     metric=Metric.LATENCY,
                     value=latency,
                 )
-                await self.provider_metrics_logger.log_metric(
-                    provider_id=provider.id,
-                    metric=Metric.NORMALIZED_LATENCY,
-                    value=latency,  # raw latency: legacy never divided this metric by completion tokens
-                )
             case ProviderAdapterValidationResponseError() as error:
                 return error
 

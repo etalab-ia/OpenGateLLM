@@ -23,7 +23,9 @@ def router_repository():
 
 @pytest.fixture
 def provider_repository():
-    return AsyncMock()
+    repository = AsyncMock()
+    repository.get_all_providers_of_router.return_value = []
+    return repository
 
 
 @pytest.fixture
@@ -57,8 +59,6 @@ def sample_router_with_providers():
         name="test-router",
         type=RouterType.TEXT_GENERATION,
         providers=2,
-        max_context_length=4096,
-        vector_size=None,
     )
 
 
@@ -69,9 +69,17 @@ def sample_embedding_router_with_providers():
         name="embedding-router",
         type=RouterType.TEXT_EMBEDDINGS_INFERENCE,
         providers=1,
-        max_context_length=512,
-        vector_size=768,
     )
+
+
+@pytest.fixture
+def existing_provider_of_router():
+    return ProviderFactory(id=2, router_id=1, type=ProviderType.VLLM, max_context_length=4096, vector_size=None)
+
+
+@pytest.fixture
+def existing_embedding_provider_of_router():
+    return ProviderFactory(id=2, router_id=1, type=ProviderType.TEI, max_context_length=512, vector_size=768)
 
 
 @pytest.fixture
@@ -175,12 +183,14 @@ class TestCreateProviderUseCase:
         provider_repository,
         provider_capabilities_probe,
         sample_router_with_providers,
+        existing_provider_of_router,
         sample_provider,
         default_command,
     ):
         # Arrange
 
         router_repository.get_router_by_id.return_value = sample_router_with_providers
+        provider_repository.get_all_providers_of_router.return_value = [existing_provider_of_router]
         provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=4096, vector_size=None)
         provider_repository.create_provider.return_value = sample_provider
 
@@ -216,12 +226,14 @@ class TestCreateProviderUseCase:
         provider_repository,
         provider_capabilities_probe,
         sample_embedding_router_with_providers,
+        existing_embedding_provider_of_router,
         sample_provider,
         default_command,
     ):
         # Arrange
 
         router_repository.get_router_by_id.return_value = sample_embedding_router_with_providers
+        provider_repository.get_all_providers_of_router.return_value = [existing_embedding_provider_of_router]
         provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=512, vector_size=768)
         provider_repository.create_provider.return_value = sample_provider
 
@@ -255,7 +267,7 @@ class TestCreateProviderUseCase:
     ):
         # Arrange
 
-        router_repository.get_router_by_id.return_value = None
+        router_repository.get_router_by_id.return_value = RouterNotFoundError(id=1)
 
         # Act
         result = await use_case.execute(default_command)
@@ -412,11 +424,19 @@ class TestCreateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_inconsistent_max_context_length_error_when_mismatch(
-        self, use_case, router_repository, provider_repository, provider_capabilities_probe, sample_router_with_providers, default_command
+        self,
+        use_case,
+        router_repository,
+        provider_repository,
+        provider_capabilities_probe,
+        sample_router_with_providers,
+        existing_provider_of_router,
+        default_command,
     ):
         # Arrange
 
         router_repository.get_router_by_id.return_value = sample_router_with_providers
+        provider_repository.get_all_providers_of_router.return_value = [existing_provider_of_router]
         provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=2048, vector_size=None)
 
         # Act
@@ -436,11 +456,13 @@ class TestCreateProviderUseCase:
         provider_repository,
         provider_capabilities_probe,
         sample_embedding_router_with_providers,
+        existing_embedding_provider_of_router,
         default_command,
     ):
         # Arrange
 
         router_repository.get_router_by_id.return_value = sample_embedding_router_with_providers
+        provider_repository.get_all_providers_of_router.return_value = [existing_embedding_provider_of_router]
         provider_capabilities_probe.get_capabilities.return_value = ProviderCapabilities(max_context_length=512, vector_size=384)
 
         # Act
