@@ -50,8 +50,8 @@ class Role(BaseModel):
     permissions: list[PermissionType]
     limits: list[Limit]
     users: int = 0
-    created: int = Field(default_factory=lambda: int(dt.datetime.now().timestamp()))
-    updated: int = Field(default_factory=lambda: int(dt.datetime.now().timestamp()))
+    created: int = Field(default_factory=lambda: int(dt.datetime.now(tz=dt.UTC).timestamp()), description="Time of creation, as Unix timestamp.")
+    updated: int = Field(default_factory=lambda: int(dt.datetime.now(tz=dt.UTC).timestamp()), description="Time of last update, as Unix timestamp.")
 
 
 class Roles(BaseModel):

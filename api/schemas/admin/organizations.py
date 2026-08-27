@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import Field, constr
@@ -15,8 +15,8 @@ class Organization(BaseModel):
     id: int
     name: str
     users: int
-    created: int = Field(default_factory=lambda: int(datetime.now().timestamp()))
-    updated: int = Field(default_factory=lambda: int(datetime.now().timestamp()))
+    created: int = Field(default_factory=lambda: int(datetime.now(tz=UTC).timestamp()), description="Time of creation, as Unix timestamp.")
+    updated: int = Field(default_factory=lambda: int(datetime.now(tz=UTC).timestamp()), description="Time of last update, as Unix timestamp.")
 
 
 class Organizations(BaseModel):
