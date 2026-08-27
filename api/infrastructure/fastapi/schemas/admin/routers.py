@@ -1,9 +1,9 @@
 from typing import Annotated, Literal
 
-from pydantic import Field, StringConstraints
+from pydantic import Field, StringConstraints, model_validator
 
 from api.domain import BaseModel
-from api.domain.router.entities import RouterLoadBalancingStrategy
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy
 from api.schemas.models import ModelType
 
 
@@ -38,6 +38,28 @@ class RouterResponse(BaseModel):
     providers: Annotated[int, Field(default=0, description="Number of providers in the router.")]
     created: Annotated[int, Field(description="Time of creation, as Unix timestamp.")]
     updated: Annotated[int, Field(description="Time of last update, as Unix timestamp.")]
+
+    @model_validator(mode="before")
+    @classmethod
+    def from_router(cls, data):
+        if isinstance(data, Router):
+            return {
+                "object": "router",
+                "id": data.id,
+                "name": data.name,
+                "user_id": data.user_id,
+                "type": data.type,
+                "aliases": data.aliases,
+                "load_balancing_strategy": data.load_balancing_strategy,
+                "vector_size": data.vector_size,
+                "max_context_length": data.max_context_length,
+                "cost_prompt_tokens": data.cost_prompt_tokens,
+                "cost_completion_tokens": data.cost_completion_tokens,
+                "providers": data.providers,
+                "created": int(data.created.timestamp()),
+                "updated": int(data.updated.timestamp()),
+            }
+        return data
 
 
 class RoutersResponse(BaseModel):

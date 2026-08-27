@@ -3,6 +3,7 @@ from typing import Annotated, Literal
 from pydantic import Field, StringConstraints, model_validator
 
 from api.domain import BaseModel
+from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.schemas.admin.roles import Limit, PermissionType
 from api.utils.variables import MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH
 
@@ -17,6 +18,23 @@ class MeResponse(BaseModel):
     permissions: Annotated[list[PermissionType], Field(description="The user permissions.")]
     limits: Annotated[list[Limit], Field(description="The user rate limits.")]
     expires: Annotated[int | None, Field(default=None, description="The user expiration timestamp. If None, the user will never expire.")]
+
+    @model_validator(mode="before")
+    @classmethod
+    def from_authenticated_user(cls, data):
+        if isinstance(data, AuthenticatedUserView):
+            return {
+                "object": "userInfo",
+                "id": data.id,
+                "email": data.email,
+                "name": data.name,
+                "organization_id": data.organization_id,
+                "budget": data.budget,
+                "permissions": data.permissions,
+                "limits": [{"router_id": limit.router_id, "type": limit.type, "value": limit.value} for limit in data.limits],
+                "expires": int(data.expires.timestamp()) if data.expires is not None else None,
+            }
+        return data
 
 
 class UpdateMeBody(BaseModel):

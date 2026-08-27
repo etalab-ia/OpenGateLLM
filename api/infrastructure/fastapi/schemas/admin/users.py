@@ -1,19 +1,21 @@
-import datetime as dt
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, ConfigDict, Field, StringConstraints
+from pydantic import AfterValidator, ConfigDict, Field, StringConstraints, model_validator
 
 from api.domain import BaseModel
+from api.domain.user.entities import User
 from api.utils.variables import MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH
 
 
-def _must_be_future(expires: int) -> int:
-    if expires <= int(dt.datetime.now(tz=dt.UTC).timestamp()):
+def _must_be_future_and_convert_to_datetime(expires: int) -> datetime:
+    if expires <= int(datetime.now(tz=UTC).timestamp()):
         raise ValueError("Wrong timestamp, must be in the future.")
-    return expires
+    return datetime.fromtimestamp(timestamp=expires, tz=UTC)
 
 
-FutureTimestamp = Annotated[int, AfterValidator(_must_be_future)]
+FutureTimestamp = Annotated[int, AfterValidator(_must_be_future_and_convert_to_datetime)]
+"""Unix timestamp accepted at the API boundary and converted to a UTC datetime for the domain."""
 
 
 class CreateUserBody(BaseModel):
@@ -43,6 +45,27 @@ class UserResponse(BaseModel):
     created: Annotated[int, Field(..., description="Time of creation, as Unix timestamp.")]
     updated: Annotated[int, Field(..., description="Time of last update, as Unix timestamp.")]
     priority: Annotated[int, Field(..., description="Priority of the user. Higher value means higher priority.")]
+
+    @model_validator(mode="before")
+    @classmethod
+    def from_user(cls, data):
+        if isinstance(data, User):
+            return {
+                "object": "user",
+                "id": data.id,
+                "email": data.email,
+                "name": data.name,
+                "sub": data.sub,
+                "iss": data.iss,
+                "role_id": data.role_id,
+                "organization_id": data.organization_id,
+                "budget": data.budget,
+                "expires": int(data.expires.timestamp()) if data.expires is not None else None,
+                "created": int(data.created.timestamp()),
+                "updated": int(data.updated.timestamp()),
+                "priority": data.priority,
+            }
+        return data
 
 
 class UsersResponse(BaseModel):
