@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import UTC, datetime
 import functools
 import logging
 import re
@@ -34,7 +34,7 @@ def hooks(func):
 
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
-        usage = Usage(created=datetime.now(), endpoint="N/A")
+        usage = Usage(created=datetime.now(tz=UTC), endpoint="N/A")
 
         # get the request context (initial values)
         context = request_context.get()
