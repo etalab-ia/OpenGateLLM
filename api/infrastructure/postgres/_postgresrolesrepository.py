@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, asc, cast, delete, desc, distinct, func, insert, select, update
+from sqlalchemy import asc, delete, desc, distinct, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -10,10 +10,6 @@ from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Role as RoleTable
 from api.sql.models import User as UserTable
-
-
-def _unix_timestamp(column):
-    return cast(func.extract("epoch", column), Integer)
 
 
 class PostgresRolesRepository(RoleRepository):
@@ -41,8 +37,8 @@ class PostgresRolesRepository(RoleRepository):
             select(
                 RoleTable.id,
                 RoleTable.name,
-                _unix_timestamp(RoleTable.created).label("created"),
-                _unix_timestamp(RoleTable.updated).label("updated"),
+                RoleTable.created,
+                RoleTable.updated,
                 func.count(distinct(UserTable.id)).label("users"),
             )
             .outerjoin(UserTable, RoleTable.id == UserTable.role_id)
@@ -69,8 +65,8 @@ class PostgresRolesRepository(RoleRepository):
                 .returning(
                     RoleTable.id,
                     RoleTable.name,
-                    _unix_timestamp(RoleTable.created).label("created"),
-                    _unix_timestamp(RoleTable.updated).label("updated"),
+                    RoleTable.created,
+                    RoleTable.updated,
                 )
             )
             row = result.one()
@@ -90,15 +86,12 @@ class PostgresRolesRepository(RoleRepository):
         row = result.one_or_none()
         if row is None:
             return RoleNotFoundError(id=role_id)
-        role_row, users_count = row  # @TODO: use _row_to_role after converting int to datetime in all the repositories
-        return Role(
-            id=role_row.id,
-            name=role_row.name,
-            permissions=[p.permission for p in role_row.permissions],
-            limits=[Limit(router_id=limit.router_id, type=limit.type, value=limit.value) for limit in role_row.limits],
+        role_row, users_count = row
+        return self._row_to_role(
+            role_row,
             users=users_count,
-            created=int(role_row.created.timestamp()),
-            updated=int(role_row.updated.timestamp()),
+            permissions=[permission.permission for permission in role_row.permissions],
+            limits=[Limit(router_id=limit.router_id, type=limit.type, value=limit.value) for limit in role_row.limits],
         )
 
     async def get_role_with_permissions_and_limits_by_name(self, role_name: str) -> Role | RoleNotFoundError:
@@ -112,15 +105,12 @@ class PostgresRolesRepository(RoleRepository):
         row = result.one_or_none()
         if row is None:
             return RoleNotFoundError(name=role_name)
-        role_row, users_count = row  # @TODO: use _row_to_role after converting int to datetime in all the repositories
-        return Role(
-            id=role_row.id,
-            name=role_row.name,
-            permissions=[p.permission for p in role_row.permissions],
-            limits=[Limit(router_id=limit.router_id, type=limit.type, value=limit.value) for limit in role_row.limits],
+        role_row, users_count = row
+        return self._row_to_role(
+            role_row,
             users=users_count,
-            created=int(role_row.created.timestamp()),
-            updated=int(role_row.updated.timestamp()),
+            permissions=[permission.permission for permission in role_row.permissions],
+            limits=[Limit(router_id=limit.router_id, type=limit.type, value=limit.value) for limit in role_row.limits],
         )
 
     @with_lock(namespace="role", key="role.id")
@@ -131,8 +121,8 @@ class PostgresRolesRepository(RoleRepository):
             .returning(
                 RoleTable.id,
                 RoleTable.name,
-                _unix_timestamp(RoleTable.created).label("created"),
-                _unix_timestamp(RoleTable.updated).label("updated"),
+                RoleTable.created,
+                RoleTable.updated,
             )
             .where(RoleTable.id == role.id)
         )
@@ -153,8 +143,8 @@ class PostgresRolesRepository(RoleRepository):
             .returning(
                 RoleTable.id,
                 RoleTable.name,
-                _unix_timestamp(RoleTable.created).label("created"),
-                _unix_timestamp(RoleTable.updated).label("updated"),
+                RoleTable.created,
+                RoleTable.updated,
             )
         )
         row = result.one_or_none()

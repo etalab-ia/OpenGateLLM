@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, Select, cast, select
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
@@ -61,7 +61,7 @@ class PostgresAuthenticatedUserQuery(AuthenticatedUserQuery):
             UserTable.name,
             UserTable.organization_id,
             UserTable.budget,
-            cast(func.extract("epoch", UserTable.expires), Integer).label("expires"),
+            UserTable.expires,
             permissions_subquery,
             limits_subquery,
         )
