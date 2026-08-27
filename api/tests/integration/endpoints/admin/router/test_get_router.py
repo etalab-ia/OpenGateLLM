@@ -34,6 +34,8 @@ class TestGetRouter:
         data = response.json()
         assert data["id"] == router.id
         assert data["object"] == "router"
+        assert data["created"] == int(router.created.timestamp())
+        assert data["updated"] == int(router.updated.timestamp())
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

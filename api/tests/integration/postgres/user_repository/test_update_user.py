@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from pydantic import SecretStr
 import pytest
@@ -70,7 +70,7 @@ class TestUpdateUser:
         user = UserSQLFactory(expires=None)
         await db_session.flush()
         existing_user = await _get_user_entity(repository, user.id)
-        expires = int((datetime.now() + timedelta(days=30)).timestamp())
+        expires = datetime.now(tz=UTC) + timedelta(days=30)
 
         # Act
         result = await repository.update_user(user=existing_user.model_copy(update={"expires": expires}))

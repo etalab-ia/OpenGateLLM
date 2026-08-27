@@ -43,6 +43,8 @@ class TestGetProvider:
         assert data["object"] == "provider"
         assert data["max_context_length"] == 4096
         assert data["vector_size"] == 768
+        assert data["created"] == int(provider.created.timestamp())
+        assert data["updated"] == int(provider.updated.timestamp())
         assert "key" not in data
         assert "basic_auth" not in data
 

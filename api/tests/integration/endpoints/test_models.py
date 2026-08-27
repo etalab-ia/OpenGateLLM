@@ -60,11 +60,13 @@ class TestGetModels:
         assert sorted(models_by_id["router_1"]["aliases"]) == ["alias1_m1", "alias2_m1", "alias3_m1"]
         assert models_by_id["router_1"]["costs"] == {"prompt_tokens": 0.001, "completion_tokens": 0.002}
         assert models_by_id["router_1"]["max_context_length"] == 2048
+        assert models_by_id["router_1"]["created"] == int(router_1.created.timestamp())
 
         assert models_by_id["router_2"]["type"] == ModelType.TEXT_EMBEDDINGS_INFERENCE.value
         assert models_by_id["router_2"]["aliases"] == []
         assert models_by_id["router_2"]["costs"] == {"prompt_tokens": 0.0, "completion_tokens": 0.0}
         assert models_by_id["router_2"]["max_context_length"] == 16384
+        assert models_by_id["router_2"]["created"] == int(router_2.created.timestamp())
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",

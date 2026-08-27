@@ -70,6 +70,8 @@ class TestCreateProvider:
 
         assert response.status_code == 201, response.text
         assert isinstance(response.json()["id"], int)
+        assert isinstance(response.json()["created"], int)
+        assert isinstance(response.json()["updated"], int)
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

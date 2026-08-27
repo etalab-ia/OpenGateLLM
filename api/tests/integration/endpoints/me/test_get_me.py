@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from httpx import AsyncClient
 import pytest
@@ -43,7 +43,8 @@ class TestGetMe:
         assert "updated" not in data
 
     async def test_allows_expired_user(self, client: AsyncClient, db_session):
-        expired_user = UserSQLFactory(role=self.user.role, expires=datetime.now() - timedelta(days=1))
+        expires = datetime.now(tz=UTC) - timedelta(days=1)
+        expired_user = UserSQLFactory(role=self.user.role, expires=expires)
         key = await create_key(db_session, name="expired_user_key", user=expired_user, never_expires=True)
 
         response = await client.get(url=URL, headers={"Authorization": f"Bearer {key.token}"})
@@ -51,6 +52,7 @@ class TestGetMe:
         assert response.status_code == 200, response.text
         assert response.json()["id"] == expired_user.id
         assert response.json()["object"] == "userInfo"
+        assert response.json()["expires"] == int(expires.timestamp())
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",

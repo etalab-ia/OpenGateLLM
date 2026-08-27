@@ -1,13 +1,16 @@
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 from httpx import AsyncClient
 import pytest
 import pytest_asyncio
+from sqlalchemy import select
 
 from api.dependencies import create_user_use_case_factory
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.errors import UserAlreadyExistsError
+from api.sql.models import User as UserTable
 from api.tests.helpers import create_key
 from api.tests.integration.factories.sql import RoleSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
@@ -47,6 +50,25 @@ class TestCreateUser:
         assert data["email"] == "newuser@test.com"
         assert isinstance(data["id"], int)
         assert data["role_id"] == role.id
+        assert data["expires"] is None
+        assert isinstance(data["created"], int)
+        assert isinstance(data["updated"], int)
+
+    async def test_round_trips_expires_as_unix_timestamp(self, client: AsyncClient, db_session):
+        role = RoleSQLFactory()
+        await db_session.flush()
+        expires = int((datetime.now(tz=UTC) + timedelta(days=30)).timestamp())
+
+        response = await client.post(
+            url=URL,
+            headers={"Authorization": f"Bearer {self.token.token}"},
+            json=_valid_body(role_id=role.id, expires=expires),
+        )
+
+        assert response.status_code == 201, response.text
+        assert response.json()["expires"] == expires
+        stored = (await db_session.execute(select(UserTable.expires).where(UserTable.id == response.json()["id"]))).scalar_one()
+        assert stored == datetime.fromtimestamp(timestamp=expires, tz=UTC)
 
     @pytest.mark.parametrize(
         "body,expected_msg",

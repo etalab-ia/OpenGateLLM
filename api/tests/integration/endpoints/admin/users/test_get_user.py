@@ -34,6 +34,9 @@ class TestGetUser:
         assert data["id"] == target_user.id
         assert data["object"] == "user"
         assert data["email"] == target_user.email
+        assert data["created"] == int(target_user.created.timestamp())
+        assert data["updated"] == int(target_user.updated.timestamp())
+        assert data["expires"] is None
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
