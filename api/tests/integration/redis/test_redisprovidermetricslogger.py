@@ -14,7 +14,7 @@ def repository(redis_client):
 
 @pytest.mark.asyncio(loop_scope="session")
 class TestRedisProviderMetricsLogger:
-    @pytest.mark.parametrize("metric", [Metric.TTFT, Metric.LATENCY, Metric.NORMALIZED_LATENCY])
+    @pytest.mark.parametrize("metric", [Metric.TTFT, Metric.LATENCY])
     async def test_log_multiple_metric(self, repository: RedisProviderMetricsLogger, redis_client: AsyncRedis, metric: Metric):
         # Arrange
         provider_id = 42
@@ -30,7 +30,7 @@ class TestRedisProviderMetricsLogger:
         assert values[0][1] == 120
         assert values[1][1] == 240
 
-    @pytest.mark.parametrize("metric", [Metric.TTFT, Metric.LATENCY, Metric.NORMALIZED_LATENCY])
+    @pytest.mark.parametrize("metric", [Metric.TTFT, Metric.LATENCY])
     async def test_get_metric_history(self, repository, redis_client: AsyncRedis, metric: Metric):
         # Arrange
         provider_id = 43

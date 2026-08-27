@@ -1,5 +1,5 @@
 from http import HTTPMethod
-from unittest.mock import AsyncMock, MagicMock, call, create_autospec, patch
+from unittest.mock import AsyncMock, MagicMock, create_autospec, patch
 
 import pytest
 
@@ -437,12 +437,7 @@ class TestSendRequest:
         original_request = use_case.provider_adapter_builder.build.return_value.format_request.call_args.kwargs["original_request"]
         assert original_request.endpoint == ForwardingTestUseCase.ENDPOINT
         assert original_request.payload == payload
-        use_case.provider_metrics_logger.log_metric.assert_has_awaits(
-            [
-                call(provider_id=provider.id, metric=Metric.LATENCY, value=120),
-                call(provider_id=provider.id, metric=Metric.NORMALIZED_LATENCY, value=120),
-            ]
-        )
+        use_case.provider_metrics_logger.log_metric.assert_awaited_once_with(provider_id=provider.id, metric=Metric.LATENCY, value=120)
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
         model_tokenizer.compute_tokens.assert_called_once_with(texts=["world"])
         model_environmental_impacts_computer.compute.assert_called_once_with(

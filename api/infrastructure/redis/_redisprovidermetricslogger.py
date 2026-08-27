@@ -21,7 +21,7 @@ class RedisProviderMetricsLogger(ProviderMetricsLogger):
         try:
             timestamp = int(time.time() * 1000)
             # Maintain all metric series aligned per provider.
-            for series_metric in (Metric.TTFT, Metric.LATENCY, Metric.NORMALIZED_LATENCY):
+            for series_metric in (Metric.TTFT, Metric.LATENCY):
                 series_key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{series_metric.value}:{provider_id}"
                 await self._ensure_timeseries_exists(series_key)
                 await self.redis_client.ts().add(key=series_key, timestamp=timestamp, value=value)
