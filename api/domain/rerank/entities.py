@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from pydantic import Field
 
 from api.domain import BaseModel, ForwardablePayload
@@ -24,7 +26,7 @@ class Rerank(ModelJsonResponse):
     id: str
     model: str
     results: list[RerankResult]
-    usage: Usage = Field(default_factory=Usage)
+    usage: Annotated[Usage, Field(default_factory=Usage)]
 
     def get_completions(self) -> list[str]:
         return []
