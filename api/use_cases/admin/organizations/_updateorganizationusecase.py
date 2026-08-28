@@ -7,8 +7,10 @@ from api.domain.organization.errors import OrganizationAlreadyExistsError, Organ
 
 @dataclass
 class UpdateOrganizationCommand:
+    """Full replacement of the organization persisted fields."""
+
     organization_id: int
-    name: str | None = None
+    name: str
 
 
 @dataclass
@@ -28,9 +30,7 @@ class UpdateOrganizationUseCase:
         if isinstance(organization, OrganizationNotFoundError):
             return OrganizationNotFoundError(id=command.organization_id)
 
-        organization_to_persist = organization
-        if command.name is not None:
-            organization_to_persist = organization_to_persist.with_name(command.name)
+        organization_to_persist = organization.with_name(command.name)
 
         if organization_to_persist == organization:
             return UpdateOrganizationUseCaseSuccess(organization=organization)
