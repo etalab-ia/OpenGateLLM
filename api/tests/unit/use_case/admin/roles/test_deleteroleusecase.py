@@ -26,6 +26,7 @@ class TestDeleteRoleUseCase:
         role = RoleFactory(id=42, users=0)
 
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = role
+        role_repository.delete_role.return_value = role
         command = DeleteRoleCommand(role_id=42)
 
         # Act
@@ -66,3 +67,19 @@ class TestDeleteRoleUseCase:
         assert isinstance(result, RoleHasUsersError)
         assert result.id == 42
         role_repository.delete_role.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_should_return_role_has_users_error_when_user_is_added_during_delete_race(self, use_case, role_repository):
+        # Arrange
+        role = RoleFactory(id=42, users=0)
+        role_repository.get_role_with_permissions_and_limits_by_id.return_value = role
+        role_repository.delete_role.return_value = RoleHasUsersError(id=42)
+        command = DeleteRoleCommand(role_id=42)
+
+        # Act
+        result = await use_case.execute(command)
+
+        # Assert
+        assert isinstance(result, RoleHasUsersError)
+        assert result.id == 42
+        role_repository.delete_role.assert_awaited_once_with(role_id=42)

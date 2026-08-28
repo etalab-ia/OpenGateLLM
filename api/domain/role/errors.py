@@ -15,4 +15,3 @@ class RoleNotFoundError:
 @dataclass
 class RoleHasUsersError:
     id: int
-    number_of_users: int

@@ -44,9 +44,9 @@ class TestDeleteOrganization:
                 "Organization 999 not found.",
             ),
             (
-                OrganizationHasUsersError(id=999, number_of_users=3),
+                OrganizationHasUsersError(id=999),
                 409,
-                "Organization 999 has 3 users and cannot be removed.",
+                "Organization 999 still has users and cannot be removed.",
             ),
         ],
     )

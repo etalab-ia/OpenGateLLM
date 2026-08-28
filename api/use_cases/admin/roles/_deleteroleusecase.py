@@ -27,9 +27,15 @@ class DeleteRoleUseCase:
         match result:
             case Role() as role:
                 if role.users > 0:
-                    return RoleHasUsersError(id=command.role_id, number_of_users=role.users)
+                    return RoleHasUsersError(id=command.role_id)
             case RoleNotFoundError():
                 return RoleNotFoundError(id=command.role_id)
 
-        await self.role_repository.delete_role(role_id=command.role_id)
-        return DeleteRoleUseCaseSuccess(role=result)
+        delete_result = await self.role_repository.delete_role(role_id=command.role_id)
+        match delete_result:
+            case Role():
+                return DeleteRoleUseCaseSuccess(role=role)
+            case RoleHasUsersError() as error:
+                return error
+            case RoleNotFoundError() as error:
+                return error

@@ -258,18 +258,18 @@ class ProviderAlreadyExistsHTTPException(HTTPException):
 
 class RoleHasUsersHTTPException(HTTPException):
     status_code = 409
-    detail = "Role {role_id} has {number_of_users} users and cannot be removed."
+    detail = "Role {role_id} still has users and cannot be removed."
 
-    def __init__(self, role_id: int, number_of_users: int) -> None:
-        super().__init__(status_code=409, detail=f"Role {role_id} has {number_of_users} users and cannot be removed.")
+    def __init__(self, role_id: int) -> None:
+        super().__init__(status_code=409, detail=f"Role {role_id} still has users and cannot be removed.")
 
 
 class OrganizationHasUsersHTTPException(HTTPException):
     status_code = 409
-    detail = "Organization {organization_id} has {number_of_users} users and cannot be removed."
+    detail = "Organization {organization_id} still has users and cannot be removed."
 
-    def __init__(self, organization_id: int, number_of_users: int) -> None:
-        super().__init__(status_code=409, detail=f"Organization {organization_id} has {number_of_users} users and cannot be removed.")
+    def __init__(self, organization_id: int) -> None:
+        super().__init__(status_code=409, detail=f"Organization {organization_id} still has users and cannot be removed.")
 
 
 class DeleteUserWithRoutersHTTPException(HTTPException):

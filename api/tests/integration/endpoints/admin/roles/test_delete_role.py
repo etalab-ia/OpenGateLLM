@@ -43,9 +43,9 @@ class TestDeleteRole:
                 "Role 999 not found.",
             ),
             (
-                RoleHasUsersError(id=999, number_of_users=3),
+                RoleHasUsersError(id=999),
                 409,
-                "Role 999 has 3 users and cannot be removed.",
+                "Role 999 still has users and cannot be removed.",
             ),
         ],
     )
