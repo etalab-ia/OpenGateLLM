@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -216,7 +218,7 @@ class TestDeleteOrganization:
 class TestUpdateOrganization:
     async def test_update_organization_should_return_renamed_organization(self, repository, db_session):
         # Arrange
-        organization = OrganizationSQLFactory(name="Org To Rename")
+        organization = OrganizationSQLFactory(name="Org To Rename", updated=datetime(2020, 1, 1, tzinfo=UTC))
         UserSQLFactory(organization=organization)
         await db_session.flush()
         loaded = await repository.get_organization_by_id(organization_id=organization.id)
@@ -229,6 +231,7 @@ class TestUpdateOrganization:
         assert result.id == organization.id
         assert result.name == "Renamed Org"
         assert result.users == 1
+        assert result.updated > loaded.updated
 
         stored = await db_session.scalar(select(OrganizationTable).where(OrganizationTable.id == organization.id))
         assert stored.name == "Renamed Org"
