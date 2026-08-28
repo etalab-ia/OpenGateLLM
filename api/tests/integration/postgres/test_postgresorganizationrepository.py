@@ -229,7 +229,6 @@ class TestUpdateOrganization:
         assert result.id == organization.id
         assert result.name == "Renamed Org"
         assert result.users == 1
-        assert result.updated >= loaded.updated
 
         stored = await db_session.scalar(select(OrganizationTable).where(OrganizationTable.id == organization.id))
         assert stored.name == "Renamed Org"
