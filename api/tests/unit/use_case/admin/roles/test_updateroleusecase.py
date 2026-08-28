@@ -37,10 +37,23 @@ def sample_role():
     return RoleFactory(id=1, name="original-role", permissions=[PermissionType.READ_METRIC], limits=[])
 
 
+def full_command(role, **overrides) -> UpdateRoleCommand:
+    """Command replacing every persisted field with the current role values, unless overridden."""
+    command = UpdateRoleCommand(
+        role_id=role.id,
+        name=role.name,
+        permissions=role.permissions,
+        limits=role.limits,
+    )
+    for field, value in overrides.items():
+        setattr(command, field, value)
+    return command
+
+
 @pytest.fixture
 def unchanged_command(sample_role):
     """Command replaying the current role state: a full payload that changes nothing."""
-    return UpdateRoleCommand(role_id=sample_role.id, name=sample_role.name, permissions=sample_role.permissions, limits=sample_role.limits)
+    return full_command(sample_role)
 
 
 class TestUpdateRoleUseCase:
@@ -79,7 +92,7 @@ class TestUpdateRoleUseCase:
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
-        command = UpdateRoleCommand(role_id=1, name="new-name", permissions=sample_role.permissions, limits=sample_role.limits)
+        command = full_command(sample_role, name="new-name")
 
         # Act
         result = await use_case.execute(command=command)
@@ -98,7 +111,7 @@ class TestUpdateRoleUseCase:
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
-        command = UpdateRoleCommand(role_id=1, name=sample_role.name, permissions=sample_role.permissions, limits=new_limits)
+        command = full_command(sample_role, limits=new_limits)
 
         # Act
         result = await use_case.execute(command=command)
@@ -117,7 +130,7 @@ class TestUpdateRoleUseCase:
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
-        command = UpdateRoleCommand(role_id=1, name=sample_role.name, permissions=new_permissions, limits=sample_role.limits)
+        command = full_command(sample_role, permissions=new_permissions)
 
         # Act
         result = await use_case.execute(command=command)
@@ -139,7 +152,7 @@ class TestUpdateRoleUseCase:
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
-        command = UpdateRoleCommand(role_id=1, name="updated", permissions=new_permissions, limits=new_limits)
+        command = full_command(sample_role, name="updated", permissions=new_permissions, limits=new_limits)
 
         # Act
         result = await use_case.execute(command=command)
@@ -158,11 +171,10 @@ class TestUpdateRoleUseCase:
         # Arrange
         role = RoleFactory(id=1, name="original-role", permissions=[PermissionType.ADMIN], limits=[LimitFactory(router_id=1, type=LimitType.TPM, value=1000)])  # fmt: off
         cleared_role = role.with_permissions([]).with_limits([])
+        command = full_command(role, permissions=[], limits=[])
 
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = role
         role_repository.update_role.return_value = cleared_role
-
-        command = UpdateRoleCommand(role_id=1, name=role.name, permissions=[], limits=[])
 
         # Act
         result = await use_case.execute(command=command)
@@ -182,7 +194,7 @@ class TestUpdateRoleUseCase:
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = RoleAlreadyExistsError(name="new-name")
 
-        command = UpdateRoleCommand(role_id=1, name="new-name", permissions=sample_role.permissions, limits=sample_role.limits)
+        command = full_command(sample_role, name="new-name")
 
         # Act
         result = await use_case.execute(command=command)
