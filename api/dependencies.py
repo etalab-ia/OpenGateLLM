@@ -49,6 +49,7 @@ from api.use_cases.admin.organizations import (
     DeleteOrganizationUseCase,
     GetOneOrganizationUseCase,
     GetOrganizationsUseCase,
+    UpdateOrganizationUseCase,
 )
 from api.use_cases.admin.providers import (
     CreateProviderUseCase,
@@ -387,6 +388,10 @@ def get_organizations_use_case_factory(postgres_session: AsyncSession = Depends(
 
 def get_one_organization_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> GetOneOrganizationUseCase:
     return GetOneOrganizationUseCase(organization_repository=_organization_repository(session=postgres_session))
+
+
+def update_organization_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateOrganizationUseCase:
+    return UpdateOrganizationUseCase(organization_repository=_organization_repository(session=postgres_session))
 
 
 # user use cases
