@@ -482,6 +482,49 @@ class TestDeleteRouter:
 
 
 @pytest.mark.asyncio(loop_scope="session")
+class TestDeleteAllRouters:
+    async def test_delete_all_routers_should_return_the_deleted_routers(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        router_1 = RouterSQLFactory(user=user, name="router_1", alias=["alias1"], providers=1)
+        router_2 = RouterSQLFactory(user=user, name="router_2", alias=["alias2"], providers=2)
+        await db_session.flush()
+
+        # Act
+        result = await repository.delete_all_routers()
+
+        # Assert
+        assert len(result) == 2
+        result_by_name = {router.name: router for router in result}
+        assert result_by_name["router_1"].id == router_1.id
+        assert result_by_name["router_1"].aliases == ["alias1"]
+        assert result_by_name["router_1"].providers == 1
+        assert result_by_name["router_2"].id == router_2.id
+        assert result_by_name["router_2"].aliases == ["alias2"]
+        assert result_by_name["router_2"].providers == 2
+
+    async def test_delete_all_routers_should_delete_cascade_router_aliases_and_providers_from_database(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory()
+        router_1 = RouterSQLFactory(user=user, name="router_1", alias=["alias1"], providers=2)
+        router_2 = RouterSQLFactory(user=user, name="router_2", alias=["alias2"], providers=1)
+        await db_session.flush()
+        router_ids = [router_1.id, router_2.id]
+
+        # Act
+        await repository.delete_all_routers()
+
+        # Assert
+        await db_session.flush()
+        routers_after_delete = (await db_session.execute(select(RouterTable).where(RouterTable.id.in_(router_ids)))).scalars().all()
+        aliases = (await db_session.execute(select(RouterAliasTable).where(RouterAliasTable.router_id.in_(router_ids)))).scalars().all()
+        providers = (await db_session.execute(select(ProviderTable).where(ProviderTable.router_id.in_(router_ids)))).scalars().all()
+        assert routers_after_delete == []
+        assert aliases == []
+        assert providers == []
+
+
+@pytest.mark.asyncio(loop_scope="session")
 class TestUpdateRouter:
     async def test_update_router_should_return_router_with_updated_name(self, repository, db_session):
         # Arrange
