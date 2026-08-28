@@ -147,13 +147,11 @@ class PostgresProviderRepository(ProviderRepository):
 
     @with_lock(namespace="provider", key="provider_id")
     async def delete_provider(self, provider_id: int) -> Provider | ProviderNotFoundError:
-        select_query = select(ProviderTable).where(ProviderTable.id == provider_id)
-        result = await self.postgres_session.execute(select_query)
+        result = await self.postgres_session.execute(delete(ProviderTable).where(ProviderTable.id == provider_id).returning(ProviderTable))
         row = result.scalar_one_or_none()
         if row is None:
             return ProviderNotFoundError(id=provider_id)
-        delete_query = delete(ProviderTable).where(ProviderTable.id == provider_id)
-        await self.postgres_session.execute(delete_query)
+
         return self._row_to_provider(row)
 
     async def get_all_providers(self) -> list[Provider]:

@@ -184,10 +184,13 @@ class PostgresRouterRepository(RouterRepository):
 
     @with_lock(namespace="router", key="router_id")
     async def delete_router(self, router_id: int) -> Router | RouterNotFoundError:
+        # retrieve the router first to return aliases, permissions and limits
         router = await self.get_router_by_id(router_id)
         if isinstance(router, RouterNotFoundError):
             return RouterNotFoundError(id=router_id)
+
         await self.postgres_session.execute(delete(RouterTable).where(RouterTable.id == router_id))
+
         return router
 
     async def delete_all_routers(self) -> list[Router]:
