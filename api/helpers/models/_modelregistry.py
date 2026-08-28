@@ -209,8 +209,8 @@ class ModelRegistry:
             ProviderTable.model_active_params,
             ProviderTable.qos_metric,
             ProviderTable.qos_limit,
-            cast(func.extract("epoch", ProviderTable.created), Integer).label("created"),
-            cast(func.extract("epoch", ProviderTable.updated), Integer).label("updated"),
+            ProviderTable.created,
+            ProviderTable.updated,
         ).order_by(text(f"{order_by} {order_direction}"))  # nosemgrep
         if offset is not None:
             query = query.offset(offset=offset)

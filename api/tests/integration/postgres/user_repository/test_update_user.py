@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 from pydantic import SecretStr
 import pytest
@@ -70,7 +70,7 @@ class TestUpdateUser:
         user = UserSQLFactory(expires=None)
         await db_session.flush()
         existing_user = await _get_user_entity(repository, user.id)
-        expires = int((datetime.now() + timedelta(days=30)).timestamp())
+        expires = datetime.now(tz=UTC) + timedelta(days=30)
 
         # Act
         result = await repository.update_user(user=existing_user.model_copy(update={"expires": expires}))
@@ -78,6 +78,25 @@ class TestUpdateUser:
         # Assert
         assert isinstance(result, User)
         assert result.expires == expires
+
+    async def test_persists_the_same_instant_when_expires_is_not_in_utc(self, repository, db_session):
+        # Arrange
+        user = UserSQLFactory(expires=None)
+        await db_session.flush()
+        existing_user = await _get_user_entity(repository, user.id)
+        paris = timezone(timedelta(hours=2))
+        expires_paris = datetime(2027, 6, 15, 14, 30, tzinfo=paris)  # same instant as 12:30 UTC
+
+        # Act
+        result = await repository.update_user(user=existing_user.model_copy(update={"expires": expires_paris}))
+
+        # Assert
+        assert isinstance(result, User)
+        assert result.expires == expires_paris  # same instant
+        assert result.expires == datetime(2027, 6, 15, 12, 30, tzinfo=UTC)  # normalized to UTC
+        assert result.expires.utcoffset() == timedelta(0)
+        stored = (await db_session.execute(select(UserTable.expires).where(UserTable.id == user.id))).scalar_one()
+        assert stored == expires_paris
 
     async def test_returns_user_not_found_error_when_user_does_not_exist(self, repository, db_session):
         # Arrange

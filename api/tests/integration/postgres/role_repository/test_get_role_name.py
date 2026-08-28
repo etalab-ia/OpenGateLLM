@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 
 from api.domain.role.entities import LimitType, PermissionType, Role
@@ -82,7 +84,9 @@ class TestGetRoleByName:
         result = await repository.get_role_with_permissions_and_limits_by_name(role_name=role.name)
 
         # Assert
-        assert isinstance(result.created, int)
-        assert isinstance(result.updated, int)
-        assert result.created == int(role.created.timestamp())
-        assert result.updated == int(role.updated.timestamp())
+        assert isinstance(result.created, datetime)
+        assert isinstance(result.updated, datetime)
+        assert result.created.tzinfo is not None
+        assert result.updated.tzinfo is not None
+        assert result.created == role.created
+        assert result.updated == role.updated

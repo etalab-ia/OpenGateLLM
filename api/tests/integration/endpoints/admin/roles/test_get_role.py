@@ -36,6 +36,8 @@ class TestGetRole:
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["id"] == role.id
+        assert data["created"] == int(role.created.timestamp())
+        assert data["updated"] == int(role.updated.timestamp())
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

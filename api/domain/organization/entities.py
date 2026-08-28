@@ -1,8 +1,6 @@
-from dataclasses import dataclass
-from datetime import datetime
 from enum import StrEnum
 
-from api.domain import EntitiesPage
+from api.domain import BaseModel, EntitiesPage, UtcDatetime
 
 
 class OrganizationSortField(StrEnum):
@@ -12,13 +10,12 @@ class OrganizationSortField(StrEnum):
     UPDATED = "updated"
 
 
-@dataclass
-class Organization:
+class Organization(BaseModel):
     id: int
     name: str
     users: int
-    created: datetime
-    updated: datetime
+    created: UtcDatetime
+    updated: UtcDatetime
 
 
 OrganizationPage = EntitiesPage["Organization"]

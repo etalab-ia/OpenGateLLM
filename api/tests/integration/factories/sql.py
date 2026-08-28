@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 import unicodedata
 
 import factory
@@ -27,8 +27,8 @@ class OrganizationSQLFactory(BaseSQLFactory):
         model = Organization
 
     name = factory.Sequence(lambda n: f"{fake.company()} {n}")
-    created = factory.LazyFunction(lambda: datetime.now())
-    updated = factory.LazyFunction(lambda: datetime.now())
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
+    updated = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
     class Params:
         administration = factory.Trait(name=factory.Sequence(lambda n: f"Administration {n}"))
@@ -40,8 +40,8 @@ class RoleSQLFactory(BaseSQLFactory):
         model = Role
 
     name = factory.Faker("bothify", text="role_????")
-    created = factory.LazyFunction(lambda: datetime.now())
-    updated = factory.LazyFunction(lambda: datetime.now())
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
+    updated = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
     @factory.post_generation
     def permissions(self, create, extracted, **kwargs):
@@ -76,7 +76,7 @@ class PermissionSQLFactory(BaseSQLFactory):
     role_id = None
     role = factory.SubFactory(RoleSQLFactory)
     permission = factory.Faker("random_element", elements=list(PermissionType))
-    created = factory.LazyFunction(lambda: datetime.now())
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
     class Params:
         admin = factory.Trait(permission=PermissionType.ADMIN, role=factory.SubFactory(RoleSQLFactory, admin=True))
@@ -101,8 +101,8 @@ class UserSQLFactory(BaseSQLFactory):
     password = "$2b$12$I7iMWv/FqLtb7Az6iX9uTuPkvGWU1xh.Gtwb3qb0.fm8kCYJkLRwq"
     priority = 0
     expires = None
-    created = factory.LazyFunction(lambda: datetime.now())
-    updated = factory.LazyFunction(lambda: datetime.now())
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
+    updated = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
     @factory.lazy_attribute
     def email(self):
@@ -127,14 +127,14 @@ class KeySQLFactory(BaseSQLFactory):
     user = factory.SubFactory(UserSQLFactory)
     token = "tmp"
     name = factory.Sequence(lambda n: f"key_{n}")
-    expires = factory.LazyFunction(lambda: datetime.now() + timedelta(days=30))
-    created = factory.LazyFunction(lambda: datetime.now())
+    expires = factory.LazyFunction(lambda: datetime.now(tz=UTC) + timedelta(days=30))
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
     class Params:
-        expired = factory.Trait(expires=factory.LazyFunction(lambda: datetime.now() - timedelta(days=1)))
+        expired = factory.Trait(expires=factory.LazyFunction(lambda: datetime.now(tz=UTC) - timedelta(days=1)))
         never_expires = factory.Trait(expires=None)
-        short_lived = factory.Trait(expires=factory.LazyFunction(lambda: datetime.now() + timedelta(hours=1)))
-        long_lived = factory.Trait(expires=factory.LazyFunction(lambda: datetime.now() + timedelta(days=365)))
+        short_lived = factory.Trait(expires=factory.LazyFunction(lambda: datetime.now(tz=UTC) + timedelta(hours=1)))
+        long_lived = factory.Trait(expires=factory.LazyFunction(lambda: datetime.now(tz=UTC) + timedelta(days=365)))
 
 
 class RouterSQLFactory(BaseSQLFactory):
@@ -150,8 +150,8 @@ class RouterSQLFactory(BaseSQLFactory):
     load_balancing_strategy = factory.Faker("random_element", elements=list(RouterLoadBalancingStrategy))
     cost_prompt_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     cost_completion_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
-    created = factory.LazyFunction(lambda: datetime.now())
-    updated = factory.LazyFunction(lambda: datetime.now())
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
+    updated = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
     @factory.post_generation
     def alias(self, create, extracted, **kwargs):
@@ -207,8 +207,8 @@ class ProviderSQLFactory(BaseSQLFactory):
     qos_limit = factory.Faker("pyfloat", left_digits=2, right_digits=2, min_value=0.5, max_value=0.99)
     max_context_length = factory.Faker("random_element", elements=[2048, 4096, 8192, 16384, 32768, 128000])
     vector_size = factory.Faker("random_element", elements=[384, 768, 1024, 1536, 3072])
-    created = factory.LazyFunction(lambda: datetime.now())
-    updated = factory.LazyFunction(lambda: datetime.now())
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
+    updated = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
 
 class LimitSQLFactory(BaseSQLFactory):
@@ -219,7 +219,7 @@ class LimitSQLFactory(BaseSQLFactory):
     id = None
     type = fuzzy.FuzzyChoice([LimitType.TPM, LimitType.TPD, LimitType.RPM, LimitType.RPD])
     value = fuzzy.FuzzyInteger(100, 10000)
-    created = factory.LazyFunction(datetime.now)
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
     role = factory.SubFactory(RoleSQLFactory)
     router = factory.SubFactory(RouterSQLFactory)
@@ -249,7 +249,7 @@ class UsageSQLFactory(BaseSQLFactory):
     cost = 0.1
     kwh = 0.01
     kgco2eq = 0.02
-    created = factory.LazyFunction(datetime.now)
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
     class Params:
         failed = factory.Trait(status=500)

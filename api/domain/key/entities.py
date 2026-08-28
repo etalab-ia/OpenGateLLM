@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from api.domain import BaseModel, EntitiesPage
+from api.domain import BaseModel, EntitiesPage, UtcDatetime
 
 
 class Key(BaseModel):
@@ -8,8 +8,8 @@ class Key(BaseModel):
     name: str
     user_id: int
     value: str
-    expires: datetime | None
-    created: datetime
+    expires: UtcDatetime | None
+    created: UtcDatetime
 
     @classmethod
     def build_from_claims(cls, claims: dict):

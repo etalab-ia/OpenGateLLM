@@ -58,7 +58,7 @@ class Chunk(BaseModel):
     document_id: Annotated[int, Field(ge=0, default=..., description="The ID of the document the chunk belongs to.")]
     content: Annotated[str, Field(min_length=1, default=..., description="The content of the chunk.")]
     metadata: Annotated[ChunkMetadata | None, Field(default=None, description="Metadata of the chunk")]
-    created: Annotated[datetime, Field(default=datetime.now(), description="The date of the chunk creation.")]
+    created: Annotated[datetime, Field(default_factory=lambda: datetime.now(tz=UTC), description="The date of the chunk creation.")]
 
     @field_validator("metadata", mode="before")
     @classmethod

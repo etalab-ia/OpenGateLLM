@@ -1,11 +1,10 @@
-import datetime as dt
-
 import httpx
 import reflex as rx
 
 from app.features.users.models import User
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
+from app.shared.utils.timestamps import date_to_timestamp, format_date, format_datetime
 
 
 class UsersState(EntityState):
@@ -44,9 +43,9 @@ class UsersState(EntityState):
             organization=organization_name,
             budget=user["budget"],
             priority=user["priority"],
-            expires=dt.datetime.fromtimestamp(user["expires"]).strftime("%Y-%m-%d") if user["expires"] else None,
-            created=dt.datetime.fromtimestamp(user["created"]).strftime("%Y-%m-%d %H:%M"),
-            updated=dt.datetime.fromtimestamp(user["updated"]).strftime("%Y-%m-%d %H:%M"),
+            expires=format_date(user["expires"]) if user["expires"] else None,
+            created=format_datetime(user["created"]),
+            updated=format_datetime(user["updated"]),
         )
 
     ############################################################
@@ -254,8 +253,7 @@ class UsersState(EntityState):
         }
 
         if self.entity_to_create.expires:
-            expires = dt.datetime.strptime(self.entity_to_create.expires, "%Y-%m-%d").timestamp()
-            payload["expires"] = expires
+            payload["expires"] = date_to_timestamp(self.entity_to_create.expires)
 
         if self.entity_to_create.budget:
             payload["budget"] = self.entity_to_create.budget
@@ -326,7 +324,7 @@ class UsersState(EntityState):
             "email": self.entity.email,
             "name": self.entity.name,
             "role_id": role_id,
-            "expires": self.entity.expires,
+            "expires": date_to_timestamp(self.entity.expires) if self.entity.expires else None,
             "priority": self.entity.priority,
         }
         if self.entity.budget == "":

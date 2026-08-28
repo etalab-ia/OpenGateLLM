@@ -3,7 +3,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from api.domain import EntitiesPage
+from api.domain import EntitiesPage, UtcDatetime
 from api.domain.model.entities import ModelType as RouterType
 from api.schemas.admin.roles import LimitType
 
@@ -26,8 +26,8 @@ class Router(BaseModel):
     cost_prompt_tokens: float
     cost_completion_tokens: float
     providers: int
-    created: int
-    updated: int
+    created: UtcDatetime
+    updated: UtcDatetime
 
     def with_name(self, name: str) -> "Router":
         return self.model_copy(update={"name": name})

@@ -18,14 +18,19 @@ Each ADR follows this structure:
 
 ## Index
 
-| ADR | Title | Status | Date |
-|-----|-------|--------|------|
-| [001](001-clean-architecture-migration.md) | Migration to Clean Architecture | In Progress | 2025-01-07 |
+| ADR                                                      | Title                                               | Status      | Date       |
+|----------------------------------------------------------|-----------------------------------------------------|-------------|------------|
+| [2026-01-07](2026-01-07-clean-architecture-migration.md) | Migration to Clean Architecture                     | In Progress | 2026-01-07 |
+| [2026-01-30](2026-01-30-es-scaling.md)                   | Elasticsearch Scaling                               | Accepted    | 2026-01-30 |
+| [2026-03-17](2026-03-17-integration-test-isolation.md)   | Integration Test Isolation via Transaction Rollback | Accepted    | 2026-03-17 |
+| [2026-05-28](2026-05-28-refactoring-model-forwarding.md) | Refactoring model forwarding                        | —           | 2026-05-28 |
+| [2026-07-01](2026-07-01-split-rag.md)                    | Extract RAG into OpenGateRAG (OGR)                  | Accepted    | 2026-07-01 |
+| [2026-08-27](2026-08-27-datetime-handling.md)            | Datetime handling across API, domain and playground | Accepted    | 2026-08-27 |
 
 ## Creating a new ADR
 
 1. Copy the template from the most recent ADR
-2. Number it sequentially (e.g., `002-your-decision-title.md`)
+2. Name it `YYYY-MM-DD-your-decision-title.md`, using the date the decision was made
 3. Fill in the sections with your architectural decision
 4. Update this README's index table
 5. Submit for review via pull request

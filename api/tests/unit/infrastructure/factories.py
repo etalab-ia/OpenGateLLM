@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from http import HTTPMethod
 import random
 from urllib.parse import urljoin
@@ -129,7 +130,7 @@ class ProviderModelResponseFactory(factory.Factory):
 
     id = factory.Faker("bothify", text="model-????-####")
     object = "model"
-    created = factory.LazyFunction(lambda: int(fake.unix_time()))
+    created = factory.LazyFunction(lambda: datetime.fromtimestamp(timestamp=fake.unix_time(), tz=UTC))
     owned_by = factory.Faker("company")
     max_context_length = factory.Faker("random_int", min=64000, max=245600)
     aliases = factory.LazyFunction(lambda: [fake.bothify(text="model-????-latest")])

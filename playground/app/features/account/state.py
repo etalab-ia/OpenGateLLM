@@ -5,6 +5,7 @@ import reflex as rx
 
 from app.features.auth.state import AuthState
 from app.shared.components.toasts import httpx_error_toast
+from app.shared.utils.timestamps import format_datetime
 
 
 class AccountState(AuthState):
@@ -26,6 +27,11 @@ class AccountState(AuthState):
         if self.user_budget is None:
             return "Unlimited"
         return str(self.user_budget)
+
+    @rx.var
+    def user_expires_formatted(self) -> str:
+        """Format the account expiration date in the local timezone, showing 'Never' if None."""
+        return format_datetime(self.user_expires, default="Never")
 
     @rx.event
     async def change_password(self):

@@ -1,11 +1,10 @@
-import datetime as dt
-
 import httpx
 import reflex as rx
 
 from app.features.routers.models import Router
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
+from app.shared.utils.timestamps import format_datetime
 
 
 class RoutersState(EntityState):
@@ -53,8 +52,8 @@ class RoutersState(EntityState):
             cost_prompt_tokens=router["cost_prompt_tokens"],
             cost_completion_tokens=router["cost_completion_tokens"],
             providers=router["providers"],
-            created=dt.datetime.fromtimestamp(router["created"]).strftime("%Y-%m-%d %H:%M"),
-            updated=dt.datetime.fromtimestamp(router["updated"]).strftime("%Y-%m-%d %H:%M"),
+            created=format_datetime(router["created"]),
+            updated=format_datetime(router["updated"]),
         )
 
     @rx.var

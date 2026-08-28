@@ -559,7 +559,7 @@ class IdentityAccessManager:
         if self.playground_session_duration is None:
             expires = None
         else:
-            expires = int((datetime.now() + timedelta(seconds=self.playground_session_duration)).timestamp())
+            expires = int((datetime.now(tz=dt.UTC) + timedelta(seconds=self.playground_session_duration)).timestamp())
 
         # Create a new token
         token_id, token = await self.create_token(postgres_session, user_id, name, expires=expires)

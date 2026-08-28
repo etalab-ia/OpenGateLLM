@@ -1,6 +1,6 @@
 import asyncio
 from collections.abc import AsyncGenerator, Callable, Coroutine
-from datetime import datetime
+from datetime import UTC, datetime
 import functools
 import logging
 from typing import Any
@@ -35,7 +35,7 @@ def hooks(*, postgres_session_provider: PostgresSessionProvider):
     def decorator(endpoint_func):
         @functools.wraps(endpoint_func)
         async def wrapper(*args, **kwargs):
-            usage = Usage(created=datetime.now(), endpoint="N/A")
+            usage = Usage(created=datetime.now(tz=UTC), endpoint="N/A")
             context = request_context.get()
             if context.key is None:
                 logger.info(f"No key found in request context, skipping usage logging ({context.endpoint}).")

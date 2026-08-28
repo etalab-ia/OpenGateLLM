@@ -86,6 +86,21 @@ The domain and API term for an API credential is **key** (`Key`, `CreateKeyRespo
 
 ---
 
+## Domain
+
+| Kind | Location | Form |
+|------|----------|------|
+| Entity | `domain/<context>/entities.py` | Pydantic `BaseModel` (from `api.domain`) |
+| Error | `domain/<context>/errors.py` | `@dataclass` |
+| Repository port | `domain/<context>/_<entity>repository.py` | `ABC` |
+| `Command` / `UseCaseSuccess` | `use_cases/<area>/` | `@dataclass` |
+
+**Entities are Pydantic models, never `@dataclass`.** A `@dataclass` validates nothing at construction, so it silently accepts a wrong type and skips the `UtcDatetime` normalization — an entity built with a naive `datetime` would then serialize to a shifted Unix timestamp. `BaseModel` also gives `model_copy(update=...)`, which the `with_*` helpers (`Router.with_name`, `Provider.with_timeout`, `Role.with_limits`) rely on.
+
+`@dataclass` is for the plain carriers that never hold invariants: domain errors, and the `Command` / `UseCaseSuccess` pairs of the use-case layer.
+
+---
+
 ## Schemas
 
 Location: `api/infrastructure/fastapi/schemas/`.
@@ -152,8 +167,12 @@ CreateKeyCommand(user_id=body.user, ...)
 ### Timestamps
 
 - API: Unix seconds as `int` (`created`, `updated`, `expires`)
-- Domain: `datetime`
-- Convert in `@field_validator` (request) or `@model_validator(mode="before")` (response)
+- Domain and Postgres: timezone-aware UTC `datetime` — annotate entity fields with `UtcDatetime` from `api/domain/__init__.py`, and always build "now" with `datetime.now(tz=UTC)`
+- Repositories select and write the `timestamptz` columns directly — no `extract(epoch)` / `to_timestamp()`
+- Convert at the boundary only: `@field_validator` / `AfterValidator` (request) or `@model_validator(mode="before")` (response) — see `CreateKeyBody` / `KeyResponse`
+- Playground displays local time through `app/shared/utils/timestamps.py`
+
+Full rationale: `adr/2026-08-27-datetime-handling.md`.
 
 ### Aliases
 

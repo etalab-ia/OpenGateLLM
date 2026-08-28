@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Integer, cast, delete, func, insert, select, update
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,11 +22,6 @@ from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Permission as PermissionTable
 from api.sql.models import User as UserTable
 
-
-def _unix_timestamp(column):
-    return cast(func.extract("epoch", column), Integer)
-
-
 _USER_COLUMNS = (
     UserTable.id,
     UserTable.email,
@@ -37,9 +33,9 @@ _USER_COLUMNS = (
     UserTable.role_id,
     UserTable.organization_id,
     UserTable.budget,
-    _unix_timestamp(UserTable.expires).label("expires"),
-    _unix_timestamp(UserTable.created).label("created"),
-    _unix_timestamp(UserTable.updated).label("updated"),
+    UserTable.expires,
+    UserTable.created,
+    UserTable.updated,
     UserTable.priority,
 )
 
@@ -86,11 +82,9 @@ class PostgresUserRepository(UserRepository):
         claims: dict[str, Any] | None = None,
         organization_id: int | None = None,
         budget: float | None = None,
-        expires: int | None = None,
+        expires: datetime | None = None,
         priority: int = 0,
     ) -> User | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError:
-        expires_value = func.to_timestamp(expires) if expires is not None else None
-
         try:
             result = await self.postgres_session.execute(
                 insert(UserTable)
@@ -104,7 +98,7 @@ class PostgresUserRepository(UserRepository):
                     role_id=role_id,
                     organization_id=organization_id,
                     budget=budget,
-                    expires=expires_value,
+                    expires=expires,
                     priority=priority,
                 )
                 .returning(*_USER_COLUMNS)
@@ -185,8 +179,6 @@ class PostgresUserRepository(UserRepository):
 
     @with_lock(namespace="user", key="user.id")
     async def update_user(self, user: User) -> User | UserNotFoundError | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError:
-        expires_value = func.to_timestamp(user.expires) if user.expires is not None else None
-
         statement = (
             update(table=UserTable)
             .values(
@@ -199,7 +191,7 @@ class PostgresUserRepository(UserRepository):
                 role_id=user.role_id,
                 organization_id=user.organization_id,
                 budget=user.budget,
-                expires=expires_value,
+                expires=user.expires,
                 priority=user.priority,
             )
             .returning(*_USER_COLUMNS)

@@ -1,9 +1,10 @@
 from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from api.domain import BaseModel
 from api.domain.model.entities import ModelType
+from api.domain.model.views import ModelView
 
 
 class ModelCosts(BaseModel):
@@ -20,6 +21,22 @@ class Model(BaseModel):
     owned_by: Annotated[str, Field(..., description="The organization that owns the model.")]
     max_context_length: Annotated[int | None, Field(default=None, description="Maximum amount of tokens a context could contains. Makes sure it is the same for all models.")]  # fmt: off
     costs: Annotated[ModelCosts, Field(default_factory=ModelCosts, description="Costs of the model.")]
+
+    @model_validator(mode="before")
+    @classmethod
+    def from_model(cls, data):
+        if isinstance(data, ModelView):
+            return {
+                "object": "model",
+                "id": data.id,
+                "type": data.type,
+                "aliases": data.aliases,
+                "created": int(data.created.timestamp()),
+                "owned_by": data.owned_by,
+                "max_context_length": data.max_context_length,
+                "costs": {"prompt_tokens": data.costs.prompt_tokens, "completion_tokens": data.costs.completion_tokens},
+            }
+        return data
 
 
 class ModelsResponse(BaseModel):

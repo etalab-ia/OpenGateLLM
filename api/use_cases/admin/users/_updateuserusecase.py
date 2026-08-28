@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 from pydantic import SecretStr
 
@@ -19,7 +20,7 @@ class UpdateUserCommand:
     role_id: int | None = None
     organization_id: int | None = None
     budget: float | None = None
-    expires: int | None = None
+    expires: datetime | None = None
     priority: int | None = None
 
 

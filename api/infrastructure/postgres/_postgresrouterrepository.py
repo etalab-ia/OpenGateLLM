@@ -14,10 +14,6 @@ from api.sql.models import Router as RouterTable
 from api.sql.models import RouterAlias as RouterAliasTable
 
 
-def _unix_timestamp(column):
-    return cast(func.extract("epoch", column), Integer)
-
-
 class PostgresRouterRepository(RouterRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
@@ -54,8 +50,8 @@ class PostgresRouterRepository(RouterRepository):
             RouterTable.cost_completion_tokens,
             PostgresRouterRepository._select_providers_statement(),
             PostgresRouterRepository._select_aliases_statement(),
-            _unix_timestamp(RouterTable.created).label("created"),
-            _unix_timestamp(RouterTable.updated).label("updated"),
+            RouterTable.created,
+            RouterTable.updated,
         )
 
     @staticmethod
@@ -155,8 +151,8 @@ class PostgresRouterRepository(RouterRepository):
                     RouterTable.cost_prompt_tokens,
                     RouterTable.cost_completion_tokens,
                     cast(literal(0), Integer).label("providers"),
-                    _unix_timestamp(RouterTable.created).label("created"),
-                    _unix_timestamp(RouterTable.updated).label("updated"),
+                    RouterTable.created,
+                    RouterTable.updated,
                 )
             )
             result = await self.postgres_session.execute(insert_router_query)
@@ -220,8 +216,8 @@ class PostgresRouterRepository(RouterRepository):
                     RouterTable.load_balancing_strategy,
                     RouterTable.cost_prompt_tokens,
                     RouterTable.cost_completion_tokens,
-                    _unix_timestamp(RouterTable.created).label("created"),
-                    _unix_timestamp(RouterTable.updated).label("updated"),
+                    RouterTable.created,
+                    RouterTable.updated,
                 )
             )
             result = await self.postgres_session.execute(update_query)

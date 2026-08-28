@@ -42,6 +42,7 @@ class TestGetUsages:
         assert item["usage"]["prompt_tokens"] == own_usage.prompt_tokens
         assert item["usage"]["completion_tokens"] == own_usage.completion_tokens
         assert item["usage"]["total_tokens"] == own_usage.total_tokens
+        assert item["created"] == int(own_usage.created.timestamp())
 
     @pytest.mark.parametrize(
         "headers,expected_status,expected_detail",

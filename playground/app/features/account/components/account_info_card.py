@@ -49,6 +49,16 @@ def account_info_card() -> rx.Component:
                     spacing=SPACING_TINY,
                     width="100%",
                 ),
+                rx.vstack(
+                    rx.text("Expires", size=TEXT_SIZE_LABEL, weight="bold"),
+                    rx.input(
+                        value=AccountState.user_expires_formatted,
+                        read_only=True,
+                        width="100%",
+                    ),
+                    spacing=SPACING_TINY,
+                    width="100%",
+                ),
                 rx.hstack(
                     rx.spacer(),
                     rx.button(

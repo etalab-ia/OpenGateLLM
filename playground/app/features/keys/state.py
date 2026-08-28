@@ -7,6 +7,7 @@ from app.core.configuration import configuration
 from app.features.keys.models import Key
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
+from app.shared.utils.timestamps import date_to_timestamp, format_datetime, format_local_date, local_now
 
 
 class KeysState(EntityState):
@@ -24,8 +25,8 @@ class KeysState(EntityState):
             id=key["id"],
             name=key["name"],
             token=key["value"],
-            expires=dt.datetime.fromtimestamp(key["expires"]).strftime("%Y-%m-%d %H:%M") if key["expires"] else "never",
-            created=dt.datetime.fromtimestamp(key["created"]).strftime("%Y-%m-%d %H:%M"),
+            expires=format_datetime(key["expires"], default="never"),
+            created=format_datetime(key["created"]),
         )
 
     @rx.var
@@ -35,11 +36,11 @@ class KeysState(EntityState):
 
     def _default_expiry_date(self) -> str:
         """Default expiry date: today + 1 year, capped at the configured maximum if any."""
-        default = dt.datetime.now() + dt.timedelta(days=365)
+        default = local_now() + dt.timedelta(days=365)
         if configuration.settings.auth_key_max_expiration_days is not None:
-            max_date = dt.datetime.now() + dt.timedelta(days=configuration.settings.auth_key_max_expiration_days - 1)
+            max_date = local_now() + dt.timedelta(days=configuration.settings.auth_key_max_expiration_days - 1)
             default = min(default, max_date)
-        return default.strftime("%Y-%m-%d")
+        return format_local_date(default)
 
     @rx.event
     async def load_entities(self):
@@ -155,13 +156,13 @@ class KeysState(EntityState):
     @rx.var
     def min_expiry_date(self) -> str:
         """Get today's date as minimum for expiry date picker."""
-        return dt.datetime.now().strftime("%Y-%m-%d")
+        return format_local_date(local_now())
 
     @rx.var
     def max_expiry_date(self) -> str:
         """Get the maximum expiry date."""
         if configuration.settings.auth_key_max_expiration_days is not None:
-            return (dt.datetime.now() + dt.timedelta(days=configuration.settings.auth_key_max_expiration_days - 1)).strftime("%Y-%m-%d")
+            return format_local_date(local_now() + dt.timedelta(days=configuration.settings.auth_key_max_expiration_days - 1))
         return ""
 
     @rx.event
@@ -185,8 +186,7 @@ class KeysState(EntityState):
         payload = {"name": self.entity_to_create.name}
 
         if self.entity_to_create.expires:
-            expires = dt.datetime.strptime(self.entity_to_create.expires, "%Y-%m-%d").timestamp()
-            payload["expires"] = expires
+            payload["expires"] = date_to_timestamp(self.entity_to_create.expires)
 
         response = None
         try:

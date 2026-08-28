@@ -35,8 +35,8 @@ class RoleFactory(factory.Factory):
     name = factory.Faker("bothify", text="role_????")
     permissions = factory.LazyFunction(lambda: random.sample(list(PermissionType), k=random.randint(0, len(PermissionType))))
     limits = factory.LazyFunction(list)
-    created = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
-    updated = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
+    updated = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
     class Params:
         admin = factory.Trait(name="admin", permissions=[PermissionType.ADMIN])
@@ -50,8 +50,8 @@ class OrganizationFactory(factory.Factory):
     id = factory.Sequence(lambda n: n + 1)
     name = factory.Faker("bothify", text="organization_????")
     users = 0
-    created = factory.LazyFunction(lambda: datetime.now(UTC))
-    updated = factory.LazyFunction(lambda: datetime.now(UTC))
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
+    updated = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
 
 class RouterFactory(factory.Factory):
@@ -67,8 +67,8 @@ class RouterFactory(factory.Factory):
     cost_prompt_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     cost_completion_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     providers = 0
-    created = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
-    updated = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
+    updated = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
     class Params:
         free = factory.Trait(cost_prompt_tokens=0.0, cost_completion_tokens=0.0)
@@ -103,8 +103,8 @@ class ProviderFactory(factory.Factory):
     qos_limit = None
     max_context_length = None
     vector_size = None
-    created = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
-    updated = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
+    updated = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
 
 class ModelViewFactory(factory.Factory):
@@ -115,7 +115,7 @@ class ModelViewFactory(factory.Factory):
     id = factory.Faker("bothify", text="model-????")
     type = factory.Faker("random_element", elements=list(RouterType))
     aliases = factory.LazyFunction(list)
-    created = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
     owned_by = factory.Faker("bothify", text="organization_????")
     max_context_length = None
     costs = factory.LazyFunction(ModelCosts)
@@ -137,8 +137,8 @@ class UserFactory(factory.Factory):
     budget = factory.Faker("pyfloat", left_digits=5, right_digits=2, positive=True)
     expires = None
     priority = 0
-    created = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
-    updated = factory.LazyFunction(lambda: int(datetime.now(UTC).timestamp()))
+    created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
+    updated = factory.LazyFunction(lambda: datetime.now(tz=UTC))
 
 
 class AuthenticatedUserFactory(factory.Factory):
@@ -152,7 +152,7 @@ class AuthenticatedUserFactory(factory.Factory):
     budget = factory.Faker("pyfloat", left_digits=5, right_digits=2, positive=True)
     permissions = factory.LazyFunction(lambda: random.sample(list(PermissionType), k=random.randint(1, len(PermissionType))))
     limits = factory.LazyFunction(lambda: [LimitFactory() for _ in range(random.randint(1, 3))])
-    expires = factory.LazyFunction(lambda: int((datetime.now(UTC) + timedelta(days=365)).timestamp()))
+    expires = factory.LazyFunction(lambda: datetime.now(tz=UTC) + timedelta(days=365))
 
     class Params:
         unlimited_budget = factory.Trait(budget=None)
