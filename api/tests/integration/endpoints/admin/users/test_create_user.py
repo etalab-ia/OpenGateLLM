@@ -54,10 +54,17 @@ class TestCreateUser:
         assert isinstance(data["created"], int)
         assert isinstance(data["updated"], int)
 
-    async def test_round_trips_expires_as_unix_timestamp(self, client: AsyncClient, db_session):
+    @pytest.mark.parametrize(
+        "expires_delta",
+        [
+            pytest.param(timedelta(days=-1), id="past"),
+            pytest.param(timedelta(days=30), id="future"),
+        ],
+    )
+    async def test_round_trips_expires_as_unix_timestamp(self, client: AsyncClient, db_session, expires_delta):
         role = RoleSQLFactory()
         await db_session.flush()
-        expires = int((datetime.now(tz=UTC) + timedelta(days=30)).timestamp())
+        expires = int((datetime.now(tz=UTC) + expires_delta).timestamp())
 
         response = await client.post(
             url=URL,

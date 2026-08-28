@@ -74,6 +74,20 @@ class TestUpdateUser:
         assert data["budget"] is None
         assert data["expires"] is None
 
+    async def test_accepts_past_expiration_timestamp(self, client: AsyncClient, db_session):
+        user = UserSQLFactory()
+        await db_session.flush()
+        expires = int((dt.datetime.now(tz=dt.UTC) - dt.timedelta(minutes=5)).timestamp())
+
+        response = await client.patch(
+            url=f"{URL}/{user.id}",
+            headers={"Authorization": f"Bearer {self.key.token}"},
+            json=_valid_body(role_id=user.role_id, expires=expires),
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["expires"] == expires
+
     async def test_keeps_password_when_password_is_omitted(self, client: AsyncClient, db_session):
         user = UserSQLFactory()
         current_password = user.password

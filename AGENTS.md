@@ -183,7 +183,7 @@ Callers (playground `edit_entity`, e2e tests) must send the whole current form s
 - API: Unix seconds as `int` (`created`, `updated`, `expires`)
 - Domain and Postgres: timezone-aware UTC `datetime` — annotate entity fields with `UtcDatetime` from `api/domain/__init__.py`, and always build "now" with `datetime.now(tz=UTC)`
 - Repositories select and write the `timestamptz` columns directly — no `extract(epoch)` / `to_timestamp()`
-- Convert at the boundary only: `@field_validator` / `AfterValidator` (request) or `@model_validator(mode="before")` (response) — see `CreateKeyBody` / `KeyResponse`
+- Convert at the boundary only: `@field_validator` (request) or `@model_validator(mode="before")` (response). Request validators keep the field typed `int` (OpenAPI) and return a UTC `datetime` for the command. Keys also reject past timestamps (`CreateKeyBody`); user `expires` converts without that check so a past value expires the user — see `CreateUserBody` / `UserUpdateRequest` / `KeyResponse`. Command timestamp fields are typed `UtcDatetime` to match the entity; the dataclass does not convert.
 - Playground displays local time through `app/shared/utils/timestamps.py`
 
 Full rationale: `adr/2026-08-27-datetime-handling.md`.

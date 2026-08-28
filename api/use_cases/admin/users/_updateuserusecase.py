@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-from datetime import datetime
 
 from pydantic import SecretStr
 
+from api.domain import UtcDatetime
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserPasswordEncoder, UserRepository
@@ -18,7 +18,7 @@ class UpdateUserCommand:
     role_id: int
     organization_id: int | None
     budget: float | None
-    expires: datetime | None
+    expires: UtcDatetime | None
     priority: int
     current_password: str | None = None
     new_password: str | None = None

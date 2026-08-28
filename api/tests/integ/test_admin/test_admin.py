@@ -65,7 +65,7 @@ class TestAuth:
         user_data = response.json()
         assert user_data["expires"] is None, response.text
 
-        # Try to create user with expiration set to 5 minutes in the past (should fail)
+        # Create user with expiration set to 5 minutes in the past (expires immediately)
         past_expiration = int((datetime.now() - timedelta(minutes=5)).timestamp())
         response = client.post_with_permissions(
             url=f"/v1{EndpointRoute.ADMIN_USERS}",
@@ -77,7 +77,8 @@ class TestAuth:
                 "password": "test-password",
             },
         )
-        assert response.status_code == 422, response.text
+        assert response.status_code == 201, response.text
+        assert response.json()["expires"] == past_expiration
 
         # Create user with expiration set to 5 minutes in the future
         future_expiration = int((time.time()) + 5 * 60)
@@ -120,12 +121,15 @@ class TestAuth:
         user_data = response.json()
         assert user_data["expires"] == future_current, "User should have updated expiration time"
 
-        # Try to update expiration to past time (should fail)
+        # Update expiration to a past time (expires the user immediately)
         past_expiration = int((datetime.now() - timedelta(minutes=5)).timestamp())
         response = client.patch_with_permissions(
             url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}", json={**update_payload, "expires": past_expiration}
         )
-        assert response.status_code == 422, "Should reject update with past expiration time"
+        assert response.status_code == 200, response.text
+        response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}")
+        assert response.status_code == 200, response.text
+        assert response.json()["expires"] == past_expiration
 
         # Clear the expiration by sending null
         response = client.patch_with_permissions(

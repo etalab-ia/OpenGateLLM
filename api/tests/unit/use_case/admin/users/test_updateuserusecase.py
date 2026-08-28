@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock
 
 from pydantic import SecretStr
@@ -103,7 +104,7 @@ class TestUpdateUserUseCase:
                 role_id=3,
                 organization_id=8,
                 budget=42.0,
-                expires=1893456000,
+                expires=datetime(2030, 1, 1, tzinfo=UTC),
                 priority=5,
             )
         )
@@ -115,7 +116,7 @@ class TestUpdateUserUseCase:
         assert result.user.role_id == 3
         assert result.user.organization_id == 8
         assert result.user.budget == 42.0
-        assert result.user.expires == 1893456000
+        assert result.user.expires == datetime(2030, 1, 1, tzinfo=UTC)
         assert result.user.priority == 5
 
     @pytest.mark.asyncio

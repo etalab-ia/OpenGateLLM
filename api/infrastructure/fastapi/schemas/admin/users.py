@@ -1,6 +1,7 @@
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
-from pydantic import ConfigDict, Field, StringConstraints, model_validator
+from pydantic import ConfigDict, Field, StringConstraints, field_validator, model_validator
 
 from api.domain import BaseModel
 from api.domain.user.entities import User
@@ -16,6 +17,12 @@ class CreateUserBody(BaseModel):
     budget: float | None = Field(default=None, description="The budget.")
     expires: int | None = Field(default=None, description="The expiration timestamp.")
     priority: int = Field(default=0, ge=0, description="The user priority. Higher value means higher priority.")
+
+    @field_validator("expires", mode="after")
+    def convert_expires_to_datetime(cls, expires) -> None | datetime:
+        if expires is None:
+            return expires
+        return datetime.fromtimestamp(timestamp=expires, tz=UTC)
 
 
 class UserResponse(BaseModel):
@@ -75,3 +82,9 @@ class UserUpdateRequest(BaseModel):
     budget: float | None = Field(..., description="The new budget. If null, the user will have no budget.")  # fmt: off
     expires: int | None = Field(..., description="The new expiration timestamp. If null, the user will never expire.")  # fmt: off
     priority: int = Field(..., ge=0, description="The new user priority. Higher value means higher priority.")  # fmt: off
+
+    @field_validator("expires", mode="after")
+    def convert_expires_to_datetime(cls, expires) -> None | datetime:
+        if expires is None:
+            return expires
+        return datetime.fromtimestamp(timestamp=expires, tz=UTC)
