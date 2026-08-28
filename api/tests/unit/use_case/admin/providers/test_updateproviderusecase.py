@@ -32,27 +32,44 @@ def use_case(router_repository, provider_repository):
 
 
 @pytest.fixture
-def sample_router():
-    return RouterFactory(id=1, name="test-router", type=RouterType.TEXT_GENERATION, providers=0)
-
-
-@pytest.fixture
 def sample_provider():
     return ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.VLLM, timeout=30)
 
 
-@pytest.fixture
-def default_command():
-    return UpdateProviderCommand(
-        provider_id=10,
-        router_id=None,
-        timeout=None,
-        model_hosting_zone=None,
-        model_total_params=None,
-        model_active_params=None,
-        qos_metric=None,
-        qos_limit=None,
+def full_command(provider, **overrides) -> UpdateProviderCommand:
+    """Command replacing every persisted field with the current provider values, unless overridden."""
+    command = UpdateProviderCommand(
+        provider_id=provider.id,
+        router_id=provider.router_id,
+        timeout=provider.timeout,
+        model_hosting_zone=provider.model_hosting_zone,
+        model_total_params=provider.model_total_params,
+        model_active_params=provider.model_active_params,
+        qos_metric=provider.qos_metric,
+        qos_limit=provider.qos_limit,
     )
+    for field, value in overrides.items():
+        setattr(command, field, value)
+    return command
+
+
+def provider_after_command(provider, command: UpdateProviderCommand):
+    """Provider state the use case persists for a full-replacement command."""
+    return (
+        provider.with_router_id(command.router_id)
+        .with_timeout(command.timeout)
+        .with_model_hosting_zone(command.model_hosting_zone)
+        .with_model_total_params(command.model_total_params)
+        .with_model_active_params(command.model_active_params)
+        .with_qos_metric(command.qos_metric)
+        .with_qos_limit(command.qos_limit)
+    )
+
+
+@pytest.fixture
+def unchanged_command(sample_provider):
+    """Command replaying the current provider state: a full payload that changes nothing."""
+    return full_command(sample_provider)
 
 
 class TestUpdateProviderUseCase:
@@ -62,14 +79,13 @@ class TestUpdateProviderUseCase:
         use_case,
         provider_repository,
         router_repository,
-        default_command,
+        unchanged_command,
     ):
         # Arrange
-
         provider_repository.get_one_provider.return_value = ProviderNotFoundError(id=10)
 
         # Act
-        result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command=unchanged_command)
 
         # Assert
         assert isinstance(result, ProviderNotFoundError)
@@ -86,23 +102,11 @@ class TestUpdateProviderUseCase:
         sample_provider,
     ):
         # Arrange
-
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.return_value = RouterNotFoundError(id=99)
 
-        command = UpdateProviderCommand(
-            provider_id=10,
-            router_id=99,
-            timeout=None,
-            model_hosting_zone=None,
-            model_total_params=None,
-            model_active_params=None,
-            qos_metric=None,
-            qos_limit=None,
-        )
-
         # Act
-        result = await use_case.execute(command=command)
+        result = await use_case.execute(command=full_command(sample_provider, router_id=99))
 
         # Assert
         assert isinstance(result, RouterNotFoundError)
@@ -117,25 +121,13 @@ class TestUpdateProviderUseCase:
         router_repository,
     ):
         # Arrange
-
         provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.OPENAI, timeout=30)
         new_router = RouterFactory(id=2, type=RouterType.TEXT_CLASSIFICATION, providers=0)
         provider_repository.get_one_provider.return_value = provider
         router_repository.get_router_by_id.return_value = new_router
 
-        command = UpdateProviderCommand(
-            provider_id=10,
-            router_id=2,
-            timeout=None,
-            model_hosting_zone=None,
-            model_total_params=None,
-            model_active_params=None,
-            qos_metric=None,
-            qos_limit=None,
-        )
-
         # Act
-        result = await use_case.execute(command=command)
+        result = await use_case.execute(command=full_command(provider, router_id=2))
 
         # Assert
         assert isinstance(result, InvalidProviderTypeError)
@@ -155,19 +147,8 @@ class TestUpdateProviderUseCase:
         provider_repository.get_all_providers_of_router.return_value = [ProviderFactory(id=20, router_id=2, type=ProviderType.TEI, vector_size=384)]
         router_repository.get_router_by_id.return_value = new_router
 
-        command = UpdateProviderCommand(
-            provider_id=10,
-            router_id=2,
-            timeout=None,
-            model_hosting_zone=None,
-            model_total_params=None,
-            model_active_params=None,
-            qos_metric=None,
-            qos_limit=None,
-        )
-
         # Act
-        result = await use_case.execute(command=command)
+        result = await use_case.execute(command=full_command(provider, router_id=2))
 
         # Assert
         assert isinstance(result, InconsistentModelVectorSizeError)
@@ -190,19 +171,8 @@ class TestUpdateProviderUseCase:
         ]
         router_repository.get_router_by_id.return_value = new_router
 
-        command = UpdateProviderCommand(
-            provider_id=10,
-            router_id=2,
-            timeout=None,
-            model_hosting_zone=None,
-            model_total_params=None,
-            model_active_params=None,
-            qos_metric=None,
-            qos_limit=None,
-        )
-
         # Act
-        result = await use_case.execute(command=command)
+        result = await use_case.execute(command=full_command(provider, router_id=2))
 
         # Assert
         assert isinstance(result, InconsistentModelMaxContextLengthError)
@@ -213,15 +183,13 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_not_call_update_provider_when_no_fields_are_changed(
-        self, use_case, provider_repository, router_repository, sample_provider, sample_router, default_command
+        self, use_case, provider_repository, sample_provider, unchanged_command
     ):
         # Arrange
-
         provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.return_value = sample_router
 
         # Act
-        result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command=unchanged_command)
 
         # Assert
         assert isinstance(result, UpdateProviderUseCaseSuccess)
@@ -229,19 +197,12 @@ class TestUpdateProviderUseCase:
         provider_repository.update_provider.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_return_updated_provider_when_timeout_is_changed(
-        self, use_case, provider_repository, router_repository, sample_provider, sample_router
+    async def test_should_replace_every_persisted_field_with_the_command_values(
+        self, use_case, provider_repository, router_repository, sample_provider
     ):
         # Arrange
-        updated_provider = sample_provider.with_timeout(60)
-
-        provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.return_value = sample_router
-        provider_repository.update_provider.return_value = updated_provider
-
-        command = UpdateProviderCommand(
-            provider_id=10,
-            router_id=None,
+        command = full_command(
+            sample_provider,
             timeout=60,
             model_hosting_zone=None,
             model_total_params=None,
@@ -249,6 +210,10 @@ class TestUpdateProviderUseCase:
             qos_metric=None,
             qos_limit=None,
         )
+        updated_provider = provider_after_command(sample_provider, command)
+
+        provider_repository.get_one_provider.return_value = sample_provider
+        provider_repository.update_provider.return_value = updated_provider
 
         # Act
         result = await use_case.execute(command=command)
@@ -256,7 +221,8 @@ class TestUpdateProviderUseCase:
         # Assert
         assert isinstance(result, UpdateProviderUseCaseSuccess)
         assert result.provider == updated_provider
-        provider_repository.update_provider.assert_called_once_with(sample_provider.with_timeout(60))
+        provider_repository.update_provider.assert_called_once_with(updated_provider)
+        router_repository.get_router_by_id.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_router_is_changed_and_has_provider(
@@ -264,7 +230,8 @@ class TestUpdateProviderUseCase:
     ):
         # Arrange
         new_router = RouterFactory(id=2, type=RouterType.TEXT_GENERATION, providers=1)
-        updated_provider = sample_provider.with_router_id(new_router.id)
+        command = full_command(sample_provider, router_id=new_router.id)
+        updated_provider = provider_after_command(sample_provider, command)
 
         provider_repository.get_one_provider.return_value = sample_provider
         provider_repository.get_all_providers_of_router.return_value = [
@@ -279,24 +246,13 @@ class TestUpdateProviderUseCase:
         router_repository.get_router_by_id.return_value = new_router
         provider_repository.update_provider.return_value = updated_provider
 
-        command = UpdateProviderCommand(
-            provider_id=10,
-            router_id=2,
-            timeout=None,
-            model_hosting_zone=None,
-            model_total_params=None,
-            model_active_params=None,
-            qos_metric=None,
-            qos_limit=None,
-        )
-
         # Act
         result = await use_case.execute(command=command)
 
         # Assert
         assert isinstance(result, UpdateProviderUseCaseSuccess)
         assert result.provider == updated_provider
-        provider_repository.update_provider.assert_called_once_with(sample_provider.with_router_id(new_router.id))
+        provider_repository.update_provider.assert_called_once_with(updated_provider)
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_router_is_changed_and_has_no_provider(
@@ -304,22 +260,12 @@ class TestUpdateProviderUseCase:
     ):
         # Arrange
         new_router = RouterFactory(id=2, type=RouterType.TEXT_GENERATION, providers=0)
-        updated_provider = sample_provider.with_router_id(new_router.id)
+        command = full_command(sample_provider, router_id=new_router.id)
+        updated_provider = provider_after_command(sample_provider, command)
 
         provider_repository.get_one_provider.return_value = sample_provider
         router_repository.get_router_by_id.return_value = new_router
         provider_repository.update_provider.return_value = updated_provider
-
-        command = UpdateProviderCommand(
-            provider_id=10,
-            router_id=2,
-            timeout=None,
-            model_hosting_zone=None,
-            model_total_params=None,
-            model_active_params=None,
-            qos_metric=None,
-            qos_limit=None,
-        )
 
         # Act
         result = await use_case.execute(command=command)
@@ -327,33 +273,18 @@ class TestUpdateProviderUseCase:
         # Assert
         assert isinstance(result, UpdateProviderUseCaseSuccess)
         assert result.provider == updated_provider
-        provider_repository.update_provider.assert_called_once_with(sample_provider.with_router_id(new_router.id))
+        provider_repository.update_provider.assert_called_once_with(updated_provider)
 
     @pytest.mark.asyncio
-    async def test_should_propagate_provider_already_exists_error_from_repository(
-        self, use_case, provider_repository, router_repository, sample_provider, sample_router
-    ):
+    async def test_should_propagate_provider_already_exists_error_from_repository(self, use_case, provider_repository, sample_provider):
         # Arrange
-
         provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.return_value = sample_router
         provider_repository.update_provider.return_value = ProviderAlreadyExistsError(
             model_name=sample_provider.model_name, url=sample_provider.url, router_id=sample_provider.router_id
         )
 
-        command = UpdateProviderCommand(
-            provider_id=10,
-            router_id=None,
-            timeout=60,
-            model_hosting_zone=None,
-            model_total_params=None,
-            model_active_params=None,
-            qos_metric=None,
-            qos_limit=None,
-        )
-
         # Act
-        result = await use_case.execute(command=command)
+        result = await use_case.execute(command=full_command(sample_provider, timeout=60))
 
         # Assert
         assert isinstance(result, ProviderAlreadyExistsError)
@@ -363,26 +294,15 @@ class TestUpdateProviderUseCase:
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_model_hosting_zone_is_changed(
-        self, use_case, provider_repository, router_repository, sample_provider, sample_router
+        self, use_case, provider_repository, router_repository, sample_provider
     ):
         # Arrange
         new_zone = HostingZone.FRA
-        updated_provider = sample_provider.with_model_hosting_zone(new_zone)
+        command = full_command(sample_provider, model_hosting_zone=new_zone)
+        updated_provider = provider_after_command(sample_provider, command)
 
         provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.return_value = sample_router
         provider_repository.update_provider.return_value = updated_provider
-
-        command = UpdateProviderCommand(
-            provider_id=10,
-            router_id=None,
-            timeout=None,
-            model_hosting_zone=new_zone,
-            model_total_params=None,
-            model_active_params=None,
-            qos_metric=None,
-            qos_limit=None,
-        )
 
         # Act
         result = await use_case.execute(command=command)
@@ -390,119 +310,25 @@ class TestUpdateProviderUseCase:
         # Assert
         assert isinstance(result, UpdateProviderUseCaseSuccess)
         assert result.provider == updated_provider
-        provider_repository.update_provider.assert_called_once_with(sample_provider.with_model_hosting_zone(new_zone))
+        provider_repository.update_provider.assert_called_once_with(updated_provider)
+        router_repository.get_router_by_id.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_model_total_params_is_changed(
-        self, use_case, provider_repository, router_repository, sample_provider, sample_router
+        self, use_case, provider_repository, router_repository, sample_provider
     ):
         # Arrange
-        updated_provider = sample_provider.with_model_total_params(7)
-
-        provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.return_value = sample_router
-        provider_repository.update_provider.return_value = updated_provider
-
-        command = UpdateProviderCommand(
-            provider_id=10,
-            router_id=None,
-            timeout=None,
-            model_hosting_zone=None,
+        command = full_command(
+            sample_provider,
             model_total_params=7,
-            model_active_params=None,
-            qos_metric=None,
-            qos_limit=None,
-        )
-
-        # Act
-        result = await use_case.execute(command=command)
-
-        # Assert
-        assert isinstance(result, UpdateProviderUseCaseSuccess)
-        assert result.provider == updated_provider
-        provider_repository.update_provider.assert_called_once_with(sample_provider.with_model_total_params(7))
-
-    @pytest.mark.asyncio
-    async def test_should_return_updated_provider_when_model_active_params_is_changed(
-        self, use_case, provider_repository, router_repository, sample_provider, sample_router
-    ):
-        # Arrange
-        updated_provider = sample_provider.with_model_active_params(3)
-
-        provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.return_value = sample_router
-        provider_repository.update_provider.return_value = updated_provider
-
-        command = UpdateProviderCommand(
-            provider_id=10,
-            router_id=None,
-            timeout=None,
-            model_hosting_zone=None,
-            model_total_params=None,
             model_active_params=3,
-            qos_metric=None,
-            qos_limit=None,
-        )
-
-        # Act
-        result = await use_case.execute(command=command)
-
-        # Assert
-        assert isinstance(result, UpdateProviderUseCaseSuccess)
-        assert result.provider == updated_provider
-        provider_repository.update_provider.assert_called_once_with(sample_provider.with_model_active_params(3))
-
-    @pytest.mark.asyncio
-    async def test_should_return_updated_provider_when_qos_metric_is_changed(
-        self, use_case, provider_repository, router_repository, sample_provider, sample_router
-    ):
-        # Arrange
-        updated_provider = sample_provider.with_qos_metric(QoSMetric.TTFT)
-
-        provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.return_value = sample_router
-        provider_repository.update_provider.return_value = updated_provider
-
-        command = UpdateProviderCommand(
-            provider_id=10,
-            router_id=None,
-            timeout=None,
-            model_hosting_zone=None,
-            model_total_params=None,
-            model_active_params=None,
             qos_metric=QoSMetric.TTFT,
-            qos_limit=None,
-        )
-
-        # Act
-        result = await use_case.execute(command=command)
-
-        # Assert
-        assert isinstance(result, UpdateProviderUseCaseSuccess)
-        assert result.provider == updated_provider
-        provider_repository.update_provider.assert_called_once_with(sample_provider.with_qos_metric(QoSMetric.TTFT))
-
-    @pytest.mark.asyncio
-    async def test_should_return_updated_provider_when_qos_limit_is_changed(
-        self, use_case, provider_repository, router_repository, sample_provider, sample_router
-    ):
-        # Arrange
-        updated_provider = sample_provider.with_qos_limit(100.0)
-
-        provider_repository.get_one_provider.return_value = sample_provider
-        router_repository.get_router_by_id.return_value = sample_router
-        provider_repository.update_provider.return_value = updated_provider
-
-        command = UpdateProviderCommand(
-            provider_id=10,
-            router_id=None,
-            timeout=None,
-            model_hosting_zone=None,
-            model_total_params=None,
-            model_active_params=None,
-            qos_metric=None,
             qos_limit=100.0,
         )
+        updated_provider = provider_after_command(sample_provider, command)
+
+        provider_repository.get_one_provider.return_value = sample_provider
+        provider_repository.update_provider.return_value = updated_provider
 
         # Act
         result = await use_case.execute(command=command)
@@ -510,4 +336,43 @@ class TestUpdateProviderUseCase:
         # Assert
         assert isinstance(result, UpdateProviderUseCaseSuccess)
         assert result.provider == updated_provider
-        provider_repository.update_provider.assert_called_once_with(sample_provider.with_qos_limit(100.0))
+        provider_repository.update_provider.assert_called_once_with(updated_provider)
+        router_repository.get_router_by_id.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_should_clear_qos_policy_when_qos_fields_are_none(self, use_case, provider_repository, router_repository):
+        # Arrange
+        provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.VLLM, qos_metric=QoSMetric.TTFT, qos_limit=100.0)
+        command = full_command(provider, qos_metric=None, qos_limit=None)
+        cleared_provider = provider_after_command(provider, command)
+
+        provider_repository.get_one_provider.return_value = provider
+        provider_repository.update_provider.return_value = cleared_provider
+
+        # Act
+        result = await use_case.execute(command=command)
+
+        # Assert
+        assert isinstance(result, UpdateProviderUseCaseSuccess)
+        assert result.provider == cleared_provider
+        provider_repository.update_provider.assert_called_once_with(cleared_provider)
+
+    @pytest.mark.asyncio
+    async def test_should_return_updated_provider_when_router_is_changed(self, use_case, provider_repository, router_repository, sample_provider):
+        # Arrange
+        new_router = RouterFactory(id=2, type=RouterType.TEXT_GENERATION, providers=1)
+        command = full_command(sample_provider, router_id=new_router.id)
+        updated_provider = provider_after_command(sample_provider, command)
+
+        provider_repository.get_one_provider.return_value = sample_provider
+        router_repository.get_router_by_id.return_value = new_router
+        provider_repository.update_provider.return_value = updated_provider
+
+        # Act
+        result = await use_case.execute(command=command)
+
+        # Assert
+        assert isinstance(result, UpdateProviderUseCaseSuccess)
+        assert result.provider == updated_provider
+        provider_repository.update_provider.assert_called_once_with(updated_provider)
+        router_repository.get_router_by_id.assert_called_once_with(router_id=new_router.id)

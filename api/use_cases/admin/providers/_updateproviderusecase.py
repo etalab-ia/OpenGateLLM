@@ -2,21 +2,22 @@ from dataclasses import dataclass
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
 from api.domain.provider import ProviderRepository
-from api.domain.provider.entities import HostingZone, Metric, Provider
+from api.domain.provider.entities import HostingZone, Provider, QoSMetric
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router import RouterRepository
+from api.domain.router.entities import Router
 from api.domain.router.errors import RouterNotFoundError
 
 
 @dataclass
 class UpdateProviderCommand:
     provider_id: int
-    router_id: int | None
-    timeout: int | None
-    model_hosting_zone: HostingZone | None
-    model_total_params: int | None
-    model_active_params: int | None
-    qos_metric: Metric | None
+    router_id: int
+    timeout: int
+    model_hosting_zone: HostingZone
+    model_total_params: int
+    model_active_params: int
+    qos_metric: QoSMetric | None
     qos_limit: float | None
 
 
@@ -50,13 +51,15 @@ class UpdateProviderUseCase:
         if isinstance(existing_provider, ProviderNotFoundError):
             return existing_provider
 
-        provider_to_persist = existing_provider
-        if command.router_id is not None:
-            new_router = await self.router_repository.get_router_by_id(router_id=command.router_id)
-            if isinstance(new_router, RouterNotFoundError):
-                return new_router
-            if not existing_provider.is_compatible_with(new_router):
-                return InvalidProviderTypeError(provider_type=existing_provider.type.value, router_type=new_router.type.value)
+        if command.router_id != existing_provider.router_id:
+            result = await self.router_repository.get_router_by_id(router_id=command.router_id)
+
+            match result:
+                case Router() as new_router:
+                    if not existing_provider.is_compatible_with(new_router):
+                        return InvalidProviderTypeError(provider_type=existing_provider.type.value, router_type=new_router.type.value)
+                case RouterNotFoundError() as error:
+                    return error
 
             # all providers of a router must expose the same capabilities: compare with one of the providers already attached to the target router
             new_router_providers = await self.provider_repository.get_all_providers_of_router(router_id=new_router.id)
@@ -74,20 +77,16 @@ class UpdateProviderUseCase:
                         expected_max_context_length=reference_provider.max_context_length,
                         router_name=new_router.name,
                     )
-            provider_to_persist = existing_provider.with_router_id(new_router.id)
 
-        if command.timeout is not None:
-            provider_to_persist = provider_to_persist.with_timeout(command.timeout)
-        if command.model_hosting_zone is not None:
-            provider_to_persist = provider_to_persist.with_model_hosting_zone(command.model_hosting_zone)
-        if command.model_total_params is not None:
-            provider_to_persist = provider_to_persist.with_model_total_params(command.model_total_params)
-        if command.model_active_params is not None:
-            provider_to_persist = provider_to_persist.with_model_active_params(command.model_active_params)
-        if command.qos_metric is not None:
-            provider_to_persist = provider_to_persist.with_qos_metric(command.qos_metric)
-        if command.qos_limit is not None:
-            provider_to_persist = provider_to_persist.with_qos_limit(command.qos_limit)
+        provider_to_persist = (
+            existing_provider.with_router_id(command.router_id)
+            .with_timeout(command.timeout)
+            .with_model_hosting_zone(command.model_hosting_zone)
+            .with_model_total_params(command.model_total_params)
+            .with_model_active_params(command.model_active_params)
+            .with_qos_metric(command.qos_metric)
+            .with_qos_limit(command.qos_limit)
+        )
 
         if existing_provider == provider_to_persist:
             return UpdateProviderUseCaseSuccess(existing_provider)

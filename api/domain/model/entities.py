@@ -1,8 +1,6 @@
 from enum import StrEnum
 
-from pydantic import Field
-
-from api.domain import BaseModel, UtcDatetime
+from api.domain import BaseModel
 
 
 class ModelCosts(BaseModel):
@@ -28,10 +26,9 @@ class Model(BaseModel):
     id: str
     type: ModelType
     aliases: list[str] = []
-    created: UtcDatetime
+    created: int
     owned_by: str
     max_context_length: int | None = None
-    costs: ModelCosts = Field(default_factory=ModelCosts)
 
 
 class Models(ModelJsonResponse):

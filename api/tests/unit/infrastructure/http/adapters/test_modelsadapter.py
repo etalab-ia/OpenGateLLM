@@ -3,12 +3,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from api.domain.model.entities import ModelCosts, Models, ModelType
-from api.domain.provider.entities import (
-    ProviderFormattedResponse,
-    ProviderOriginalResponse,
-    ProviderType,
-)
+from api.domain.model.entities import Models, ModelType
+from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalResponse, ProviderType
 from api.infrastructure.http.adapters.models.albert import AlbertModelsAdapter
 from api.infrastructure.http.adapters.models.mistral import MistralModelsAdapter
 from api.infrastructure.http.adapters.models.openai import OpenaiModelsAdapter
@@ -248,7 +244,6 @@ class TestModelsAdapter:
         assert result.data.data[0].type is ModelType.TEXT_GENERATION
         assert result.data.data[0].max_context_length == response_data["data"][0]["max_context_length"]
         assert result.data.data[0].aliases == response_data["data"][0]["aliases"]
-        assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
 
     def test_format_response_correctly_when_provider_is_openai(self, openai_models_adapter: OpenaiModelsAdapter):
         # Arrange
@@ -268,7 +263,6 @@ class TestModelsAdapter:
         assert result.data.data[0].owned_by == response_data["data"][0]["owned_by"]
         assert result.data.data[0].max_context_length is None
         assert result.data.data[0].aliases == []
-        assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
 
     def test_format_response_correctly_when_provider_is_mistral(self, mistral_models_adapter: MistralModelsAdapter):
         # Arrange
@@ -288,7 +282,6 @@ class TestModelsAdapter:
         assert result.data.data[0].max_context_length == response_data["data"][0]["max_context_length"]
         assert result.data.data[0].owned_by == response_data["data"][0]["owned_by"]
         assert result.data.data[0].aliases == []
-        assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
 
     def test_format_response_correctly_when_provider_is_tei(self, tei_models_adapter: TeiModelsAdapter):
         # Arrange
@@ -308,7 +301,6 @@ class TestModelsAdapter:
         assert result.data.data[0].max_context_length == response_data["max_input_length"]
         assert result.data.data[0].owned_by == "tei"
         assert result.data.data[0].aliases == []
-        assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
 
     def test_format_response_correctly_when_provider_is_vllm(self, vllm_models_adapter: VllmModelsAdapter):
         # Arrange
@@ -328,7 +320,6 @@ class TestModelsAdapter:
         assert result.data.data[0].max_context_length == response_data["data"][0]["max_model_len"]
         assert result.data.data[0].owned_by == response_data["data"][0]["owned_by"]
         assert result.data.data[0].aliases == []
-        assert result.data.data[0].costs == ModelCosts(prompt_tokens=0, completion_tokens=0)
 
     @pytest.mark.parametrize(
         argnames=("adapter", "response_data"),

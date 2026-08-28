@@ -46,6 +46,17 @@ class RolesState(EntityState):
             updated=format_datetime(role["updated"]),
         )
 
+    def _format_permissions(self, role: Role) -> list[str]:
+        """Format permissions from Playground format to OpenGateLLM format."""
+        permissions = []
+        if role.permissions_admin:
+            permissions.append("admin")
+        if role.permissions_read_metric:
+            permissions.append("read_metric")
+        if role.permissions_provide_models:
+            permissions.append("provide_models")
+        return permissions
+
     def _format_limit(self, limit: dict[str, str | int]) -> list[dict[str, str | int]]:
         """Format limit from Playground format to OpenGateLLM format."""
         return [
@@ -185,18 +196,11 @@ class RolesState(EntityState):
             if limit["router"] == router:
                 continue
 
-            limits.extend(
-                [
-                    {"router_id": self.routers_dict[limit["router"]], "type": "rpm", "value": limit["rpm"]},
-                    {"router_id": self.routers_dict[limit["router"]], "type": "rpd", "value": limit["rpd"]},
-                    {"router_id": self.routers_dict[limit["router"]], "type": "tpm", "value": limit["tpm"]},
-                    {"router_id": self.routers_dict[limit["router"]], "type": "tpd", "value": limit["tpd"]},
-                ]
-            )
+            limits.extend(self._format_limit(limit))
 
         yield
 
-        payload = {"limits": limits}
+        payload = {"name": role.name, "permissions": self._format_permissions(role), "limits": limits}
         response = None
         try:
             async with httpx.AsyncClient() as client:
@@ -259,17 +263,9 @@ class RolesState(EntityState):
         self.create_entity_loading = True
         yield
 
-        permissions = []
-        if self.entity_to_create.permissions_admin:
-            permissions.append("admin")
-        if self.entity_to_create.permissions_read_metric:
-            permissions.append("read_metric")
-        if self.entity_to_create.permissions_provide_models:
-            permissions.append("provide_models")
-
         payload = {
             "name": self.entity_to_create.name,
-            "permissions": permissions,
+            "permissions": self._format_permissions(self.entity_to_create),
             "limits": self.entity_to_create.limits or [],
         }
 
@@ -312,7 +308,7 @@ class RolesState(EntityState):
                 continue
             limits.extend(self._format_limit(limit))
         limits.extend(self._format_limit(self.new_limit))
-        payload = {"limits": limits}
+        payload = {"name": role.name, "permissions": self._format_permissions(role), "limits": limits}
         response = None
         try:
             async with httpx.AsyncClient() as client:
@@ -385,19 +381,11 @@ class RolesState(EntityState):
         self.edit_entity_loading = True
         yield
 
-        permissions = []
-        if self.entity.permissions_admin:
-            permissions.append("admin")
-        if self.entity.permissions_read_metric:
-            permissions.append("read_metric")
-        if self.entity.permissions_provide_models:
-            permissions.append("provide_models")
-
         limits = []
         for limit in self.entity.limits or []:
             limits.extend(self._format_limit(limit))
 
-        payload = {"name": self.entity.name, "permissions": permissions, "limits": limits}
+        payload = {"name": self.entity.name, "permissions": self._format_permissions(self.entity), "limits": limits}
 
         response = None
         try:

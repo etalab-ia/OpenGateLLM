@@ -1,4 +1,3 @@
-from datetime import UTC, datetime
 from unittest.mock import create_autospec
 
 from openai.types import Embedding
@@ -40,7 +39,7 @@ def model_entity(model_id: str = DEFAULT_MODEL_ID, aliases: list[str] | None = N
     return Model(
         id=model_id,
         aliases=aliases or [],
-        created=datetime(1970, 1, 1, tzinfo=UTC),
+        created=0,
         owned_by="test",
         max_context_length=max_context_length,
         type=RouterType.TEXT_GENERATION,

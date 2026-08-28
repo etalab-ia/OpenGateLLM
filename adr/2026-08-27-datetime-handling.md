@@ -41,7 +41,7 @@ Domain timestamp fields use the `UtcDatetime` alias from `api/domain/__init__.py
 UtcDatetime = Annotated[datetime, AfterValidator(_to_utc)]
 ```
 
-It normalizes anything Pydantic accepts as a `datetime` to UTC and treats a naive value as already-UTC, so an entity can never hold an ambiguous timestamp — and `int(value.timestamp())` at the boundary is always correct. The same alias covers the provider-facing boundary: provider `/v1/models` payloads carry `created` as OpenAI-style Unix seconds, and the HTTP adapters hand that `int` straight to `Model`, where `UtcDatetime` turns it into an aware UTC datetime.
+It normalizes anything Pydantic accepts as a `datetime` to UTC and treats a naive value as already-UTC, so an entity can never hold an ambiguous timestamp — and `int(value.timestamp())` at the boundary is always correct. Provider `/v1/models` payloads carry `created` as OpenAI-style Unix seconds; that value stays an `int` on the `Model` entity (it is not a timestamp we persist).
 
 Repositories select and write the `timestamptz` columns **directly**. No `extract(epoch)` on read, no `to_timestamp()` on write:
 
@@ -54,19 +54,20 @@ Anything producing a "now" writes `datetime.now(tz=UTC)`, never a naive `datetim
 
 ### API boundary: `int`, converted in the schema
 
-**Request** — a `@field_validator` (or an `Annotated` `AfterValidator`) validates the timestamp and returns the `datetime` the command layer receives:
+**Request** — a `@field_validator` validates the timestamp and returns the `datetime` the command layer receives. The field stays annotated `int`, so the OpenAPI schema still documents an integer.
 
 ```python
-# api/infrastructure/fastapi/schemas/admin/users.py
-def _must_be_future_and_convert_to_datetime(expires: int) -> datetime:
+# api/infrastructure/fastapi/schemas/admin/keys.py — reject past + convert
+@field_validator("expires", mode="after")
+def must_be_future_and_convert_to_datetime(cls, expires) -> None | datetime:
+    if expires is None:
+        return expires
     if expires <= int(datetime.now(tz=UTC).timestamp()):
-        raise ValueError("Wrong timestamp, must be in the future.")
+        raise ValueError("Expiration time must be in the future.")
     return datetime.fromtimestamp(timestamp=expires, tz=UTC)
-
-FutureTimestamp = Annotated[int, AfterValidator(_must_be_future_and_convert_to_datetime)]
 ```
 
-The field stays annotated `int`, so the OpenAPI schema still documents an integer.
+User `expires` uses the same conversion without the future check, so a past timestamp expires the account immediately (and a full-replacement PATCH can resubmit an already-expired user).
 
 **Response** — a `@model_validator(mode="before")` maps the domain entity to the wire shape, converting each `datetime` with `int(value.timestamp())`:
 

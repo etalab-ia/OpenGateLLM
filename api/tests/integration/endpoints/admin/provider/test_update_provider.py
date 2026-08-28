@@ -6,6 +6,7 @@ import pytest_asyncio
 
 from api.dependencies import update_provider_use_case_factory
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
+from api.domain.provider.entities import HostingZone, QoSMetric
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.errors import RouterNotFoundError
 from api.tests.helpers import INVALID_API_KEY, create_key
@@ -15,6 +16,21 @@ from api.utils.variables import EndpointRoute
 URL = f"/v1{EndpointRoute.ADMIN_PROVIDERS}"
 
 DEFAULT_PROVIDER_URL = "http://my-test-provider/"
+
+
+def _valid_body(**overrides) -> dict:
+    """A full update payload: every persisted field is required."""
+    body = {
+        "router_id": 1,
+        "timeout": 120,
+        "model_hosting_zone": HostingZone.FRA,
+        "model_total_params": 8,
+        "model_active_params": 2,
+        "qos_metric": None,
+        "qos_limit": None,
+    }
+    body.update(overrides)
+    return body
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -32,14 +48,49 @@ class TestUpdateProvider:
         response = await client.patch(
             url=f"{URL}/{provider.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json={"timeout": 120},
+            json=_valid_body(router_id=router.id, qos_metric=QoSMetric.TTFT, qos_limit=0.9),
         )
 
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["id"] == provider.id
         assert data["object"] == "provider"
+        assert data["router_id"] == router.id
         assert data["timeout"] == 120
+        assert data["model_hosting_zone"] == HostingZone.FRA
+        assert data["model_total_params"] == 8
+        assert data["model_active_params"] == 2
+        assert data["qos_metric"] == QoSMetric.TTFT
+        assert data["qos_limit"] == 0.9
+
+    async def test_clears_qos_policy_sent_as_null(self, client: AsyncClient, db_session):
+        router = RouterSQLFactory(user=self.admin_user)
+        provider = ProviderSQLFactory(router=router, user=self.admin_user, qos_metric=QoSMetric.TTFT, qos_limit=0.9)
+        await db_session.flush()
+
+        response = await client.patch(
+            url=f"{URL}/{provider.id}",
+            headers={"Authorization": f"Bearer {self.key.token}"},
+            json=_valid_body(router_id=router.id, qos_metric=None, qos_limit=None),
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["qos_metric"] is None
+        assert data["qos_limit"] is None
+
+    async def test_rejects_body_missing_a_required_field(self, client: AsyncClient, db_session):
+        router = RouterSQLFactory(user=self.admin_user)
+        provider = ProviderSQLFactory(router=router, user=self.admin_user)
+        await db_session.flush()
+
+        response = await client.patch(
+            url=f"{URL}/{provider.id}",
+            headers={"Authorization": f"Bearer {self.key.token}"},
+            json={"timeout": 120},
+        )
+
+        assert response.status_code == 422, response.text
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
@@ -84,7 +135,7 @@ class TestUpdateProvider:
         response = await client.patch(
             url=f"{URL}/1",
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json={"timeout": 120},
+            json=_valid_body(),
         )
 
         assert response.status_code == expected_status
@@ -97,7 +148,7 @@ class TestUpdateProvider:
         response = await client.patch(
             url=f"{URL}/1",
             headers={"Authorization": f"Bearer {key.token}"},
-            json={"timeout": 120},
+            json=_valid_body(),
         )
 
         assert response.status_code == 403, response.text
@@ -112,7 +163,7 @@ class TestUpdateProvider:
         ],
     )
     async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):
-        response = await client.patch(url=f"{URL}/1", headers=headers, json={"timeout": 120})
+        response = await client.patch(url=f"{URL}/1", headers=headers, json=_valid_body())
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail

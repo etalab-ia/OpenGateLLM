@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-from datetime import datetime
 
 from pydantic import SecretStr
 
+from api.domain import UtcDatetime
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserPasswordEncoder, UserRepository
@@ -13,15 +13,15 @@ from api.domain.user.errors import IncorrectCurrentPasswordError, UserAlreadyExi
 @dataclass
 class UpdateUserCommand:
     user_id: int
-    email: str | None = None
-    name: str | None = None
+    email: str
+    name: str | None
+    role_id: int
+    organization_id: int | None
+    budget: float | None
+    expires: UtcDatetime | None
+    priority: int
     current_password: str | None = None
     new_password: str | None = None
-    role_id: int | None = None
-    organization_id: int | None = None
-    budget: float | None = None
-    expires: datetime | None = None
-    priority: int | None = None
 
 
 @dataclass
@@ -62,9 +62,9 @@ class UpdateUserUseCase:
 
         updated_user = existing_user.model_copy(
             update={
-                "email": command.email if command.email is not None else existing_user.email,
-                "role_id": command.role_id if command.role_id is not None else existing_user.role_id,
-                "priority": command.priority if command.priority is not None else existing_user.priority,
+                "email": command.email,
+                "role_id": command.role_id,
+                "priority": command.priority,
                 "name": command.name,
                 "organization_id": command.organization_id,
                 "budget": command.budget,

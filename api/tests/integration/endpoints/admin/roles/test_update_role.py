@@ -15,7 +15,8 @@ URL = f"/v1{EndpointRoute.ADMIN_ROLES}"
 
 
 def _valid_body(**overrides) -> dict:
-    body = {"name": "updated-role"}
+    """A full update payload: every persisted field is required."""
+    body = {"name": "updated-role", "permissions": [], "limits": []}
     body.update(overrides)
     return body
 
@@ -37,7 +38,11 @@ class TestUpdateRole:
         response = await client.patch(
             url=f"{URL}/{role.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(name="updated-role", permissions=[PermissionType.ADMIN]),
+            json=_valid_body(
+                name="updated-role",
+                permissions=[PermissionType.ADMIN],
+                limits=[{"router_id": router.id, "type": LimitType.RPM, "value": 10}],
+            ),
         )
 
         assert response.status_code == 200, response.text
@@ -45,8 +50,38 @@ class TestUpdateRole:
         assert data["id"] == role.id
         assert data["object"] == "role"
         assert data["name"] == "updated-role"
-        assert len(data["limits"]) == 1
-        assert len(data["permissions"]) == 1
+        assert data["permissions"] == [PermissionType.ADMIN]
+        assert data["limits"] == [{"router_id": router.id, "type": LimitType.RPM, "value": 10}]
+
+    async def test_clears_permissions_and_limits_sent_as_empty_lists(self, client: AsyncClient, db_session):
+        role = RoleSQLFactory()
+        router = RouterSQLFactory()
+        LimitSQLFactory(role=role, router=router, type=LimitType.TPM, value=100)
+        PermissionSQLFactory(role=role, permission=PermissionType.READ_METRIC)
+        await db_session.flush()
+
+        response = await client.patch(
+            url=f"{URL}/{role.id}",
+            headers={"Authorization": f"Bearer {self.key.token}"},
+            json=_valid_body(permissions=[], limits=[]),
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["permissions"] == []
+        assert data["limits"] == []
+
+    async def test_rejects_body_missing_a_required_field(self, client: AsyncClient, db_session):
+        role = RoleSQLFactory()
+        await db_session.flush()
+
+        response = await client.patch(
+            url=f"{URL}/{role.id}",
+            headers={"Authorization": f"Bearer {self.key.token}"},
+            json={"name": "updated-role"},
+        )
+
+        assert response.status_code == 422, response.text
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

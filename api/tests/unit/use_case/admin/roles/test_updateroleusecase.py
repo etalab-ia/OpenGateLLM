@@ -37,19 +37,33 @@ def sample_role():
     return RoleFactory(id=1, name="original-role", permissions=[PermissionType.READ_METRIC], limits=[])
 
 
+def full_command(role, **overrides) -> UpdateRoleCommand:
+    """Command replacing every persisted field with the current role values, unless overridden."""
+    command = UpdateRoleCommand(
+        role_id=role.id,
+        name=role.name,
+        permissions=role.permissions,
+        limits=role.limits,
+    )
+    for field, value in overrides.items():
+        setattr(command, field, value)
+    return command
+
+
 @pytest.fixture
-def default_command():
-    return UpdateRoleCommand(role_id=1, name=None, permissions=None, limits=None)
+def unchanged_command(sample_role):
+    """Command replaying the current role state: a full payload that changes nothing."""
+    return full_command(sample_role)
 
 
 class TestUpdateRoleUseCase:
     @pytest.mark.asyncio
-    async def test_should_return_role_not_found_error_when_role_does_not_exist(self, use_case, role_repository, default_command):
+    async def test_should_return_role_not_found_error_when_role_does_not_exist(self, use_case, role_repository, unchanged_command):
         # Arrange
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = RoleNotFoundError(id=1)
 
         # Act
-        result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command=unchanged_command)
 
         # Assert
         assert isinstance(result, RoleNotFoundError)
@@ -58,12 +72,12 @@ class TestUpdateRoleUseCase:
         role_repository.get_role_with_permissions_and_limits_by_id.assert_called_once_with(role_id=1)
 
     @pytest.mark.asyncio
-    async def test_should_not_call_update_role_when_no_fields_are_changed(self, use_case, role_repository, sample_role, default_command):
+    async def test_should_not_call_update_role_when_no_fields_are_changed(self, use_case, role_repository, sample_role, unchanged_command):
         # Arrange
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
 
         # Act
-        result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command=unchanged_command)
 
         # Assert
         assert isinstance(result, UpdateRoleUseCaseSuccess)
@@ -78,7 +92,7 @@ class TestUpdateRoleUseCase:
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
-        command = UpdateRoleCommand(role_id=1, name="new-name", permissions=None, limits=None)
+        command = full_command(sample_role, name="new-name")
 
         # Act
         result = await use_case.execute(command=command)
@@ -97,7 +111,7 @@ class TestUpdateRoleUseCase:
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
-        command = UpdateRoleCommand(role_id=1, name=None, permissions=None, limits=new_limits)
+        command = full_command(sample_role, limits=new_limits)
 
         # Act
         result = await use_case.execute(command=command)
@@ -116,7 +130,7 @@ class TestUpdateRoleUseCase:
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
-        command = UpdateRoleCommand(role_id=1, name=None, permissions=new_permissions, limits=None)
+        command = full_command(sample_role, permissions=new_permissions)
 
         # Act
         result = await use_case.execute(command=command)
@@ -138,7 +152,7 @@ class TestUpdateRoleUseCase:
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = updated_role
 
-        command = UpdateRoleCommand(role_id=1, name="updated", permissions=new_permissions, limits=new_limits)
+        command = full_command(sample_role, name="updated", permissions=new_permissions, limits=new_limits)
 
         # Act
         result = await use_case.execute(command=command)
@@ -153,12 +167,34 @@ class TestUpdateRoleUseCase:
         permission_repository.create_permissions.assert_called_once_with(role_id=sample_role.id, permissions=new_permissions)
 
     @pytest.mark.asyncio
+    async def test_should_clear_limits_and_permissions_when_lists_are_empty(self, use_case, role_repository, limit_repository, permission_repository):
+        # Arrange
+        role = RoleFactory(id=1, name="original-role", permissions=[PermissionType.ADMIN], limits=[LimitFactory(router_id=1, type=LimitType.TPM, value=1000)])  # fmt: off
+        cleared_role = role.with_permissions([]).with_limits([])
+        command = full_command(role, permissions=[], limits=[])
+
+        role_repository.get_role_with_permissions_and_limits_by_id.return_value = role
+        role_repository.update_role.return_value = cleared_role
+
+        # Act
+        result = await use_case.execute(command=command)
+
+        # Assert
+        assert isinstance(result, UpdateRoleUseCaseSuccess)
+        assert result.role == cleared_role
+        role_repository.update_role.assert_called_once_with(role=cleared_role)
+        limit_repository.delete_limits_by_role_id.assert_called_once_with(1)
+        limit_repository.create_limits.assert_called_once_with(role_id=role.id, limits=[])
+        permission_repository.delete_permissions_by_role_id.assert_called_once_with(1)
+        permission_repository.create_permissions.assert_called_once_with(role_id=role.id, permissions=[])
+
+    @pytest.mark.asyncio
     async def test_should_propagate_role_already_exists_error_from_update_role(self, use_case, role_repository, sample_role):
         # Arrange
         role_repository.get_role_with_permissions_and_limits_by_id.return_value = sample_role
         role_repository.update_role.return_value = RoleAlreadyExistsError(name="new-name")
 
-        command = UpdateRoleCommand(role_id=1, name="new-name", permissions=None, limits=None)
+        command = full_command(sample_role, name="new-name")
 
         # Act
         result = await use_case.execute(command=command)

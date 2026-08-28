@@ -333,13 +333,13 @@ class ProvidersState(EntityState):
         yield
 
         payload = {
-            "router": self.routers_dict.get(self.entity.router, None),
+            "router_id": self.routers_dict.get(self.entity.router),
             "timeout": self.entity.timeout,
             "model_hosting_zone": self.entity.model_hosting_zone,
             "model_total_params": self.entity.model_total_params,
             "model_active_params": self.entity.model_active_params,
             "qos_metric": self.entity.qos_metric.lower() if self.entity.qos_metric else None,
-            "qos_limit": self.entity.qos_limit,
+            "qos_limit": self.entity.qos_limit if self.entity.qos_metric else None,
         }
 
         response = None

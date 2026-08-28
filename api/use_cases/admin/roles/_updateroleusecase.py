@@ -7,10 +7,12 @@ from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 
 @dataclass
 class UpdateRoleCommand:
+    """Full replacement of the role persisted fields: empty lists clear permissions and limits."""
+
     role_id: int
-    name: str | None
-    permissions: list[PermissionType] | None
-    limits: list[Limit] | None
+    name: str
+    permissions: list[PermissionType]
+    limits: list[Limit]
 
 
 @dataclass
@@ -31,17 +33,14 @@ class UpdateRoleUseCase:
         role = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=command.role_id)
         if isinstance(role, RoleNotFoundError):
             return role
-        role_to_persist = role
-        if command.name is not None:
-            role_to_persist = role_to_persist.with_name(command.name)
-        if command.limits is not None:
-            role_to_persist = role_to_persist.with_limits(command.limits)
-            await self.limit_repository.delete_limits_by_role_id(command.role_id)
-            await self.limit_repository.create_limits(role_id=role.id, limits=command.limits)
-        if command.permissions is not None:
-            role_to_persist = role_to_persist.with_permissions(command.permissions)
-            await self.permission_repository.delete_permissions_by_role_id(command.role_id)
-            await self.permission_repository.create_permissions(role_id=role.id, permissions=command.permissions)
+
+        role_to_persist = role.with_name(command.name).with_limits(command.limits).with_permissions(command.permissions)
+
+        await self.limit_repository.delete_limits_by_role_id(command.role_id)
+        await self.limit_repository.create_limits(role_id=role.id, limits=command.limits)
+        await self.permission_repository.delete_permissions_by_role_id(command.role_id)
+        await self.permission_repository.create_permissions(role_id=role.id, permissions=command.permissions)
+
         if role_to_persist == role:
             return UpdateRoleUseCaseSuccess(role=role)
 

@@ -24,7 +24,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     RoleHasUsersHTTPException,
     RoleNotFoundHTTPException,
 )
-from api.infrastructure.fastapi.schemas.admin.roles import CreateRoleBody, RoleResponse, RolesResponse
+from api.infrastructure.fastapi.schemas.admin.roles import CreateRoleBody, RoleResponse, RolesResponse, UpdateRoleBody
 from api.use_cases.admin.roles import (
     CreateRoleCommand,
     CreateRoleUseCase,
@@ -87,7 +87,7 @@ async def create_role(
 )
 async def update_role(
     role_id: int = Path(description="The ID of the role to update."),
-    body: CreateRoleBody = Body(description="The role update request."),
+    body: UpdateRoleBody = Body(description="The role update request."),
     update_role_use_case: UpdateRoleUseCase = Depends(update_role_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> RoleResponse:
@@ -95,9 +95,7 @@ async def update_role(
         role_id=role_id,
         name=body.name,
         permissions=body.permissions,
-        limits=[Limit(router_id=body_limit.router_id, type=body_limit.type, value=body_limit.value) for body_limit in body.limits]
-        if body.limits
-        else None,
+        limits=[Limit(router_id=body_limit.router_id, type=body_limit.type, value=body_limit.value) for body_limit in body.limits],
     )
     try:
         result = await update_role_use_case.execute(command)

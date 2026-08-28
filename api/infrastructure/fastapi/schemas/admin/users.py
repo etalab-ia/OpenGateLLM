@@ -1,21 +1,11 @@
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import ConfigDict, Field, StringConstraints, field_validator, model_validator
 
 from api.domain import BaseModel
 from api.domain.user.entities import User
 from api.utils.variables import MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH
-
-
-def _must_be_future_and_convert_to_datetime(expires: int) -> datetime:
-    if expires <= int(datetime.now(tz=UTC).timestamp()):
-        raise ValueError("Wrong timestamp, must be in the future.")
-    return datetime.fromtimestamp(timestamp=expires, tz=UTC)
-
-
-FutureTimestamp = Annotated[int, AfterValidator(_must_be_future_and_convert_to_datetime)]
-"""Unix timestamp accepted at the API boundary and converted to a UTC datetime for the domain."""
 
 
 class CreateUserBody(BaseModel):
@@ -25,8 +15,14 @@ class CreateUserBody(BaseModel):
     role_id: int = Field(..., description="The role ID.")
     organization_id: int | None = Field(default=None, description="The organization ID.")
     budget: float | None = Field(default=None, description="The budget.")
-    expires: FutureTimestamp | None = Field(default=None, description="The expiration timestamp.")
+    expires: int | None = Field(default=None, description="The expiration timestamp.")
     priority: int = Field(default=0, ge=0, description="The user priority. Higher value means higher priority.")
+
+    @field_validator("expires", mode="after")
+    def convert_expires_to_datetime(cls, expires) -> None | datetime:
+        if expires is None:
+            return expires
+        return datetime.fromtimestamp(timestamp=expires, tz=UTC)
 
 
 class UserResponse(BaseModel):
@@ -77,12 +73,18 @@ class UsersResponse(BaseModel):
 
 
 class UserUpdateRequest(BaseModel):
-    email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] | None = Field(default=None, description="The new user email. If None, the user email is not changed.")  # fmt: off
-    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="The new user name. If None, the user name is not changed.")  # fmt: off
-    current_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH)] | None = Field(default=None, description="The current user password.")  # fmt: off
-    password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH)] | None = Field(default=None, description="The new user password. If None, the user password is not changed.")  # fmt: off
-    role_id: int | None = Field(default=None, description="The new role ID. If None, the user role is not changed.")  # fmt: off
-    organization_id: int | None = Field(default=None, description="The new organization ID. If None, the user will be removed from the organization if he was in one.")  # fmt: off
-    budget: float | None = Field(default=None, description="The new budget. If None, the user will have no budget.")  # fmt: off
-    expires: FutureTimestamp | None = Field(default=None, description="The new expiration timestamp. If None, the user will never expire.")  # fmt: off
-    priority: int | None = Field(default=None, ge=0, description="The new user priority. Higher value means higher priority. If None, unchanged.")  # fmt: off
+    email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(..., description="The new user email.")  # fmt: off
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(..., description="The new user name. If null, the user name is removed.")  # fmt: off
+    current_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH)] | None = Field(default=None, description="The current user password. Only required to change the password.")  # fmt: off
+    password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH)] | None = Field(default=None, description="The new user password. If omitted, the user password is not changed.")  # fmt: off
+    role_id: int = Field(..., description="The new role ID.")  # fmt: off
+    organization_id: int | None = Field(..., description="The new organization ID. If null, the user is removed from the organization if he was in one.")  # fmt: off
+    budget: float | None = Field(..., description="The new budget. If null, the user will have no budget.")  # fmt: off
+    expires: int | None = Field(..., description="The new expiration timestamp. If null, the user will never expire.")  # fmt: off
+    priority: int = Field(..., ge=0, description="The new user priority. Higher value means higher priority.")  # fmt: off
+
+    @field_validator("expires", mode="after")
+    def convert_expires_to_datetime(cls, expires) -> None | datetime:
+        if expires is None:
+            return expires
+        return datetime.fromtimestamp(timestamp=expires, tz=UTC)

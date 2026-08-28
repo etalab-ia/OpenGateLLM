@@ -65,7 +65,7 @@ class TestAuth:
         user_data = response.json()
         assert user_data["expires"] is None, response.text
 
-        # Try to create user with expiration set to 5 minutes in the past (should fail)
+        # Create user with expiration set to 5 minutes in the past (expires immediately)
         past_expiration = int((datetime.now() - timedelta(minutes=5)).timestamp())
         response = client.post_with_permissions(
             url=f"/v1{EndpointRoute.ADMIN_USERS}",
@@ -77,7 +77,8 @@ class TestAuth:
                 "password": "test-password",
             },
         )
-        assert response.status_code == 422, response.text
+        assert response.status_code == 201, response.text
+        assert response.json()["expires"] == past_expiration
 
         # Create user with expiration set to 5 minutes in the future
         future_expiration = int((time.time()) + 5 * 60)
@@ -102,7 +103,16 @@ class TestAuth:
 
         # Update expiration to now
         future_current = int((datetime.now() + timedelta(seconds=10)).timestamp())
-        response = client.patch_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}", json={"expires": future_current})
+        update_payload = {
+            "email": user_data["email"],
+            "name": user_data["name"],
+            "role_id": user_data["role_id"],
+            "organization_id": user_data["organization_id"],
+            "budget": user_data["budget"],
+            "expires": future_current,
+            "priority": user_data["priority"],
+        }
+        response = client.patch_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}", json=update_payload)
         assert response.status_code == 200, response.text
 
         # Check updated expiration
@@ -111,10 +121,23 @@ class TestAuth:
         user_data = response.json()
         assert user_data["expires"] == future_current, "User should have updated expiration time"
 
-        # Try to update expiration to past time (should fail)
+        # Update expiration to a past time (expires the user immediately)
         past_expiration = int((datetime.now() - timedelta(minutes=5)).timestamp())
-        response = client.patch_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}", json={"expires": past_expiration})
-        assert response.status_code == 422, "Should reject update with past expiration time"
+        response = client.patch_with_permissions(
+            url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}", json={**update_payload, "expires": past_expiration}
+        )
+        assert response.status_code == 200, response.text
+        response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}")
+        assert response.status_code == 200, response.text
+        assert response.json()["expires"] == past_expiration
+
+        # Clear the expiration by sending null
+        response = client.patch_with_permissions(
+            url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}", json={**update_payload, "expires": None}
+        )
+        assert response.status_code == 200, response.text
+        response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}")
+        assert response.json()["expires"] is None, response.text
 
     def test_user_account_expiration_access(self, client: TestClient, roles: tuple[dict, dict]):
         role_with_permissions, role_without_permissions = roles
@@ -262,6 +285,7 @@ class TestAuth:
             url=f"/v1{EndpointRoute.ADMIN_ROLES}/{role_id}",
             json={
                 "name": f"test_role_{str(uuid4())}",
+                "permissions": [],
                 "limits": [
                     {"router_id": text_generation_router.id, "type": "rpm", "value": None},
                     {"router_id": text_generation_router.id, "type": "rpd", "value": None},
@@ -340,9 +364,21 @@ class TestAuth:
         time.sleep(1)
         response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_id}")
         assert response.json()["budget"] < initial_budget, response.text
+        user_data = response.json()
 
         # Update the budget
-        response = client.patch_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_id}", json={"budget": 0})
+        response = client.patch_with_permissions(
+            url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_id}",
+            json={
+                "email": user_data["email"],
+                "name": user_data["name"],
+                "role_id": user_data["role_id"],
+                "organization_id": user_data["organization_id"],
+                "budget": 0,
+                "expires": user_data["expires"],
+                "priority": user_data["priority"],
+            },
+        )
         assert response.status_code == 200, response.text
 
         # Check that the budget is updated

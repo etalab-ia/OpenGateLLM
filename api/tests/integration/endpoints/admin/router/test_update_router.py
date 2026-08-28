@@ -5,6 +5,8 @@ import pytest
 import pytest_asyncio
 
 from api.dependencies import update_router_use_case_factory
+from api.domain.model.entities import ModelType
+from api.domain.router.entities import RouterLoadBalancingStrategy
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
@@ -14,7 +16,14 @@ URL = f"/v1{EndpointRoute.ADMIN_ROUTERS}"
 
 
 def _valid_body(**overrides) -> dict:
-    body = {"name": "updated-name"}
+    body = {
+        "name": "updated-name",
+        "type": ModelType.TEXT_GENERATION,
+        "aliases": [],
+        "load_balancing_strategy": RouterLoadBalancingStrategy.SHUFFLE,
+        "cost_prompt_tokens": 0.0,
+        "cost_completion_tokens": 0.0,
+    }
     body.update(overrides)
     return body
 
@@ -38,7 +47,7 @@ class TestUpdateRouter:
         response = await client.patch(
             url=f"{URL}/{router.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json={"name": "updated-name", "aliases": ["alias-1"]},
+            json=_valid_body(aliases=["alias-1"], cost_prompt_tokens=0.5, cost_completion_tokens=1.5),
         )
 
         assert response.status_code == 200, response.text
@@ -46,7 +55,36 @@ class TestUpdateRouter:
         assert data["id"] == router.id
         assert data["name"] == "updated-name"
         assert data["aliases"] == ["alias-1"]
+        assert data["type"] == ModelType.TEXT_GENERATION
+        assert data["load_balancing_strategy"] == RouterLoadBalancingStrategy.SHUFFLE
+        assert data["cost_prompt_tokens"] == 0.5
+        assert data["cost_completion_tokens"] == 1.5
         assert data["object"] == "router"
+
+    async def test_clears_aliases_sent_as_an_empty_list(self, client: AsyncClient, db_session):
+        router = RouterSQLFactory(user=self.admin_user, alias=["alias-1"])
+        await db_session.flush()
+
+        response = await client.patch(
+            url=f"{URL}/{router.id}",
+            headers={"Authorization": f"Bearer {self.key.token}"},
+            json=_valid_body(aliases=[]),
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.json()["aliases"] == []
+
+    async def test_rejects_body_missing_a_required_field(self, client: AsyncClient, db_session):
+        router = RouterSQLFactory(user=self.admin_user)
+        await db_session.flush()
+
+        response = await client.patch(
+            url=f"{URL}/{router.id}",
+            headers={"Authorization": f"Bearer {self.key.token}"},
+            json={"name": "updated-name"},
+        )
+
+        assert response.status_code == 422, response.text
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

@@ -40,26 +40,6 @@ class TestUtcDatetime:
         assert entity.moment == datetime(2026, 8, 27, 12, 30, tzinfo=UTC)
         assert entity.moment.tzinfo == UTC
 
-    def test_should_read_an_unix_timestamp_as_utc(self):
-        # Arrange
-        moment = datetime(2026, 8, 27, 12, 30, tzinfo=UTC)
-
-        # Act
-        entity = Entity(moment=int(moment.timestamp()))
-
-        # Assert
-        assert entity.moment == moment
-
-    def test_should_round_trip_to_the_same_unix_timestamp(self):
-        # Arrange
-        timestamp = 1_756_298_000
-
-        # Act
-        entity = Entity(moment=timestamp)
-
-        # Assert
-        assert int(entity.moment.timestamp()) == timestamp
-
     def test_should_allow_none_on_an_optional_field(self):
         # Act
         entity = Entity(moment=datetime(2026, 8, 27, tzinfo=UTC), optional_moment=None)

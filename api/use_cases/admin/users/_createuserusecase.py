@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from datetime import datetime
 
+from api.domain import UtcDatetime
 from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserPasswordEncoder, UserRepository
@@ -16,7 +16,7 @@ class CreateUserCommand:
     name: str | None = None
     organization_id: int | None = None
     budget: float | None = None
-    expires: datetime | None = None
+    expires: UtcDatetime | None = None
     priority: int = 0
 
 
