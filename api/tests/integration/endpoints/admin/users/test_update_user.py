@@ -41,7 +41,7 @@ class TestUpdateUser:
         user = UserSQLFactory()
         await db_session.flush()
 
-        response = await client.patch(
+        response = await client.put(
             url=f"{URL}/{user.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
             json=_valid_body(role_id=user.role_id, budget=50.5, priority=2),
@@ -61,7 +61,7 @@ class TestUpdateUser:
         user = UserSQLFactory(organization=organization, budget=100.0, expires=dt.datetime.now() + dt.timedelta(days=30))
         await db_session.flush()
 
-        response = await client.patch(
+        response = await client.put(
             url=f"{URL}/{user.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
             json=_valid_body(role_id=user.role_id, name=None, organization_id=None, budget=None, expires=None),
@@ -79,7 +79,7 @@ class TestUpdateUser:
         await db_session.flush()
         expires = int((dt.datetime.now(tz=dt.UTC) - dt.timedelta(minutes=5)).timestamp())
 
-        response = await client.patch(
+        response = await client.put(
             url=f"{URL}/{user.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
             json=_valid_body(role_id=user.role_id, expires=expires),
@@ -93,7 +93,7 @@ class TestUpdateUser:
         current_password = user.password
         await db_session.flush()
 
-        response = await client.patch(
+        response = await client.put(
             url=f"{URL}/{user.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
             json=_valid_body(role_id=user.role_id),
@@ -114,7 +114,7 @@ class TestUpdateUser:
         user = UserSQLFactory()
         await db_session.flush()
 
-        response = await client.patch(
+        response = await client.put(
             url=f"{URL}/{user.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
             json=body,
@@ -157,7 +157,7 @@ class TestUpdateUser:
         mock_use_case.execute.return_value = use_case_result
         app.dependency_overrides[update_user_use_case_factory] = lambda: mock_use_case
 
-        response = await client.patch(
+        response = await client.put(
             url=f"{URL}/1",
             headers={"Authorization": f"Bearer {self.key.token}"},
             json=_valid_body(),
@@ -170,7 +170,7 @@ class TestUpdateUser:
         regular_user = UserSQLFactory(regular_user=True)
         key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
 
-        response = await client.patch(
+        response = await client.put(
             url=f"{URL}/1",
             headers={"Authorization": f"Bearer {key.token}"},
             json=_valid_body(),
@@ -188,7 +188,7 @@ class TestUpdateUser:
         ],
     )
     async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):
-        response = await client.patch(url=f"{URL}/1", headers=headers, json=_valid_body())
+        response = await client.put(url=f"{URL}/1", headers=headers, json=_valid_body())
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail

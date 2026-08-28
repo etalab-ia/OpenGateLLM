@@ -35,7 +35,7 @@ class TestUpdateRole:
         PermissionSQLFactory(role=role, permission=PermissionType.READ_METRIC)
         await db_session.flush()
 
-        response = await client.patch(
+        response = await client.put(
             url=f"{URL}/{role.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
             json=_valid_body(
@@ -60,7 +60,7 @@ class TestUpdateRole:
         PermissionSQLFactory(role=role, permission=PermissionType.READ_METRIC)
         await db_session.flush()
 
-        response = await client.patch(
+        response = await client.put(
             url=f"{URL}/{role.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
             json=_valid_body(permissions=[], limits=[]),
@@ -75,7 +75,7 @@ class TestUpdateRole:
         role = RoleSQLFactory()
         await db_session.flush()
 
-        response = await client.patch(
+        response = await client.put(
             url=f"{URL}/{role.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
             json={"name": "updated-role"},
@@ -103,7 +103,7 @@ class TestUpdateRole:
         mock_use_case.execute.return_value = use_case_result
         app.dependency_overrides[update_role_use_case_factory] = lambda: mock_use_case
 
-        response = await client.patch(
+        response = await client.put(
             url=f"{URL}/1",
             headers={"Authorization": f"Bearer {self.key.token}"},
             json=_valid_body(),
@@ -116,7 +116,7 @@ class TestUpdateRole:
         regular_user = UserSQLFactory(regular_user=True)
         key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
 
-        response = await client.patch(
+        response = await client.put(
             url=f"{URL}/1",
             headers={"Authorization": f"Bearer {key.token}"},
             json=_valid_body(),
@@ -134,7 +134,7 @@ class TestUpdateRole:
         ],
     )
     async def test_auth(self, client: AsyncClient, headers, expected_status, expected_detail):
-        response = await client.patch(url=f"{URL}/1", headers=headers, json=_valid_body())
+        response = await client.put(url=f"{URL}/1", headers=headers, json=_valid_body())
 
         assert response.status_code == expected_status
         assert response.json().get("detail") == expected_detail
