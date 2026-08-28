@@ -238,7 +238,7 @@ async def delete_user(
             assert_never(unreachable)
 
 
-@router.patch(
+@router.put(
     path=EndpointRoute.ADMIN_USERS + "/{user_id}",
     dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=200,

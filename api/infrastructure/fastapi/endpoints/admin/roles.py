@@ -79,7 +79,7 @@ async def create_role(
             raise RoleAlreadyExistsHTTPException(name)
 
 
-@router.patch(
+@router.put(
     path=EndpointRoute.ADMIN_ROLES + "/{role_id}",
     dependencies=[Security(dependency=AccessController(only_admin=True))],
     status_code=200,

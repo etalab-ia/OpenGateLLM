@@ -192,7 +192,7 @@ async def delete_router(
             raise RouterNotFoundHTTPException(not_found_id)
 
 
-@router.patch(
+@router.put(
     path=EndpointRoute.ADMIN_ROUTERS + "/{router_id}",
     dependencies=[Security(dependency=AccessController(only_admin=True))],
     responses=get_documentation_responses(
