@@ -29,5 +29,9 @@ class OrganizationRepository(ABC):
         pass
 
     @abstractmethod
+    async def update_organization(self, organization: Organization) -> Organization | OrganizationAlreadyExistsError | OrganizationNotFoundError:
+        pass
+
+    @abstractmethod
     async def delete_organization(self, organization_id: int) -> Organization | OrganizationNotFoundError:
         pass
