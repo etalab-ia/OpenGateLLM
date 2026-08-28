@@ -38,10 +38,10 @@ One representation per layer, converted at exactly one place — the layer bound
 Domain timestamp fields use the `UtcDatetime` alias from `api/domain/__init__.py`:
 
 ```python
-UtcDatetime = Annotated[datetime, BeforeValidator(_parse_unix_timestamp), AfterValidator(_to_utc)]
+UtcDatetime = Annotated[datetime, AfterValidator(_to_utc)]
 ```
 
-It normalizes anything Pydantic accepts as a `datetime` to UTC, treats a naive value as already-UTC, and converts a Unix timestamp (`int`) the same way. An entity can never hold an ambiguous timestamp — and `int(value.timestamp())` at the boundary is always correct. The same alias covers the provider-facing boundary: provider `/v1/models` payloads carry `created` as OpenAI-style Unix seconds, and the HTTP adapters hand that `int` straight to `Model`, where `UtcDatetime` turns it into an aware UTC datetime.
+It normalizes anything Pydantic accepts as a `datetime` to UTC and treats a naive value as already-UTC, so an entity can never hold an ambiguous timestamp — and `int(value.timestamp())` at the boundary is always correct. Provider `/v1/models` payloads carry `created` as OpenAI-style Unix seconds; that value stays an `int` on the `Model` entity (it is not a timestamp we persist).
 
 Repositories select and write the `timestamptz` columns **directly**. No `extract(epoch)` on read, no `to_timestamp()` on write:
 
