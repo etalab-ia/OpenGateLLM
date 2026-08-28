@@ -73,7 +73,7 @@ class UsersResponse(BaseModel):
 
 
 class UserUpdateRequest(BaseModel):
-    email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(..., description="The new user email.")  # fmt: off
+    email: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254), Field(..., description="The new user email.")]
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(..., description="The new user name. If null, the user name is removed.")  # fmt: off
     current_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH)] | None = Field(default=None, description="The current user password. Only required to change the password.")  # fmt: off
     password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH)] | None = Field(default=None, description="The new user password. If omitted, the user password is not changed.")  # fmt: off
