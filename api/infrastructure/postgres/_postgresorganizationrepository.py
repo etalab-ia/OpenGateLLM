@@ -92,6 +92,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
 
         return OrganizationPage(total=total, data=organizations)
 
+    @with_lock(namespace="organization", key="organization.id")
     async def update_organization(self, organization: Organization) -> Organization | OrganizationAlreadyExistsError | OrganizationNotFoundError:
         statement = (
             update(OrganizationTable)
