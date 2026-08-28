@@ -277,7 +277,7 @@ class RoutersState(EntityState):
         response = None
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.patch(
+                response = await client.put(
                     url=f"{self.opengatellm_url}/v1/admin/routers/{self.entity.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},

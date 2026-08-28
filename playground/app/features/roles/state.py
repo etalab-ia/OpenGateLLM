@@ -204,7 +204,7 @@ class RolesState(EntityState):
         response = None
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.patch(
+                response = await client.put(
                     url=f"{self.opengatellm_url}/v1/admin/roles/{role.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
@@ -312,7 +312,7 @@ class RolesState(EntityState):
         response = None
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.patch(
+                response = await client.put(
                     f"{self.opengatellm_url}/v1/admin/roles/{role.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
@@ -390,7 +390,7 @@ class RolesState(EntityState):
         response = None
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.patch(
+                response = await client.put(
                     url=f"{self.opengatellm_url}/v1/admin/roles/{self.entity.id}",
                     json=payload,
                     headers={"Authorization": f"Bearer {self.api_key}"},
