@@ -178,6 +178,18 @@ Do not reuse a `Create<Noun>Body` for an update: its optional fields carry the w
 
 Callers (playground `edit_entity`, e2e tests) must send the whole current form state, not a diff.
 
+**Because the body is a full replacement, the method is `PUT`** — `@router.put`, not `@router.patch`. `PATCH` describes a partial modification (RFC 9110 §9.3.1); a body that replaces every persisted field is a `PUT` (§9.3.4). The test is whether a client can `GET` the resource, change one field and `PUT` it back. Server metadata absent from the body (`id`, `created`, `updated`) and fields the client never sends (router `user_id`, user `sub` / `iss`) do not break that round trip. Applies to `/v1/admin/{roles,routers,users}/{id}`.
+
+`PATCH` stays only where the body genuinely cannot replace the resource:
+
+| Endpoint | Why it keeps `PATCH` |
+|---|---|
+| `/v1/admin/providers/{provider_id}` | `type`, `url`, `model_name` are set at creation but absent from `UpdateProviderBody`, so the body is not a representation of the resource |
+| `/v1/me` (and deprecated `/v1/me/info`) | partial by design — outside the full-replacement rule |
+| `/v1/admin/organizations/{id}` | legacy endpoint (`api/endpoints/`), not clean architecture |
+
+A new full-replacement update endpoint is a `PUT`. Converting an existing `PATCH` is a breaking change (old callers get `405`) — announce it, and switch the integration tests and the playground calls in the same commit.
+
 ### Timestamps
 
 - API: Unix seconds as `int` (`created`, `updated`, `expires`)
@@ -381,6 +393,7 @@ async def get_roles(
 
 - Auth: `AccessController` from `api.infrastructure.fastapi` (`only_admin=True` for admin routes, `allow_expired=True` when expired users must still reach the route, e.g. GET `/v1/me`)
 - Auth user: `authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user)` when only the user is needed. Keep `get_request_context` only when the full `RequestContext` is required.
+- Method: `GET` list / get-one, `POST` create, `PUT` update, `DELETE` delete — updates are `PUT` because the body is a full replacement (see [Update requests are full replacements](#update-requests-are-full-replacements))
 - Sort query params: `sort_by` / `sort_order`
 - Document errors: `responses=get_documentation_responses([...])`
 - `case RoleNotFoundError(id=role_id, name=name)` **captures** `None`; it does not require an id. Pass both through to the HTTP exception (which already has a generic `"Role not found."` fallback). Map the fields the use case actually returns (`id=` from FK failures, not `name=` unless that path exists).
