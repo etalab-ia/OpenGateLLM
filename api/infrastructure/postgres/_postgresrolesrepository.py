@@ -137,13 +137,12 @@ class PostgresRolesRepository(RoleRepository):
 
     @with_lock(namespace="role", key="role_id")
     async def delete_role(self, role_id: int) -> Role | RoleHasUsersError | RoleNotFoundError:
-        role = await self.get_role_with_permissions_and_limits_by_id(role_id=role_id)
-        match role:
+        result = await self.get_role_with_permissions_and_limits_by_id(role_id=role_id)
+        match result:
             case RoleNotFoundError():
                 return RoleNotFoundError(id=role_id)
-            case Role() as loaded_role:
-                if loaded_role.users > 0:
-                    return RoleHasUsersError(id=role_id)
+            case Role() as role:
+                pass
 
         try:
             await self.postgres_session.execute(delete(RoleTable).where(RoleTable.id == role_id))
@@ -152,4 +151,4 @@ class PostgresRolesRepository(RoleRepository):
                 return RoleHasUsersError(id=role_id)
             raise
 
-        return loaded_role.model_copy(update={"users": 0})
+        return role
