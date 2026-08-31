@@ -74,6 +74,22 @@ class TestCreateUser:
         assert isinstance(result, UserAlreadyExistsError)
         assert result.email == "duplicate@test.com"
 
+    async def test_keeps_the_session_usable_when_email_is_duplicate(self, repository, db_session):
+        """A caller losing a create race (concurrent bootstrap) must be able to read the user back on the same session."""
+        # Arrange
+        role = RoleSQLFactory()
+        await db_session.flush()
+        created = await repository.create_user(email="concurrent@test.com", password="s3cr3t", role_id=role.id)
+
+        # Act
+        result = await repository.create_user(email="concurrent@test.com", password="other", role_id=role.id)
+        user = await repository.get_user_by_email(email="concurrent@test.com")
+
+        # Assert
+        assert isinstance(result, UserAlreadyExistsError)
+        assert isinstance(user, User)
+        assert user.id == created.id
+
     async def test_returns_user_already_exists_error_when_sub_and_iss_are_duplicate(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()
