@@ -122,6 +122,8 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
             logger.info(f"user ID: {skipped.user_id}")
             logger.info(f"role ID: {skipped.role_id}")
             return skipped.user_id
+        case error:
+            raise RuntimeError(f"Bootstrap admin role and user cannot be created ({error}).")
 
 
 async def bootstrap_models(configuration: Configuration, postgres_session: AsyncSession, bootstrap_admin_user_id: int) -> int:
