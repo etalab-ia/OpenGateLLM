@@ -41,6 +41,11 @@ class TestDeleteRole:
         assert delete_result.id == role.id
         assert delete_result.name == "to-delete"
         assert delete_result.users == 0
+        assert delete_result.permissions == [PermissionType.READ_METRIC]
+        assert len(delete_result.limits) == 1
+        assert delete_result.limits[0].router_id == router.id
+        assert delete_result.limits[0].type == LimitType.TPM
+        assert delete_result.limits[0].value == 100
         limits = (await db_session.execute(select(LimitTable).where(LimitTable.role_id == role_id))).all()
         permissions = (await db_session.execute(select(PermissionTable).where(PermissionTable.role_id == role_id))).all()
         assert limits == []
