@@ -188,6 +188,7 @@ class TestDeleteOrganization:
         assert isinstance(result, Organization)
         assert result.id == organization.id
         assert result.name == "Org To Delete"
+        assert result.users == 0
 
         stored = await db_session.scalar(select(OrganizationTable).where(OrganizationTable.id == organization.id))
         assert stored is None

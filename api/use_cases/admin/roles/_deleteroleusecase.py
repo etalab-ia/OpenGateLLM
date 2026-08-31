@@ -33,8 +33,10 @@ class DeleteRoleUseCase:
 
         delete_result = await self.role_repository.delete_role(role_id=command.role_id)
         match delete_result:
-            case Role():
-                return DeleteRoleUseCaseSuccess(role=role)
+            case Role() as deleted_role:
+                return DeleteRoleUseCaseSuccess(
+                    role=deleted_role.model_copy(update={"permissions": role.permissions, "limits": role.limits, "users": 0})
+                )
             case RoleHasUsersError() as error:
                 return error
             case RoleNotFoundError() as error:

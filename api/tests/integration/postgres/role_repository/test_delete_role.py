@@ -40,6 +40,7 @@ class TestDeleteRole:
         assert isinstance(delete_result, Role)
         assert delete_result.id == role.id
         assert delete_result.name == "to-delete"
+        assert delete_result.users == 0
         limits = (await db_session.execute(select(LimitTable).where(LimitTable.role_id == role_id))).all()
         permissions = (await db_session.execute(select(PermissionTable).where(PermissionTable.role_id == role_id))).all()
         assert limits == []

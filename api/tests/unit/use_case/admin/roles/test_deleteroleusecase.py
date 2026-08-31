@@ -34,7 +34,9 @@ class TestDeleteRoleUseCase:
 
         # Assert
         assert isinstance(result, DeleteRoleUseCaseSuccess)
-        assert result.role == role
+        assert result.role.id == role.id
+        assert result.role.name == role.name
+        assert result.role.users == 0
         role_repository.delete_role.assert_awaited_once_with(role_id=42)
 
     @pytest.mark.asyncio

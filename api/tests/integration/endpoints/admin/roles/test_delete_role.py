@@ -33,6 +33,7 @@ class TestDeleteRole:
         data = response.json()
         assert data["id"] == role.id
         assert data["name"] == "to-delete"
+        assert data["users"] == 0
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
