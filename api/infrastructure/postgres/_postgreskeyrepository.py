@@ -19,8 +19,15 @@ class PostgresKeyRepository(KeyRepository):
         self.postgres_session = postgres_session
 
     @staticmethod
-    def _row_to_key(row, *, value: str) -> Key:
-        return Key(id=row.id, name=row.name, user_id=row.user_id, value=value, expires=row.expires, created=row.created)
+    def _row_to_key(row, *, value: str | None = None) -> Key:
+        return Key(
+            id=row.id,
+            name=row.name,
+            user_id=row.user_id,
+            value=value if value is not None else row.token,
+            expires=row.expires,
+            created=row.created,
+        )
 
     async def get_key_by_id(self, key_id: int) -> Key | KeyNotFoundError:
         query = select(KeyTable).where(KeyTable.id == key_id)
@@ -30,7 +37,7 @@ class PostgresKeyRepository(KeyRepository):
         if row is None:
             return KeyNotFoundError(id=key_id)
 
-        return self._row_to_key(row, value=row.token)
+        return self._row_to_key(row)
 
     async def get_keys_page(
         self,
@@ -53,7 +60,7 @@ class PostgresKeyRepository(KeyRepository):
         key_query = select(KeyTable, func.count().over().label("total")).where(*filters).order_by(order_fn(sort_column)).offset(offset).limit(limit)
         count_query = select(func.count()).select_from(KeyTable).where(*filters)
         rows, total = await fetch_page_with_total(self.postgres_session, key_query, count_query)
-        keys = [self._row_to_key(row[0], value=row[0].token) for row in rows]
+        keys = [self._row_to_key(row[0]) for row in rows]
         return KeyPage(total=total, data=keys)
 
     async def create_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | KeyAlreadyExistsError | UserNotFoundError:
@@ -108,4 +115,4 @@ class PostgresKeyRepository(KeyRepository):
         if row is None:
             return KeyNotFoundError(id=key_id)
 
-        return self._row_to_key(row, value=row.token)
+        return self._row_to_key(row)
