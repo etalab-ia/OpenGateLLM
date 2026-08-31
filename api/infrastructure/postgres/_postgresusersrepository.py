@@ -86,24 +86,25 @@ class PostgresUserRepository(UserRepository):
         priority: int = 0,
     ) -> User | UserAlreadyExistsError | RoleNotFoundError | OrganizationNotFoundError:
         try:
-            result = await self.postgres_session.execute(
-                insert(UserTable)
-                .values(
-                    email=email,
-                    name=name,
-                    password=password,
-                    claims=claims,
-                    sub=sub,
-                    iss=iss,
-                    role_id=role_id,
-                    organization_id=organization_id,
-                    budget=budget,
-                    expires=expires,
-                    priority=priority,
+            async with self.postgres_session.begin_nested():
+                result = await self.postgres_session.execute(
+                    insert(UserTable)
+                    .values(
+                        email=email,
+                        name=name,
+                        password=password,
+                        claims=claims,
+                        sub=sub,
+                        iss=iss,
+                        role_id=role_id,
+                        organization_id=organization_id,
+                        budget=budget,
+                        expires=expires,
+                        priority=priority,
+                    )
+                    .returning(*_USER_COLUMNS)
                 )
-                .returning(*_USER_COLUMNS)
-            )
-            row = result.one()
+                row = result.one()
         except IntegrityError as e:
             if "user_organization_id_fkey" in str(e.orig):
                 return OrganizationNotFoundError(id=organization_id)
