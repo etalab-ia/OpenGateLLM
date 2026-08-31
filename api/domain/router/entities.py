@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
@@ -81,10 +82,10 @@ class RpdRateLimitState(BaseModel):
 
 
 class RouterRateLimitState(BaseModel):
-    tpm: TpmRateLimitState = Field(default_factory=TpmRateLimitState)
-    tpd: TpdRateLimitState = Field(default_factory=TpdRateLimitState)
-    rpm: RpmRateLimitState = Field(default_factory=RpmRateLimitState)
-    rpd: RpdRateLimitState = Field(default_factory=RpdRateLimitState)
+    tpm: Annotated[TpmRateLimitState, Field(default_factory=TpmRateLimitState)]
+    tpd: Annotated[TpdRateLimitState, Field(default_factory=TpdRateLimitState)]
+    rpm: Annotated[RpmRateLimitState, Field(default_factory=RpmRateLimitState)]
+    rpd: Annotated[RpdRateLimitState, Field(default_factory=RpdRateLimitState)]
 
     @property
     def exceeded_limits(self) -> list[LimitType]:

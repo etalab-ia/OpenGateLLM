@@ -1,6 +1,6 @@
 import json
 from json import JSONDecodeError
-from typing import Literal
+from typing import Annotated, Literal
 
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import Field
@@ -9,8 +9,8 @@ from api.domain.usage.entities import Usage
 
 
 class ChatCompletion(ChatCompletion):
-    id: str = Field(default=None, description="A unique identifier for the chat completion.")
-    usage: Usage = Field(default_factory=Usage, description="Usage information for the request.")
+    id: Annotated[str, Field(default=None, description="A unique identifier for the chat completion.")]
+    usage: Annotated[Usage, Field(default_factory=Usage, description="Usage information for the request.")]
 
     @staticmethod
     def extract_response_content(response: dict) -> str:

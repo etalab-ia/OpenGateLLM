@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import Field
 
@@ -29,19 +29,19 @@ class AudioTranscriptionsResponseFormat(StrEnum):
 
 
 class Segment(BaseModel):
-    id: int = Field(default=..., description="A unique identifier for the segment.")
-    type: str = Field(default="transcript.text.segment", description="The type of the segment.")
-    text: str = Field(default=..., description="The segment text.")
-    start: float = Field(default=..., description="Start time of the segment in seconds.")
-    end: float = Field(default=..., description="End time of the segment in seconds.")
-    speaker: str | None = Field(default=None, description="Speaker label assigned by diarization, if available.")
+    id: Annotated[int, Field(default=..., description="A unique identifier for the segment.")]
+    type: Annotated[str, Field(default="transcript.text.segment", description="The type of the segment.")]
+    text: Annotated[str, Field(default=..., description="The segment text.")]
+    start: Annotated[float, Field(default=..., description="Start time of the segment in seconds.")]
+    end: Annotated[float, Field(default=..., description="End time of the segment in seconds.")]
+    speaker: Annotated[str | None, Field(default=None, description="Speaker label assigned by diarization, if available.")]
 
 
 class AudioTranscriptions(ModelJsonResponse):
     id: str
     model: str
     text: str
-    usage: Usage = Field(default_factory=Usage)
+    usage: Annotated[Usage, Field(default_factory=Usage)]
 
     def get_completions(self) -> list[str]:
         return [self.text]

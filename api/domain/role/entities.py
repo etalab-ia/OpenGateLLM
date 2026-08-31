@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Annotated
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -20,9 +21,9 @@ class LimitType(StrEnum):
 
 
 class Limit(BaseModel):
-    router_id: int = Field(description="The router ID.")
-    type: LimitType = Field(description="The limit type.")
-    value: int | None = Field(default=None, ge=0, description="The limit value.")
+    router_id: Annotated[int, Field(description="The router ID.")]
+    type: Annotated[LimitType, Field(description="The limit type.")]
+    value: Annotated[int | None, Field(default=None, ge=0, description="The limit value.")]
 
 
 class Role(BaseModel):
@@ -31,8 +32,8 @@ class Role(BaseModel):
     permissions: list[PermissionType]
     limits: list[Limit]
     users: int = 0
-    created: UtcDatetime = Field(default_factory=lambda: datetime.now(tz=UTC))
-    updated: UtcDatetime = Field(default_factory=lambda: datetime.now(tz=UTC))
+    created: Annotated[UtcDatetime, Field(default_factory=lambda: datetime.now(tz=UTC))]
+    updated: Annotated[UtcDatetime, Field(default_factory=lambda: datetime.now(tz=UTC))]
 
     @field_validator("permissions")
     @classmethod
