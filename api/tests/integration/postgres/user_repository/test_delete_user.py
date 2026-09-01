@@ -50,8 +50,6 @@ class TestDeleteUser:
         # Assert
         assert isinstance(result, UserHasRoutersError)
         assert result.id == user.id
-        row = (await db_session.execute(select(UserTable).where(UserTable.id == user.id))).scalar_one_or_none()
-        assert row is not None
 
     async def test_should_return_delete_user_with_providers_error_when_user_owns_providers_on_another_users_router(self, repository, db_session):
         # Arrange

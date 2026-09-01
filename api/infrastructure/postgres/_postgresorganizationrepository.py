@@ -101,10 +101,8 @@ class PostgresOrganizationRepository(OrganizationRepository):
             if "user_organization_id_fkey" in str(e.orig):
                 return OrganizationHasUsersError(id=organization_id)
             raise
-        row = result.one_or_none()
+        row = result.scalar_one_or_none()
         if row is None:
             return OrganizationNotFoundError(id=organization_id)
 
-        organization = Organization(id=row.id, name=row.name, users=0, created=row.created, updated=row.updated)
-
-        return organization
+        return Organization(id=row.id, name=row.name, users=0, created=row.created, updated=row.updated)

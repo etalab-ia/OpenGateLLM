@@ -218,7 +218,7 @@ class PostgresUserRepository(UserRepository):
                 return UserHasProvidersError(id=user_id)
             raise
 
-        row = result.one_or_none()
+        row = result.scalar_one_or_none()
         if row is None:
             return UserNotFoundError(id=user_id)
 
