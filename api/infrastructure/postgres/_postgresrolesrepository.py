@@ -17,6 +17,10 @@ class PostgresRolesRepository(RoleRepository):
         self.postgres_session = postgres_session
 
     @staticmethod
+    def _row_to_limit(row) -> Limit:
+        return Limit(router_id=row.router_id, type=row.type, value=row.value)
+
+    @staticmethod
     def _row_to_role(row, *, users: int = 0, permissions: list[PermissionType] | None = None, limits: list[Limit] | None = None) -> Role:
         return Role(
             id=row.id,
@@ -91,7 +95,7 @@ class PostgresRolesRepository(RoleRepository):
             role_row,
             users=users_count,
             permissions=[permission.permission for permission in role_row.permissions],
-            limits=[Limit(router_id=limit.router_id, type=limit.type, value=limit.value) for limit in role_row.limits],
+            limits=[self._row_to_limit(limit) for limit in role_row.limits],
         )
 
     async def get_role_with_permissions_and_limits_by_name(self, role_name: str) -> Role | RoleNotFoundError:
@@ -110,7 +114,7 @@ class PostgresRolesRepository(RoleRepository):
             role_row,
             users=users_count,
             permissions=[permission.permission for permission in role_row.permissions],
-            limits=[Limit(router_id=limit.router_id, type=limit.type, value=limit.value) for limit in role_row.limits],
+            limits=[self._row_to_limit(limit) for limit in role_row.limits],
         )
 
     @with_lock(namespace="role", key="role.id")

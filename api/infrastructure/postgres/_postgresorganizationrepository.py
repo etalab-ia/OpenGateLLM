@@ -16,6 +16,10 @@ class PostgresOrganizationRepository(OrganizationRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
 
+    @staticmethod
+    def _row_to_organization(row, *, users: int = 0) -> Organization:
+        return Organization(id=row.id, name=row.name, created=row.created, updated=row.updated, users=users)
+
     async def create_organization(self, name: str) -> Organization | OrganizationAlreadyExistsError:
         try:
             result = await self.postgres_session.execute(insert(OrganizationTable).values(name=name).returning(OrganizationTable))
@@ -25,7 +29,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
                 return OrganizationAlreadyExistsError(name=name)
             raise
 
-        return Organization(id=row.id, name=row.name, users=0, created=row.created, updated=row.updated)
+        return self._row_to_organization(row)
 
     async def get_organization_by_name(self, name: str) -> Organization | OrganizationNotFoundError:
         users_subquery = (
@@ -41,7 +45,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
             return OrganizationNotFoundError(name=name)
 
         row, users_count = row
-        return Organization(id=row.id, name=row.name, users=users_count, created=row.created, updated=row.updated)
+        return self._row_to_organization(row, users=users_count)
 
     async def get_organization_by_id(self, organization_id: int) -> Organization | OrganizationNotFoundError:
         users_subquery = (
@@ -57,7 +61,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
             return OrganizationNotFoundError(id=organization_id)
 
         row, users_count = row
-        return Organization(id=row.id, name=row.name, users=users_count, created=row.created, updated=row.updated)
+        return self._row_to_organization(row, users=users_count)
 
     async def get_organizations_page(
         self,
@@ -85,11 +89,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
         )
         count_query = select(func.count()).select_from(OrganizationTable)
         rows, total = await fetch_page_with_total(self.postgres_session, organizations_query, count_query)
-
-        organizations = [
-            Organization(id=row[0].id, name=row[0].name, users=row.users, created=row[0].created, updated=row[0].updated) for row in rows
-        ]
-
+        organizations = [self._row_to_organization(row[0], users=row.users) for row in rows]
         return OrganizationPage(total=total, data=organizations)
 
     @with_lock(namespace="organization", key="organization.id")
@@ -131,4 +131,4 @@ class PostgresOrganizationRepository(OrganizationRepository):
         if row is None:
             return OrganizationNotFoundError(id=organization_id)
 
-        return Organization(id=row.id, name=row.name, users=0, created=row.created, updated=row.updated)
+        return self._row_to_organization(row)

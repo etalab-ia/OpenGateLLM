@@ -18,6 +18,17 @@ class PostgresKeyRepository(KeyRepository):
         self.key_encoder = key_encoder
         self.postgres_session = postgres_session
 
+    @staticmethod
+    def _row_to_key(row, *, value: str | None = None) -> Key:
+        return Key(
+            id=row.id,
+            name=row.name,
+            user_id=row.user_id,
+            value=value if value is not None else row.token,
+            expires=row.expires,
+            created=row.created,
+        )
+
     async def get_key_by_id(self, key_id: int) -> Key | KeyNotFoundError:
         query = select(KeyTable).where(KeyTable.id == key_id)
         result = await self.postgres_session.execute(query)
@@ -26,7 +37,7 @@ class PostgresKeyRepository(KeyRepository):
         if row is None:
             return KeyNotFoundError(id=key_id)
 
-        return Key(id=row.id, name=row.name, user_id=row.user_id, value=row.token, expires=row.expires, created=row.created)
+        return self._row_to_key(row)
 
     async def get_keys_page(
         self,
@@ -49,12 +60,7 @@ class PostgresKeyRepository(KeyRepository):
         key_query = select(KeyTable, func.count().over().label("total")).where(*filters).order_by(order_fn(sort_column)).offset(offset).limit(limit)
         count_query = select(func.count()).select_from(KeyTable).where(*filters)
         rows, total = await fetch_page_with_total(self.postgres_session, key_query, count_query)
-
-        keys = [
-            Key(id=row[0].id, name=row[0].name, user_id=row[0].user_id, value=row[0].token, expires=row[0].expires, created=row[0].created)
-            for row in rows
-        ]
-
+        keys = [self._row_to_key(row[0]) for row in rows]
         return KeyPage(total=total, data=keys)
 
     async def create_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | KeyAlreadyExistsError | UserNotFoundError:
@@ -73,7 +79,7 @@ class PostgresKeyRepository(KeyRepository):
 
         await self.postgres_session.execute(update(KeyTable).values(token=registered_value).where(KeyTable.id == row.id))
 
-        return Key(id=row.id, name=row.name, user_id=row.user_id, value=value, expires=row.expires, created=row.created)
+        return self._row_to_key(row, value=value)
 
     async def upsert_key(self, user_id: int, name: str, expire: FutureDatetime | None) -> Key | UserNotFoundError:
         try:
@@ -97,7 +103,7 @@ class PostgresKeyRepository(KeyRepository):
 
         await self.postgres_session.execute(update(KeyTable).values(token=registered_value).where(KeyTable.id == row.id))
 
-        return Key(id=row.id, name=row.name, user_id=row.user_id, value=value, expires=row.expires, created=row.created)
+        return self._row_to_key(row, value=value)
 
     async def delete_key(self, key_id: int, user_id: int | None = None) -> Key | KeyNotFoundError:
         filters = [KeyTable.id == key_id]
@@ -109,4 +115,4 @@ class PostgresKeyRepository(KeyRepository):
         if row is None:
             return KeyNotFoundError(id=key_id)
 
-        return Key(id=row.id, name=row.name, user_id=row.user_id, value=row.token, expires=row.expires, created=row.created)
+        return self._row_to_key(row)

@@ -38,12 +38,12 @@ class PostgresUsageRepository(UsageRepository):
         count_query = select(func.count()).select_from(UsageTable).where(*filters)
         rows, total = await fetch_page_with_total(self.postgres_session, usages_query, count_query)
 
-        usages = [self._to_usage_record(row[0]) for row in rows]
+        usages = [self._row_to_usage_record(row[0]) for row in rows]
 
         return UsagePage(total=total, data=usages)
 
     @staticmethod
-    def _to_usage_record(row: UsageTable) -> UsageRecord:
+    def _row_to_usage_record(row: UsageTable) -> UsageRecord:
         return UsageRecord(
             model=row.router_name,
             key=row.token_name,
