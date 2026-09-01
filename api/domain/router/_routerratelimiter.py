@@ -10,7 +10,9 @@ class RouterRateLimiter(ABC):
         pass
 
     @abstractmethod
-    async def update_rate_limit_state(self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int) -> None:
+    async def update_rate_limit_state(
+        self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int, completion_tokens: int
+    ) -> None:
         pass
 
     @abstractmethod
