@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import Field, ValidationError
 
@@ -10,11 +10,11 @@ from api.infrastructure.http.adapters.rerank import RerankAdapter
 
 
 class TeiCreateRerankBody(BaseModel):
-    query: str = Field(..., examples=["What is Deep Learning?"])
-    raw_scores: bool = Field(False, examples=[False])
-    return_text: bool = Field(False, examples=[False])
-    texts: list[str] = Field(..., examples=[["Deep Learning is ..."]])
-    truncate: bool | None = Field(False, examples=[False])
+    query: Annotated[str, Field(..., examples=["What is Deep Learning?"])]
+    raw_scores: Annotated[bool, Field(False, examples=[False])]
+    return_text: Annotated[bool, Field(False, examples=[False])]
+    texts: Annotated[list[str], Field(..., examples=[["Deep Learning is ..."]])]
+    truncate: Annotated[bool | None, Field(False, examples=[False])]
     truncation_direction: Literal["left", "right"] = "right"
 
 

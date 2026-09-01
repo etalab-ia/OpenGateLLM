@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from pydantic import ConfigDict, Field
 
 from api.domain import BaseModel, UtcDatetime
@@ -16,4 +18,4 @@ class ModelView(BaseModel):
     created: UtcDatetime
     owned_by: str
     max_context_length: int | None = None
-    costs: ModelCosts = Field(default_factory=ModelCosts)
+    costs: Annotated[ModelCosts, Field(default_factory=ModelCosts)]
