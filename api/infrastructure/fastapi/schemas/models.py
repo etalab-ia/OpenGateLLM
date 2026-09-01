@@ -8,8 +8,8 @@ from api.domain.model.views import ModelView
 
 
 class ModelCosts(BaseModel):
-    prompt_tokens: float = Field(default=0.0, ge=0.0, description="Cost of a million prompt tokens (decrease user budget)")
-    completion_tokens: float = Field(default=0.0, ge=0.0, description="Cost of a million completion tokens (decrease user budget)")
+    prompt_tokens: Annotated[float, Field(default=0.0, ge=0.0, description="Cost of a million prompt tokens (decrease user budget)")]
+    completion_tokens: Annotated[float, Field(default=0.0, ge=0.0, description="Cost of a million completion tokens (decrease user budget)")]
 
 
 class Model(BaseModel):

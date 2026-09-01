@@ -1,7 +1,7 @@
 import array
 import base64
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from openai.types import CreateEmbeddingResponse
 from openai.types.chat import ChatCompletionContentPartParam
@@ -55,7 +55,7 @@ class Embeddings(CreateEmbeddingResponse, ModelJsonResponse):
     object: Literal["list"] = "list"
     id: str
     model: str
-    usage: Usage = Field(default_factory=Usage)
+    usage: Annotated[Usage, Field(default_factory=Usage)]
 
     @classmethod
     def _from_provider_response(

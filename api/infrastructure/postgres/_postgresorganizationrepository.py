@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.domain import SortOrder
 from api.domain.organization import OrganizationRepository
 from api.domain.organization.entities import Organization, OrganizationPage, OrganizationSortField
-from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationNotFoundError
+from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationHasUsersError, OrganizationNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Organization as OrganizationTable
@@ -93,14 +93,16 @@ class PostgresOrganizationRepository(OrganizationRepository):
         return OrganizationPage(total=total, data=organizations)
 
     @with_lock(namespace="organization", key="organization_id")
-    async def delete_organization(self, organization_id: int) -> Organization | OrganizationNotFoundError:
-        statement = (
-            delete(OrganizationTable)
-            .where(OrganizationTable.id == organization_id)
-            .returning(OrganizationTable.id, OrganizationTable.name, OrganizationTable.created, OrganizationTable.updated)
-        )
-        result = await self.postgres_session.execute(statement)
-        row = result.one_or_none()
+    async def delete_organization(self, organization_id: int) -> Organization | OrganizationHasUsersError | OrganizationNotFoundError:
+        statement = delete(OrganizationTable).where(OrganizationTable.id == organization_id).returning(OrganizationTable)
+        try:
+            result = await self.postgres_session.execute(statement)
+        except IntegrityError as e:
+            if "user_organization_id_fkey" in str(e.orig):
+                return OrganizationHasUsersError(id=organization_id)
+            raise
+        row = result.scalar_one_or_none()
         if row is None:
             return OrganizationNotFoundError(id=organization_id)
+
         return Organization(id=row.id, name=row.name, users=0, created=row.created, updated=row.updated)

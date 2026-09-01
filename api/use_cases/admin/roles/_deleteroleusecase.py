@@ -23,13 +23,12 @@ class DeleteRoleUseCase:
         self.role_repository = role_repository
 
     async def execute(self, command: DeleteRoleCommand) -> DeleteRoleUseCaseResult:
-        result = await self.role_repository.get_role_with_permissions_and_limits_by_id(role_id=command.role_id)
-        match result:
-            case Role() as role:
-                if role.users > 0:
-                    return RoleHasUsersError(id=command.role_id, number_of_users=role.users)
-            case RoleNotFoundError():
-                return RoleNotFoundError(id=command.role_id)
+        result = await self.role_repository.delete_role(role_id=command.role_id)
 
-        await self.role_repository.delete_role(role_id=command.role_id)
-        return DeleteRoleUseCaseSuccess(role=result)
+        match result:
+            case Role() as deleted_role:
+                return DeleteRoleUseCaseSuccess(role=deleted_role)
+            case RoleHasUsersError() as error:
+                return error
+            case RoleNotFoundError(id=role_id):
+                return RoleNotFoundError(id=role_id)

@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 from api.domain import SortField, SortOrder
 from api.domain.role import RoleRepository
 from api.domain.role.entities import Limit, PermissionType, Role, RolePage
-from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
+from api.domain.role.errors import RoleAlreadyExistsError, RoleHasUsersError, RoleNotFoundError
 from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Role as RoleTable
 from api.sql.models import User as UserTable
@@ -136,18 +136,20 @@ class PostgresRolesRepository(RoleRepository):
         return self._row_to_role(row, permissions=role.permissions, limits=role.limits)
 
     @with_lock(namespace="role", key="role_id")
-    async def delete_role(self, role_id: int) -> Role | RoleNotFoundError:
-        result = await self.postgres_session.execute(
-            delete(RoleTable)
-            .where(RoleTable.id == role_id)
-            .returning(
-                RoleTable.id,
-                RoleTable.name,
-                RoleTable.created,
-                RoleTable.updated,
-            )
-        )
-        row = result.one_or_none()
-        if row is None:
-            return RoleNotFoundError(id=role_id)
-        return self._row_to_role(row)
+    async def delete_role(self, role_id: int) -> Role | RoleHasUsersError | RoleNotFoundError:
+        # retrieve the role first to return permissions and limits
+        result = await self.get_role_with_permissions_and_limits_by_id(role_id=role_id)
+        match result:
+            case RoleNotFoundError():
+                return RoleNotFoundError(id=role_id)
+            case Role() as role:
+                pass
+
+        try:
+            await self.postgres_session.execute(delete(RoleTable).where(RoleTable.id == role_id))
+        except IntegrityError as e:
+            if "user_role_id_fkey" in str(e.orig):
+                return RoleHasUsersError(id=role_id)
+            raise
+
+        return role

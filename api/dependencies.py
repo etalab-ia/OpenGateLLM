@@ -403,11 +403,7 @@ def get_users_use_case_factory(postgres_session: AsyncSession = Depends(get_post
 
 
 def delete_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> DeleteUserUseCase:
-    return DeleteUserUseCase(
-        user_repository=_user_repository(postgres_session),
-        router_repository=_router_repository(postgres_session),
-        provider_repository=_provider_repository(postgres_session),
-    )
+    return DeleteUserUseCase(user_repository=_user_repository(postgres_session))
 
 
 def update_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateUserUseCase:

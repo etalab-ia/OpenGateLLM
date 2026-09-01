@@ -30,20 +30,20 @@ PLAIN_TEXT_SUBTITLE_FORMATS = {
 
 
 class Segment(BaseModel):
-    id: Annotated[int, Field(default=..., description="A unique identifier for the segment.")] = Field(default=..., description="A unique identifier for the segment.")  # fmt: off
-    type: Annotated[str, Field(default="transcript.text.segment", description="The type of the segment.")] = Field(default="transcript.text.segment", description="The type of the segment.")  # fmt: off
-    text: Annotated[str, Field(default=..., description="The segment text.")] = Field(default=..., description="The segment text.")
-    start: Annotated[float, Field(default=..., description="Start time of the segment in seconds.")] = Field(default=..., description="Start time of the segment in seconds.")  # fmt: off
-    end: Annotated[float, Field(default=..., description="End time of the segment in seconds.")] = Field(default=..., description="End time of the segment in seconds.")  # fmt: off
-    speaker: Annotated[str | None, Field(default=None, description="Speaker label assigned by diarization, if available.")] = Field(default=None, description="Speaker label assigned by diarization, if available.")  # fmt: off
+    id: Annotated[int, Field(default=..., description="A unique identifier for the segment.")]
+    type: Annotated[str, Field(default="transcript.text.segment", description="The type of the segment.")]
+    text: Annotated[str, Field(default=..., description="The segment text.")]
+    start: Annotated[float, Field(default=..., description="Start time of the segment in seconds.")]
+    end: Annotated[float, Field(default=..., description="End time of the segment in seconds.")]
+    speaker: Annotated[str | None, Field(default=None, description="Speaker label assigned by diarization, if available.")]
 
 
 class AudioTranscriptionsResponse(BaseModel):
-    id: Annotated[str, Field(default=..., description="A unique identifier for the audio transcription.")] = Field(default=..., description="A unique identifier for the audio transcription.")  # fmt: off
-    text: Annotated[str, Field(default=..., description="The transcription text.")] = Field(default=..., description="The transcription text.")
-    model: Annotated[str, Field(default=..., description="The model used to generate the transcription.")] = Field(default=..., description="The model used to generate the transcription.")  # fmt: off
-    segments: Annotated[list[Segment] | None, Field(default=None, description="Diarized segments, only set when `response_format=diarized_json`.")] = Field(default=None, description="Diarized segments, only set when `response_format=diarized_json`.")  # fmt: off
-    usage: Annotated[Usage, Field(default_factory=Usage, description="Usage information for the request.")] = Field(default_factory=Usage, description="Usage information for the request.")  # fmt: off
+    id: Annotated[str, Field(default=..., description="A unique identifier for the audio transcription.")]
+    text: Annotated[str, Field(default=..., description="The transcription text.")]
+    model: Annotated[str, Field(default=..., description="The model used to generate the transcription.")]
+    segments: Annotated[list[Segment] | None, Field(default=None, description="Diarized segments, only set when `response_format=diarized_json`.")]
+    usage: Annotated[Usage, Field(default_factory=Usage, description="Usage information for the request.")]
 
 
 class CreateAudioTranscriptionsForm(BaseModel):

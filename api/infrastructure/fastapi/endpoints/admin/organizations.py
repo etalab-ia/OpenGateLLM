@@ -178,5 +178,5 @@ async def delete_organization(
             return OrganizationResponse.model_validate(organization)
         case OrganizationNotFoundError(id=organization_id):
             raise OrganizationNotFoundHTTPException(organization_id)
-        case OrganizationHasUsersError(id=organization_id, number_of_users=number_of_users):
-            raise OrganizationHasUsersHTTPException(organization_id=organization_id, number_of_users=number_of_users)
+        case OrganizationHasUsersError(id=organization_id):
+            raise OrganizationHasUsersHTTPException(organization_id=organization_id)

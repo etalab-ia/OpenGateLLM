@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import Field
 
@@ -86,7 +86,7 @@ class OCR(ModelJsonResponse):
     model: str
     document_annotation: str | None = None
     pages: list[OCRPageObject]
-    usage: Usage = Field(default_factory=Usage)
+    usage: Annotated[Usage, Field(default_factory=Usage)]
     usage_info: OCRUsage | None = None
 
     def get_completions(self) -> list[str]:

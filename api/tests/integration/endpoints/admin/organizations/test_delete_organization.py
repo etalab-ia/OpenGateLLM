@@ -34,6 +34,7 @@ class TestDeleteOrganization:
         assert data["object"] == "organization"
         assert data["id"] == organization.id
         assert data["name"] == "to-delete"
+        assert data["users"] == 0
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
@@ -44,9 +45,9 @@ class TestDeleteOrganization:
                 "Organization 999 not found.",
             ),
             (
-                OrganizationHasUsersError(id=999, number_of_users=3),
+                OrganizationHasUsersError(id=999),
                 409,
-                "Organization 999 has 3 users and cannot be removed.",
+                "Organization 999 still has users and cannot be removed.",
             ),
         ],
     )
