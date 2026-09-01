@@ -37,7 +37,7 @@ FROM python:3.12-slim
 
 WORKDIR /playground
 
-ARG OAUTH2_PROXY_VERSION=v7.15.3
+ARG OAUTH2_PROXY_VERSION=v7.15.4
 ARG TARGETARCH=amd64
 
 RUN apt-get update && \
