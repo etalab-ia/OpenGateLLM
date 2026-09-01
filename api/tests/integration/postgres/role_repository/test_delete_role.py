@@ -2,12 +2,12 @@ import pytest
 from sqlalchemy import select
 
 from api.domain.role.entities import LimitType, PermissionType, Role
-from api.domain.role.errors import RoleNotFoundError
+from api.domain.role.errors import RoleHasUsersError, RoleNotFoundError
 from api.infrastructure.postgres import PostgresRolesRepository
 from api.sql.models import Limit as LimitTable
 from api.sql.models import Permission as PermissionTable
 from api.sql.models import Role as RoleTable
-from api.tests.integration.factories.sql import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory
+from api.tests.integration.factories.sql import LimitSQLFactory, PermissionSQLFactory, RoleSQLFactory, RouterSQLFactory, UserSQLFactory
 
 
 @pytest.fixture
@@ -40,6 +40,12 @@ class TestDeleteRole:
         assert isinstance(delete_result, Role)
         assert delete_result.id == role.id
         assert delete_result.name == "to-delete"
+        assert delete_result.users == 0
+        assert delete_result.permissions == [PermissionType.READ_METRIC]
+        assert len(delete_result.limits) == 1
+        assert delete_result.limits[0].router_id == router.id
+        assert delete_result.limits[0].type == LimitType.TPM
+        assert delete_result.limits[0].value == 100
         limits = (await db_session.execute(select(LimitTable).where(LimitTable.role_id == role_id))).all()
         permissions = (await db_session.execute(select(PermissionTable).where(PermissionTable.role_id == role_id))).all()
         assert limits == []
@@ -47,3 +53,16 @@ class TestDeleteRole:
 
         get_result = (await db_session.execute(select(RoleTable).where(RoleTable.id == role_id))).all()
         assert get_result == []
+
+    async def test_returns_has_users_error_when_role_still_has_users(self, repository, db_session):
+        # Arrange
+        role = RoleSQLFactory(name="role-with-users")
+        UserSQLFactory(role=role)
+        await db_session.flush()
+
+        # Act
+        result = await repository.delete_role(role_id=role.id)
+
+        # Assert
+        assert isinstance(result, RoleHasUsersError)
+        assert result.id == role.id

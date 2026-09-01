@@ -221,5 +221,5 @@ async def delete_role(
             return RoleResponse.model_validate(role, from_attributes=True)
         case RoleNotFoundError(id=role_id):
             raise RoleNotFoundHTTPException(role_id)
-        case RoleHasUsersError(id=role_id, number_of_users=number_of_users):
-            raise RoleHasUsersHTTPException(role_id=role_id, number_of_users=number_of_users)
+        case RoleHasUsersError(id=role_id):
+            raise RoleHasUsersHTTPException(role_id=role_id)

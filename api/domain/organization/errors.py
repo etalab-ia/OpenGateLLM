@@ -15,4 +15,3 @@ class OrganizationNotFoundError:
 @dataclass
 class OrganizationHasUsersError:
     id: int
-    number_of_users: int

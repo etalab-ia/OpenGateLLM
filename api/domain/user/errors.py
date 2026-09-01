@@ -2,15 +2,13 @@ from dataclasses import dataclass
 
 
 @dataclass
-class DeleteUserWithProvidersError:
-    user_id: int
-    provider_ids: list[int] | None
+class UserHasProvidersError:
+    id: int
 
 
 @dataclass
-class DeleteUserWithRoutersError:
-    user_id: int
-    router_ids: list[int] | None
+class UserHasRoutersError:
+    id: int
 
 
 @dataclass
