@@ -137,6 +137,7 @@ class PostgresRolesRepository(RoleRepository):
 
     @with_lock(namespace="role", key="role_id")
     async def delete_role(self, role_id: int) -> Role | RoleHasUsersError | RoleNotFoundError:
+        # retrieve the role first to return permissions and limits
         result = await self.get_role_with_permissions_and_limits_by_id(role_id=role_id)
         match result:
             case RoleNotFoundError():

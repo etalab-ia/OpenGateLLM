@@ -94,11 +94,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
 
     @with_lock(namespace="organization", key="organization_id")
     async def delete_organization(self, organization_id: int) -> Organization | OrganizationHasUsersError | OrganizationNotFoundError:
-        statement = (
-            delete(OrganizationTable)
-            .where(OrganizationTable.id == organization_id)
-            .returning(OrganizationTable.id, OrganizationTable.name, OrganizationTable.created, OrganizationTable.updated)
-        )
+        statement = delete(OrganizationTable).where(OrganizationTable.id == organization_id).returning(OrganizationTable)
         try:
             result = await self.postgres_session.execute(statement)
         except IntegrityError as e:
@@ -108,4 +104,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
         row = result.one_or_none()
         if row is None:
             return OrganizationNotFoundError(id=organization_id)
-        return Organization(id=row.id, name=row.name, users=0, created=row.created, updated=row.updated)
+
+        organization = Organization(id=row.id, name=row.name, users=0, created=row.created, updated=row.updated)
+
+        return organization

@@ -272,20 +272,20 @@ class OrganizationHasUsersHTTPException(HTTPException):
         super().__init__(status_code=409, detail=f"Organization {organization_id} still has users and cannot be removed.")
 
 
-class DeleteUserWithRoutersHTTPException(HTTPException):
+class UserHasRoutersHTTPException(HTTPException):
     status_code = 409
-    detail = "User cannot be deleted because the user owns routers: {router_ids}."
+    detail = "User {user_id} still has routers and cannot be removed."
 
-    def __init__(self, router_ids: list[int] | None) -> None:
-        super().__init__(status_code=409, detail=f"User cannot be deleted because the user owns routers: {router_ids}.")
+    def __init__(self, user_id: int) -> None:
+        super().__init__(status_code=409, detail=f"User {user_id} still has routers and cannot be removed.")
 
 
-class DeleteUserWithProvidersHTTPException(HTTPException):
+class UserHasProvidersHTTPException(HTTPException):
     status_code = 409
-    detail = "User cannot be deleted because the user owns providers: {provider_ids}."
+    detail = "User {user_id} still has providers and cannot be removed."
 
-    def __init__(self, provider_ids: list[int] | None) -> None:
-        super().__init__(status_code=409, detail=f"User cannot be deleted because the user owns providers: {provider_ids}.")
+    def __init__(self, user_id: int) -> None:
+        super().__init__(status_code=409, detail=f"User {user_id} still has providers and cannot be removed.")
 
 
 # 413

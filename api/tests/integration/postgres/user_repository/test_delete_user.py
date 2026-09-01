@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import select
 
 from api.domain.user.entities import User
-from api.domain.user.errors import DeleteUserWithProvidersError, DeleteUserWithRoutersError, UserNotFoundError
+from api.domain.user.errors import UserHasProvidersError, UserHasRoutersError, UserNotFoundError
 from api.infrastructure.postgres import PostgresUserRepository
 from api.sql.models import User as UserTable
 from api.tests.integration.factories.sql import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
@@ -48,9 +48,8 @@ class TestDeleteUser:
         result = await repository.delete_user(user_id=user.id)
 
         # Assert
-        assert isinstance(result, DeleteUserWithRoutersError)
-        assert result.user_id == user.id
-        assert result.router_ids is None
+        assert isinstance(result, UserHasRoutersError)
+        assert result.id == user.id
         row = (await db_session.execute(select(UserTable).where(UserTable.id == user.id))).scalar_one_or_none()
         assert row is not None
 
@@ -65,6 +64,5 @@ class TestDeleteUser:
         result = await repository.delete_user(user_id=user.id)
 
         # Assert
-        assert isinstance(result, DeleteUserWithProvidersError)
-        assert result.user_id == user.id
-        assert result.provider_ids is None
+        assert isinstance(result, UserHasProvidersError)
+        assert result.id == user.id
