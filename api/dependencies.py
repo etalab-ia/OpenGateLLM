@@ -153,7 +153,7 @@ def _user_password_encoder() -> UserPasswordEncoder:
     return BcryptUserPasswordEncoder()
 
 
-def _router_rate_limiter() -> RouterRateLimiter:
+def get_router_rate_limiter() -> RouterRateLimiter:
     return RedisRouterRateLimiter(redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy)
 
 
@@ -222,7 +222,7 @@ def create_audio_transcriptions_use_case_factory(
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
         provider_repository=_provider_repository(postgres_session),
-        router_rate_limiter=_router_rate_limiter(),
+        router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
         usage_recorder=_usage_recorder(),
         audio_file_size_limit=configuration.settings.audio_file_size_limit,
@@ -293,7 +293,7 @@ def create_embeddings_use_case_factory(
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
         provider_repository=_provider_repository(postgres_session),
-        router_rate_limiter=_router_rate_limiter(),
+        router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
         usage_recorder=_usage_recorder(),
     )
@@ -366,7 +366,7 @@ def create_ocr_use_case_factory(
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
         provider_repository=_provider_repository(postgres_session),
-        router_rate_limiter=_router_rate_limiter(),
+        router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
         usage_recorder=_usage_recorder(),
     )
@@ -431,7 +431,7 @@ def create_rerank_use_case_factory(
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
         provider_repository=_provider_repository(postgres_session),
-        router_rate_limiter=_router_rate_limiter(),
+        router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
         usage_recorder=_usage_recorder(),
     )

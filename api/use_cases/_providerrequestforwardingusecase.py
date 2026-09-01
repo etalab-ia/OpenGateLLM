@@ -139,12 +139,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
             if exceeded_limits:
                 limit_type = exceeded_limits[0]
                 return RouterRateLimitExceededError(id=router.id, limit_type=limit_type, headers=rate_limit_state.build_limit_headers)
-            await self.router_rate_limiter.update_rate_limit_state(
-                user_id=authenticated_user.id,
-                router_limits=limits,
-                router_id=router.id,
-                prompt_tokens=prompt_tokens,
-            )
         else:
             rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
 
@@ -229,6 +223,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         self.usage_recorder.record_usage(
             request_id=formatted_response.id,
             prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
             total_tokens=prompt_tokens + completion_tokens,
             cost=cost,
         )
