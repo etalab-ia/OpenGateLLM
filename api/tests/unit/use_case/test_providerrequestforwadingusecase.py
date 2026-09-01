@@ -308,12 +308,9 @@ class TestCheckRateLimits:
         # Assert
         assert result == RouterRateLimitState.admin_rate_limit_state()
         use_case.router_rate_limiter.get_rate_limit_state.assert_not_awaited()
-        use_case.router_rate_limiter.update_rate_limit_state.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_should_return_rate_limit_exceeded_error_without_updating_state_when_a_limit_is_exceeded(
-        self, use_case, user_with_router_access, router
-    ):
+    async def test_should_return_rate_limit_exceeded_error_when_a_limit_is_exceeded(self, use_case, user_with_router_access, router):
         # Arrange
         rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
         rate_limit_state.rpm = RpmRateLimitState(value=10, remaining=0, reset=0)
@@ -333,10 +330,9 @@ class TestCheckRateLimits:
             router_id=router.id,
             prompt_tokens=1,
         )
-        use_case.router_rate_limiter.update_rate_limit_state.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_should_update_rate_limit_state_when_non_admin_user_is_within_limits(self, use_case, user_with_router_access, router):
+    async def test_should_return_rate_limit_state_when_non_admin_user_is_within_limits(self, use_case, user_with_router_access, router):
         # Arrange
         rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
         use_case.router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
@@ -346,7 +342,7 @@ class TestCheckRateLimits:
 
         # Assert
         assert result is rate_limit_state
-        use_case.router_rate_limiter.update_rate_limit_state.assert_awaited_once_with(
+        use_case.router_rate_limiter.get_rate_limit_state.assert_awaited_once_with(
             user_id=user_with_router_access.id,
             router_limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
             router_id=router.id,
@@ -456,6 +452,7 @@ class TestSendRequest:
         use_case.usage_recorder.record_usage.assert_called_once_with(
             request_id=sample_data.id,
             prompt_tokens=1,
+            completion_tokens=1,
             total_tokens=2,
             cost=0.03,
         )
@@ -476,6 +473,7 @@ class TestSendRequest:
         use_case.usage_recorder.record_usage.assert_called_once_with(
             request_id="req-1",
             prompt_tokens=1,
+            completion_tokens=1,
             total_tokens=2,
             cost=0.03,
         )
