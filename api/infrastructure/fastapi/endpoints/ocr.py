@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Security
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
-from api.dependencies import create_ocr_use_case_factory
+from api.dependencies import create_ocr_use_case_factory, get_router_rate_limiter
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
@@ -46,7 +46,7 @@ router = APIRouter(prefix="/v1", tags=[RouterName.OCR.upper()])
     ),
     response_model=OCRResponse,
 )
-@hooks(postgres_session_provider=get_postgres_session)
+@hooks(postgres_session_provider=get_postgres_session, router_rate_limiter_provider=get_router_rate_limiter)
 async def create_ocr(
     body: CreateOCRBody = Body(description="The OCR creation request."),
     create_ocr_use_case: CreateOCRUseCase = Depends(create_ocr_use_case_factory),
