@@ -1,13 +1,9 @@
 from datetime import UTC, datetime
 from typing import Literal
 
-from pydantic import Field, constr
+from pydantic import Field
 
 from api.schemas import BaseModel
-
-
-class OrganizationUpdateRequest(BaseModel):
-    name: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="The new organization name.")
 
 
 class Organization(BaseModel):

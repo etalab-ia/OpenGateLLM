@@ -1,4 +1,4 @@
-from sqlalchemy import asc, delete, desc, func, insert, select
+from sqlalchemy import asc, delete, desc, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -91,6 +91,32 @@ class PostgresOrganizationRepository(OrganizationRepository):
         ]
 
         return OrganizationPage(total=total, data=organizations)
+
+    @with_lock(namespace="organization", key="organization.id")
+    async def update_organization(self, organization: Organization) -> Organization | OrganizationAlreadyExistsError | OrganizationNotFoundError:
+        statement = (
+            update(OrganizationTable)
+            .where(OrganizationTable.id == organization.id)
+            .values(name=organization.name)
+            .returning(
+                OrganizationTable.id,
+                OrganizationTable.name,
+                OrganizationTable.created,
+                OrganizationTable.updated,
+            )
+        )
+        try:
+            result = await self.postgres_session.execute(statement)
+            row = result.one_or_none()
+        except IntegrityError as e:
+            if "organization_name_key" in str(e.orig):
+                return OrganizationAlreadyExistsError(name=organization.name)
+            raise
+
+        if row is None:
+            return OrganizationNotFoundError(id=organization.id)
+
+        return Organization(id=row.id, name=row.name, users=organization.users, created=row.created, updated=row.updated)
 
     @with_lock(namespace="organization", key="organization_id")
     async def delete_organization(self, organization_id: int) -> Organization | OrganizationHasUsersError | OrganizationNotFoundError:
