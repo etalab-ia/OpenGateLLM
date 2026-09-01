@@ -7,7 +7,7 @@ from app.core.configuration import configuration
 from app.features.keys.models import Key
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
-from app.shared.utils.timestamps import date_to_timestamp, format_datetime, format_local_date, is_past, local_now
+from app.shared.utils.timestamps import date_to_timestamp, format_datetime, format_local_date, local_now
 
 
 class KeysState(EntityState):
@@ -27,7 +27,7 @@ class KeysState(EntityState):
             token=key["value"],
             expires=format_datetime(key["expires"], default="never"),
             created=format_datetime(key["created"]),
-            is_expired=is_past(key["expires"]),
+            is_expired=key.get("status") == "expired",
         )
 
     @rx.var
@@ -60,8 +60,9 @@ class KeysState(EntityState):
             "limit": self.per_page,
             "sort_by": self.order_by_value,
             "sort_order": self.order_direction_value,
-            "include_expired": self.show_expired,
         }
+        if self.status_filter_param is not None:
+            params["status"] = self.status_filter_param
 
         response = None
         try:
@@ -224,17 +225,25 @@ class KeysState(EntityState):
     ############################################################
     page: int = 1
     per_page: int = 20
-    show_expired: bool = True
+    status_filter_value: str = "All"
+    status_filter_options: list[str] = ["All", "Active", "Expired"]
     order_by_value: str = "id"
     order_direction: str = "asc"
     order_direction_options: list[str] = ["asc", "desc"]
     order_direction_value: str = "asc"
     order_by_options: list[str] = ["id", "name", "created"]
 
+    @rx.var
+    def status_filter_param(self) -> str | None:
+        """API status query param derived from the UI filter."""
+        if self.status_filter_value == "All":
+            return None
+        return self.status_filter_value.lower()
+
     @rx.event
-    async def set_show_expired(self, value: bool):
-        """Toggle expired keys visibility and reload."""
-        self.show_expired = value
+    async def set_status_filter(self, value: str):
+        """Set status filter and reload."""
+        self.status_filter_value = value
         self.page = 1
         self.has_more_page = False
         yield

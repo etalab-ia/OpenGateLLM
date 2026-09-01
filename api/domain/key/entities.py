@@ -1,6 +1,12 @@
 from datetime import UTC, datetime
+from enum import StrEnum
 
 from api.domain import BaseModel, EntitiesPage, UtcDatetime
+
+
+class KeyStatus(StrEnum):
+    ACTIVE = "active"
+    EXPIRED = "expired"
 
 
 class Key(BaseModel):
@@ -10,6 +16,7 @@ class Key(BaseModel):
     value: str
     expires: UtcDatetime | None
     created: UtcDatetime
+    status: KeyStatus | None = None
 
     @classmethod
     def build_from_claims(cls, claims: dict):
@@ -38,6 +45,15 @@ class Key(BaseModel):
         if expires is None:
             return None
         return int(expires.timestamp())
+
+    @staticmethod
+    def compute_status(expires: UtcDatetime | None) -> KeyStatus:
+        if expires is not None and expires < datetime.now(tz=UTC):
+            return KeyStatus.EXPIRED
+        return KeyStatus.ACTIVE
+
+    def with_computed_status(self) -> "Key":
+        return self.model_copy(update={"status": self.compute_status(self.expires)})
 
 
 KeyPage = EntitiesPage["Key"]

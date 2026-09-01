@@ -1,6 +1,6 @@
 import reflex as rx
 
-from app.core.variables import SPACING_SMALL, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
+from app.core.variables import SELECT_MEDIUM_WIDTH, SPACING_SMALL, TEXT_SIZE_LABEL, TEXT_SIZE_LARGE
 from app.features.keys.components.dialogs import keys_delete_dialog
 from app.features.keys.models import Key
 from app.features.keys.state import KeysState
@@ -97,10 +97,12 @@ def key_renderer_row(key: Key, with_settings: bool = False) -> rx.Component:
 def key_filters() -> rx.Component:
     """Filters for keys list."""
     return rx.hstack(
-        rx.text("Show expired", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
-        rx.checkbox(
-            checked=KeysState.show_expired,
-            on_change=KeysState.set_show_expired,
+        rx.text("Status", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+        rx.select(
+            KeysState.status_filter_options,
+            on_change=KeysState.set_status_filter,
+            value=KeysState.status_filter_value,
+            width=SELECT_MEDIUM_WIDTH,
         ),
         spacing=SPACING_SMALL,
         align="center",

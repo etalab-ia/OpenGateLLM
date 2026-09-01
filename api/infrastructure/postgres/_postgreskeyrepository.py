@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain import SortField, SortOrder
 from api.domain.key import KeyEncoder, KeyRepository
-from api.domain.key.entities import Key, KeyPage
+from api.domain.key.entities import Key, KeyPage, KeyStatus
 from api.domain.key.errors import KeyAlreadyExistsError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
@@ -46,7 +46,7 @@ class PostgresKeyRepository(KeyRepository):
         offset: int = 0,
         sort_by: SortField = SortField.ID,
         sort_order: SortOrder = SortOrder.ASC,
-        exclude_expired: bool = True,
+        status: KeyStatus | None = None,
     ) -> KeyPage:
         sort_column = {SortField.ID: KeyTable.id, SortField.NAME: KeyTable.name, SortField.CREATED: KeyTable.created}[sort_by]
         order_fn = asc if sort_order == SortOrder.ASC else desc
@@ -54,8 +54,11 @@ class PostgresKeyRepository(KeyRepository):
         filters = []
         if user_id is not None:
             filters.append(KeyTable.user_id == user_id)
-        if exclude_expired:
+        if status == KeyStatus.ACTIVE:
             filters.append(or_(KeyTable.expires.is_(None), KeyTable.expires >= func.now()))
+        elif status == KeyStatus.EXPIRED:
+            filters.append(KeyTable.expires.isnot(None))
+            filters.append(KeyTable.expires < func.now())
 
         key_query = select(KeyTable, func.count().over().label("total")).where(*filters).order_by(order_fn(sort_column)).offset(offset).limit(limit)
         count_query = select(func.count()).select_from(KeyTable).where(*filters)

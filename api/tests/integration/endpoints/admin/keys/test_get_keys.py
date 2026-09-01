@@ -55,7 +55,43 @@ class TestGetKeys:
         assert data["data"][0]["id"] == key.id
         assert data["data"][0]["user"] == user.id
 
-    async def test_excludes_expired_keys_by_default(self, client: AsyncClient, db_session):
+    async def test_filters_active_keys_by_default(self, client: AsyncClient, db_session):
+        user = UserSQLFactory()
+        KeySQLFactory(user=user, name="active-key", never_expires=True)
+        KeySQLFactory(user=user, name="expired-key", expired=True)
+        await db_session.flush()
+
+        response = await client.get(
+            url=URL,
+            params={"user": user.id, "status": "active"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["total"] == 1
+        assert data["data"][0]["name"] == "active-key"
+        assert data["data"][0]["status"] == "active"
+
+    async def test_filters_expired_keys_when_requested(self, client: AsyncClient, db_session):
+        user = UserSQLFactory()
+        KeySQLFactory(user=user, name="active-key", never_expires=True)
+        KeySQLFactory(user=user, name="expired-key", expired=True)
+        await db_session.flush()
+
+        response = await client.get(
+            url=URL,
+            params={"user": user.id, "status": "expired"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["total"] == 1
+        assert data["data"][0]["name"] == "expired-key"
+        assert data["data"][0]["status"] == "expired"
+
+    async def test_returns_all_keys_when_status_is_omitted(self, client: AsyncClient, db_session):
         user = UserSQLFactory()
         KeySQLFactory(user=user, name="active-key", never_expires=True)
         KeySQLFactory(user=user, name="expired-key", expired=True)
@@ -64,23 +100,6 @@ class TestGetKeys:
         response = await client.get(
             url=URL,
             params={"user": user.id},
-            headers={"Authorization": f"Bearer {self.key.token}"},
-        )
-
-        assert response.status_code == 200, response.text
-        data = response.json()
-        assert data["total"] == 1
-        assert data["data"][0]["name"] == "active-key"
-
-    async def test_includes_expired_keys_when_requested(self, client: AsyncClient, db_session):
-        user = UserSQLFactory()
-        KeySQLFactory(user=user, name="active-key", never_expires=True)
-        KeySQLFactory(user=user, name="expired-key", expired=True)
-        await db_session.flush()
-
-        response = await client.get(
-            url=URL,
-            params={"user": user.id, "include_expired": True},
             headers={"Authorization": f"Bearer {self.key.token}"},
         )
 

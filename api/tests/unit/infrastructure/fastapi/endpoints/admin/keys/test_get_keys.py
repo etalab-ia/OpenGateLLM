@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from api.domain import EntitiesPage, SortField, SortOrder
-from api.domain.key.entities import Key
+from api.domain.key.entities import Key, KeyStatus
 from api.infrastructure.fastapi.endpoints.admin.keys import get_keys
 from api.infrastructure.fastapi.schemas.admin.keys import KeysResponse
 from api.use_cases.admin.keys import GetKeysCommand, GetKeysUseCaseSuccess
@@ -25,6 +25,7 @@ class TestGetKeysEndpoint:
             value="sk-masked...value",
             expires=None,
             created=datetime(2030, 1, 1, tzinfo=UTC),
+            status=KeyStatus.ACTIVE,
         )
         mock_use_case = MagicMock()
         mock_use_case.execute = AsyncMock(return_value=GetKeysUseCaseSuccess(key_page=EntitiesPage(total=1, data=[key])))
@@ -35,7 +36,7 @@ class TestGetKeysEndpoint:
             limit=10,
             sort_by=SortField.ID,
             sort_order=SortOrder.ASC,
-            include_expired=False,
+            status=None,
             get_keys_use_case=mock_use_case,
             authenticated_user=mock_authenticated_user,
         )
@@ -47,12 +48,13 @@ class TestGetKeysEndpoint:
         assert len(result.data) == 1
         assert result.data[0].name == "my-key"
         assert result.data[0].user == 42
+        assert result.data[0].status == KeyStatus.ACTIVE
         mock_use_case.execute.assert_awaited_once_with(
-            GetKeysCommand(user_id=None, offset=0, limit=10, sort_by=SortField.ID, sort_order=SortOrder.ASC, exclude_expired=True)
+            GetKeysCommand(user_id=None, offset=0, limit=10, sort_by=SortField.ID, sort_order=SortOrder.ASC, status=None)
         )
 
     @pytest.mark.asyncio
-    async def test_should_not_exclude_expired_keys_when_include_expired_is_set(self, mock_authenticated_user):
+    async def test_should_forward_status_filter_to_the_use_case(self, mock_authenticated_user):
         mock_use_case = MagicMock()
         mock_use_case.execute = AsyncMock(return_value=GetKeysUseCaseSuccess(key_page=EntitiesPage(total=0, data=[])))
 
@@ -62,11 +64,11 @@ class TestGetKeysEndpoint:
             limit=10,
             sort_by=SortField.ID,
             sort_order=SortOrder.ASC,
-            include_expired=True,
+            status=KeyStatus.EXPIRED,
             get_keys_use_case=mock_use_case,
             authenticated_user=mock_authenticated_user,
         )
 
         mock_use_case.execute.assert_awaited_once_with(
-            GetKeysCommand(user_id=None, offset=0, limit=10, sort_by=SortField.ID, sort_order=SortOrder.ASC, exclude_expired=False)
+            GetKeysCommand(user_id=None, offset=0, limit=10, sort_by=SortField.ID, sort_order=SortOrder.ASC, status=KeyStatus.EXPIRED)
         )

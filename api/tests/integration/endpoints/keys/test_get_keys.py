@@ -40,26 +40,43 @@ class TestGetMeKeys:
         assert own_key.id in returned_ids
         assert self.key.id in returned_ids
 
-    async def test_excludes_expired_keys_by_default(self, client: AsyncClient, db_session):
+    async def test_filters_active_keys_when_requested(self, client: AsyncClient, db_session):
         expired_key = KeySQLFactory(user=self.user, name="expired-key", expired=True)
         await db_session.flush()
 
         response = await client.get(
             url=URL,
+            params={"status": "active"},
             headers={"Authorization": f"Bearer {self.key.token}"},
         )
 
         assert response.status_code == 200, response.text
         data = response.json()
         assert expired_key.id not in {item["id"] for item in data["data"]}
+        assert all(item["status"] == "active" for item in data["data"])
 
-    async def test_includes_expired_keys_when_requested(self, client: AsyncClient, db_session):
+    async def test_filters_expired_keys_when_requested(self, client: AsyncClient, db_session):
         expired_key = KeySQLFactory(user=self.user, name="expired-key", expired=True)
         await db_session.flush()
 
         response = await client.get(
             url=URL,
-            params={"include_expired": True},
+            params={"status": "expired"},
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        returned = {item["id"] for item in data["data"]}
+        assert expired_key.id in returned
+        assert all(item["status"] == "expired" for item in data["data"])
+
+    async def test_returns_all_keys_when_status_is_omitted(self, client: AsyncClient, db_session):
+        expired_key = KeySQLFactory(user=self.user, name="expired-key", expired=True)
+        await db_session.flush()
+
+        response = await client.get(
+            url=URL,
             headers={"Authorization": f"Bearer {self.key.token}"},
         )
 

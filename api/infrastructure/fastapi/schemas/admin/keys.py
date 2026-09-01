@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 from pydantic import Field, StringConstraints, field_validator, model_validator
 
 from api.domain import BaseModel
-from api.domain.key.entities import Key
+from api.domain.key.entities import Key, KeyStatus
 
 
 class CreateKeyBody(BaseModel):
@@ -33,6 +33,7 @@ class KeyResponse(BaseModel):
     user: Annotated[int, Field(description="ID of the user that owns the key.")]
     expires: Annotated[int | None, Field(default=None, description="Time of expiration, as Unix timestamp. If None, the key never expires.")]
     created: Annotated[int, Field(description="Time of creation, as Unix timestamp.")]
+    status: Annotated[KeyStatus, Field(description="Whether the key is active or expired.")]
 
     @model_validator(mode="before")
     @classmethod
@@ -46,6 +47,7 @@ class KeyResponse(BaseModel):
                 "user": data.user_id,
                 "expires": int(data.expires.timestamp()) if data.expires is not None else None,
                 "created": int(data.created.timestamp()),
+                "status": data.status or Key.compute_status(data.expires),
             }
         return data
 

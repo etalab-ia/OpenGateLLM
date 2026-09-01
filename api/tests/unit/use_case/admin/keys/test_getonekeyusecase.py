@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.key.entities import Key
+from api.domain.key.entities import Key, KeyStatus
 from api.domain.key.errors import KeyNotFoundError
 from api.use_cases.admin.keys import GetOneKeyCommand, GetOneKeyUseCase, GetOneKeyUseCaseSuccess
 
@@ -42,7 +42,7 @@ class TestGetOneKeyUseCase:
 
         # Assert
         assert isinstance(result, GetOneKeyUseCaseSuccess)
-        assert result.key == key
+        assert result.key.status == KeyStatus.ACTIVE
         key_repository.get_key_by_id.assert_awaited_once_with(42)
 
     @pytest.mark.asyncio
@@ -56,7 +56,7 @@ class TestGetOneKeyUseCase:
 
         # Assert
         assert isinstance(result, GetOneKeyUseCaseSuccess)
-        assert result.key == key
+        assert result.key.status == KeyStatus.ACTIVE
         key_repository.get_key_by_id.assert_awaited_once_with(42)
 
     @pytest.mark.asyncio

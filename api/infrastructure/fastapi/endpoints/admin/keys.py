@@ -4,6 +4,7 @@ from fastapi import Body, Depends, Path, Query, Security
 
 from api.dependencies import create_key_use_case_factory, delete_key_use_case_factory, get_keys_use_case_factory, get_one_key_use_case_factory
 from api.domain import SortField, SortOrder
+from api.domain.key.entities import KeyStatus
 from api.domain.key.errors import KeyAlreadyExistsError, KeyExpirationInvalidError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.domain.user.views import AuthenticatedUserView
@@ -124,11 +125,11 @@ async def get_keys(
     limit: int = Query(default=10, ge=1, le=100, description="Maximum number of keys to return."),
     sort_by: SortField = Query(default=SortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
-    include_expired: bool = Query(default=False, description="Include expired keys in the results."),
+    status: KeyStatus | None = Query(default=None, description="Filter keys by status. Omit to return all keys."),
     get_keys_use_case: GetKeysUseCase = Depends(get_keys_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeysResponse:
-    command = GetKeysCommand(user_id=user, offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order, exclude_expired=not include_expired)
+    command = GetKeysCommand(user_id=user, offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order, status=status)
     try:
         result = await get_keys_use_case.execute(command)
     except Exception as e:
@@ -140,7 +141,7 @@ async def get_keys(
                 "limit": command.limit,
                 "sort_by": command.sort_by,
                 "sort_order": command.sort_order,
-                "exclude_expired": command.exclude_expired,
+                "status": command.status,
                 "error_type": type(e).__name__,
             },
         )

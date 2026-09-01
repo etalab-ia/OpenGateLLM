@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from pydantic import FutureDatetime
 
 from api.domain import SortField, SortOrder
-from api.domain.key.entities import Key, KeyPage
+from api.domain.key.entities import Key, KeyPage, KeyStatus
 from api.domain.key.errors import KeyAlreadyExistsError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 
@@ -21,7 +21,7 @@ class KeyRepository(ABC):
         offset: int = 0,
         sort_by: SortField = SortField.ID,
         sort_order: SortOrder = SortOrder.ASC,
-        exclude_expired: bool = True,
+        status: KeyStatus | None = None,
     ) -> KeyPage:
         pass
 

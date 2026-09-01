@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select
 
 from api.domain import EntitiesPage, SortField, SortOrder
-from api.domain.key.entities import Key
+from api.domain.key.entities import Key, KeyStatus
 from api.domain.key.errors import KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.infrastructure.jwt import JwtKeyEncoder
@@ -112,24 +112,45 @@ class TestGetKeysPage:
         assert result.total == 1
         assert result.data[0].name == "user-key"
 
-    async def test_excludes_expired_keys(self, repository, db_session):
+    async def test_returns_keys_without_status_from_repository(self, repository, db_session):
         user = UserSQLFactory()
         KeySQLFactory(user=user, name="active-key", never_expires=True)
-        KeySQLFactory(user=user, name="expired-key", expired=True)
         await db_session.flush()
 
         result = await repository.get_keys_page(user_id=user.id)
 
         assert result.total == 1
-        assert result.data[0].name == "active-key"
+        assert result.data[0].status is None
 
-    async def test_includes_expired_keys_when_not_excluded(self, repository, db_session):
+    async def test_filters_active_keys_by_status(self, repository, db_session):
         user = UserSQLFactory()
         KeySQLFactory(user=user, name="active-key", never_expires=True)
         KeySQLFactory(user=user, name="expired-key", expired=True)
         await db_session.flush()
 
-        result = await repository.get_keys_page(user_id=user.id, exclude_expired=False)
+        result = await repository.get_keys_page(user_id=user.id, status=KeyStatus.ACTIVE)
+
+        assert result.total == 1
+        assert result.data[0].name == "active-key"
+
+    async def test_filters_expired_keys_by_status(self, repository, db_session):
+        user = UserSQLFactory()
+        KeySQLFactory(user=user, name="active-key", never_expires=True)
+        KeySQLFactory(user=user, name="expired-key", expired=True)
+        await db_session.flush()
+
+        result = await repository.get_keys_page(user_id=user.id, status=KeyStatus.EXPIRED)
+
+        assert result.total == 1
+        assert result.data[0].name == "expired-key"
+
+    async def test_returns_all_keys_when_status_is_none(self, repository, db_session):
+        user = UserSQLFactory()
+        KeySQLFactory(user=user, name="active-key", never_expires=True)
+        KeySQLFactory(user=user, name="expired-key", expired=True)
+        await db_session.flush()
+
+        result = await repository.get_keys_page(user_id=user.id, status=None)
 
         assert result.total == 2
         assert {k.name for k in result.data} == {"active-key", "expired-key"}

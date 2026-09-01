@@ -32,4 +32,4 @@ class GetOneKeyUseCase:
         if command.user_id is not None and result.user_id != command.user_id:
             return KeyNotFoundError(id=command.key_id)
 
-        return GetOneKeyUseCaseSuccess(key=result)
+        return GetOneKeyUseCaseSuccess(key=result.with_computed_status())
