@@ -17,5 +17,8 @@ class Organization(BaseModel):
     created: UtcDatetime
     updated: UtcDatetime
 
+    def with_name(self, name: str) -> "Organization":
+        return self.model_copy(update={"name": name})
+
 
 OrganizationPage = EntitiesPage["Organization"]

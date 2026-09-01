@@ -42,7 +42,7 @@ class TestGetOrganizations:
         response = await client.get(
             url=URL,
             headers={"Authorization": f"Bearer {self.key.token}"},
-            params={"offset": 0, "limit": 2, "sort_by": "name", "sort_order": "desc"},
+            params={"offset": 0, "limit": 2, "sort_by": "id", "sort_order": "desc"},
         )
 
         assert response.status_code == 200, response.text
@@ -51,8 +51,8 @@ class TestGetOrganizations:
         assert data["limit"] == 2
         assert len(data["data"]) == 2
         assert data["total"] > 2
-        names = [organization["name"] for organization in data["data"]]
-        assert names == sorted(names, reverse=True)
+        ids = [organization["id"] for organization in data["data"]]
+        assert ids == sorted(ids, reverse=True)
 
     async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
         regular_user = UserSQLFactory(regular_user=True)
