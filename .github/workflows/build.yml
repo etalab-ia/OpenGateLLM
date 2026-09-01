@@ -133,7 +133,7 @@ jobs:
             private_host: albert.api.001.staging.etalab.gouv.fr:8002
           - environment: prod
             public_host: albert.playground.etalab.gouv.fr
-            private_host: albert.api.private.etalab.gouv.fr:8002
+            private_host: albert.api.001.prod.etalab.gouv.fr:8002
 
     steps:
       - name: Checkout repository
