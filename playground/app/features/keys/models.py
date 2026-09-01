@@ -9,3 +9,4 @@ class Key(Entity):
     token: str | None = None
     expires: str | None = None
     created: str | None = None
+    is_expired: bool = False
