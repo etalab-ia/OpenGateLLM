@@ -12,6 +12,7 @@ class GetKeysCommand:
     limit: int
     sort_by: SortField
     sort_order: SortOrder
+    exclude_expired: bool = True
 
 
 @dataclass
@@ -33,6 +34,7 @@ class GetKeysUseCase:
             offset=command.offset,
             sort_by=command.sort_by,
             sort_order=command.sort_order,
+            exclude_expired=command.exclude_expired,
         )
 
         return GetKeysUseCaseSuccess(key_page=key_page)

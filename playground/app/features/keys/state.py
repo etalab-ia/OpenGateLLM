@@ -7,7 +7,7 @@ from app.core.configuration import configuration
 from app.features.keys.models import Key
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
-from app.shared.utils.timestamps import date_to_timestamp, format_datetime, format_local_date, local_now
+from app.shared.utils.timestamps import date_to_timestamp, format_datetime, format_local_date, is_past, local_now
 
 
 class KeysState(EntityState):
@@ -27,6 +27,7 @@ class KeysState(EntityState):
             token=key["value"],
             expires=format_datetime(key["expires"], default="never"),
             created=format_datetime(key["created"]),
+            is_expired=is_past(key["expires"]),
         )
 
     @rx.var
@@ -59,6 +60,7 @@ class KeysState(EntityState):
             "limit": self.per_page,
             "sort_by": self.order_by_value,
             "sort_order": self.order_direction_value,
+            "include_expired": self.show_expired,
         }
 
         response = None
@@ -222,11 +224,22 @@ class KeysState(EntityState):
     ############################################################
     page: int = 1
     per_page: int = 20
+    show_expired: bool = True
     order_by_value: str = "id"
     order_direction: str = "asc"
     order_direction_options: list[str] = ["asc", "desc"]
     order_direction_value: str = "asc"
     order_by_options: list[str] = ["id", "name", "created"]
+
+    @rx.event
+    async def set_show_expired(self, value: bool):
+        """Toggle expired keys visibility and reload."""
+        self.show_expired = value
+        self.page = 1
+        self.has_more_page = False
+        yield
+        async for _ in self.load_entities():
+            yield
 
     @rx.event
     async def set_order_by(self, value: str):

@@ -55,6 +55,40 @@ class TestGetKeys:
         assert data["data"][0]["id"] == key.id
         assert data["data"][0]["user"] == user.id
 
+    async def test_excludes_expired_keys_by_default(self, client: AsyncClient, db_session):
+        user = UserSQLFactory()
+        KeySQLFactory(user=user, name="active-key", never_expires=True)
+        KeySQLFactory(user=user, name="expired-key", expired=True)
+        await db_session.flush()
+
+        response = await client.get(
+            url=URL,
+            params={"user": user.id},
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["total"] == 1
+        assert data["data"][0]["name"] == "active-key"
+
+    async def test_includes_expired_keys_when_requested(self, client: AsyncClient, db_session):
+        user = UserSQLFactory()
+        KeySQLFactory(user=user, name="active-key", never_expires=True)
+        KeySQLFactory(user=user, name="expired-key", expired=True)
+        await db_session.flush()
+
+        response = await client.get(
+            url=URL,
+            params={"user": user.id, "include_expired": True},
+            headers={"Authorization": f"Bearer {self.key.token}"},
+        )
+
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["total"] == 2
+        assert {item["name"] for item in data["data"]} == {"active-key", "expired-key"}
+
     async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
         regular_user = UserSQLFactory(regular_user=True)
         key = await create_key(db_session, name="regular_user_key", user=regular_user, never_expires=True)
