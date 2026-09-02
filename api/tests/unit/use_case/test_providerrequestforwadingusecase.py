@@ -1,13 +1,21 @@
 from http import HTTPMethod
-from unittest.mock import AsyncMock, MagicMock, create_autospec, patch
+from unittest.mock import AsyncMock, create_autospec, patch
 
 import pytest
 
 from api.domain import ForwardablePayload
+from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ModelJsonResponse
 from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import TooBusyModelError
-from api.domain.provider import ProviderAdapter
+from api.domain.provider import (
+    ProviderAdapter,
+    ProviderAdapterBuilder,
+    ProviderClient,
+    ProviderLoadBalancer,
+    ProviderMetricsLogger,
+    ProviderRepository,
+)
 from api.domain.provider.entities import (
     ProviderFormattedRequest,
     ProviderFormattedResponse,
@@ -16,6 +24,7 @@ from api.domain.provider.entities import (
 )
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.role.entities import Limit, LimitType
+from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterRateLimitState, RpmRateLimitState
 from api.domain.router.errors import (
     RouterHasNoProvidersError,
@@ -61,16 +70,51 @@ class ForwardingTestUseCase(ProviderRequestForwardingUseCase[ForwardingTestComma
 
 @pytest.fixture
 def model_tokenizer():
-    tokenizer = MagicMock()
+    tokenizer = create_autospec(ModelTokenizer, instance=True, spec_set=True)
     tokenizer.compute_tokens.side_effect = lambda texts: len(texts)
     return tokenizer
 
 
 @pytest.fixture
 def model_environmental_impacts_computer():
-    computer = MagicMock()
+    computer = create_autospec(ModelEnvironmentalImpactsComputer, instance=True, spec_set=True)
     computer.compute.return_value = EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0)
     return computer
+
+
+@pytest.fixture
+def provider_adapter_builder():
+    return create_autospec(ProviderAdapterBuilder, instance=True, spec_set=True)
+
+
+@pytest.fixture
+def provider_client():
+    return create_autospec(ProviderClient, instance=True, spec_set=True)
+
+
+@pytest.fixture
+def provider_load_balancer():
+    return create_autospec(ProviderLoadBalancer, instance=True, spec_set=True)
+
+
+@pytest.fixture
+def provider_metrics_logger():
+    return create_autospec(ProviderMetricsLogger, instance=True, spec_set=True)
+
+
+@pytest.fixture
+def provider_repository():
+    return create_autospec(ProviderRepository, instance=True, spec_set=True)
+
+
+@pytest.fixture
+def router_rate_limiter():
+    return create_autospec(RouterRateLimiter, instance=True, spec_set=True)
+
+
+@pytest.fixture
+def router_repository():
+    return create_autospec(RouterRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -127,18 +171,25 @@ def user_with_router_access():
 def use_case(
     model_environmental_impacts_computer,
     model_tokenizer,
+    provider_adapter_builder,
+    provider_client,
+    provider_load_balancer,
+    provider_metrics_logger,
+    provider_repository,
+    router_rate_limiter,
+    router_repository,
     usage_recorder,
 ) -> ForwardingTestUseCase:
     return ForwardingTestUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
-        provider_adapter_builder=MagicMock(),
-        provider_client=AsyncMock(),
-        provider_load_balancer=AsyncMock(),
-        provider_metrics_logger=AsyncMock(),
-        provider_repository=AsyncMock(),
-        router_rate_limiter=AsyncMock(),
-        router_repository=AsyncMock(),
+        provider_adapter_builder=provider_adapter_builder,
+        provider_client=provider_client,
+        provider_load_balancer=provider_load_balancer,
+        provider_metrics_logger=provider_metrics_logger,
+        provider_repository=provider_repository,
+        router_rate_limiter=router_rate_limiter,
+        router_repository=router_repository,
         usage_recorder=usage_recorder,
     )
 
