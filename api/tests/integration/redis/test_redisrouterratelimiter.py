@@ -126,6 +126,21 @@ class TestRedisRouterRateLimiter:
         assert result.rpm.reset > time.time()
         assert LimitType.RPM.value in result.exceeded_limits(prompt_tokens=0)
 
+    async def test_get_rate_limit_state_exceeds_tpm_when_prompt_is_larger_than_remaining(self, rate_limiter: RedisRouterRateLimiter):
+        # Arrange
+        user_id = 1008
+        router_id = 2008
+        limits = limits_factory(router_id=router_id, rpm=10, tpm=50)
+        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=30)
+
+        # Act
+        result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=25)
+
+        # Assert
+        assert result.tpm.remaining == 20
+        assert LimitType.TPM.value in result.exceeded_limits(prompt_tokens=25)
+        assert LimitType.RPM.value not in result.exceeded_limits(prompt_tokens=25)
+
     async def test_reset_clears_rate_limit_state(self, rate_limiter: RedisRouterRateLimiter, redis_client: AsyncRedis):
         # Arrange
         user_id = 1007
