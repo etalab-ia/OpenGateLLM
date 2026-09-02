@@ -7,6 +7,7 @@ from api.dependencies import (
     delete_organization_use_case_factory,
     get_one_organization_use_case_factory,
     get_organizations_use_case_factory,
+    update_organization_use_case_factory,
 )
 from api.domain import SortOrder
 from api.domain.organization.entities import OrganizationSortField
@@ -23,7 +24,12 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     OrganizationHasUsersHTTPException,
     OrganizationNotFoundHTTPException,
 )
-from api.infrastructure.fastapi.schemas.admin.organizations import CreateOrganizationBody, OrganizationResponse, OrganizationsResponse
+from api.infrastructure.fastapi.schemas.admin.organizations import (
+    CreateOrganizationBody,
+    OrganizationResponse,
+    OrganizationsResponse,
+    UpdateOrganizationBody,
+)
 from api.use_cases.admin.organizations import (
     CreateOrganizationCommand,
     CreateOrganizationUseCase,
@@ -37,6 +43,9 @@ from api.use_cases.admin.organizations import (
     GetOrganizationsCommand,
     GetOrganizationsUseCase,
     GetOrganizationsUseCaseSuccess,
+    UpdateOrganizationCommand,
+    UpdateOrganizationUseCase,
+    UpdateOrganizationUseCaseSuccess,
 )
 from api.utils.variables import EndpointRoute
 
@@ -178,5 +187,41 @@ async def delete_organization(
             return OrganizationResponse.model_validate(organization)
         case OrganizationNotFoundError(id=organization_id):
             raise OrganizationNotFoundHTTPException(organization_id)
-        case OrganizationHasUsersError(id=organization_id, number_of_users=number_of_users):
-            raise OrganizationHasUsersHTTPException(organization_id=organization_id, number_of_users=number_of_users)
+        case OrganizationHasUsersError(id=organization_id):
+            raise OrganizationHasUsersHTTPException(organization_id=organization_id)
+
+
+@router.patch(
+    path=EndpointRoute.ADMIN_ORGANIZATIONS + "/{organization_id}",
+    dependencies=[Security(dependency=AccessController(only_admin=True))],
+    status_code=200,
+    responses=get_documentation_responses([NotAdminUserHTTPException, OrganizationNotFoundHTTPException, OrganizationAlreadyExistsHTTPException]),
+)
+async def update_organization(
+    organization_id: int = Path(description="The ID of the organization to update."),
+    body: UpdateOrganizationBody = Body(description="The organization update request."),
+    update_organization_use_case: UpdateOrganizationUseCase = Depends(update_organization_use_case_factory),
+    authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
+) -> OrganizationResponse:
+    command = UpdateOrganizationCommand(organization_id=organization_id, name=body.name)
+    try:
+        result = await update_organization_use_case.execute(command)
+    except Exception as e:
+        logger.exception(
+            "Unexpected error while executing update_organization use case",
+            extra={
+                "authenticated_user_id": authenticated_user.id,
+                "organization_id": organization_id,
+                "organization_name": body.name,
+                "error_type": type(e).__name__,
+            },
+        )
+        raise InternalServerHTTPException()
+
+    match result:
+        case UpdateOrganizationUseCaseSuccess(organization=organization):
+            return OrganizationResponse.model_validate(organization)
+        case OrganizationNotFoundError(id=not_found_organization_id):
+            raise OrganizationNotFoundHTTPException(not_found_organization_id)
+        case OrganizationAlreadyExistsError(name=name):
+            raise OrganizationAlreadyExistsHTTPException(name)
