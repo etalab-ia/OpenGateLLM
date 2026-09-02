@@ -62,8 +62,8 @@ def hooks(*, postgres_session_provider: PostgresSessionProvider, router_rate_lim
             finally:
                 usage = set_usage_from_context(usage=usage)
                 _schedule_background_task(
-                    coroutine=update_rate_limit_state(user=context.user, usage=usage, router_rate_limiter_provider=router_rate_limiter_provider),
-                    task_name="hooks-update-rate-limit-state",
+                    coroutine=charge_router_limits(user=context.user, usage=usage, router_rate_limiter_provider=router_rate_limiter_provider),
+                    task_name="hooks-charge-router-limits",
                 )
                 _schedule_background_task(
                     coroutine=log_usage(usage=usage, postgres_session_provider=postgres_session_provider),
@@ -101,7 +101,7 @@ def set_usage_from_context(usage: Usage):
     return usage
 
 
-async def update_rate_limit_state(user: AuthenticatedUserView | None, usage: Usage, router_rate_limiter_provider: RouterRateLimiterProvider):
+async def charge_router_limits(user: AuthenticatedUserView | None, usage: Usage, router_rate_limiter_provider: RouterRateLimiterProvider):
     if user is None or user.is_admin:
         return
     if usage.router_id is None:
