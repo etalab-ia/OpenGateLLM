@@ -34,6 +34,12 @@ def _schedule_background_task(coroutine: Coroutine, task_name: str) -> None:
     task.add_done_callback(_log_background_task_failure)
 
 
+def _total_tokens(prompt_tokens: int | None, completion_tokens: int | None) -> int | None:
+    if prompt_tokens is None and completion_tokens is None:
+        return None
+    return (prompt_tokens or 0) + (completion_tokens or 0)
+
+
 def hooks(*, postgres_session_provider: PostgresSessionProvider, router_rate_limiter_provider: RouterRateLimiterProvider):
     def decorator(endpoint_func):
         @functools.wraps(endpoint_func)
@@ -87,7 +93,7 @@ def set_usage_from_context(usage: Usage):
     usage.provider_model_name = context.provider_model_name
     usage.prompt_tokens = context.prompt_tokens
     usage.completion_tokens = context.completion_tokens
-    usage.total_tokens = context.total_tokens
+    usage.total_tokens = _total_tokens(context.prompt_tokens, context.completion_tokens)
     usage.cost = context.cost
     usage.kwh = context.kwh
     usage.kgco2eq = context.kgco2eq

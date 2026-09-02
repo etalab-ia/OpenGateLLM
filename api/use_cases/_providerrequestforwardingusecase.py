@@ -224,7 +224,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
             request_id=formatted_response.id,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
-            total_tokens=prompt_tokens + completion_tokens,
             cost=cost,
         )
 

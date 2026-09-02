@@ -453,7 +453,6 @@ class TestSendRequest:
             request_id=sample_data.id,
             prompt_tokens=1,
             completion_tokens=1,
-            total_tokens=2,
             cost=0.03,
         )
 
@@ -474,7 +473,6 @@ class TestSendRequest:
             request_id="req-1",
             prompt_tokens=1,
             completion_tokens=1,
-            total_tokens=2,
             cost=0.03,
         )
 
