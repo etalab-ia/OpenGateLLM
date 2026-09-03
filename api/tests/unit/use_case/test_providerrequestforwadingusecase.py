@@ -25,13 +25,8 @@ from api.domain.provider.entities import (
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
-from api.domain.router.entities import RouterRateLimitState, RpmRateLimitState
-from api.domain.router.errors import (
-    RouterHasNoProvidersError,
-    RouterHasWrongTypeError,
-    RouterNotFoundError,
-    RouterRateLimitExceededError,
-)
+from api.domain.router.entities import RouterRateLimitState, RpmRateLimitState, TpmRateLimitState
+from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
@@ -385,6 +380,30 @@ class TestCheckRateLimits:
             prompt_tokens=1,
         )
         use_case.router_rate_limiter.update_rate_limit_state.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_should_return_rate_limit_exceeded_error_without_updating_state_when_prompt_exceeds_remaining_tokens(
+        self, use_case, user_with_router_access, router
+    ):
+        # Arrange
+        rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
+        rate_limit_state.tpm = TpmRateLimitState(value=100, remaining=9, reset=0)
+        use_case.router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
+
+        # Act
+        result = await use_case._check_rate_limits(authenticated_user=user_with_router_access, router=router, prompt_tokens=10)
+
+        # Assert
+        assert isinstance(result, RouterRateLimitExceededError)
+        assert result.id == router.id
+        assert result.limit_type == LimitType.TPM
+        assert result.headers == rate_limit_state.build_limit_headers
+        use_case.router_rate_limiter.get_rate_limit_state.assert_awaited_once_with(
+            user_id=user_with_router_access.id,
+            router_limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
+            router_id=router.id,
+            prompt_tokens=10,
+        )
 
     @pytest.mark.asyncio
     async def test_should_update_rate_limit_state_when_non_admin_user_is_within_limits(self, use_case, user_with_router_access, router):
