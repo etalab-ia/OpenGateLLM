@@ -281,10 +281,14 @@ class VerbNounUseCase:
 
     async def execute(self, command: VerbNounCommand) -> VerbNounUseCaseResult:
         result = await self.repository.some_method(...)
-        if isinstance(result, SomeError):
-            return result
-        return VerbNounUseCaseSuccess(entity=result)
+        match result:
+            case Entity() as entity:
+                return VerbNounUseCaseSuccess(entity=entity)
+            case SomeError() as error:
+                return error
 ```
+
+Prefer `match`/`case` over `isinstance` when branching on a repository result or domain error.
 
 Export `Command`, `UseCase`, `UseCaseSuccess` from `__init__.py`.
 
@@ -383,6 +387,8 @@ When adding a model-forward use case, also add a `ForwardScenario` in `api/tests
 
 Map only **known** constraint / FK names to domain errors. If the `IntegrityError` does not match an explicit case, **re-raise** it — never swallow unknown integrity failures as a generic domain error.
 
+Avoid adding `begin_nested()` just to keep the session usable after a mapped `IntegrityError`. HTTP handlers already roll back through `get_postgres_session` when they raise. Bootstrap does not keep using the session after a mapped conflict: it returns `Skipped` and the lifespan rolls back the aborted transaction. Do not substitute `AutocommitSession` to recover from `IntegrityError`: `@with_lock` requires a transactional session.
+
 ```python
 except IntegrityError as e:
     if "token_user_id_fkey" in str(e.orig):
@@ -454,8 +460,8 @@ async def get_roles(
 
 ## Error handling
 
-1. Domain errors — `@dataclass` in `api/domain/<context>/errors.py`, **returned** not raised
-2. Use cases — propagate via `match`/`case` or `isinstance`
+1. Domain errors — `@dataclass` in `domain/<context>/errors.py`, **returned** not raised
+2. Use cases — propagate via `match`/`case`
 3. Repositories — return `Entity | Error`
 4. Endpoints — map domain error → `*HTTPException` in `api/infrastructure/fastapi/endpoints/exceptions.py`
 5. Unexpected — `logger.exception` + `InternalServerHTTPException`

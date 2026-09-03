@@ -3,10 +3,10 @@ import logging
 
 from api.domain.role import LimitRepository, PermissionRepository, RoleRepository
 from api.domain.role.entities import PermissionType, Role
-from api.domain.role.errors import RoleNotFoundError
+from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 from api.domain.user import UserPasswordEncoder, UserRepository
 from api.domain.user.entities import User
-from api.domain.user.errors import UserNotFoundError
+from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +26,9 @@ class BootstrapAdminUseCaseSuccess:
 
 @dataclass
 class BootstrapAdminUseCaseSkipped:
-    user_id: int
-    email: str
-    role_id: int
+    user_id: int | None = None
+    email: str | None = None
+    role_id: int | None = None
 
 
 type BootstrapAdminUseCaseResult = BootstrapAdminUseCaseSuccess | BootstrapAdminUseCaseSkipped
@@ -64,8 +64,12 @@ class BootstrapAdminUseCase:
                 if PermissionType.ADMIN not in role.permissions:
                     await self.permission_repository.create_permissions(role_id=role.id, permissions=[*role.permissions, PermissionType.ADMIN])
             case RoleNotFoundError():
-                role = await self.role_repository.create_role(name=self.BOOTSTRAP_ADMIN_ROLE_NAME)
-                await self.permission_repository.create_permissions(role_id=role.id, permissions=[PermissionType.ADMIN])
+                result = await self.role_repository.create_role(name=self.BOOTSTRAP_ADMIN_ROLE_NAME)
+                match result:
+                    case Role() as role:
+                        await self.permission_repository.create_permissions(role_id=role.id, permissions=[PermissionType.ADMIN])
+                    case RoleAlreadyExistsError():
+                        return BootstrapAdminUseCaseSkipped()
 
         result = await self.user_repository.get_user_by_email(email=command.email)
         match result:
@@ -73,12 +77,16 @@ class BootstrapAdminUseCase:
                 if user.role_id != role.id:
                     await self.user_repository.update_user(user=user.model_copy(update={"role_id": role.id}))
             case UserNotFoundError():
-                encoded_password = self.user_password_encoder.encode_password(password=command.password)
-                user = await self.user_repository.create_user(
+                result = await self.user_repository.create_user(
                     email=command.email,
-                    password=encoded_password,
+                    password=self.user_password_encoder.encode_password(password=command.password),
                     role_id=role.id,
                     name=self.BOOTSTRAP_ADMIN_USER_NAME,
                 )
+                match result:
+                    case User() as user:
+                        pass
+                    case UserAlreadyExistsError():
+                        return BootstrapAdminUseCaseSkipped()
 
         return BootstrapAdminUseCaseSuccess(user_id=user.id, email=user.email, role_id=role.id)
