@@ -15,10 +15,10 @@ from api.domain.organization.errors import OrganizationNotFoundError
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.entities import UserSortField
 from api.domain.user.errors import (
-    DeleteUserWithProvidersError,
-    DeleteUserWithRoutersError,
     IncorrectCurrentPasswordError,
     UserAlreadyExistsError,
+    UserHasProvidersError,
+    UserHasRoutersError,
     UserNotFoundError,
 )
 from api.domain.user.views import AuthenticatedUserView
@@ -27,14 +27,14 @@ from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.admin import router
 from api.infrastructure.fastapi.endpoints.exceptions import (
-    DeleteUserWithProvidersHTTPException,
-    DeleteUserWithRoutersHTTPException,
     InternalServerHTTPException,
     InvalidCurrentPasswordHTTPException,
     NotAdminUserHTTPException,
     OrganizationNotFoundHTTPException,
     RoleNotFoundHTTPException,
     UserAlreadyExistsHTTPException,
+    UserHasProvidersHTTPException,
+    UserHasRoutersHTTPException,
     UserNotFoundHTTPException,
 )
 from api.infrastructure.fastapi.schemas.admin.users import CreateUserBody, UserResponse, UsersResponse, UserUpdateRequest
@@ -201,8 +201,8 @@ async def get_users(
     responses=get_documentation_responses(
         [
             UserNotFoundHTTPException,
-            DeleteUserWithRoutersHTTPException,
-            DeleteUserWithProvidersHTTPException,
+            UserHasRoutersHTTPException,
+            UserHasProvidersHTTPException,
             NotAdminUserHTTPException,
         ]
     ),
@@ -230,10 +230,10 @@ async def delete_user(
             return UserResponse.model_validate(user, from_attributes=True)
         case UserNotFoundError(id=not_found_id):
             raise UserNotFoundHTTPException(user_id=not_found_id)
-        case DeleteUserWithRoutersError(router_ids=router_ids):
-            raise DeleteUserWithRoutersHTTPException(router_ids=router_ids)
-        case DeleteUserWithProvidersError(provider_ids=provider_ids):
-            raise DeleteUserWithProvidersHTTPException(provider_ids=provider_ids)
+        case UserHasRoutersError(id=user_id):
+            raise UserHasRoutersHTTPException(user_id=user_id)
+        case UserHasProvidersError(id=user_id):
+            raise UserHasProvidersHTTPException(user_id=user_id)
         case _ as unreachable:
             assert_never(unreachable)
 

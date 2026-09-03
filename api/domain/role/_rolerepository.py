@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from api.domain import SortField, SortOrder
 from api.domain.role.entities import Role, RolePage
-from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
+from api.domain.role.errors import RoleAlreadyExistsError, RoleHasUsersError, RoleNotFoundError
 
 
 class RoleRepository(ABC):
@@ -23,7 +23,7 @@ class RoleRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete_role(self, role_id: int) -> Role | RoleNotFoundError:
+    async def delete_role(self, role_id: int) -> Role | RoleHasUsersError | RoleNotFoundError:
         pass
 
     @abstractmethod

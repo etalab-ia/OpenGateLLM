@@ -11,12 +11,7 @@ from api.domain.role.entities import PermissionType
 from api.domain.role.errors import RoleNotFoundError
 from api.domain.user import UserRepository
 from api.domain.user.entities import User, UserPage, UserSortField
-from api.domain.user.errors import (
-    DeleteUserWithProvidersError,
-    DeleteUserWithRoutersError,
-    UserAlreadyExistsError,
-    UserNotFoundError,
-)
+from api.domain.user.errors import UserAlreadyExistsError, UserHasProvidersError, UserHasRoutersError, UserNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Permission as PermissionTable
@@ -213,18 +208,17 @@ class PostgresUserRepository(UserRepository):
             return UserNotFoundError(id=user.id)
         return self._row_to_user(row)
 
-    async def delete_user(self, user_id: int) -> User | UserNotFoundError | DeleteUserWithRoutersError | DeleteUserWithProvidersError:
+    async def delete_user(self, user_id: int) -> User | UserNotFoundError | UserHasRoutersError | UserHasProvidersError:
         try:
-            async with self.postgres_session.begin_nested():
-                result = await self.postgres_session.execute(statement=delete(UserTable).where(UserTable.id == user_id).returning(*_USER_COLUMNS))
+            result = await self.postgres_session.execute(statement=delete(UserTable).where(UserTable.id == user_id).returning(UserTable))
         except IntegrityError as e:
             if "router_user_id_fkey" in str(e.orig):
-                return DeleteUserWithRoutersError(user_id=user_id, router_ids=None)
+                return UserHasRoutersError(id=user_id)
             if "provider_user_id_fkey" in str(e.orig):
-                return DeleteUserWithProvidersError(user_id=user_id, provider_ids=None)
+                return UserHasProvidersError(id=user_id)
             raise
 
-        row = result.one_or_none()
+        row = result.scalar_one_or_none()
         if row is None:
             return UserNotFoundError(id=user_id)
 

@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 
 from api.dependencies import delete_user_use_case_factory
-from api.domain.user.errors import DeleteUserWithProvidersError, DeleteUserWithRoutersError, UserNotFoundError
+from api.domain.user.errors import UserHasProvidersError, UserHasRoutersError, UserNotFoundError
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import UserSQLFactory
 from api.utils.variables import EndpointRoute
@@ -42,14 +42,14 @@ class TestDeleteUser:
                 "User 1 not found.",
             ),
             (
-                DeleteUserWithRoutersError(user_id=1, router_ids=[10, 20]),
+                UserHasRoutersError(id=1),
                 409,
-                "User cannot be deleted because the user owns routers: [10, 20].",
+                "User 1 still has routers and cannot be removed.",
             ),
             (
-                DeleteUserWithProvidersError(user_id=1, provider_ids=[30, 40]),
+                UserHasProvidersError(id=1),
                 409,
-                "User cannot be deleted because the user owns providers: [30, 40].",
+                "User 1 still has providers and cannot be removed.",
             ),
         ],
     )

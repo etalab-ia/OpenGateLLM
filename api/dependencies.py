@@ -49,6 +49,7 @@ from api.use_cases.admin.organizations import (
     DeleteOrganizationUseCase,
     GetOneOrganizationUseCase,
     GetOrganizationsUseCase,
+    UpdateOrganizationUseCase,
 )
 from api.use_cases.admin.providers import (
     CreateProviderUseCase,
@@ -389,6 +390,10 @@ def get_one_organization_use_case_factory(postgres_session: AsyncSession = Depen
     return GetOneOrganizationUseCase(organization_repository=_organization_repository(session=postgres_session))
 
 
+def update_organization_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateOrganizationUseCase:
+    return UpdateOrganizationUseCase(organization_repository=_organization_repository(session=postgres_session))
+
+
 # user use cases
 def create_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> CreateUserUseCase:
     return CreateUserUseCase(user_repository=_user_repository(postgres_session), user_password_encoder=_user_password_encoder())
@@ -403,11 +408,7 @@ def get_users_use_case_factory(postgres_session: AsyncSession = Depends(get_post
 
 
 def delete_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> DeleteUserUseCase:
-    return DeleteUserUseCase(
-        user_repository=_user_repository(postgres_session),
-        router_repository=_router_repository(postgres_session),
-        provider_repository=_provider_repository(postgres_session),
-    )
+    return DeleteUserUseCase(user_repository=_user_repository(postgres_session))
 
 
 def update_user_use_case_factory(postgres_session: AsyncSession = Depends(get_postgres_session)) -> UpdateUserUseCase:

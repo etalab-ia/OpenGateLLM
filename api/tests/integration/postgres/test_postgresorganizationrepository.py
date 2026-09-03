@@ -1,10 +1,11 @@
+from datetime import UTC, datetime
+
 import pytest
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
 
 from api.domain import SortOrder
 from api.domain.organization.entities import Organization, OrganizationSortField
-from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationNotFoundError
+from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationHasUsersError, OrganizationNotFoundError
 from api.infrastructure.postgres import PostgresOrganizationRepository
 from api.sql.models import Organization as OrganizationTable
 from api.tests.integration.factories.sql import OrganizationSQLFactory, UserSQLFactory
@@ -189,6 +190,7 @@ class TestDeleteOrganization:
         assert isinstance(result, Organization)
         assert result.id == organization.id
         assert result.name == "Org To Delete"
+        assert result.users == 0
 
         stored = await db_session.scalar(select(OrganizationTable).where(OrganizationTable.id == organization.id))
         assert stored is None
@@ -201,12 +203,65 @@ class TestDeleteOrganization:
         assert isinstance(result, OrganizationNotFoundError)
         assert result.id == 999999
 
-    async def test_delete_organization_should_raise_integrity_error_when_organization_still_has_users(self, repository, db_session):
+    async def test_delete_organization_should_return_has_users_error_when_organization_still_has_users(self, repository, db_session):
         # Arrange
         organization = OrganizationSQLFactory(name="Org With Users To Delete")
         UserSQLFactory(organization=organization)
         await db_session.flush()
 
-        # Act / Assert
-        with pytest.raises(IntegrityError):
-            await repository.delete_organization(organization_id=organization.id)
+        # Act
+        result = await repository.delete_organization(organization_id=organization.id)
+
+        # Assert
+        assert isinstance(result, OrganizationHasUsersError)
+        assert result.id == organization.id
+
+
+@pytest.mark.asyncio(loop_scope="session")
+class TestUpdateOrganization:
+    async def test_update_organization_should_return_renamed_organization(self, repository, db_session):
+        # Arrange
+        organization = OrganizationSQLFactory(name="Org To Rename", updated=datetime(2020, 1, 1, tzinfo=UTC))
+        UserSQLFactory(organization=organization)
+        await db_session.flush()
+        loaded = await repository.get_organization_by_id(organization_id=organization.id)
+
+        # Act
+        result = await repository.update_organization(organization=loaded.with_name("Renamed Org"))
+
+        # Assert
+        assert isinstance(result, Organization)
+        assert result.id == organization.id
+        assert result.name == "Renamed Org"
+        assert result.users == 1
+        assert result.updated > loaded.updated
+
+        stored = await db_session.scalar(select(OrganizationTable).where(OrganizationTable.id == organization.id))
+        assert stored.name == "Renamed Org"
+
+    async def test_update_organization_should_return_not_found_error_when_organization_does_not_exist(self, repository, db_session):
+        # Arrange
+        organization = OrganizationSQLFactory(name="Org Used As Template")
+        await db_session.flush()
+        loaded = await repository.get_organization_by_id(organization_id=organization.id)
+
+        # Act
+        result = await repository.update_organization(organization=loaded.model_copy(update={"id": 999999}))
+
+        # Assert
+        assert isinstance(result, OrganizationNotFoundError)
+        assert result.id == 999999
+
+    async def test_update_organization_should_return_already_exists_error_when_name_is_duplicate(self, repository, db_session):
+        # Arrange
+        OrganizationSQLFactory(name="Existing Org")
+        organization = OrganizationSQLFactory(name="Org To Rename Into Duplicate")
+        await db_session.flush()
+        loaded = await repository.get_organization_by_id(organization_id=organization.id)
+
+        # Act
+        result = await repository.update_organization(organization=loaded.with_name("Existing Org"))
+
+        # Assert
+        assert isinstance(result, OrganizationAlreadyExistsError)
+        assert result.name == "Existing Org"

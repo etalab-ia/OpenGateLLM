@@ -1,11 +1,11 @@
-from sqlalchemy import asc, delete, desc, func, insert, select
+from sqlalchemy import asc, delete, desc, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain import SortOrder
 from api.domain.organization import OrganizationRepository
 from api.domain.organization.entities import Organization, OrganizationPage, OrganizationSortField
-from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationNotFoundError
+from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationHasUsersError, OrganizationNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
 from api.sql.models import Organization as OrganizationTable
@@ -16,6 +16,10 @@ class PostgresOrganizationRepository(OrganizationRepository):
     def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
 
+    @staticmethod
+    def _row_to_organization(row, *, users: int = 0) -> Organization:
+        return Organization(id=row.id, name=row.name, created=row.created, updated=row.updated, users=users)
+
     async def create_organization(self, name: str) -> Organization | OrganizationAlreadyExistsError:
         try:
             result = await self.postgres_session.execute(insert(OrganizationTable).values(name=name).returning(OrganizationTable))
@@ -25,7 +29,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
                 return OrganizationAlreadyExistsError(name=name)
             raise
 
-        return Organization(id=row.id, name=row.name, users=0, created=row.created, updated=row.updated)
+        return self._row_to_organization(row)
 
     async def get_organization_by_name(self, name: str) -> Organization | OrganizationNotFoundError:
         users_subquery = (
@@ -41,7 +45,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
             return OrganizationNotFoundError(name=name)
 
         row, users_count = row
-        return Organization(id=row.id, name=row.name, users=users_count, created=row.created, updated=row.updated)
+        return self._row_to_organization(row, users=users_count)
 
     async def get_organization_by_id(self, organization_id: int) -> Organization | OrganizationNotFoundError:
         users_subquery = (
@@ -57,7 +61,7 @@ class PostgresOrganizationRepository(OrganizationRepository):
             return OrganizationNotFoundError(id=organization_id)
 
         row, users_count = row
-        return Organization(id=row.id, name=row.name, users=users_count, created=row.created, updated=row.updated)
+        return self._row_to_organization(row, users=users_count)
 
     async def get_organizations_page(
         self,
@@ -85,22 +89,46 @@ class PostgresOrganizationRepository(OrganizationRepository):
         )
         count_query = select(func.count()).select_from(OrganizationTable)
         rows, total = await fetch_page_with_total(self.postgres_session, organizations_query, count_query)
-
-        organizations = [
-            Organization(id=row[0].id, name=row[0].name, users=row.users, created=row[0].created, updated=row[0].updated) for row in rows
-        ]
-
+        organizations = [self._row_to_organization(row[0], users=row.users) for row in rows]
         return OrganizationPage(total=total, data=organizations)
 
-    @with_lock(namespace="organization", key="organization_id")
-    async def delete_organization(self, organization_id: int) -> Organization | OrganizationNotFoundError:
+    @with_lock(namespace="organization", key="organization.id")
+    async def update_organization(self, organization: Organization) -> Organization | OrganizationAlreadyExistsError | OrganizationNotFoundError:
         statement = (
-            delete(OrganizationTable)
-            .where(OrganizationTable.id == organization_id)
-            .returning(OrganizationTable.id, OrganizationTable.name, OrganizationTable.created, OrganizationTable.updated)
+            update(OrganizationTable)
+            .where(OrganizationTable.id == organization.id)
+            .values(name=organization.name)
+            .returning(
+                OrganizationTable.id,
+                OrganizationTable.name,
+                OrganizationTable.created,
+                OrganizationTable.updated,
+            )
         )
-        result = await self.postgres_session.execute(statement)
-        row = result.one_or_none()
+        try:
+            result = await self.postgres_session.execute(statement)
+            row = result.one_or_none()
+        except IntegrityError as e:
+            if "organization_name_key" in str(e.orig):
+                return OrganizationAlreadyExistsError(name=organization.name)
+            raise
+
+        if row is None:
+            return OrganizationNotFoundError(id=organization.id)
+
+        return Organization(id=row.id, name=row.name, users=organization.users, created=row.created, updated=row.updated)
+
+    @with_lock(namespace="organization", key="organization_id")
+    async def delete_organization(self, organization_id: int) -> Organization | OrganizationHasUsersError | OrganizationNotFoundError:
+        statement = delete(OrganizationTable).where(OrganizationTable.id == organization_id).returning(OrganizationTable)
+        try:
+            result = await self.postgres_session.execute(statement)
+        except IntegrityError as e:
+            if "user_organization_id_fkey" in str(e.orig):
+                return OrganizationHasUsersError(id=organization_id)
+            raise
+        row = result.scalar_one_or_none()
         if row is None:
             return OrganizationNotFoundError(id=organization_id)
-        return Organization(id=row.id, name=row.name, users=0, created=row.created, updated=row.updated)
+
+        return self._row_to_organization(row)
