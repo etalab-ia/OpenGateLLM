@@ -377,7 +377,6 @@ class TestCheckRateLimits:
             user_id=user_with_router_access.id,
             router_limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
             router_id=router.id,
-            prompt_tokens=1,
         )
         use_case.router_rate_limiter.update_rate_limit_state.assert_not_awaited()
 
@@ -402,7 +401,6 @@ class TestCheckRateLimits:
             user_id=user_with_router_access.id,
             router_limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
             router_id=router.id,
-            prompt_tokens=10,
         )
 
     @pytest.mark.asyncio

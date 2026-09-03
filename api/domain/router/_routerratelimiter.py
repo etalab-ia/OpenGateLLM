@@ -6,7 +6,7 @@ from api.domain.router.entities import RouterRateLimitState
 
 class RouterRateLimiter(ABC):
     @abstractmethod
-    async def get_rate_limit_state(self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int) -> RouterRateLimitState:
+    async def get_rate_limit_state(self, user_id: int, router_limits: list[Limit], router_id: int) -> RouterRateLimitState:
         pass
 
     @abstractmethod
