@@ -31,17 +31,3 @@ class TestCreateRole:
         # Assert
         assert isinstance(result, RoleAlreadyExistsError)
         assert result.name == "duplicate_role"
-
-    async def test_keeps_the_session_usable_when_name_is_duplicate(self, repository, db_session):
-        """A caller losing a create race (concurrent bootstrap) must be able to read the role back on the same session."""
-        # Arrange
-        created = await repository.create_role(name="concurrent_role")
-
-        # Act
-        result = await repository.create_role(name="concurrent_role")
-        role = await repository.get_role_with_permissions_and_limits_by_name(role_name="concurrent_role")
-
-        # Assert
-        assert isinstance(result, RoleAlreadyExistsError)
-        assert isinstance(role, Role)
-        assert role.id == created.id

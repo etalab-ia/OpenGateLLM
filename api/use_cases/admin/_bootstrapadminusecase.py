@@ -26,9 +26,9 @@ class BootstrapAdminUseCaseSuccess:
 
 @dataclass
 class BootstrapAdminUseCaseSkipped:
-    user_id: int
-    email: str
-    role_id: int
+    user_id: int | None = None
+    email: str | None = None
+    role_id: int | None = None
 
 
 type BootstrapAdminUseCaseResult = BootstrapAdminUseCaseSuccess | BootstrapAdminUseCaseSkipped
@@ -69,10 +69,7 @@ class BootstrapAdminUseCase:
                     case Role() as role:
                         await self.permission_repository.create_permissions(role_id=role.id, permissions=[PermissionType.ADMIN])
                     case RoleAlreadyExistsError():
-                        result = await self.user_repository.get_first_admin_user()
-                        match result:
-                            case User() as user:
-                                return BootstrapAdminUseCaseSkipped(user_id=user.id, email=user.email, role_id=user.role_id)
+                        return BootstrapAdminUseCaseSkipped()
 
         result = await self.user_repository.get_user_by_email(email=command.email)
         match result:
@@ -90,9 +87,6 @@ class BootstrapAdminUseCase:
                     case User() as user:
                         pass
                     case UserAlreadyExistsError():
-                        result = await self.user_repository.get_first_admin_user()
-                        match result:
-                            case User() as user:
-                                return BootstrapAdminUseCaseSkipped(user_id=user.id, email=user.email, role_id=user.role_id)
+                        return BootstrapAdminUseCaseSkipped()
 
         return BootstrapAdminUseCaseSuccess(user_id=user.id, email=user.email, role_id=role.id)

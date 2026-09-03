@@ -59,18 +59,17 @@ class PostgresRolesRepository(RoleRepository):
     @with_lock(namespace="role", key="name")
     async def create_role(self, name: str) -> Role | RoleAlreadyExistsError:
         try:
-            async with self.postgres_session.begin_nested():
-                result = await self.postgres_session.execute(
-                    insert(RoleTable)
-                    .values(name=name)
-                    .returning(
-                        RoleTable.id,
-                        RoleTable.name,
-                        RoleTable.created,
-                        RoleTable.updated,
-                    )
+            result = await self.postgres_session.execute(
+                insert(RoleTable)
+                .values(name=name)
+                .returning(
+                    RoleTable.id,
+                    RoleTable.name,
+                    RoleTable.created,
+                    RoleTable.updated,
                 )
-                row = result.one()
+            )
+            row = result.one()
         except IntegrityError as e:
             if "ix_role_name" in str(e.orig):
                 return RoleAlreadyExistsError(name=name)

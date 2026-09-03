@@ -54,7 +54,8 @@ async def lifespan(_: FastAPI):
 
     async for postgres_session in get_postgres_session():
         bootstrap_admin_user_id = await bootstrap_admin_role_and_user(configuration=configuration, postgres_session=postgres_session)
-        await bootstrap_models(configuration=configuration, postgres_session=postgres_session, bootstrap_admin_user_id=bootstrap_admin_user_id)
+        if bootstrap_admin_user_id is not None:
+            await bootstrap_models(configuration=configuration, postgres_session=postgres_session, bootstrap_admin_user_id=bootstrap_admin_user_id)
 
     global_context.model_registry = await create_model_registry(configuration, global_context.postgres_session_factory)
 
@@ -95,7 +96,7 @@ def create_autocommit_postgres_session_factory(engine: AsyncEngine) -> async_ses
     return async_sessionmaker(engine, class_=AutocommitSession, expire_on_commit=False)
 
 
-async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_session: AsyncSession) -> int:
+async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_session: AsyncSession) -> int | None:
     user_repository = PostgresUserRepository(postgres_session=postgres_session)
     role_repository = PostgresRolesRepository(postgres_session=postgres_session)
     limit_repository = PostgresLimitRepository(postgres_session=postgres_session)
@@ -117,6 +118,11 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
             logger.info(f"user ID: {success.user_id}")
             logger.info(f"role ID: {success.role_id}")
             return success.user_id
+        case BootstrapAdminUseCaseSkipped(user_id=None):
+            logger.info("Admin bootstrap already handled by another worker, skipping.")
+            if postgres_session.in_transaction():
+                await postgres_session.rollback()
+            return None
         case BootstrapAdminUseCaseSkipped() as skipped:
             logger.info(f"Admin user already exists, use first admin user as bootstrap admin user ({skipped.email}):")
             logger.info(f"user ID: {skipped.user_id}")

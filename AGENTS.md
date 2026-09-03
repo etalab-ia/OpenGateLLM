@@ -322,7 +322,7 @@ When adding a model-forward use case, also add a `ForwardScenario` in `api/tests
 
 Map only **known** constraint / FK names to domain errors. If the `IntegrityError` does not match an explicit case, **re-raise** it — never swallow unknown integrity failures as a generic domain error.
 
-Avoid `begin_nested()` on the default HTTP CRUD path: the handler raises, and `get_postgres_session` rolls back. Use a savepoint only when the same session must run another statement after a mapped conflict (for example bootstrap catching `AlreadyExists` then re-reading). Do not substitute `AutocommitSession` for that: `@with_lock` requires a transactional session.
+Avoid adding `begin_nested()` just to keep the session usable after a mapped `IntegrityError`. HTTP handlers already roll back through `get_postgres_session` when they raise. Bootstrap does not keep using the session after a mapped conflict: it returns `Skipped` and the lifespan rolls back the aborted transaction. Do not substitute `AutocommitSession` to recover from `IntegrityError`: `@with_lock` requires a transactional session.
 
 ```python
 except IntegrityError as e:
