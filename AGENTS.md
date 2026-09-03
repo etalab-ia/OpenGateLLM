@@ -491,7 +491,27 @@ Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key
 
 ### Unit use case
 
-`AsyncMock` repositories. Cover:
+Port doubles are autospecced against the **domain port**, never bare `MagicMock()` / `AsyncMock()`:
+
+```python
+@pytest.fixture
+def mock_router_repository():
+    return create_autospec(RouterRepository, instance=True, spec_set=True)
+```
+
+`create_autospec` derives the double from the ABC under `api/domain/`, so an unknown attribute raises
+`AttributeError` and a call that does not match the port signature raises `TypeError`. A bare mock accepts
+both silently, and the test stops pinning down the boundary it exists to protect. Spec the port, never an
+`api/infrastructure/` adapter. Async port methods become `AsyncMock` children on their own — keep using
+`assert_awaited_once_with`.
+
+If the autospec rejects a call, fix the call — or the port declaration if that is what is wrong (a missing
+`self` on an abstract method silently shifts every parameter). Never loosen the spec to make a test pass.
+
+`api/tests/unit/use_case/test_providerrequestforwadingusecase.py` is the reference. Tests still on bare
+mocks are migrated when they are next touched.
+
+Cover:
 
 - Happy path (assert calls **and** payloads: `assert_awaited_once_with`, expire timestamps)
 - Each early return and each `match` arm that is a **different** branch (`try/except`, create vs update error)
@@ -506,12 +526,12 @@ Entity helpers used by the use case belong in domain unit tests, not extra use-c
 ```python
 @pytest.fixture
 def mock_model_tokenizer():
-    tokenizer = MagicMock()
+    tokenizer = create_autospec(ModelTokenizer, instance=True, spec_set=True)
     tokenizer.compute_tokens.side_effect = lambda texts: len(texts)
     return tokenizer
 ```
 
-Assert usage from the texts actually passed (`len(get_prompts())`, `len(get_completions())`). Rerank / embeddings return `[]` completions → `completion_tokens=0` (see `test_creatererankusecase.py`, `test_createembeddingsusecase.py`). OCR / audio have real completions — use `side_effect = [prompt_count, completion_count]` when the two calls need different values.
+Assert usage from the texts actually passed (`len(get_prompts())`, `len(get_completions())`). Rerank / embeddings return `[]` completions → `completion_tokens=0`. OCR / audio have real completions — use `side_effect = [prompt_count, completion_count]` when the two calls need different values.
 
 ### Integration endpoint
 

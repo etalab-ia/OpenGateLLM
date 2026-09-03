@@ -7,6 +7,7 @@ from api.schemas.admin.providers import ProviderCarbonFootprintZone
 class ModelEnvironmentalImpactsComputer(ABC):
     @abstractmethod
     def compute(
+        self,
         model_active_params: int,
         model_total_params: int,
         model_zone: ProviderCarbonFootprintZone,
