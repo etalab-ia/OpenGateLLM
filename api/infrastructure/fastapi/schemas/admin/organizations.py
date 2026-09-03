@@ -10,6 +10,10 @@ class CreateOrganizationBody(BaseModel):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="Name of the organization.", examples=["my-org"])]  # fmt: off
 
 
+class UpdateOrganizationBody(BaseModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(..., description="Name of the organization.", examples=["my-org"])]  # fmt: off
+
+
 class OrganizationResponse(BaseModel):
     object: Annotated[Literal["organization"], Field(default="organization", description="Type of the object.")]
     id: Annotated[int, Field(description="ID of the organization.")]

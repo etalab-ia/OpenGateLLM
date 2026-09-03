@@ -27,18 +27,42 @@ dependencies.py   DI factories (transactional vs autocommit session)
 | Read models | `api/domain/<context>/views.py` + `_<noun>query.py` |
 | DI | `api/dependencies.py` |
 
+Admin CRUD is grouped per resource: `api/use_cases/admin/roles/`, `api/infrastructure/fastapi/endpoints/admin/roles.py`, `api/infrastructure/fastapi/schemas/admin/roles.py`. Everything else stays flat under its area (`api/use_cases/auth/`, `api/infrastructure/fastapi/endpoints/models.py`, `api/infrastructure/fastapi/schemas/models.py`).
+
 Reference implementations of these patterns:
 
 | Pattern | Example |
 |---------|---------|
-| Create with domain errors | `keys.py` + `_createkeyusecase.py` |
-| List + get-by-id | `routers.py` (`GetRoutersUseCase` + `GetOneRouterUseCase`), self-service `keys.py` |
-| Paginated list | `roles.py`, `users.py` (`EntitiesPage`, `*sResponse`) |
-| Full CRUD | `roles.py`, `routers.py` |
-| Read-only projection | `models.py` (`ModelQuery` + `ModelView`) |
+| Create with domain errors | `api/infrastructure/fastapi/endpoints/admin/keys.py` + `api/use_cases/admin/keys/_createkeyusecase.py` |
+| List + get-by-id | `api/infrastructure/fastapi/endpoints/admin/routers.py` (`GetRoutersUseCase` + `GetOneRouterUseCase`), self-service `api/infrastructure/fastapi/endpoints/keys.py` |
+| Paginated list | `api/infrastructure/fastapi/endpoints/admin/roles.py`, `api/infrastructure/fastapi/endpoints/admin/users.py` (`EntitiesPage`, `*sResponse`) |
+| Full CRUD | `api/infrastructure/fastapi/endpoints/admin/roles.py`, `api/infrastructure/fastapi/endpoints/admin/routers.py` |
+| Read-only projection | `api/infrastructure/fastapi/endpoints/models.py` (`ModelQuery` + `ModelView`) |
 | Model-forward (autocommit) | embeddings, OCR, rerank, audio transcriptions |
 
 Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `GetKeysUseCase`, `GetOneKeyUseCase`). Pass `user_id=authenticated_user.id` on the command to scope the operation to the current user. Admin get-one omits `user_id` (it defaults to `None`) so it can load any key.
+
+### `api/endpoints/` — legacy, scheduled for removal
+
+Do not confuse `api/endpoints/` (pre-clean-architecture) with `api/infrastructure/fastapi/endpoints/` (current). **Never add a route or a module to `api/endpoints/`.** Three items remain:
+
+| Remaining | Exposes | Migrate to |
+|-----------|---------|------------|
+| `api/endpoints/admin/organizations.py` | `PATCH /v1/admin/organizations/{organization}` | `api/infrastructure/fastapi/endpoints/admin/organizations.py` — the other organization routes already live there |
+| `api/endpoints/chat.py` | `POST /v1/chat/completions` | `api/infrastructure/fastapi/endpoints/chat.py` + `api/use_cases/chat/` — model-forward, so `AutocommitSession` |
+| `api/endpoints/monitoring.py` | no route — `setup_prometheus`, called by `_setup_monitoring` | not a router; needs a home under `api/infrastructure/` |
+
+These files run on the legacy stack (`api/helpers/_accesscontroller.py`, `api/schemas/`, `api/utils/dependencies.py`, `global_context.identity_access_manager`). Migrating one means porting it to the patterns in this file — do not carry its imports over, and do not copy them into new code.
+
+The directory disappears once all three are moved and these go with them:
+
+- `RouterName.CHAT` pointing at `api.endpoints.chat` (`api/utils/variables.py`)
+- the `@TODO: legacy import` block registering `api.endpoints.admin` (`api/app.py`)
+- `from api.endpoints.monitoring import setup_prometheus` (`api/app.py`)
+
+`api/endpoints/me/` and `api/endpoints/proconnect/` are already empty — their contents were migrated.
+
+If a task makes you touch one of these files, migrate it rather than extend it (principle 4).
 
 ---
 
@@ -47,6 +71,7 @@ Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `Get
 ```
 - [ ] Domain entity + errors in api/domain/<context>/
 - [ ] Repository port in api/domain/<context>/_<entity>repository.py — or query port + view for a read-only projection (see Query and view)
+- [ ] SQL model in api/sql/models.py if the schema changes, then an Alembic revision: uv run alembic -c api/alembic.ini revision --autogenerate -m "<slug>" — test upgrade AND downgrade locally
 - [ ] Postgres adapter in api/infrastructure/postgres/_postgres<entity>repository.py
 - [ ] Use case in api/use_cases/<area>/_<verb><noun>usecase.py
 - [ ] Export from domain/__init__.py, use_cases/__init__.py, postgres/__init__.py
@@ -54,12 +79,46 @@ Self-service `/v1/keys` reuses the admin key use cases (`CreateKeyUseCase`, `Get
 - [ ] API schemas in api/infrastructure/fastapi/schemas/
 - [ ] HTTP exceptions in api/infrastructure/fastapi/endpoints/exceptions.py
 - [ ] Endpoint in api/infrastructure/fastapi/endpoints/
-- [ ] Import the endpoint module so the route is registered (side-effect import)
-- [ ] EndpointRoute in api/utils/variables.py if needed
+- [ ] EndpointRoute member in api/utils/variables.py for the path
+- [ ] Route registration (see below) — a new endpoint module is invisible until its router is registered
 - [ ] Tests: unit use case (every distinct execute() branch) + integration endpoint (happy path, auth, error mapping) + repository if new query/column + domain entity if new method + ForwardScenario if the use case calls a provider
 ```
 
 Read existing code for the same resource (or the closest pattern above) before writing.
+
+### Route registration
+
+`_register_routers` (`api/app.py`) iterates over the `RouterName` enum (`api/utils/variables.py`), imports each `module_path`, and reads the module-level `router` attribute. A module with no `RouterName` member is never imported, so its routes do not exist.
+
+```python
+class RouterName(StrEnum):
+    KEYS = ("keys", "api.infrastructure.fastapi.endpoints.keys")
+```
+
+Two cases:
+
+**New top-level module** (`api/infrastructure/fastapi/endpoints/<area>.py`) — declare its own router and register it:
+
+```python
+router = APIRouter(prefix="/v1", tags=[RouterName.KEYS.title()])
+```
+plus a `RouterName` member pointing at the module. Without the `router` attribute, `_register_routers` raises `AttributeError` at startup.
+
+**New admin resource** (`api/infrastructure/fastapi/endpoints/admin/<resource>.py`) — do **not** add a `RouterName` member. Import the shared router and add the module to the side-effect import list in `api/infrastructure/fastapi/endpoints/admin/__init__.py`:
+
+```python
+# api/infrastructure/fastapi/endpoints/admin/<resource>.py
+from api.infrastructure.fastapi.endpoints.admin import router
+
+# api/infrastructure/fastapi/endpoints/admin/__init__.py — the module is invisible until it is listed here
+from . import keys, organizations, providers, roles, routers, users  # noqa: F401 E402
+```
+
+`RouterName` members are toggled by `disabled_routers` / `hidden_routers` in settings, so one member = one independently switchable surface. All admin resources deliberately share `RouterName.ADMIN`.
+
+Adding a route to an **existing** module needs neither: declare the `EndpointRoute` member and the handler.
+
+`_register_routers` ends with a hardcoded block registering the legacy `api.endpoints.admin` router alongside the enum. That block is temporary — see [`api/endpoints/`](#apiendpoints--legacy-scheduled-for-removal). Do not add a second one.
 
 ---
 
@@ -82,7 +141,7 @@ Read existing code for the same resource (or the closest pattern above) before w
 
 Verbs: `Create`, `Update`, `Delete`, `GetOne` (single / get-by-id), `Get<Plural>` (list). When a resource has both a list and a get-by-id use case, the single-resource name is `GetOne<Noun>` — never `Get<Noun>` (`GetRoleUseCase` → `GetOneRoleUseCase`, `GetModelUseCase` → `GetOneModelUseCase`). Pair them: `GetRolesUseCase` + `GetOneRoleUseCase`, `GetModelsUseCase` + `GetOneModelUseCase`.
 
-The domain and API term for an API credential is **key** (`Key`, `CreateKeyResponse`, `/admin/keys`). Do not introduce `token` for that resource.
+The domain and API term for an API credential is **key** (`Key`, `KeyResponse`, `/admin/keys`). Do not introduce `token` for that resource.
 
 ---
 
@@ -90,10 +149,10 @@ The domain and API term for an API credential is **key** (`Key`, `CreateKeyRespo
 
 | Kind | Location | Form |
 |------|----------|------|
-| Entity | `domain/<context>/entities.py` | Pydantic `BaseModel` (from `api.domain`) |
-| Error | `domain/<context>/errors.py` | `@dataclass` |
-| Repository port | `domain/<context>/_<entity>repository.py` | `ABC` |
-| `Command` / `UseCaseSuccess` | `use_cases/<area>/` | `@dataclass` |
+| Entity | `api/domain/<context>/entities.py` | Pydantic `BaseModel` (from `api.domain`) |
+| Error | `api/domain/<context>/errors.py` | `@dataclass` |
+| Repository port | `api/domain/<context>/_<entity>repository.py` | `ABC` |
+| `Command` / `UseCaseSuccess` | `api/use_cases/<area>/` | `@dataclass` |
 
 **Entities are Pydantic models, never `@dataclass`.** A `@dataclass` validates nothing at construction, so it silently accepts a wrong type and skips the `UtcDatetime` normalization — an entity built with a naive `datetime` would then serialize to a shifted Unix timestamp. `BaseModel` also gives `model_copy(update=...)`, which the `with_*` helpers (`Router.with_name`, `Provider.with_timeout`, `Role.with_limits`) rely on.
 
@@ -161,7 +220,7 @@ Map at the boundary:
 CreateKeyCommand(user_id=body.user, ...)
 
 # domain → response (@model_validator)
-"user": data.user_id  # Key entity → CreateKeyResponse
+"user": data.user_id  # Key entity → KeyResponse
 ```
 
 ### Update requests are full replacements
@@ -184,7 +243,7 @@ Callers (playground `edit_entity`, e2e tests) must send the whole current form s
 - Domain and Postgres: timezone-aware UTC `datetime` — annotate entity fields with `UtcDatetime` from `api/domain/__init__.py`, and always build "now" with `datetime.now(tz=UTC)`
 - Repositories select and write the `timestamptz` columns directly — no `extract(epoch)` / `to_timestamp()`
 - Convert at the boundary only: `@field_validator` (request) or `@model_validator(mode="before")` (response). Request validators keep the field typed `int` (OpenAPI) and return a UTC `datetime` for the command. Keys also reject past timestamps (`CreateKeyBody`); user `expires` converts without that check so a past value expires the user — see `CreateUserBody` / `UserUpdateRequest` / `KeyResponse`. Command timestamp fields are typed `UtcDatetime` to match the entity; the dataclass does not convert.
-- Playground displays local time through `app/shared/utils/timestamps.py`
+- Playground displays local time through `playground/app/shared/utils/timestamps.py`
 
 Full rationale: `adr/2026-08-27-datetime-handling.md`.
 
@@ -198,7 +257,7 @@ router_type: Annotated[ModelType, Field(alias="type", ...)]
 ### Mapping domain → API
 
 - Names align → `Response.model_validate(entity, from_attributes=True)`
-- Names differ → `@model_validator(mode="before")` (see `CreateKeyResponse.from_key`)
+- Names differ → `@model_validator(mode="before")` (see `KeyResponse.from_key` in `api/infrastructure/fastapi/schemas/admin/keys.py`)
 
 ---
 
@@ -235,34 +294,40 @@ Put the full business flow in a single `execute()` method so it can be read top-
 
 Allowed outside `execute()`:
 - `__init__` (dependencies + config)
-- **`@staticmethod`** helpers on the use case class when they are pure/unit operations reused several times (e.g. `_normalize_claim_string`) — not business orchestration
+- **`@staticmethod`** helpers on the use case class when they are pure/unit operations reused several times — not business orchestration
+- **Documented override hooks** — see below
 
 Do **not** put helpers at module level; keep them as static methods on the use case class.
 
 ```python
-class AuthSsoLoginUseCase:
+class CreateExampleUseCase:
+    # pure/unit operation reused across the flow — @staticmethod is fine
     @staticmethod
-    def _normalize_claim_string(value: object | None) -> str | None:
+    def _normalize_claim(value: object | None) -> str | None:
         if not isinstance(value, str):
             return None
-        stripped = value.strip()
-        return stripped or None
+        return value.strip() or None
 
-    async def execute(self, command):
+    async def execute(self, command: CreateExampleCommand) -> CreateExampleUseCaseResult:
         # bad — business steps hidden behind private methods
         # user = await self._sync_user(user, command)
 
         # good — full flow visible in execute(); call static helpers for repeated unit work
-        role_name = self._normalize_claim_string(command.claims.get(self.auth_sso_role_claim_field))
+        claim = self._normalize_claim(command.claims.get("role"))
         result = await self.user_repository.get_user_by_iss_and_sub(...)
         match result:
             case User() as user:
-                # sync email / role / org inline
                 ...
             case UserNotFoundError():
-                # create path inline
+                # the create path goes here — inline, not extracted
                 ...
 ```
+
+### Override hooks
+
+`AuthSsoLoginUseCase` (`api/use_cases/auth/_authssologinusecase.py`) is the one deliberate exception. It exposes four **public async** methods outside `execute()` — `has_access`, `get_user_name`, `get_role_id`, `get_organization_id` — with default implementations that operators replace to plug in their own SSO policy. They are a documented extension point (see `docs.opengatellm.org/features/users_management/sso`), not hidden orchestration.
+
+Do **not** inline them. Conversely, do not introduce new hooks of this kind unless the extension point is a published, documented contract.
 
 ---
 
@@ -275,7 +340,7 @@ Two session factories. Choose **in the use-case factory** in `api/dependencies.p
 | `get_postgres_session` | transactional `AsyncSession` | Admin CRUD, auth login/SSO, bootstrap, anything with `@with_lock` or multi-statement atomicity |
 | `get_autocommit_postgres_session` | `AutocommitSession` | Use cases that call AI models (provider forward / inference) |
 
-**Why:** a transactional session stays checked out and `idle in transaction` for the whole request. Inference can take seconds and pin a pool connection. `AutocommitSession` commits after each `execute` / `scalar` / `get`, so the connection returns to the pool **before** the provider call.
+**Why:** a transactional session stays checked out and `idle in transaction` for the whole request. Inference can take minutes and pin a pool connection. `AutocommitSession` commits after each `execute` / `scalar` / `get`, so the connection returns to the pool **before** the provider call. Everything wired to it is a read — the router and provider lookups, and the `AccessController` key and user lookups. Writes and multi-statement work take the transactional factory.
 
 Autocommit wiring:
 
@@ -309,7 +374,7 @@ When adding a model-forward use case, also add a `ForwardScenario` in `api/tests
 ## Repository
 
 - **Port:** `api/domain/<context>/_<entity>repository.py` — ABC, returns `Entity | DomainError`
-- **Adapter:** `api/infrastructure/postgres/_postgres<entity>repository.py` — SQLAlchemy, maps `IntegrityError` → domain errors
+- **Adapter:** `api/infrastructure/postgres/_postgres<entity>repository.py` — SQLAlchemy, maps `IntegrityError` → domain errors. `<entity>` is **singular** (`_postgreskeyrepository.py`, `_postgresrouterrepository.py`). `_postgresrolesrepository.py` and `_postgresusersrepository.py` predate the rule — do not copy their plural
 - **Pagination:** `EntitiesPage["Entity"]` alias (e.g. `RolePage = EntitiesPage["Role"]`). List queries use `func.count().over().label("total")` plus `fetch_page_with_total` (see `_postgreskeyrepository.py`)
 - `@with_lock` needs a transactional session — never wire a locked method through `get_autocommit_postgres_session`
 - No `*` keyword-only separator on method signatures
@@ -389,10 +454,10 @@ async def get_roles(
 
 ## Error handling
 
-1. Domain errors — `@dataclass` in `domain/<context>/errors.py`, **returned** not raised
+1. Domain errors — `@dataclass` in `api/domain/<context>/errors.py`, **returned** not raised
 2. Use cases — propagate via `match`/`case` or `isinstance`
 3. Repositories — return `Entity | Error`
-4. Endpoints — map domain error → `*HTTPException` in `endpoints/exceptions.py`
+4. Endpoints — map domain error → `*HTTPException` in `api/infrastructure/fastapi/endpoints/exceptions.py`
 5. Unexpected — `logger.exception` + `InternalServerHTTPException`
 
 ---
@@ -423,7 +488,7 @@ Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key
 - Async integration: `@pytest.mark.asyncio(loop_scope="session")` (including HTTP adapters)
 - Postgres: `repository` fixture from `db_session` — do not construct the repo inside each test
 - Factories: SQL `UserSQLFactory` / `RoleSQLFactory` / `KeySQLFactory` ; unit `UserFactory`. Add a factory field when the column is new
-- Do not use a mutable module-level dict to pass IDs from a fixture into a DI factory — close over the values (see `test_auth_sso_login.py`)
+- Do not use a mutable module-level dict to pass IDs from a fixture into a DI factory — close over the values (see `api/tests/integration/endpoints/test_auth_sso_login.py`)
 
 ### Unit use case
 
@@ -504,7 +569,7 @@ uv run pytest api/tests/integration/http/
 Craft:
 
 1. Smallest correct diff. Do not mix feature work with unrelated cleanup.
-2. Names reveal intent. Prefer explicit code over clever shortcuts.
+2. Names reveal intent. Prefer explicit code over clever shortcuts. Explicit naming is what keeps comments rare here: a comment earns its place only when it explains a *why* the code cannot — a constraint, a workaround, a non-obvious ordering. Never narrate what the next line does.
 3. No speculative complexity. Implement what the current requirement needs (YAGNI). Extract a shared helper only when the same pattern already exists in more than one place.
 4. Leave touched code better than you found it, within the scope of the change. Align leftover modules with this file when you edit them; do not extend them.
 5. Fail explicitly. Return known domain errors; re-raise unknown failures. Do not swallow exceptions or invent a generic error to hide them.
