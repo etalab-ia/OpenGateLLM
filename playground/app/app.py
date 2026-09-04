@@ -103,6 +103,10 @@ def providers() -> rx.Component:
 
 
 app = rx.App(
+    style={
+        "font-family": "DM Sans, sans-serif",
+        rx.heading: {"font_weight": "500"},
+    },
     theme=rx.theme(
         has_background=configuration.settings.playground_theme_has_background,
         accent_color=configuration.settings.playground_theme_accent_color,
@@ -110,7 +114,7 @@ app = rx.App(
         gray_color=configuration.settings.playground_theme_gray_color,
         panel_background=configuration.settings.playground_theme_panel_background,
         radius=configuration.settings.playground_theme_radius,
-        scaling=configuration.settings.playground_theme_scaling,
+        scaling="90%",
     ),
     head_components=[rx.el.link(rel="icon", type="image/svg+xml", href="/favicon.svg")],
 )

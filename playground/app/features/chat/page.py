@@ -7,12 +7,10 @@ from app.features.chat.components.input_bars import chat_input_bar
 from app.features.chat.components.sidebars import chat_params_sidebar
 from app.features.chat.components.windows import chat_window
 
-NAV_HEADER_HEIGHT = "65px"  # Assumed nav header height for layout calc; adjust if needed
-
 
 def chat_page_content() -> rx.Component:
-    # Main area height is the viewport minus the nav header; make overflow hidden so only chat_window scrolls
-    main_area_height = f"calc(100vh - {NAV_HEADER_HEIGHT})"
+    # Overflow hidden so only chat_window scrolls
+    main_area_height = "100vh"
 
     return rx.hstack(
         # Left column: column with sticky header, scrollable chat window, sticky input
@@ -24,7 +22,6 @@ def chat_page_content() -> rx.Component:
                     position="sticky",
                     top="0",
                     z_index="docked",
-                    background_color=rx.color("mauve", 1),
                     width="100%",
                 ),
                 # Chat window: the ONLY scrollable area

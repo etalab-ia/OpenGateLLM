@@ -15,9 +15,10 @@ SELECT_LARGE_WIDTH = "300px"  # Large select components
 # ============================================================================
 
 # Heading sizes
-HEADING_SIZE_PAGE = "8"  # Main page titles
+HEADING_SIZE_PAGE = "7"  # Main page titles
 HEADING_SIZE_SECTION = "6"  # Section/card headings
 HEADING_SIZE_FORM = "4"  # Form titles
+HEADING_WEIGHT = "medium"  # Radix headings default to 700, which looks too wide with DM Sans
 
 # Text sizes
 TEXT_SIZE_SMALL = "1"  # Helper text, hints
@@ -56,7 +57,7 @@ SPACING_XL = "6"  # Between major page sections
 
 # Padding values
 PADDING_SMALL = "0.5em"  # Small padding
-PADDING_NAV = "0.75em"  # Navigation items padding
+PADDING_NAV = "0.55em"  # Navigation items padding
 PADDING_MEDIUM = "1em"  # Standard padding (headers, nav)
 PADDING_PAGE = "2em"  # Main page content padding
 

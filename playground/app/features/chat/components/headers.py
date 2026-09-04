@@ -2,23 +2,25 @@
 
 import reflex as rx
 
-from app.core.variables import ICON_SIZE_MEDIUM
+from app.core.variables import ICON_SIZE_MEDIUM, MARGIN_MEDIUM, PADDING_PAGE
 from app.features.chat.state import ChatState
+from app.shared.components.headers import header_heading
 
 
 def chat_header() -> rx.Component:
-    """Top navigation bar with title and refresh button."""
+    """Page title and new-chat action, matching other feature headers."""
     return rx.hstack(
+        header_heading("Playground"),
         rx.button(
             rx.icon("message-square-plus", size=ICON_SIZE_MEDIUM),
             "New chat",
             on_click=ChatState.clear_chat,
             variant="soft",
-            margin_left="auto",
         ),
         width="100%",
-        align_items="center",
-        padding="12px",
-        border_bottom=f"1px solid {rx.color("mauve", 3)}",
-        background_color=rx.color("mauve", 2),
+        justify="between",
+        align="center",
+        margin_bottom=MARGIN_MEDIUM,
+        padding_x=PADDING_PAGE,
+        padding_top=PADDING_PAGE,
     )
