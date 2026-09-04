@@ -2,6 +2,8 @@
 
 Coding conventions for this repository. New and changed code follows clean architecture as implemented below.
 
+**Git history is linear.** Never create merge commits (`git merge`, `git pull` without `--rebase`). Update a branch with `git pull --rebase origin main`. After rewriting already-pushed commits, update the remote with `git push --force-with-lease`. Full workflow: [`docs/src/content/docs/contributing/development_environment.mdx`](docs/src/content/docs/contributing/development_environment.mdx).
+
 ---
 
 ## Architecture
