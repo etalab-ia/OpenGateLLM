@@ -42,6 +42,13 @@ def format_date(timestamp: int | float | None, default: str = "") -> str:
     return default if local is None else local.strftime(DATE_FORMAT)
 
 
+def is_past(timestamp: int | float | None) -> bool:
+    """True if the Unix timestamp lies in the past. `None` means "never expires", so it is not past."""
+    if timestamp is None:
+        return False
+    return timestamp <= local_now().timestamp()
+
+
 def format_local_date(moment: dt.datetime) -> str:
     """Render a datetime as a local `YYYY-MM-DD` string, for date pickers."""
     return moment.astimezone().strftime(DATE_FORMAT)

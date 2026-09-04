@@ -124,10 +124,11 @@ async def get_keys(
     limit: int = Query(default=10, ge=1, le=100, description="Maximum number of keys to return."),
     sort_by: SortField = Query(default=SortField.ID, description="Field to sort by."),
     sort_order: SortOrder = Query(default=SortOrder.ASC, description="Sort order."),
+    include_expired: bool = Query(default=False, description="Include expired keys in the results."),
     get_keys_use_case: GetKeysUseCase = Depends(get_keys_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
 ) -> KeysResponse:
-    command = GetKeysCommand(user_id=user, offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order)
+    command = GetKeysCommand(user_id=user, offset=offset, limit=limit, sort_by=sort_by, sort_order=sort_order, exclude_expired=not include_expired)
     try:
         result = await get_keys_use_case.execute(command)
     except Exception as e:
@@ -139,6 +140,7 @@ async def get_keys(
                 "limit": command.limit,
                 "sort_by": command.sort_by,
                 "sort_order": command.sort_order,
+                "exclude_expired": command.exclude_expired,
                 "error_type": type(e).__name__,
             },
         )

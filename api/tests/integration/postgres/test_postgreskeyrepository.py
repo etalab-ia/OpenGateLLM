@@ -123,6 +123,17 @@ class TestGetKeysPage:
         assert result.total == 1
         assert result.data[0].name == "active-key"
 
+    async def test_includes_expired_keys_when_not_excluded(self, repository, db_session):
+        user = UserSQLFactory()
+        KeySQLFactory(user=user, name="active-key", never_expires=True)
+        KeySQLFactory(user=user, name="expired-key", expired=True)
+        await db_session.flush()
+
+        result = await repository.get_keys_page(user_id=user.id, exclude_expired=False)
+
+        assert result.total == 2
+        assert {k.name for k in result.data} == {"active-key", "expired-key"}
+
     async def test_returns_empty_page_when_offset_exceeds_total(self, repository, db_session):
         # the windowed count rides on the rows, an empty page must still report the real total
         user = UserSQLFactory()
