@@ -224,7 +224,7 @@ async def test_get_user_info_by_id_success(postgres_session: AsyncSession, iam: 
         _RowDict({"id": 2, "name": "role", "created": 100, "updated": 101, "users": 1}),
     ]
 
-    from api.schemas.admin.roles import LimitType, PermissionType
+    from api.domain.role.entities import LimitType, PermissionType
 
     limits_iter = [_LimitRow(2, 101, LimitType.TPM, 100)]
     permissions_iter = [
@@ -296,7 +296,7 @@ async def test_get_user_info_by_email_success(postgres_session: AsyncSession, ia
             self.role_id = role_id
             self.permission = permission
 
-    from api.schemas.admin.roles import LimitType, PermissionType
+    from api.domain.role.entities import LimitType, PermissionType
 
     # No ids page when role_id is provided to get_roles
     roles_rows = [

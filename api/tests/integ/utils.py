@@ -9,9 +9,9 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 import httpx
 
+from api.infrastructure.fastapi.schemas.admin.roles import CreateRoleBody, Limit, LimitType
 from api.infrastructure.fastapi.schemas.admin.users import CreateUserBody
 from api.schemas.admin.providers import CreateProvider, ProviderCarbonFootprintZone, ProviderType
-from api.schemas.admin.roles import CreateRole, Limit, LimitType
 from api.schemas.admin.routers import CreateRouter
 from api.schemas.admin.tokens import CreateToken
 from api.schemas.core.configuration import Metric
@@ -190,7 +190,7 @@ def create_provider(
 
 
 def create_role(router_id: int, client: TestClient) -> int:
-    payload = CreateRole(
+    payload = CreateRoleBody(
         name=f"test-role-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}",
         limits=[
             Limit(router_id=router_id, type=LimitType.RPM, value=None),

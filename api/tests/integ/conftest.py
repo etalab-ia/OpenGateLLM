@@ -7,8 +7,8 @@ from fastapi.testclient import TestClient
 import pytest
 from sqlalchemy import create_engine
 
+from api.domain.role.entities import LimitType, PermissionType
 from api.main import app
-from api.schemas.admin.roles import LimitType, PermissionType
 from api.sql.models import Base
 from api.utils.configuration import configuration
 from api.utils.variables import EndpointRoute

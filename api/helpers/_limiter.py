@@ -4,8 +4,7 @@ from limits import RateLimitItemPerDay, RateLimitItemPerMinute
 from limits.aio import storage, strategies
 from redis.asyncio import ConnectionPool, Redis
 
-from api.domain.role.entities import PermissionType
-from api.schemas.admin.roles import LimitType
+from api.domain.role.entities import LimitType, PermissionType
 from api.schemas.core.configuration import LimitingStrategy
 from api.schemas.me.info import UserInfo
 from api.utils.exceptions import InsufficientPermissionException, ModelNotFoundException, RateLimitExceeded

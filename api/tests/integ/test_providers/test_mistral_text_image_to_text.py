@@ -4,8 +4,8 @@ import json
 from fastapi.testclient import TestClient
 import pytest
 
+from api.domain.provider.entities import ProviderType
 from api.helpers._usagetokenizer import UsageTokenizer
-from api.schemas.admin.providers import ProviderType
 from api.schemas.chat import ChatCompletion, ChatCompletionChunk
 from api.schemas.models import ModelType
 from api.tests.integ.utils import (

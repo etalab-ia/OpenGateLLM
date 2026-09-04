@@ -4,8 +4,8 @@ import bcrypt
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain.role.entities import Limit, LimitType, PermissionType
 from api.helpers._identityaccessmanager import IdentityAccessManager
-from api.schemas.admin.roles import Limit, LimitType, PermissionType
 from api.schemas.me.info import UserInfo
 from api.utils.exceptions import InvalidCurrentPasswordException, UserNotFoundException
 
