@@ -1,11 +1,12 @@
 # ADR - 2026-08-27 - Datetime handling across API, domain and playground
 
-* **Status:** Accepted
+* **Status:** Accepted — the *API boundary: `int`, converted in the schema* / **Response** paragraph is superseded by [ADR 2026-09-04](2026-09-04-response-schema-mapping.md). Everything else stands.
 * **Date:** 2026-08-27
 * **Authors:** Development Team
 * **Related:**
   * [#960 — [clean-architecture] Standardize datetime handling across API and playground](https://github.com/etalab-ia/OpenGateLLM/issues/960)
   * [ADR 2026-01-07 — Migration to Clean Architecture](2026-01-07-clean-architecture-migration.md)
+  * [ADR 2026-09-04 — Response schema mapping](2026-09-04-response-schema-mapping.md) — supersedes the response half of the API boundary section
 * **Decision Outcome:** Unix timestamps (`int`) at the HTTP boundary only, timezone-aware UTC `datetime` in the domain and in Postgres, local-timezone rendering in the playground.
 
 ---

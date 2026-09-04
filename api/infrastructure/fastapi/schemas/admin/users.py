@@ -1,10 +1,10 @@
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
-from pydantic import ConfigDict, Field, StringConstraints, field_validator, model_validator
+from pydantic import ConfigDict, Field, StringConstraints, field_validator
 
 from api.domain import BaseModel
-from api.domain.user.entities import User
+from api.infrastructure.fastapi.schemas import UnixTimestamp
 from api.utils.variables import MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH
 
 
@@ -37,31 +37,10 @@ class UserResponse(BaseModel):
     role_id: Annotated[int, Field(..., description="ID of the role assigned to the user.")]
     organization_id: Annotated[int | None, Field(default=None, description="ID of the organization the user belongs to.")]
     budget: Annotated[float | None, Field(default=None, description="Budget allocated to the user.")]
-    expires: Annotated[int | None, Field(default=None, description="Expiration time of the user, as Unix timestamp.")]
-    created: Annotated[int, Field(..., description="Time of creation, as Unix timestamp.")]
-    updated: Annotated[int, Field(..., description="Time of last update, as Unix timestamp.")]
+    expires: Annotated[UnixTimestamp | None, Field(default=None, description="Expiration time of the user, as Unix timestamp.")]
+    created: Annotated[UnixTimestamp, Field(..., description="Time of creation, as Unix timestamp.")]
+    updated: Annotated[UnixTimestamp, Field(..., description="Time of last update, as Unix timestamp.")]
     priority: Annotated[int, Field(..., description="Priority of the user. Higher value means higher priority.")]
-
-    @model_validator(mode="before")
-    @classmethod
-    def from_user(cls, data):
-        if isinstance(data, User):
-            return {
-                "object": "user",
-                "id": data.id,
-                "email": data.email,
-                "name": data.name,
-                "sub": data.sub,
-                "iss": data.iss,
-                "role_id": data.role_id,
-                "organization_id": data.organization_id,
-                "budget": data.budget,
-                "expires": int(data.expires.timestamp()) if data.expires is not None else None,
-                "created": int(data.created.timestamp()),
-                "updated": int(data.updated.timestamp()),
-                "priority": data.priority,
-            }
-        return data
 
 
 class UsersResponse(BaseModel):

@@ -1,9 +1,10 @@
 from typing import Annotated, Literal
 
-from pydantic import Field, StringConstraints, model_validator
+from pydantic import Field, StringConstraints
 
 from api.domain import BaseModel
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy
+from api.domain.router.entities import RouterLoadBalancingStrategy
+from api.infrastructure.fastapi.schemas import UnixTimestamp
 from api.schemas.models import ModelType
 
 
@@ -36,28 +37,8 @@ class RouterResponse(BaseModel):
     cost_prompt_tokens: Annotated[float, Field(description="Cost of a million prompt tokens (decrease user budget)")]
     cost_completion_tokens: Annotated[float, Field(description="Cost of a million completion tokens (decrease user budget)")]
     providers: Annotated[int, Field(default=0, description="Number of providers in the router.")]
-    created: Annotated[int, Field(description="Time of creation, as Unix timestamp.")]
-    updated: Annotated[int, Field(description="Time of last update, as Unix timestamp.")]
-
-    @model_validator(mode="before")
-    @classmethod
-    def from_router(cls, data):
-        if isinstance(data, Router):
-            return {
-                "object": "router",
-                "id": data.id,
-                "name": data.name,
-                "user_id": data.user_id,
-                "type": data.type,
-                "aliases": data.aliases,
-                "load_balancing_strategy": data.load_balancing_strategy,
-                "cost_prompt_tokens": data.cost_prompt_tokens,
-                "cost_completion_tokens": data.cost_completion_tokens,
-                "providers": data.providers,
-                "created": int(data.created.timestamp()),
-                "updated": int(data.updated.timestamp()),
-            }
-        return data
+    created: Annotated[UnixTimestamp, Field(description="Time of creation, as Unix timestamp.")]
+    updated: Annotated[UnixTimestamp, Field(description="Time of last update, as Unix timestamp.")]
 
 
 class RoutersResponse(BaseModel):

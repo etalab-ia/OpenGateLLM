@@ -121,7 +121,7 @@ async def get_organizations(
                 total=organization_page.total,
                 offset=offset,
                 limit=limit,
-                data=[OrganizationResponse.model_validate(organization) for organization in organization_page.data],
+                data=[OrganizationResponse.model_validate(organization, from_attributes=True) for organization in organization_page.data],
             )
 
 
@@ -152,7 +152,7 @@ async def get_organization(
 
     match result:
         case GetOneOrganizationUseCaseSuccess(organization=organization):
-            return OrganizationResponse.model_validate(organization)
+            return OrganizationResponse.model_validate(organization, from_attributes=True)
         case OrganizationNotFoundError(id=not_found_organization_id):
             raise OrganizationNotFoundHTTPException(not_found_organization_id)
 
@@ -184,7 +184,7 @@ async def delete_organization(
 
     match result:
         case DeleteOrganizationUseCaseSuccess(organization=organization):
-            return OrganizationResponse.model_validate(organization)
+            return OrganizationResponse.model_validate(organization, from_attributes=True)
         case OrganizationNotFoundError(id=organization_id):
             raise OrganizationNotFoundHTTPException(organization_id)
         case OrganizationHasUsersError(id=organization_id):
@@ -220,7 +220,7 @@ async def update_organization(
 
     match result:
         case UpdateOrganizationUseCaseSuccess(organization=organization):
-            return OrganizationResponse.model_validate(organization)
+            return OrganizationResponse.model_validate(organization, from_attributes=True)
         case OrganizationNotFoundError(id=not_found_organization_id):
             raise OrganizationNotFoundHTTPException(not_found_organization_id)
         case OrganizationAlreadyExistsError(name=name):
