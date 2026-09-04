@@ -1,6 +1,7 @@
 """Usage state for fetching account usage with pagination and filters."""
 
 import datetime as dt
+import math
 from typing import Any
 
 import httpx
@@ -70,7 +71,7 @@ class UsageState(EntityState):
                 data = response.json()
                 self.entities = [self._format_usage(usage) for usage in data.get("data", [])]
 
-            self.has_more_page = len(self.entities) == self.per_page
+            self.total = data.get("total", 0)
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -100,10 +101,15 @@ class UsageState(EntityState):
     ############################################################
     page: int = 1
     per_page: int = 20
+    total: int = 0
     order_by_value: str = "id"
     order_direction: str = "asc"
     order_direction_options: list[str] = ["asc", "desc"]
     order_direction_value: str = "asc"
+
+    @rx.var
+    def total_pages(self) -> int:
+        return max(1, math.ceil(self.total / self.per_page))
 
     @rx.event
     async def prev_page(self):
@@ -115,7 +121,7 @@ class UsageState(EntityState):
 
     @rx.event
     async def next_page(self):
-        if self.has_more_page:
+        if self.page < self.total_pages:
             self.page += 1
             yield
             async for _ in self.load_entities():
@@ -156,7 +162,6 @@ class UsageState(EntityState):
     @rx.event
     async def apply_filters(self):
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield

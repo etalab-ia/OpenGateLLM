@@ -1,3 +1,5 @@
+import math
+
 import httpx
 import reflex as rx
 
@@ -144,7 +146,7 @@ class UsersState(EntityState):
                 for user in data.get("data", []):
                     self.entities.append(self._format_user(user))
 
-            self.has_more_page = len(self.entities) == self.per_page
+            self.total = data.get("total", 0)
 
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
@@ -357,6 +359,7 @@ class UsersState(EntityState):
     ############################################################
     page: int = 1
     per_page: int = 20
+    total: int = 0
     order_by_value: str = "id"
     order_direction: str = "asc"
     order_direction_options: list[str] = ["asc", "desc"]
@@ -364,11 +367,14 @@ class UsersState(EntityState):
     order_by_options: list[str] = ["id", "name", "created", "updated"]
     search_email_value: str = ""
 
+    @rx.var
+    def total_pages(self) -> int:
+        return max(1, math.ceil(self.total / self.per_page))
+
     @rx.event
     async def set_search_email(self, value: str):
         self.search_email_value = value
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield
@@ -378,7 +384,6 @@ class UsersState(EntityState):
         """Set order by field and reload."""
         self.order_by_value = value
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield
@@ -388,7 +393,6 @@ class UsersState(EntityState):
         """Set order direction and reload."""
         self.order_direction_value = value
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield
@@ -403,7 +407,7 @@ class UsersState(EntityState):
 
     @rx.event
     async def next_page(self):
-        if self.has_more_page:
+        if self.page < self.total_pages:
             self.page += 1
             yield
             async for _ in self.load_entities():
@@ -416,7 +420,6 @@ class UsersState(EntityState):
     async def set_filter_role(self, value: str):
         self.filter_role_value = value
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield
@@ -425,7 +428,6 @@ class UsersState(EntityState):
     async def set_filter_organization(self, value: str):
         self.filter_organization_value = value
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield

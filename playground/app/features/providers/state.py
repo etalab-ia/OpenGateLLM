@@ -1,3 +1,5 @@
+import math
+
 import httpx
 import pycountry
 import reflex as rx
@@ -138,6 +140,7 @@ class ProvidersState(EntityState):
                 response.raise_for_status()
                 data = response.json()
                 self.entities = []
+                self.total = data.get("total", 0)
 
                 for provider in data.get("data", []):
                     if provider["user_id"] not in self.provider_owners:
@@ -171,7 +174,6 @@ class ProvidersState(EntityState):
 
                     self.entities.append(self._format_provider(provider))
 
-            self.has_more_page = len(self.entities) == self.per_page
         except Exception as e:
             yield httpx_error_toast(exception=e, response=response)
         finally:
@@ -370,18 +372,22 @@ class ProvidersState(EntityState):
     ############################################################
     page: int = 1
     per_page: int = 20
+    total: int = 0
     order_by_value: str = "id"
     order_direction: str = "asc"
     order_direction_options: list[str] = ["asc", "desc"]
     order_direction_value: str = "asc"
     order_by_options: list[str] = ["id", "model_name", "created"]
 
+    @rx.var
+    def total_pages(self) -> int:
+        return max(1, math.ceil(self.total / self.per_page))
+
     @rx.event
     async def set_order_by(self, value: str):
         """Set order by field and reload."""
         self.order_by_value = value
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield
@@ -391,7 +397,6 @@ class ProvidersState(EntityState):
         """Set order direction and reload."""
         self.order_direction_value = value
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield
@@ -406,7 +411,7 @@ class ProvidersState(EntityState):
 
     @rx.event
     async def next_page(self):
-        if self.has_more_page:
+        if self.page < self.total_pages:
             self.page += 1
             yield
             async for _ in self.load_entities():
@@ -418,7 +423,6 @@ class ProvidersState(EntityState):
     async def set_filter_router(self, value: str):
         self.filter_router_value = value
         self.page = 1
-        self.has_more_page = False
         yield
         async for _ in self.load_entities():
             yield
