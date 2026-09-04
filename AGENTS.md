@@ -245,7 +245,7 @@ Callers (playground `edit_entity`, e2e tests) must send the whole current form s
 - Convert at the boundary only: `@field_validator` (request) or the `UnixTimestamp` annotated type (response, from `api/infrastructure/fastapi/schemas/__init__.py`). Both keep the field typed `int`, so the OpenAPI schema still documents an integer. Request validators return a UTC `datetime` for the command; keys also reject past timestamps (`CreateKeyBody`), while user `expires` converts without that check so a past value expires the user — see `CreateUserBody` / `UserUpdateRequest`. Command timestamp fields are typed `UtcDatetime` to match the entity; the dataclass does not convert.
 - Playground displays local time through `playground/app/shared/utils/timestamps.py`
 
-Full rationale: `adr/2026-08-27-datetime-handling.md`.
+Full rationale: `adr/2026-08-27-datetime-handling.md`, and `adr/2026-09-04-response-schema-mapping.md` for the response side.
 
 ### Aliases
 
@@ -272,6 +272,8 @@ The response never renames a field just to shorten it — name it after the enti
 Last resort: a `@model_validator(mode="before")` when the response **restructures** the entity rather than renaming it. The single case
 today is `UsageResponse`, which nests `UsageRecord`'s flat counters under `usage`; it passes the record itself down instead of re-listing
 the other fields, so `from_attributes` still does all the field work.
+
+Full rationale: `adr/2026-09-04-response-schema-mapping.md`.
 
 ---
 
