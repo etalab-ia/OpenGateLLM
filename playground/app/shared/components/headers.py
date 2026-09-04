@@ -42,13 +42,15 @@ def page_header(title_row: rx.Component, *, bleed: bool = True, margin_bottom: s
 
 
 def entity_refresh_button(state: rx.State) -> rx.Component:
-    """Refresh button."""
-    return rx.button(
-        rx.icon("refresh-cw", size=ICON_SIZE_MEDIUM),
-        "Refresh",
-        on_click=state.load_entities,
-        variant="soft",
-        loading=state.entities_loading,
+    """Icon-only refresh control for page headers."""
+    return rx.tooltip(
+        rx.button(
+            rx.icon("refresh-cw", size=ICON_SIZE_MEDIUM, color="black"),
+            on_click=state.load_entities,
+            variant="ghost",
+            loading=state.entities_loading,
+        ),
+        content="Refresh",
     )
 
 

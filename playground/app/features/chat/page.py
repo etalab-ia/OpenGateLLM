@@ -2,7 +2,7 @@
 
 import reflex as rx
 
-from app.features.chat.components.headers import chat_header
+from app.features.chat.components.headers import chat_header, new_chat_button
 from app.features.chat.components.input_bars import chat_input_bar
 from app.features.chat.components.sidebars import chat_params_sidebar
 from app.features.chat.components.windows import chat_window
@@ -20,6 +20,7 @@ def chat_page_content() -> rx.Component:
         rx.hstack(
             rx.box(
                 rx.vstack(
+                    new_chat_button(),
                     rx.box(
                         chat_window(),
                         flex="1",
