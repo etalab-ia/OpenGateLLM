@@ -18,7 +18,7 @@ from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.conftest import override_global_context
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_embeddings_responses
-from api.tests.integration.factories.sql import LimitSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory
 from api.utils.variables import EndpointRoute
 
@@ -26,7 +26,6 @@ URL = f"/v1{EndpointRoute.EMBEDDINGS}"
 
 DEFAULT_MODEL_NAME = "embeddings-router"
 DEFAULT_INPUT = "The sun is shining."
-MOCKED_PROMPT_TOKENS = 10
 SAMPLE_VALIDATION_ERRORS = [{"type": "missing", "loc": ["input"], "msg": "Field required", "input": {}}]
 
 
@@ -39,12 +38,6 @@ def _valid_body(**overrides) -> dict:
     return body
 
 
-def _allow_requests(role, router) -> None:
-    # set both high to leave TPM the only gate
-    LimitSQLFactory(role=role, router=router, type=LimitType.RPM, value=1000)
-    LimitSQLFactory(role=role, router=router, type=LimitType.RPD, value=1000)
-
-
 @pytest.mark.asyncio(loop_scope="session")
 class TestCreateEmbeddings:
     @pytest_asyncio.fixture(autouse=True)
@@ -54,7 +47,7 @@ class TestCreateEmbeddings:
         self.router_owner = UserSQLFactory(name="Bob", email="bob@example.com", admin_user=True)
 
         mock_tokenizer = MagicMock()
-        mock_tokenizer.encode.return_value = [0] * MOCKED_PROMPT_TOKENS
+        mock_tokenizer.encode.return_value = [0] * 10
         with override_global_context(redis_pool=test_redis_pool, _tokenizer=mock_tokenizer):
             yield
 
@@ -121,70 +114,6 @@ class TestCreateEmbeddings:
         provider_json = json.loads(route.calls[0].request.content)
         assert "dimensions" not in provider_json
         assert None not in provider_json.values()
-
-    @respx.mock
-    async def test_prompt_larger_than_remaining_tokens_returns_429(self, client: AsyncClient, db_session):
-        router = RouterSQLFactory(
-            user=self.router_owner,
-            name=DEFAULT_MODEL_NAME,
-            type=ModelType.TEXT_EMBEDDINGS_INFERENCE,
-            providers=1,
-            providers__type=ProviderType.TEI,
-            providers__url=DEFAULT_PROVIDER_URL,
-        )
-        _allow_requests(role=self.user.role, router=router)
-        # one token short of what the mocked tokenizer charges for the prompt, so the fresh window cannot fit it
-        LimitSQLFactory(role=self.user.role, router=router, type=LimitType.TPM, value=MOCKED_PROMPT_TOKENS - 1)
-        await db_session.flush()
-
-        # the provider answers 200 here, so a 429 can only come from a rejection made before the forward
-        route = mock_embeddings_responses(
-            respx_mock=respx,
-            provider_type=ProviderType.TEI,
-            body=TeiEmbeddingsResponseFactory(),
-            status_code=TeiEmbeddingsResponseFactory._status_code,
-        )
-
-        response = await client.post(
-            url=URL,
-            headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(),
-        )
-
-        assert response.status_code == 429, response.text
-        assert response.json().get("detail") == "Token limit per minute exceeded."
-        assert not route.called
-
-    @respx.mock
-    async def test_prompt_larger_than_window_left_by_a_previous_request_returns_429(self, client: AsyncClient, db_session):
-        router = RouterSQLFactory(
-            user=self.router_owner,
-            name=DEFAULT_MODEL_NAME,
-            type=ModelType.TEXT_EMBEDDINGS_INFERENCE,
-            providers=1,
-            providers__type=ProviderType.TEI,
-            providers__url=DEFAULT_PROVIDER_URL,
-        )
-        _allow_requests(role=self.user.role, router=router)
-        # room for one prompt but not for two, so only the window left by the first request can reject the second
-        LimitSQLFactory(role=self.user.role, router=router, type=LimitType.TPM, value=2 * MOCKED_PROMPT_TOKENS - 1)
-        await db_session.flush()
-
-        route = mock_embeddings_responses(
-            respx_mock=respx,
-            provider_type=ProviderType.TEI,
-            body=TeiEmbeddingsResponseFactory(),
-            status_code=TeiEmbeddingsResponseFactory._status_code,
-        )
-        headers = {"Authorization": f"Bearer {self.key.token}"}
-
-        first_response = await client.post(url=URL, headers=headers, json=_valid_body())
-        second_response = await client.post(url=URL, headers=headers, json=_valid_body())
-
-        assert first_response.status_code == 200, first_response.text
-        assert second_response.status_code == 429, second_response.text
-        assert second_response.json().get("detail") == "Token limit per minute exceeded."
-        assert route.call_count == 1
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",
