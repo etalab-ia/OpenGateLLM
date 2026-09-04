@@ -73,21 +73,21 @@ class TestRedisRouterRateLimiter:
         limits = limits_factory(router_id=router_id, rpm=5)
 
         # Act
-        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0)
+        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=10)
         result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
 
         # Assert
         assert result.rpm.remaining == 4
         assert result.rpm.reset > time.time()
 
-    async def test_update_rate_limit_state_without_prompt_tokens_does_not_hit_tpm(self, rate_limiter: RedisRouterRateLimiter):
+    async def test_update_rate_limit_state_without_tokens_does_not_hit_tpm(self, rate_limiter: RedisRouterRateLimiter):
         # Arrange
         user_id = 1004
         router_id = 2004
         limits = limits_factory(router_id=router_id, rpm=10, tpm=100)
 
         # Act
-        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0)
+        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=0)
         result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
 
         # Assert
@@ -96,19 +96,37 @@ class TestRedisRouterRateLimiter:
         assert result.tpm.remaining == 100
         assert result.tpm.reset > time.time()
 
-    async def test_update_rate_limit_state_with_prompt_tokens_decrements_tpm_remaining(self, rate_limiter: RedisRouterRateLimiter):
+    async def test_update_rate_limit_state_decrements_tpm_and_tpd_remaining_by_prompt_plus_completion_tokens(
+        self, rate_limiter: RedisRouterRateLimiter
+    ):
         # Arrange
         user_id = 1005
         router_id = 2005
-        limits = limits_factory(router_id=router_id, rpm=10, tpm=50)
+        limits = limits_factory(router_id=router_id, rpm=10, tpm=50, tpd=200)
 
         # Act
-        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=12)
+        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=12, completion_tokens=8)
         result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
 
         # Assert
-        assert result.tpm.remaining == 38
+        assert result.tpm.remaining == 30
         assert result.tpm.reset > time.time()
+        assert result.tpd.remaining == 180
+        assert result.tpd.reset > time.time()
+
+    async def test_update_rate_limit_state_decrements_tpm_and_tpd_remaining_with_completion_tokens_only(self, rate_limiter: RedisRouterRateLimiter):
+        # Arrange
+        user_id = 1008
+        router_id = 2008
+        limits = limits_factory(router_id=router_id, rpm=10, tpm=50, tpd=200)
+
+        # Act
+        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=8)
+        result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
+
+        # Assert
+        assert result.tpm.remaining == 42
+        assert result.tpd.remaining == 192
 
     async def test_multiple_updates_rate_limit_state_decrements_rpm_remaining(self, rate_limiter: RedisRouterRateLimiter):
         # Arrange
@@ -117,8 +135,8 @@ class TestRedisRouterRateLimiter:
         limits = limits_factory(router_id=router_id, rpm=2)
 
         # Act
-        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0)
-        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0)
+        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=0)
+        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=0)
         result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
 
         # Assert
@@ -131,7 +149,7 @@ class TestRedisRouterRateLimiter:
         user_id = 1008
         router_id = 2008
         limits = limits_factory(router_id=router_id, rpm=10, tpm=50)
-        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=30)
+        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=30, completion_tokens=0)
 
         # Act
         result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)
@@ -146,7 +164,7 @@ class TestRedisRouterRateLimiter:
         user_id = 1007
         router_id = 2007
         limits = limits_factory(router_id=router_id, rpm=5)
-        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0)
+        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=0, completion_tokens=0)
         assert await redis_client.keys("LIMITS*")
 
         # Act

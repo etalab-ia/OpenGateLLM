@@ -11,5 +11,5 @@ class UsageRecorder(ABC):
         pass
 
     @abstractmethod
-    def record_usage(self, request_id: str | None, prompt_tokens: int, total_tokens: int, cost: float) -> None:
+    def record_usage(self, request_id: str | None, prompt_tokens: int, completion_tokens: int, cost: float) -> None:
         pass

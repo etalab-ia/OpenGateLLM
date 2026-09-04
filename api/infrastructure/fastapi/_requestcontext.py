@@ -26,7 +26,6 @@ class RequestContext(BaseModel):
     # usage
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
-    total_tokens: int | None = None
     cost: float | None = None
     kwh: float | None = None
     kgco2eq: float | None = None

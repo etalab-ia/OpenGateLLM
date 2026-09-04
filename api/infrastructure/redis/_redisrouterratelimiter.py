@@ -67,21 +67,24 @@ class RedisRouterRateLimiter(RouterRateLimiter):
 
         return state
 
-    async def update_rate_limit_state(self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int) -> None:
+    async def update_rate_limit_state(
+        self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int, completion_tokens: int
+    ) -> None:
         rpm = next((limit.value for limit in router_limits if limit.type == LimitType.RPM), 0)
         await self._hit(user_id=user_id, router_id=router_id, type=LimitType.RPM, value=rpm)
 
         rpd = next((limit.value for limit in router_limits if limit.type == LimitType.RPD), 0)
         await self._hit(user_id=user_id, router_id=router_id, type=LimitType.RPD, value=rpd)
 
-        if not prompt_tokens:
+        total_tokens = prompt_tokens + completion_tokens
+        if not total_tokens:
             return
 
         tpm = next((limit.value for limit in router_limits if limit.type == LimitType.TPM), 0)
-        await self._hit(user_id=user_id, router_id=router_id, type=LimitType.TPM, value=tpm, cost=prompt_tokens)
+        await self._hit(user_id=user_id, router_id=router_id, type=LimitType.TPM, value=tpm, cost=total_tokens)
 
         tpd = next((limit.value for limit in router_limits if limit.type == LimitType.TPD), 0)
-        await self._hit(user_id=user_id, router_id=router_id, type=LimitType.TPD, value=tpd, cost=prompt_tokens)
+        await self._hit(user_id=user_id, router_id=router_id, type=LimitType.TPD, value=tpd, cost=total_tokens)
 
     async def reset(self) -> None:
         try:

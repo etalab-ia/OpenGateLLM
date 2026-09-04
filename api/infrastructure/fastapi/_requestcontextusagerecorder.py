@@ -19,9 +19,9 @@ class RequestContextUsageRecorder(UsageRecorder):
         context.provider_id = provider_id
         context.provider_model_name = provider_model_name
 
-    def record_usage(self, request_id: str | None, prompt_tokens: int, total_tokens: int, cost: float) -> None:
+    def record_usage(self, request_id: str | None, prompt_tokens: int, completion_tokens: int, cost: float) -> None:
         context = self.request_context.get()
         context.id = request_id
         context.prompt_tokens = prompt_tokens
-        context.total_tokens = total_tokens
+        context.completion_tokens = completion_tokens
         context.cost = cost

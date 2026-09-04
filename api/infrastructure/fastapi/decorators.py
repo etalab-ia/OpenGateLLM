@@ -9,12 +9,15 @@ from fastapi import HTTPException
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain.router import RouterRateLimiter
+from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.dependencies import request_context
 from api.sql.models import Usage, User
 from api.utils.configuration import configuration
 
 logger = logging.getLogger(__name__)
 PostgresSessionProvider = Callable[[], AsyncGenerator[AsyncSession | Any, Any]]
+RouterRateLimiterProvider = Callable[[], RouterRateLimiter]
 
 
 def _log_background_task_failure(task: asyncio.Task) -> None:
@@ -31,7 +34,13 @@ def _schedule_background_task(coroutine: Coroutine, task_name: str) -> None:
     task.add_done_callback(_log_background_task_failure)
 
 
-def hooks(*, postgres_session_provider: PostgresSessionProvider):
+def _total_tokens(prompt_tokens: int | None, completion_tokens: int | None) -> int | None:
+    if prompt_tokens is None and completion_tokens is None:
+        return None
+    return (prompt_tokens or 0) + (completion_tokens or 0)
+
+
+def hooks(*, postgres_session_provider: PostgresSessionProvider, router_rate_limiter_provider: RouterRateLimiterProvider):
     def decorator(endpoint_func):
         @functools.wraps(endpoint_func)
         async def wrapper(*args, **kwargs):
@@ -52,6 +61,10 @@ def hooks(*, postgres_session_provider: PostgresSessionProvider):
 
             finally:
                 usage = set_usage_from_context(usage=usage)
+                _schedule_background_task(
+                    coroutine=charge_router_limits(user=context.user, usage=usage, router_rate_limiter_provider=router_rate_limiter_provider),
+                    task_name="hooks-charge-router-limits",
+                )
                 _schedule_background_task(
                     coroutine=log_usage(usage=usage, postgres_session_provider=postgres_session_provider),
                     task_name="hooks-log-usage",
@@ -80,12 +93,32 @@ def set_usage_from_context(usage: Usage):
     usage.provider_model_name = context.provider_model_name
     usage.prompt_tokens = context.prompt_tokens
     usage.completion_tokens = context.completion_tokens
-    usage.total_tokens = context.total_tokens
+    usage.total_tokens = _total_tokens(context.prompt_tokens, context.completion_tokens)
     usage.cost = context.cost
     usage.kwh = context.kwh
     usage.kgco2eq = context.kgco2eq
 
     return usage
+
+
+async def charge_router_limits(user: AuthenticatedUserView | None, usage: Usage, router_rate_limiter_provider: RouterRateLimiterProvider):
+    if user is None or user.is_admin:
+        return
+    if usage.router_id is None:
+        return
+
+    router_limits = [limit for limit in user.limits if limit.router_id == usage.router_id]
+    try:
+        router_rate_limiter = router_rate_limiter_provider()
+        await router_rate_limiter.update_rate_limit_state(
+            user_id=user.id,
+            router_limits=router_limits,
+            router_id=usage.router_id,
+            prompt_tokens=usage.prompt_tokens or 0,
+            completion_tokens=usage.completion_tokens or 0,
+        )
+    except Exception:
+        logger.exception("Unexpected failure during rate limit state update for user %s.", user.id)
 
 
 async def log_usage(usage: Usage, postgres_session_provider: PostgresSessionProvider):

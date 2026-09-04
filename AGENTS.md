@@ -2,6 +2,8 @@
 
 Coding conventions for this repository. New and changed code follows clean architecture as implemented below.
 
+**Git history is linear.** Never create merge commits (`git merge`, `git pull` without `--rebase`). Update a branch with `git pull --rebase origin main`. After rewriting already-pushed commits, update the remote with `git push --force-with-lease`. Full workflow: [`docs/src/content/docs/contributing/development_environment.mdx`](docs/src/content/docs/contributing/development_environment.mdx).
+
 ---
 
 ## Architecture
@@ -479,6 +481,7 @@ Each layer tests **its** responsibility. Do not re-run use-case branches through
 | Integration endpoint | `api/tests/integration/endpoints/.../test_<action>_<resource>.py` | Happy path, auth, error mapping, endpoint-only guards | Create/update/link business flows |
 | Integration repository | `api/tests/integration/postgres/` | Persist/read, constraints, new columns | Use-case policy |
 | Model-forward pool | `api/tests/integration/postgres/test_autocommit_releases_connection_during_model_forward.py` | Connection released during provider call | Use-case branches |
+| Post-response hooks | `api/tests/integration/endpoints/test_post_response_hooks.py` | Router limits charged after a response | Usage logging and budget hooks (their session cannot be overridden) |
 | HTTP adapter | `api/tests/integration/http/test_<adapter>.py` | Each distinct status / network branch (`respx`) | Callers of the adapter |
 
 Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key.py`, `test_create_user.py`).
