@@ -30,14 +30,14 @@ def header_divider(*, bleed: bool = True) -> rx.Component:
     return rx.box(**style)
 
 
-def page_header(title_row: rx.Component, *, bleed: bool = True) -> rx.Component:
+def page_header(title_row: rx.Component, *, bleed: bool = True, margin_bottom: str = MARGIN_MEDIUM) -> rx.Component:
     """Page title row with a full-width solid divider underneath."""
     return rx.vstack(
         title_row,
         header_divider(bleed=bleed),
         spacing=SPACING_MEDIUM,
         width="100%",
-        margin_bottom=MARGIN_MEDIUM,
+        margin_bottom=margin_bottom,
     )
 
 
