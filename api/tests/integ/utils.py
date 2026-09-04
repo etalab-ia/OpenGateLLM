@@ -10,9 +10,9 @@ from fastapi.testclient import TestClient
 import httpx
 
 from api.domain.provider.entities import HostingZone, ProviderType
+from api.infrastructure.fastapi.schemas.admin.providers import CreateProviderBody
 from api.infrastructure.fastapi.schemas.admin.roles import CreateRoleBody, Limit, LimitType
 from api.infrastructure.fastapi.schemas.admin.users import CreateUserBody
-from api.schemas.admin.providers import CreateProvider
 from api.schemas.admin.routers import CreateRouter
 from api.schemas.admin.tokens import CreateToken
 from api.schemas.core.configuration import Metric
@@ -170,7 +170,7 @@ def create_provider(
     qos_metric: Metric | None = None,
     qos_limit: float | None = None,
 ) -> int:
-    payload = CreateProvider(
+    payload = CreateProviderBody(
         router_id=router_id,
         type=provider_type,
         url=provider_url,
