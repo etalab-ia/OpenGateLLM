@@ -42,8 +42,6 @@ class UsageResponse(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def nest_usage_counters(cls, data):
-        # `UsageRecord` carries the counters flat, the API nests them under `usage`: expose the record itself under that name and let
-        # `from_attributes` read the counters off it. Every other field is still read straight from the record.
         if isinstance(data, UsageRecord):
             return data.model_copy(update={"usage": data})
         return data
