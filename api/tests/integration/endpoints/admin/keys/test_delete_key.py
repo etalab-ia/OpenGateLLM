@@ -35,7 +35,7 @@ class TestDeleteKey:
         assert data["object"] == "key"
         assert data["id"] == key.id
         assert data["name"] == "to-delete"
-        assert data["user"] == user.id
+        assert data["user_id"] == user.id
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

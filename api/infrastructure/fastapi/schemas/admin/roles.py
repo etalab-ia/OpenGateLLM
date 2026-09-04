@@ -1,10 +1,10 @@
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import Field, StringConstraints, model_validator
+from pydantic import Field, StringConstraints
 
 from api.domain import BaseModel
-from api.domain.role.entities import Role
+from api.infrastructure.fastapi.schemas import UnixTimestamp
 
 
 class PermissionType(StrEnum):
@@ -45,24 +45,8 @@ class RoleResponse(BaseModel):
     permissions: Annotated[list[PermissionType], Field(..., description="List of permissions.")]
     limits: Annotated[list[Limit], Field(..., description="List of limits.")]
     users: Annotated[int, Field(..., description="Number of users assigned to the role.")]
-    created: Annotated[int, Field(..., description="Time of creation, as Unix timestamp.")]
-    updated: Annotated[int, Field(..., description="Time of last update, as Unix timestamp.")]
-
-    @model_validator(mode="before")
-    @classmethod
-    def from_role(cls, data):
-        if isinstance(data, Role):
-            return {
-                "object": "role",
-                "id": data.id,
-                "name": data.name,
-                "permissions": data.permissions,
-                "limits": [{"router_id": limit.router_id, "type": limit.type, "value": limit.value} for limit in data.limits],
-                "users": data.users,
-                "created": int(data.created.timestamp()),
-                "updated": int(data.updated.timestamp()),
-            }
-        return data
+    created: Annotated[UnixTimestamp, Field(..., description="Time of creation, as Unix timestamp.")]
+    updated: Annotated[UnixTimestamp, Field(..., description="Time of last update, as Unix timestamp.")]
 
 
 class RolesResponse(BaseModel):

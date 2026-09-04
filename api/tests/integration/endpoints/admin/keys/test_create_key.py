@@ -42,7 +42,7 @@ class TestCreateKey:
         data = response.json()
         assert data["object"] == "key"
         assert data["name"] == "new-key"
-        assert data["user"] == self.target_user.id
+        assert data["user_id"] == self.target_user.id
         assert isinstance(data["id"], int)
         assert data["value"].startswith("sk-")
         assert data["expires"] is None

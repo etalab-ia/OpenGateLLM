@@ -45,7 +45,7 @@ class TestGetKeysEndpoint:
         assert result.limit == 10
         assert len(result.data) == 1
         assert result.data[0].name == "my-key"
-        assert result.data[0].user == 42
+        assert result.data[0].user_id == 42
         mock_use_case.execute.assert_awaited_once_with(
             GetKeysCommand(user_id=None, offset=0, limit=10, sort_by=SortField.ID, sort_order=SortOrder.ASC)
         )

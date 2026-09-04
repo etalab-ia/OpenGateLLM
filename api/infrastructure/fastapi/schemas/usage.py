@@ -5,6 +5,7 @@ from pydantic import Field, model_validator
 
 from api.domain import BaseModel
 from api.domain.usage.entities import UsageRecord
+from api.infrastructure.fastapi.schemas import UnixTimestamp
 from api.utils.variables import EndpointRoute
 
 
@@ -36,26 +37,15 @@ class UsageResponse(BaseModel):
     key: Annotated[str | None, Field(default=None, description="Key used for the request.")]
     endpoint: Annotated[str | None, Field(default=None, description="Endpoint used for the request.")]
     usage: Annotated[UsageDetail, Field(default_factory=UsageDetail)]
-    created: Annotated[int, Field(description="Time of creation, as Unix timestamp.")]
+    created: Annotated[UnixTimestamp, Field(description="Time of creation, as Unix timestamp.")]
 
     @model_validator(mode="before")
     @classmethod
-    def from_usage_record(cls, data):
+    def nest_usage_counters(cls, data):
+        # `UsageRecord` carries the counters flat, the API nests them under `usage`: expose the record itself under that name and let
+        # `from_attributes` read the counters off it. Every other field is still read straight from the record.
         if isinstance(data, UsageRecord):
-            return {
-                "object": "usage",
-                "model": data.model,
-                "key": data.key,
-                "endpoint": data.endpoint,
-                "usage": {
-                    "prompt_tokens": data.prompt_tokens,
-                    "completion_tokens": data.completion_tokens,
-                    "total_tokens": data.total_tokens,
-                    "cost": data.cost,
-                    "impacts": data.impacts,
-                },
-                "created": int(data.created.timestamp()),
-            }
+            return data.model_copy(update={"usage": data})
         return data
 
 

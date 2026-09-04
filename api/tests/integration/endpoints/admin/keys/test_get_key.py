@@ -35,7 +35,7 @@ class TestGetKey:
         assert data["id"] == key.id
         assert data["object"] == "key"
         assert data["name"] == "my-key"
-        assert data["user"] == user.id
+        assert data["user_id"] == user.id
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

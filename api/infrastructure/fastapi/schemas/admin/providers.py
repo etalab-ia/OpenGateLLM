@@ -3,7 +3,8 @@ from typing import Annotated, Literal
 from pydantic import Field, StringConstraints, model_validator
 
 from api.domain import BaseModel
-from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderType, QoSMetric
+from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType, QoSMetric
+from api.infrastructure.fastapi.schemas import UnixTimestamp
 from api.schemas.core.configuration import ModelProvider
 
 
@@ -26,32 +27,8 @@ class CreateProviderResponse(BaseModel):
     model_active_params: Annotated[int, Field(default=0, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
     qos_metric: Annotated[QoSMetric | None, Field(default=None, description="The metric to use for the QoS policy. If not provided, no QoS policy is applied.")]  # fmt: off
     qos_limit: Annotated[float | None, Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")]  # fmt: off
-    created: Annotated[int | None, Field(default=None, description="Time of creation, as Unix timestamp.")]  # fmt: off
-    updated: Annotated[int | None, Field(default=None, description="Time of last update, as Unix timestamp.")]  # fmt: off
-
-    @model_validator(mode="before")
-    @classmethod
-    def from_provider(cls, data):
-        if isinstance(data, Provider):
-            return {
-                "id": data.id,
-                "router_id": data.router_id,
-                "user_id": data.user_id,
-                "type": data.type,
-                "url": data.url,
-                "key": data.key,
-                "basic_auth": data.basic_auth,
-                "timeout": data.timeout,
-                "model_name": data.model_name,
-                "model_hosting_zone": data.model_hosting_zone,
-                "model_total_params": data.model_total_params,
-                "model_active_params": data.model_active_params,
-                "qos_metric": data.qos_metric,
-                "qos_limit": data.qos_limit,
-                "created": int(data.created.timestamp()),
-                "updated": int(data.updated.timestamp()),
-            }
-        return data
+    created: Annotated[UnixTimestamp | None, Field(default=None, description="Time of creation, as Unix timestamp.")]  # fmt: off
+    updated: Annotated[UnixTimestamp | None, Field(default=None, description="Time of last update, as Unix timestamp.")]  # fmt: off
 
 
 class UpdateProviderBody(BaseModel):
@@ -87,33 +64,8 @@ class ProviderResponse(BaseModel):
     qos_limit: Annotated[float | None, Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")]  # fmt: off
     max_context_length: Annotated[int | None, Field(default=None, description="Maximum amount of tokens a context could contains, probed on the provider API. It is the same for all the providers of a router.")]  # fmt: off
     vector_size: Annotated[int | None, Field(default=None, description="Dimension of the vectors, probed on the provider API for embeddings models only. It is the same for all the providers of a router.")]  # fmt: off
-    created: Annotated[int | None, Field(default=None, description="Time of creation, as Unix timestamp.")]
-    updated: Annotated[int | None, Field(default=None, description="Time of last update, as Unix timestamp.")]
-
-    @model_validator(mode="before")
-    @classmethod
-    def from_provider(cls, data):
-        if isinstance(data, Provider):
-            return {
-                "object": "provider",
-                "id": data.id,
-                "router_id": data.router_id,
-                "user_id": data.user_id,
-                "type": data.type,
-                "url": data.url,
-                "timeout": data.timeout,
-                "model_name": data.model_name,
-                "model_hosting_zone": data.model_hosting_zone,
-                "model_total_params": data.model_total_params,
-                "model_active_params": data.model_active_params,
-                "qos_metric": data.qos_metric,
-                "qos_limit": data.qos_limit,
-                "max_context_length": data.max_context_length,
-                "vector_size": data.vector_size,
-                "created": int(data.created.timestamp()),
-                "updated": int(data.updated.timestamp()),
-            }
-        return data
+    created: Annotated[UnixTimestamp | None, Field(default=None, description="Time of creation, as Unix timestamp.")]
+    updated: Annotated[UnixTimestamp | None, Field(default=None, description="Time of last update, as Unix timestamp.")]
 
 
 class ProvidersResponse(BaseModel):
