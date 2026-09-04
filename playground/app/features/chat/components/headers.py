@@ -25,4 +25,5 @@ def chat_header() -> rx.Component:
             padding_top=PADDING_PAGE,
         ),
         bleed=False,
+        margin_bottom="0",
     )
