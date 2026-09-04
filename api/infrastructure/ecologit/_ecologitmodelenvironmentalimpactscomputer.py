@@ -2,8 +2,8 @@ from ecologits.electricity_mix_repository import ElectricityMix
 from ecologits.tracers.utils import compute_llm_impacts, electricity_mixes
 
 from api.domain.model import ModelEnvironmentalImpactsComputer
+from api.domain.provider.entities import HostingZone
 from api.domain.usage.entities import EnvironmentalImpacts
-from api.schemas.admin.providers import ProviderCarbonFootprintZone
 
 
 class EcologitModelEnvironmentalImpactsComputer(ModelEnvironmentalImpactsComputer):
@@ -11,7 +11,7 @@ class EcologitModelEnvironmentalImpactsComputer(ModelEnvironmentalImpactsCompute
         self,
         model_active_params: int,
         model_total_params: int,
-        model_zone: ProviderCarbonFootprintZone,
+        model_zone: HostingZone,
         completion_tokens: int,
         request_latency: int,
     ) -> EnvironmentalImpacts:

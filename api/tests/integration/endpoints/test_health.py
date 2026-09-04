@@ -3,7 +3,7 @@ import pytest
 import pytest_asyncio
 import respx
 
-from api.schemas.admin.providers import ProviderType
+from api.domain.provider.entities import ProviderType
 from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_metrics_responses

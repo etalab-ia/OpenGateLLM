@@ -7,8 +7,8 @@ from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 from sqlalchemy.types import JSON
 
+from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.role.entities import LimitType, PermissionType
-from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.core.models import Metric
 from api.schemas.models import ModelType
@@ -207,7 +207,7 @@ class Provider(Base):
     basic_auth: Mapped[dict[str, str] | None] = mapped_column(JSON, nullable=True)
     timeout: Mapped[int] = mapped_column(default=DEFAULT_TIMEOUT)
     model_name: Mapped[str]
-    model_hosting_zone: Mapped[ProviderCarbonFootprintZone | None]
+    model_hosting_zone: Mapped[HostingZone | None]
     model_total_params: Mapped[int] = mapped_column(default=0)
     model_active_params: Mapped[int] = mapped_column(default=0)
     qos_metric: Mapped[Metric | None]

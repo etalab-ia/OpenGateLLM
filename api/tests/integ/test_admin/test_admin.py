@@ -6,8 +6,8 @@ from fastapi.testclient import TestClient
 import pytest
 from redis import Redis
 
+from api.domain.role.entities import LimitType
 from api.helpers._usagetokenizer import UsageTokenizer
-from api.schemas.admin.roles import LimitType
 from api.schemas.admin.routers import Router
 from api.utils.configuration import configuration
 from api.utils.variables import EndpointRoute

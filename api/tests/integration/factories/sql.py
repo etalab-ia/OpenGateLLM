@@ -6,9 +6,8 @@ from factory import fuzzy
 from factory.alchemy import SQLAlchemyModelFactory
 from faker import Faker
 
-from api.domain.provider.entities import QoSMetric
+from api.domain.provider.entities import HostingZone, ProviderType, QoSMetric
 from api.domain.role.entities import LimitType, PermissionType
-from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.models import ModelType
 from api.sql.models import Limit, Organization, Permission, Provider, Role, Router, RouterAlias, Token, Usage, User
@@ -200,7 +199,7 @@ class ProviderSQLFactory(BaseSQLFactory):
     basic_auth = None
     timeout = factory.Faker("random_int", min=1, max=300)
     model_name = factory.Faker("bothify", text="model-##-?????")
-    model_hosting_zone = factory.Faker("random_element", elements=list(ProviderCarbonFootprintZone))
+    model_hosting_zone = factory.Faker("random_element", elements=list(HostingZone))
     model_total_params = factory.Faker("random_int", min=1000000, max=2000000000)
     model_active_params = factory.Faker("random_int", min=1000000, max=1000000000)
     qos_metric = factory.Faker("random_element", elements=list(QoSMetric))

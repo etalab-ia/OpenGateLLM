@@ -1,7 +1,13 @@
 from abc import ABC, abstractmethod
+from enum import StrEnum
+
+import pycountry
 
 from api.domain.usage.entities import EnvironmentalImpacts
-from api.schemas.admin.providers import ProviderCarbonFootprintZone
+
+# Add world as a country code, default value of the carbon footprint computation framework
+_country_codes = [country.alpha_3 for country in pycountry.countries] + ["WOR"]
+HostingZone = StrEnum("HostingZone", {str(code).upper(): str(code) for code in sorted(set(_country_codes))})
 
 
 class ModelEnvironmentalImpactsComputer(ABC):
@@ -10,7 +16,7 @@ class ModelEnvironmentalImpactsComputer(ABC):
         self,
         model_active_params: int,
         model_total_params: int,
-        model_zone: ProviderCarbonFootprintZone,
+        model_zone: HostingZone,
         completion_tokens: int,
         request_latency: int | None = None,
     ) -> EnvironmentalImpacts:

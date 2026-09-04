@@ -11,9 +11,9 @@ from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.entities import ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
+from api.domain.role.entities import LimitType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
-from api.schemas.admin.roles import LimitType
 from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.conftest import override_global_context

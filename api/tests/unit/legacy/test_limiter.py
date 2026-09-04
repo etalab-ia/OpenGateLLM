@@ -5,8 +5,8 @@ from limits.aio import strategies
 from limits.aio.storage import RedisStorage
 import pytest
 
+from api.domain.role.entities import Limit, LimitType, PermissionType
 from api.helpers._limiter import Limiter
-from api.schemas.admin.roles import Limit, LimitType, PermissionType
 from api.schemas.core.configuration import LimitingStrategy
 from api.schemas.me.info import UserInfo
 from api.utils.exceptions import InsufficientPermissionException, ModelNotFoundException, RateLimitExceeded

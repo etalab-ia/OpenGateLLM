@@ -10,8 +10,8 @@ from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
+from api.domain.role.entities import Limit, PermissionType, Role
 from api.schemas.admin.organizations import Organization
-from api.schemas.admin.roles import Limit, PermissionType, Role
 from api.schemas.admin.tokens import Token
 from api.schemas.admin.users import User
 from api.schemas.me.info import UserInfo

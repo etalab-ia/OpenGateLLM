@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from api.domain import EntitiesPage, UtcDatetime
 from api.domain.model.entities import ModelType as RouterType
-from api.schemas.admin.roles import LimitType
+from api.domain.role.entities import LimitType
 
 
 class RouterLoadBalancingStrategy(StrEnum):

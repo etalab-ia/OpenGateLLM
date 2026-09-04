@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
+from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterType
-from api.schemas.admin.roles import LimitType
 
 
 @dataclass

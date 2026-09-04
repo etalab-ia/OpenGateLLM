@@ -2,17 +2,13 @@ from enum import StrEnum
 from http import HTTPMethod
 from typing import Annotated, Literal
 
-import pycountry
 from pydantic import Field, model_validator
 
 from api.domain import BaseModel, EntitiesPage, ForwardablePayload, UtcDatetime
+from api.domain.model._modelenvironmentalimpactscomputer import HostingZone
 from api.domain.model.entities import ModelJsonResponse, ModelType
 from api.domain.router.entities import Router
 from api.utils.variables import EndpointRoute
-
-# Add world as a country code, default value of the carbon footprint computation framework
-country_codes = [country.alpha_3 for country in pycountry.countries] + ["WOR"]
-HostingZone = StrEnum("HostingZone", {str(code).upper(): str(code) for code in sorted(set(country_codes))})
 
 
 class Metric(StrEnum):

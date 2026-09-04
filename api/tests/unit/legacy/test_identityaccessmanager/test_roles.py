@@ -4,8 +4,8 @@ import pytest
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain.role.entities import Limit, LimitType, PermissionType
 from api.helpers._identityaccessmanager import IdentityAccessManager
-from api.schemas.admin.roles import Limit, LimitType, PermissionType
 from api.utils.exceptions import (
     DeleteRoleWithUsersException,
     RoleNotFoundException,

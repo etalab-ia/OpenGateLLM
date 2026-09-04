@@ -2,8 +2,8 @@ from typing import Literal
 
 from pydantic import Field
 
+from api.domain.role.entities import Limit, PermissionType
 from api.schemas import BaseModel
-from api.schemas.admin.roles import Limit, PermissionType
 
 
 class UserInfo(BaseModel):

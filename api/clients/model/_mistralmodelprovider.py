@@ -3,7 +3,7 @@ from urllib.parse import urljoin
 
 import httpx
 
-from api.schemas.admin.providers import ProviderType
+from api.domain.provider.entities import ProviderType
 from api.schemas.core.models import ProviderEndpoints
 from api.utils.variables import EndpointRoute
 

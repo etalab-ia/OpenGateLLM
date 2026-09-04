@@ -12,8 +12,8 @@ from fastapi import HTTPException
 import httpx
 from redis.asyncio import Redis as AsyncRedis
 
+from api.domain.provider.entities import ProviderType
 from api.helpers._langfusemanager import ObservationName
-from api.schemas.admin.providers import ProviderType
 from api.schemas.audio import AudioTranscription, CreateAudioTranscription
 from api.schemas.chat import ChatCompletionChunk, CreateChatCompletion
 from api.schemas.core.models import Metric, ProviderEndpoints, RequestContent

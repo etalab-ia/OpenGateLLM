@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from humanize import naturalsize
 
-from api.schemas.admin.roles import LimitType
+from api.domain.role.entities import LimitType
 
 
 # 400

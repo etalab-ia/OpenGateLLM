@@ -6,8 +6,8 @@ from mistralai.client.models import ChatCompletionRequest
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import Field
 
+from api.domain.provider.entities import ProviderType
 from api.schemas import BaseModel
-from api.schemas.admin.providers import ProviderType
 from api.schemas.core.models import RequestContent
 from api.schemas.usage import Usage
 

@@ -3,7 +3,8 @@ import logging
 from fastapi.testclient import TestClient
 import pytest
 
-from api.schemas.admin.providers import CreateProvider, ProviderCarbonFootprintZone, ProviderType
+from api.domain.provider.entities import HostingZone, ProviderType
+from api.infrastructure.fastapi.schemas.admin.providers import CreateProviderBody
 from api.schemas.models import ModelType
 from api.tests.integ.utils import create_router, generate_test_id, kill_openmockllm, run_openmockllm
 from api.utils.variables import EndpointRoute
@@ -45,14 +46,14 @@ class TestAdminProviders:
     def test_create_provider_with_text_generation_model(self, client: TestClient, setup_text_generation_router: tuple[int, str]):
         router_id, model_name, url = setup_text_generation_router
 
-        payload = CreateProvider(
+        payload = CreateProviderBody(
             router_id=router_id,
             type=ProviderType.VLLM,
             url=url,
             key=None,  # Mock server doesn't require authentication
             timeout=10,
             model_name=model_name,
-            model_hosting_zone=ProviderCarbonFootprintZone.WOR,
+            model_hosting_zone=HostingZone.WOR,
             model_total_params=0,
             model_active_params=0,
             qos_metric=None,
@@ -65,14 +66,14 @@ class TestAdminProviders:
     def test_create_router_with_text_embeddings_inference_model(self, client: TestClient, setup_text_embeddings_inference_router: tuple[int, str]):
         router_id, model_name, url = setup_text_embeddings_inference_router
 
-        payload = CreateProvider(
+        payload = CreateProviderBody(
             router_id=router_id,
             type=ProviderType.TEI,
             url=url,
             key=None,  # Mock server doesn't require authentication
             timeout=10,
             model_name=model_name,
-            model_hosting_zone=ProviderCarbonFootprintZone.WOR,
+            model_hosting_zone=HostingZone.WOR,
             model_total_params=0,
             model_active_params=0,
             qos_metric=None,

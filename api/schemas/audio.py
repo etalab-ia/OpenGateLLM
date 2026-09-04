@@ -6,8 +6,8 @@ from fastapi.exceptions import RequestValidationError
 from mistralai.client.models import AudioChunk, ChatCompletionRequest, TextChunk, UserMessage
 from pydantic import Field, ValidationError, field_validator
 
+from api.domain.provider.entities import ProviderType
 from api.schemas import BaseModel
-from api.schemas.admin.providers import ProviderType
 from api.schemas.core.models import RequestContent
 from api.schemas.usage import Usage
 from api.utils.exceptions import FileSizeLimitExceededException
