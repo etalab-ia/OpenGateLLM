@@ -16,7 +16,7 @@ dependencies = [
 [project.optional-dependencies]
 playground = [
     "python-jose==3.5.0",
-    "reflex==0.8.27",
+    "reflex==0.8.28.post1",
 ]
 api = [
     "alembic==1.18.4",
@@ -32,10 +32,10 @@ api = [
     "limits==5.8.0",
     "mistralai==2.0.0",
     "openai==2.15.0",
-    "prometheus-fastapi-instrumentator==7.1.0",
+    "prometheus-fastapi-instrumentator==8.1.0",
     "psycopg2-binary==2.9.11",
     "python-jose==3.5.0",
-    "python-multipart==0.0.27",
+    "python-multipart==0.0.32",
     "redis==7.2.1",
     "sentry-sdk[fastapi]==2.53.0",
     "sqlalchemy-utils==0.42.1",
