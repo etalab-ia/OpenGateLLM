@@ -1,7 +1,7 @@
 import reflex as rx
 
 from app.core.configuration import PlaygroundPages, configuration
-from app.core.variables import PADDING_NAV
+from app.core.variables import HEADING_SIZE_PAGE, HEADING_WEIGHT, PADDING_MEDIUM, PADDING_NAV, PADDING_PAGE
 from app.features.auth.state import AuthState
 from app.shared.components.dark_mode_toggle import dark_mode_toggle
 
@@ -33,7 +33,7 @@ def nav_item(label: str, icon: str | None, page: str, is_external: bool = False,
             border_radius="8px",
             color=rx.color("mauve", 11),
             _hover={
-                "background_color": rx.color("mauve", 3),
+                "background_color": rx.color("mauve", 4),
             },
             width="100%",
             spacing="3",
@@ -89,16 +89,17 @@ def navigation_sidebar() -> rx.Component:
                         ),
                         rx.heading(
                             configuration.settings.app_title,
-                            size="6",
+                            size=HEADING_SIZE_PAGE,
+                            weight=HEADING_WEIGHT,
                             color=rx.color("accent", 11),
                         ),
                         align="center",
                         spacing="2",
-                        padding_bottom="1.5em",
                     ),
                     href="/",
                     style={"textDecoration": "none"},
                     width="100%",
+                    padding_bottom="2.5em",
                 ),
                 nav_item("Playground", "message-square", "/"),
                 *user_items,
@@ -140,10 +141,12 @@ def navigation_sidebar() -> rx.Component:
                     if model_items or admin_items
                     else []
                 ),
-                *([rx.divider(), *docs_items] if docs_items else []),
+                *docs_items,
                 spacing="0",
                 width="100%",
-                padding="1em",
+                padding_x=PADDING_MEDIUM,
+                padding_bottom=PADDING_MEDIUM,
+                padding_top=PADDING_PAGE,
             ),
             # User info and logout at the bottom
             rx.spacer(),
@@ -204,8 +207,8 @@ def navigation_sidebar() -> rx.Component:
         ),
         width="250px",
         height="100vh",
-        background_color=rx.color("mauve", 2),
-        border_right=f"1px solid {rx.color('mauve', 3)}",
+        background_color=rx.color("mauve", 3),
+        border_right=f"1px solid {rx.color('mauve', 6)}",
         position="fixed",
         left="0",
         top="0",

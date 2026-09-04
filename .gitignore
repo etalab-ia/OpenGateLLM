@@ -214,6 +214,7 @@ compose.yaml
 compose.**.yml
 playground/.web
 playground/.states
+playground/reflex.lock
 playground/.gitignore
 playground/requirements.txt
 run.sh
