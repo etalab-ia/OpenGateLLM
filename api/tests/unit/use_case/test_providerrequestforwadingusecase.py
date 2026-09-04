@@ -400,7 +400,7 @@ class TestCheckRateLimits:
         )
 
     @pytest.mark.asyncio
-    async def test_should_update_rate_limit_state_when_non_admin_user_is_within_limits(self, use_case, user_with_router_access, router):
+    async def test_should_return_rate_limit_state_when_non_admin_user_is_within_limits(self, use_case, user_with_router_access, router):
         # Arrange
         rate_limit_state = RouterRateLimitState.admin_rate_limit_state()
         use_case.router_rate_limiter.get_rate_limit_state.return_value = rate_limit_state
@@ -414,7 +414,6 @@ class TestCheckRateLimits:
             user_id=user_with_router_access.id,
             router_limits=[Limit(router_id=1, type=LimitType.RPM, value=100)],
             router_id=router.id,
-            prompt_tokens=1,
         )
 
 

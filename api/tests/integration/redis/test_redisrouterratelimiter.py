@@ -149,7 +149,7 @@ class TestRedisRouterRateLimiter:
         user_id = 1008
         router_id = 2008
         limits = limits_factory(router_id=router_id, rpm=10, tpm=50)
-        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=30)
+        await rate_limiter.update_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id, prompt_tokens=30, completion_tokens=0)
 
         # Act
         result = await rate_limiter.get_rate_limit_state(user_id=user_id, router_limits=limits, router_id=router_id)

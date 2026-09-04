@@ -82,7 +82,7 @@ class TestPostResponseHooks:
 
         # redis reader
         rate_limiter = RedisRouterRateLimiter(redis_pool=test_redis_pool, strategy=LimitingStrategy.FIXED_WINDOW)
-        state = await rate_limiter.get_rate_limit_state(user_id=self.user.id, router_limits=self.limits, router_id=self.router.id, prompt_tokens=0)
+        state = await rate_limiter.get_rate_limit_state(user_id=self.user.id, router_limits=self.limits, router_id=self.router.id)
 
         assert state.rpm.remaining == RPM_LIMIT - 1
         assert state.rpd.remaining == RPD_LIMIT - 1
