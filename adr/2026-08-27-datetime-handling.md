@@ -6,6 +6,7 @@
 * **Related:**
   * [#960 — [clean-architecture] Standardize datetime handling across API and playground](https://github.com/etalab-ia/OpenGateLLM/issues/960)
   * [ADR 2026-01-07 — Migration to Clean Architecture](2026-01-07-clean-architecture-migration.md)
+  * [#1058 — [clean-architecture] Reduce response schema mapper boilerplate](https://github.com/etalab-ia/OpenGateLLM/issues/1058) — amends the response side of this ADR
 * **Decision Outcome:** Unix timestamps (`int`) at the HTTP boundary only, timezone-aware UTC `datetime` in the domain and in Postgres, local-timezone rendering in the playground.
 
 ---
@@ -69,23 +70,20 @@ def must_be_future_and_convert_to_datetime(cls, expires) -> None | datetime:
 
 User `expires` uses the same conversion without the future check, so a past timestamp expires the account immediately (and a full-replacement PATCH can resubmit an already-expired user).
 
-**Response** — a `@model_validator(mode="before")` maps the domain entity to the wire shape, converting each `datetime` with `int(value.timestamp())`:
+**Response** — the field is annotated `UnixTimestamp`, the API-boundary counterpart of `UtcDatetime`:
 
 ```python
-# api/infrastructure/fastapi/schemas/admin/keys.py — the reference implementation
-@model_validator(mode="before")
-@classmethod
-def from_key(cls, data):
-    if isinstance(data, Key):
-        return {
-            ...,
-            "expires": int(data.expires.timestamp()) if data.expires is not None else None,
-            "created": int(data.created.timestamp()),
-        }
-    return data
+# api/infrastructure/fastapi/schemas/__init__.py
+UnixTimestamp = Annotated[int, BeforeValidator(_to_unix_timestamp)]
+
+# api/infrastructure/fastapi/schemas/admin/keys.py
+expires: Annotated[UnixTimestamp | None, Field(default=None, description="Time of expiration, as Unix timestamp. If None, the key never expires.")]
+created: Annotated[UnixTimestamp, Field(description="Time of creation, as Unix timestamp.")]
 ```
 
-Endpoints keep calling `Response.model_validate(entity, from_attributes=True)`; the validator recognizes the entity and does the mapping. Schemas following this pattern: `admin/keys.py`, `admin/organizations.py`, `admin/roles.py`, `admin/routers.py`, `admin/providers.py`, `admin/users.py`, `me.py`, `models.py`, `usage.py`.
+Endpoints call `Response.model_validate(entity, from_attributes=True)`; Pydantic reads the entity's `datetime` attribute and the annotation converts it. The field stays typed `int`, so the OpenAPI schema is unchanged. Schemas following this pattern: `admin/keys.py`, `admin/organizations.py`, `admin/roles.py`, `admin/routers.py`, `admin/providers.py`, `admin/users.py`, `me.py`, `models.py`, `usage.py`.
+
+> **Amended 2026-09-04 (#1058)** — this originally read: a `@model_validator(mode="before")` per response schema, re-listing every field and calling `int(value.timestamp())` on each `datetime`. Applied to all nine schemas it came to 158 lines, 68 % of which were pure `data.x` → `"x"` copies, and it made the mapper a second, implicit declaration of the schema — a field forgotten in it silently fell back to its default instead of raising. The conversion moved onto the field itself; the mapping stayed at exactly one boundary. The generated OpenAPI schema is identical, type for type and description for description.
 
 ### Playground: local timezone, one helper
 
@@ -106,7 +104,7 @@ Endpoints keep calling `Response.model_validate(entity, from_attributes=True)`; 
 
 **Harder / to watch**
 
-* Every new response schema that carries a timestamp needs its `@model_validator(mode="before")`. Without it, `model_validate(entity, from_attributes=True)` would hand Pydantic a `datetime` for an `int` field and fail — loudly, which is the point.
+* Every new response timestamp field must be annotated `UnixTimestamp`, not `int`. Without it, `model_validate(entity, from_attributes=True)` hands Pydantic a `datetime` for an `int` field and fails — loudly, which is the point.
 * Sub-second precision is lost at the API boundary (`int(...timestamp())` truncates). That is the existing public contract and is unchanged by this ADR.
 
 **Unchanged**

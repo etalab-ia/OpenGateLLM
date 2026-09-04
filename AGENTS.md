@@ -184,7 +184,7 @@ Every response includes `object`:
 
 **Single resource:**
 ```json
-{ "object": "key", "id": 1, "name": "my-key", "user": 42, "created": 1704067200 }
+{ "object": "key", "id": 1, "name": "my-key", "user_id": 42, "created": 1704067200 }
 ```
 
 **Paginated list:**
@@ -213,16 +213,14 @@ Never return a bare array. Items inside `data` keep their own `object` discrimin
 | Domain entity | `*_id` | `user_id`, `role_id`, `router_id` |
 | Path params | `*_id` | `role_id`, `router_id`, `user_id` |
 | Query filters | `*_id` | `?role_id=1`, `?organization_id=2` |
-| Response FK fields | `*_id` (usually) | `user_id` in `RouterResponse`, `organization_id` in `UserResponse` |
-| Request body FK | often shortened | `CreateKeyBody.user`, `CreateUserBody.role` |
+| Response FK fields | `*_id` — always | `user_id` in `RouterResponse` and `KeyResponse`, `organization_id` in `UserResponse` |
+| Request body FK | sometimes shortened | `CreateKeyBody.user` (`CreateUserBody` uses `role_id`) |
 
-Map at the boundary:
+Responses never shorten a FK name: they carry the entity's `*_id` so `from_attributes` maps them without a mapper. Only request bodies shorten,
+and the endpoint expands them when building the command:
 ```python
 # endpoint → command
 CreateKeyCommand(user_id=body.user, ...)
-
-# domain → response (@model_validator)
-"user": data.user_id  # Key entity → KeyResponse
 ```
 
 ### Update requests are full replacements
@@ -244,7 +242,7 @@ Callers (playground `edit_entity`, e2e tests) must send the whole current form s
 - API: Unix seconds as `int` (`created`, `updated`, `expires`)
 - Domain and Postgres: timezone-aware UTC `datetime` — annotate entity fields with `UtcDatetime` from `api/domain/__init__.py`, and always build "now" with `datetime.now(tz=UTC)`
 - Repositories select and write the `timestamptz` columns directly — no `extract(epoch)` / `to_timestamp()`
-- Convert at the boundary only: `@field_validator` (request) or `@model_validator(mode="before")` (response). Request validators keep the field typed `int` (OpenAPI) and return a UTC `datetime` for the command. Keys also reject past timestamps (`CreateKeyBody`); user `expires` converts without that check so a past value expires the user — see `CreateUserBody` / `UserUpdateRequest` / `KeyResponse`. Command timestamp fields are typed `UtcDatetime` to match the entity; the dataclass does not convert.
+- Convert at the boundary only: `@field_validator` (request) or the `UnixTimestamp` annotated type (response, from `api/infrastructure/fastapi/schemas/__init__.py`). Both keep the field typed `int`, so the OpenAPI schema still documents an integer. Request validators return a UTC `datetime` for the command; keys also reject past timestamps (`CreateKeyBody`), while user `expires` converts without that check so a past value expires the user — see `CreateUserBody` / `UserUpdateRequest`. Command timestamp fields are typed `UtcDatetime` to match the entity; the dataclass does not convert.
 - Playground displays local time through `playground/app/shared/utils/timestamps.py`
 
 Full rationale: `adr/2026-08-27-datetime-handling.md`.
@@ -258,8 +256,22 @@ router_type: Annotated[ModelType, Field(alias="type", ...)]
 
 ### Mapping domain → API
 
-- Names align → `Response.model_validate(entity, from_attributes=True)`
-- Names differ → `@model_validator(mode="before")` (see `KeyResponse.from_key` in `api/infrastructure/fastapi/schemas/admin/keys.py`)
+Always `Response.model_validate(entity, from_attributes=True)` — never a hand-written `from_<noun>()` mapper. A mapper that re-lists every
+field is a second, implicit declaration of the schema: it drifts, and a field forgotten in it silently falls back to its default instead of
+raising. Declare the difference on the field instead:
+
+| Difference | Declare it as |
+|---|---|
+| `datetime` → Unix seconds | `Annotated[UnixTimestamp, Field(...)]` (or `UnixTimestamp \| None`) |
+| `object` discriminator | the field's own `Literal` default — `object: Annotated[Literal["key"], Field(default="key", ...)]` |
+| JSON key ≠ entity attribute | `Field(alias="type")` — `from_attributes` reads the attribute named by the alias |
+| Nested value object | declare the nested schema; `from_attributes` propagates (`RoleResponse.limits`, `Model.costs`) |
+
+The response never renames a field just to shorten it — name it after the entity attribute (`user_id`, not `user`).
+
+Last resort: a `@model_validator(mode="before")` when the response **restructures** the entity rather than renaming it. The single case
+today is `UsageResponse`, which nests `UsageRecord`'s flat counters under `usage`; it passes the record itself down instead of re-listing
+the other fields, so `from_attributes` still does all the field work.
 
 ---
 
