@@ -1,16 +1,11 @@
-from enum import Enum, StrEnum
+from enum import StrEnum
 
-import pycountry
 from pydantic import Field, constr, model_validator
 
+from api.domain.provider.entities import HostingZone
 from api.schemas import BaseModel
 from api.schemas.core.models import Metric
 from api.utils.variables import DEFAULT_TIMEOUT
-
-# Add world as a country code, default value of the carbon footprint computation framework
-country_codes = [country.alpha_3 for country in pycountry.countries] + ["WOR"]
-country_codes_dict = {str(code).upper(): str(code) for code in sorted(set(country_codes))}
-ProviderCarbonFootprintZone = Enum("ProviderCarbonFootprintZone", country_codes_dict, type=str)
 
 
 class ProviderType(StrEnum):
@@ -28,7 +23,7 @@ class CreateProvider(BaseModel):
     key: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Model provider API key.")  # fmt: off
     timeout: int = Field(default=DEFAULT_TIMEOUT, description="Timeout for the model provider requests, after user receive an 503 error (model is too busy).")  # fmt: off
     model_name: str = Field(..., description="Model name from the model provider.")  # fmt: off
-    model_hosting_zone: ProviderCarbonFootprintZone = Field(default=ProviderCarbonFootprintZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")  # fmt: off
+    model_hosting_zone: HostingZone = Field(default=HostingZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")  # fmt: off
     model_total_params: int = Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai")  # fmt: off
     model_active_params: int = Field(default=0, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai")  # fmt: off
     qos_metric: Metric | None = Field(default=None, description="The metric to use for the quality of service policy. If not provided, no QoS policy is applied.")  # fmt: off
