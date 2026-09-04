@@ -94,12 +94,12 @@ def navigation_sidebar() -> rx.Component:
                         ),
                         align="center",
                         spacing="2",
-                        padding_bottom="1.5em",
                     ),
                     href="/",
                     style={"textDecoration": "none"},
                     width="100%",
                 ),
+                rx.divider(margin_y="0.75em"),
                 nav_item("Playground", "message-square", "/"),
                 *user_items,
                 *(
@@ -140,7 +140,7 @@ def navigation_sidebar() -> rx.Component:
                     if model_items or admin_items
                     else []
                 ),
-                *([rx.divider(), *docs_items] if docs_items else []),
+                *docs_items,
                 spacing="0",
                 width="100%",
                 padding="1em",
