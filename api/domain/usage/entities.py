@@ -28,6 +28,7 @@ class UsageBucket(BaseModel):
     completion_tokens: int = 0
     total_tokens: int = 0
     cost: float = 0.0
+    requests: int = 0
     impacts: EnvironmentalImpacts = EnvironmentalImpacts()
 
 

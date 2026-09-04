@@ -52,6 +52,7 @@ class PostgresUsageRepository(UsageRepository):
                 func.coalesce(func.sum(UsageTable.cost), 0.0).label("cost"),
                 func.coalesce(func.sum(UsageTable.kwh), 0.0).label("kwh"),
                 func.coalesce(func.sum(UsageTable.kgco2eq), 0.0).label("kgco2eq"),
+                func.count().label("requests"),
                 func.count().over().label("total"),
             )
             .where(*filters)
@@ -75,5 +76,6 @@ class PostgresUsageRepository(UsageRepository):
             completion_tokens=int(row.completion_tokens or 0),
             total_tokens=int(row.total_tokens or 0),
             cost=float(row.cost or 0.0),
+            requests=int(row.requests or 0),
             impacts=EnvironmentalImpacts(kWh=float(row.kwh or 0.0), kgCO2eq=float(row.kgco2eq or 0.0)),
         )

@@ -78,6 +78,7 @@ class TestGetUsageBucketsPage:
         assert newest.completion_tokens == 1
         assert newest.total_tokens == 2
         assert newest.cost == pytest.approx(0.01)
+        assert newest.requests == 1
         assert newest.impacts == EnvironmentalImpacts(kWh=0.001, kgCO2eq=0.002)
 
         assert oldest.start_time == DAY
@@ -86,6 +87,7 @@ class TestGetUsageBucketsPage:
         assert oldest.completion_tokens == 25
         assert oldest.total_tokens == 40
         assert oldest.cost == pytest.approx(0.15)
+        assert oldest.requests == 2
         assert oldest.impacts == EnvironmentalImpacts(kWh=0.015, kgCO2eq=0.03)
 
     async def test_omits_days_with_no_usage(self, repository, db_session):
