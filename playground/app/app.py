@@ -110,7 +110,7 @@ app = rx.App(
         gray_color=configuration.settings.playground_theme_gray_color,
         panel_background=configuration.settings.playground_theme_panel_background,
         radius=configuration.settings.playground_theme_radius,
-        scaling=configuration.settings.playground_theme_scaling,
+        scaling="90%",
     ),
     head_components=[rx.el.link(rel="icon", type="image/svg+xml", href="/favicon.svg")],
 )

@@ -56,7 +56,7 @@ SPACING_XL = "6"  # Between major page sections
 
 # Padding values
 PADDING_SMALL = "0.5em"  # Small padding
-PADDING_NAV = "0.75em"  # Navigation items padding
+PADDING_NAV = "0.55em"  # Navigation items padding
 PADDING_MEDIUM = "1em"  # Standard padding (headers, nav)
 PADDING_PAGE = "2em"  # Main page content padding
 
