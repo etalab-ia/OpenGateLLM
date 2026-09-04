@@ -2,7 +2,7 @@
 
 import reflex as rx
 
-from app.core.variables import ICON_SIZE_TINY
+from app.core.variables import ICON_SIZE_TINY, PADDING_PAGE
 from app.features.chat.state import ChatState
 
 
@@ -242,11 +242,13 @@ def chat_params_sidebar() -> rx.Component:
             ),
             spacing="2",
             width="100%",
-            padding="0.75em",
+            padding_x="0.75em",
+            padding_bottom="0.75em",
+            padding_top=PADDING_PAGE,
             on_mount=ChatState.load_models,
         ),
         width="320px",
         height="100%",
         background_color=rx.color("mauve", 2),
-        border_left=f"1px solid {rx.color("mauve", 3)}",
+        border_left=f"1px solid {rx.color('mauve', 3)}",
     )

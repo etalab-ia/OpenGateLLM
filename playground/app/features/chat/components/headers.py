@@ -2,7 +2,7 @@
 
 import reflex as rx
 
-from app.core.variables import ICON_SIZE_MEDIUM
+from app.core.variables import ICON_SIZE_MEDIUM, MARGIN_MEDIUM, PADDING_PAGE
 from app.features.chat.state import ChatState
 from app.shared.components.headers import header_heading
 
@@ -20,5 +20,7 @@ def chat_header() -> rx.Component:
         width="100%",
         justify="between",
         align="center",
-        padding="8px 12px",
+        margin_bottom=MARGIN_MEDIUM,
+        padding_x=PADDING_PAGE,
+        padding_top=PADDING_PAGE,
     )

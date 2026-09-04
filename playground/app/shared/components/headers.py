@@ -2,33 +2,15 @@ import reflex as rx
 
 from app.core.variables import (
     HEADING_SIZE_PAGE,
+    HEADING_WEIGHT,
     ICON_SIZE_MEDIUM,
-    ICON_SIZE_SMALL,
     MARGIN_MEDIUM,
-    SPACING_MEDIUM,
-    SPACING_TINY,
-    TEXT_SIZE_LABEL,
 )
 
 
 def header_heading(title: str) -> rx.Component:
     """Heading with title."""
-    return rx.heading(title, size=HEADING_SIZE_PAGE)
-
-
-def header_admin_badge() -> rx.Component:
-    """Admin badge."""
-    return rx.badge(
-        rx.hstack(
-            rx.icon("shield-check", size=ICON_SIZE_SMALL),
-            rx.text("Admin", size=TEXT_SIZE_LABEL),
-            spacing=SPACING_TINY,
-            align="center",
-        ),
-        color_scheme="red",
-        variant="soft",
-        size="3",
-    )
+    return rx.heading(title, size=HEADING_SIZE_PAGE, weight=HEADING_WEIGHT)
 
 
 def entity_refresh_button(state: rx.State) -> rx.Component:
@@ -42,15 +24,10 @@ def entity_refresh_button(state: rx.State) -> rx.Component:
     )
 
 
-def entity_header(title: str, state: rx.State, admin_badge: bool = False) -> rx.Component:
+def entity_header(title: str, state: rx.State) -> rx.Component:
     """Header with title and refresh button."""
     return rx.hstack(
-        rx.hstack(
-            header_heading(title),
-            rx.cond(admin_badge, header_admin_badge()),
-            align="center",
-            spacing=SPACING_MEDIUM,
-        ),
+        header_heading(title),
         entity_refresh_button(state),
         width="100%",
         justify="between",
@@ -59,13 +36,6 @@ def entity_header(title: str, state: rx.State, admin_badge: bool = False) -> rx.
     )
 
 
-def header(title: str, admin_badge: bool = False) -> rx.Component:
+def header(title: str) -> rx.Component:
     """Header with title."""
-    return rx.hstack(
-        rx.hstack(
-            header_heading(title),
-            rx.cond(admin_badge, header_admin_badge()),
-            align="center",
-            spacing=SPACING_MEDIUM,
-        )
-    )
+    return header_heading(title)
