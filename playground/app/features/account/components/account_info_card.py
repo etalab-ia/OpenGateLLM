@@ -50,7 +50,7 @@ def account_info_card() -> rx.Component:
                     width="100%",
                 ),
                 rx.vstack(
-                    rx.text("Expires", size=TEXT_SIZE_LABEL, weight="bold"),
+                    rx.text("Account expires", size=TEXT_SIZE_LABEL, weight="bold"),
                     rx.input(
                         value=AccountState.user_expires_formatted,
                         read_only=True,

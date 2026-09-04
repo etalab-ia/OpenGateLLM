@@ -103,10 +103,7 @@ def providers() -> rx.Component:
 
 
 app = rx.App(
-    style={
-        "font-family": "DM Sans, sans-serif",
-        rx.heading: {"font_weight": "500"},
-    },
+    style={rx.heading: {"font_weight": "500"}},
     theme=rx.theme(
         has_background=configuration.settings.playground_theme_has_background,
         accent_color=configuration.settings.playground_theme_accent_color,
