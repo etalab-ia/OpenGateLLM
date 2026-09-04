@@ -93,7 +93,6 @@ class EntityState(AuthState):
     ############################################################
     # Pagination
     ############################################################
-    has_more_page: bool = False
 
     @abstractmethod
     async def set_order_by(self, value: str):
