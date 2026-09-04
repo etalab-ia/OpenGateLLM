@@ -28,7 +28,7 @@ class RedisRouterRateLimiter(RouterRateLimiter):
             case LimitingStrategy.SLIDING_WINDOW:
                 self.strategy = strategies.SlidingWindowCounterRateLimiter(storage=self.redis_storage)
 
-    async def get_rate_limit_state(self, user_id: int, router_limits: list[Limit], router_id: int, prompt_tokens: int) -> RouterRateLimitState:
+    async def get_rate_limit_state(self, user_id: int, router_limits: list[Limit], router_id: int) -> RouterRateLimitState:
         state = RouterRateLimitState(rpm=RpmRateLimitState(), rpd=RpdRateLimitState(), tpm=TpmRateLimitState(), tpd=TpdRateLimitState())
 
         for limit in router_limits:

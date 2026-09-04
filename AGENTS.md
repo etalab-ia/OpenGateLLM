@@ -281,10 +281,14 @@ class VerbNounUseCase:
 
     async def execute(self, command: VerbNounCommand) -> VerbNounUseCaseResult:
         result = await self.repository.some_method(...)
-        if isinstance(result, SomeError):
-            return result
-        return VerbNounUseCaseSuccess(entity=result)
+        match result:
+            case Entity() as entity:
+                return VerbNounUseCaseSuccess(entity=entity)
+            case SomeError() as error:
+                return error
 ```
+
+Prefer `match`/`case` over `isinstance` when branching on a repository result or domain error.
 
 Export `Command`, `UseCase`, `UseCaseSuccess` from `__init__.py`.
 
@@ -383,6 +387,8 @@ When adding a model-forward use case, also add a `ForwardScenario` in `api/tests
 
 Map only **known** constraint / FK names to domain errors. If the `IntegrityError` does not match an explicit case, **re-raise** it — never swallow unknown integrity failures as a generic domain error.
 
+Avoid adding `begin_nested()` just to keep the session usable after a mapped `IntegrityError`. HTTP handlers already roll back through `get_postgres_session` when they raise. Bootstrap does not keep using the session after a mapped conflict: it returns `Skipped` and the lifespan rolls back the aborted transaction. Do not substitute `AutocommitSession` to recover from `IntegrityError`: `@with_lock` requires a transactional session.
+
 ```python
 except IntegrityError as e:
     if "token_user_id_fkey" in str(e.orig):
@@ -454,8 +460,8 @@ async def get_roles(
 
 ## Error handling
 
-1. Domain errors — `@dataclass` in `api/domain/<context>/errors.py`, **returned** not raised
-2. Use cases — propagate via `match`/`case` or `isinstance`
+1. Domain errors — `@dataclass` in `domain/<context>/errors.py`, **returned** not raised
+2. Use cases — propagate via `match`/`case`
 3. Repositories — return `Entity | Error`
 4. Endpoints — map domain error → `*HTTPException` in `api/infrastructure/fastapi/endpoints/exceptions.py`
 5. Unexpected — `logger.exception` + `InternalServerHTTPException`
@@ -492,7 +498,27 @@ Mirror an existing test for the same verb (`test_get_roles.py`, `test_create_key
 
 ### Unit use case
 
-`AsyncMock` repositories. Cover:
+Port doubles are autospecced against the **domain port**, never bare `MagicMock()` / `AsyncMock()`:
+
+```python
+@pytest.fixture
+def mock_router_repository():
+    return create_autospec(RouterRepository, instance=True, spec_set=True)
+```
+
+`create_autospec` derives the double from the ABC under `api/domain/`, so an unknown attribute raises
+`AttributeError` and a call that does not match the port signature raises `TypeError`. A bare mock accepts
+both silently, and the test stops pinning down the boundary it exists to protect. Spec the port, never an
+`api/infrastructure/` adapter. Async port methods become `AsyncMock` children on their own — keep using
+`assert_awaited_once_with`.
+
+If the autospec rejects a call, fix the call — or the port declaration if that is what is wrong (a missing
+`self` on an abstract method silently shifts every parameter). Never loosen the spec to make a test pass.
+
+`api/tests/unit/use_case/test_providerrequestforwadingusecase.py` is the reference. Tests still on bare
+mocks are migrated when they are next touched.
+
+Cover:
 
 - Happy path (assert calls **and** payloads: `assert_awaited_once_with`, expire timestamps)
 - Each early return and each `match` arm that is a **different** branch (`try/except`, create vs update error)
@@ -507,12 +533,12 @@ Entity helpers used by the use case belong in domain unit tests, not extra use-c
 ```python
 @pytest.fixture
 def mock_model_tokenizer():
-    tokenizer = MagicMock()
+    tokenizer = create_autospec(ModelTokenizer, instance=True, spec_set=True)
     tokenizer.compute_tokens.side_effect = lambda texts: len(texts)
     return tokenizer
 ```
 
-Assert usage from the texts actually passed (`len(get_prompts())`, `len(get_completions())`). Rerank / embeddings return `[]` completions → `completion_tokens=0` (see `test_creatererankusecase.py`, `test_createembeddingsusecase.py`). OCR / audio have real completions — use `side_effect = [prompt_count, completion_count]` when the two calls need different values.
+Assert usage from the texts actually passed (`len(get_prompts())`, `len(get_completions())`). Rerank / embeddings return `[]` completions → `completion_tokens=0`. OCR / audio have real completions — use `side_effect = [prompt_count, completion_count]` when the two calls need different values.
 
 ### Integration endpoint
 

@@ -74,8 +74,10 @@ class PostgresRolesRepository(RoleRepository):
                 )
             )
             row = result.one()
-        except IntegrityError:
-            return RoleAlreadyExistsError(name=name)
+        except IntegrityError as e:
+            if "ix_role_name" in str(e.orig):
+                return RoleAlreadyExistsError(name=name)
+            raise
 
         return self._row_to_role(row)
 

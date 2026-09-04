@@ -87,9 +87,13 @@ class RouterRateLimitState(BaseModel):
     rpm: Annotated[RpmRateLimitState, Field(default_factory=RpmRateLimitState)]
     rpd: Annotated[RpdRateLimitState, Field(default_factory=RpdRateLimitState)]
 
-    @property
-    def exceeded_limits(self) -> list[LimitType]:
-        return [limit.value for limit in LimitType if getattr(self, limit.value).remaining <= 0 and getattr(self, limit.value).value is not None]
+    def exceeded_limits(self, prompt_tokens: int) -> list[LimitType]:
+        # floor at 1 so a zero-token request is still blocked by a value == 0 limit
+        token_cost = max(prompt_tokens, 1)
+        costs = {LimitType.TPM: token_cost, LimitType.TPD: token_cost, LimitType.RPM: 1, LimitType.RPD: 1}
+        return [
+            limit.value for limit in LimitType if getattr(self, limit.value).value is not None and getattr(self, limit.value).remaining < costs[limit]
+        ]
 
     @classmethod
     def admin_rate_limit_state(cls) -> "RouterRateLimitState":
