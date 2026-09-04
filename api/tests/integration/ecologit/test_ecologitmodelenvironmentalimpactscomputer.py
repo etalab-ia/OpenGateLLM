@@ -2,9 +2,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from api.domain.provider.entities import HostingZone
 from api.domain.usage.entities import EnvironmentalImpacts
 from api.infrastructure.ecologit._ecologitmodelenvironmentalimpactscomputer import EcologitModelEnvironmentalImpactsComputer
-from api.schemas.admin.providers import ProviderCarbonFootprintZone
 
 
 @pytest.fixture
@@ -18,7 +18,7 @@ class TestEcologitModelEnvironmentalImpactsComputer:
         result = computer.compute(
             model_active_params=0,
             model_total_params=7,
-            model_zone=ProviderCarbonFootprintZone.WOR,
+            model_zone=HostingZone.WOR,
             completion_tokens=1000,
             request_latency=100,
         )
@@ -31,7 +31,7 @@ class TestEcologitModelEnvironmentalImpactsComputer:
         result = computer.compute(
             model_active_params=7,
             model_total_params=0,
-            model_zone=ProviderCarbonFootprintZone.WOR,
+            model_zone=HostingZone.WOR,
             completion_tokens=1000,
             request_latency=100,
         )
@@ -44,7 +44,7 @@ class TestEcologitModelEnvironmentalImpactsComputer:
         result = computer.compute(
             model_active_params=7,
             model_total_params=7,
-            model_zone=ProviderCarbonFootprintZone.WOR,
+            model_zone=HostingZone.WOR,
             completion_tokens=0,
             request_latency=100,
         )
@@ -57,7 +57,7 @@ class TestEcologitModelEnvironmentalImpactsComputer:
         result = computer.compute(
             model_active_params=7,
             model_total_params=7,
-            model_zone=ProviderCarbonFootprintZone.WOR,
+            model_zone=HostingZone.WOR,
             completion_tokens=1000,
             request_latency=100,
         )
@@ -71,14 +71,14 @@ class TestEcologitModelEnvironmentalImpactsComputer:
         result_wor = computer.compute(
             model_active_params=7,
             model_total_params=7,
-            model_zone=ProviderCarbonFootprintZone.WOR,
+            model_zone=HostingZone.WOR,
             completion_tokens=1000,
             request_latency=100,
         )
         result_fra = computer.compute(
             model_active_params=7,
             model_total_params=7,
-            model_zone=ProviderCarbonFootprintZone.FRA,
+            model_zone=HostingZone.FRA,
             completion_tokens=1000,
             request_latency=100,
         )
@@ -91,14 +91,14 @@ class TestEcologitModelEnvironmentalImpactsComputer:
         result_low = computer.compute(
             model_active_params=7,
             model_total_params=7,
-            model_zone=ProviderCarbonFootprintZone.WOR,
+            model_zone=HostingZone.WOR,
             completion_tokens=100,
             request_latency=100,
         )
         result_high = computer.compute(
             model_active_params=7,
             model_total_params=7,
-            model_zone=ProviderCarbonFootprintZone.WOR,
+            model_zone=HostingZone.WOR,
             completion_tokens=1000,
             request_latency=100,
         )
@@ -122,7 +122,7 @@ class TestEcologitModelEnvironmentalImpactsComputer:
         result = computer.compute(
             model_active_params=7,
             model_total_params=7,
-            model_zone=ProviderCarbonFootprintZone.WOR,
+            model_zone=HostingZone.WOR,
             completion_tokens=1000,
             request_latency=100,
         )

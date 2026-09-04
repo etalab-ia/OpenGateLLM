@@ -1,7 +1,10 @@
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from api.domain.usage.entities import EnvironmentalImpacts
-from api.schemas.admin.providers import ProviderCarbonFootprintZone
+
+if TYPE_CHECKING:  # avoids a cycle: provider.entities imports model.entities
+    from api.domain.provider.entities import HostingZone
 
 
 class ModelEnvironmentalImpactsComputer(ABC):
@@ -10,7 +13,7 @@ class ModelEnvironmentalImpactsComputer(ABC):
         self,
         model_active_params: int,
         model_total_params: int,
-        model_zone: ProviderCarbonFootprintZone,
+        model_zone: "HostingZone",
         completion_tokens: int,
         request_latency: int | None = None,
     ) -> EnvironmentalImpacts:

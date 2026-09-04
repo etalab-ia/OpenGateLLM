@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from api.schemas.admin.providers import ProviderCarbonFootprintZone
+from api.domain.provider.entities import HostingZone
 from api.schemas.usage import EnvironmentalImpacts
 from api.utils.carbon import get_carbon_footprint
 
@@ -20,7 +20,7 @@ class TestGetCarbonFootprint:
         # Given
         active_params = 0
         total_params = 0
-        model_zone = ProviderCarbonFootprintZone.WOR
+        model_zone = HostingZone.WOR
         token_count = 1
         request_latency = 0.01
         expected_carbon_footprint = EnvironmentalImpacts(kWh=0.0, kgCO2eq=0.0)
@@ -33,7 +33,7 @@ class TestGetCarbonFootprint:
         # Given
         active_params = 0
         total_params = 0
-        model_zone = ProviderCarbonFootprintZone.WOR
+        model_zone = HostingZone.WOR
         token_count = 0
         request_latency = 0.01
         expected_carbon_footprint = EnvironmentalImpacts(kWh=0.0, kgCO2eq=0.0)
@@ -55,7 +55,7 @@ class TestGetCarbonFootprint:
         )
         active_params = 1
         total_params = 1
-        model_zone = ProviderCarbonFootprintZone.WOR
+        model_zone = HostingZone.WOR
         token_count = 1
         request_latency = 10  # 10 milliseconds, will be converted to 0.01 seconds
         expected_carbon_footprint = EnvironmentalImpacts(kWh=1.0, kgCO2eq=3.0)

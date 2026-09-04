@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from api.app import create_app
 from api.dependencies import get_autocommit_postgres_session, get_postgres_session, get_redis_client
-from api.schemas.admin.providers import ProviderCarbonFootprintZone, ProviderType
+from api.domain.provider.entities import HostingZone, ProviderType
 from api.schemas.models import ModelType
 from api.sql.models import Base
 from api.tests.helpers import create_key
@@ -58,7 +58,7 @@ FORWARD_SCENARIOS = [
         provider_path="/v1/ocr",
         build_response=lambda: httpx.Response(MistralOcrResponseFactory._status_code, json=MistralOcrResponseFactory(page_count=2)),
         request_body={"model": ROUTER_NAME, "document": {"type": "document_url", "document_url": "https://example.com/document.pdf"}},
-        provider_kwargs={"model_hosting_zone": ProviderCarbonFootprintZone.FRA},
+        provider_kwargs={"model_hosting_zone": HostingZone.FRA},
     ),
     ForwardScenario(
         name="embeddings",

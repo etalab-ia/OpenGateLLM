@@ -9,9 +9,10 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 import httpx
 
+from api.domain.provider.entities import HostingZone, ProviderType
 from api.infrastructure.fastapi.schemas.admin.roles import CreateRoleBody, Limit, LimitType
 from api.infrastructure.fastapi.schemas.admin.users import CreateUserBody
-from api.schemas.admin.providers import CreateProvider, ProviderCarbonFootprintZone, ProviderType
+from api.schemas.admin.providers import CreateProvider
 from api.schemas.admin.routers import CreateRouter
 from api.schemas.admin.tokens import CreateToken
 from api.schemas.core.configuration import Metric
@@ -163,7 +164,7 @@ def create_provider(
     provider_name: str,
     provider_type: ProviderType,
     client: TestClient,
-    model_hosting_zone: ProviderCarbonFootprintZone = ProviderCarbonFootprintZone.WOR,
+    model_hosting_zone: HostingZone = HostingZone.WOR,
     model_total_params: int = 0,
     model_active_params: int = 0,
     qos_metric: Metric | None = None,

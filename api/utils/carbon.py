@@ -1,14 +1,14 @@
 from ecologits.electricity_mix_repository import ElectricityMix
 from ecologits.tracers.utils import compute_llm_impacts, electricity_mixes
 
-from api.schemas.admin.providers import ProviderCarbonFootprintZone
+from api.domain.provider.entities import HostingZone
 from api.schemas.usage import EnvironmentalImpacts
 
 
 def get_carbon_footprint(
     active_params: int,
     total_params: int,
-    model_zone: ProviderCarbonFootprintZone,
+    model_zone: HostingZone,
     token_count: int,
     request_latency: int | None = None,
 ) -> EnvironmentalImpacts:
