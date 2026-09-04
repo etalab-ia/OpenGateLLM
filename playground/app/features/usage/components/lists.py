@@ -3,13 +3,12 @@
 import reflex as rx
 
 from app.core.variables import (
+    HEADING_SIZE_FORM,
     HEADING_SIZE_SECTION,
     SELECT_MEDIUM_WIDTH,
     SPACING_LARGE,
-    SPACING_MEDIUM,
     SPACING_SMALL,
     TEXT_SIZE_LABEL,
-    TEXT_SIZE_MEDIUM,
 )
 from app.features.usage.state import UsageState
 
@@ -63,15 +62,18 @@ def usage_filters() -> rx.Component:
 def usage_summary_stat(label: str, value: rx.Var) -> rx.Component:
     return rx.vstack(
         rx.text(label, size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
-        rx.text(value, size=TEXT_SIZE_MEDIUM, weight="bold", color=rx.color("mauve", 12)),
+        rx.heading(value, size=HEADING_SIZE_SECTION, color=rx.color("mauve", 12)),
         spacing="0",
-        align="start",
+        align="center",
+        flex="1",
+        min_width="120px",
     )
 
 
 def usage_summary() -> rx.Component:
     """Totals over the selected date range."""
     return rx.hstack(
+        usage_summary_stat("Requests", UsageState.summary_requests),
         usage_summary_stat("Prompt tokens", UsageState.summary_prompt_tokens),
         usage_summary_stat("Completion tokens", UsageState.summary_completion_tokens),
         usage_summary_stat("Total tokens", UsageState.summary_total_tokens),
@@ -81,61 +83,94 @@ def usage_summary() -> rx.Component:
         spacing=SPACING_LARGE,
         wrap="wrap",
         width="100%",
-    )
-
-
-def usage_series_toggle(label: str, checked: rx.Var, on_change) -> rx.Component:
-    return rx.hstack(
-        rx.checkbox(checked=checked, on_change=on_change),
-        rx.text(label, size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
-        spacing=SPACING_SMALL,
+        justify="center",
         align="center",
     )
 
 
-def usage_chart() -> rx.Component:
-    """Bar chart of daily usage buckets with toggleable metric series."""
+def usage_metric_chart(title: str, *bars: rx.Component, bar_gap: int = 4) -> rx.Component:
     return rx.vstack(
-        rx.hstack(
-            usage_series_toggle("Prompt tokens", UsageState.show_prompt_tokens, UsageState.set_show_prompt_tokens),
-            usage_series_toggle("Completion tokens", UsageState.show_completion_tokens, UsageState.set_show_completion_tokens),
-            usage_series_toggle("Total tokens", UsageState.show_total_tokens, UsageState.set_show_total_tokens),
-            usage_series_toggle("Cost", UsageState.show_cost, UsageState.set_show_cost),
-            usage_series_toggle("kWh", UsageState.show_kwh, UsageState.set_show_kwh),
-            usage_series_toggle("kgCO2eq", UsageState.show_kgco2eq, UsageState.set_show_kgco2eq),
-            spacing=SPACING_MEDIUM,
-            wrap="wrap",
-            align="center",
+        rx.heading(title, size=HEADING_SIZE_FORM, color=rx.color("mauve", 12)),
+        rx.recharts.bar_chart(
+            *bars,
+            rx.recharts.x_axis(data_key="date"),
+            rx.recharts.graphing_tooltip(),
+            data=UsageState.chart_data,
+            width="100%",
+            height=260,
+            bar_gap=bar_gap,
         ),
-        rx.cond(
-            UsageState.chart_data.length() > 0,
-            rx.recharts.bar_chart(
-                rx.foreach(
-                    UsageState.visible_chart_series,
-                    lambda series: rx.recharts.bar(
-                        data_key=series["data_key"],
-                        name=series["name"],
-                        fill=series["fill"],
-                    ),
-                ),
-                rx.recharts.x_axis(data_key="date"),
-                rx.recharts.y_axis(),
-                rx.recharts.cartesian_grid(stroke_dasharray="3 3"),
-                rx.recharts.graphing_tooltip(),
-                rx.recharts.legend(),
-                data=UsageState.chart_data,
-                width="100%",
-                height=360,
-            ),
-            rx.text("No usage in this period.", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
-        ),
-        spacing=SPACING_MEDIUM,
+        spacing=SPACING_SMALL,
         width="100%",
     )
 
 
+def usage_charts() -> rx.Component:
+    """One bar chart per metric; tokens stack, impacts group kWh and kgCO2eq."""
+    return rx.cond(
+        UsageState.chart_data.length() > 0,
+        rx.grid(
+            usage_metric_chart(
+                "Requests",
+                rx.recharts.bar(
+                    data_key="requests",
+                    name="Requests",
+                    stroke=rx.color("accent", 9),
+                    fill=rx.color("accent", 8),
+                ),
+            ),
+            usage_metric_chart(
+                "Tokens",
+                rx.recharts.bar(
+                    data_key="prompt_tokens",
+                    name="Prompt tokens",
+                    stroke=rx.color("green", 9),
+                    fill=rx.color("green", 8),
+                    stack_id="tokens",
+                ),
+                rx.recharts.bar(
+                    data_key="completion_tokens",
+                    name="Completion tokens",
+                    stroke=rx.color("accent", 9),
+                    fill=rx.color("accent", 8),
+                    stack_id="tokens",
+                ),
+            ),
+            usage_metric_chart(
+                "Cost",
+                rx.recharts.bar(
+                    data_key="cost",
+                    name="Cost",
+                    stroke=rx.color("accent", 9),
+                    fill=rx.color("accent", 8),
+                ),
+            ),
+            usage_metric_chart(
+                "Impacts",
+                rx.recharts.bar(
+                    data_key="kWh",
+                    name="kWh",
+                    stroke=rx.color("accent", 9),
+                    fill=rx.color("accent", 8),
+                ),
+                rx.recharts.bar(
+                    data_key="kgCO2eq",
+                    name="kgCO2eq",
+                    stroke=rx.color("green", 9),
+                    fill=rx.color("green", 8),
+                ),
+                bar_gap=0,
+            ),
+            columns="2",
+            spacing=SPACING_LARGE,
+            width="100%",
+        ),
+        rx.text("No usage in this period.", size=TEXT_SIZE_LABEL, color=rx.color("mauve", 11)),
+    )
+
+
 def usage_list() -> rx.Component:
-    """Usage tracking page with filters, summary totals, and chart."""
+    """Usage tracking page with filters, summary totals, and charts."""
     return rx.card(
         rx.vstack(
             rx.hstack(
@@ -150,7 +185,7 @@ def usage_list() -> rx.Component:
             rx.divider(),
             usage_summary(),
             rx.divider(),
-            usage_chart(),
+            usage_charts(),
             spacing=SPACING_LARGE,
             width="100%",
         ),

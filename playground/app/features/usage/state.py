@@ -9,7 +9,7 @@ import reflex as rx
 from app.features.usage.models import Usage
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
-from app.shared.utils.timestamps import date_to_timestamp, format_date, format_local_date, local_now
+from app.shared.utils.timestamps import DATE_FORMAT, date_to_timestamp, format_date, format_local_date, local_now
 
 ALL_ENDPOINTS = "All endpoints"
 ALL_MODELS = "All models"
@@ -19,19 +19,12 @@ USAGE_PAGE_LIMIT = 100
 
 
 class UsageState(EntityState):
-    """State for account usage buckets, filters, and chart series."""
+    """State for account usage buckets, filters, and charts."""
 
     entities: list[Usage] = []
     available_models: list[str] = [ALL_MODELS]
     available_keys: list[str] = [ALL_KEYS]
     key_ids_by_name: dict[str, int] = {}
-
-    show_prompt_tokens: bool = False
-    show_completion_tokens: bool = False
-    show_total_tokens: bool = True
-    show_cost: bool = True
-    show_kwh: bool = False
-    show_kgco2eq: bool = True
 
     filter_date_from_value: str | None = None
     filter_date_to_value: str | None = None
@@ -59,6 +52,7 @@ class UsageState(EntityState):
             prompt_tokens=bucket["prompt_tokens"],
             completion_tokens=bucket["completion_tokens"],
             total_tokens=bucket["total_tokens"],
+            requests=bucket.get("requests", 0),
             cost=bucket["cost"],
             kwh=bucket["impacts"]["kWh"],
             kgco2eq=bucket["impacts"]["kgCO2eq"],
@@ -149,37 +143,48 @@ class UsageState(EntityState):
             self.entities_loading = False
             yield
 
-    @rx.var
-    def chart_data(self) -> list[dict[str, Any]]:
-        return [
-            {
-                "date": bucket.date,
-                "prompt_tokens": bucket.prompt_tokens,
-                "completion_tokens": bucket.completion_tokens,
-                "total_tokens": bucket.total_tokens,
-                "cost": bucket.cost,
-                "kWh": bucket.kwh,
-                "kgCO2eq": bucket.kgco2eq,
-            }
-            for bucket in self.entities
-        ]
+    @staticmethod
+    def _chart_point(bucket: Usage) -> dict[str, Any]:
+        return {
+            "date": bucket.date,
+            "prompt_tokens": bucket.prompt_tokens,
+            "completion_tokens": bucket.completion_tokens,
+            "total_tokens": bucket.total_tokens,
+            "requests": getattr(bucket, "requests", 0),
+            "cost": round(bucket.cost, 2),
+            "kWh": round(bucket.kwh, 2),
+            "kgCO2eq": round(bucket.kgco2eq or 0, 2),
+        }
+
+    @staticmethod
+    def _empty_chart_point(date: str) -> dict[str, Any]:
+        return {
+            "date": date,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "requests": 0,
+            "cost": 0.0,
+            "kWh": 0.0,
+            "kgCO2eq": 0.0,
+        }
 
     @rx.var
-    def visible_chart_series(self) -> list[dict[str, str]]:
-        series: list[dict[str, str]] = []
-        if self.show_prompt_tokens:
-            series.append({"data_key": "prompt_tokens", "name": "Prompt tokens", "fill": "var(--blue-9)"})
-        if self.show_completion_tokens:
-            series.append({"data_key": "completion_tokens", "name": "Completion tokens", "fill": "var(--cyan-9)"})
-        if self.show_total_tokens:
-            series.append({"data_key": "total_tokens", "name": "Total tokens", "fill": "var(--iris-9)"})
-        if self.show_cost:
-            series.append({"data_key": "cost", "name": "Cost", "fill": "var(--amber-9)"})
-        if self.show_kwh:
-            series.append({"data_key": "kWh", "name": "kWh", "fill": "var(--green-9)"})
-        if self.show_kgco2eq:
-            series.append({"data_key": "kgCO2eq", "name": "kgCO2eq", "fill": "var(--tomato-9)"})
-        return series
+    def chart_data(self) -> list[dict[str, Any]]:
+        by_date = {bucket.date: self._chart_point(bucket) for bucket in self.entities}
+        start = dt.datetime.strptime(self.get_filter_date_from_value, DATE_FORMAT).date()
+        end = dt.datetime.strptime(self.get_filter_date_to_value, DATE_FORMAT).date()
+        points: list[dict[str, Any]] = []
+        day = start
+        while day < end:
+            key = day.strftime(DATE_FORMAT)
+            points.append(by_date.get(key) or self._empty_chart_point(key))
+            day += dt.timedelta(days=1)
+        return points
+
+    @rx.var
+    def summary_requests(self) -> str:
+        return f"{sum(getattr(bucket, 'requests', 0) for bucket in self.entities):,}"
 
     @rx.var
     def summary_prompt_tokens(self) -> str:
@@ -195,20 +200,20 @@ class UsageState(EntityState):
 
     @rx.var
     def summary_cost(self) -> str:
-        return f"{sum(bucket.cost for bucket in self.entities):.4f}"
+        return f"{sum(bucket.cost for bucket in self.entities):.2f}"
 
     @rx.var
     def summary_kwh(self) -> str:
-        return f"{sum(bucket.kwh for bucket in self.entities):.5f}"
+        return f"{sum(bucket.kwh for bucket in self.entities):.2f}"
 
     @rx.var
     def summary_kgco2eq(self) -> str:
-        return f"{sum(bucket.kgco2eq for bucket in self.entities):.5f}"
+        return f"{sum(bucket.kgco2eq or 0 for bucket in self.entities):.2f}"
 
     @rx.var
     def get_filter_date_from_value(self) -> str:
         if self.filter_date_from_value is None:
-            return format_local_date(local_now() - dt.timedelta(days=30))
+            return format_local_date(local_now() - dt.timedelta(days=7))
         return self.filter_date_from_value
 
     @rx.var
@@ -240,30 +245,6 @@ class UsageState(EntityState):
     @rx.event
     def set_filter_key(self, value: str):
         self.filter_key_value = value
-
-    @rx.event
-    def set_show_prompt_tokens(self, value: bool):
-        self.show_prompt_tokens = value
-
-    @rx.event
-    def set_show_completion_tokens(self, value: bool):
-        self.show_completion_tokens = value
-
-    @rx.event
-    def set_show_total_tokens(self, value: bool):
-        self.show_total_tokens = value
-
-    @rx.event
-    def set_show_cost(self, value: bool):
-        self.show_cost = value
-
-    @rx.event
-    def set_show_kwh(self, value: bool):
-        self.show_kwh = value
-
-    @rx.event
-    def set_show_kgco2eq(self, value: bool):
-        self.show_kgco2eq = value
 
     @rx.event
     async def apply_filters(self):

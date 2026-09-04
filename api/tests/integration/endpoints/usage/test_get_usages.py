@@ -91,6 +91,7 @@ class TestGetUsages:
         assert newest["completion_tokens"] == 1
         assert newest["total_tokens"] == 2
         assert newest["cost"] == pytest.approx(0.01)
+        assert newest["requests"] == 1
         assert newest["impacts"]["kWh"] == pytest.approx(0.001)
         assert newest["impacts"]["kgCO2eq"] == pytest.approx(0.002)
 
@@ -101,6 +102,7 @@ class TestGetUsages:
         assert oldest["completion_tokens"] == 25
         assert oldest["total_tokens"] == 40
         assert oldest["cost"] == pytest.approx(0.15)
+        assert oldest["requests"] == 2
         assert oldest["impacts"]["kWh"] == pytest.approx(0.015)
         assert oldest["impacts"]["kgCO2eq"] == pytest.approx(0.03)
 

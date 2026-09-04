@@ -30,6 +30,7 @@ class UsageBucketResponse(BaseModel):
     completion_tokens: Annotated[int, Field(description="Sum of completion tokens in the bucket.")]
     total_tokens: Annotated[int, Field(description="Sum of total tokens in the bucket.")]
     cost: Annotated[float, Field(description="Sum of request costs in the bucket.")]
+    requests: Annotated[int, Field(description="Number of successful requests in the bucket.")]
     impacts: Annotated[EnvironmentalImpacts, Field(default_factory=EnvironmentalImpacts)]
 
 
