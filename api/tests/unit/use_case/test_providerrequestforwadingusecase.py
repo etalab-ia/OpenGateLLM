@@ -6,19 +6,8 @@ from api.domain import ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ProviderJsonResponse
 from api.domain.model.errors import TooBusyModelError
-from api.domain.provider import (
-    ProviderAdapter,
-    ProviderAdapterBuilder,
-    ProviderClient,
-    ProviderLoadBalancer,
-    ProviderMetricsLogger,
-    ProviderRepository,
-)
-from api.domain.provider.entities import (
-    ProviderRawResponse,
-    ProviderResponse,
-    ProviderType,
-)
+from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider.entities import ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
@@ -72,11 +61,6 @@ def model_environmental_impacts_computer():
     computer = create_autospec(ModelEnvironmentalImpactsComputer, instance=True, spec_set=True)
     computer.compute.return_value = EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0)
     return computer
-
-
-@pytest.fixture
-def provider_adapter_builder():
-    return create_autospec(ProviderAdapterBuilder, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -175,7 +159,6 @@ def use_case(
     return ForwardingTestUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
-        provider_adapter_builder=provider_adapter_builder,
         provider_client=provider_client,
         provider_load_balancer=provider_load_balancer,
         provider_metrics_logger=provider_metrics_logger,
@@ -184,17 +167,6 @@ def use_case(
         router_repository=router_repository,
         usage_recorder=usage_recorder,
     )
-
-
-def _mock_adapter(*, formatted_response=None, formatted_text=None, response_error=None):
-    adapter = create_autospec(ProviderAdapter, instance=True, spec_set=True)
-    if response_error is not None:
-        adapter.to_domain_response.return_value = response_error
-    elif formatted_text is not None:
-        adapter.to_domain_response.return_value = ProviderResponse(id="req-1", text=formatted_text)
-    elif formatted_response is not None:
-        adapter.to_domain_response.return_value = ProviderResponse(id=formatted_response.id, data=formatted_response)
-    return adapter
 
 
 class TestResolveRouter:
@@ -413,8 +385,7 @@ class TestSendRequest:
         use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
         use_case.provider_load_balancer.find_best_provider.return_value = provider
         use_case.provider_metrics_logger.increment_inflight.return_value = True
-        use_case.provider_client.forward.return_value = ProviderRawResponse(data={})
-        use_case.provider_adapter_builder.build.return_value = _mock_adapter(formatted_response=sample_data)
+        use_case.provider_client.forward.return_value = ProviderResponse(id=sample_data.id, data=sample_data)
 
     @pytest.mark.asyncio
     async def test_should_return_request_validation_error_when_provider_call_rejects_request(self, use_case, router, provider, payload):
@@ -427,7 +398,6 @@ class TestSendRequest:
 
         # Assert
         assert result == validation_error
-        use_case.provider_adapter_builder.build.assert_called_once_with(endpoint=ForwardingTestUseCase.ENDPOINT, provider=provider)
         use_case.provider_client.forward.assert_awaited_once()
         forwarded_request = use_case.provider_client.forward.call_args.kwargs["request"]
         assert forwarded_request.endpoint == ForwardingTestUseCase.ENDPOINT
@@ -451,11 +421,23 @@ class TestSendRequest:
         use_case.usage_recorder.record_usage.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_should_decrement_inflight_when_the_provider_call_raises(self, use_case, router, provider, payload):
+        # Arrange
+        use_case.provider_client.forward.side_effect = TypeError("adapter blew up while converting the response")
+
+        # Act
+        with pytest.raises(TypeError):
+            await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
+
+        # Assert
+        use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
+
+    @pytest.mark.asyncio
     async def test_should_return_response_validation_error_without_decrementing_when_inflight_was_not_incremented(self, use_case, router, payload):
         # Arrange
         use_case.provider_metrics_logger.increment_inflight.return_value = False
         validation_error = ProviderAdapterValidationResponseError(provider_type=ProviderType.VLLM, errors=[{"msg": "invalid"}])
-        use_case.provider_adapter_builder.build.return_value = _mock_adapter(response_error=validation_error)
+        use_case.provider_client.forward.return_value = validation_error
 
         # Act
         result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
@@ -520,7 +502,7 @@ class TestSendRequest:
     @pytest.mark.asyncio
     async def test_should_record_usage_without_attaching_it_when_formatted_response_has_no_data(self, use_case, router, provider, payload):
         # Arrange
-        use_case.provider_adapter_builder.build.return_value = _mock_adapter(formatted_text="hello world")
+        use_case.provider_client.forward.return_value = ProviderResponse(id="req-1", text="hello world")
 
         # Act
         with patch("api.use_cases._providerrequestforwardingusecase.time.perf_counter", side_effect=[0, 0.12]):

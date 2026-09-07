@@ -6,9 +6,10 @@ from pydantic import ValidationError
 
 from api.domain import BaseModel
 from api.domain.audio.entities import AudioTranscriptions, AudioTranscriptionsResponseFormat
-from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationRequestError
 from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
+from api.infrastructure.http._httpproviderresponse import HttpProviderResponse
 from api.infrastructure.http.adapters.audio import AudioTranscriptionsAdapter
 from api.schemas.audio import AudioTranscriptionLanguage
 
@@ -49,13 +50,13 @@ class MistralAudioTranscriptionsAdapter(AudioTranscriptionsAdapter):
             ).model_dump(),
         )
 
-    def to_domain_response(
+    def to_provider_response(
         self,
-        raw_response: ProviderRawResponse,
+        http_response: HttpProviderResponse,
         request: ProviderRequest,
     ) -> ProviderResponse:
-        text = raw_response.data["choices"][0]["message"]["content"]
-        request_id = self._extract_request_id(raw_response=raw_response)
+        text = http_response.data["choices"][0]["message"]["content"]
+        request_id = self._extract_request_id(http_response=http_response)
         if request.payload.response_format == AudioTranscriptionsResponseFormat.TEXT:
             return ProviderResponse(id=request_id, text=text)
 

@@ -7,9 +7,14 @@ from pydantic import BaseModel
 from api.domain import ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider import ProviderAdapterBuilder, ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderResponse
-from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
+from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider.entities import ProviderRequest, ProviderResponse
+from api.domain.provider.errors import (
+    NoAvailableProviderError,
+    ProviderAdapterValidationRequestError,
+    ProviderAdapterValidationResponseError,
+    UnsupportedProviderEndpointError,
+)
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
@@ -50,6 +55,7 @@ type ProviderRequestForwardingUseCaseError = (
     | TooBusyModelError
     | StatusCodeModelError
     | UnknownModelError
+    | UnsupportedProviderEndpointError
     | UserHasNoAccessToRouterError
     | UserHasInsufficientBudgetError
 )
@@ -64,7 +70,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         self,
         model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer,
         model_tokenizer: ModelTokenizer,
-        provider_adapter_builder: ProviderAdapterBuilder,
         provider_client: ProviderClient,
         provider_load_balancer: ProviderLoadBalancer,
         provider_metrics_logger: ProviderMetricsLogger,
@@ -75,7 +80,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
     ) -> None:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
         self.model_tokenizer = model_tokenizer
-        self.provider_adapter_builder = provider_adapter_builder
         self.provider_client = provider_client
         self.provider_load_balancer = provider_load_balancer
         self.provider_metrics_logger = provider_metrics_logger
@@ -154,30 +158,24 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         | UnknownModelError
         | StatusCodeModelError
         | ProviderAdapterValidationResponseError
+        | UnsupportedProviderEndpointError
     ):
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
         provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
         self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
 
         request = ProviderRequest(endpoint=self.ENDPOINT, payload=payload)
-        adapter = self.provider_adapter_builder.build(endpoint=self.ENDPOINT, provider=provider)
 
         inflight_is_incremented = await self.provider_metrics_logger.increment_inflight(provider_id=provider.id)
 
         start_time = time.perf_counter()
-        result = await self.provider_client.forward(provider=provider, request=request)
-        latency = int((time.perf_counter() - start_time) * 1000)  # ms
+        try:
+            result = await self.provider_client.forward(provider=provider, request=request)
+            latency = int((time.perf_counter() - start_time) * 1000)  # ms
+        finally:
+            if inflight_is_incremented:
+                await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
 
-        if inflight_is_incremented:
-            await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
-
-        match result:
-            case ProviderRawResponse() as raw_response:
-                pass
-            case error:
-                return error
-
-        result = adapter.to_domain_response(request=request, raw_response=raw_response)
         match result:
             case ProviderResponse() as provider_response:
                 completion_tokens = self.model_tokenizer.compute_tokens(texts=provider_response.get_completions())
@@ -210,7 +208,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
                     metric=Metric.LATENCY,
                     value=latency,
                 )
-            case ProviderAdapterValidationResponseError() as error:
+            case error:
                 return error
 
         self.usage_recorder.record_usage(

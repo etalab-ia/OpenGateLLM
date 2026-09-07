@@ -1,6 +1,4 @@
-from http import HTTPMethod
 import random
-from urllib.parse import urljoin
 
 import factory
 from faker import Faker
@@ -8,10 +6,9 @@ from openai.types import Embedding
 
 from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
 from api.domain.model.entities import Model, Models
-from api.domain.provider.entities import BasicAuth, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderRequest, ProviderResponse
 from api.domain.rerank.entities import CreateRerankBody, Rerank, RerankResult
 from api.domain.router.entities import RouterType
-from api.infrastructure.http import HttpProviderRequest
 from api.utils.variables import EndpointRoute
 
 fake = Faker()
@@ -59,48 +56,6 @@ class ProviderRequestFactory(factory.Factory):
                     top_n=2,
                 )
             ),
-        )
-
-
-class HttpProviderRequestFactory(factory.Factory):
-    class Meta:
-        model = HttpProviderRequest
-        exclude = ["base_url"]
-
-    base_url = "https://provider.test/"
-
-    method = factory.Faker("random_element", elements=list(HTTPMethod))
-    url = factory.LazyAttribute(lambda self: urljoin(self.base_url, "/"))
-    body = factory.LazyFunction(dict)
-    form = factory.LazyFunction(dict)
-    files = factory.LazyFunction(dict)
-
-    class Params:
-        vllm_models = factory.Trait(
-            method=HTTPMethod.GET,
-            url=factory.LazyAttribute(lambda self: urljoin(self.base_url, "/v1/models")),
-            body=factory.LazyFunction(dict),
-        )
-        vllm_embeddings = factory.Trait(
-            method=HTTPMethod.POST,
-            url=factory.LazyAttribute(lambda self: urljoin(self.base_url, "/v1/embeddings")),
-            body=factory.LazyFunction(
-                lambda: {
-                    "model": "openweight-embeddings",
-                    "input": ["hello world"],
-                }
-            ),
-        )
-        vllm_metrics = factory.Trait(
-            method=HTTPMethod.GET,
-            url=factory.LazyAttribute(lambda self: urljoin(self.base_url, "/metrics")),
-            body=factory.LazyFunction(dict),
-        )
-        mistral_metrics = factory.Trait(
-            method=HTTPMethod.GET,
-            url=factory.LazyAttribute(lambda self: urljoin(self.base_url, "/metrics")),
-            body=factory.LazyFunction(dict),
-            auth=BasicAuth(username="metrics", password="secret"),
         )
 
 

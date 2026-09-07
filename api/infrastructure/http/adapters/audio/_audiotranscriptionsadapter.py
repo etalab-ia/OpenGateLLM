@@ -3,9 +3,10 @@ from http import HTTPMethod
 from pydantic import ValidationError
 
 from api.domain.audio.entities import AudioTranscriptions
-from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
+from api.infrastructure.http._httpproviderresponse import HttpProviderResponse
 from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.utils.variables import EndpointRoute
 
@@ -28,17 +29,17 @@ class AudioTranscriptionsAdapter(HttpProviderAdapter):
 
         return http_request
 
-    def to_domain_response(
+    def to_provider_response(
         self,
-        raw_response: ProviderRawResponse,
+        http_response: HttpProviderResponse,
         request: ProviderRequest,
     ) -> ProviderResponse | ProviderAdapterValidationResponseError:
-        request_id = self._extract_request_id(raw_response=raw_response)
-        if raw_response.text is not None:
-            return ProviderResponse(id=request_id, text=raw_response.text)
+        request_id = self._extract_request_id(http_response=http_response)
+        if http_response.text is not None:
+            return ProviderResponse(id=request_id, text=http_response.text)
 
         try:
-            data = self.RESPONSE_TYPE.model_validate({"id": request_id, "model": request.payload.model, **raw_response.data})
+            data = self.RESPONSE_TYPE.model_validate({"id": request_id, "model": request.payload.model, **http_response.data})
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 

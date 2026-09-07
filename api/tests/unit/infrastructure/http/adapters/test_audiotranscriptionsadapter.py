@@ -2,7 +2,8 @@ import base64
 from tempfile import SpooledTemporaryFile
 
 from api.domain.audio.entities import AudioTranscriptionsResponseFormat, CreateAudioTranscriptionsFile, CreateAudioTranscriptionsForm
-from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderType
+from api.domain.provider.entities import ProviderRequest, ProviderType
+from api.infrastructure.http import HttpProviderResponse
 from api.infrastructure.http.adapters.audio import AudioTranscriptionsAdapter
 from api.infrastructure.http.adapters.audio.mistral import MistralAudioTranscriptionsAdapter
 from api.tests.unit.use_case.factories import ProviderFactory
@@ -55,10 +56,10 @@ class TestAudioTranscriptionsAdapter:
         # Arrange
         provider = ProviderFactory(type=ProviderType.VLLM, url="https://vllm.test", model_name="whisper-1")
         adapter = AudioTranscriptionsAdapter(provider=provider)
-        original_response = ProviderRawResponse(data={"text": "hello world"})
+        original_response = HttpProviderResponse(data={"text": "hello world"})
 
         # Act
-        result = adapter.to_domain_response(request=_original_request(), raw_response=original_response)
+        result = adapter.to_provider_response(request=_original_request(), http_response=original_response)
 
         # Assert
         assert result.data.text == "hello world"

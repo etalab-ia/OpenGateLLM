@@ -6,9 +6,9 @@ from unittest.mock import Mock, patch
 import pytest
 
 from api.domain.embeddings.entities import Embeddings, EncodingFormat
-from api.domain.provider.entities import ProviderRawResponse, ProviderResponse, ProviderType
+from api.domain.provider.entities import ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
-from api.infrastructure.http import HttpProviderRequest
+from api.infrastructure.http import HttpProviderRequest, HttpProviderResponse
 from api.infrastructure.http.adapters.embeddings.tei import TeiEmbeddingsAdapter
 from api.infrastructure.http.adapters.embeddings.vllm import VllmEmbeddingsAdapter
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory
@@ -124,7 +124,7 @@ class TestEmbeddingsAdapter:
     )
     def test_extract_request_id_with_id(self, adapter):
         # Arrange
-        original_response = ProviderRawResponse(data={"id": "abc"})
+        original_response = HttpProviderResponse(data={"id": "abc"})
 
         # Act
         result = adapter._extract_request_id(original_response)
@@ -139,7 +139,7 @@ class TestEmbeddingsAdapter:
     )
     def test_extract_request_id_without_id(self, adapter):
         # Arrange
-        original_response = ProviderRawResponse(data={})
+        original_response = HttpProviderResponse(data={})
 
         # Act
         with patch("api.infrastructure.http.adapters._httpprovideradapter.uuid4", return_value="123-456-789"):
@@ -238,14 +238,14 @@ class TestEmbeddingsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_to_domain_response_correctly(self, adapter, response_data):
+    def test_to_provider_response_correctly(self, adapter, response_data):
         # Arrange
         adapter._extract_request_id = Mock(return_value="req-123")
         original_request = ProviderRequestFactory(embeddings=True)
-        original_response = ProviderRawResponse(data=response_data)
+        original_response = HttpProviderResponse(data=response_data)
 
         # Act
-        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
+        result = adapter.to_provider_response(http_response=original_response, request=original_request)
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -260,7 +260,7 @@ class TestEmbeddingsAdapter:
         argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
         indirect=["adapter"],
     )
-    def test_to_domain_response_decodes_base64_embeddings(self, adapter):
+    def test_to_provider_response_decodes_base64_embeddings(self, adapter):
         # Arrange
         embedding = [0.1, 0.2, 0.3]
         response_data = TeiEmbeddingsResponseFactory(dimensions=3)
@@ -269,10 +269,10 @@ class TestEmbeddingsAdapter:
         adapter._extract_request_id = Mock(return_value="req-123")
         original_request = ProviderRequestFactory(embeddings=True)
         original_request.payload.encoding_format = EncodingFormat.BASE64
-        original_response = ProviderRawResponse(data=response_data)
+        original_response = HttpProviderResponse(data=response_data)
 
         # Act
-        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
+        result = adapter.to_provider_response(http_response=original_response, request=original_request)
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -287,14 +287,14 @@ class TestEmbeddingsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_to_domain_response_preserve_extra_fields(self, adapter, response_data):
+    def test_to_provider_response_preserve_extra_fields(self, adapter, response_data):
         # Arrange
         adapter._extract_request_id = Mock(return_value="req-123")
         original_request = ProviderRequestFactory(embeddings=True)
-        original_response = ProviderRawResponse(data=response_data)
+        original_response = HttpProviderResponse(data=response_data)
 
         # Act
-        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
+        result = adapter.to_provider_response(http_response=original_response, request=original_request)
 
         # Assert
         assert result.data.extra_field == "extra_value"
@@ -304,11 +304,11 @@ class TestEmbeddingsAdapter:
         argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
         indirect=["adapter"],
     )
-    def test_to_domain_response_returns_validation_error_on_bad_data(self, adapter):
+    def test_to_provider_response_returns_validation_error_on_bad_data(self, adapter):
         original_request = ProviderRequestFactory(embeddings=True)
-        original_response = ProviderRawResponse(data={"data": "invalid"})
+        original_response = HttpProviderResponse(data={"data": "invalid"})
 
-        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
+        result = adapter.to_provider_response(http_response=original_response, request=original_request)
 
         assert result.provider_type == adapter.provider.type
         assert isinstance(result, ProviderAdapterValidationResponseError)

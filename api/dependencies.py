@@ -11,7 +11,6 @@ from api.domain.key import KeyEncoder, KeyRepository
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelQuery, ModelTokenizer
 from api.domain.organization import OrganizationRepository
 from api.domain.provider import (
-    ProviderAdapterBuilder,
     ProviderClient,
     ProviderLoadBalancer,
     ProviderMetricsLogger,
@@ -131,11 +130,11 @@ def _provider_metrics_logger(redis_client: Redis = Depends(get_redis_client)) ->
     return RedisProviderMetricsLogger(redis_client=redis_client)
 
 
-def _provider_adapter_builder() -> ProviderAdapterBuilder:
+def _provider_adapter_builder() -> HttpProviderAdapterBuilder:
     return HttpProviderAdapterBuilder()
 
 
-def _provider_client(provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder)) -> ProviderClient:
+def _provider_client(provider_adapter_builder: HttpProviderAdapterBuilder = Depends(_provider_adapter_builder)) -> ProviderClient:
     return HttpProviderClient(adapter_builder=provider_adapter_builder)
 
 
@@ -145,9 +144,8 @@ def _provider_load_balancer(redis_client: Redis = Depends(get_redis_client)) -> 
 
 def _provider_capabilities_probe(
     provider_client: ProviderClient = Depends(_provider_client),
-    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
 ) -> ProviderCapabilitiesProbe:
-    return ProviderCapabilitiesProbe(provider_client=provider_client, provider_adapter_builder=provider_adapter_builder)
+    return ProviderCapabilitiesProbe(provider_client=provider_client)
 
 
 def _user_password_encoder() -> UserPasswordEncoder:
@@ -212,13 +210,11 @@ def create_audio_transcriptions_use_case_factory(
     redis_client: Redis = Depends(get_redis_client),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
-    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
     provider_client: ProviderClient = Depends(_provider_client),
 ) -> CreateAudioTranscriptionsUseCase:
     return CreateAudioTranscriptionsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
-        provider_adapter_builder=provider_adapter_builder,
         provider_client=provider_client,
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
@@ -264,12 +260,10 @@ def auth_sso_login_use_case_factory(
 # health use cases
 def get_health_models_use_case_factory(
     postgres_session: AsyncSession = Depends(get_postgres_session),
-    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
     provider_client: ProviderClient = Depends(_provider_client),
     redis_client: Redis = Depends(get_redis_client),
 ) -> GetHealthModelsUseCase:
     return GetHealthModelsUseCase(
-        provider_adapter_builder=provider_adapter_builder,
         provider_client=provider_client,
         provider_metrics_logger=_provider_metrics_logger(redis_client),
         router_repository=_router_repository(postgres_session),
@@ -283,13 +277,11 @@ def create_embeddings_use_case_factory(
     redis_client: Redis = Depends(get_redis_client),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
-    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
     provider_client: ProviderClient = Depends(_provider_client),
 ) -> CreateEmbeddingsUseCase:
     return CreateEmbeddingsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
-        provider_adapter_builder=provider_adapter_builder,
         provider_client=provider_client,
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
@@ -356,13 +348,11 @@ def create_ocr_use_case_factory(
     redis_client: Redis = Depends(get_redis_client),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
-    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
     provider_client: ProviderClient = Depends(_provider_client),
 ) -> CreateOCRUseCase:
     return CreateOCRUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
-        provider_adapter_builder=provider_adapter_builder,
         provider_client=provider_client,
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
@@ -421,13 +411,11 @@ def create_rerank_use_case_factory(
     redis_client: Redis = Depends(get_redis_client),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
-    provider_adapter_builder: ProviderAdapterBuilder = Depends(_provider_adapter_builder),
     provider_client: ProviderClient = Depends(_provider_client),
 ) -> CreateRerankUseCase:
     return CreateRerankUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
-        provider_adapter_builder=provider_adapter_builder,
         provider_client=provider_client,
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),

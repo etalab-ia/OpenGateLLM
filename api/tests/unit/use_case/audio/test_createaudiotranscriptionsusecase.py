@@ -87,7 +87,6 @@ def use_case(model_tokenizer, usage_recorder) -> CreateAudioTranscriptionsUseCas
     return CreateAudioTranscriptionsUseCase(
         model_environmental_impacts_computer=MagicMock(),
         model_tokenizer=model_tokenizer,
-        provider_adapter_builder=MagicMock(),
         provider_client=AsyncMock(),
         provider_load_balancer=AsyncMock(),
         provider_metrics_logger=AsyncMock(),

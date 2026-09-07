@@ -3,8 +3,9 @@ from http import HTTPMethod
 from pydantic import ValidationError
 
 from api.domain.embeddings.entities import Embeddings
-from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
+from api.infrastructure.http._httpproviderresponse import HttpProviderResponse
 from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.utils.variables import EndpointRoute
 
@@ -15,16 +16,16 @@ class EmbeddingsAdapter(HttpProviderAdapter):
     TARGET_ENDPOINT_METHOD = HTTPMethod.POST
     RESPONSE_TYPE = Embeddings
 
-    def to_domain_response(
+    def to_provider_response(
         self,
-        raw_response: ProviderRawResponse,
+        http_response: HttpProviderResponse,
         request: ProviderRequest,
     ) -> ProviderResponse | ProviderAdapterValidationResponseError:
-        request_id = self._extract_request_id(raw_response=raw_response)
+        request_id = self._extract_request_id(http_response=http_response)
         try:
             encoding_format = request.payload.encoding_format
             data = self.RESPONSE_TYPE._from_provider_response(
-                raw_response.data,
+                http_response.data,
                 encoding_format=encoding_format,
                 id=request_id,
                 model=request.payload.model,

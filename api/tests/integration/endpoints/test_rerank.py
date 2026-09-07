@@ -9,7 +9,12 @@ import respx
 from api.dependencies import create_rerank_use_case_factory
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.entities import ProviderType
-from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
+from api.domain.provider.errors import (
+    NoAvailableProviderError,
+    ProviderAdapterValidationRequestError,
+    ProviderAdapterValidationResponseError,
+    UnsupportedProviderEndpointError,
+)
 from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
@@ -173,6 +178,11 @@ class TestCreateRerank:
                 UnknownModelError(status_code=500, detail="upstream failure"),
                 500,
                 "upstream failure",
+            ),
+            (
+                UnsupportedProviderEndpointError(endpoint=EndpointRoute.RERANK, provider_type=ProviderType.TEI),
+                500,
+                "Model provider type tei does not support the /rerank endpoint.",
             ),
         ],
     )

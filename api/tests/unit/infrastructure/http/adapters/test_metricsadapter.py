@@ -3,8 +3,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from api.domain.provider.entities import BasicAuth, ProviderMetrics, ProviderRawResponse, ProviderResponse, ProviderType
+from api.domain.provider.entities import BasicAuth, ProviderMetrics, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError
+from api.infrastructure.http import HttpProviderResponse
 from api.infrastructure.http.adapters.metrics.mistral import MistralMetricsAdapter
 from api.infrastructure.http.adapters.metrics.vllm import VllmMetricsAdapter
 from api.tests.integration.factories.mistral import MistralMetricsResponseFactory
@@ -175,13 +176,13 @@ class TestMetricsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_to_domain_response_has_no_usage(self, adapter, response_data):
+    def test_to_provider_response_has_no_usage(self, adapter, response_data):
         # Arrange
-        original_response = ProviderRawResponse(text=response_data["text"])
+        original_response = HttpProviderResponse(text=response_data["text"])
         original_request = ProviderRequestFactory(metrics=True)
 
         # Act
-        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
+        result = adapter.to_provider_response(http_response=original_response, request=original_request)
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -226,13 +227,13 @@ class TestMetricsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_to_domain_response_parses_prometheus_text(self, adapter, model_name, running, waiting):
+    def test_to_provider_response_parses_prometheus_text(self, adapter, model_name, running, waiting):
         # Arrange
         original_request = ProviderRequestFactory(metrics=True)
-        original_response = ProviderRawResponse(text=build_metrics_text(model_name=model_name, running=running, waiting=waiting))
+        original_response = HttpProviderResponse(text=build_metrics_text(model_name=model_name, running=running, waiting=waiting))
 
         # Act
-        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
+        result = adapter.to_provider_response(http_response=original_response, request=original_request)
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -248,10 +249,10 @@ class TestMetricsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_to_domain_response_sums_samples_for_same_model(self, adapter, model_name):
+    def test_to_provider_response_sums_samples_for_same_model(self, adapter, model_name):
         # Arrange
         original_request = ProviderRequestFactory(metrics=True)
-        original_response = ProviderRawResponse(
+        original_response = HttpProviderResponse(
             text=(
                 f'vllm:num_requests_running{{model_name="{model_name}"}} 2.0\n'
                 f'vllm:num_requests_running{{model_name="{model_name}"}} 3.0\n'
@@ -263,7 +264,7 @@ class TestMetricsAdapter:
         )
 
         # Act
-        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
+        result = adapter.to_provider_response(http_response=original_response, request=original_request)
 
         # Assert
         assert isinstance(result, ProviderResponse)
@@ -275,13 +276,13 @@ class TestMetricsAdapter:
         argvalues=["vllm_metrics_adapter", "mistral_metrics_adapter"],
         indirect=["adapter"],
     )
-    def test_to_domain_response_returns_validation_error_on_invalid_text(self, adapter):
+    def test_to_provider_response_returns_validation_error_on_invalid_text(self, adapter):
         # Arrange
         original_request = ProviderRequestFactory(metrics=True)
-        original_response = ProviderRawResponse(text="not valid prometheus text")
+        original_response = HttpProviderResponse(text="not valid prometheus text")
 
         # Act
-        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
+        result = adapter.to_provider_response(http_response=original_response, request=original_request)
 
         # Assert
         assert isinstance(result, ProviderAdapterValidationResponseError)
@@ -296,21 +297,21 @@ class TestMetricsAdapter:
         ],
         indirect=["adapter"],
     )
-    def test_to_domain_response_extracts_request_id(self, adapter, response_data):
+    def test_to_provider_response_extracts_request_id(self, adapter, response_data):
         # Arrange
         adapter._extract_request_id = Mock(return_value="req-123")
-        original_response = ProviderRawResponse(text=response_data["text"])
+        original_response = HttpProviderResponse(text=response_data["text"])
         original_request = ProviderRequestFactory(metrics=True)
 
         # Act
-        result = adapter.to_domain_response(raw_response=original_response, request=original_request)
+        result = adapter.to_provider_response(http_response=original_response, request=original_request)
 
         # Assert
         assert isinstance(result, ProviderResponse)
         assert isinstance(result.data, ProviderMetrics)
         assert result.id == "req-123"
         assert getattr(result.data, "id", "not found") == "not found"
-        adapter._extract_request_id.assert_called_once_with(raw_response=original_response)
+        adapter._extract_request_id.assert_called_once_with(http_response=original_response)
 
     @pytest.mark.parametrize(
         argnames=("adapter"),

@@ -158,11 +158,6 @@ class ResponseMetrics(BaseModel):
     ttft: Annotated[int | None, Field(default=None, description="The time to first byte of the response.")]
 
 
-class ProviderRawResponse(BaseModel):
-    data: Annotated[dict | list | None, Field(default=None, description="The JSON data to use for the response.")]
-    text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
-
-
 class ProviderMetrics(ProviderJsonResponse):
     object: Literal["providerMetrics"] = "providerMetrics"
     waiting_requests: float

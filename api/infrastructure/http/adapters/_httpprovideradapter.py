@@ -5,14 +5,14 @@ from uuid import uuid4
 
 from pydantic import StringConstraints, ValidationError
 
-from api.domain.provider import ProviderAdapter
-from api.domain.provider.entities import Provider, ProviderRawResponse, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import Provider, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
+from api.infrastructure.http._httpproviderresponse import HttpProviderResponse
 from api.utils.variables import EndpointRoute
 
 
-class HttpProviderAdapter(ProviderAdapter):
+class HttpProviderAdapter:
     SOURCE_ENDPOINT: EndpointRoute
     TARGET_ENDPOINT_ROUTE: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^/", to_lower=True)]
     TARGET_ENDPOINT_METHOD: HTTPMethod
@@ -34,14 +34,14 @@ class HttpProviderAdapter(ProviderAdapter):
 
         return http_request
 
-    def to_domain_response(
+    def to_provider_response(
         self,
-        raw_response: ProviderRawResponse,
+        http_response: HttpProviderResponse,
         request: ProviderRequest,
     ) -> ProviderResponse | ProviderAdapterValidationResponseError:
-        request_id = self._extract_request_id(raw_response=raw_response)
+        request_id = self._extract_request_id(http_response=http_response)
         try:
-            data = self.RESPONSE_TYPE(**{**raw_response.data, "id": request_id, "model": request.payload.model})
+            data = self.RESPONSE_TYPE(**{**http_response.data, "id": request_id, "model": request.payload.model})
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 
@@ -54,10 +54,10 @@ class HttpProviderAdapter(ProviderAdapter):
         return url
 
     @staticmethod
-    def _extract_request_id(raw_response: ProviderRawResponse) -> str:
+    def _extract_request_id(http_response: HttpProviderResponse) -> str:
         default_request_id = f"request-{str(uuid4()).replace('-', '')}"
 
-        if isinstance(raw_response.data, dict):
-            return raw_response.data.get("id", default_request_id)
+        if isinstance(http_response.data, dict):
+            return http_response.data.get("id", default_request_id)
 
         return default_request_id

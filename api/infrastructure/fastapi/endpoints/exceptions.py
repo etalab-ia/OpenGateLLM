@@ -351,6 +351,17 @@ class InternalServerHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
+class UnsupportedProviderEndpointHTTPException(HTTPException):
+    status_code = 500
+    detail = "Model provider type {provider_type} does not support the {endpoint} endpoint."
+
+    def __init__(self, endpoint: str, provider_type: str | None = None) -> None:
+        super().__init__(
+            status_code=self.status_code,
+            detail=f"Model provider type {provider_type} does not support the {endpoint} endpoint.",
+        )
+
+
 # 503
 class ModelIsTooBusyExceptionHTTPException(HTTPException):
     status_code = 503

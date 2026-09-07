@@ -1,9 +1,10 @@
 from http import HTTPMethod
 
 from api.domain.model.entities import Model, Models
-from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderRequest, ProviderResponse
 from api.domain.router.entities import RouterType
-from api.infrastructure.http import HttpProviderRequest
+from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
+from api.infrastructure.http._httpproviderresponse import HttpProviderResponse
 from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.utils.variables import EndpointRoute
 
@@ -20,12 +21,12 @@ class ModelsAdapter(HttpProviderAdapter):
             url=self._build_target_url(base_url=self.provider.url, target_endpoint_route=self.TARGET_ENDPOINT_ROUTE),
         )
 
-    def to_domain_response(
+    def to_provider_response(
         self,
-        raw_response: ProviderRawResponse,
+        http_response: HttpProviderResponse,
         request: ProviderRequest,
     ) -> ProviderResponse:
-        request_id = self._extract_request_id(raw_response=raw_response)
+        request_id = self._extract_request_id(http_response=http_response)
         return ProviderResponse(
             id=request_id,
             data=Models(
@@ -38,7 +39,7 @@ class ModelsAdapter(HttpProviderAdapter):
                         max_context_length=model.get("max_context_length", None),
                         type=RouterType.TEXT_GENERATION,  # dummy value, not used
                     )
-                    for model in raw_response.data["data"]
+                    for model in http_response.data["data"]
                 ]
             ),
         )

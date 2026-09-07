@@ -1,4 +1,3 @@
-from api.domain.provider import ProviderAdapterBuilder
 from api.domain.provider.entities import Provider, ProviderType
 from api.domain.provider.errors import UnsupportedProviderEndpointError
 from api.infrastructure.http.adapters import HttpProviderAdapter
@@ -30,7 +29,7 @@ from api.infrastructure.http.adapters.rerank.vllm import VllmRerankAdapter
 from api.utils.variables import EndpointRoute
 
 
-class HttpProviderAdapterBuilder(ProviderAdapterBuilder):
+class HttpProviderAdapterBuilder:
     ADAPTER_REGISTRY = {
         EndpointRoute.AUDIO_TRANSCRIPTIONS: {
             ProviderType.ALBERT: AlbertAudioTranscriptionsAdapter,

@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
 from api.domain.model.entities import HealthStatus, ModelHealthStatus
-from api.domain.provider import ProviderAdapter, ProviderAdapterBuilder, ProviderClient, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderResponse, ProviderType
+from api.domain.provider import ProviderClient, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider.entities import ProviderRequest, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
 from api.domain.router import RouterRepository
 from api.domain.user.views import AuthenticatedUserView
@@ -28,13 +28,11 @@ class GetHealthModelsUseCase:
 
     def __init__(
         self,
-        provider_adapter_builder: ProviderAdapterBuilder,
         provider_client: ProviderClient,
         provider_metrics_logger: ProviderMetricsLogger,
         provider_repository: ProviderRepository,
         router_repository: RouterRepository,
     ):
-        self.provider_adapter_builder = provider_adapter_builder
         self.provider_client = provider_client
         self.provider_metrics_logger = provider_metrics_logger
         self.provider_repository = provider_repository
@@ -56,40 +54,25 @@ class GetHealthModelsUseCase:
                 if provider.router_id != router.id:
                     continue
 
-                result = self.provider_adapter_builder.build(endpoint=EndpointRoute.METRICS, provider=provider)
-
-                match result:
-                    case ProviderAdapter() as adapter:
-                        pass
-                    case UnsupportedProviderEndpointError():
-                        adapter = self.provider_adapter_builder.build(endpoint=EndpointRoute.MODELS, provider=provider)
-                        request = ProviderRequest(endpoint=EndpointRoute.MODELS)
-                        response = await self.provider_client.forward(provider=provider, request=request)
-                        match response:
-                            case ProviderRawResponse() as response:
-                                continue
-                            case _:
-                                health.status = HealthStatus.RED
-                                continue
-
                 request = ProviderRequest(endpoint=EndpointRoute.METRICS)
                 response = await self.provider_client.forward(provider=provider, request=request)
 
                 match response:
-                    case ProviderRawResponse() as response:
+                    case ProviderResponse() as provider_response:
                         pass
+                    case UnsupportedProviderEndpointError():
+                        request = ProviderRequest(endpoint=EndpointRoute.MODELS)
+                        response = await self.provider_client.forward(provider=provider, request=request)
+                        match response:
+                            # the fallback only probes liveness: an unparsable payload still proves the provider answered
+                            case ProviderResponse() | ProviderAdapterValidationResponseError():
+                                continue
+                            case _:
+                                health.status = HealthStatus.RED
+                                continue
                     case _:
                         # @TODO: if another provider is healthy, we should not set the health to red
                         # @TODO: connect load balancing strategy to the health status
-                        health.status = HealthStatus.RED
-                        continue
-
-                result = adapter.to_domain_response(request=request, raw_response=response)
-
-                match result:
-                    case ProviderResponse() as provider_response:
-                        pass
-                    case ProviderAdapterValidationResponseError():
                         health.status = HealthStatus.RED
                         continue
 

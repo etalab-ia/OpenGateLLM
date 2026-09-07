@@ -8,8 +8,12 @@ import respx
 
 from api.domain.embeddings.entities import CreateEmbeddingsBody
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderType
-from api.domain.provider.errors import ProviderAdapterValidationRequestError, UnsupportedProviderEndpointError
+from api.domain.provider.entities import ProviderRequest, ProviderResponse, ProviderType
+from api.domain.provider.errors import (
+    ProviderAdapterValidationRequestError,
+    ProviderAdapterValidationResponseError,
+    UnsupportedProviderEndpointError,
+)
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.http.adapters.models.vllm import VllmModelsAdapter
 from api.tests.integration.factories.mistral import MistralMetricsResponseFactory
@@ -56,8 +60,8 @@ class TestHttpProviderClient:
 
         result = await http_provider_client().forward(provider=provider, request=request)
 
-        assert isinstance(result, ProviderRawResponse)
-        assert result.data == body
+        assert isinstance(result, ProviderResponse)
+        assert [model.id for model in result.data.data] == [DEFAULT_MODEL_ID]
         assert result.text is None
         assert route.called is True
         assert route.calls[0].request.headers.get("Authorization") == "Bearer test-key"
@@ -82,8 +86,8 @@ class TestHttpProviderClient:
 
         result = await http_provider_client().forward(provider=provider, request=request)
 
-        assert isinstance(result, ProviderRawResponse)
-        assert result.data == body
+        assert isinstance(result, ProviderResponse)
+        assert len(result.data.data[0].embedding) == 8
         assert result.text is None
         assert route.called is True
         assert route.calls[0].request.headers.get("Authorization") is None
@@ -105,9 +109,9 @@ class TestHttpProviderClient:
 
         result = await http_provider_client().forward(provider=provider, request=request)
 
-        assert isinstance(result, ProviderRawResponse)
-        assert result.data is None
-        assert result.text == body["text"]
+        assert isinstance(result, ProviderResponse)
+        assert result.data.running_requests == 2.0
+        assert result.data.waiting_requests == 1.0
         assert route.called is True
         assert route.calls[0].request.headers.get("Authorization") == "Bearer test-key"
 
@@ -135,8 +139,8 @@ class TestHttpProviderClient:
 
         result = await http_provider_client().forward(provider=provider, request=request)
 
-        assert isinstance(result, ProviderRawResponse)
-        assert result.text == body["text"]
+        assert isinstance(result, ProviderResponse)
+        assert result.data is not None
         assert route.called is True
         expected_auth = "Basic " + base64.b64encode(b"metrics:secret").decode()
         assert route.calls[0].request.headers.get("Authorization") == expected_auth
@@ -238,3 +242,26 @@ class TestHttpProviderClient:
             result = await http_provider_client().forward(provider=provider, request=request)
 
         assert result is validation_error
+
+    @respx.mock
+    async def test_forward_returns_response_validation_error_when_the_provider_payload_does_not_parse(self):
+        provider = provider_factory()
+        request = ProviderRequest(
+            endpoint=EndpointRoute.EMBEDDINGS,
+            payload=CreateEmbeddingsBody(model="openweight-embeddings", input=["hello world"]),
+        )
+
+        url = urljoin(DEFAULT_PROVIDER_URL, "/v1/embeddings")
+        route = respx.post(url=url).mock(
+            return_value=httpx.Response(
+                status_code=200,
+                json={"data": [{"embedding": "not-a-vector", "index": 0, "object": "embedding"}], "object": "list"},
+                headers={"Content-Type": "application/json"},
+            )
+        )
+
+        result = await http_provider_client().forward(provider=provider, request=request)
+
+        assert isinstance(result, ProviderAdapterValidationResponseError)
+        assert result.provider_type == ProviderType.VLLM
+        assert route.called is True

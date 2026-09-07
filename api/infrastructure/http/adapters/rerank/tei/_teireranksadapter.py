@@ -3,10 +3,11 @@ from typing import Annotated, Literal
 from pydantic import Field, ValidationError
 
 from api.domain import BaseModel
-from api.domain.provider.entities import ProviderRawResponse, ProviderRequest, ProviderResponse
+from api.domain.provider.entities import ProviderRequest, ProviderResponse
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.rerank.entities import Rerank, RerankResult
 from api.infrastructure.http._httpproviderrequest import HttpProviderRequest
+from api.infrastructure.http._httpproviderresponse import HttpProviderResponse
 from api.infrastructure.http.adapters.rerank import RerankAdapter
 
 
@@ -38,17 +39,17 @@ class TeiRerankAdapter(RerankAdapter):
 
         return HttpProviderRequest(method=self.TARGET_ENDPOINT_METHOD, url=target_url, body=body)
 
-    def to_domain_response(
+    def to_provider_response(
         self,
-        raw_response: ProviderRawResponse,
+        http_response: HttpProviderResponse,
         request: ProviderRequest,
     ) -> ProviderResponse | ProviderAdapterValidationResponseError:
-        results = sorted(raw_response.data, key=lambda x: x["score"], reverse=True)[: request.payload.top_n]
+        results = sorted(http_response.data, key=lambda x: x["score"], reverse=True)[: request.payload.top_n]
         for result in results:
             result["relevance_score"] = result.pop("score")
 
         results = [RerankResult(**result) for result in results]
-        request_id = self._extract_request_id(raw_response=raw_response)
+        request_id = self._extract_request_id(http_response=http_response)
         data = Rerank(id=request_id, model=request.payload.model, results=results)
 
         try:
