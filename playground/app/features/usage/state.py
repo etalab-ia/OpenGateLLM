@@ -169,6 +169,14 @@ class UsageState(EntityState):
             "kgCO2eq": 0.0,
         }
 
+    @staticmethod
+    def _chart_max(points: list[dict[str, Any]], *keys: str, stacked: bool = False) -> float:
+        if not points:
+            return 0.0
+        if stacked:
+            return max(sum(float(point.get(key, 0) or 0) for key in keys) for point in points)
+        return max(float(point.get(key, 0) or 0) for point in points for key in keys)
+
     @rx.var
     def chart_data(self) -> list[dict[str, Any]]:
         by_date = {bucket.date: self._chart_point(bucket) for bucket in self.entities}
@@ -181,6 +189,38 @@ class UsageState(EntityState):
             points.append(by_date.get(key) or self._empty_chart_point(key))
             day += dt.timedelta(days=1)
         return points
+
+    @rx.var
+    def chart_max_requests(self) -> int:
+        return int(self._chart_max(self.chart_data, "requests"))
+
+    @rx.var
+    def chart_max_requests_label(self) -> str:
+        return f"{self.chart_max_requests:,}"
+
+    @rx.var
+    def chart_max_tokens(self) -> int:
+        return int(self._chart_max(self.chart_data, "prompt_tokens", "completion_tokens", stacked=True))
+
+    @rx.var
+    def chart_max_tokens_label(self) -> str:
+        return f"{self.chart_max_tokens:,}"
+
+    @rx.var
+    def chart_max_cost(self) -> float:
+        return self._chart_max(self.chart_data, "cost")
+
+    @rx.var
+    def chart_max_cost_label(self) -> str:
+        return f"{self.chart_max_cost:.2f}"
+
+    @rx.var
+    def chart_max_impacts(self) -> float:
+        return self._chart_max(self.chart_data, "kWh", "kgCO2eq")
+
+    @rx.var
+    def chart_max_impacts_label(self) -> str:
+        return f"{self.chart_max_impacts:.2f}"
 
     @rx.var
     def summary_requests(self) -> str:

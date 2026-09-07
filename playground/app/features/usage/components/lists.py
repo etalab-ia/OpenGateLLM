@@ -5,6 +5,7 @@ import reflex as rx
 from app.core.variables import (
     HEADING_SIZE_FORM,
     HEADING_SIZE_SECTION,
+    PADDING_MEDIUM,
     SELECT_MEDIUM_WIDTH,
     SPACING_LARGE,
     SPACING_SMALL,
@@ -85,20 +86,34 @@ def usage_summary() -> rx.Component:
         width="100%",
         justify="center",
         align="center",
+        padding_bottom=PADDING_MEDIUM,
     )
 
 
-def usage_metric_chart(title: str, *bars: rx.Component, bar_gap: int = 4) -> rx.Component:
+def usage_max_line(y: rx.Var, label: rx.Var) -> rx.Component:
+    return rx.recharts.reference_line(
+        rx.recharts.label(value=label, position="insideTopRight"),
+        stroke=rx.color("mauve", 9),
+        stroke_width=1,
+        if_overflow="visible",
+        custom_attrs={"y": y, "strokeDasharray": "4 4"},
+    )
+
+
+def usage_metric_chart(title: str, *bars: rx.Component, max_y: rx.Var, max_label: rx.Var, bar_gap: int = 4) -> rx.Component:
     return rx.vstack(
         rx.heading(title, size=HEADING_SIZE_FORM, color=rx.color("mauve", 12)),
         rx.recharts.bar_chart(
             *bars,
+            usage_max_line(max_y, max_label),
             rx.recharts.x_axis(data_key="date"),
+            rx.recharts.y_axis(hide=True, width=0, domain=[0, max_y]),
             rx.recharts.graphing_tooltip(),
             data=UsageState.chart_data,
             width="100%",
             height=260,
             bar_gap=bar_gap,
+            margin={"top": 20, "right": 8, "left": 0, "bottom": 0},
         ),
         spacing=SPACING_SMALL,
         width="100%",
@@ -118,6 +133,8 @@ def usage_charts() -> rx.Component:
                     stroke=rx.color("accent", 9),
                     fill=rx.color("accent", 8),
                 ),
+                max_y=UsageState.chart_max_requests,
+                max_label=UsageState.chart_max_requests_label,
             ),
             usage_metric_chart(
                 "Tokens",
@@ -135,6 +152,8 @@ def usage_charts() -> rx.Component:
                     fill=rx.color("accent", 8),
                     stack_id="tokens",
                 ),
+                max_y=UsageState.chart_max_tokens,
+                max_label=UsageState.chart_max_tokens_label,
             ),
             usage_metric_chart(
                 "Cost",
@@ -144,6 +163,8 @@ def usage_charts() -> rx.Component:
                     stroke=rx.color("accent", 9),
                     fill=rx.color("accent", 8),
                 ),
+                max_y=UsageState.chart_max_cost,
+                max_label=UsageState.chart_max_cost_label,
             ),
             usage_metric_chart(
                 "Impacts",
@@ -159,6 +180,8 @@ def usage_charts() -> rx.Component:
                     stroke=rx.color("green", 9),
                     fill=rx.color("green", 8),
                 ),
+                max_y=UsageState.chart_max_impacts,
+                max_label=UsageState.chart_max_impacts_label,
                 bar_gap=0,
             ),
             columns="2",
