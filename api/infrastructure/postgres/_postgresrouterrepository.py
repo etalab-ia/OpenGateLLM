@@ -229,13 +229,12 @@ class PostgresRouterRepository(RouterRepository):
             result = await self.postgres_session.execute(update_query)
             row = result.one()
 
-            if router.aliases is not None:
-                await self.postgres_session.execute(delete(RouterAliasTable).where(RouterAliasTable.router_id == router.id))
-                if router.aliases:
-                    await self.postgres_session.execute(
-                        insert(RouterAliasTable),
-                        [{"value": alias, "router_id": router.id} for alias in router.aliases],
-                    )
+            await self.postgres_session.execute(delete(RouterAliasTable).where(RouterAliasTable.router_id == router.id))
+            if router.aliases:
+                await self.postgres_session.execute(
+                    insert(RouterAliasTable),
+                    [{"value": alias, "router_id": router.id} for alias in router.aliases],
+                )
         except IntegrityError as e:
             if "router_name_key" in str(e.orig):
                 return RouterNameAlreadyExistsError(name=router.name)
