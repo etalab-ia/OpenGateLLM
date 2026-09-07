@@ -21,16 +21,15 @@ class Usage(BaseModel):
         return round(number=prompt_tokens_cost + completion_tokens_cost, ndigits=6)
 
 
-class UsageRecord(BaseModel):
-    model: str | None
-    key: str | None
-    endpoint: str | None
-    prompt_tokens: int | None
-    completion_tokens: int | None
-    total_tokens: int | None
-    cost: float | None
-    impacts: EnvironmentalImpacts
-    created: UtcDatetime
+class UsageBucket(BaseModel):
+    start_time: UtcDatetime
+    end_time: UtcDatetime
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    cost: float = 0.0
+    requests: int = 0
+    impacts: EnvironmentalImpacts = EnvironmentalImpacts()
 
 
-UsagePage = EntitiesPage["UsageRecord"]
+UsageBucketPage = EntitiesPage["UsageBucket"]

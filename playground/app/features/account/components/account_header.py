@@ -2,14 +2,9 @@
 
 import reflex as rx
 
-from app.core.variables import HEADING_SIZE_PAGE, HEADING_WEIGHT, MARGIN_MEDIUM
+from app.shared.components.headers import header
 
 
 def account_header() -> rx.Component:
     """Header with title."""
-    return rx.heading(
-        "Account settings",
-        size=HEADING_SIZE_PAGE,
-        weight=HEADING_WEIGHT,
-        margin_bottom=MARGIN_MEDIUM,
-    )
+    return header("Account settings")

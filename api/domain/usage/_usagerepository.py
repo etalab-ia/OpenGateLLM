@@ -1,12 +1,12 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from api.domain.usage.entities import UsagePage
+from api.domain.usage.entities import UsageBucketPage
 
 
 class UsageRepository(ABC):
     @abstractmethod
-    async def get_usages_page(
+    async def get_usage_buckets_page(
         self,
         user_id: int,
         start_time: datetime,
@@ -14,5 +14,7 @@ class UsageRepository(ABC):
         offset: int,
         limit: int,
         endpoint: str | None = None,
-    ) -> UsagePage:
+        models: list[str] | None = None,
+        key_id: int | None = None,
+    ) -> UsageBucketPage:
         pass
