@@ -30,7 +30,7 @@ def full_command(router, **overrides) -> UpdateRouterCommand:
         router_id=router.id,
         name=router.name,
         router_type=router.type,
-        aliases=router.aliases or [],
+        aliases=router.aliases,
         load_balancing_strategy=router.load_balancing_strategy,
         cost_prompt_tokens=router.cost_prompt_tokens,
         cost_completion_tokens=router.cost_completion_tokens,
@@ -158,7 +158,7 @@ class TestUpdateRouterUseCase:
     @pytest.mark.asyncio
     async def test_should_add_aliases_when_router_has_no_aliases_and_command_updates_aliases(self, use_case, router_repository):
         # Arrange
-        router = RouterFactory(id=42, user_id=1, aliases=None)
+        router = RouterFactory(id=42, user_id=1, aliases=[])
         updated_router = router.with_aliases(["new-alias"])
 
         use_case.router_repository.get_router_by_id.return_value = router

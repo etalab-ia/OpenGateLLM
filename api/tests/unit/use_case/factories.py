@@ -62,7 +62,7 @@ class RouterFactory(factory.Factory):
     name = factory.Faker("bothify", text="router_####")
     user_id = factory.Faker("random_int", min=1, max=1000)
     type = factory.Faker("random_element", elements=list(RouterType))
-    aliases = None
+    aliases = factory.LazyFunction(list)
     load_balancing_strategy = factory.Faker("random_element", elements=list(RouterLoadBalancingStrategy))
     cost_prompt_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     cost_completion_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)

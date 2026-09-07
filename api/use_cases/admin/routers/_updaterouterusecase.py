@@ -36,7 +36,7 @@ class UpdateRouterUseCase:
 
         if command.aliases:
             existing_aliases = await self.router_repository.get_aliases()
-            conflicting_aliases = set(command.aliases) & (set(existing_aliases) - set(router.aliases or []))
+            conflicting_aliases = set(command.aliases) & (set(existing_aliases) - set(router.aliases))
             if conflicting_aliases:
                 return RouterAliasAlreadyExistsError(aliases=list(conflicting_aliases))
 
