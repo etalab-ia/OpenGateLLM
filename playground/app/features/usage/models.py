@@ -12,11 +12,3 @@ class Usage(BaseModel):
     cost: float = 0.0
     kwh: float = 0.0
     kgco2eq: float | None = None
-    endpoint: str | None = None
-    model: str | None = None
-    key: str | None = None
-    created: str | None = None
-    id: int | None = None
-
-
-UsageBucket = Usage

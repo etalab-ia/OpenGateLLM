@@ -42,6 +42,27 @@ def format_date(timestamp: int | float | None, default: str = "") -> str:
     return default if local is None else local.strftime(DATE_FORMAT)
 
 
+def format_utc_date(timestamp: int | float | None, default: str = "") -> str:
+    """Render a Unix timestamp as a UTC `YYYY-MM-DD` string, or `default` if it is None."""
+    if timestamp is None:
+        return default
+    return dt.datetime.fromtimestamp(timestamp=timestamp, tz=dt.UTC).strftime(DATE_FORMAT)
+
+
+def utc_dates_in_range(start_timestamp: int, end_timestamp: int) -> list[str]:
+    """UTC `YYYY-MM-DD` dates overlapping `[start_timestamp, end_timestamp)`."""
+    if end_timestamp <= start_timestamp:
+        return []
+    start = dt.datetime.fromtimestamp(start_timestamp, tz=dt.UTC).date()
+    last = dt.datetime.fromtimestamp(end_timestamp - 1, tz=dt.UTC).date()
+    dates: list[str] = []
+    day = start
+    while day <= last:
+        dates.append(day.strftime(DATE_FORMAT))
+        day += dt.timedelta(days=1)
+    return dates
+
+
 def format_local_date(moment: dt.datetime) -> str:
     """Render a datetime as a local `YYYY-MM-DD` string, for date pickers."""
     return moment.astimezone().strftime(DATE_FORMAT)

@@ -9,7 +9,7 @@ import reflex as rx
 from app.features.usage.models import Usage
 from app.shared.components.toasts import httpx_error_toast
 from app.shared.states.entity_state import EntityState
-from app.shared.utils.timestamps import DATE_FORMAT, date_to_timestamp, format_date, format_local_date, local_now
+from app.shared.utils.timestamps import date_to_timestamp, format_local_date, format_utc_date, local_now, utc_dates_in_range
 
 ALL_ENDPOINTS = "All endpoints"
 ALL_MODELS = "All models"
@@ -48,7 +48,7 @@ class UsageState(EntityState):
         return Usage(
             start_time=bucket["start_time"],
             end_time=bucket["end_time"],
-            date=format_date(bucket["start_time"]),
+            date=format_utc_date(bucket["start_time"]),
             prompt_tokens=bucket["prompt_tokens"],
             completion_tokens=bucket["completion_tokens"],
             total_tokens=bucket["total_tokens"],
@@ -150,7 +150,7 @@ class UsageState(EntityState):
             "prompt_tokens": bucket.prompt_tokens,
             "completion_tokens": bucket.completion_tokens,
             "total_tokens": bucket.total_tokens,
-            "requests": getattr(bucket, "requests", 0),
+            "requests": bucket.requests,
             "cost": round(bucket.cost, 2),
             "kWh": round(bucket.kwh, 2),
             "kgCO2eq": round(bucket.kgco2eq or 0, 2),
@@ -180,15 +180,13 @@ class UsageState(EntityState):
     @rx.var
     def chart_data(self) -> list[dict[str, Any]]:
         by_date = {bucket.date: self._chart_point(bucket) for bucket in self.entities}
-        start = dt.datetime.strptime(self.get_filter_date_from_value, DATE_FORMAT).date()
-        end = dt.datetime.strptime(self.get_filter_date_to_value, DATE_FORMAT).date()
-        points: list[dict[str, Any]] = []
-        day = start
-        while day < end:
-            key = day.strftime(DATE_FORMAT)
-            points.append(by_date.get(key) or self._empty_chart_point(key))
-            day += dt.timedelta(days=1)
-        return points
+        return [
+            by_date.get(date) or self._empty_chart_point(date)
+            for date in utc_dates_in_range(
+                date_to_timestamp(self.get_filter_date_from_value),
+                date_to_timestamp(self.get_filter_date_to_value),
+            )
+        ]
 
     @rx.var
     def chart_max_requests(self) -> int:
@@ -224,7 +222,7 @@ class UsageState(EntityState):
 
     @rx.var
     def summary_requests(self) -> str:
-        return f"{sum(getattr(bucket, 'requests', 0) for bucket in self.entities):,}"
+        return f"{sum(bucket.requests for bucket in self.entities):,}"
 
     @rx.var
     def summary_prompt_tokens(self) -> str:

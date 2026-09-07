@@ -123,7 +123,7 @@ def usage_metric_chart(title: str, *bars: rx.Component, max_y: rx.Var, max_label
 def usage_charts() -> rx.Component:
     """One bar chart per metric; tokens stack, impacts group kWh and kgCO2eq."""
     return rx.cond(
-        UsageState.chart_data.length() > 0,
+        UsageState.entities.length() > 0,
         rx.grid(
             usage_metric_chart(
                 "Requests",
