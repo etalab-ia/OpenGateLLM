@@ -53,7 +53,7 @@ class TestGetKeys:
         data = response.json()
         assert data["total"] == 1
         assert data["data"][0]["id"] == key.id
-        assert data["data"][0]["user"] == user.id
+        assert data["data"][0]["user_id"] == user.id
 
     async def test_rejects_non_admin_user(self, client: AsyncClient, db_session):
         regular_user = UserSQLFactory(regular_user=True)

@@ -1,10 +1,10 @@
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 
-from pydantic import Field, StringConstraints, field_validator, model_validator
+from pydantic import Field, StringConstraints, field_validator
 
 from api.domain import BaseModel
-from api.domain.key.entities import Key
+from api.infrastructure.fastapi.schemas import UnixTimestamp
 
 
 class CreateKeyBody(BaseModel):
@@ -30,24 +30,9 @@ class KeyResponse(BaseModel):
     id: Annotated[int, Field(description="ID of the key.")]
     name: Annotated[str, Field(description="Name of the key.")]
     value: Annotated[str, Field(description="Value of the key.")]
-    user: Annotated[int, Field(description="ID of the user that owns the key.")]
-    expires: Annotated[int | None, Field(default=None, description="Time of expiration, as Unix timestamp. If None, the key never expires.")]
-    created: Annotated[int, Field(description="Time of creation, as Unix timestamp.")]
-
-    @model_validator(mode="before")
-    @classmethod
-    def from_key(cls, data):
-        if isinstance(data, Key):
-            return {
-                "object": "key",
-                "id": data.id,
-                "name": data.name,
-                "value": data.value,
-                "user": data.user_id,
-                "expires": int(data.expires.timestamp()) if data.expires is not None else None,
-                "created": int(data.created.timestamp()),
-            }
-        return data
+    user_id: Annotated[int, Field(description="ID of the user that owns the key.")]
+    expires: Annotated[UnixTimestamp | None, Field(default=None, description="Time of expiration, as Unix timestamp. If None, the key never expires.")]  # fmt: off
+    created: Annotated[UnixTimestamp, Field(description="Time of creation, as Unix timestamp.")]
 
 
 class KeysResponse(BaseModel):

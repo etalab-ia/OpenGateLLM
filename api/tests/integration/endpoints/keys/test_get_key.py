@@ -31,7 +31,7 @@ class TestGetMeKey:
         assert data["object"] == "key"
         assert data["id"] == self.key.id
         assert data["name"] == "user_key"
-        assert data["user"] == self.user.id
+        assert data["user_id"] == self.user.id
         assert data["value"] == self.key.token
         assert data["expires"] is None
         assert isinstance(data["created"], int)

@@ -35,7 +35,7 @@ class TestGetKeyEndpoint:
         assert isinstance(result, KeyResponse)
         assert result.id == 1
         assert result.name == "my-key"
-        assert result.user == 42
+        assert result.user_id == 42
         mock_use_case.execute.assert_awaited_once_with(GetOneKeyCommand(key_id=1))
 
     @pytest.mark.asyncio

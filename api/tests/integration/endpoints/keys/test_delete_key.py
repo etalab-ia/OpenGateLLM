@@ -34,7 +34,7 @@ class TestDeleteMeKey:
         assert data["object"] == "key"
         assert data["id"] == own_key.id
         assert data["name"] == "to-delete"
-        assert data["user"] == self.user.id
+        assert data["user_id"] == self.user.id
 
     async def test_cannot_delete_another_users_key(self, client: AsyncClient, db_session):
         other_user = UserSQLFactory()

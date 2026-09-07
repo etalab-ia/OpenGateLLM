@@ -35,7 +35,7 @@ class TestGetMeKeys:
         assert data["limit"] == 10
         assert len(data["data"]) == 2
         assert all(item["object"] == "key" for item in data["data"])
-        assert all(item["user"] == self.user.id for item in data["data"])
+        assert all(item["user_id"] == self.user.id for item in data["data"])
         returned_ids = {item["id"] for item in data["data"]}
         assert own_key.id in returned_ids
         assert self.key.id in returned_ids
