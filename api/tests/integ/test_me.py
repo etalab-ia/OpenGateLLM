@@ -48,6 +48,28 @@ def setup_model_and_user(client: TestClient):
         kill_openmockllm(process=process)
 
 
+def _get_usage(client: TestClient, key: str, start_time: int) -> UsagesResponse:
+    response = client.get(
+        url=f"/v1{EndpointRoute.USAGE}",
+        headers={"Authorization": f"Bearer {key}"},
+        params={"start_time": start_time, "end_time": int(time.time()) + 1},
+    )
+    assert response.status_code == 200, response.text
+    return UsagesResponse(**response.json())
+
+
+def _assert_single_chat_bucket(usages: UsagesResponse) -> None:
+    assert usages.object == "list"
+    assert usages.total == 1
+    assert len(usages.data) == 1
+    bucket = usages.data[0]
+    assert bucket.object == "usage.bucket"
+    assert bucket.requests == 1
+    assert bucket.prompt_tokens > 0
+    assert bucket.completion_tokens > 0
+    assert bucket.total_tokens == bucket.prompt_tokens + bucket.completion_tokens
+
+
 @pytest.mark.usefixtures("client")
 class TestUsage:
     @pytest.mark.asyncio
@@ -69,18 +91,7 @@ class TestUsage:
             chunks.append(chunk)
         await sleep(2)
 
-        # get usage
-        response = client.get(url=f"/v1{EndpointRoute.USAGE}", headers={"Authorization": f"Bearer {key}"}, params={"start_time": start_time})
-        assert response.status_code == 200, response.text
-        data = response.json()
-        usages = UsagesResponse(**data)
-
-        assert len(usages.data) == 1
-        assert usages.data[0].endpoint == f"/v1{EndpointRoute.CHAT_COMPLETIONS}"
-        assert usages.data[0].model == model_name
-        assert usages.data[0].usage.prompt_tokens is not None
-        assert usages.data[0].usage.completion_tokens is not None
-        assert usages.data[0].usage.total_tokens is not None
+        _assert_single_chat_bucket(_get_usage(client, key, start_time))
 
     @pytest.mark.asyncio
     async def test_get_me_usage_unstream_response(self, client: TestClient, setup_model_and_user):
@@ -99,14 +110,4 @@ class TestUsage:
         response.json()
         await sleep(2)
 
-        response = client.get(url=f"/v1{EndpointRoute.USAGE}", headers={"Authorization": f"Bearer {key}"}, params={"start_time": start_time})
-        assert response.status_code == 200, response.text
-        data = response.json()
-        usages = UsagesResponse(**data)
-
-        assert len(usages.data) == 1
-        assert usages.data[0].endpoint == f"/v1{EndpointRoute.CHAT_COMPLETIONS}"
-        assert usages.data[0].model == model_name
-        assert usages.data[0].usage.prompt_tokens is not None
-        assert usages.data[0].usage.completion_tokens is not None
-        assert usages.data[0].usage.total_tokens is not None
+        _assert_single_chat_bucket(_get_usage(client, key, start_time))
