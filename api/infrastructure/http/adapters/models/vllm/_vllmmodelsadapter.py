@@ -1,5 +1,6 @@
-from api.domain.model.entities import Model, Models, ModelType
+from api.domain.model.entities import Model, Models
 from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
+from api.domain.router.entities import RouterType
 from api.infrastructure.http.adapters.models import ModelsAdapter
 
 
@@ -21,7 +22,7 @@ class VllmModelsAdapter(ModelsAdapter):
                         created=model["created"],
                         owned_by=model["owned_by"],
                         max_context_length=model["max_model_len"],
-                        type=ModelType.TEXT_GENERATION,  # dummy value, not used
+                        type=RouterType.TEXT_GENERATION,  # dummy value, not used
                     )
                     for model in original_response.data.get("data", [])
                 ]

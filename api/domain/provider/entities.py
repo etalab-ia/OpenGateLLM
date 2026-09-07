@@ -2,13 +2,16 @@ from enum import StrEnum
 from http import HTTPMethod
 from typing import Annotated, Literal
 
+import pycountry
 from pydantic import Field, model_validator
 
 from api.domain import BaseModel, EntitiesPage, ForwardablePayload, UtcDatetime
-from api.domain.model._modelenvironmentalimpactscomputer import HostingZone
-from api.domain.model.entities import ModelJsonResponse, ModelType
-from api.domain.router.entities import Router
+from api.domain.router.entities import Router, RouterType
 from api.utils.variables import EndpointRoute
+
+# Add world as a country code, default value of the carbon footprint computation framework
+_country_codes = [country.alpha_3 for country in pycountry.countries] + ["WOR"]
+HostingZone = StrEnum("HostingZone", {str(code).upper(): str(code) for code in sorted(set(_country_codes))})
 
 
 class Metric(StrEnum):
@@ -28,6 +31,11 @@ class BasicAuth(BaseModel):
     password: str
 
 
+class ProviderJsonResponse(BaseModel):
+    def get_completions(self) -> list[str]:
+        return []
+
+
 class ProviderType(StrEnum):
     ALBERT = "albert"
     OPENAI = "openai"
@@ -35,42 +43,42 @@ class ProviderType(StrEnum):
     TEI = "tei"
     VLLM = "vllm"
 
-    def is_compatible_with(self, router_type: ModelType) -> bool:
+    def is_compatible_with(self, router_type: RouterType) -> bool:
         return self.value in COMPATIBLE_PROVIDER_TYPES[router_type]
 
 
-COMPATIBLE_PROVIDER_TYPES: dict[ModelType, list[str]] = {
-    ModelType.AUTOMATIC_SPEECH_RECOGNITION: [  # audio transcriptions
+COMPATIBLE_PROVIDER_TYPES: dict[RouterType, list[str]] = {
+    RouterType.AUTOMATIC_SPEECH_RECOGNITION: [  # audio transcriptions
         ProviderType.ALBERT.value,
         ProviderType.MISTRAL.value,
         ProviderType.OPENAI.value,
         ProviderType.VLLM.value,
     ],
-    ModelType.IMAGE_TEXT_TO_TEXT: [  # chat completions
+    RouterType.IMAGE_TEXT_TO_TEXT: [  # chat completions
         ProviderType.ALBERT.value,
         ProviderType.MISTRAL.value,
         ProviderType.OPENAI.value,
         ProviderType.VLLM.value,
     ],
-    ModelType.TEXT_EMBEDDINGS_INFERENCE: [  # embeddings
+    RouterType.TEXT_EMBEDDINGS_INFERENCE: [  # embeddings
         ProviderType.ALBERT.value,
         ProviderType.OPENAI.value,
         ProviderType.MISTRAL.value,
         ProviderType.TEI.value,
         ProviderType.VLLM.value,
     ],
-    ModelType.TEXT_GENERATION: [  # chat completions
+    RouterType.TEXT_GENERATION: [  # chat completions
         ProviderType.ALBERT.value,
         ProviderType.MISTRAL.value,
         ProviderType.OPENAI.value,
         ProviderType.VLLM.value,
     ],
-    ModelType.TEXT_CLASSIFICATION: [  # rerank
+    RouterType.TEXT_CLASSIFICATION: [  # rerank
         ProviderType.ALBERT.value,
         ProviderType.TEI.value,
         ProviderType.VLLM.value,
     ],
-    ModelType.IMAGE_TO_TEXT: [  # ocr
+    RouterType.IMAGE_TO_TEXT: [  # ocr
         ProviderType.MISTRAL.value,
     ],
 }
@@ -165,7 +173,7 @@ class ProviderOriginalResponse(BaseModel):
     text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
 
 
-class ProviderMetrics(ModelJsonResponse):
+class ProviderMetrics(ProviderJsonResponse):
     object: Literal["providerMetrics"] = "providerMetrics"
     waiting_requests: float
     running_requests: float
@@ -173,7 +181,7 @@ class ProviderMetrics(ModelJsonResponse):
 
 class ProviderFormattedResponse(BaseModel):
     id: Annotated[str, Field(description="The request identifier.")]
-    data: Annotated[ModelJsonResponse | None, Field(default=None, description="The JSON data to use for the response.")]
+    data: Annotated[ProviderJsonResponse | None, Field(default=None, description="The JSON data to use for the response.")]
     text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
 
     @model_validator(mode="after")

@@ -3,11 +3,10 @@ from dataclasses import dataclass
 from api.domain.audio.entities import AudioTranscriptions, AudioTranscriptionsResponseFormat, CreateAudioTranscriptionsForm
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.model.entities import ModelType as RouterType
 from api.domain.provider import ProviderAdapterBuilder, ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
 from api.domain.provider.entities import ProviderFormattedResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
-from api.domain.router.entities import Router, RouterRateLimitState
+from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.usage import UsageRecorder
 from api.use_cases._providerrequestforwardingusecase import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseError
 from api.utils.variables import EndpointRoute

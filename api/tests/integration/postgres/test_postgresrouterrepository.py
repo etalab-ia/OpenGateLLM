@@ -4,8 +4,7 @@ import pytest
 from sqlalchemy import select
 
 from api.domain import SortField, SortOrder
-from api.domain.model.entities import ModelType as RouterType
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.infrastructure.postgres import PostgresRouterRepository
 from api.sql.models import Provider as ProviderTable
@@ -595,20 +594,6 @@ class TestUpdateRouter:
         await db_session.flush()
         aliases = (await db_session.execute(select(RouterAliasTable).where(RouterAliasTable.router_id == router.id))).scalars().all()
         assert aliases == []
-
-    async def test_update_router_should_not_touch_aliases_when_aliases_is_none(self, repository, db_session):
-        # Arrange
-        user = UserSQLFactory()
-        router = RouterSQLFactory(user=user, name="router-aliases-untouched", alias=["kept-alias"])
-        await db_session.flush()
-
-        # Act
-        await repository.update_router(to_router_domain(router, aliases=["kept-alias"]).model_copy(update={"aliases": None}))
-
-        # Assert
-        await db_session.flush()
-        aliases = (await db_session.execute(select(RouterAliasTable.value).where(RouterAliasTable.router_id == router.id))).scalars().all()
-        assert aliases == ["kept-alias"]
 
     async def test_update_router_should_return_router_name_already_exists_when_name_is_duplicate(self, repository, db_session):
         # Arrange

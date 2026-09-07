@@ -3,7 +3,7 @@ from typing import Annotated, Any, Literal
 from pydantic import Field
 
 from api.domain import BaseModel, ForwardablePayload
-from api.domain.model.entities import ModelJsonResponse
+from api.domain.model.entities import ProviderJsonResponse
 from api.domain.usage.entities import Usage
 
 
@@ -81,7 +81,7 @@ class OCRPageObject(BaseModel):
     markdown: str | None = None
 
 
-class OCR(ModelJsonResponse):
+class OCR(ProviderJsonResponse):
     id: str
     model: str
     document_annotation: str | None = None

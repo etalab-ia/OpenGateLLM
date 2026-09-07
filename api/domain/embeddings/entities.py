@@ -8,7 +8,7 @@ from openai.types.chat import ChatCompletionContentPartParam
 from pydantic import Field
 
 from api.domain import BaseModel, ForwardablePayload
-from api.domain.model.entities import ModelJsonResponse
+from api.domain.model.entities import ProviderJsonResponse
 from api.domain.usage.entities import Usage
 
 
@@ -51,7 +51,7 @@ class CreateEmbeddingsBody(ForwardablePayload):
             return []
 
 
-class Embeddings(CreateEmbeddingResponse, ModelJsonResponse):
+class Embeddings(CreateEmbeddingResponse, ProviderJsonResponse):
     object: Literal["list"] = "list"
     id: str
     model: str

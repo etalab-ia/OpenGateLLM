@@ -7,9 +7,10 @@ from faker import Faker
 from openai.types import Embedding
 
 from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
-from api.domain.model.entities import Model, Models, ModelType
+from api.domain.model.entities import Model, Models
 from api.domain.provider.entities import BasicAuth, ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest
 from api.domain.rerank.entities import CreateRerankBody, Rerank, RerankResult
+from api.domain.router.entities import RouterType
 from api.utils.variables import EndpointRoute
 
 fake = Faker()
@@ -132,7 +133,7 @@ class ProviderModelResponseFactory(factory.Factory):
     owned_by = factory.Faker("company")
     max_context_length = factory.Faker("random_int", min=64000, max=245600)
     aliases = factory.LazyFunction(lambda: [fake.bothify(text="model-????-latest")])
-    type = factory.Faker("random_element", elements=list(ModelType))
+    type = factory.Faker("random_element", elements=list(RouterType))
 
 
 class ProviderModelsFormattedResponseFactory(factory.Factory):

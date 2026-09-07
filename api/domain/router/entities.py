@@ -5,7 +5,6 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 
 from api.domain import EntitiesPage, UtcDatetime
-from api.domain.model.entities import ModelType as RouterType
 from api.domain.role.entities import LimitType
 
 
@@ -17,12 +16,21 @@ class RouterLoadBalancingStrategy(StrEnum):
 RouterPage = EntitiesPage["Router"]
 
 
+class RouterType(StrEnum):
+    AUTOMATIC_SPEECH_RECOGNITION = "automatic-speech-recognition"
+    IMAGE_TEXT_TO_TEXT = "image-text-to-text"
+    IMAGE_TO_TEXT = "image-to-text"
+    TEXT_CLASSIFICATION = "text-classification"
+    TEXT_EMBEDDINGS_INFERENCE = "text-embeddings-inference"
+    TEXT_GENERATION = "text-generation"
+
+
 class Router(BaseModel):
     id: int
     name: str
     user_id: int
     type: RouterType
-    aliases: list[str] | None
+    aliases: list[str]
     load_balancing_strategy: RouterLoadBalancingStrategy
     cost_prompt_tokens: float
     cost_completion_tokens: float

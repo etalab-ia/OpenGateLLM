@@ -6,10 +6,9 @@ import pytest
 import pytest_asyncio
 import respx
 
-from api.domain.provider.entities import ProviderType
+from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.role.entities import Limit, LimitType
 from api.infrastructure.redis import RedisRouterRateLimiter
-from api.schemas.admin.providers import ProviderCarbonFootprintZone
 from api.schemas.core.configuration import LimitingStrategy
 from api.schemas.models import ModelType
 from api.tests.helpers import create_key
@@ -49,7 +48,7 @@ class TestPostResponseHooks:
             providers=1,
             providers__type=ProviderType.MISTRAL,
             providers__url=DEFAULT_PROVIDER_URL,
-            providers__model_hosting_zone=ProviderCarbonFootprintZone.FRA,
+            providers__model_hosting_zone=HostingZone.FRA,
         )
         for limit_type, value in LIMITS:
             LimitSQLFactory(role=self.user.role, router=self.router, type=limit_type, value=value)

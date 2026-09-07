@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 from pydantic import Field
 
 from api.domain import BaseModel
-from api.domain.model.entities import ModelType
+from api.domain.router.entities import RouterType as ModelType
 from api.infrastructure.fastapi.schemas import UnixTimestamp
 
 

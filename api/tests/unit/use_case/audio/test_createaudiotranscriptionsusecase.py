@@ -9,9 +9,8 @@ from api.domain.audio.entities import (
     CreateAudioTranscriptionsForm,
 )
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
-from api.domain.model.entities import ModelType as RouterType
 from api.domain.provider.entities import ProviderFormattedResponse
-from api.domain.router.entities import RouterRateLimitState
+from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.usage import UsageRecorder
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, RouterFactory
 from api.use_cases.audio import (

@@ -1,7 +1,7 @@
 import factory
 from faker import Faker
 
-from api.domain.model.entities import ModelCosts, ModelType
+from api.domain.model.entities import ModelCosts, RouterType
 
 fake = Faker()
 
@@ -22,7 +22,7 @@ class AlbertModelResponseFactory(factory.DictFactory):
     aliases = factory.LazyFunction(lambda: [fake.bothify(text="????/???-?#")])
     object = "model"
     owned_by = "albert"
-    type = factory.Faker("random_element", elements=list(ModelType))
+    type = factory.Faker("random_element", elements=list(RouterType))
     max_context_length = factory.Faker("random_int", min=1024, max=8192)
     costs = factory.LazyFunction(
         lambda: ModelCosts(

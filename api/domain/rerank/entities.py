@@ -3,7 +3,7 @@ from typing import Annotated
 from pydantic import Field
 
 from api.domain import BaseModel, ForwardablePayload
-from api.domain.model.entities import ModelJsonResponse
+from api.domain.model.entities import ProviderJsonResponse
 from api.domain.usage.entities import Usage
 
 
@@ -22,7 +22,7 @@ class RerankResult(BaseModel):
     index: int
 
 
-class Rerank(ModelJsonResponse):
+class Rerank(ProviderJsonResponse):
     id: str
     model: str
     results: list[RerankResult]

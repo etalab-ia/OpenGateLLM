@@ -5,12 +5,11 @@ import factory
 from factory import fuzzy
 
 from api.domain.model.entities import ModelCosts
-from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.views import ModelView
 from api.domain.organization.entities import Organization
 from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderType
 from api.domain.role.entities import Limit, LimitType, PermissionType, Role
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterType
 from api.domain.user.entities import User
 from api.domain.user.views import AuthenticatedUserView
 from api.schemas.core.configuration import Model as ModelConfiguration
@@ -62,7 +61,7 @@ class RouterFactory(factory.Factory):
     name = factory.Faker("bothify", text="router_####")
     user_id = factory.Faker("random_int", min=1, max=1000)
     type = factory.Faker("random_element", elements=list(RouterType))
-    aliases = None
+    aliases = factory.LazyFunction(list)
     load_balancing_strategy = factory.Faker("random_element", elements=list(RouterLoadBalancingStrategy))
     cost_prompt_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     cost_completion_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)

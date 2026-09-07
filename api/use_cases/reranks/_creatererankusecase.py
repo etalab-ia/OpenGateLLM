@@ -1,5 +1,5 @@
-from api.domain.model.entities import ModelType as RouterType
 from api.domain.rerank.entities import CreateRerankBody, Rerank
+from api.domain.router.entities import RouterType
 from api.use_cases._providerrequestforwardingusecase import (
     ForwardingCommand,
     ProviderRequestForwardingUseCase,

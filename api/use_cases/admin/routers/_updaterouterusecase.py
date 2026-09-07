@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 
-from api.domain.model.entities import ModelType as RouterType
 from api.domain.router import RouterRepository
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 
 
@@ -36,7 +35,7 @@ class UpdateRouterUseCase:
 
         if command.aliases:
             existing_aliases = await self.router_repository.get_aliases()
-            conflicting_aliases = set(command.aliases) & (set(existing_aliases) - set(router.aliases or []))
+            conflicting_aliases = set(command.aliases) & (set(existing_aliases) - set(router.aliases))
             if conflicting_aliases:
                 return RouterAliasAlreadyExistsError(aliases=list(conflicting_aliases))
 

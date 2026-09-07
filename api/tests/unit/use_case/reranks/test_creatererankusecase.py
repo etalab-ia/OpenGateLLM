@@ -1,4 +1,4 @@
-from api.domain.model.entities import ModelType as RouterType
+from api.domain.router.entities import RouterType
 from api.use_cases.reranks import CreateRerankUseCase
 from api.utils.variables import EndpointRoute
 

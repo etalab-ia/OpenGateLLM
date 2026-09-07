@@ -3,9 +3,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain import SortField, SortOrder
-from api.domain.model.entities import ModelType as RouterType
 from api.domain.router import RouterRepository
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage, RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
@@ -229,13 +228,12 @@ class PostgresRouterRepository(RouterRepository):
             result = await self.postgres_session.execute(update_query)
             row = result.one()
 
-            if router.aliases is not None:
-                await self.postgres_session.execute(delete(RouterAliasTable).where(RouterAliasTable.router_id == router.id))
-                if router.aliases:
-                    await self.postgres_session.execute(
-                        insert(RouterAliasTable),
-                        [{"value": alias, "router_id": router.id} for alias in router.aliases],
-                    )
+            await self.postgres_session.execute(delete(RouterAliasTable).where(RouterAliasTable.router_id == router.id))
+            if router.aliases:
+                await self.postgres_session.execute(
+                    insert(RouterAliasTable),
+                    [{"value": alias, "router_id": router.id} for alias in router.aliases],
+                )
         except IntegrityError as e:
             if "router_name_key" in str(e.orig):
                 return RouterNameAlreadyExistsError(name=router.name)
