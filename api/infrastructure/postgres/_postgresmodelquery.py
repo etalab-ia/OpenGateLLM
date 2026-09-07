@@ -2,9 +2,10 @@ from sqlalchemy import Select, func, literal, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain.model import ModelQuery
-from api.domain.model.entities import ModelCosts, ModelType
+from api.domain.model.entities import ModelCosts
 from api.domain.model.errors import ModelNotFoundError
 from api.domain.model.views import ModelView
+from api.domain.router.entities import RouterType
 from api.sql.models import Organization as OrganizationTable
 from api.sql.models import Provider as ProviderTable
 from api.sql.models import Router as RouterTable
@@ -82,7 +83,7 @@ class PostgresModelQuery(ModelQuery):
         return ModelView(
             router_id=row.router_id,
             id=row.id,
-            type=ModelType(row.type),
+            type=RouterType(row.type),
             aliases=row.aliases,
             created=row.created,
             owned_by=row.owned_by,

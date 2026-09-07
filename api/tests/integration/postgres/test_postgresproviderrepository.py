@@ -4,9 +4,9 @@ import pytest
 from sqlalchemy import select
 
 from api.domain import SortOrder
-from api.domain.model.entities import ModelType
 from api.domain.provider.entities import BasicAuth, HostingZone, Metric, Provider, ProviderSortField, ProviderType, QoSMetric
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
+from api.domain.router.entities import RouterType
 from api.infrastructure.postgres import PostgresProviderRepository
 from api.sql.models import Provider as ProviderTable
 from api.tests.integration.factories.sql import ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
@@ -45,7 +45,7 @@ class TestCreateProvider:
     async def test_create_provider_should_return_created_provider(self, repository, db_session):
         # Arrange
         user = UserSQLFactory(admin_user=True)
-        router = RouterSQLFactory(user=user, type=ModelType.TEXT_GENERATION)
+        router = RouterSQLFactory(user=user, type=RouterType.TEXT_GENERATION)
         await db_session.flush()
 
         # Act
@@ -77,7 +77,7 @@ class TestCreateProvider:
     async def test_create_provider_should_return_provider_already_exists_when_same_url_name_and_router_are_used(self, repository, db_session):
         # Arrange
         user = UserSQLFactory(admin_user=True)
-        router = RouterSQLFactory(user=user, type=ModelType.TEXT_GENERATION)
+        router = RouterSQLFactory(user=user, type=RouterType.TEXT_GENERATION)
         ProviderSQLFactory(type=ProviderType.ALBERT, url="http://test.com/", model_name="duplicate-provider", router=router)
         await db_session.flush()
 

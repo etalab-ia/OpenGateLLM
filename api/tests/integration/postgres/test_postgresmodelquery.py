@@ -2,9 +2,9 @@ from datetime import datetime
 
 import pytest
 
-from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import ModelNotFoundError
 from api.domain.model.views import ModelView
+from api.domain.router.entities import RouterType
 from api.infrastructure.postgres import PostgresModelQuery
 from api.tests.integration.factories.sql import OrganizationSQLFactory, ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
 

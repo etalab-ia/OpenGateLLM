@@ -5,8 +5,7 @@ import pytest
 import pytest_asyncio
 
 from api.dependencies import update_router_use_case_factory
-from api.domain.model.entities import ModelType
-from api.domain.router.entities import RouterLoadBalancingStrategy
+from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.factories.sql import RouterSQLFactory, UserSQLFactory
@@ -18,7 +17,7 @@ URL = f"/v1{EndpointRoute.ADMIN_ROUTERS}"
 def _valid_body(**overrides) -> dict:
     body = {
         "name": "updated-name",
-        "type": ModelType.TEXT_GENERATION,
+        "type": RouterType.TEXT_GENERATION,
         "aliases": [],
         "load_balancing_strategy": RouterLoadBalancingStrategy.SHUFFLE,
         "cost_prompt_tokens": 0.0,
@@ -55,7 +54,7 @@ class TestUpdateRouter:
         assert data["id"] == router.id
         assert data["name"] == "updated-name"
         assert data["aliases"] == ["alias-1"]
-        assert data["type"] == ModelType.TEXT_GENERATION
+        assert data["type"] == RouterType.TEXT_GENERATION
         assert data["load_balancing_strategy"] == RouterLoadBalancingStrategy.SHUFFLE
         assert data["cost_prompt_tokens"] == 0.5
         assert data["cost_completion_tokens"] == 1.5

@@ -1,6 +1,8 @@
 from enum import StrEnum
 
 from api.domain import BaseModel
+from api.domain.provider.entities import ProviderJsonResponse
+from api.domain.router.entities import RouterType
 
 
 class ModelCosts(BaseModel):
@@ -8,30 +10,21 @@ class ModelCosts(BaseModel):
     completion_tokens: float = 0.0
 
 
-class ModelType(StrEnum):
-    AUTOMATIC_SPEECH_RECOGNITION = "automatic-speech-recognition"
-    IMAGE_TEXT_TO_TEXT = "image-text-to-text"
-    IMAGE_TO_TEXT = "image-to-text"
-    TEXT_CLASSIFICATION = "text-classification"
-    TEXT_EMBEDDINGS_INFERENCE = "text-embeddings-inference"
-    TEXT_GENERATION = "text-generation"
-
-
-class ModelJsonResponse(BaseModel):
-    def get_completions(self) -> list[str]:
-        return []
+# class ModelJsonResponse(BaseModel):
+#     def get_completions(self) -> list[str]:
+#         return []
 
 
 class Model(BaseModel):
     id: str
-    type: ModelType
+    type: RouterType
     aliases: list[str] = []
     created: int
     owned_by: str
     max_context_length: int | None = None
 
 
-class Models(ModelJsonResponse):
+class Models(ProviderJsonResponse):
     data: list[Model]
 
 

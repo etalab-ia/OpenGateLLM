@@ -5,11 +5,11 @@ import pytest
 
 from api.domain.embeddings.entities import Embeddings
 from api.domain.model.entities import Model, Models
-from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.errors import ModelNotFoundError, StatusCodeModelError
 from api.domain.provider import ProviderAdapter, ProviderAdapterBuilder, ProviderClient
 from api.domain.provider.entities import ProviderCapabilities, ProviderFormattedResponse, ProviderOriginalResponse, ProviderType
 from api.domain.provider.errors import ProviderInvalidResponseError, ProviderNotReachableError
+from api.domain.router.entities import RouterType
 from api.tests.unit.use_case.factories import ProviderFactory
 from api.use_cases.services import ProviderCapabilitiesProbe
 from api.utils.variables import EndpointRoute

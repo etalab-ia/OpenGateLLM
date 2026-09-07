@@ -5,12 +5,11 @@ import factory
 from factory import fuzzy
 
 from api.domain.model.entities import ModelCosts
-from api.domain.model.entities import ModelType as RouterType
 from api.domain.model.views import ModelView
 from api.domain.organization.entities import Organization
 from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderType
 from api.domain.role.entities import Limit, LimitType, PermissionType, Role
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterType
 from api.domain.user.entities import User
 from api.domain.user.views import AuthenticatedUserView
 from api.schemas.core.configuration import Model as ModelConfiguration

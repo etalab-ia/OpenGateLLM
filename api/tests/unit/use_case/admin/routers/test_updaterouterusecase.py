@@ -2,8 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.model.entities import ModelType as RouterType
-from api.domain.router.entities import RouterLoadBalancingStrategy
+from api.domain.router.entities import RouterLoadBalancingStrategy, RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.tests.unit.use_case.factories import RouterFactory
 from api.use_cases.admin.routers import UpdateRouterCommand, UpdateRouterUseCase, UpdateRouterUseCaseSuccess

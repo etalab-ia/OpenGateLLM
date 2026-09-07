@@ -3,7 +3,8 @@ from typing import Annotated
 from pydantic import ConfigDict, Field
 
 from api.domain import BaseModel, UtcDatetime
-from api.domain.model.entities import ModelCosts, ModelType
+from api.domain.model.entities import ModelCosts
+from api.domain.router.entities import RouterType
 
 
 class ModelView(BaseModel):
@@ -13,7 +14,7 @@ class ModelView(BaseModel):
 
     router_id: int
     id: str
-    type: ModelType
+    type: RouterType
     aliases: list[str] = []
     created: UtcDatetime
     owned_by: str

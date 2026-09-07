@@ -4,8 +4,8 @@ import httpx
 import pytest
 import respx
 
-from api.domain.model.entities import ModelType as RouterType
 from api.domain.provider.entities import ProviderCapabilities, ProviderType
+from api.domain.router.entities import RouterType
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory, TeiModelsResponseFactory
 from api.tests.integration.factories.vllm import VllmModelsResponseFactory

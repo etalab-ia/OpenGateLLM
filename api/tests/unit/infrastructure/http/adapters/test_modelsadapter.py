@@ -3,8 +3,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from api.domain.model.entities import Models, ModelType
+from api.domain.model.entities import Models
 from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalResponse, ProviderType
+from api.domain.router.entities import RouterType
 from api.infrastructure.http.adapters.models.albert import AlbertModelsAdapter
 from api.infrastructure.http.adapters.models.mistral import MistralModelsAdapter
 from api.infrastructure.http.adapters.models.openai import OpenaiModelsAdapter
@@ -241,7 +242,7 @@ class TestModelsAdapter:
         assert isinstance(result.data, Models)
         assert len(result.data.data) == 3
         assert result.data.data[0].id == response_data["data"][0]["id"]
-        assert result.data.data[0].type is ModelType.TEXT_GENERATION
+        assert result.data.data[0].type is RouterType.TEXT_GENERATION
         assert result.data.data[0].max_context_length == response_data["data"][0]["max_context_length"]
         assert result.data.data[0].aliases == response_data["data"][0]["aliases"]
 
@@ -259,7 +260,7 @@ class TestModelsAdapter:
         assert isinstance(result.data, Models)
         assert len(result.data.data) == 3
         assert result.data.data[0].id == response_data["data"][0]["id"]
-        assert result.data.data[0].type is ModelType.TEXT_GENERATION
+        assert result.data.data[0].type is RouterType.TEXT_GENERATION
         assert result.data.data[0].owned_by == response_data["data"][0]["owned_by"]
         assert result.data.data[0].max_context_length is None
         assert result.data.data[0].aliases == []
@@ -278,7 +279,7 @@ class TestModelsAdapter:
         assert isinstance(result.data, Models)
         assert len(result.data.data) == 3
         assert result.data.data[0].id == response_data["data"][0]["id"]
-        assert result.data.data[0].type is ModelType.TEXT_GENERATION
+        assert result.data.data[0].type is RouterType.TEXT_GENERATION
         assert result.data.data[0].max_context_length == response_data["data"][0]["max_context_length"]
         assert result.data.data[0].owned_by == response_data["data"][0]["owned_by"]
         assert result.data.data[0].aliases == []
@@ -297,7 +298,7 @@ class TestModelsAdapter:
         assert isinstance(result.data, Models)
         assert len(result.data.data) == 1
         assert result.data.data[0].id == response_data["model_id"]
-        assert result.data.data[0].type is ModelType.TEXT_GENERATION
+        assert result.data.data[0].type is RouterType.TEXT_GENERATION
         assert result.data.data[0].max_context_length == response_data["max_input_length"]
         assert result.data.data[0].owned_by == "tei"
         assert result.data.data[0].aliases == []
@@ -316,7 +317,7 @@ class TestModelsAdapter:
         assert isinstance(result.data, Models)
         assert len(result.data.data) == 1
         assert result.data.data[0].id == response_data["data"][0]["id"]
-        assert result.data.data[0].type is ModelType.TEXT_GENERATION
+        assert result.data.data[0].type is RouterType.TEXT_GENERATION
         assert result.data.data[0].max_context_length == response_data["data"][0]["max_model_len"]
         assert result.data.data[0].owned_by == response_data["data"][0]["owned_by"]
         assert result.data.data[0].aliases == []

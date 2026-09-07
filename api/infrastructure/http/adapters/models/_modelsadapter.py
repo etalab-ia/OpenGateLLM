@@ -1,7 +1,8 @@
 from http import HTTPMethod
 
-from api.domain.model.entities import Model, Models, ModelType
+from api.domain.model.entities import Model, Models
 from api.domain.provider.entities import ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
+from api.domain.router.entities import RouterType
 from api.infrastructure.http.adapters import HttpProviderAdapter
 from api.utils.variables import EndpointRoute
 
@@ -34,7 +35,7 @@ class ModelsAdapter(HttpProviderAdapter):
                         created=model.get("created", 0),
                         owned_by=model.get("owned_by", "unknown"),
                         max_context_length=model.get("max_context_length", None),
-                        type=ModelType.TEXT_GENERATION,  # dummy value, not used
+                        type=RouterType.TEXT_GENERATION,  # dummy value, not used
                     )
                     for model in original_response.data["data"]
                 ]

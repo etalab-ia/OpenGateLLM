@@ -6,8 +6,7 @@ import pytest
 import pytest_asyncio
 import respx
 
-from api.domain.model._modelenvironmentalimpactscomputer import HostingZone
-from api.domain.provider.entities import ProviderType
+from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.role.entities import Limit, LimitType
 from api.infrastructure.redis import RedisRouterRateLimiter
 from api.schemas.core.configuration import LimitingStrategy

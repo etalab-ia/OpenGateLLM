@@ -1,5 +1,6 @@
-from api.domain.model.entities import Model, Models, ModelType
+from api.domain.model.entities import Model, Models
 from api.domain.provider.entities import ProviderFormattedResponse, ProviderOriginalRequest, ProviderOriginalResponse
+from api.domain.router.entities import RouterType
 from api.infrastructure.http.adapters.models import ModelsAdapter
 
 
@@ -23,7 +24,7 @@ class TeiModelsAdapter(ModelsAdapter):
                         created=0,
                         owned_by="tei",
                         max_context_length=original_response.data["max_input_length"],
-                        type=ModelType.TEXT_GENERATION,  # dummy value, not used
+                        type=RouterType.TEXT_GENERATION,  # dummy value, not used
                     )
                 ]
             ),

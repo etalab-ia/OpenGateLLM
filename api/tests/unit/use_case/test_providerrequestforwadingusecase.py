@@ -5,8 +5,7 @@ import pytest
 
 from api.domain import ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
-from api.domain.model.entities import ModelJsonResponse
-from api.domain.model.entities import ModelType as RouterType
+from api.domain.model.entities import ProviderJsonResponse
 from api.domain.model.errors import TooBusyModelError
 from api.domain.provider import (
     ProviderAdapter,
@@ -25,7 +24,7 @@ from api.domain.provider.entities import (
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
-from api.domain.router.entities import RouterRateLimitState, RpmRateLimitState, TpmRateLimitState
+from api.domain.router.entities import RouterRateLimitState, RouterType, RpmRateLimitState, TpmRateLimitState
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
@@ -47,7 +46,7 @@ class ForwardingTestPayload(ForwardablePayload):
         return ["hello"]
 
 
-class ForwardingTestData(ModelJsonResponse):
+class ForwardingTestData(ProviderJsonResponse):
     id: str = "req-1"
     usage: Usage | None = None
 

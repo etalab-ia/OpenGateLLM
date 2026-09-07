@@ -4,7 +4,7 @@ from typing import Annotated, Any
 from pydantic import Field
 
 from api.domain import BaseModel, ForwardablePayload
-from api.domain.model.entities import ModelJsonResponse
+from api.domain.model.entities import ProviderJsonResponse
 from api.domain.usage.entities import Usage
 from api.utils.variables import SUPPORTED_LANGUAGES
 
@@ -37,7 +37,7 @@ class Segment(BaseModel):
     speaker: Annotated[str | None, Field(default=None, description="Speaker label assigned by diarization, if available.")]
 
 
-class AudioTranscriptions(ModelJsonResponse):
+class AudioTranscriptions(ProviderJsonResponse):
     id: str
     model: str
     text: str
