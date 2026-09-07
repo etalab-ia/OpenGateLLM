@@ -22,7 +22,7 @@ class Router(BaseModel):
     name: str
     user_id: int
     type: RouterType
-    aliases: list[str] | None
+    aliases: list[str]
     load_balancing_strategy: RouterLoadBalancingStrategy
     cost_prompt_tokens: float
     cost_completion_tokens: float
