@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated
+from typing import Annotated, assert_never
 
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.encoders import jsonable_encoder
@@ -9,7 +9,12 @@ from api.dependencies import create_audio_transcriptions_use_case_factory, get_p
 from api.domain.audio.entities import CreateAudioTranscriptionsFile
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
+from api.domain.provider.errors import (
+    NoAvailableProviderError,
+    ProviderAdapterValidationRequestError,
+    ProviderAdapterValidationResponseError,
+    UnsupportedProviderEndpointError,
+)
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
@@ -24,6 +29,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     ModelIsTooBusyExceptionHTTPException,
     ModelNotFoundHTTPException,
     RateLimitExceededHTTPException,
+    UnsupportedProviderEndpointHTTPException,
     WrongModelTypeHTTPException,
 )
 from api.infrastructure.fastapi.schemas.audio import AudioTranscriptionsResponse, CreateAudioTranscriptionsForm
@@ -101,6 +107,8 @@ async def create_audio_transcription(
             raise HTTPException(status_code=422, detail=jsonable_encoder(errors))
         case ProviderAdapterValidationResponseError(errors=errors):
             raise HTTPException(status_code=422, detail=jsonable_encoder(errors))
+        case UnsupportedProviderEndpointError(endpoint=endpoint, provider_type=provider_type):
+            raise UnsupportedProviderEndpointHTTPException(endpoint=endpoint, provider_type=provider_type)
         case RouterRateLimitExceededError(id=_, limit_type=limit_type, headers=headers):
             raise RateLimitExceededHTTPException(limit_type=limit_type, headers=headers)
         case RouterNotFoundError():
@@ -119,3 +127,5 @@ async def create_audio_transcription(
             raise HTTPException(status_code=status_code, detail=detail)
         case UnknownModelError(detail=detail):
             raise HTTPException(status_code=500, detail=detail)
+        case _ as unreachable:
+            assert_never(unreachable)

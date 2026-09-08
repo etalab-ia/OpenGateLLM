@@ -8,7 +8,12 @@ import respx
 from api.dependencies import create_ocr_use_case_factory
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.entities import HostingZone, ProviderType
-from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
+from api.domain.provider.errors import (
+    NoAvailableProviderError,
+    ProviderAdapterValidationRequestError,
+    ProviderAdapterValidationResponseError,
+    UnsupportedProviderEndpointError,
+)
 from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
@@ -138,6 +143,11 @@ class TestCreateOCR:
                 UnknownModelError(status_code=500, detail="upstream failure"),
                 500,
                 "upstream failure",
+            ),
+            (
+                UnsupportedProviderEndpointError(endpoint=EndpointRoute.OCR, provider_type=ProviderType.MISTRAL),
+                500,
+                "Model provider type mistral does not support the /ocr endpoint.",
             ),
         ],
     )

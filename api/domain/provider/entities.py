@@ -1,5 +1,4 @@
 from enum import StrEnum
-from http import HTTPMethod
 from typing import Annotated, Literal
 
 import pycountry
@@ -149,7 +148,7 @@ class ProviderCapabilities(BaseModel):
     vector_size: int | None = None
 
 
-class ProviderOriginalRequest(BaseModel):
+class ProviderRequest(BaseModel):
     endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
     payload: Annotated[ForwardablePayload | None, Field(default=None, description="The payload to use for the request.")]
 
@@ -159,33 +158,19 @@ class ResponseMetrics(BaseModel):
     ttft: Annotated[int | None, Field(default=None, description="The time to first byte of the response.")]
 
 
-class ProviderFormattedRequest(BaseModel):
-    method: Annotated[HTTPMethod, Field(description="The HTTP method to build the request.")]
-    url: Annotated[str, Field(description="The model API URL to build the request.")]
-    auth: Annotated[BasicAuth | None, Field(default=None, description="The authentication to use for the request.")]
-    body: Annotated[dict, Field(default={}, description="The JSON body to use for the request.")]
-    form: Annotated[dict, Field(default={}, description="The form-encoded data to use for the request.")]
-    files: Annotated[dict, Field(default={}, description="The files to use for the request.")]
-
-
-class ProviderOriginalResponse(BaseModel):
-    data: Annotated[dict | list | None, Field(default=None, description="The JSON data to use for the response.")]
-    text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
-
-
 class ProviderMetrics(ProviderJsonResponse):
     object: Literal["providerMetrics"] = "providerMetrics"
     waiting_requests: float
     running_requests: float
 
 
-class ProviderFormattedResponse(BaseModel):
+class ProviderResponse(BaseModel):
     id: Annotated[str, Field(description="The request identifier.")]
     data: Annotated[ProviderJsonResponse | None, Field(default=None, description="The JSON data to use for the response.")]
     text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
 
     @model_validator(mode="after")
-    def validate_data_and_text(self) -> "ProviderFormattedResponse":
+    def validate_data_and_text(self) -> "ProviderResponse":
         if self.data is not None and self.text is not None:
             raise ValueError("data and text cannot be set at the same time")
 

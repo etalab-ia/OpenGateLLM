@@ -1,32 +1,17 @@
-from http import HTTPMethod
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.model.entities import HealthStatus, ModelHealthStatus
+from api.domain.model.entities import HealthStatus, ModelHealthStatus, Models
 from api.domain.model.errors import StatusCodeModelError
-from api.domain.provider.entities import (
-    Provider,
-    ProviderFormattedRequest,
-    ProviderFormattedResponse,
-    ProviderMetrics,
-    ProviderOriginalResponse,
-    ProviderType,
-)
+from api.domain.provider.entities import ProviderMetrics, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
 from api.domain.role.entities import Limit, LimitType
-from api.infrastructure.http.adapters.metrics.mistral import MistralMetricsAdapter
-from api.infrastructure.http.adapters.metrics.vllm import VllmMetricsAdapter
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, ProviderFactory, RouterFactory
 from api.use_cases.health import GetHealthModelsCommand, GetHealthModelsUseCase, GetHealthModelsUseCaseSuccess
 from api.utils.variables import EndpointRoute
 
 METRICS_TEXT = 'vllm:num_requests_running{model_name="my-model"} 0\nvllm:num_requests_waiting{model_name="my-model"} 0\n'
-
-
-@pytest.fixture
-def provider_adapter_builder():
-    return MagicMock()
 
 
 @pytest.fixture
@@ -69,9 +54,8 @@ def user_without_access():
 
 
 @pytest.fixture
-def use_case(provider_adapter_builder, provider_client, provider_metrics_logger, router_repository, provider_repository):
+def use_case(provider_client, provider_metrics_logger, router_repository, provider_repository):
     return GetHealthModelsUseCase(
-        provider_adapter_builder=provider_adapter_builder,
         provider_client=provider_client,
         provider_metrics_logger=provider_metrics_logger,
         router_repository=router_repository,
@@ -85,34 +69,22 @@ def default_command(user_with_router_access):
 
 
 def configure_metrics(
-    provider_adapter_builder,
     provider_client,
-    provider: Provider,
     *,
     waiting: float = 0.0,
     running: float = 0.0,
-    format_response_result: ProviderFormattedResponse | ProviderAdapterValidationResponseError | None = None,
+    metrics_result: ProviderResponse | ProviderAdapterValidationResponseError | None = None,
 ):
-    adapter = MistralMetricsAdapter(provider=provider) if provider.type == ProviderType.MISTRAL else VllmMetricsAdapter(provider=provider)
-    adapter.format_response = MagicMock(
-        return_value=format_response_result
-        or ProviderFormattedResponse(id="req-123", data=ProviderMetrics(waiting_requests=waiting, running_requests=running))
+    provider_client.forward.return_value = metrics_result or ProviderResponse(
+        id="req-123", data=ProviderMetrics(waiting_requests=waiting, running_requests=running)
     )
-    provider_adapter_builder.build.return_value = adapter
-    provider_client.forward_request.return_value = ProviderOriginalResponse(text=METRICS_TEXT)
 
 
-def configure_models_fallback(provider_adapter_builder, provider_client, *, models_response):
-    models_adapter = MagicMock()
-    models_adapter.format_request.return_value = ProviderFormattedRequest(method=HTTPMethod.GET, url="https://provider.test/v1/models")
-
-    def build_side_effect(endpoint, provider):
-        if endpoint == EndpointRoute.METRICS:
-            return UnsupportedProviderEndpointError(endpoint=endpoint, provider_type=provider.type)
-        return models_adapter
-
-    provider_adapter_builder.build.side_effect = build_side_effect
-    provider_client.forward_request.return_value = models_response
+def configure_models_fallback(provider_client, *, models_response):
+    provider_client.forward.side_effect = [
+        UnsupportedProviderEndpointError(endpoint=EndpointRoute.METRICS, provider_type=ProviderType.TEI),
+        models_response,
+    ]
 
 
 class TestGetHealthModelsUseCase:
@@ -122,7 +94,6 @@ class TestGetHealthModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_adapter_builder,
         provider_client,
         admin_user,
         default_command,
@@ -138,7 +109,7 @@ class TestGetHealthModelsUseCase:
             provider,
             ProviderFactory(id=2, router_id=2, type=ProviderType.VLLM),
         ]
-        configure_metrics(provider_adapter_builder, provider_client, provider)
+        configure_metrics(provider_client)
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -188,7 +159,6 @@ class TestGetHealthModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_adapter_builder,
         provider_client,
         default_command,
     ):
@@ -197,7 +167,7 @@ class TestGetHealthModelsUseCase:
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
         provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
         provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_adapter_builder, provider_client, provider, waiting=0, running=0)
+        configure_metrics(provider_client, waiting=0, running=0)
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -206,8 +176,9 @@ class TestGetHealthModelsUseCase:
         assert isinstance(result, GetHealthModelsUseCaseSuccess)
         assert len(result.models) == 1
         assert result.models[0].status == HealthStatus.GREEN
-        provider_adapter_builder.build.assert_called_once_with(endpoint=EndpointRoute.METRICS, provider=provider)
-        provider_client.forward_request.assert_called_once()
+        provider_client.forward.assert_awaited_once()
+        assert provider_client.forward.await_args.kwargs["request"].endpoint == EndpointRoute.METRICS
+        assert provider_client.forward.await_args.kwargs["provider"] == provider
 
     @pytest.mark.asyncio
     async def test_should_return_yellow_when_vllm_has_waiting_requests(
@@ -215,7 +186,6 @@ class TestGetHealthModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_adapter_builder,
         provider_client,
         default_command,
     ):
@@ -224,7 +194,7 @@ class TestGetHealthModelsUseCase:
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
         provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
         provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_adapter_builder, provider_client, provider, waiting=1, running=0)
+        configure_metrics(provider_client, waiting=1, running=0)
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -239,7 +209,6 @@ class TestGetHealthModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_adapter_builder,
         provider_client,
         default_command,
     ):
@@ -248,7 +217,7 @@ class TestGetHealthModelsUseCase:
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
         provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
         provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_adapter_builder, provider_client, provider, waiting=0, running=21)
+        configure_metrics(provider_client, waiting=0, running=21)
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -263,7 +232,6 @@ class TestGetHealthModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_adapter_builder,
         provider_client,
         default_command,
     ):
@@ -272,7 +240,7 @@ class TestGetHealthModelsUseCase:
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
         provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
         provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_adapter_builder, provider_client, provider, waiting=5, running=21)
+        configure_metrics(provider_client, waiting=5, running=21)
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -287,7 +255,6 @@ class TestGetHealthModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_adapter_builder,
         provider_client,
         default_command,
     ):
@@ -296,7 +263,7 @@ class TestGetHealthModelsUseCase:
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="mistral", providers=1)]
         provider = ProviderFactory(id=1, router_id=1, type=ProviderType.MISTRAL)
         provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_adapter_builder, provider_client, provider, waiting=0, running=59)
+        configure_metrics(provider_client, waiting=0, running=59)
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -311,7 +278,6 @@ class TestGetHealthModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_adapter_builder,
         provider_client,
         default_command,
     ):
@@ -320,7 +286,7 @@ class TestGetHealthModelsUseCase:
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="mistral", providers=1)]
         provider = ProviderFactory(id=1, router_id=1, type=ProviderType.MISTRAL)
         provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_adapter_builder, provider_client, provider, waiting=0, running=64)
+        configure_metrics(provider_client, waiting=0, running=64)
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -335,7 +301,6 @@ class TestGetHealthModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_adapter_builder,
         provider_client,
         default_command,
     ):
@@ -344,8 +309,8 @@ class TestGetHealthModelsUseCase:
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
         provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
         provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_adapter_builder, provider_client, provider)
-        provider_client.forward_request.return_value = StatusCodeModelError(status_code=500, detail="error")
+        configure_metrics(provider_client)
+        provider_client.forward.return_value = StatusCodeModelError(status_code=500, detail="error")
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -360,7 +325,6 @@ class TestGetHealthModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_adapter_builder,
         provider_client,
         default_command,
     ):
@@ -370,10 +334,8 @@ class TestGetHealthModelsUseCase:
         provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
         provider_repository.get_all_providers.return_value = [provider]
         configure_metrics(
-            provider_adapter_builder,
             provider_client,
-            provider,
-            format_response_result=ProviderAdapterValidationResponseError(provider_type=provider.type, errors=[{"msg": "invalid"}]),
+            metrics_result=ProviderAdapterValidationResponseError(provider_type=provider.type, errors=[{"msg": "invalid"}]),
         )
 
         # Act
@@ -389,7 +351,6 @@ class TestGetHealthModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_adapter_builder,
         provider_client,
         default_command,
     ):
@@ -398,11 +359,7 @@ class TestGetHealthModelsUseCase:
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
         provider = ProviderFactory(id=1, router_id=1, type=ProviderType.TEI)
         provider_repository.get_all_providers.return_value = [provider]
-        configure_models_fallback(
-            provider_adapter_builder,
-            provider_client,
-            models_response=ProviderOriginalResponse(data={"data": []}),
-        )
+        configure_models_fallback(provider_client, models_response=ProviderResponse(id="req-123", data=Models(data=[])))
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -410,8 +367,10 @@ class TestGetHealthModelsUseCase:
         # Assert
         assert isinstance(result, GetHealthModelsUseCaseSuccess)
         assert result.models[0].status == HealthStatus.GREEN
-        assert provider_adapter_builder.build.call_count == 2
-        provider_client.forward_request.assert_called_once()
+        assert [call.kwargs["request"].endpoint for call in provider_client.forward.await_args_list] == [
+            EndpointRoute.METRICS,
+            EndpointRoute.MODELS,
+        ]
 
     @pytest.mark.asyncio
     async def test_should_return_red_when_models_fallback_fails(
@@ -419,7 +378,6 @@ class TestGetHealthModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_adapter_builder,
         provider_client,
         default_command,
     ):
@@ -427,11 +385,7 @@ class TestGetHealthModelsUseCase:
 
         router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
         provider_repository.get_all_providers.return_value = [ProviderFactory(id=1, router_id=1, type=ProviderType.TEI)]
-        configure_models_fallback(
-            provider_adapter_builder,
-            provider_client,
-            models_response=StatusCodeModelError(status_code=500, detail="error"),
-        )
+        configure_models_fallback(provider_client, models_response=StatusCodeModelError(status_code=500, detail="error"))
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -446,7 +400,6 @@ class TestGetHealthModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_adapter_builder,
         provider_client,
         default_command,
     ):
@@ -461,7 +414,7 @@ class TestGetHealthModelsUseCase:
             accessible_provider,
             ProviderFactory(id=2, router_id=2, type=ProviderType.VLLM),
         ]
-        configure_metrics(provider_adapter_builder, provider_client, accessible_provider)
+        configure_metrics(provider_client)
 
         # Act
         result = await use_case.execute(command=default_command)
@@ -476,7 +429,6 @@ class TestGetHealthModelsUseCase:
         use_case,
         router_repository,
         provider_repository,
-        provider_adapter_builder,
         provider_client,
         default_command,
     ):
@@ -488,11 +440,11 @@ class TestGetHealthModelsUseCase:
             accessible_provider,
             ProviderFactory(id=2, router_id=99, type=ProviderType.VLLM),
         ]
-        configure_metrics(provider_adapter_builder, provider_client, accessible_provider)
+        configure_metrics(provider_client)
 
         # Act
         await use_case.execute(command=default_command)
 
         # Assert
-        provider_adapter_builder.build.assert_called_once_with(endpoint=EndpointRoute.METRICS, provider=accessible_provider)
-        provider_client.forward_request.assert_called_once()
+        provider_client.forward.assert_awaited_once()
+        assert provider_client.forward.await_args.kwargs["provider"] == accessible_provider

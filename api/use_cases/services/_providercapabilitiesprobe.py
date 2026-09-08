@@ -1,16 +1,23 @@
+from typing import assert_never
+
 from api.domain.embeddings.entities import CreateEmbeddingsBody
-from api.domain.model.errors import ModelNotFoundError
-from api.domain.provider import ProviderAdapter, ProviderAdapterBuilder, ProviderClient
-from api.domain.provider.entities import Provider, ProviderCapabilities, ProviderOriginalRequest, ProviderOriginalResponse, ProviderType
-from api.domain.provider.errors import ProviderInvalidResponseError, ProviderNotReachableError
+from api.domain.model.errors import ModelNotFoundError, StatusCodeModelError, TooBusyModelError, UnknownModelError
+from api.domain.provider import ProviderClient, ProviderClientError
+from api.domain.provider.entities import Provider, ProviderCapabilities, ProviderRequest, ProviderResponse, ProviderType
+from api.domain.provider.errors import (
+    ProviderAdapterValidationRequestError,
+    ProviderAdapterValidationResponseError,
+    ProviderInvalidResponseError,
+    ProviderNotReachableError,
+    UnsupportedProviderEndpointError,
+)
 from api.domain.router.entities import RouterType
 from api.utils.variables import EndpointRoute
 
 
 class ProviderCapabilitiesProbe:
-    def __init__(self, provider_client: ProviderClient, provider_adapter_builder: ProviderAdapterBuilder):
+    def __init__(self, provider_client: ProviderClient):
         self.provider_client = provider_client
-        self.provider_adapter_builder = provider_adapter_builder
 
     async def get_capabilities(
         self,
@@ -33,66 +40,80 @@ class ProviderCapabilitiesProbe:
             created=0,
             updated=0,
         )
-        adapter = self.provider_adapter_builder.build(endpoint=EndpointRoute.MODELS, provider=provider)
-
-        result = await self._get_max_context_length(adapter=adapter)
+        result = await self._get_max_context_length(provider=provider)
         match result:
             case ProviderNotReachableError() as error:
                 return error
+            case ProviderInvalidResponseError() as error:
+                return error
             case ModelNotFoundError() as error:
                 return error
-            case _:
+            case int() | None:
                 max_context_length = result
+            case _ as unreachable:
+                assert_never(unreachable)
 
         vector_size = None
         if router_type == RouterType.TEXT_EMBEDDINGS_INFERENCE:
-            adapter = self.provider_adapter_builder.build(endpoint=EndpointRoute.EMBEDDINGS, provider=provider)
-            result = await self._get_vector_size(adapter=adapter)
+            result = await self._get_vector_size(provider=provider)
             match result:
                 case ProviderNotReachableError() as error:
                     return error
                 case ProviderInvalidResponseError() as error:
                     return error
-                case _:
+                case int():
                     vector_size = result
+                case _ as unreachable:
+                    assert_never(unreachable)
 
         return ProviderCapabilities(max_context_length=max_context_length, vector_size=vector_size)
 
-    async def _get_max_context_length(self, adapter: ProviderAdapter) -> int | None | ModelNotFoundError | ProviderNotReachableError:
-        original_request = ProviderOriginalRequest(endpoint=EndpointRoute.MODELS)
-        formatted_request = adapter.format_request(original_request=original_request)
-        response = await self.provider_client.forward_request(provider=adapter.provider, formatted_request=formatted_request)
+    async def _get_max_context_length(
+        self,
+        provider: Provider,
+    ) -> int | None | ModelNotFoundError | ProviderNotReachableError | ProviderInvalidResponseError:
+        request = ProviderRequest(endpoint=EndpointRoute.MODELS)
+        response = await self.provider_client.forward(provider=provider, request=request)
         match response:
-            case ProviderOriginalResponse() as response:
+            case ProviderResponse() as provider_response:
                 pass
             case error:
-                return ProviderNotReachableError(model_name=adapter.provider.model_name, status_code=error.status_code, detail=error.detail)
+                return self._to_probe_error(provider=provider, error=error)
 
-        formatted_response = adapter.format_response(original_response=response, original_request=original_request)
-        model_name = adapter.provider.model_name
-        model = next((m for m in formatted_response.data.data if m.id == model_name or model_name in m.aliases), None)
+        model_name = provider.model_name
+        model = next((m for m in provider_response.data.data if m.id == model_name or model_name in m.aliases), None)
         if model is None:
             return ModelNotFoundError(name=model_name)
 
         return model.max_context_length
 
-    async def _get_vector_size(self, adapter: ProviderAdapter) -> int | ProviderNotReachableError | ProviderInvalidResponseError:
-        original_request = ProviderOriginalRequest(
+    async def _get_vector_size(self, provider: Provider) -> int | ProviderNotReachableError | ProviderInvalidResponseError:
+        request = ProviderRequest(
             endpoint=EndpointRoute.EMBEDDINGS,
-            payload=CreateEmbeddingsBody(model=adapter.provider.model_name, input="hello world"),
+            payload=CreateEmbeddingsBody(model=provider.model_name, input="hello world"),
         )
-        formatted_request = adapter.format_request(original_request=original_request)
-        response = await self.provider_client.forward_request(provider=adapter.provider, formatted_request=formatted_request)
+        response = await self.provider_client.forward(provider=provider, request=request)
         match response:
-            case ProviderOriginalResponse() as response:
+            case ProviderResponse() as provider_response:
                 pass
             case error:
-                return ProviderNotReachableError(model_name=adapter.provider.model_name, status_code=error.status_code, detail=error.detail)
+                return self._to_probe_error(provider=provider, error=error)
 
-        formatted_response = adapter.format_response(original_response=response, original_request=original_request)
-        if not formatted_response.data.data:
-            return ProviderInvalidResponseError(model_name=adapter.provider.model_name, detail="no embedding returned")
+        if not provider_response.data.data:
+            return ProviderInvalidResponseError(model_name=provider.model_name, detail="no embedding returned")
 
-        vector_size = len(formatted_response.data.data[0].embedding)
+        vector_size = len(provider_response.data.data[0].embedding)
 
         return vector_size
+
+    @staticmethod
+    def _to_probe_error(provider: Provider, error: ProviderClientError) -> ProviderNotReachableError | ProviderInvalidResponseError:
+        match error:
+            case StatusCodeModelError() | TooBusyModelError() | UnknownModelError():
+                return ProviderNotReachableError(model_name=provider.model_name, status_code=error.status_code, detail=error.detail)
+            case UnsupportedProviderEndpointError(endpoint=endpoint):
+                return ProviderInvalidResponseError(model_name=provider.model_name, detail=f"provider type does not expose {endpoint}")
+            case ProviderAdapterValidationRequestError(errors=errors) | ProviderAdapterValidationResponseError(errors=errors):
+                return ProviderInvalidResponseError(model_name=provider.model_name, detail=str(errors))
+            case _ as unreachable:
+                assert_never(unreachable)

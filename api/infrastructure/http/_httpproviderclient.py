@@ -7,26 +7,59 @@ from httpx import BasicAuth
 
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider import ProviderClient, ProviderClientResponse
-from api.domain.provider.entities import Provider, ProviderFormattedRequest, ProviderOriginalResponse
+from api.domain.provider.entities import Provider, ProviderRequest
+from api.domain.provider.errors import ProviderAdapterValidationRequestError, UnsupportedProviderEndpointError
+from api.infrastructure.http.adapters import HttpProviderAdapter
+
+from ._httpprovideradapterbuilder import HttpProviderAdapterBuilder
+from ._httpproviderrequest import HttpProviderRequest
+from ._httpproviderresponse import HttpProviderResponse
 
 logger = logging.getLogger(__name__)
 
 
 class HttpProviderClient(ProviderClient):
-    async def forward_request(self, provider: Provider, formatted_request: ProviderFormattedRequest) -> ProviderClientResponse:
+    def __init__(self, adapter_builder: HttpProviderAdapterBuilder):
+        self.adapter_builder = adapter_builder
+
+    async def forward(self, provider: Provider, request: ProviderRequest) -> ProviderClientResponse:
+        match self.adapter_builder.build(endpoint=request.endpoint, provider=provider):
+            case HttpProviderAdapter() as adapter:
+                pass
+            case UnsupportedProviderEndpointError() as error:
+                return error
+
+        match adapter.to_http_request(request):
+            case HttpProviderRequest() as http_request:
+                pass
+            case ProviderAdapterValidationRequestError() as error:
+                return error
+
+        http_response = await self._send(provider=provider, http_request=http_request)
+        match http_response:
+            case HttpProviderResponse():
+                return adapter.to_provider_response(http_response=http_response, request=request)
+            case error:
+                return error
+
+    async def _send(
+        self,
+        provider: Provider,
+        http_request: HttpProviderRequest,
+    ) -> HttpProviderResponse | TooBusyModelError | UnknownModelError | StatusCodeModelError:
         # TEMPORARY PATCH FOR MISTRAL METRICS ENDPOINT
-        auth = BasicAuth(username=formatted_request.auth.username, password=formatted_request.auth.password) if formatted_request.auth else None
+        auth = BasicAuth(username=http_request.auth.username, password=http_request.auth.password) if http_request.auth else None
 
         async with httpx.AsyncClient(timeout=provider.timeout) as async_client:
             try:
                 response = await async_client.request(
                     headers={"Authorization": f"Bearer {provider.key}"} if provider.key else {},
                     auth=auth,
-                    method=formatted_request.method,
-                    url=formatted_request.url,
-                    json=formatted_request.body,
-                    files=formatted_request.files,
-                    data=formatted_request.form,
+                    method=http_request.method,
+                    url=http_request.url,
+                    json=http_request.body,
+                    files=http_request.files,
+                    data=http_request.form,
                 )
             except (
                 httpx.TimeoutException,
@@ -61,7 +94,7 @@ class HttpProviderClient(ProviderClient):
         else:
             data, text = None, response.text
 
-        return ProviderOriginalResponse(data=data, text=text)
+        return HttpProviderResponse(data=data, text=text)
 
-    async def forward_stream(self, provider: Provider, formatted_request: ProviderFormattedRequest):
+    async def forward_stream(self, provider: Provider, request: ProviderRequest):
         raise NotImplementedError()

@@ -133,10 +133,7 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
 async def bootstrap_models(configuration: Configuration, postgres_session: AsyncSession, bootstrap_admin_user_id: int) -> int:
     router_repository = PostgresRouterRepository(postgres_session=postgres_session)
     provider_repository = PostgresProviderRepository(postgres_session=postgres_session)
-    provider_capabilities_probe = ProviderCapabilitiesProbe(
-        provider_client=HttpProviderClient(),
-        provider_adapter_builder=HttpProviderAdapterBuilder(),
-    )
+    provider_capabilities_probe = ProviderCapabilitiesProbe(provider_client=HttpProviderClient(adapter_builder=HttpProviderAdapterBuilder()))
 
     result = await BootstrapModelsUseCase(
         router_repository=router_repository,

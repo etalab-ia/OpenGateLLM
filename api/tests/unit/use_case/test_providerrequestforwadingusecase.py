@@ -1,4 +1,3 @@
-from http import HTTPMethod
 from unittest.mock import AsyncMock, create_autospec, patch
 
 import pytest
@@ -7,20 +6,8 @@ from api.domain import ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ProviderJsonResponse
 from api.domain.model.errors import TooBusyModelError
-from api.domain.provider import (
-    ProviderAdapter,
-    ProviderAdapterBuilder,
-    ProviderClient,
-    ProviderLoadBalancer,
-    ProviderMetricsLogger,
-    ProviderRepository,
-)
-from api.domain.provider.entities import (
-    ProviderFormattedRequest,
-    ProviderFormattedResponse,
-    ProviderOriginalResponse,
-    ProviderType,
-)
+from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider.entities import ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
@@ -74,11 +61,6 @@ def model_environmental_impacts_computer():
     computer = create_autospec(ModelEnvironmentalImpactsComputer, instance=True, spec_set=True)
     computer.compute.return_value = EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0)
     return computer
-
-
-@pytest.fixture
-def provider_adapter_builder():
-    return create_autospec(ProviderAdapterBuilder, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -165,7 +147,6 @@ def user_with_router_access():
 def use_case(
     model_environmental_impacts_computer,
     model_tokenizer,
-    provider_adapter_builder,
     provider_client,
     provider_load_balancer,
     provider_metrics_logger,
@@ -177,7 +158,6 @@ def use_case(
     return ForwardingTestUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
         model_tokenizer=model_tokenizer,
-        provider_adapter_builder=provider_adapter_builder,
         provider_client=provider_client,
         provider_load_balancer=provider_load_balancer,
         provider_metrics_logger=provider_metrics_logger,
@@ -186,24 +166,6 @@ def use_case(
         router_repository=router_repository,
         usage_recorder=usage_recorder,
     )
-
-
-def _mock_adapter(*, formatted_response=None, formatted_text=None, request_error=None, response_error=None):
-    adapter = create_autospec(ProviderAdapter, instance=True, spec_set=True)
-    adapter.format_request.return_value = ProviderFormattedRequest(
-        method=HTTPMethod.POST,
-        url="https://provider.example/v1/chat/completions",
-        body={},
-    )
-    if response_error is not None:
-        adapter.format_response.return_value = response_error
-    elif formatted_text is not None:
-        adapter.format_response.return_value = ProviderFormattedResponse(id="req-1", text=formatted_text)
-    elif formatted_response is not None:
-        adapter.format_response.return_value = ProviderFormattedResponse(id=formatted_response.id, data=formatted_response)
-    if request_error is not None:
-        adapter.format_request.return_value = request_error
-    return adapter
 
 
 class TestResolveRouter:
@@ -422,23 +384,24 @@ class TestSendRequest:
         use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
         use_case.provider_load_balancer.find_best_provider.return_value = provider
         use_case.provider_metrics_logger.increment_inflight.return_value = True
-        use_case.provider_client.forward_request.return_value = ProviderOriginalResponse(data={})
-        use_case.provider_adapter_builder.build.return_value = _mock_adapter(formatted_response=sample_data)
+        use_case.provider_client.forward.return_value = ProviderResponse(id=sample_data.id, data=sample_data)
 
     @pytest.mark.asyncio
-    async def test_should_return_request_validation_error_without_forwarding_when_request_is_invalid(self, use_case, router, provider, payload):
+    async def test_should_return_request_validation_error_when_provider_call_rejects_request(self, use_case, router, provider, payload):
         # Arrange
         validation_error = ProviderAdapterValidationRequestError(provider_type=ProviderType.VLLM, errors=[{"msg": "invalid"}])
-        use_case.provider_adapter_builder.build.return_value = _mock_adapter(request_error=validation_error)
+        use_case.provider_client.forward.return_value = validation_error
 
         # Act
         result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
 
         # Assert
         assert result == validation_error
-        use_case.provider_adapter_builder.build.assert_called_once_with(endpoint=ForwardingTestUseCase.ENDPOINT, provider=provider)
-        use_case.provider_metrics_logger.increment_inflight.assert_not_awaited()
-        use_case.provider_client.forward_request.assert_not_awaited()
+        use_case.provider_client.forward.assert_awaited_once()
+        forwarded_request = use_case.provider_client.forward.call_args.kwargs["request"]
+        assert forwarded_request.endpoint == ForwardingTestUseCase.ENDPOINT
+        assert forwarded_request.payload == payload
+        use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
         use_case.usage_recorder.record_provider.assert_called_once_with(provider_id=provider.id, provider_model_name=provider.model_name)
         use_case.usage_recorder.record_usage.assert_not_called()
 
@@ -446,7 +409,7 @@ class TestSendRequest:
     async def test_should_return_forward_error_and_decrement_inflight_when_provider_call_fails(self, use_case, router, provider, payload):
         # Arrange
         provider_error = TooBusyModelError(status_code=503, detail="busy")
-        use_case.provider_client.forward_request.return_value = provider_error
+        use_case.provider_client.forward.return_value = provider_error
 
         # Act
         result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
@@ -457,11 +420,23 @@ class TestSendRequest:
         use_case.usage_recorder.record_usage.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_should_decrement_inflight_when_the_provider_call_raises(self, use_case, router, provider, payload):
+        # Arrange
+        use_case.provider_client.forward.side_effect = TypeError("adapter blew up while converting the response")
+
+        # Act
+        with pytest.raises(TypeError):
+            await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
+
+        # Assert
+        use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
+
+    @pytest.mark.asyncio
     async def test_should_return_response_validation_error_without_decrementing_when_inflight_was_not_incremented(self, use_case, router, payload):
         # Arrange
         use_case.provider_metrics_logger.increment_inflight.return_value = False
         validation_error = ProviderAdapterValidationResponseError(provider_type=ProviderType.VLLM, errors=[{"msg": "invalid"}])
-        use_case.provider_adapter_builder.build.return_value = _mock_adapter(response_error=validation_error)
+        use_case.provider_client.forward.return_value = validation_error
 
         # Act
         result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
@@ -482,7 +457,7 @@ class TestSendRequest:
                 result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert result.data is sample_data
         assert result.data.usage == Usage(
             prompt_tokens=1,
@@ -496,10 +471,11 @@ class TestSendRequest:
             strategy=router.load_balancing_strategy,
             providers=[provider],
         )
-        original_request = use_case.provider_adapter_builder.build.return_value.format_request.call_args.kwargs["original_request"]
-        assert original_request.endpoint == ForwardingTestUseCase.ENDPOINT
-        assert original_request.payload == payload
+        forwarded_request = use_case.provider_client.forward.call_args.kwargs["request"]
+        assert forwarded_request.endpoint == ForwardingTestUseCase.ENDPOINT
+        assert forwarded_request.payload == payload
         use_case.provider_metrics_logger.log_metric.assert_awaited_once_with(provider_id=provider.id, metric=Metric.LATENCY, value=120)
+
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
         model_tokenizer.compute_tokens.assert_called_once_with(texts=["world"])
         model_environmental_impacts_computer.compute.assert_called_once_with(
@@ -525,7 +501,7 @@ class TestSendRequest:
     @pytest.mark.asyncio
     async def test_should_record_usage_without_attaching_it_when_formatted_response_has_no_data(self, use_case, router, provider, payload):
         # Arrange
-        use_case.provider_adapter_builder.build.return_value = _mock_adapter(formatted_text="hello world")
+        use_case.provider_client.forward.return_value = ProviderResponse(id="req-1", text="hello world")
 
         # Act
         with patch("api.use_cases._providerrequestforwardingusecase.time.perf_counter", side_effect=[0, 0.12]):
@@ -533,7 +509,7 @@ class TestSendRequest:
                 result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
 
         # Assert
-        assert isinstance(result, ProviderFormattedResponse)
+        assert isinstance(result, ProviderResponse)
         assert result.data is None
         use_case.usage_recorder.record_usage.assert_called_once_with(
             request_id="req-1",
@@ -546,7 +522,7 @@ class TestSendRequest:
 class TestExecute:
     @pytest.fixture(autouse=True)
     def mock_collaborator_methods(self, use_case, router, sample_data):
-        formatted_response = ProviderFormattedResponse(id=sample_data.id, data=sample_data)
+        formatted_response = ProviderResponse(id=sample_data.id, data=sample_data)
         use_case._resolve_router = AsyncMock(return_value=router)
         use_case._check_rate_limits = AsyncMock(return_value=RouterRateLimitState.admin_rate_limit_state())
         use_case._send_request = AsyncMock(return_value=formatted_response)

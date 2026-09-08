@@ -9,7 +9,12 @@ from api.dependencies import create_audio_transcriptions_use_case_factory
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.entities import HostingZone, ProviderType
-from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
+from api.domain.provider.errors import (
+    NoAvailableProviderError,
+    ProviderAdapterValidationRequestError,
+    ProviderAdapterValidationResponseError,
+    UnsupportedProviderEndpointError,
+)
 from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
@@ -178,6 +183,11 @@ class TestCreateAudioTranscriptions:
                 UnknownModelError(status_code=500, detail="upstream failure"),
                 500,
                 "upstream failure",
+            ),
+            (
+                UnsupportedProviderEndpointError(endpoint=EndpointRoute.AUDIO_TRANSCRIPTIONS, provider_type=ProviderType.VLLM),
+                500,
+                "Model provider type vllm does not support the /audio/transcriptions endpoint.",
             ),
         ],
     )

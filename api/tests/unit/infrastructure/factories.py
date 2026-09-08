@@ -1,6 +1,4 @@
-from http import HTTPMethod
 import random
-from urllib.parse import urljoin
 
 import factory
 from faker import Faker
@@ -8,7 +6,7 @@ from openai.types import Embedding
 
 from api.domain.embeddings.entities import CreateEmbeddingsBody, Embeddings
 from api.domain.model.entities import Model, Models
-from api.domain.provider.entities import BasicAuth, ProviderFormattedRequest, ProviderFormattedResponse, ProviderOriginalRequest
+from api.domain.provider.entities import ProviderRequest, ProviderResponse
 from api.domain.rerank.entities import CreateRerankBody, Rerank, RerankResult
 from api.domain.router.entities import RouterType
 from api.utils.variables import EndpointRoute
@@ -27,9 +25,9 @@ def _random_embeddings_input() -> list[int] | list[list[int]] | str | list[str]:
     )
 
 
-class ProviderOriginalRequestFactory(factory.Factory):
+class ProviderRequestFactory(factory.Factory):
     class Meta:
-        model = ProviderOriginalRequest
+        model = ProviderRequest
 
     endpoint = factory.Faker("random_element", elements=list(EndpointRoute))
     payload = None
@@ -61,51 +59,9 @@ class ProviderOriginalRequestFactory(factory.Factory):
         )
 
 
-class ProviderFormattedRequestFactory(factory.Factory):
-    class Meta:
-        model = ProviderFormattedRequest
-        exclude = ["base_url"]
-
-    base_url = "https://provider.test/"
-
-    method = factory.Faker("random_element", elements=list(HTTPMethod))
-    url = factory.LazyAttribute(lambda self: urljoin(self.base_url, "/"))
-    body = factory.LazyFunction(dict)
-    form = factory.LazyFunction(dict)
-    files = factory.LazyFunction(dict)
-
-    class Params:
-        vllm_models = factory.Trait(
-            method=HTTPMethod.GET,
-            url=factory.LazyAttribute(lambda self: urljoin(self.base_url, "/v1/models")),
-            body=factory.LazyFunction(dict),
-        )
-        vllm_embeddings = factory.Trait(
-            method=HTTPMethod.POST,
-            url=factory.LazyAttribute(lambda self: urljoin(self.base_url, "/v1/embeddings")),
-            body=factory.LazyFunction(
-                lambda: {
-                    "model": "openweight-embeddings",
-                    "input": ["hello world"],
-                }
-            ),
-        )
-        vllm_metrics = factory.Trait(
-            method=HTTPMethod.GET,
-            url=factory.LazyAttribute(lambda self: urljoin(self.base_url, "/metrics")),
-            body=factory.LazyFunction(dict),
-        )
-        mistral_metrics = factory.Trait(
-            method=HTTPMethod.GET,
-            url=factory.LazyAttribute(lambda self: urljoin(self.base_url, "/metrics")),
-            body=factory.LazyFunction(dict),
-            auth=BasicAuth(username="metrics", password="secret"),
-        )
-
-
 class ProviderEmbeddingsFormattedResponseFactory(factory.Factory):
     class Meta:
-        model = ProviderFormattedResponse
+        model = ProviderResponse
 
     dimensions = factory.Faker("random_int", min=1, max=1024)
 
@@ -138,7 +94,7 @@ class ProviderModelResponseFactory(factory.Factory):
 
 class ProviderModelsFormattedResponseFactory(factory.Factory):
     class Meta:
-        model = ProviderFormattedResponse
+        model = ProviderResponse
         exclude = ["count"]
 
     count: int = 1
@@ -148,7 +104,7 @@ class ProviderModelsFormattedResponseFactory(factory.Factory):
 
 class ProviderRerankFormattedResponseFactory(factory.Factory):
     class Meta:
-        model = ProviderFormattedResponse
+        model = ProviderResponse
 
     data = factory.LazyAttribute(
         lambda self: Rerank(
