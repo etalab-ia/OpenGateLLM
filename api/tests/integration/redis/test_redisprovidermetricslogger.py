@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 from redis.asyncio import Redis as AsyncRedis
 
@@ -24,6 +26,8 @@ class TestRedisProviderMetricsLogger:
 
         # Act
         await repository.log_metric(provider_id=provider_id, metric=metric, value=120)
+        # Redis TimeSeries keeps one sample per millisecond (duplicate_policy=LAST). # @TODO: remove after refactoring QoS
+        await asyncio.sleep(0.01)
         await repository.log_metric(provider_id=provider_id, metric=metric, value=240)
 
         # Assert

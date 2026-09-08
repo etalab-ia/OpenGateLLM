@@ -147,7 +147,6 @@ def user_with_router_access():
 def use_case(
     model_environmental_impacts_computer,
     model_tokenizer,
-    provider_adapter_builder,
     provider_client,
     provider_load_balancer,
     provider_metrics_logger,
