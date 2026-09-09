@@ -52,4 +52,42 @@ class TestGetKeysUseCase:
             offset=0,
             sort_by=SortField.ID,
             sort_order=SortOrder.ASC,
+            active=False,
         )
+
+    @pytest.mark.asyncio
+    async def test_should_only_ask_for_usable_keys_by_default(self, use_case, key_repository):
+        # Arrange
+        key_repository.get_keys_page.return_value = EntitiesPage(total=0, data=[])
+        command = GetKeysCommand(
+            user_id=42,
+            offset=0,
+            limit=10,
+            sort_by=SortField.ID,
+            sort_order=SortOrder.ASC,
+        )
+
+        # Act
+        await use_case.execute(command)
+
+        # Assert
+        assert key_repository.get_keys_page.await_args.kwargs["active"] is False
+
+    @pytest.mark.asyncio
+    async def test_should_forward_active_to_the_repository(self, use_case, key_repository):
+        # Arrange
+        key_repository.get_keys_page.return_value = EntitiesPage(total=0, data=[])
+        command = GetKeysCommand(
+            user_id=42,
+            offset=0,
+            limit=10,
+            sort_by=SortField.ID,
+            sort_order=SortOrder.ASC,
+            active=True,
+        )
+
+        # Act
+        await use_case.execute(command)
+
+        # Assert
+        assert key_repository.get_keys_page.await_args.kwargs["active"] is True

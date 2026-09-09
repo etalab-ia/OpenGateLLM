@@ -21,7 +21,7 @@ class KeyRepository(ABC):
         offset: int = 0,
         sort_by: SortField = SortField.ID,
         sort_order: SortOrder = SortOrder.ASC,
-        exclude_expired: bool = True,
+        active: bool = False,
     ) -> KeyPage:
         pass
 
