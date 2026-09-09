@@ -9,6 +9,7 @@ import { Aside, LinkButton, Steps } from '@astrojs/starlight/components';
 import makeQuickstartGif from '../../../assets/make_quickstart.gif';
 
 <Aside type="caution" title="Prerequisites" icon="approve-check-circle">
+- Python 3.12+
 - Docker and Docker Compose
 - An access to a LLM API, eg. OpenAI, vLLM, Ollama... ([see supported model API](/features/supported_models/))
 </Aside>
@@ -18,9 +19,20 @@ import makeQuickstartGif from '../../../assets/make_quickstart.gif';
 
     ```bash
     git clone https://github.com/etalab-ia/OpenGateLLM.git
+    cd OpenGateLLM
     ```
 
-2. **Make quickstart**
+2. **Install Python dependencies**
+
+    `make quickstart` invokes `cli.py`, which needs a few Python packages. Install them with:
+
+    ```bash
+    pip install ".[dev]"
+    ```
+
+    A virtual environment is recommended.
+
+3. **Make quickstart**
 
     Run OpenGateLLM quickstart with the following command:
 
@@ -31,19 +43,39 @@ import makeQuickstartGif from '../../../assets/make_quickstart.gif';
     <div style="display: flex; justify-content: center;">
     <img src={makeQuickstartGif.src} alt="Quickstart command" width="50%"/>
     </div>
-    
+
     The services are running and available at the following URLs:
     - **API – http://localhost:8000/docs**
     - **Playground – http://localhost:8501**
 
     <Aside type="note" title="Quickstart command">
-    This command will launch the OpenGateLLM API and Playground, and their required dependencies, Postgres and Redis, in Docker containers. 
+    This command will launch the OpenGateLLM API and Playground, and their required dependencies, Postgres and Redis, in Docker containers.
     Moreover, it will copy these three files if they don't already exist:
     - *config.example.yml* → *config.yml*
     - *env.example* → *.env*
     - *compose.example.yml* → *compose.yml*
     </Aside>
 
+    <Aside type="tip" title="ARM64 hosts (Apple Silicon)">
+    Official OpenGateLLM images are published for `linux/amd64` only. On ARM64, run:
+
+    ```bash
+    DOCKER_DEFAULT_PLATFORM=linux/amd64 make quickstart
+    ```
+
+    For a persistent setup, add `platform: linux/amd64` to the `api` and `playground` services in your local `compose.yml` (the copy created by the quickstart command — do not edit `compose.example.yml`):
+
+    ```diff lang="yaml"
+      api:
+    +   platform: linux/amd64
+        image: ghcr.io/etalab-ia/opengatellm/api:latest
+      playground:
+    +   platform: linux/amd64
+        image: ghcr.io/etalab-ia/opengatellm/playground:latest
+    ```
+
+    On Docker Desktop for Mac, also enable **Use Rosetta for x86/amd64 emulation on Apple Silicon**.
+    </Aside>
 
     **The bootstrap admin user is created and you can connect to the Playground with the following credentials:**
     - email: `admin`
