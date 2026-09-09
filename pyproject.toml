@@ -28,6 +28,7 @@ api = [
     "gunicorn==25.1.0",
     "humanize==4.16.0",
     "itsdangerous==2.2.0",
+    "jinja2==3.1.6",
     "langfuse==4.15.1",
     "limits==5.8.0",
     "mistralai==2.0.0",
