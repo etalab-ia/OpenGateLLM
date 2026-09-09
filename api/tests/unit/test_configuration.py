@@ -1,6 +1,7 @@
 import logging
 
 from api.schemas.core.configuration import Settings
+from common.configuration import load_yaml_config, replace_environment_variables
 
 
 class TestSettingsDefaults:
@@ -45,3 +46,47 @@ class TestAuthMasterKeyDeprecation:
         with caplog.at_level(logging.WARNING):
             Settings(auth_master_key="changeme", auth_secret_key=None)
         assert any("v1.0.0" in msg for msg in caplog.messages)
+
+
+class TestSharedSettings:
+    def test_should_inherit_shared_defaults(self):
+        settings = Settings()
+        assert settings.app_title == "OpenGateLLM"
+        assert settings.routing_max_priority == 4
+        assert settings.auth_login_session_duration == 3600
+
+
+class TestLoadYamlConfig:
+    def test_should_substitute_environment_variables(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("MY_SECRET", "secret-value")
+        config_path = tmp_path / "config.yml"
+        config_path.write_text("key: ${MY_SECRET}\n")
+
+        assert load_yaml_config(str(config_path)) == {"key": "secret-value"}
+
+    def test_should_use_default_when_environment_variable_is_missing(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("MY_SECRET", raising=False)
+        config_path = tmp_path / "config.yml"
+        config_path.write_text("key: ${MY_SECRET:-fallback}\n")
+
+        assert load_yaml_config(str(config_path)) == {"key": "fallback"}
+
+    def test_should_keep_placeholder_when_environment_variable_is_missing_without_default(self, tmp_path, monkeypatch, caplog):
+        monkeypatch.delenv("MY_SECRET", raising=False)
+        config_path = tmp_path / "config.yml"
+        config_path.write_text("key: ${MY_SECRET}\n")
+
+        with caplog.at_level(logging.WARNING):
+            assert load_yaml_config(str(config_path)) == {"key": "${MY_SECRET}"}
+        assert any("MY_SECRET" in msg for msg in caplog.messages)
+
+    def test_should_strip_commented_lines(self, tmp_path):
+        config_path = tmp_path / "config.yml"
+        config_path.write_text("key: value\n# ignored: true\n")
+
+        assert load_yaml_config(str(config_path)) == {"key": "value"}
+
+    def test_should_prefer_environment_variable_over_default(self, monkeypatch):
+        monkeypatch.setenv("MY_SECRET", "from-env")
+
+        assert replace_environment_variables("key: ${MY_SECRET:-fallback}") == "key: from-env"

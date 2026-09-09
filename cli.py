@@ -290,6 +290,7 @@ def run_local_playground(console: Console, env: EnvFile) -> tuple[subprocess.Pop
         "-c",
         (
             f"set -a; . {env._env_file}; "
+            f'export PYTHONPATH="{project_root}:${{PYTHONPATH}}"; '
             "cd ./playground; "
             f"export REDIS_HOST=localhost; "
             f'export CONFIG_FILE="{config_file}"; '

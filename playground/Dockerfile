@@ -22,6 +22,7 @@ ARG CONFIG_FILE=config.example.yml \
     PLAYGROUND_DISABLED_PAGES=''
 
 COPY $CONFIG_FILE ./config.yml
+COPY ./common /common
 COPY ./playground/ .
 COPY $FAVICON ./assets/favicon.svg
 COPY $LOGO ./assets/logo.svg
@@ -29,7 +30,8 @@ COPY $LOGO ./assets/logo.svg
 ENV CONFIG_FILE=config.yml \
     REFLEX_BACKEND_URL=$REFLEX_BACKEND_URL \
     REFLEX_FRONTEND_URL=$REFLEX_FRONTEND_URL \
-    REFLEX_FRONTEND_PATH=$REFLEX_FRONTEND_PATH
+    REFLEX_FRONTEND_PATH=$REFLEX_FRONTEND_PATH \
+    PYTHONPATH="/playground:/"
 
 RUN .venv/bin/reflex export --frontend-only --no-zip  --loglevel debug
 
@@ -60,6 +62,7 @@ RUN case "${TARGETARCH}" in \
 RUN groupadd --gid 1100 opengatellm && \
     useradd --home /playground --gid 1100 --uid 1100 --create-home opengatellm
 
+COPY --chown=opengatellm:opengatellm ./common /common
 COPY --chown=opengatellm:opengatellm ./playground/rxconfig.py ./rxconfig.py
 COPY --chown=opengatellm:opengatellm ./playground/app ./app
 COPY --chown=opengatellm:opengatellm ./playground/assets ./assets
@@ -79,7 +82,7 @@ COPY --from=builder --chown=opengatellm:opengatellm /playground/.web/build/clien
 
 ENV CONFIG_FILE=config.yml \
     PATH="/playground/.venv/bin:${PATH}" \
-    PYTHONPATH="/playground:"
+    PYTHONPATH="/playground:/"
 
 RUN chown -R opengatellm:opengatellm /playground /var/lib/nginx /var/log/nginx /run /etc/supervisor /etc/nginx/conf.d /usr/share/nginx/html
 

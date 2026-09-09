@@ -2,6 +2,8 @@
 
 !api/
 !api/**
+!common/
+!common/**
 !playground/
 !playground/**
 !scripts/

@@ -11,6 +11,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "api/**"
+      - "common/**"
       - ".github/workflows/run_tests.yml"
   workflow_call: # Add this to make the workflow reusable
   workflow_dispatch: # Add this to allow manual triggering

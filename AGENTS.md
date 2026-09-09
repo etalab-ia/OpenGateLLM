@@ -29,6 +29,8 @@ dependencies.py   DI factories (transactional vs autocommit session)
 | Read models | `api/domain/<context>/views.py` + `_<noun>query.py` |
 | DI | `api/dependencies.py` |
 
+Shared YAML configuration lives in `common/configuration.py` (loader, `${ENV}` substitution, and fields used by both apps). API-only settings stay in `api/schemas/core/configuration.py`; Playground-only settings stay in `playground/app/core/configuration.py`.
+
 Admin CRUD is grouped per resource: `api/use_cases/admin/roles/`, `api/infrastructure/fastapi/endpoints/admin/roles.py`, `api/infrastructure/fastapi/schemas/admin/roles.py`. Everything else stays flat under its area (`api/use_cases/auth/`, `api/infrastructure/fastapi/endpoints/models.py`, `api/infrastructure/fastapi/schemas/models.py`).
 
 Reference implementations of these patterns:

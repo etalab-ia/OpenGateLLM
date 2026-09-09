@@ -1,103 +1,20 @@
 from enum import StrEnum
-from functools import wraps
 import logging
-import os
-from pathlib import Path
-import re
-from typing import Annotated, Any, Literal, get_args, get_origin
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, constr, field_validator, model_validator
-from pydantic import ValidationError as PydanticValidationError
-from pydantic_settings import BaseSettings
-import yaml
+from pydantic import Field, StringConstraints, constr, field_validator, model_validator
 
 from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.core.models import Metric
 from api.schemas.models import ModelType
-from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, RouterName
-
-# utils ----------------------------------------------------------------------------------------------------------------------------------------------
-
-
-def custom_validation_error(suffix: str = ""):
-    """
-    Decorator to override Pydantic ValidationError to change error message.
-
-    Args:
-        url(Optional[str]): override Pydantic documentation URL by provided URL. If not provided, the error message will be the same as the original error message.
-    """
-
-    class ValidationError(Exception):
-        def __init__(
-            self, exc: PydanticValidationError, cls: BaseModel, base_url: str = "https://docs.opengatellm.org/configuration/configuration_file"
-        ):
-            super().__init__()
-            error_content = exc.errors()
-
-            def resolve_model_for_error(model: type[BaseModel], loc: tuple[Any, ...]):
-                current_model = model
-                documentation_url = base_url
-
-                for idx, part in enumerate(loc):
-                    if not isinstance(part, str):
-                        continue
-                    if part not in current_model.__pydantic_fields__:
-                        break
-
-                    field_info = current_model.__pydantic_fields__[part]
-
-                    annotation = field_info.annotation
-                    next_model = None
-                    origin = get_origin(annotation)
-                    args = get_args(annotation)
-                    candidates = args if origin is not None else (annotation,)
-
-                    for candidate in candidates:
-                        if isinstance(candidate, type) and issubclass(candidate, BaseModel):
-                            next_model = candidate
-                            break
-
-                    if next_model is None:
-                        break
-
-                    current_model = next_model
-                    documentation_url = f"{base_url}#{current_model.__name__.lower()}{suffix}"
-
-                return documentation_url
-
-            message = str(exc)
-            for error in error_content:
-                loc = tuple(error.get("loc", ()))
-                documentation_url = resolve_model_for_error(cls, loc)
-                original_line = f"    For further information visit {error['url']}"
-                replacement_line = f"    For further information visit {documentation_url}"
-                message = message.replace(original_line, replacement_line, 1)
-
-            self.message = message
-
-        def __str__(self):
-            return self.message
-
-    def decorator(cls: type[BaseModel]):
-        original_init = cls.__init__
-
-        @wraps(original_init)
-        def new_init(self, **data):
-            try:
-                original_init(self, **data)
-            except PydanticValidationError as e:
-                raise ValidationError(exc=e, cls=cls) from None  # hide previous traceback
-
-        cls.__init__ = new_init
-        return cls
-
-    return decorator
-
-
-class ConfigBaseModel(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
+from api.utils.variables import DEFAULT_TIMEOUT, RouterName
+from common.configuration import ConfigBaseModel, RedisDependency, custom_validation_error, load_yaml_config
+from common.configuration import ConfigFile as SharedConfigFile
+from common.configuration import Configuration as SharedConfiguration
+from common.configuration import Settings as SharedSettings
+from common.configuration import SettingsLoginOIDC as SharedSettingsLoginOIDC
+from common.configuration import SettingsLoginPassword as SharedSettingsLoginPassword
 
 # models ---------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -223,16 +140,6 @@ class SentryDependency(ConfigBaseModel):
 
 
 @custom_validation_error()
-class RedisDependency(ConfigBaseModel):
-    """
-    Redis is a required dependency of OpenGateLLM. Redis is used to store rate limiting counters and performance metrics.
-    Pass all `from_url()` method arguments of `redis.asyncio.connection.ConnectionPool` class, see https://redis.readthedocs.io/en/stable/connections.html#redis.asyncio.connection.ConnectionPool.from_url for more information.
-    """
-
-    url: constr(strip_whitespace=True, min_length=1) = Field(..., pattern=r"^redis://", description="Redis connection url.", examples=["redis://:changeme@localhost:6379"])  # fmt: off
-
-
-@custom_validation_error()
 class Dependencies(ConfigBaseModel):
     celery: CeleryDependency | None = Field(default=None, json_schema_extra={"deprecated": True})  # fmt: off
     langfuse: LangfuseDependency | None = Field(default=None, description="See the [LangfuseDependency section](#langfusedependency) for more information.")  # fmt: off
@@ -270,7 +177,7 @@ class Tokenizer(StrEnum):
 
 
 @custom_validation_error()
-class Settings(ConfigBaseModel):
+class Settings(SharedSettings):
     """
     General settings configuration fields.
     """
@@ -278,12 +185,10 @@ class Settings(ConfigBaseModel):
     # general
     disabled_routers: list[RouterName] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["embeddings"]], json_schema_extra={"default": []})  # fmt: off
     hidden_routers: list[RouterName] = Field(default_factory=list, description="Routers are enabled but hidden in the swagger and the documentation of the API.", examples=[["admin"]], json_schema_extra={"default": []})  # fmt: off
-    app_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application (dsiplayed on Playground, Swagger and Redoc UI).", examples=["My API"])  # fmt: off
 
     # routing
     routing_max_retries: int = Field(default=3, ge=1, description="Maximum number of retries for routing tasks.")  # fmt: off
     routing_retry_countdown: int = Field(default=3, ge=1, description="Number of seconds before retrying a failed routing task.")  # fmt: off
-    routing_max_priority: int = Field(default=4, ge=0, le=10, description="Maximum allowed priority in routing tasks.")  # fmt: off
 
     # usage tokenizer
     usage_tokenizer: Tokenizer = Field(default=Tokenizer.TIKTOKEN_GPT2, description="Tokenizer used to compute usage of the API.")  # fmt: off
@@ -309,8 +214,6 @@ class Settings(ConfigBaseModel):
     auth_secret_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = Field(default=None, description="Secret key for the API. It should be a random string with at least 32 characters. This key is used to encrypt user tokens, watch out if you modify the secret key, you'll need to update all user API keys. If not provided, the master key will be used.")  # fmt: off
     auth_bootsrap_admin_username: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=254)] = Field(default="admin", description="Username of the admin user created at the first startup.")  # fmt: off
     auth_bootsrap_admin_password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=72)] = Field(default="changeme", description="Password of the admin user created at the first startup.")  # fmt: off
-    auth_key_max_expiration_days: int | None = Field(default=None, ge=1, description="Maximum number of days for a new API key to be valid.")  # fmt: off
-    auth_login_session_duration: int = Field(default=3600, ge=1, description="Duration of login session for the playground in seconds. Also used as oauth2-proxy cookie expiration when SSO is enabled.")  # fmt: off
 
     # rate_limiting
     rate_limiting_strategy: LimitingStrategy = Field(default=LimitingStrategy.FIXED_WINDOW, description="Rate limiting strategy for the API.")  # fmt: off
@@ -336,20 +239,18 @@ class Settings(ConfigBaseModel):
         return self
 
 
-class SettingsLoginPassword(Settings):
-    auth_login_type: Literal["password"] = Field(default="password", description="Login type for the API.")  # fmt: off
+class SettingsLoginPassword(Settings, SharedSettingsLoginPassword):
+    pass
 
 
-class SettingsLoginOIDC(Settings):
-    auth_login_type: Literal["oidc"] = Field(default="oidc", description="Login type for the API.")  # fmt: off
-    auth_playground_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(description="Playground URL. Used by oauth2-proxy for redirect whitelisting and by the API to validate SSO sessions via /oauth2/auth. Use an internal URL reachable from the API (for example http://playground:8501) for API configuration and a public URL reachable from the internet (for example https://playground.my-domain.com) for Playground configuration.")  # fmt: off
+class SettingsLoginOIDC(Settings, SharedSettingsLoginOIDC):
     auth_sso_default_role_id: int = Field(ge=1, description="Default role ID for SSO users.")  # fmt: off
     auth_sso_default_organization_id: int = Field(ge=1, description="Default organization ID for SSO users.")  # fmt: off
 
 
 # load config ----------------------------------------------------------------------------------------------------------------------------------------
 @custom_validation_error()
-class ConfigFile(ConfigBaseModel):
+class ConfigFile(SharedConfigFile):
     """
     Configuration file is composed of 3 sections, models:
     - `models`: to declare models API exposed to the API.
@@ -374,14 +275,6 @@ class ConfigFile(ConfigBaseModel):
             return settings
         return settings
 
-    @model_validator(mode="before")
-    @classmethod
-    def normalize(cls, data: Any) -> Any:
-        if isinstance(data, dict) and isinstance(data.get("settings"), dict):
-            settings = data["settings"]
-            settings.setdefault("auth_login_type", "password")
-        return data
-
     @model_validator(mode="after")
     def validate_models(self) -> Any:
         # get all models and aliases for each model type
@@ -400,56 +293,15 @@ class ConfigFile(ConfigBaseModel):
         return self
 
 
-class Configuration(BaseSettings):
-    model_config = ConfigDict(extra="allow")
-
-    # config
-    config_file: str = "config.yml"
+class Configuration(SharedConfiguration):
     prometheus_multiproc_dir: str = "/tmp/prometheus_multiproc"
-
-    @field_validator("config_file", mode="before")
-    def config_file_exists(cls, config_file):
-        assert Path(config_file).is_file(), f"Config file ({config_file}) not found."
-        return config_file
 
     @model_validator(mode="after")
     def setup_config(self) -> Any:
-        with open(file=self.config_file) as file:
-            lines = file.readlines()
-
-        # remove commented lines
-        uncommented_lines = [line for line in lines if not line.lstrip().startswith("#")]
-
-        # replace environment variables
-        file_content = self.replace_environment_variables(file_content="".join(uncommented_lines))
-        # load config
-        config = ConfigFile(**yaml.safe_load(stream=file_content))
+        config = ConfigFile(**load_yaml_config(self.config_file))
 
         self.models = config.models
         self.dependencies = config.dependencies
         self.settings = config.settings
 
         return self
-
-    @classmethod
-    def replace_environment_variables(cls, file_content):
-        env_variable_pattern = re.compile(r"\${([A-Z0-9_]+)(:-[^}]*)?}")
-
-        def replace_env_var(match):
-            env_variable_definition = match.group(0)
-            env_variable_name = match.group(1)
-            default_env_variable_value = match.group(2)[2:] if match.group(2) else None
-
-            env_variable_value = os.getenv(env_variable_name)
-
-            if env_variable_value is not None and env_variable_value != "":
-                return env_variable_value
-            elif default_env_variable_value is not None:
-                return default_env_variable_value
-            else:
-                logging.warning(f"Environment variable {env_variable_name} not found or empty to replace {env_variable_definition}.")
-                return env_variable_definition
-
-        file_content = env_variable_pattern.sub(replace_env_var, file_content)
-
-        return file_content

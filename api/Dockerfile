@@ -45,10 +45,11 @@ WORKDIR /
 # Copy application from builder
 COPY --from=builder --chown=opengatellm:opengatellm /api /api
 COPY --from=builder --chown=opengatellm:opengatellm /.venv /.venv
+COPY --chown=opengatellm:opengatellm ./common/ /common
 COPY --chown=opengatellm:opengatellm ./scripts/ /scripts
 
 ENV PATH="/.venv/bin:${PATH}"
-ENV PYTHONPATH="/api"
+ENV PYTHONPATH="/:/api"
 ENV PROMETHEUS_MULTIPROC_DIR="/tmp/prometheus_multiproc"
 ENV CONFIG_FILE="/config.yml"
 
