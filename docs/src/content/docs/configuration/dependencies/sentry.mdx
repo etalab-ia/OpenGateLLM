@@ -31,4 +31,6 @@ dependencies:
 
 The Sentry dependency accepts all parameters from the [Sentry Python SDK](https://docs.sentry.io/platforms/python/configuration/options/). Only the `dsn` parameter is typically required.
 
+Set `max_request_body_size: never` so Sentry never captures HTTP request bodies. That keeps payload data out of Sentry and enforces zero request-body retention.
+
 <LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>
