@@ -56,7 +56,9 @@ import makeQuickstartGif from '../../../assets/make_quickstart.gif';
     - *compose.example.yml* → *compose.yml*
     </Aside>
 
-    <Aside type="tip" title="ARM64 hosts (Apple Silicon)">
+    <details>
+    <summary>ARM64 hosts (Apple Silicon)</summary>
+
     Official OpenGateLLM images are published for `linux/amd64` only. On ARM64, run:
 
     ```bash
@@ -74,8 +76,8 @@ import makeQuickstartGif from '../../../assets/make_quickstart.gif';
         image: ghcr.io/etalab-ia/opengatellm/playground:latest
     ```
 
-    On Docker Desktop for Mac, also enable **Use Rosetta for x86/amd64 emulation on Apple Silicon**.
-    </Aside>
+    On Docker Desktop for Mac, also enable use Rosetta for x86/amd64 emulation on Apple Silicon.
+    </details>
 
     **The bootstrap admin user is created and you can connect to the Playground with the following credentials:**
     - email: `admin`

@@ -149,6 +149,7 @@ For more information, see [usage monitoring documentation](/features/usage/infer
 For more information, see [Prometheus documentation](/configuration/dependencies/prometheus/). 
 - For error monitoring, configure the optional `dependencies.sentry` section (there is no separate `monitoring_sentry_enabled` setting). 
 For more information, see [Sentry documentation](/configuration/dependencies/sentry/).
+- Set `max_request_body_size: never` so Sentry never captures HTTP request bodies. That keeps payload data out of Sentry and enforces zero request-body retention.
 
 **Example:**
 
@@ -158,6 +159,7 @@ dependencies:
   sentry:
     dsn: ${SENTRY_DSN}
     environment: production
+    max_request_body_size: never
 
 settings:
   [...]
