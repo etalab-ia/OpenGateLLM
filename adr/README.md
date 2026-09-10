@@ -25,9 +25,10 @@ Each ADR follows this structure:
 | [2026-03-17](2026-03-17-integration-test-isolation.md)   | Integration Test Isolation via Transaction Rollback | Accepted    | 2026-03-17 |
 | [2026-05-28](2026-05-28-refactoring-model-forwarding.md) | Refactoring model forwarding                        | —           | 2026-05-28 |
 | [2026-07-01](2026-07-01-split-rag.md)                    | Extract RAG into OpenGateRAG (OGR)                  | Accepted    | 2026-07-01 |
-| [2026-08-25](2026-08-25-priorization-qos-and-batch.md)   | QoS, least-busy filtrant et file prioritaire        | Proposed    | 2026-08-25 |
 | [2026-08-27](2026-08-27-datetime-handling.md)            | Datetime handling across API, domain and playground | Accepted    | 2026-08-27 |
+| [2026-09-02](2026-09-02-qos.md)                          | Quality of Service (QoS)                            | Draft       | 2026-09-02 |
 | [2026-09-04](2026-09-04-response-schema-mapping.md)      | Mapping domain entities to response schemas         | Accepted    | 2026-09-04 |
+
 
 ## Creating a new ADR
 
