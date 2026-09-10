@@ -15,7 +15,7 @@ class ModelCosts(BaseModel):
 class Model(BaseModel):
     object: Annotated[Literal["model"], Field("model", description="Type of the object.")]
     id: Annotated[str, Field(..., description="The model identifier, which can be referenced in the API endpoints.")]
-    type: Annotated[ModelType | None, Field(default=None, description="The type of the model, which can be used to identify the model type.", examples=["text-generation"])]  # fmt: off
+    type: Annotated[ModelType, Field(..., description="The type of the model, which can be used to identify the model type.", examples=["text-generation"])]  # fmt: off
     aliases: Annotated[list[str], Field(default_factory=list, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]])]  # fmt: off
     created: Annotated[UnixTimestamp, Field(..., description="Time of creation, as Unix timestamp.")]
     owned_by: Annotated[str, Field(..., description="The organization that owns the model.")]
