@@ -6,6 +6,8 @@ from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, ConfigDict
 
+from api.domain._clientconnection import ClientConnection as ClientConnection
+
 
 class BaseModel(BaseModel):
     model_config = ConfigDict(extra="allow")

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from api.domain import ClientConnection
 from api.domain.audio.entities import AudioTranscriptions, AudioTranscriptionsResponseFormat, CreateAudioTranscriptionsForm
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
@@ -59,6 +60,7 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
         usage_recorder: UsageRecorder,
+        client_connection: ClientConnection,
         audio_file_size_limit: int | None = None,
     ) -> None:
         super().__init__(
@@ -72,6 +74,7 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
             router_rate_limiter=router_rate_limiter,
             router_repository=router_repository,
             usage_recorder=usage_recorder,
+            client_connection=client_connection,
         )
         self.audio_file_size_limit = audio_file_size_limit
 

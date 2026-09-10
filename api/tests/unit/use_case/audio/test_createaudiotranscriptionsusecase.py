@@ -95,6 +95,7 @@ def use_case(model_tokenizer, usage_recorder) -> CreateAudioTranscriptionsUseCas
         router_rate_limiter=AsyncMock(),
         router_repository=AsyncMock(),
         usage_recorder=usage_recorder,
+        client_connection=AsyncMock(),
         audio_file_size_limit=None,
     )
 

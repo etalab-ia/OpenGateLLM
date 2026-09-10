@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel
 
-from api.domain import ForwardablePayload
+from api.domain import ClientConnection, ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider import (
@@ -22,6 +22,7 @@ from api.domain.provider import (
 )
 from api.domain.provider.entities import ProviderRequest, ProviderResponse
 from api.domain.provider.errors import (
+    ClientDisconnectedError,
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
     ProviderAdapterValidationResponseError,
@@ -35,7 +36,7 @@ from api.domain.usage.entities import Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
 from api.schemas.core.models import Metric
-from api.utils.variables import QOS_WAIT_SLEEP_SECONDS, EndpointRoute
+from api.utils.variables import CLIENT_DISCONNECT_POLL_SECONDS, QOS_WAIT_SLEEP_SECONDS, EndpointRoute
 
 
 class ForwardingCommand[TPayload: ForwardablePayload](BaseModel):
@@ -57,7 +58,8 @@ class ProviderRequestForwardingUseCaseSuccess[TData]:
 
 
 type ProviderRequestForwardingUseCaseError = (
-    NoAvailableProviderError
+    ClientDisconnectedError
+    | NoAvailableProviderError
     | ProviderAdapterValidationRequestError
     | ProviderAdapterValidationResponseError
     | RouterRateLimitExceededError
@@ -90,6 +92,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
         usage_recorder: UsageRecorder,
+        client_connection: ClientConnection,
     ) -> None:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
         self.model_tokenizer = model_tokenizer
@@ -103,6 +106,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         self.router_repository = router_repository
 
         self.usage_recorder = usage_recorder
+        self.client_connection = client_connection
 
     @staticmethod
     def compute_retry_after(qos_retry: int, depth: int) -> int:
@@ -173,6 +177,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         payload: ForwardablePayload,
     ) -> (
         ProviderResponse
+        | ClientDisconnectedError
         | NoAvailableProviderError
         | ProviderAdapterValidationRequestError
         | TooBusyModelError
@@ -191,6 +196,8 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
             admitted = True
             retries = 0
             while True:
+                if await self.client_connection.is_disconnected():
+                    return ClientDisconnectedError()
                 admission_result = await self.provider_qos_admission.try_admit(
                     providers=providers,
                     strategy=router.load_balancing_strategy,
@@ -216,8 +223,21 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
             await self.provider_qos_admission.start_heartbeat(provider_id=provider.id, request_id=request_id)
 
         start_time = time.perf_counter()
+        forward_task = asyncio.create_task(self.provider_client.forward(provider=provider, request=request))
+        disconnect_task = asyncio.create_task(self._wait_until_disconnected())
         try:
-            result = await self.provider_client.forward(provider=provider, request=request)
+            done, pending = await asyncio.wait({forward_task, disconnect_task}, return_when=asyncio.FIRST_COMPLETED)
+            for task in pending:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+            if forward_task not in done:
+                return ClientDisconnectedError()
+
+            result = forward_task.result()
             latency = int((time.perf_counter() - start_time) * 1000)  # ms
         finally:
             if admitted:
@@ -266,6 +286,12 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         )
 
         return provider_response
+
+    async def _wait_until_disconnected(self) -> bool:
+        while True:
+            if await self.client_connection.is_disconnected():
+                return True
+            await asyncio.sleep(CLIENT_DISCONNECT_POLL_SECONDS)
 
     async def execute(self, command: TCommand) -> ProviderRequestForwardingUseCaseResult[TData]:
         authenticated_user = command.authenticated_user

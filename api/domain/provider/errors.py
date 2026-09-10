@@ -42,6 +42,11 @@ class NoAvailableProviderError:
 
 
 @dataclass
+class ClientDisconnectedError:
+    pass
+
+
+@dataclass
 class ProviderAdapterValidationRequestError:
     provider_type: ProviderType
     errors: list[dict]

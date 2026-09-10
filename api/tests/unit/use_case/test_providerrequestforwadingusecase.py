@@ -1,8 +1,9 @@
+import asyncio
 from unittest.mock import AsyncMock, create_autospec, patch
 
 import pytest
 
-from api.domain import ForwardablePayload
+from api.domain import ClientConnection, ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.entities import ProviderJsonResponse
 from api.domain.model.errors import TooBusyModelError
@@ -16,7 +17,11 @@ from api.domain.provider import (
     QosAdmissionGranted,
 )
 from api.domain.provider.entities import ProviderResponse, ProviderType
-from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError
+from api.domain.provider.errors import (
+    ClientDisconnectedError,
+    NoAvailableProviderError,
+    ProviderAdapterValidationRequestError,
+)
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterQosMode, RouterRateLimitState, RouterType, RpmRateLimitState, TpmRateLimitState
@@ -89,6 +94,13 @@ def provider_metrics_logger():
 @pytest.fixture
 def provider_qos_admission():
     return create_autospec(ProviderQosAdmission, instance=True, spec_set=True)
+
+
+@pytest.fixture
+def client_connection():
+    connection = create_autospec(ClientConnection, instance=True, spec_set=True)
+    connection.is_disconnected.return_value = False
+    return connection
 
 
 @pytest.fixture
@@ -168,6 +180,7 @@ def use_case(
     router_rate_limiter,
     router_repository,
     usage_recorder,
+    client_connection,
 ) -> ForwardingTestUseCase:
     return ForwardingTestUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -180,6 +193,7 @@ def use_case(
         router_rate_limiter=router_rate_limiter,
         router_repository=router_repository,
         usage_recorder=usage_recorder,
+        client_connection=client_connection,
     )
 
 
@@ -551,6 +565,27 @@ class TestSendRequest:
             completion_tokens=1,
             cost=0.03,
         )
+
+    @pytest.mark.asyncio
+    async def test_should_release_admission_and_return_client_disconnected_when_client_disconnects_during_forward(
+        self, use_case, router, provider, payload
+    ):
+        # Arrange
+        async def slow_forward(**kwargs):
+            await asyncio.sleep(10)
+            return ProviderResponse(id="req-1", text="late")
+
+        use_case.provider_client.forward.side_effect = slow_forward
+        use_case.client_connection.is_disconnected.side_effect = [False, True]
+
+        # Act
+        with patch("api.use_cases._providerrequestforwardingusecase.CLIENT_DISCONNECT_POLL_SECONDS", 0.01):
+            result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)
+
+        # Assert
+        assert isinstance(result, ClientDisconnectedError)
+        use_case.provider_qos_admission.release.assert_awaited_once()
+        use_case.usage_recorder.record_usage.assert_not_called()
 
 
 class TestExecute:
