@@ -4,7 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain import SortField, SortOrder
 from api.domain.router import RouterRepository
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage, RouterType
+from api.domain.router.entities import (
+    DEFAULT_QOS_HEALTH_THRESHOLDS,
+    Router,
+    RouterLoadBalancingStrategy,
+    RouterPage,
+    RouterQosMetric,
+    RouterQosMode,
+    RouterType,
+)
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
@@ -45,6 +53,10 @@ class PostgresRouterRepository(RouterRepository):
             RouterTable.user_id,
             RouterTable.type,
             RouterTable.load_balancing_strategy,
+            RouterTable.qos_mode,
+            RouterTable.qos_retry,
+            RouterTable.qos_metric,
+            RouterTable.qos_health_thresholds,
             RouterTable.cost_prompt_tokens,
             RouterTable.cost_completion_tokens,
             PostgresRouterRepository._select_providers_statement(),
@@ -62,6 +74,10 @@ class PostgresRouterRepository(RouterRepository):
             type=RouterType(row.type),
             aliases=row.aliases if aliases is None else aliases,
             load_balancing_strategy=RouterLoadBalancingStrategy(row.load_balancing_strategy),
+            qos_mode=RouterQosMode(row.qos_mode),
+            qos_retry=row.qos_retry,
+            qos_metric=RouterQosMetric(row.qos_metric),
+            qos_health_thresholds=list(row.qos_health_thresholds) if row.qos_health_thresholds is not None else list(DEFAULT_QOS_HEALTH_THRESHOLDS),
             cost_prompt_tokens=row.cost_prompt_tokens or 0.0,
             cost_completion_tokens=row.cost_completion_tokens or 0.0,
             providers=row.providers,
@@ -127,8 +143,13 @@ class PostgresRouterRepository(RouterRepository):
         cost_completion_tokens: float,
         user_id: int,
         aliases: list[str] | None = None,
+        qos_mode: RouterQosMode = RouterQosMode.WAIT,
+        qos_retry: int = 10,
+        qos_metric: RouterQosMetric = RouterQosMetric.INFLIGHT,
+        qos_health_thresholds: list[float] | None = None,
     ) -> Router | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError:
         aliases = aliases or []
+        qos_health_thresholds = list(qos_health_thresholds) if qos_health_thresholds is not None else list(DEFAULT_QOS_HEALTH_THRESHOLDS)
 
         try:
             insert_router_query = (
@@ -138,6 +159,10 @@ class PostgresRouterRepository(RouterRepository):
                     name=name,
                     type=router_type.value,
                     load_balancing_strategy=load_balancing_strategy.value,
+                    qos_mode=qos_mode.value,
+                    qos_retry=qos_retry,
+                    qos_metric=qos_metric.value,
+                    qos_health_thresholds=qos_health_thresholds,
                     cost_prompt_tokens=cost_prompt_tokens,
                     cost_completion_tokens=cost_completion_tokens,
                 )
@@ -147,6 +172,10 @@ class PostgresRouterRepository(RouterRepository):
                     RouterTable.user_id,
                     RouterTable.type,
                     RouterTable.load_balancing_strategy,
+                    RouterTable.qos_mode,
+                    RouterTable.qos_retry,
+                    RouterTable.qos_metric,
+                    RouterTable.qos_health_thresholds,
                     RouterTable.cost_prompt_tokens,
                     RouterTable.cost_completion_tokens,
                     cast(literal(0), Integer).label("providers"),
@@ -210,6 +239,10 @@ class PostgresRouterRepository(RouterRepository):
                     name=router.name,
                     type=router.type.value,
                     load_balancing_strategy=router.load_balancing_strategy.value,
+                    qos_mode=router.qos_mode.value,
+                    qos_retry=router.qos_retry,
+                    qos_metric=router.qos_metric.value,
+                    qos_health_thresholds=router.qos_health_thresholds,
                     cost_prompt_tokens=router.cost_prompt_tokens,
                     cost_completion_tokens=router.cost_completion_tokens,
                 )
@@ -219,6 +252,10 @@ class PostgresRouterRepository(RouterRepository):
                     RouterTable.user_id,
                     RouterTable.type,
                     RouterTable.load_balancing_strategy,
+                    RouterTable.qos_mode,
+                    RouterTable.qos_retry,
+                    RouterTable.qos_metric,
+                    RouterTable.qos_health_thresholds,
                     RouterTable.cost_prompt_tokens,
                     RouterTable.cost_completion_tokens,
                     RouterTable.created,
@@ -246,6 +283,10 @@ class PostgresRouterRepository(RouterRepository):
             type=RouterType(row.type),
             aliases=router.aliases,
             load_balancing_strategy=RouterLoadBalancingStrategy(row.load_balancing_strategy),
+            qos_mode=RouterQosMode(row.qos_mode),
+            qos_retry=row.qos_retry,
+            qos_metric=RouterQosMetric(row.qos_metric),
+            qos_health_thresholds=list(row.qos_health_thresholds) if row.qos_health_thresholds is not None else list(DEFAULT_QOS_HEALTH_THRESHOLDS),
             cost_prompt_tokens=row.cost_prompt_tokens or 0.0,
             cost_completion_tokens=row.cost_completion_tokens or 0.0,
             providers=router.providers,

@@ -75,8 +75,8 @@ async def create_embeddings(
     match result:
         case CreateEmbeddingsUseCaseSuccess(data=data, headers=headers):
             return JSONResponse(content=EmbeddingsResponse.model_validate(data.model_dump()).model_dump(), status_code=200, headers=headers)
-        case NoAvailableProviderError():
-            raise ModelIsTooBusyExceptionHTTPException()
+        case NoAvailableProviderError(retry_after=retry_after):
+            raise ModelIsTooBusyExceptionHTTPException(retry_after=retry_after)
         case ProviderAdapterValidationRequestError(errors=errors):
             raise HTTPException(status_code=422, detail=jsonable_encoder(errors))
         case ProviderAdapterValidationResponseError(errors=errors):

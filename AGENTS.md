@@ -396,16 +396,20 @@ Autocommit wiring:
 - Model-forward use cases: `create_embeddings_use_case_factory`, `create_ocr_use_case_factory`, `create_rerank_use_case_factory`, `create_audio_transcriptions_use_case_factory`
 - `AccessController` lookups: `_authentication_key_repository`, `_authenticated_user_query` (they run on the same request as model-forward)
 
+### QoS admission (model-forward)
+
+`ProviderRequestForwardingUseCase` admits requests through `ProviderQosAdmission` (`try_admit` / heartbeat / `release`) when the router `qos_mode` is `wait`. Selection and slot reservation happen atomically in Redis Lua (`ogl_qos:load:{provider_id}` ZSET). `qos_mode=off` skips admission and uses `ProviderLoadBalancer` only. Exhausted wait retries return `NoAvailableProviderError` with `retry_after` for the 503 `Retry-After` header. Spec: `adr/2026-09-02-qos.md`.
+
 ```python
 def create_embeddings_use_case_factory(
-    postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
-    ...
+ postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
+ ...
 ) -> CreateEmbeddingsUseCase:
-    return CreateEmbeddingsUseCase(
-        provider_repository=_provider_repository(postgres_session),
-        router_repository=_router_repository(postgres_session),
-        ...
-    )
+ return CreateEmbeddingsUseCase(
+ provider_repository=_provider_repository(postgres_session),
+ router_repository=_router_repository(postgres_session),
+ ...
+ )
 ```
 
 Keep a **separate** transactional factory for the same repository when used by admin CRUD (`_key_repository` vs `_authentication_key_repository`).

@@ -90,6 +90,7 @@ def use_case(model_tokenizer, usage_recorder) -> CreateAudioTranscriptionsUseCas
         provider_client=AsyncMock(),
         provider_load_balancer=AsyncMock(),
         provider_metrics_logger=AsyncMock(),
+        provider_qos_admission=AsyncMock(),
         provider_repository=AsyncMock(),
         router_rate_limiter=AsyncMock(),
         router_repository=AsyncMock(),

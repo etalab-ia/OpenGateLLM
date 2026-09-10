@@ -13,6 +13,18 @@ class RouterLoadBalancingStrategy(StrEnum):
     LEAST_BUSY = "least_busy"
 
 
+class RouterQosMode(StrEnum):
+    OFF = "off"
+    WAIT = "wait"
+
+
+class RouterQosMetric(StrEnum):
+    INFLIGHT = "inflight"
+
+
+DEFAULT_QOS_HEALTH_THRESHOLDS: list[float] = [0.9, 1.1]
+
+
 RouterPage = EntitiesPage["Router"]
 
 
@@ -32,6 +44,10 @@ class Router(BaseModel):
     type: RouterType
     aliases: list[str]
     load_balancing_strategy: RouterLoadBalancingStrategy
+    qos_mode: RouterQosMode = RouterQosMode.WAIT
+    qos_retry: int = 10
+    qos_metric: RouterQosMetric = RouterQosMetric.INFLIGHT
+    qos_health_thresholds: list[float] = Field(default_factory=lambda: list(DEFAULT_QOS_HEALTH_THRESHOLDS))
     cost_prompt_tokens: float
     cost_completion_tokens: float
     providers: int
@@ -46,6 +62,18 @@ class Router(BaseModel):
 
     def with_load_balancing_strategy(self, strategy: RouterLoadBalancingStrategy) -> "Router":
         return self.model_copy(update={"load_balancing_strategy": strategy})
+
+    def with_qos_mode(self, qos_mode: RouterQosMode) -> "Router":
+        return self.model_copy(update={"qos_mode": qos_mode})
+
+    def with_qos_retry(self, qos_retry: int) -> "Router":
+        return self.model_copy(update={"qos_retry": qos_retry})
+
+    def with_qos_metric(self, qos_metric: RouterQosMetric) -> "Router":
+        return self.model_copy(update={"qos_metric": qos_metric})
+
+    def with_qos_health_thresholds(self, qos_health_thresholds: list[float]) -> "Router":
+        return self.model_copy(update={"qos_health_thresholds": qos_health_thresholds})
 
     def with_cost_prompt_tokens(self, prompt_tokens: float) -> "Router":
         return self.model_copy(update={"cost_prompt_tokens": prompt_tokens})

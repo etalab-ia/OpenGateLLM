@@ -147,6 +147,10 @@ class RouterSQLFactory(BaseSQLFactory):
     name = factory.Sequence(lambda n: f"router-{n}")  # not "router_<n>": several tests use explicit "router_1" … "router_7" names
     type = factory.Faker("random_element", elements=list(ModelType))
     load_balancing_strategy = factory.Faker("random_element", elements=list(RouterLoadBalancingStrategy))
+    qos_mode = "wait"
+    qos_retry = 10
+    qos_metric = "inflight"
+    qos_health_thresholds = factory.LazyFunction(lambda: [0.9, 1.1])
     cost_prompt_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     cost_completion_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     created = factory.LazyFunction(lambda: datetime.now(tz=UTC))

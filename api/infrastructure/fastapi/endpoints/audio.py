@@ -101,8 +101,8 @@ async def create_audio_transcription(
             return PlainTextResponse(content=text, status_code=200, headers=headers, media_type=media_type)
         case AudioFileSizeLimitExceededError(size=size, expected_size=expected_size):
             raise FileSizeLimitExceededHTTPException(size=size, expected_size=expected_size)
-        case NoAvailableProviderError():
-            raise ModelIsTooBusyExceptionHTTPException()
+        case NoAvailableProviderError(retry_after=retry_after):
+            raise ModelIsTooBusyExceptionHTTPException(retry_after=retry_after)
         case ProviderAdapterValidationRequestError(errors=errors):
             raise HTTPException(status_code=422, detail=jsonable_encoder(errors))
         case ProviderAdapterValidationResponseError(errors=errors):

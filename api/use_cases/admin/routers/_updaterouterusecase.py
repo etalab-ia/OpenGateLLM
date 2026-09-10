@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from api.domain.router import RouterRepository
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterType
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterQosMetric, RouterQosMode, RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 
 
@@ -12,6 +12,10 @@ class UpdateRouterCommand:
     router_type: RouterType
     aliases: list[str]
     load_balancing_strategy: RouterLoadBalancingStrategy
+    qos_mode: RouterQosMode
+    qos_retry: int
+    qos_metric: RouterQosMetric
+    qos_health_thresholds: list[float]
     cost_prompt_tokens: float
     cost_completion_tokens: float
 
@@ -43,6 +47,10 @@ class UpdateRouterUseCase:
             router.with_name(command.name)
             .with_type(command.router_type)
             .with_load_balancing_strategy(command.load_balancing_strategy)
+            .with_qos_mode(command.qos_mode)
+            .with_qos_retry(command.qos_retry)
+            .with_qos_metric(command.qos_metric)
+            .with_qos_health_thresholds(command.qos_health_thresholds)
             .with_cost_prompt_tokens(command.cost_prompt_tokens)
             .with_cost_completion_tokens(command.cost_completion_tokens)
             .with_aliases(command.aliases)

@@ -14,6 +14,7 @@ from api.domain.provider import (
     ProviderClient,
     ProviderLoadBalancer,
     ProviderMetricsLogger,
+    ProviderQosAdmission,
     ProviderRepository,
 )
 from api.domain.role import LimitRepository, PermissionRepository
@@ -40,7 +41,12 @@ from api.infrastructure.postgres import (
     PostgresUsageRepository,
     PostgresUserRepository,
 )
-from api.infrastructure.redis import RedisProviderLoadBalancer, RedisProviderMetricsLogger, RedisRouterRateLimiter
+from api.infrastructure.redis import (
+    RedisProviderLoadBalancer,
+    RedisProviderMetricsLogger,
+    RedisProviderQosAdmission,
+    RedisRouterRateLimiter,
+)
 from api.infrastructure.tiktoken import TiktokenModelTokenizer
 from api.use_cases.admin.keys import CreateKeyUseCase, DeleteKeyUseCase, GetKeysUseCase, GetOneKeyUseCase
 from api.use_cases.admin.organizations import (
@@ -142,6 +148,10 @@ def _provider_load_balancer(redis_client: Redis = Depends(get_redis_client)) -> 
     return RedisProviderLoadBalancer(redis_client=redis_client)
 
 
+def _provider_qos_admission(redis_client: Redis = Depends(get_redis_client)) -> ProviderQosAdmission:
+    return RedisProviderQosAdmission(redis_client=redis_client)
+
+
 def _provider_capabilities_probe(
     provider_client: ProviderClient = Depends(_provider_client),
 ) -> ProviderCapabilitiesProbe:
@@ -218,6 +228,7 @@ def create_audio_transcriptions_use_case_factory(
         provider_client=provider_client,
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_qos_admission=_provider_qos_admission(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
@@ -285,6 +296,7 @@ def create_embeddings_use_case_factory(
         provider_client=provider_client,
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_qos_admission=_provider_qos_admission(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
@@ -356,6 +368,7 @@ def create_ocr_use_case_factory(
         provider_client=provider_client,
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_qos_admission=_provider_qos_admission(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
@@ -419,6 +432,7 @@ def create_rerank_use_case_factory(
         provider_client=provider_client,
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_qos_admission=_provider_qos_admission(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),

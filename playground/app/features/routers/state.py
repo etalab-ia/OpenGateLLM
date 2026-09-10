@@ -31,6 +31,16 @@ class RoutersState(EntityState):
         """Get list of router load balancing strategies."""
         return ["Shuffle", "Least Busy"]
 
+    @rx.var
+    def router_qos_modes_list(self) -> list[str]:
+        """Get list of router QoS modes."""
+        return ["Wait", "Off"]
+
+    @rx.var
+    def router_qos_metrics_list(self) -> list[str]:
+        """Get list of router QoS metrics."""
+        return ["Inflight"]
+
     ############################################################
     # Load entities
     ############################################################
@@ -44,6 +54,13 @@ class RoutersState(EntityState):
             "shuffle": "Shuffle",
             "least_busy": "Least Busy",
         }
+        _qos_mode_converter = {
+            "wait": "Wait",
+            "off": "Off",
+        }
+        _qos_metric_converter = {
+            "inflight": "Inflight",
+        }
         return Router(
             id=router["id"],
             name=router["name"],
@@ -51,6 +68,10 @@ class RoutersState(EntityState):
             type=router["type"],
             aliases=",".join(router["aliases"]) if router["aliases"] else "",
             load_balancing_strategy=_load_balancing_strategy_converter.get(router["load_balancing_strategy"]),
+            qos_mode=_qos_mode_converter.get(router["qos_mode"]),
+            qos_retry=router["qos_retry"],
+            qos_metric=_qos_metric_converter.get(router["qos_metric"]),
+            qos_health_thresholds=",".join(str(v) for v in router["qos_health_thresholds"]),
             cost_prompt_tokens=router["cost_prompt_tokens"],
             cost_completion_tokens=router["cost_completion_tokens"],
             providers=router["providers"],
@@ -171,6 +192,10 @@ class RoutersState(EntityState):
     entity_to_create: Router = Router(
         type="text-generation",
         load_balancing_strategy="Shuffle",
+        qos_mode="Wait",
+        qos_retry=10,
+        qos_metric="Inflight",
+        qos_health_thresholds="0.9,1.1",
         cost_prompt_tokens=0.0,
         cost_completion_tokens=0.0,
     )
@@ -194,11 +219,16 @@ class RoutersState(EntityState):
         yield
 
         new_router_load_balancing_strategy = self.entity_to_create.load_balancing_strategy.lower().replace(" ", "_")
+        qos_health_thresholds = [float(v.strip()) for v in (self.entity_to_create.qos_health_thresholds or "0.9,1.1").split(",") if v.strip()]
 
         payload = {
             "name": self.entity_to_create.name,
             "type": self.entity_to_create.type,
             "load_balancing_strategy": new_router_load_balancing_strategy,
+            "qos_mode": (self.entity_to_create.qos_mode or "Wait").lower(),
+            "qos_retry": int(self.entity_to_create.qos_retry or 10),
+            "qos_metric": (self.entity_to_create.qos_metric or "Inflight").lower(),
+            "qos_health_thresholds": qos_health_thresholds,
             "cost_prompt_tokens": self.entity_to_create.cost_prompt_tokens,
             "cost_completion_tokens": self.entity_to_create.cost_completion_tokens,
         }
@@ -266,12 +296,17 @@ class RoutersState(EntityState):
 
         router_aliases = [alias.strip() for alias in self.entity.aliases.split(",") if alias.strip()]
         router_load_balancing_strategy = self.entity.load_balancing_strategy.lower().replace(" ", "_")
+        qos_health_thresholds = [float(v.strip()) for v in (self.entity.qos_health_thresholds or "0.9,1.1").split(",") if v.strip()]
 
         payload = {
             "name": self.entity.name,
             "type": self.entity.type,
             "aliases": router_aliases,
             "load_balancing_strategy": router_load_balancing_strategy,
+            "qos_mode": (self.entity.qos_mode or "Wait").lower(),
+            "qos_retry": int(self.entity.qos_retry or 10),
+            "qos_metric": (self.entity.qos_metric or "Inflight").lower(),
+            "qos_health_thresholds": qos_health_thresholds,
             "cost_prompt_tokens": self.entity.cost_prompt_tokens,
             "cost_completion_tokens": self.entity.cost_completion_tokens,
         }

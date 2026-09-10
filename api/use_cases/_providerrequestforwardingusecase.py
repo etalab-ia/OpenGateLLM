@@ -1,13 +1,25 @@
+import asyncio
 from dataclasses import dataclass
+import math
+import random
 import time
 from typing import ClassVar
+from uuid import uuid4
 
 from pydantic import BaseModel
 
 from api.domain import ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider import (
+    ProviderClient,
+    ProviderLoadBalancer,
+    ProviderMetricsLogger,
+    ProviderQosAdmission,
+    ProviderRepository,
+    QosAdmissionFull,
+    QosAdmissionGranted,
+)
 from api.domain.provider.entities import ProviderRequest, ProviderResponse
 from api.domain.provider.errors import (
     NoAvailableProviderError,
@@ -16,14 +28,14 @@ from api.domain.provider.errors import (
     UnsupportedProviderEndpointError,
 )
 from api.domain.router import RouterRateLimiter, RouterRepository
-from api.domain.router.entities import Router, RouterRateLimitState, RouterType
+from api.domain.router.entities import Router, RouterQosMode, RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
 from api.schemas.core.models import Metric
-from api.utils.variables import EndpointRoute
+from api.utils.variables import QOS_WAIT_SLEEP_SECONDS, EndpointRoute
 
 
 class ForwardingCommand[TPayload: ForwardablePayload](BaseModel):
@@ -73,6 +85,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         provider_client: ProviderClient,
         provider_load_balancer: ProviderLoadBalancer,
         provider_metrics_logger: ProviderMetricsLogger,
+        provider_qos_admission: ProviderQosAdmission,
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
@@ -83,12 +96,19 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         self.provider_client = provider_client
         self.provider_load_balancer = provider_load_balancer
         self.provider_metrics_logger = provider_metrics_logger
+        self.provider_qos_admission = provider_qos_admission
         self.provider_repository = provider_repository
 
         self.router_rate_limiter = router_rate_limiter
         self.router_repository = router_repository
 
         self.usage_recorder = usage_recorder
+
+    @staticmethod
+    def compute_retry_after(qos_retry: int, depth: int) -> int:
+        plafond = max(1, math.ceil(qos_retry * QOS_WAIT_SLEEP_SECONDS))
+        retry_after = math.ceil((1 + depth) * (0.5 + random.random()))
+        return max(1, min(plafond, retry_after))
 
     async def _resolve_router(
         self,
@@ -153,6 +173,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         payload: ForwardablePayload,
     ) -> (
         ProviderResponse
+        | NoAvailableProviderError
         | ProviderAdapterValidationRequestError
         | TooBusyModelError
         | UnknownModelError
@@ -161,20 +182,46 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         | UnsupportedProviderEndpointError
     ):
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
-        provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
-        self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
+        request_id = str(uuid4())
 
+        if router.qos_mode == RouterQosMode.OFF:
+            provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
+            admitted = False
+        else:
+            admitted = True
+            retries = 0
+            while True:
+                admission_result = await self.provider_qos_admission.try_admit(
+                    providers=providers,
+                    strategy=router.load_balancing_strategy,
+                    request_id=request_id,
+                )
+                match admission_result:
+                    case QosAdmissionGranted(provider_id=provider_id):
+                        provider = next(candidate for candidate in providers if candidate.id == provider_id)
+                        break
+                    case QosAdmissionFull(depth=depth):
+                        if retries >= router.qos_retry:
+                            return NoAvailableProviderError(
+                                router_id=router.id,
+                                retry_after=self.compute_retry_after(qos_retry=router.qos_retry, depth=depth),
+                            )
+                        await asyncio.sleep(QOS_WAIT_SLEEP_SECONDS)
+                        retries += 1
+
+        self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
         request = ProviderRequest(endpoint=self.ENDPOINT, payload=payload)
 
-        inflight_is_incremented = await self.provider_metrics_logger.increment_inflight(provider_id=provider.id)
+        if admitted:
+            await self.provider_qos_admission.start_heartbeat(provider_id=provider.id, request_id=request_id)
 
         start_time = time.perf_counter()
         try:
             result = await self.provider_client.forward(provider=provider, request=request)
             latency = int((time.perf_counter() - start_time) * 1000)  # ms
         finally:
-            if inflight_is_incremented:
-                await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
+            if admitted:
+                await self.provider_qos_admission.release(provider_id=provider.id, request_id=request_id)
 
         match result:
             case ProviderResponse() as provider_response:
