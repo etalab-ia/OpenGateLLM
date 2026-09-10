@@ -11,17 +11,17 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
-    "@astrojs/starlight": "0.38.5",
+    "@astrojs/starlight": "0.42.0",
     "@iconify-json/lobe": "npm:@proj-airi/lobe-icons@^1.0.19",
     "@iconify-json/lucide": "^1.2.105",
     "@mermaid-js/layout-elk": "^0.2.1",
-    "astro": "^6.2.1",
-    "astro-contributors": "^0.8.0",
+    "astro": "^7.3.2",
+    "astro-contributors": "^0.9.0",
     "astro-mermaid": "^2.0.1",
     "mermaid": "^11.14.0",
-    "sharp": "^0.35.0",
+    "sharp": "^0.35.4",
     "starlight-giscus": "^0.9.1",
-    "starlight-ion-theme": "^2.4.0",
+    "starlight-ion-theme": "^2.4.1",
     "starlight-links-validator": "^0.24.0",
     "starlight-scroll-to-top": "^1.0.1"
   },
