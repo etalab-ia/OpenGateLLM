@@ -175,9 +175,9 @@ class Router(Base):
     name: Mapped[str] = mapped_column(unique=True)
     type: Mapped[ModelType]
     load_balancing_strategy: Mapped[RouterLoadBalancingStrategy]
-    qos_mode: Mapped[RouterQosMode] = mapped_column(default=RouterQosMode.WAIT, server_default=RouterQosMode.WAIT.value)
+    qos_mode: Mapped[RouterQosMode] = mapped_column(default=RouterQosMode.WAIT, server_default=RouterQosMode.WAIT.name)
     qos_retry: Mapped[int] = mapped_column(default=10, server_default="10")
-    qos_metric: Mapped[RouterQosMetric] = mapped_column(default=RouterQosMetric.INFLIGHT, server_default=RouterQosMetric.INFLIGHT.value)
+    qos_metric: Mapped[RouterQosMetric] = mapped_column(default=RouterQosMetric.INFLIGHT, server_default=RouterQosMetric.INFLIGHT.name)
     qos_health_thresholds: Mapped[list[float]] = mapped_column(ARRAY(Float), default=lambda: [0.9, 1.1], server_default="{0.9,1.1}")
     cost_prompt_tokens: Mapped[float] = mapped_column(default=0.0)
     cost_completion_tokens: Mapped[float] = mapped_column(default=0.0)
