@@ -25,11 +25,7 @@ type GetHealthModelsUseCaseResult = GetHealthModelsUseCaseSuccess
 class GetHealthModelsUseCase:
     LIVENESS_TIMEOUT_SECONDS = 4
     ORANGE_LOAD_RATIO = 0.95
-    STATUS_PRIORITY = {
-        HealthStatus.RED: 0,
-        HealthStatus.ORANGE: 1,
-        HealthStatus.GREEN: 2,
-    }
+    STATUS_PRIORITY = {HealthStatus.RED: 0, HealthStatus.YELLOW: 1, HealthStatus.GREEN: 2}
 
     def __init__(
         self,
@@ -48,7 +44,7 @@ class GetHealthModelsUseCase:
         if not liveness_ok or qos_limit == 0 or (qos_limit is not None and load >= qos_limit):
             return HealthStatus.RED
         if qos_limit is not None and load >= cls.ORANGE_LOAD_RATIO * qos_limit:
-            return HealthStatus.ORANGE
+            return HealthStatus.YELLOW
         return HealthStatus.GREEN
 
     async def execute(self, command: GetHealthModelsCommand) -> GetHealthModelsUseCaseResult:

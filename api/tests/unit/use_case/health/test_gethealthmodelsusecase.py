@@ -92,7 +92,7 @@ class TestGetHealthModelsUseCase:
         [
             (0, 0, HealthStatus.RED),
             (20, 18, HealthStatus.GREEN),
-            (20, 19, HealthStatus.ORANGE),
+            (20, 19, HealthStatus.YELLOW),
             (20, 20, HealthStatus.RED),
             (4, 3, HealthStatus.GREEN),
             (4, 4, HealthStatus.RED),
