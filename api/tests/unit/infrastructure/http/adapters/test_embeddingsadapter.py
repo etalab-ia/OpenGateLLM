@@ -207,8 +207,8 @@ class TestEmbeddingsAdapter:
     )
     def test_to_provider_response_correctly(self, adapter, response_data):
         # Arrange
-        original_request = ProviderRequestFactory(embeddings=True, id="req-123")
-        original_response = HttpProviderResponse(data={**response_data, "id": "provider-id"})
+        original_request = ProviderRequestFactory(embeddings=True)
+        original_response = HttpProviderResponse(data=response_data)
 
         # Act
         result = adapter.to_provider_response(http_response=original_response, request=original_request)
@@ -218,7 +218,8 @@ class TestEmbeddingsAdapter:
         assert isinstance(result.data, Embeddings)
         assert len(result.data.data) == 1
         assert result.data.data[0].embedding == response_data["data"][0]["embedding"]
-        assert result.data.id == "req-123"
+        assert result.id == original_request.id
+        assert result.data.id == original_request.id
         assert result.data.model == "openweight-embeddings"
 
     @pytest.mark.parametrize(

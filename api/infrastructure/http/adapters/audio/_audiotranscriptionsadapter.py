@@ -37,7 +37,7 @@ class AudioTranscriptionsAdapter(HttpProviderAdapter):
             return ProviderResponse(text=http_response.text)
 
         try:
-            data = self.RESPONSE_TYPE.model_validate({**http_response.data, "id": request.id, "model": request.payload.model})
+            data = self.RESPONSE_TYPE.model_validate({"id": request.id, "model": request.payload.model, **http_response.data})
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 

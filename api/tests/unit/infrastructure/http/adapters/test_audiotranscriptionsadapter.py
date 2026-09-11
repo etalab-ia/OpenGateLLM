@@ -31,6 +31,7 @@ def _original_request(**overrides) -> ProviderRequest:
         "id": "req-1",
         "endpoint": ProviderEndpoint.AUDIO_TRANSCRIPTIONS,
         "payload": form,
+        "id": "req-audio-1",
     }
     payload.update(overrides)
     return ProviderRequest(**payload)
@@ -66,6 +67,8 @@ class TestAudioTranscriptionsAdapter:
         assert result.data.id == "req-123"
         assert result.data.text == "hello world"
         assert result.data.model == "audio-router"
+        assert result.id == "req-audio-1"
+        assert result.data.id == "req-audio-1"
 
 
 class TestMistralAudioTranscriptionsAdapter:

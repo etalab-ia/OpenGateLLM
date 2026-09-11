@@ -26,7 +26,6 @@ class TestGetProvider:
             router=router,
             user=self.admin_user,
             key="secret-key",
-            basic_auth={"username": "u", "password": "p"},
             max_context_length=4096,
             vector_size=768,
         )
@@ -46,7 +45,6 @@ class TestGetProvider:
         assert data["created"] == int(provider.created.timestamp())
         assert data["updated"] == int(provider.updated.timestamp())
         assert "key" not in data
-        assert "basic_auth" not in data
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

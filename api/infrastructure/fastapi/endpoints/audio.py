@@ -1,7 +1,7 @@
 import logging
 from typing import Annotated, assert_never
 
-from fastapi import APIRouter, Depends, HTTPException, Security
+from fastapi import APIRouter, Depends, HTTPException, Request, Security
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, PlainTextResponse
 
@@ -20,7 +20,7 @@ from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTy
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
-from api.infrastructure.fastapi.decorators import hooks
+from api.infrastructure.fastapi.decorators import cancel_on_disconnect, hooks
 from api.infrastructure.fastapi.dependencies import get_authenticated_key, get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
@@ -63,7 +63,9 @@ router = APIRouter(prefix="/v1", tags=[RouterName.AUDIO.title()])
     response_model=AudioTranscriptionsResponse,
 )
 @hooks(postgres_session_provider=get_postgres_session, router_rate_limiter_provider=get_router_rate_limiter)
+@cancel_on_disconnect
 async def create_audio_transcription(
+    request: Request,
     data: Annotated[CreateAudioTranscriptionsForm, Depends(CreateAudioTranscriptionsForm.as_form)],
     create_audio_transcriptions_use_case: CreateAudioTranscriptionsUseCase = Depends(create_audio_transcriptions_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
@@ -103,8 +105,8 @@ async def create_audio_transcription(
             return PlainTextResponse(content=text, status_code=200, headers=headers, media_type=media_type)
         case AudioFileSizeLimitExceededError(size=size, expected_size=expected_size):
             raise FileSizeLimitExceededHTTPException(size=size, expected_size=expected_size)
-        case NoAvailableProviderError():
-            raise ModelIsTooBusyExceptionHTTPException()
+        case NoAvailableProviderError(retry_after=retry_after):
+            raise ModelIsTooBusyExceptionHTTPException(retry_after=retry_after)
         case ProviderAdapterValidationRequestError(errors=errors):
             raise HTTPException(status_code=422, detail=jsonable_encoder(errors))
         case ProviderAdapterValidationResponseError(errors=errors):

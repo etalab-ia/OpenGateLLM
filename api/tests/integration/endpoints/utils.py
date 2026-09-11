@@ -33,10 +33,6 @@ MODELS_ENDPOINT_BY_PROVIDER = {
     ProviderType.TEI: "/info",
     ProviderType.VLLM: "/v1/models",
 }
-METRICS_ENDPOINT_BY_PROVIDER = {
-    ProviderType.VLLM: "/metrics",
-    ProviderType.MISTRAL: "/metrics",
-}
 OCR_ENDPOINT_BY_PROVIDER = {
     ProviderType.ALBERT: "/v1/ocr",
     ProviderType.MISTRAL: "/v1/ocr",
@@ -82,8 +78,3 @@ def mock_ocr_responses(respx_mock, provider_type: ProviderType, body: factory.Di
 def mock_audio_transcriptions_responses(respx_mock, provider_type: ProviderType, body: factory.DictFactory, status_code: int):
     url = urljoin(DEFAULT_PROVIDER_URL, AUDIO_TRANSCRIPTIONS_ENDPOINT_BY_PROVIDER[provider_type])
     return respx_mock.post(url=url).mock(return_value=httpx.Response(status_code=status_code, json=body))
-
-
-def mock_metrics_responses(respx_mock, provider_type: ProviderType, text: str, status_code: int) -> None:
-    url = urljoin(DEFAULT_PROVIDER_URL, METRICS_ENDPOINT_BY_PROVIDER[provider_type])
-    respx_mock.get(url=url).mock(return_value=httpx.Response(status_code=status_code, text=text, headers={"Content-Type": "text/plain"}))

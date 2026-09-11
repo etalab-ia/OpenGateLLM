@@ -1,11 +1,12 @@
 import asyncio
 from collections.abc import AsyncGenerator, AsyncIterator, Callable, Coroutine
+from contextlib import suppress
 from datetime import UTC, datetime
 import functools
 import logging
 from typing import Any
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
@@ -19,6 +20,7 @@ from api.infrastructure.postgres.models import Usage, User
 logger = logging.getLogger(__name__)
 PostgresSessionProvider = Callable[[], AsyncGenerator[AsyncSession | Any, Any]]
 RouterRateLimiterProvider = Callable[[], RouterRateLimiter]
+CLIENT_DISCONNECT_POLL_SECONDS = 0.1
 
 
 def _log_background_task_failure(task: asyncio.Task) -> None:
@@ -33,6 +35,29 @@ def _log_background_task_failure(task: asyncio.Task) -> None:
 def _schedule_background_task(coroutine: Coroutine, task_name: str) -> None:
     task = asyncio.create_task(coroutine, name=task_name)
     task.add_done_callback(_log_background_task_failure)
+
+
+def cancel_on_disconnect(endpoint_func):
+    @functools.wraps(endpoint_func)
+    async def wrapper(*args, **kwargs):
+        request: Request = kwargs["request"]
+        endpoint_task = asyncio.create_task(endpoint_func(*args, **kwargs), name=f"request-{request.url.path}")
+        try:
+            while not endpoint_task.done():
+                if await request.is_disconnected():
+                    endpoint_task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await endpoint_task
+                    raise asyncio.CancelledError()
+                await asyncio.sleep(CLIENT_DISCONNECT_POLL_SECONDS)
+            return await endpoint_task
+        finally:
+            if not endpoint_task.done():
+                endpoint_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await endpoint_task
+
+    return wrapper
 
 
 def hooks(*, postgres_session_provider: PostgresSessionProvider, router_rate_limiter_provider: RouterRateLimiterProvider):

@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated
 from uuid import uuid4
 
 import pycountry
@@ -22,11 +22,6 @@ class ProviderEndpoint(StrEnum):
 # Add world as a country code, default value of the carbon footprint computation framework
 _country_codes = [country.alpha_3 for country in pycountry.countries] + ["WOR"]
 HostingZone = StrEnum("HostingZone", {str(code).upper(): str(code) for code in sorted(set(_country_codes))})
-
-
-class BasicAuth(BaseModel):
-    username: str
-    password: str
 
 
 class ProviderJsonResponse(BaseModel):
@@ -92,7 +87,6 @@ class Provider(BaseModel):
     type: ProviderType
     url: str
     key: str | None = None
-    basic_auth: BasicAuth | None = None
     timeout: int
     model_name: str
     model_hosting_zone: HostingZone = HostingZone.WOR
@@ -102,6 +96,7 @@ class Provider(BaseModel):
     vector_size: int | None = None
     created: UtcDatetime
     updated: UtcDatetime
+    qos_limit: int | None = None
 
     def with_router_id(self, router_id: int) -> "Provider":
         return self.model_copy(update={"router_id": router_id})
@@ -124,6 +119,9 @@ class Provider(BaseModel):
     def with_vector_size(self, vector_size: int | None) -> "Provider":
         return self.model_copy(update={"vector_size": vector_size})
 
+    def with_qos_limit(self, qos_limit: int | None) -> "Provider":
+        return self.model_copy(update={"qos_limit": qos_limit})
+
     def is_compatible_with(self, router: Router) -> bool:
         return self.type.is_compatible_with(router.type)
 
@@ -142,12 +140,6 @@ class ProviderRequest(BaseModel):
 class ProviderChunkResponse(BaseModel):
     content: Annotated[str, Field(description="One raw server-sent-event line as emitted by the provider.")]
     status_code: Annotated[int, Field(description="The HTTP status code of the streamed response.")]
-
-
-class ProviderMetrics(ProviderJsonResponse):
-    object: Literal["providerMetrics"] = "providerMetrics"
-    waiting_requests: float
-    running_requests: float
 
 
 class ProviderResponse(BaseModel):

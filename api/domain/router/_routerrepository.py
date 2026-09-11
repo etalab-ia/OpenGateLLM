@@ -38,6 +38,7 @@ class RouterRepository(ABC):
         cost_completion_tokens: float,
         user_id: int,
         aliases: list[str] | None = None,
+        qos_retries_before_reject: int | None = None,
     ) -> Router | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError:
         pass
 

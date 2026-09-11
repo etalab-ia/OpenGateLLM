@@ -53,6 +53,15 @@ def provider_create_form_fields() -> rx.Component:
             min=0,
             max=600,
         ),
+        entity_form_input_field(
+            label="QoS concurrent limit",
+            value=ProvidersState.entity_to_create.qos_limit,
+            on_change=lambda value: ProvidersState.set_new_entity_attribut("qos_limit", value),
+            tooltip="Maximum concurrent load. Leave empty for no provider limit; 0 closes the provider.",
+            placeholder="No limit",
+            type="number",
+            min=0,
+        ),
         entity_form_select_field(
             label="Hosting country of the model",
             items=ProvidersState.model_hosting_zones_list,
@@ -126,6 +135,16 @@ def provider_settings_form_fields() -> rx.Component:
             tooltip="Timeout for the API request in seconds (e.g., 300)",
             type="number",
             on_change=lambda value: ProvidersState.set_edit_entity_attribut("timeout", value),
+            disable=ProvidersState.edit_entity_loading,
+        ),
+        entity_form_input_field(
+            label="QoS concurrent limit",
+            value=ProvidersState.entity.qos_limit,
+            on_change=lambda value: ProvidersState.set_edit_entity_attribut("qos_limit", value),
+            tooltip="Maximum concurrent load. Leave empty for no provider limit; 0 closes the provider.",
+            placeholder="No limit",
+            type="number",
+            min=0,
             disable=ProvidersState.edit_entity_loading,
         ),
         entity_form_input_field(
