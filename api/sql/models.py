@@ -3,7 +3,7 @@ from enum import StrEnum
 from http import HTTPMethod
 from typing import Any, Optional
 
-from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -172,6 +172,7 @@ class Router(Base):
     name: Mapped[str] = mapped_column(unique=True)
     type: Mapped[ModelType]
     load_balancing_strategy: Mapped[RouterLoadBalancingStrategy]
+    qos_retries_before_reject: Mapped[int | None]
     cost_prompt_tokens: Mapped[float] = mapped_column(default=0.0)
     cost_completion_tokens: Mapped[float] = mapped_column(default=0.0)
     created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())
@@ -182,6 +183,13 @@ class Router(Base):
     provider: Mapped[list["Provider"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
     limit: Mapped[list["Limit"]] = relationship(back_populates="router", cascade="all, delete-orphan", passive_deletes=True)
     usage: Mapped[list["Usage"]] = relationship(back_populates="router", passive_deletes=True)
+
+    __table_args__ = (
+        CheckConstraint(
+            "qos_retries_before_reject >= 0",
+            name="router_qos_retries_before_reject_non_negative",
+        ),
+    )
 
 
 class RouterAlias(Base):
@@ -205,6 +213,7 @@ class Provider(Base):
     key: Mapped[str | None]
     basic_auth: Mapped[dict[str, str] | None] = mapped_column(JSON, nullable=True)
     timeout: Mapped[int] = mapped_column(default=DEFAULT_TIMEOUT)
+    qos_limit: Mapped[int | None]
     model_name: Mapped[str]
     model_hosting_zone: Mapped[HostingZone | None]
     model_total_params: Mapped[int] = mapped_column(default=0)
@@ -218,4 +227,7 @@ class Provider(Base):
     user: Mapped["User"] = relationship(back_populates="provider")
     usage: Mapped[list["Usage"]] = relationship(back_populates="provider", passive_deletes=True)
 
-    __table_args__ = (UniqueConstraint("router_id", "url", "model_name", name="unique_provider_router_id_url_model_name"),)
+    __table_args__ = (
+        CheckConstraint("qos_limit >= 0", name="provider_qos_limit_non_negative"),
+        UniqueConstraint("router_id", "url", "model_name", name="unique_provider_router_id_url_model_name"),
+    )

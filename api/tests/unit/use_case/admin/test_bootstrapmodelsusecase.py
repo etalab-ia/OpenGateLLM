@@ -63,8 +63,8 @@ class TestBootstrapModelsUseCase:
         self, use_case, router_repository, provider_repository, provider_capabilities_probe
     ):
         # Arrange
-        model_provider = ModelProviderConfigurationFactory()
-        model_configuration = ModelConfigurationFactory(providers=[model_provider])
+        model_provider = ModelProviderConfigurationFactory(qos_limit=8)
+        model_configuration = ModelConfigurationFactory(providers=[model_provider], qos_retries_before_reject=3)
         router = RouterFactory(id=10, name=model_configuration.name, type=RouterType.TEXT_GENERATION, max_context_length=4096, vector_size=None)
         provider = ProviderFactory(id=100, router_id=10, user_id=BOOTSTRAP_ADMIN_USER_ID)
 
@@ -83,6 +83,7 @@ class TestBootstrapModelsUseCase:
             name=model_configuration.name,
             router_type=model_configuration.type,
             load_balancing_strategy=model_configuration.load_balancing_strategy,
+            qos_retries_before_reject=model_configuration.qos_retries_before_reject,
             cost_prompt_tokens=model_configuration.cost_prompt_tokens,
             cost_completion_tokens=model_configuration.cost_completion_tokens,
             user_id=BOOTSTRAP_ADMIN_USER_ID,
@@ -104,6 +105,7 @@ class TestBootstrapModelsUseCase:
             key=model_provider.key,
             basic_auth=model_provider.basic_auth,
             timeout=model_provider.timeout,
+            qos_limit=model_provider.qos_limit,
             model_name=model_provider.model_name,
             model_hosting_zone=model_provider.model_hosting_zone,
             model_total_params=model_provider.model_total_params,

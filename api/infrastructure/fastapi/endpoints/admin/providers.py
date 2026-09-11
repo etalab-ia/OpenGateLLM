@@ -99,6 +99,7 @@ async def create_provider(
             key=body.key,
             basic_auth=body.basic_auth,
             timeout=body.timeout,
+            qos_limit=body.qos_limit,
             model_name=body.model_name,
             model_hosting_zone=body.model_hosting_zone,
             model_total_params=body.model_total_params,
@@ -209,6 +210,7 @@ async def update_provider(
         model_hosting_zone=body.model_hosting_zone,
         model_total_params=body.model_total_params,
         model_active_params=body.model_active_params,
+        qos_limit=body.qos_limit,
     )
     try:
         result = await update_provider_use_case.execute(command)

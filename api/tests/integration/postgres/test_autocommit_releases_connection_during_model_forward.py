@@ -25,6 +25,8 @@ from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL
 from api.tests.integration.factories import sql as sql_factories
 from api.tests.integration.factories.mistral import MistralOcrResponseFactory
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory, TeiRerankResponseFactory
+from api.tests.integration.factories.vllm import VllmAudioTranscriptionsResponseFactory
+from api.utils.context import global_context
 from api.utils.dependencies import get_model_registry
 from api.utils.dependencies import get_postgres_session as get_postgres_session_utils
 from api.utils.dependencies import get_redis_client as get_redis_client_utils
@@ -46,6 +48,7 @@ class ForwardScenario:
     provider_path: str
     build_response: Callable[[], httpx.Response]
     request_body: dict
+    request_files: dict | None = None
     provider_kwargs: dict = field(default_factory=dict)
 
 
@@ -77,6 +80,20 @@ FORWARD_SCENARIOS = [
         provider_path="/rerank",
         build_response=lambda: httpx.Response(TeiRerankResponseFactory._status_code, json=TeiRerankResponseFactory(count=len(RERANK_DOCUMENTS))),
         request_body={"model": ROUTER_NAME, "query": "The sun is shining.", "documents": RERANK_DOCUMENTS},
+    ),
+    ForwardScenario(
+        name="audio",
+        url=f"/v1{EndpointRoute.AUDIO_TRANSCRIPTIONS}",
+        router_type=ModelType.AUTOMATIC_SPEECH_RECOGNITION,
+        provider_type=ProviderType.VLLM,
+        provider_path="/v1/audio/transcriptions",
+        build_response=lambda: httpx.Response(
+            VllmAudioTranscriptionsResponseFactory._status_code,
+            json=VllmAudioTranscriptionsResponseFactory(),
+        ),
+        request_body={"model": ROUTER_NAME},
+        request_files={"file": ("speech.mp3", b"fake-mp3-bytes", "audio/mpeg")},
+        provider_kwargs={"model_hosting_zone": HostingZone.FRA},
     ),
 ]
 
@@ -189,16 +206,34 @@ class TestModelForwardReleasesConnection:
         async def probe_during_forward(request: httpx.Request) -> httpx.Response:
             captured["checked_out"] = probe_engine.pool.checkedout()
             captured["idle_in_transaction"] = await _count_idle_in_transaction()
+            redis_client = redis.Redis(connection_pool=global_context.redis_pool)
+            try:
+                keys = [key async for key in redis_client.scan_iter(match="ogl_qos:load:*")]
+                captured["qos_load"] = sum([await redis_client.zcard(key) for key in keys])
+            finally:
+                await redis_client.aclose()
             return scenario.build_response()
 
         respx.post(url=urljoin(DEFAULT_PROVIDER_URL, scenario.provider_path)).mock(side_effect=probe_during_forward)
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.post(url=scenario.url, headers={"Authorization": f"Bearer {token}"}, json=scenario.request_body)
+            request_kwargs = (
+                {"data": scenario.request_body, "files": scenario.request_files}
+                if scenario.request_files is not None
+                else {"json": scenario.request_body}
+            )
+            response = await client.post(url=scenario.url, headers={"Authorization": f"Bearer {token}"}, **request_kwargs)
 
             hooks_tasks = [task for task in asyncio.all_tasks() if task.get_name().startswith("hooks-")]
             if hooks_tasks:
                 await asyncio.gather(*hooks_tasks, return_exceptions=True)
+
+        redis_client = redis.Redis(connection_pool=global_context.redis_pool)
+        try:
+            keys = [key async for key in redis_client.scan_iter(match="ogl_qos:load:*")]
+            captured["qos_load_after"] = sum([await redis_client.zcard(key) for key in keys])
+        finally:
+            await redis_client.aclose()
 
         return response, captured
 
@@ -219,6 +254,8 @@ class TestModelForwardReleasesConnection:
         assert response.status_code == 200, response.text
         assert captured["checked_out"] == 0, captured
         assert captured["idle_in_transaction"] == 0, captured
+        assert captured["qos_load"] == 1, captured
+        assert captured["qos_load_after"] == 0, captured
 
     @respx.mock
     async def test_transactional_wiring_pins_an_idle_in_transaction_connection(

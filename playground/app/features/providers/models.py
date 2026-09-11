@@ -11,6 +11,7 @@ class Provider(Entity):
     url: str | None = None
     key: str | None = None
     timeout: int = 300
+    qos_limit: int | None = None
     model_name: str | None = None
     model_hosting_zone: str = "WOR"
     model_total_params: int | None = 0

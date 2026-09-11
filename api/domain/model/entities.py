@@ -30,7 +30,7 @@ class Models(ProviderJsonResponse):
 
 class HealthStatus(StrEnum):
     GREEN = "green"
-    YELLOW = "yellow"
+    ORANGE = "orange"
     RED = "red"
 
 

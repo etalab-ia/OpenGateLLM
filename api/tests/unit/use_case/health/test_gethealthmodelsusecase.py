@@ -1,450 +1,217 @@
-from unittest.mock import AsyncMock
+from unittest.mock import create_autospec
 
 import pytest
 
 from api.domain.model.entities import HealthStatus, ModelHealthStatus, Models
 from api.domain.model.errors import StatusCodeModelError
-from api.domain.provider.entities import ProviderMetrics, ProviderResponse, ProviderType
-from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
+from api.domain.provider import ProviderClient, ProviderQoS, ProviderRepository
+from api.domain.provider.entities import ProviderResponse
+from api.domain.provider.errors import ProviderAdapterValidationResponseError
 from api.domain.role.entities import Limit, LimitType
+from api.domain.router import RouterRepository
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, ProviderFactory, RouterFactory
 from api.use_cases.health import GetHealthModelsCommand, GetHealthModelsUseCase, GetHealthModelsUseCaseSuccess
 from api.utils.variables import EndpointRoute
 
-METRICS_TEXT = 'vllm:num_requests_running{model_name="my-model"} 0\nvllm:num_requests_waiting{model_name="my-model"} 0\n'
+
+@pytest.fixture
+def mock_provider_client():
+    return create_autospec(ProviderClient, instance=True, spec_set=True)
 
 
 @pytest.fixture
-def provider_client():
-    return AsyncMock()
+def mock_provider_qos():
+    return create_autospec(ProviderQoS, instance=True, spec_set=True)
 
 
 @pytest.fixture
-def provider_metrics_logger():
-    return AsyncMock()
+def mock_router_repository():
+    return create_autospec(RouterRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
-def router_repository():
-    return AsyncMock()
+def mock_provider_repository():
+    return create_autospec(ProviderRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
-def provider_repository():
-    return AsyncMock()
-
-
-@pytest.fixture
-def admin_user():
-    return AuthenticatedUserFactory(id=1, admin=True)
-
-
-@pytest.fixture
-def user_with_router_access():
-    return AuthenticatedUserFactory(
+def command():
+    user = AuthenticatedUserFactory(
         id=1,
         limits=[Limit(router_id=1, value=100, type=LimitType.RPM)],
         permissions=[],
     )
+    return GetHealthModelsCommand(authenticated_user=user)
 
 
 @pytest.fixture
-def user_without_access():
-    return AuthenticatedUserFactory(id=1, limits=[], permissions=[])
-
-
-@pytest.fixture
-def use_case(provider_client, provider_metrics_logger, router_repository, provider_repository):
+def use_case(mock_provider_client, mock_provider_qos, mock_router_repository, mock_provider_repository):
     return GetHealthModelsUseCase(
-        provider_client=provider_client,
-        provider_metrics_logger=provider_metrics_logger,
-        router_repository=router_repository,
-        provider_repository=provider_repository,
+        provider_client=mock_provider_client,
+        provider_qos=mock_provider_qos,
+        router_repository=mock_router_repository,
+        provider_repository=mock_provider_repository,
     )
 
 
-@pytest.fixture
-def default_command(user_with_router_access):
-    return GetHealthModelsCommand(authenticated_user=user_with_router_access)
+@pytest.fixture(autouse=True)
+def configure_healthy_provider(mock_provider_client):
+    mock_provider_client.forward.return_value = ProviderResponse(id="request-1", data=Models(data=[]))
 
 
-def configure_metrics(
-    provider_client,
-    *,
-    waiting: float = 0.0,
-    running: float = 0.0,
-    metrics_result: ProviderResponse | ProviderAdapterValidationResponseError | None = None,
-):
-    provider_client.forward.return_value = metrics_result or ProviderResponse(
-        id="req-123", data=ProviderMetrics(waiting_requests=waiting, running_requests=running)
-    )
-
-
-def configure_models_fallback(provider_client, *, models_response):
-    provider_client.forward.side_effect = [
-        UnsupportedProviderEndpointError(endpoint=EndpointRoute.METRICS, provider_type=ProviderType.TEI),
-        models_response,
-    ]
-
-
+@pytest.mark.asyncio
 class TestGetHealthModelsUseCase:
-    @pytest.mark.asyncio
-    async def test_should_return_all_models_when_user_is_admin(
+    async def test_should_return_green_for_live_uncapped_provider(
         self,
         use_case,
-        router_repository,
-        provider_repository,
-        provider_client,
-        admin_user,
-        default_command,
+        command,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_qos,
+        mock_provider_client,
     ):
         # Arrange
-        default_command.authenticated_user = admin_user
-        router_repository.get_all_routers.return_value = [
-            RouterFactory(id=1, name="gpt-4", providers=1),
-            RouterFactory(id=2, name="gpt-5", providers=1),
-        ]
-        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
-        provider_repository.get_all_providers.return_value = [
-            provider,
-            ProviderFactory(id=2, router_id=2, type=ProviderType.VLLM),
-        ]
-        configure_metrics(provider_client)
+        router = RouterFactory(id=1, name="model", providers=1)
+        provider = ProviderFactory(id=1, router_id=router.id, qos_limit=None, timeout=300)
+        mock_router_repository.get_all_routers.return_value = [router]
+        mock_provider_repository.get_all_providers.return_value = [provider]
+        mock_provider_qos.get_loads.return_value = {provider.id: 12}
 
         # Act
-        result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command)
 
         # Assert
-        assert isinstance(result, GetHealthModelsUseCaseSuccess)
-        assert result.models == [
-            ModelHealthStatus(id="gpt-4", status=HealthStatus.GREEN),
-            ModelHealthStatus(id="gpt-5", status=HealthStatus.GREEN),
-        ]
+        assert result == GetHealthModelsUseCaseSuccess(models=[ModelHealthStatus(id="model", status=HealthStatus.GREEN)])
+        forwarded_provider = mock_provider_client.forward.await_args.kwargs["provider"]
+        assert forwarded_provider.timeout == 4
+        assert provider.timeout == 300
+        assert mock_provider_client.forward.await_args.kwargs["request"].endpoint == EndpointRoute.MODELS
 
-    @pytest.mark.asyncio
-    async def test_should_return_empty_models_when_user_has_no_router_access(
-        self, use_case, router_repository, provider_repository, user_without_access, default_command
+    @pytest.mark.parametrize(
+        ("qos_limit", "load", "expected_status"),
+        [
+            (0, 0, HealthStatus.RED),
+            (20, 18, HealthStatus.GREEN),
+            (20, 19, HealthStatus.ORANGE),
+            (20, 20, HealthStatus.RED),
+            (4, 3, HealthStatus.GREEN),
+            (4, 4, HealthStatus.RED),
+        ],
+    )
+    async def test_should_compute_saturation_from_qos_load(
+        self,
+        use_case,
+        command,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_qos,
+        qos_limit,
+        load,
+        expected_status,
     ):
         # Arrange
-        default_command.authenticated_user = user_without_access
-        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider_repository.get_all_providers.return_value = [ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)]
+        router = RouterFactory(id=1, name="model", providers=1)
+        provider = ProviderFactory(id=1, router_id=router.id, qos_limit=qos_limit)
+        mock_router_repository.get_all_routers.return_value = [router]
+        mock_provider_repository.get_all_providers.return_value = [provider]
+        mock_provider_qos.get_loads.return_value = {provider.id: load}
 
         # Act
-        result = await use_case.execute(command=default_command)
+        result = await use_case.execute(command)
 
         # Assert
-        assert isinstance(result, GetHealthModelsUseCaseSuccess)
+        assert result.models[0].status == expected_status
+
+    async def test_should_return_red_when_liveness_probe_fails(
+        self,
+        use_case,
+        command,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_qos,
+        mock_provider_client,
+    ):
+        # Arrange
+        router = RouterFactory(id=1, name="model", providers=1)
+        provider = ProviderFactory(id=1, router_id=router.id)
+        mock_router_repository.get_all_routers.return_value = [router]
+        mock_provider_repository.get_all_providers.return_value = [provider]
+        mock_provider_qos.get_loads.return_value = {provider.id: 0}
+        mock_provider_client.forward.return_value = StatusCodeModelError(status_code=500, detail="failed")
+
+        # Act
+        result = await use_case.execute(command)
+
+        # Assert
+        assert result.models[0].status == HealthStatus.RED
+
+    async def test_should_treat_invalid_models_payload_as_live(
+        self,
+        use_case,
+        command,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_qos,
+        mock_provider_client,
+    ):
+        # Arrange
+        router = RouterFactory(id=1, name="model", providers=1)
+        provider = ProviderFactory(id=1, router_id=router.id)
+        mock_router_repository.get_all_routers.return_value = [router]
+        mock_provider_repository.get_all_providers.return_value = [provider]
+        mock_provider_qos.get_loads.return_value = {provider.id: 0}
+        mock_provider_client.forward.return_value = ProviderAdapterValidationResponseError(provider_type=provider.type, errors=[])
+
+        # Act
+        result = await use_case.execute(command)
+
+        # Assert
+        assert result.models[0].status == HealthStatus.GREEN
+
+    async def test_should_aggregate_best_provider_status(
+        self,
+        use_case,
+        command,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_qos,
+        mock_provider_client,
+    ):
+        # Arrange
+        router = RouterFactory(id=1, name="model", providers=2)
+        red_provider = ProviderFactory(id=1, router_id=router.id, qos_limit=1)
+        green_provider = ProviderFactory(id=2, router_id=router.id, qos_limit=20)
+        mock_router_repository.get_all_routers.return_value = [router]
+        mock_provider_repository.get_all_providers.return_value = [red_provider, green_provider]
+        mock_provider_qos.get_loads.return_value = {red_provider.id: 1, green_provider.id: 0}
+        mock_provider_client.forward.side_effect = [
+            StatusCodeModelError(status_code=500, detail="failed"),
+            ProviderResponse(id="request-2", data=Models(data=[])),
+        ]
+
+        # Act
+        result = await use_case.execute(command)
+
+        # Assert
+        assert result.models[0].status == HealthStatus.GREEN
+
+    async def test_should_filter_inaccessible_routers(
+        self,
+        use_case,
+        command,
+        mock_router_repository,
+        mock_provider_repository,
+        mock_provider_qos,
+    ):
+        # Arrange
+        inaccessible = RouterFactory(id=2, name="hidden", providers=1)
+        provider = ProviderFactory(id=2, router_id=inaccessible.id)
+        mock_router_repository.get_all_routers.return_value = [inaccessible]
+        mock_provider_repository.get_all_providers.return_value = [provider]
+        mock_provider_qos.get_loads.return_value = {provider.id: 0}
+
+        # Act
+        result = await use_case.execute(command)
+
+        # Assert
         assert result.models == []
-
-    @pytest.mark.asyncio
-    async def test_should_skip_routers_without_providers(self, use_case, router_repository, provider_repository, default_command):
-        # Arrange
-        router_repository.get_all_routers.return_value = [
-            RouterFactory(id=1, name="with-providers", providers=1),
-            RouterFactory(id=2, name="no-providers", providers=0),
-        ]
-        provider_repository.get_all_providers.return_value = []
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, GetHealthModelsUseCaseSuccess)
-        assert [model.id for model in result.models] == ["with-providers"]
-
-    @pytest.mark.asyncio
-    async def test_should_return_green_when_vllm_metrics_are_low(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_client,
-        default_command,
-    ):
-        # Arrange
-
-        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
-        provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_client, waiting=0, running=0)
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, GetHealthModelsUseCaseSuccess)
-        assert len(result.models) == 1
-        assert result.models[0].status == HealthStatus.GREEN
-        provider_client.forward.assert_awaited_once()
-        assert provider_client.forward.await_args.kwargs["request"].endpoint == EndpointRoute.METRICS
-        assert provider_client.forward.await_args.kwargs["provider"] == provider
-
-    @pytest.mark.asyncio
-    async def test_should_return_yellow_when_vllm_has_waiting_requests(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_client,
-        default_command,
-    ):
-        # Arrange
-
-        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
-        provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_client, waiting=1, running=0)
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, GetHealthModelsUseCaseSuccess)
-        assert result.models[0].status == HealthStatus.YELLOW
-
-    @pytest.mark.asyncio
-    async def test_should_return_red_when_vllm_running_requests_exceed_threshold(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_client,
-        default_command,
-    ):
-        # Arrange
-
-        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
-        provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_client, waiting=0, running=21)
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, GetHealthModelsUseCaseSuccess)
-        assert result.models[0].status == HealthStatus.RED
-
-    @pytest.mark.asyncio
-    async def test_should_return_red_when_vllm_has_waiting_and_running_requests_exceed_threshold(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_client,
-        default_command,
-    ):
-        # Arrange
-
-        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
-        provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_client, waiting=5, running=21)
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, GetHealthModelsUseCaseSuccess)
-        assert result.models[0].status == HealthStatus.RED
-
-    @pytest.mark.asyncio
-    async def test_should_return_yellow_when_mistral_running_requests_exceed_yellow_threshold(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_client,
-        default_command,
-    ):
-        # Arrange
-
-        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="mistral", providers=1)]
-        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.MISTRAL)
-        provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_client, waiting=0, running=59)
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, GetHealthModelsUseCaseSuccess)
-        assert result.models[0].status == HealthStatus.YELLOW
-
-    @pytest.mark.asyncio
-    async def test_should_return_red_when_mistral_running_requests_exceed_red_threshold(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_client,
-        default_command,
-    ):
-        # Arrange
-
-        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="mistral", providers=1)]
-        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.MISTRAL)
-        provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_client, waiting=0, running=64)
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, GetHealthModelsUseCaseSuccess)
-        assert result.models[0].status == HealthStatus.RED
-
-    @pytest.mark.asyncio
-    async def test_should_return_red_when_metrics_request_fails(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_client,
-        default_command,
-    ):
-        # Arrange
-
-        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
-        provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(provider_client)
-        provider_client.forward.return_value = StatusCodeModelError(status_code=500, detail="error")
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, GetHealthModelsUseCaseSuccess)
-        assert result.models[0].status == HealthStatus.RED
-
-    @pytest.mark.asyncio
-    async def test_should_return_red_when_metrics_response_validation_fails(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_client,
-        default_command,
-    ):
-        # Arrange
-
-        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
-        provider_repository.get_all_providers.return_value = [provider]
-        configure_metrics(
-            provider_client,
-            metrics_result=ProviderAdapterValidationResponseError(provider_type=provider.type, errors=[{"msg": "invalid"}]),
-        )
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, GetHealthModelsUseCaseSuccess)
-        assert result.models[0].status == HealthStatus.RED
-
-    @pytest.mark.asyncio
-    async def test_should_skip_metrics_check_when_models_fallback_succeeds(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_client,
-        default_command,
-    ):
-        # Arrange
-
-        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider = ProviderFactory(id=1, router_id=1, type=ProviderType.TEI)
-        provider_repository.get_all_providers.return_value = [provider]
-        configure_models_fallback(provider_client, models_response=ProviderResponse(id="req-123", data=Models(data=[])))
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, GetHealthModelsUseCaseSuccess)
-        assert result.models[0].status == HealthStatus.GREEN
-        assert [call.kwargs["request"].endpoint for call in provider_client.forward.await_args_list] == [
-            EndpointRoute.METRICS,
-            EndpointRoute.MODELS,
-        ]
-
-    @pytest.mark.asyncio
-    async def test_should_return_red_when_models_fallback_fails(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_client,
-        default_command,
-    ):
-        # Arrange
-
-        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        provider_repository.get_all_providers.return_value = [ProviderFactory(id=1, router_id=1, type=ProviderType.TEI)]
-        configure_models_fallback(provider_client, models_response=StatusCodeModelError(status_code=500, detail="error"))
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, GetHealthModelsUseCaseSuccess)
-        assert result.models[0].status == HealthStatus.RED
-
-    @pytest.mark.asyncio
-    async def test_should_only_return_models_for_routers_the_user_can_access(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_client,
-        default_command,
-    ):
-        # Arrange
-
-        router_repository.get_all_routers.return_value = [
-            RouterFactory(id=1, name="accessible", providers=1),
-            RouterFactory(id=2, name="forbidden", providers=1),
-        ]
-        accessible_provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
-        provider_repository.get_all_providers.return_value = [
-            accessible_provider,
-            ProviderFactory(id=2, router_id=2, type=ProviderType.VLLM),
-        ]
-        configure_metrics(provider_client)
-
-        # Act
-        result = await use_case.execute(command=default_command)
-
-        # Assert
-        assert isinstance(result, GetHealthModelsUseCaseSuccess)
-        assert [model.id for model in result.models] == ["accessible"]
-
-    @pytest.mark.asyncio
-    async def test_should_not_query_providers_on_other_routers(
-        self,
-        use_case,
-        router_repository,
-        provider_repository,
-        provider_client,
-        default_command,
-    ):
-        # Arrange
-
-        router_repository.get_all_routers.return_value = [RouterFactory(id=1, name="gpt-4", providers=1)]
-        accessible_provider = ProviderFactory(id=1, router_id=1, type=ProviderType.VLLM)
-        provider_repository.get_all_providers.return_value = [
-            accessible_provider,
-            ProviderFactory(id=2, router_id=99, type=ProviderType.VLLM),
-        ]
-        configure_metrics(provider_client)
-
-        # Act
-        await use_case.execute(command=default_command)
-
-        # Assert
-        provider_client.forward.assert_awaited_once()
-        assert provider_client.forward.await_args.kwargs["provider"] == accessible_provider
