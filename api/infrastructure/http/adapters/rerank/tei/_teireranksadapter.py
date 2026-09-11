@@ -49,12 +49,11 @@ class TeiRerankAdapter(RerankAdapter):
             result["relevance_score"] = result.pop("score")
 
         results = [RerankResult(**result) for result in results]
-        request_id = self._extract_request_id(http_response=http_response)
-        data = Rerank(id=request_id, model=request.payload.model, results=results)
+        data = Rerank(id=request.id, model=request.payload.model, results=results)
 
         try:
             data = self.RESPONSE_TYPE.model_validate(data)
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 
-        return ProviderResponse(id=request_id, data=data)
+        return ProviderResponse(id=request.id, data=data)

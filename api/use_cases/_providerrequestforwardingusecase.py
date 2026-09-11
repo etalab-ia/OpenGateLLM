@@ -1,10 +1,7 @@
 import asyncio
 from dataclasses import dataclass
-import math
-import random
 import time
 from typing import ClassVar
-from uuid import uuid4
 
 from pydantic import BaseModel
 
@@ -163,30 +160,21 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         | NoAvailableProviderError
     ):
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
-        request_id = str(uuid4())
-        request = ProviderRequest(endpoint=self.ENDPOINT, payload=payload, request_id=request_id)
+        request = ProviderRequest(endpoint=self.ENDPOINT, payload=payload)
         retries = router.qos_retries_before_reject
         attempts = 1 if retries is None else retries + 1
 
         for attempt in range(attempts):
             async with self.provider_qos.admit(
-                request_id=request_id,
+                request_id=request.id,
                 providers=providers,
                 strategy=router.load_balancing_strategy,
                 enforce_limit=retries is not None,
             ) as admission:
                 match admission:
-                    case ProviderAdmissionFull(depth=depth):
+                    case ProviderAdmissionFull() as admission_full:
                         if attempt == attempts - 1:
-                            retry_after_ceiling = 1 if retries is None else max(1, math.ceil(retries * 0.5))
-                            retry_after = max(
-                                1,
-                                min(
-                                    retry_after_ceiling,
-                                    math.ceil((1 + depth) * (0.5 + random.random())),
-                                ),
-                            )
-                            return NoAvailableProviderError(router_id=router.id, retry_after=retry_after)
+                            return NoAvailableProviderError(router_id=router.id, retry_after=admission_full.retry_after(retries=retries))
                     case Provider() as provider:
                         self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
                         start_time = time.perf_counter()

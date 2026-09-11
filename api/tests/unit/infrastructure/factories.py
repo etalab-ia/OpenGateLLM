@@ -31,6 +31,7 @@ class ProviderRequestFactory(factory.Factory):
 
     endpoint = factory.Faker("random_element", elements=list(EndpointRoute))
     payload = None
+    id = factory.Faker("uuid4")
 
     class Params:
         embeddings = factory.Trait(
