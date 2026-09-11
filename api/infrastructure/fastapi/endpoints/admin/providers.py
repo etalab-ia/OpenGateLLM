@@ -97,7 +97,6 @@ async def create_provider(
             provider_type=body.type,
             url=body.url,
             key=body.key,
-            basic_auth=body.basic_auth,
             timeout=body.timeout,
             qos_limit=body.qos_limit,
             model_name=body.model_name,

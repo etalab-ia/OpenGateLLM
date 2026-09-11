@@ -211,7 +211,6 @@ class Provider(Base):
     type: Mapped[ProviderType]
     url: Mapped[str]
     key: Mapped[str | None]
-    basic_auth: Mapped[dict[str, str] | None] = mapped_column(JSON, nullable=True)
     timeout: Mapped[int] = mapped_column(default=DEFAULT_TIMEOUT)
     qos_limit: Mapped[int | None]
     model_name: Mapped[str]

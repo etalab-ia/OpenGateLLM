@@ -197,7 +197,6 @@ class ProviderSQLFactory(BaseSQLFactory):
     type = factory.Faker("random_element", elements=list(ProviderType))
     url = factory.Faker("bothify", text="https://provider-##.example.com")
     key = factory.Faker("uuid4")
-    basic_auth = None
     timeout = factory.Faker("random_int", min=1, max=300)
     qos_limit = None
     model_name = factory.Faker("bothify", text="model-##-?????")

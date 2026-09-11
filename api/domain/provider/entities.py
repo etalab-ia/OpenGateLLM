@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated
 
 import pycountry
 from pydantic import Field, model_validator
@@ -11,11 +11,6 @@ from api.utils.variables import EndpointRoute
 # Add world as a country code, default value of the carbon footprint computation framework
 _country_codes = [country.alpha_3 for country in pycountry.countries] + ["WOR"]
 HostingZone = StrEnum("HostingZone", {str(code).upper(): str(code) for code in sorted(set(_country_codes))})
-
-
-class BasicAuth(BaseModel):
-    username: str
-    password: str
 
 
 class ProviderJsonResponse(BaseModel):
@@ -87,7 +82,6 @@ class Provider(BaseModel):
     type: ProviderType
     url: str
     key: str | None = None
-    basic_auth: BasicAuth | None = None
     timeout: int
     model_name: str
     model_hosting_zone: HostingZone = HostingZone.WOR
@@ -141,12 +135,6 @@ class ProviderRequest(BaseModel):
 class ResponseMetrics(BaseModel):
     latency: Annotated[int, Field(default=0, description="The latency of the response.")]
     ttft: Annotated[int | None, Field(default=None, description="The time to first byte of the response.")]
-
-
-class ProviderMetrics(ProviderJsonResponse):
-    object: Literal["providerMetrics"] = "providerMetrics"
-    waiting_requests: float
-    running_requests: float
 
 
 class ProviderResponse(BaseModel):

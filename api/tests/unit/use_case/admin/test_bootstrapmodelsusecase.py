@@ -103,7 +103,6 @@ class TestBootstrapModelsUseCase:
             provider_type=model_provider.type,
             url=model_provider.url,
             key=model_provider.key,
-            basic_auth=model_provider.basic_auth,
             timeout=model_provider.timeout,
             qos_limit=model_provider.qos_limit,
             model_name=model_provider.model_name,

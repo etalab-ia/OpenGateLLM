@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from api.domain import SortOrder
-from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderSortField, ProviderType
+from api.domain.provider.entities import HostingZone, Provider, ProviderSortField, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.entities import RouterType
 from api.infrastructure.postgres import PostgresProviderRepository
@@ -22,7 +22,6 @@ def _create_provider_args(user, router, **overrides):
         "provider_type": ProviderType.ALBERT,
         "url": "http://test.com/",
         "key": "model-key",
-        "basic_auth": BasicAuth(username="metrics", password="secret"),
         "timeout": 60,
         "qos_limit": 9,
         "model_name": "my-model",
@@ -59,7 +58,6 @@ class TestCreateProvider:
             type=ProviderType.ALBERT,
             url="http://test.com/",
             key="model-key",
-            basic_auth=BasicAuth(username="metrics", password="secret"),
             timeout=60,
             qos_limit=9,
             model_name="my-model",

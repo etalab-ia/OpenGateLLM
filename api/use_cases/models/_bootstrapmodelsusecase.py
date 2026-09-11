@@ -142,7 +142,6 @@ class BootstrapModelsUseCase:
                     provider_type=provider_to_create.type,
                     url=provider_to_create.url,
                     key=provider_to_create.key,
-                    basic_auth=provider_to_create.basic_auth,
                     timeout=provider_to_create.timeout,
                     qos_limit=provider_to_create.qos_limit,
                     model_name=provider_to_create.model_name,

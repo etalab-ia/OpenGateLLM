@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 from pydantic import Field, StringConstraints
 
 from api.domain import BaseModel
-from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType
+from api.domain.provider.entities import HostingZone, ProviderType
 from api.infrastructure.fastapi.schemas import UnixTimestamp
 from api.schemas.core.configuration import ModelProvider
 
@@ -19,7 +19,6 @@ class CreateProviderResponse(BaseModel):
     type: Annotated[ProviderType, Field(..., description="Provider type.")]
     url: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, to_lower=True), Field(default=None, description="Provider API url. The url must only contain the domain name (without `/v1` suffix for example).")]  # fmt: off
     key: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Provider API key.")]  # fmt: off
-    basic_auth: Annotated[BasicAuth | None, Field(default=None, description="Provider basic authentication.")]
     timeout: Annotated[int, Field(..., ge=1, le=3600, description="Timeout for the provider requests, after user receive an 500 error (model is too busy).")]  # fmt: off
     qos_limit: Annotated[int | None, Field(default=None, ge=0, description="Maximum concurrent load for this provider. If omitted, admission is unlimited.")]  # fmt: off
     model_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(..., description="Model name from the model provider.")]  # fmt: off

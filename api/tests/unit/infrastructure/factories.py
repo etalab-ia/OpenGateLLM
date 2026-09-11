@@ -45,7 +45,6 @@ class ProviderRequestFactory(factory.Factory):
             ),
         )
         models = factory.Trait(endpoint=EndpointRoute.MODELS)
-        metrics = factory.Trait(endpoint=EndpointRoute.METRICS)
         rerank = factory.Trait(
             endpoint=EndpointRoute.RERANK,
             payload=factory.LazyAttribute(

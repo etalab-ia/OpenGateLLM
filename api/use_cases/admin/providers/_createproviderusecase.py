@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider import ProviderRepository
-from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderType
+from api.domain.provider.entities import HostingZone, Provider, ProviderType
 from api.domain.provider.errors import (
     InvalidProviderTypeError,
     ProviderAlreadyExistsError,
@@ -21,7 +21,6 @@ class CreateProviderCommand:
     provider_type: ProviderType
     url: str
     key: str | None
-    basic_auth: BasicAuth | None
     timeout: int
     model_name: str
     model_hosting_zone: HostingZone
@@ -111,7 +110,6 @@ class CreateProviderUseCase:
             provider_type=command.provider_type,
             url=command.url,
             key=command.key,
-            basic_auth=command.basic_auth,
             timeout=command.timeout,
             qos_limit=command.qos_limit,
             model_name=command.model_name,

@@ -56,7 +56,6 @@ class EndpointRoute(StrEnum):
     HEALTH = f"/{RouterName.HEALTH}"
     HEALTH_MODELS = f"/{RouterName.HEALTH}/models"
     KEYS = f"/{RouterName.KEYS}"
-    METRICS = "/metrics"
     ME = f"/{RouterName.ME}"
     ME_USAGE = f"/{RouterName.ME}/usage"
     MODELS = f"/{RouterName.MODELS}"
