@@ -10,7 +10,6 @@ from sqlalchemy.types import JSON
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.role.entities import LimitType, PermissionType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
-from api.schemas.core.models import Metric
 from api.schemas.models import ModelType
 from api.utils.variables import DEFAULT_TIMEOUT
 
@@ -210,8 +209,6 @@ class Provider(Base):
     model_hosting_zone: Mapped[HostingZone | None]
     model_total_params: Mapped[int] = mapped_column(default=0)
     model_active_params: Mapped[int] = mapped_column(default=0)
-    qos_metric: Mapped[Metric | None]
-    qos_limit: Mapped[float | None]
     max_context_length: Mapped[int | None]
     vector_size: Mapped[int | None]
     created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())

@@ -1,9 +1,9 @@
 from typing import Annotated, Literal
 
-from pydantic import Field, StringConstraints, model_validator
+from pydantic import Field, StringConstraints
 
 from api.domain import BaseModel
-from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType, QoSMetric
+from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType
 from api.infrastructure.fastapi.schemas import UnixTimestamp
 from api.schemas.core.configuration import ModelProvider
 
@@ -25,8 +25,6 @@ class CreateProviderResponse(BaseModel):
     model_hosting_zone: Annotated[HostingZone, Field(default=HostingZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])]  # fmt: off
     model_total_params: Annotated[int, Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
     model_active_params: Annotated[int, Field(default=0, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
-    qos_metric: Annotated[QoSMetric | None, Field(default=None, description="The metric to use for the QoS policy. If not provided, no QoS policy is applied.")]  # fmt: off
-    qos_limit: Annotated[float | None, Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")]  # fmt: off
     created: Annotated[UnixTimestamp | None, Field(default=None, description="Time of creation, as Unix timestamp.")]  # fmt: off
     updated: Annotated[UnixTimestamp | None, Field(default=None, description="Time of last update, as Unix timestamp.")]  # fmt: off
 
@@ -37,15 +35,6 @@ class UpdateProviderBody(BaseModel):
     model_hosting_zone: Annotated[HostingZone, Field(..., description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")]  # fmt: off
     model_total_params: Annotated[int, Field(..., ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If 0, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
     model_active_params: Annotated[int, Field(..., ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. If 0, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
-    qos_metric: Annotated[QoSMetric | None, Field(..., description="The metric to use for the quality of service policy. If null, no QoS policy is applied.")]  # fmt: off
-    qos_limit: Annotated[float | None, Field(..., ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc. If null, no QoS policy is applied.")]  # fmt: off
-
-    @model_validator(mode="after")
-    def validate_model(self):
-        if self.qos_metric is not None and self.qos_limit is None:
-            raise ValueError("QoS value is required if QoS metric is provided.")
-
-        return self
 
 
 class ProviderResponse(BaseModel):
@@ -60,8 +49,6 @@ class ProviderResponse(BaseModel):
     model_hosting_zone: Annotated[HostingZone, Field(default=HostingZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])]  # fmt: off
     model_total_params: Annotated[int, Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
     model_active_params: Annotated[int, Field(default=0, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. If not provided, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
-    qos_metric: Annotated[QoSMetric | None, Field(description="The metric to use for the QoS policy. If not provided, no QoS policy is applied.")]
-    qos_limit: Annotated[float | None, Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")]  # fmt: off
     max_context_length: Annotated[int | None, Field(default=None, description="Maximum amount of tokens a context could contains, probed on the provider API. It is the same for all the providers of a router.")]  # fmt: off
     vector_size: Annotated[int | None, Field(default=None, description="Dimension of the vectors, probed on the provider API for embeddings models only. It is the same for all the providers of a router.")]  # fmt: off
     created: Annotated[UnixTimestamp | None, Field(default=None, description="Time of creation, as Unix timestamp.")]

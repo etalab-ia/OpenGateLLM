@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select
 
 from api.domain import SortOrder
-from api.domain.provider.entities import BasicAuth, HostingZone, Metric, Provider, ProviderSortField, ProviderType, QoSMetric
+from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderSortField, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.entities import RouterType
 from api.infrastructure.postgres import PostgresProviderRepository
@@ -27,8 +27,6 @@ def _create_provider_args(user, router, **overrides):
         "model_hosting_zone": HostingZone.FRA,
         "model_total_params": 1000,
         "model_active_params": 2000,
-        "qos_metric": QoSMetric.TTFT,
-        "qos_limit": 12,
         "vector_size": 10,
         "max_context_length": 20,
         **overrides,
@@ -65,8 +63,6 @@ class TestCreateProvider:
             model_hosting_zone=HostingZone.FRA,
             model_total_params=1000,
             model_active_params=2000,
-            qos_metric=QoSMetric.TTFT,
-            qos_limit=12,
             vector_size=10,
             max_context_length=20,
             created=result.created,
@@ -95,7 +91,7 @@ class TestCreateProvider:
 class TestGetOneProvider:
     async def test_get_one_provider_should_return_provider_when_it_exists(self, repository, db_session):
         # Arrange
-        provider = ProviderSQLFactory(type=ProviderType.ALBERT, url="http://test.com/", model_name="target-provider", qos_metric=None)
+        provider = ProviderSQLFactory(type=ProviderType.ALBERT, url="http://test.com/", model_name="target-provider")
         await db_session.flush()
 
         # Act
@@ -335,8 +331,6 @@ class TestUpdateProvider:
             model_hosting_zone=HostingZone.FRA,
             model_total_params=1_000_000,
             model_active_params=500_000,
-            qos_metric=QoSMetric.TTFT,
-            qos_limit=0.5,
         )
         await db_session.flush()
         domain_provider = await repository.get_one_provider(provider.id)
@@ -348,8 +342,6 @@ class TestUpdateProvider:
             .with_model_hosting_zone(HostingZone.USA)
             .with_model_total_params(2_000_000)
             .with_model_active_params(1_000_000)
-            .with_qos_metric(QoSMetric.LATENCY)
-            .with_qos_limit(0.99)
         )
 
         # Assert
@@ -359,16 +351,12 @@ class TestUpdateProvider:
         assert result.model_hosting_zone == HostingZone.USA
         assert result.model_total_params == 2_000_000
         assert result.model_active_params == 1_000_000
-        assert result.qos_metric == Metric.LATENCY
-        assert result.qos_limit == 0.99
         persisted = (await db_session.execute(select(ProviderTable).where(ProviderTable.id == provider.id))).scalar_one()
         assert persisted.router_id == router_2.id
         assert persisted.timeout == 120
         assert persisted.model_hosting_zone == HostingZone.USA
         assert persisted.model_total_params == 2_000_000
         assert persisted.model_active_params == 1_000_000
-        assert persisted.qos_metric == Metric.LATENCY.value
-        assert persisted.qos_limit == 0.99
 
     async def test_update_provider_should_return_provider_already_exists_when_moving_to_router_with_duplicate_url_and_model_name(
         self, repository, db_session

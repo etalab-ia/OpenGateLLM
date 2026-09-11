@@ -23,10 +23,6 @@ class ProvidersState(EntityState):
         return sorted([country.alpha_3 for country in pycountry.countries] + ["WOR"])
 
     @rx.var
-    def provider_qos_metric_list(self) -> list[str]:
-        return sorted(["TTFT", "Latency", "Inflight", "Performance"])
-
-    @rx.var
     def routers_name_list(self) -> list[str]:
         return sorted([router["name"] for router in self.routers_list])
 
@@ -55,13 +51,6 @@ class ProvidersState(EntityState):
             "vllm": "vLLM",
         }
 
-        _qos_metric_converter = {
-            "ttft": "TTFT",
-            "latency": "Latency",
-            "inflight": "Inflight",
-            "performance": "Performance",
-        }
-
         router_name = router_dict_reverse.get(provider["router_id"], "Unknown")
 
         return Provider(
@@ -75,8 +64,6 @@ class ProvidersState(EntityState):
             model_hosting_zone=provider["model_hosting_zone"],
             model_total_params=provider["model_total_params"],
             model_active_params=provider["model_active_params"],
-            qos_metric=_qos_metric_converter.get(provider["qos_metric"]),
-            qos_limit=provider["qos_limit"],
             max_context_length=provider["max_context_length"],
             vector_size=provider["vector_size"],
             created=format_datetime(provider["created"]),
@@ -274,8 +261,6 @@ class ProvidersState(EntityState):
             "model_hosting_zone": self.entity_to_create.model_hosting_zone,
             "model_total_params": self.entity_to_create.model_total_params,
             "model_active_params": self.entity_to_create.model_active_params,
-            "qos_metric": self.entity_to_create.qos_metric.lower() if self.entity_to_create.qos_metric else None,
-            "qos_limit": self.entity_to_create.qos_limit,
         }
 
         response = None
@@ -340,8 +325,6 @@ class ProvidersState(EntityState):
             "model_hosting_zone": self.entity.model_hosting_zone,
             "model_total_params": self.entity.model_total_params,
             "model_active_params": self.entity.model_active_params,
-            "qos_metric": self.entity.qos_metric.lower() if self.entity.qos_metric else None,
-            "qos_limit": self.entity.qos_limit if self.entity.qos_metric else None,
         }
 
         response = None

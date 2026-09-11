@@ -14,8 +14,6 @@ models:
         model_total_params: 8
         model_active_params: 8
         model_hosting_zone: FRA
-        qos_metric: inflight
-        qos_limit: 5
 
   - name: BAAI/bge-m3
     type: text-embeddings-inference

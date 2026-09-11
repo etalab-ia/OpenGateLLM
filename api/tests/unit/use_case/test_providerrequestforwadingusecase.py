@@ -16,7 +16,6 @@ from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTy
 from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
-from api.schemas.core.models import Metric
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, ProviderFactory, RouterFactory
 from api.use_cases._providerrequestforwardingusecase import (
     ForwardingCommand,
@@ -447,7 +446,7 @@ class TestSendRequest:
         use_case.usage_recorder.record_usage.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_should_enrich_usage_and_log_metrics_when_formatted_response_has_data(
+    async def test_should_enrich_usage_when_formatted_response_has_data(
         self, use_case, router, provider, sample_data, payload, model_tokenizer, model_environmental_impacts_computer
     ):
         # Arrange
@@ -474,7 +473,6 @@ class TestSendRequest:
         forwarded_request = use_case.provider_client.forward.call_args.kwargs["request"]
         assert forwarded_request.endpoint == ForwardingTestUseCase.ENDPOINT
         assert forwarded_request.payload == payload
-        use_case.provider_metrics_logger.log_metric.assert_awaited_once_with(provider_id=provider.id, metric=Metric.LATENCY, value=120)
 
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
         model_tokenizer.compute_tokens.assert_called_once_with(texts=["world"])

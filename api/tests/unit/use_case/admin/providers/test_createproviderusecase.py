@@ -108,8 +108,6 @@ def default_command():
         model_hosting_zone=HostingZone.WOR,
         model_total_params=0,
         model_active_params=0,
-        qos_metric=None,
-        qos_limit=None,
     )
 
 
@@ -169,8 +167,6 @@ def with_provider_type(command: CreateProviderCommand, provider_type: ProviderTy
         model_hosting_zone=command.model_hosting_zone,
         model_total_params=command.model_total_params,
         model_active_params=command.model_active_params,
-        qos_metric=command.qos_metric,
-        qos_limit=command.qos_limit,
     )
 
 
@@ -212,8 +208,6 @@ class TestCreateProviderUseCase:
             model_hosting_zone=HostingZone.WOR,
             model_total_params=0,
             model_active_params=0,
-            qos_metric=None,
-            qos_limit=None,
             max_context_length=4096,
             vector_size=None,
         )
@@ -255,8 +249,6 @@ class TestCreateProviderUseCase:
             model_hosting_zone=HostingZone.WOR,
             model_total_params=0,
             model_active_params=0,
-            qos_metric=None,
-            qos_limit=None,
             max_context_length=512,
             vector_size=768,
         )
@@ -328,8 +320,6 @@ class TestCreateProviderUseCase:
             model_hosting_zone=HostingZone.WOR,
             model_total_params=0,
             model_active_params=0,
-            qos_metric=None,
-            qos_limit=None,
             max_context_length=capabilities.max_context_length,
             vector_size=capabilities.vector_size,
         )

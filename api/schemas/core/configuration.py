@@ -13,7 +13,6 @@ import yaml
 
 from api.domain.provider.entities import BasicAuth, HostingZone, ProviderType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
-from api.schemas.core.models import Metric
 from api.schemas.models import ModelType
 from api.utils.variables import DEFAULT_APP_NAME, DEFAULT_TIMEOUT, RouterName
 
@@ -113,14 +112,9 @@ class ModelProvider(ConfigBaseModel):
     model_hosting_zone: Annotated[HostingZone, Field(default=HostingZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")]  # fmt: off
     model_total_params: Annotated[int, Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai")]  # fmt: off
     model_active_params: Annotated[int, Field(default=0, ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. For more information, see https://ecologits.ai")]  # fmt: off
-    qos_metric: Annotated[Metric | None, Field(default=None, description="The metric to use for the quality of service policy. If not provided, no QoS policy is applied.")]  # fmt: off
-    qos_limit: Annotated[float | None, Field(default=None, ge=0.0, description="The value to use for the quality of service. Depends of the metric, the value can be a percentile, a threshold, etc.")]  # fmt: off
 
     @model_validator(mode="after")
     def format_provider(self):
-        if self.qos_metric is not None and self.qos_limit is None:
-            raise ValueError("QoS value is required if QoS metric is provided.")
-
         if self.url is None:
             if self.type == ProviderType.ALBERT:
                 self.url = "https://albert.api.etalab.gouv.fr/"
@@ -162,23 +156,6 @@ class Model(ConfigBaseModel):
 
 
 # dependencies ---------------------------------------------------------------------------------------------------------------------------------------
-class DependencyType(StrEnum):
-    CELERY = "celery"
-    POSTGRES = "postgres"
-    REDIS = "redis"
-    SENTRY = "sentry"
-
-
-@custom_validation_error()
-class CeleryDependency(ConfigBaseModel):
-    """
-    **[DEPRECATED]**
-    """
-
-    broker_url: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Celery broker url like Redis (redis://) or RabbitMQ (amqp://). If not provided, use redis dependency as broker.")  # fmt: off
-    result_backend: constr(strip_whitespace=True, min_length=1) | None = Field(default=None, description="Celery result backend url. If not provided, use redis dependency as result backend.")  # fmt: off
-    timezone: str = Field(default="UTC", description="Timezone.", examples=["UTC"])  # fmt: off
-    enable_utc: bool = Field(default=True, description="Enable UTC.", examples=[True])  # fmt: off
 
 
 @custom_validation_error()
@@ -225,7 +202,7 @@ class SentryDependency(ConfigBaseModel):
 @custom_validation_error()
 class RedisDependency(ConfigBaseModel):
     """
-    Redis is a required dependency of OpenGateLLM. Redis is used to store rate limiting counters and performance metrics.
+    Redis is a required dependency of OpenGateLLM. Redis is used to store rate limiting counters and inflight gauges.
     Pass all `from_url()` method arguments of `redis.asyncio.connection.ConnectionPool` class, see https://redis.readthedocs.io/en/stable/connections.html#redis.asyncio.connection.ConnectionPool.from_url for more information.
     """
 
@@ -234,23 +211,10 @@ class RedisDependency(ConfigBaseModel):
 
 @custom_validation_error()
 class Dependencies(ConfigBaseModel):
-    celery: CeleryDependency | None = Field(default=None, json_schema_extra={"deprecated": True})  # fmt: off
     langfuse: LangfuseDependency | None = Field(default=None, description="See the [LangfuseDependency section](#langfusedependency) for more information.")  # fmt: off
     postgres: PostgresDependency = Field(..., description="Postgres is a required dependency of OpenGateLLM to store API data.")  # fmt: off
-    redis: RedisDependency  = Field(..., description="Redis is a required dependency for the API to store rate limiting counters and performance metrics. It is an optional dependency for the Playground to use as stage manage (see [Reflex documentation](https://reflex.dev/docs/api-reference/config/)).")  # fmt: off
+    redis: RedisDependency  = Field(..., description="Redis is a required dependency for the API to store rate limiting counters and inflight gauges. It is an optional dependency for the Playground to use as stage manage (see [Reflex documentation](https://reflex.dev/docs/api-reference/config/)).")  # fmt: off
     sentry: SentryDependency | None = Field(default=None, description="Sentry is an optional dependency of OpenGateLLM. Sentry helps you identify, diagnose, and fix errors in real-time.")  # fmt: off
-
-    @model_validator(mode="after")
-    def complete_celery(self):
-        if self.celery is not None:
-            if self.celery.broker_url is None:
-                self.celery.broker_url = self.redis.url
-            if self.celery.result_backend is None:
-                self.celery.result_backend = self.redis.url
-
-            logging.info("Celery queuing is enabled.")
-
-        return self
 
 
 # settings -------------------------------------------------------------------------------------------------------------------------------------------
@@ -279,11 +243,6 @@ class Settings(ConfigBaseModel):
     disabled_routers: list[RouterName] = Field(default_factory=list, description="Disabled routers to limits services of the API.", examples=[["embeddings"]], json_schema_extra={"default": []})  # fmt: off
     hidden_routers: list[RouterName] = Field(default_factory=list, description="Routers are enabled but hidden in the swagger and the documentation of the API.", examples=[["admin"]], json_schema_extra={"default": []})  # fmt: off
     app_title: str = Field(default=DEFAULT_APP_NAME, description="The title of the application (dsiplayed on Playground, Swagger and Redoc UI).", examples=["My API"])  # fmt: off
-
-    # routing
-    routing_max_retries: int = Field(default=3, ge=1, description="Maximum number of retries for routing tasks.")  # fmt: off
-    routing_retry_countdown: int = Field(default=3, ge=1, description="Number of seconds before retrying a failed routing task.")  # fmt: off
-    routing_max_priority: int = Field(default=4, ge=0, le=10, description="Maximum allowed priority in routing tasks.")  # fmt: off
 
     # usage tokenizer
     usage_tokenizer: Tokenizer = Field(default=Tokenizer.TIKTOKEN_GPT2, description="Tokenizer used to compute usage of the API.")  # fmt: off

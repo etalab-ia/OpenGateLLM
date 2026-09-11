@@ -7,11 +7,8 @@ MIN_PASSWORD_LENGTH: int = 6
 MAX_PASSWORD_LENGTH: int = 72
 
 
-PREFIX__CELERY_QUEUE_ROUTING: str = "ogl_qr"
 PREFIX__REDIS_METRIC_GAUGE: str = "ogl_mg"
-PREFIX__REDIS_METRIC_TIMESERIE: str = "ogl_ts"
 PREFIX__REDIS_RATE_LIMIT: str = "ogl_rt"
-METRICS__TIMESERIE_RETENTION_SECONDS: int = 60 * 30  # 30 minutes
 
 
 class RouterName(StrEnum):

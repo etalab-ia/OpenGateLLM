@@ -16,13 +16,13 @@ from api.domain.provider.entities import ProviderType
 from api.helpers._langfusemanager import ObservationName
 from api.schemas.audio import AudioTranscription, CreateAudioTranscription
 from api.schemas.chat import ChatCompletionChunk, CreateChatCompletion
-from api.schemas.core.models import Metric, ProviderEndpoints, RequestContent
+from api.schemas.core.models import ProviderEndpoints, RequestContent
 from api.schemas.usage import Usage
 from api.utils.carbon import get_carbon_footprint
 from api.utils.context import generate_request_id, global_context, request_context
 from api.utils.exceptions import ModelIsTooBusyException, RequestFormatFailedException, ResponseFormatFailedException
-from api.utils.redis import redis_retry, safe_redis_reset
-from api.utils.variables import METRICS__TIMESERIE_RETENTION_SECONDS, PREFIX__REDIS_METRIC_GAUGE, PREFIX__REDIS_METRIC_TIMESERIE, EndpointRoute
+from api.utils.redis import redis_retry
+from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE, EndpointRoute
 
 logger = logging.getLogger(__name__)
 
@@ -108,9 +108,6 @@ class BaseModelProvider(ABC):
         """
 
         usage = request_context.get().usage
-        # In Celery worker processes the FastAPI app initialization (which sets global_context.tokenizer)
-        # might not have fully run. Accessing global_context.tokenizer directly could raise AttributeError.
-        # We skip usage computation if tokenizer is absent so we still return the provider response.
         tokenizer = getattr(global_context, "tokenizer", None)
         if tokenizer and request_content.endpoint in tokenizer.USAGE_ENDPOINTS:
             try:
@@ -217,52 +214,9 @@ class BaseModelProvider(ABC):
         return response
 
     @staticmethod
-    async def _ensure_timeseries_exists(redis_client: AsyncRedis, key: str) -> None:
-        """
-        Ensure a time series exists with proper retention configuration.
-
-        Args:
-            redis_client(AsyncRedis): The redis client to use.
-            key(str): The time series key to create.
-        """
-        try:
-            await redis_client.ts().info(key)
-        except Exception:
-            try:
-                await redis_client.ts().create(key, retention_msecs=METRICS__TIMESERIE_RETENTION_SECONDS * 1000, duplicate_policy="LAST")
-            except Exception:
-                pass
-
-    async def _log_performance_metric(self, redis_client: AsyncRedis, ttft: int | None, latency: int | None) -> None:
-        """
-        Log performance metrics in redis.
-
-        Args:
-            redis_client(AsyncRedis): The redis client to use for the request.
-            ttft(int | None): The time to first token in milliseconds (ms).
-            latency(int | None): The latency in milliseconds (ms).
-        """
+    def _record_request_timings(ttft: int | None, latency: int | None) -> None:
         request_context.get().ttft = ttft
         request_context.get().latency = latency
-
-        try:
-            if ttft is not None:
-                key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{Metric.TTFT.value}:{self.id}"
-                await self._ensure_timeseries_exists(redis_client, key)
-                await redis_client.ts().add(key=key, timestamp=int(time.time() * 1000), value=ttft)
-        except Exception:
-            logger.error(f"Failed to log request metrics (TTFT) in redis (id: {self.id})", exc_info=True)
-            await safe_redis_reset(redis_client)
-
-        try:
-            if latency is not None:
-                key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{Metric.LATENCY.value}:{self.id}"
-                await self._ensure_timeseries_exists(redis_client, key)
-                # Use milliseconds timestamp to avoid collisions
-                await redis_client.ts().add(key=key, timestamp=int(time.time() * 1000), value=latency)
-        except Exception:
-            logger.error(f"Failed to log request metrics (latency) in redis (id: {self.id})", exc_info=True)
-            await safe_redis_reset(redis_client)
 
     def _start_langfuse_observation(self, request_content: RequestContent, ctx=None) -> Any | None:
         langfuse_obs = None
@@ -316,7 +270,7 @@ class BaseModelProvider(ABC):
 
         langfuse_obs = self._start_langfuse_observation(request_content=request_content)
 
-        inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
+        inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:inflight:{self.id}"
         try:
             await redis_retry(redis_client.incr, name=inflight_key, max_retries=2)
 
@@ -363,7 +317,7 @@ class BaseModelProvider(ABC):
             # add additional data to the response
             latency = self._elapsed_ms(start_time=start_time)
             response = self._format_response(request_content=request_content, response=response, request_latency=latency)
-            await self._log_performance_metric(redis_client=redis_client, ttft=None, latency=latency)
+            self._record_request_timings(ttft=None, latency=latency)
 
             self._update_langfuse_observation(langfuse_obs=langfuse_obs, latency=latency)
 
@@ -418,7 +372,7 @@ class BaseModelProvider(ABC):
 
         ctx = request_context.get()
         langfuse_obs = self._start_langfuse_observation(request_content=request_content, ctx=ctx)
-        inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:{Metric.INFLIGHT.value}:{self.id}"
+        inflight_key = f"{PREFIX__REDIS_METRIC_GAUGE}:inflight:{self.id}"
         inflight_incremented = False
 
         async with httpx.AsyncClient(timeout=self.timeout) as async_client:
@@ -483,7 +437,7 @@ class BaseModelProvider(ABC):
                     if extra_chunk is not None:
                         yield f"data: {dumps(extra_chunk)}\n\n", response.status_code
 
-                await self._log_performance_metric(redis_client=redis_client, ttft=ttft, latency=latency)
+                self._record_request_timings(ttft=ttft, latency=latency)
 
             except (
                 httpx.TimeoutException,

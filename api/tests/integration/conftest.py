@@ -184,13 +184,7 @@ async def redis_client(test_redis_pool) -> AsyncGenerator[redis.Redis]:
 
 @pytest.fixture(scope="session")
 def model_registry():
-    return ModelRegistry(
-        app_title="test",
-        queuing_enabled=False,
-        max_priority=0,
-        max_retries=0,
-        retry_countdown=0,
-    )
+    return ModelRegistry(app_title="test")
 
 
 @pytest_asyncio.fixture(scope="session")

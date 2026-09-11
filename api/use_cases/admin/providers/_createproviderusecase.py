@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider import ProviderRepository
-from api.domain.provider.entities import BasicAuth, HostingZone, Metric, Provider, ProviderType
+from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderType
 from api.domain.provider.errors import (
     InvalidProviderTypeError,
     ProviderAlreadyExistsError,
@@ -27,8 +27,6 @@ class CreateProviderCommand:
     model_hosting_zone: HostingZone
     model_total_params: int
     model_active_params: int
-    qos_metric: Metric | None
-    qos_limit: float | None
 
 
 @dataclass
@@ -118,8 +116,6 @@ class CreateProviderUseCase:
             model_hosting_zone=command.model_hosting_zone,
             model_total_params=command.model_total_params,
             model_active_params=command.model_active_params,
-            qos_metric=command.qos_metric,
-            qos_limit=command.qos_limit,
             max_context_length=max_context_length,
             vector_size=vector_size,
         )

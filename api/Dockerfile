@@ -57,5 +57,5 @@ FROM runtime AS final
 ARG BUILD_TARGET=api
 ENV BUILD_TARGET=${BUILD_TARGET}
 
-RUN chmod u+x /scripts/startup_worker.sh /scripts/startup_api.sh
+RUN chmod u+x /scripts/startup_api.sh
 CMD ["/bin/bash", "-c", "/scripts/startup_${BUILD_TARGET}.sh"]

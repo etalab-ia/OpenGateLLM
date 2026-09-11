@@ -6,7 +6,7 @@ import pytest_asyncio
 
 from api.dependencies import update_provider_use_case_factory
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
-from api.domain.provider.entities import HostingZone, QoSMetric
+from api.domain.provider.entities import HostingZone
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.errors import RouterNotFoundError
 from api.tests.helpers import INVALID_API_KEY, create_key
@@ -26,8 +26,6 @@ def _valid_body(**overrides) -> dict:
         "model_hosting_zone": HostingZone.FRA,
         "model_total_params": 8,
         "model_active_params": 2,
-        "qos_metric": None,
-        "qos_limit": None,
     }
     body.update(overrides)
     return body
@@ -48,7 +46,7 @@ class TestUpdateProvider:
         response = await client.patch(
             url=f"{URL}/{provider.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(router_id=router.id, qos_metric=QoSMetric.TTFT, qos_limit=0.9),
+            json=_valid_body(router_id=router.id),
         )
 
         assert response.status_code == 200, response.text
@@ -60,24 +58,6 @@ class TestUpdateProvider:
         assert data["model_hosting_zone"] == HostingZone.FRA
         assert data["model_total_params"] == 8
         assert data["model_active_params"] == 2
-        assert data["qos_metric"] == QoSMetric.TTFT
-        assert data["qos_limit"] == 0.9
-
-    async def test_clears_qos_policy_sent_as_null(self, client: AsyncClient, db_session):
-        router = RouterSQLFactory(user=self.admin_user)
-        provider = ProviderSQLFactory(router=router, user=self.admin_user, qos_metric=QoSMetric.TTFT, qos_limit=0.9)
-        await db_session.flush()
-
-        response = await client.patch(
-            url=f"{URL}/{provider.id}",
-            headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(router_id=router.id, qos_metric=None, qos_limit=None),
-        )
-
-        assert response.status_code == 200, response.text
-        data = response.json()
-        assert data["qos_metric"] is None
-        assert data["qos_limit"] is None
 
     async def test_rejects_body_missing_a_required_field(self, client: AsyncClient, db_session):
         router = RouterSQLFactory(user=self.admin_user)

@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError
-from api.domain.provider.entities import HostingZone, ProviderType, QoSMetric
+from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.provider.errors import InvalidProviderTypeError, ProviderAlreadyExistsError, ProviderNotFoundError
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterNotFoundError
@@ -45,8 +45,6 @@ def full_command(provider, **overrides) -> UpdateProviderCommand:
         model_hosting_zone=provider.model_hosting_zone,
         model_total_params=provider.model_total_params,
         model_active_params=provider.model_active_params,
-        qos_metric=provider.qos_metric,
-        qos_limit=provider.qos_limit,
     )
     for field, value in overrides.items():
         setattr(command, field, value)
@@ -61,8 +59,6 @@ def provider_after_command(provider, command: UpdateProviderCommand):
         .with_model_hosting_zone(command.model_hosting_zone)
         .with_model_total_params(command.model_total_params)
         .with_model_active_params(command.model_active_params)
-        .with_qos_metric(command.qos_metric)
-        .with_qos_limit(command.qos_limit)
     )
 
 
@@ -207,8 +203,6 @@ class TestUpdateProviderUseCase:
             model_hosting_zone=None,
             model_total_params=None,
             model_active_params=None,
-            qos_metric=None,
-            qos_limit=None,
         )
         updated_provider = provider_after_command(sample_provider, command)
 
@@ -322,8 +316,6 @@ class TestUpdateProviderUseCase:
             sample_provider,
             model_total_params=7,
             model_active_params=3,
-            qos_metric=QoSMetric.TTFT,
-            qos_limit=100.0,
         )
         updated_provider = provider_after_command(sample_provider, command)
 
@@ -338,24 +330,6 @@ class TestUpdateProviderUseCase:
         assert result.provider == updated_provider
         provider_repository.update_provider.assert_called_once_with(updated_provider)
         router_repository.get_router_by_id.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_should_clear_qos_policy_when_qos_fields_are_none(self, use_case, provider_repository, router_repository):
-        # Arrange
-        provider = ProviderFactory(id=10, router_id=1, user_id=1, type=ProviderType.VLLM, qos_metric=QoSMetric.TTFT, qos_limit=100.0)
-        command = full_command(provider, qos_metric=None, qos_limit=None)
-        cleared_provider = provider_after_command(provider, command)
-
-        provider_repository.get_one_provider.return_value = provider
-        provider_repository.update_provider.return_value = cleared_provider
-
-        # Act
-        result = await use_case.execute(command=command)
-
-        # Assert
-        assert isinstance(result, UpdateProviderUseCaseSuccess)
-        assert result.provider == cleared_provider
-        provider_repository.update_provider.assert_called_once_with(cleared_provider)
 
     @pytest.mark.asyncio
     async def test_should_return_updated_provider_when_router_is_changed(self, use_case, provider_repository, router_repository, sample_provider):

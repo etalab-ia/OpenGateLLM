@@ -103,8 +103,6 @@ async def create_provider(
             model_hosting_zone=body.model_hosting_zone,
             model_total_params=body.model_total_params,
             model_active_params=body.model_active_params,
-            qos_metric=body.qos_metric,
-            qos_limit=body.qos_limit,
         )
         result = await create_provider_use_case.execute(command)
     except Exception as e:
@@ -211,8 +209,6 @@ async def update_provider(
         model_hosting_zone=body.model_hosting_zone,
         model_total_params=body.model_total_params,
         model_active_params=body.model_active_params,
-        qos_metric=body.qos_metric,
-        qos_limit=body.qos_limit,
     )
     try:
         result = await update_provider_use_case.execute(command)

@@ -168,14 +168,7 @@ async def create_model_registry(
     configuration: Configuration,
     session_factory: async_sessionmaker,
 ) -> ModelRegistry:
-    queuing_enabled = configuration.dependencies.celery is not None
-    registry = ModelRegistry(
-        app_title=configuration.settings.app_title,
-        queuing_enabled=queuing_enabled,
-        max_priority=configuration.settings.routing_max_priority,
-        max_retries=configuration.settings.routing_max_retries,
-        retry_countdown=configuration.settings.routing_retry_countdown,
-    )
+    registry = ModelRegistry(app_title=configuration.settings.app_title)
     return registry
 
 

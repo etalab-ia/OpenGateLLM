@@ -6,7 +6,6 @@ import asyncio
 from collections.abc import Callable
 import logging
 
-from redis.asyncio import Redis as AsyncRedis
 from redis.exceptions import (
     ConnectionError,
     RedisError,
@@ -57,16 +56,3 @@ async def redis_retry[T](
                 logger.error(f"Redis operation failed after {max_retries} attempts: {last_exception}", exc_info=True)
 
     return None
-
-
-async def safe_redis_reset(redis_client: AsyncRedis) -> None:
-    """
-    Safely reset a Redis client connection, catching all exceptions.
-
-    Args:
-        redis_client: The Redis client to reset
-    """
-    try:
-        await redis_client.reset()
-    except Exception as e:
-        logger.debug(f"Failed to reset Redis client: {e}")

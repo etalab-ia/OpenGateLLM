@@ -6,7 +6,7 @@ from factory import fuzzy
 from factory.alchemy import SQLAlchemyModelFactory
 from faker import Faker
 
-from api.domain.provider.entities import HostingZone, ProviderType, QoSMetric
+from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.role.entities import LimitType, PermissionType
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.models import ModelType
@@ -202,8 +202,6 @@ class ProviderSQLFactory(BaseSQLFactory):
     model_hosting_zone = factory.Faker("random_element", elements=list(HostingZone))
     model_total_params = factory.Faker("random_int", min=1000000, max=2000000000)
     model_active_params = factory.Faker("random_int", min=1000000, max=1000000000)
-    qos_metric = factory.Faker("random_element", elements=list(QoSMetric))
-    qos_limit = factory.Faker("pyfloat", left_digits=2, right_digits=2, min_value=0.5, max_value=0.99)
     max_context_length = factory.Faker("random_element", elements=[2048, 4096, 8192, 16384, 32768, 128000])
     vector_size = factory.Faker("random_element", elements=[384, 768, 1024, 1536, 3072])
     created = factory.LazyFunction(lambda: datetime.now(tz=UTC))

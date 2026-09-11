@@ -147,8 +147,6 @@ class BootstrapModelsUseCase:
                     model_hosting_zone=provider_to_create.model_hosting_zone,
                     model_total_params=provider_to_create.model_total_params,
                     model_active_params=provider_to_create.model_active_params,
-                    qos_metric=provider_to_create.qos_metric,
-                    qos_limit=provider_to_create.qos_limit,
                     max_context_length=max_context_length,
                     vector_size=vector_size,
                 )
