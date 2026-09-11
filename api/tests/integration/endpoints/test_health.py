@@ -52,14 +52,12 @@ class TestGetHealthModels:
             type=ProviderType.VLLM,
             url=DEFAULT_PROVIDER_URL,
             model_name=HEALTH_MODEL_NAME,
-            qos_metric=None,
         )
         RouterSQLFactory(
             user=self.router_owner,
             name="router_no_access",
             type=ModelType.TEXT_GENERATION,
             providers=1,
-            providers__qos_metric=None,
         )
         LimitSQLFactory(role=self.user.role, router=router)
         await db_session.flush()

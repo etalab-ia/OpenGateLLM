@@ -1,6 +1,5 @@
 import reflex as rx
 
-from app.core.configuration import configuration
 from app.core.variables import (
     SPACING_MEDIUM,
 )
@@ -70,7 +69,7 @@ def user_settings_form_fields() -> rx.Component:
             tooltip="Priority of the user. The higher the priority, the more requests the user can make.",
             type="number",
             min=0,
-            max=configuration.settings.routing_max_priority,
+            max=10,
         ),
         columns="2",
         spacing=SPACING_MEDIUM,
@@ -135,7 +134,7 @@ def user_create_form_fields() -> rx.Component:
             tooltip="Priority of the user. The higher the priority, the more requests the user can make.",
             type="number",
             min=0,
-            max=configuration.settings.routing_max_priority,
+            max=10,
         ),
         columns="2",
         spacing=SPACING_MEDIUM,

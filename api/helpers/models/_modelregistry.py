@@ -10,7 +10,6 @@ from api.clients.model import BaseModelProvider as ModelProvider
 from api.domain.provider.entities import Provider
 from api.schemas.admin.routers import Router, RouterLoadBalancingStrategy
 from api.schemas.core.context import RequestContext
-from api.schemas.core.models import Metric
 from api.schemas.me.info import UserInfo
 from api.schemas.models import Model, ModelCosts, ModelType
 from api.sql.models import Organization as OrganizationTable
@@ -25,8 +24,8 @@ from api.utils.exceptions import (
     RouterNotFoundException,
     WrongModelTypeException,
 )
-from api.utils.routing import apply_routing_with_queuing, apply_routing_without_queuing
-from api.utils.variables import PREFIX__CELERY_QUEUE_ROUTING, EndpointRoute
+from api.utils.routing import apply_routing
+from api.utils.variables import EndpointRoute
 
 MASTER_ID = 0
 logger = logging.getLogger(__name__)
@@ -41,19 +40,8 @@ class ModelRegistry:
         EndpointRoute.RERANK: [ModelType.TEXT_CLASSIFICATION],
     }
 
-    def __init__(
-        self,
-        app_title: str,
-        queuing_enabled: bool,
-        max_priority: int,
-        max_retries: int,
-        retry_countdown: int,
-    ) -> None:
+    def __init__(self, app_title: str) -> None:
         self.app_title = app_title
-        self.queuing_enabled = queuing_enabled
-        self.max_priority = max_priority
-        self.max_retries = max_retries
-        self.retry_countdown = retry_countdown
 
     @staticmethod
     async def get_routers(
@@ -207,8 +195,6 @@ class ModelRegistry:
             ProviderTable.model_hosting_zone,
             ProviderTable.model_total_params,
             ProviderTable.model_active_params,
-            ProviderTable.qos_metric,
-            ProviderTable.qos_limit,
             ProviderTable.created,
             ProviderTable.updated,
         ).order_by(text(f"{order_by} {order_direction}"))  # nosemgrep
@@ -231,7 +217,6 @@ class ModelRegistry:
 
         providers = []
         for row in rows:
-            qos_metric = Metric(row["qos_metric"]) if row["qos_metric"] is not None else None
             user_id = MASTER_ID if row["user_id"] is None else row["user_id"]
             providers.append(
                 Provider(
@@ -246,8 +231,6 @@ class ModelRegistry:
                     model_hosting_zone=row["model_hosting_zone"],
                     model_total_params=row["model_total_params"],
                     model_active_params=row["model_active_params"],
-                    qos_metric=qos_metric,
-                    qos_limit=row["qos_limit"],
                     created=row["created"],
                     updated=row["updated"],
                 )
@@ -341,7 +324,7 @@ class ModelRegistry:
         request_context: ContextVar[RequestContext],
     ) -> ModelProvider:
         """
-        Get a model provider for a given model, endpoint, user priority, postgres_session and redis client.
+        Get a model provider for a given model, endpoint, postgres_session and redis client.
 
         Args:
             model(str): The model name
@@ -372,28 +355,11 @@ class ModelRegistry:
         if len(providers) == 0:
             raise ModelNotFoundException()
 
-        elif self.queuing_enabled:
-            # ensure priority is between 0 and max_priority
-            priority = max(0, min(int(request_context.get().user_info.priority), self.max_priority))
-            provider_id = await apply_routing_with_queuing(
-                providers=providers,
-                load_balancing_strategy=router.load_balancing_strategy,
-                load_balancing_metric=Metric.TTFT,
-                retry_countdown=self.retry_countdown,
-                max_retries=self.max_retries,
-                queue_name=f"{PREFIX__CELERY_QUEUE_ROUTING}.{router.id}",
-                priority=priority,
-            )
-
-        else:
-            provider_id = await apply_routing_without_queuing(
-                providers=providers,
-                load_balancing_strategy=router.load_balancing_strategy,
-                load_balancing_metric=Metric.TTFT,
-                retry_countdown=self.retry_countdown,
-                max_retries=self.max_retries,
-                redis_client=redis_client,
-            )
+        provider_id = await apply_routing(
+            providers=providers,
+            load_balancing_strategy=router.load_balancing_strategy,
+            redis_client=redis_client,
+        )
 
         providers = await self.get_providers(router_id=router.id, provider_id=provider_id, postgres_session=postgres_session)
         provider = providers[0]

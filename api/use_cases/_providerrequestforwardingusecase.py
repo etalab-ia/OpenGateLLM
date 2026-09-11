@@ -22,7 +22,6 @@ from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
-from api.schemas.core.models import Metric
 from api.utils.variables import EndpointRoute
 
 
@@ -202,12 +201,6 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
                         cost=cost,
                         impacts=environmental_impacts,
                     )
-
-                await self.provider_metrics_logger.log_metric(
-                    provider_id=provider.id,
-                    metric=Metric.LATENCY,
-                    value=latency,
-                )
             case error:
                 return error
 

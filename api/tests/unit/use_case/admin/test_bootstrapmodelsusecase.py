@@ -108,8 +108,6 @@ class TestBootstrapModelsUseCase:
             model_hosting_zone=model_provider.model_hosting_zone,
             model_total_params=model_provider.model_total_params,
             model_active_params=model_provider.model_active_params,
-            qos_metric=model_provider.qos_metric,
-            qos_limit=model_provider.qos_limit,
             max_context_length=4096,
             vector_size=None,
         )

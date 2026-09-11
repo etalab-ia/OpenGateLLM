@@ -56,8 +56,6 @@ class TestAdminProviders:
             model_hosting_zone=HostingZone.WOR,
             model_total_params=0,
             model_active_params=0,
-            qos_metric=None,
-            qos_limit=None,
         )
 
         response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_PROVIDERS}", json=payload.model_dump())
@@ -76,8 +74,6 @@ class TestAdminProviders:
             model_hosting_zone=HostingZone.WOR,
             model_total_params=0,
             model_active_params=0,
-            qos_metric=None,
-            qos_limit=None,
         )
 
         response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_PROVIDERS}", json=payload.model_dump())

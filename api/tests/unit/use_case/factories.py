@@ -98,8 +98,6 @@ class ProviderFactory(factory.Factory):
     model_hosting_zone = HostingZone.WOR
     model_total_params = 0
     model_active_params = 0
-    qos_metric = None
-    qos_limit = None
     max_context_length = None
     vector_size = None
     created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
@@ -175,8 +173,6 @@ class ModelProviderConfigurationFactory(factory.Factory):
     model_hosting_zone = HostingZone.WOR
     model_total_params = 0
     model_active_params = 0
-    qos_metric = None
-    qos_limit = None
 
     class Params:
         tei = factory.Trait(type=ProviderType.TEI)

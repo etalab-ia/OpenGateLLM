@@ -15,7 +15,6 @@ from api.infrastructure.fastapi.schemas.admin.roles import CreateRoleBody, Limit
 from api.infrastructure.fastapi.schemas.admin.users import CreateUserBody
 from api.schemas.admin.routers import CreateRouter
 from api.schemas.admin.tokens import CreateToken
-from api.schemas.core.configuration import Metric
 from api.schemas.models import ModelType
 from api.utils.variables import EndpointRoute
 
@@ -167,8 +166,6 @@ def create_provider(
     model_hosting_zone: HostingZone = HostingZone.WOR,
     model_total_params: int = 0,
     model_active_params: int = 0,
-    qos_metric: Metric | None = None,
-    qos_limit: float | None = None,
 ) -> int:
     payload = CreateProviderBody(
         router_id=router_id,
@@ -180,8 +177,6 @@ def create_provider(
         model_hosting_zone=model_hosting_zone,
         model_total_params=model_total_params,
         model_active_params=model_active_params,
-        qos_metric=qos_metric,
-        qos_limit=qos_limit,
     )
     response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_PROVIDERS}", json=payload.model_dump())
     assert response.status_code == 201, response.text

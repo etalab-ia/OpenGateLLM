@@ -11,7 +11,7 @@ Redis is a **required dependency** for OpenGateLLM to function.
 
 OpenGateLLM uses Redis as an in-memory data store. It has **two** main purposes:
 - **Rate limiting**: Tracks API usage limits (RPM, RPD, TPM, TPD)
-- **Performance metrics**: Stores time-series latency and TTFT metrics for dynamic routing and request prioritisation (work in progress, check our [roadmap](https://github.com/etalab-ia/OpenGateLLM/milestone/4/) for more information)
+- **Inflight gauges**: Counts concurrent requests per provider (`INCR` / `DECR`) so `least_busy` load balancing can pick the least loaded provider
 
 ## Configuration
 
@@ -28,8 +28,8 @@ dependencies:
 
 The Redis dependency accepts all parameters from the [`from_url()` method](https://redis.readthedocs.io/en/stable/connections.html#redis.asyncio.connection.ConnectionPool.from_url) of `redis.asyncio.connection.ConnectionPool` class. Only `url` parameter is required.
 
-<Aside type="caution" title="Redis Stack Server required">
-**Redis Stack Server** is required (not standard Redis) because OpenGateLLM uses the [RedisTimeSeries module](https://redis.io/docs/latest/develop/data-types/timeseries/) for performance metrics.
+<Aside type="note" title="Standard Redis">
+Standard Redis is enough. The RedisTimeSeries module is not required.
 </Aside>
 
 <LinkButton href="/configuration/configuration_file" icon="external">Configuration file documentation</LinkButton>

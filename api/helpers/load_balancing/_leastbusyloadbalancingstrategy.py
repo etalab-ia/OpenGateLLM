@@ -1,91 +1,31 @@
-from datetime import UTC, datetime, timedelta
-import logging
-import math
 import random
 
-from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
 
-from api.helpers.load_balancing import BaseLoadBalancingStrategy
-from api.schemas.core.models import Metric
-from api.utils.redis import safe_redis_reset
-from api.utils.variables import METRICS__TIMESERIE_RETENTION_SECONDS, PREFIX__REDIS_METRIC_TIMESERIE
+from api.utils.variables import PREFIX__REDIS_METRIC_GAUGE
 
-logger = logging.getLogger(__name__)
+from ._baseloadbalancingstrategy import BaseLoadBalancingStrategy
 
 
 class LeastBusyLoadBalancingStrategy(BaseLoadBalancingStrategy):
-    def __init__(self, redis_client: AsyncRedis | Redis, load_balancing_metric: Metric = Metric.TTFT) -> None:
-        """
-        Get a provider to handle the request based on the specified routing strategy.
-
-        Args:
-            redis_client (AsyncRedis): Redis client instance, required for least busy strategy
-            load_balancing_metric (Metric): The type of metric to use for performance evaluation
-
-        Returns:
-            tuple[int, float | None]: A tuple containing:
-                - provider_id (int): The chosen provider ID
-                - performance_indicator (float | None): Performance metric for the chosen provider, if applicable
-        """
-        self.metric = load_balancing_metric
+    def __init__(self, redis_client: AsyncRedis) -> None:
         self.redis_client = redis_client
-        self.percentile = 0.95
 
-    def apply_sync_strategy(self, candidates: list[int]) -> tuple[int, float]:
-        scores = {}
+    async def apply_async_strategy(self, candidates: list[int]) -> int:
+        if len(candidates) == 1:
+            return candidates[0]
+
+        inflight_counts = {}
         for provider_id in candidates:
-            cutoff = datetime.now(tz=UTC) - timedelta(seconds=METRICS__TIMESERIE_RETENTION_SECONDS)
-            key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{self.metric}:{provider_id}"  # currently only TTFT is supported
-            try:
-                result = self.redis_client.ts().range(key, from_time=int(cutoff.timestamp() * 1000) if cutoff else 0, to_time="+")
-                series = [(ts, val) for ts, val in result]
+            key = f"{PREFIX__REDIS_METRIC_GAUGE}:inflight:{provider_id}"
+            if not await self.redis_client.exists(key):
+                return provider_id
 
-            except Exception as e:
-                logger.error(f"Failed to fetch timeseries for {key}: {e}", exc_info=True)
-                self.redis_client.reset()
-                series = []
+            value = await self.redis_client.get(key)
+            inflight_counts[provider_id] = int(value) if value is not None else 0
+            if inflight_counts[provider_id] == 0:
+                return provider_id
 
-            if not series:
-                scores[provider_id] = float("inf")
-                continue
-
-            values = [v for _, v in series]
-            values.sort()
-
-            idx = math.ceil(self.percentile * len(values)) - 1
-            scores[provider_id] = values[idx]
-
-        min_value = min(scores.values())
-        candidates = [k for k, v in scores.items() if v == min_value]
-
-        return random.choice(candidates), min_value
-
-    async def apply_async_strategy(self, candidates: list[int]) -> tuple[int, float]:
-        scores = {}
-        for provider_id in candidates:
-            cutoff = datetime.now(tz=UTC) - timedelta(seconds=METRICS__TIMESERIE_RETENTION_SECONDS)
-            key = f"{PREFIX__REDIS_METRIC_TIMESERIE}:{self.metric}:{provider_id}"  # currently only TTFT is supported
-            try:
-                result = await self.redis_client.ts().range(key, from_time=int(cutoff.timestamp() * 1000) if cutoff else 0, to_time="+")
-                series = [(ts, val) for ts, val in result]
-
-            except Exception as e:
-                logger.debug(f"Failed to fetch timeseries for {key}: {e}", exc_info=True)
-                await safe_redis_reset(self.redis_client)
-                series = []
-
-            if not series:
-                scores[provider_id] = float("inf")
-                continue
-
-            values = [v for _, v in series]
-            values.sort()
-
-            idx = math.ceil(self.percentile * len(values)) - 1
-            scores[provider_id] = values[idx]
-
-        min_value = min(scores.values())
-        candidates = [k for k, v in scores.items() if v == min_value]
-
-        return random.choice(candidates), min_value
+        min_inflight_count = min(inflight_counts.values())
+        tied = [provider_id for provider_id, count in inflight_counts.items() if count == min_inflight_count]
+        return random.choice(tied)

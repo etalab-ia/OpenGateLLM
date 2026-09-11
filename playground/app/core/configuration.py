@@ -111,14 +111,13 @@ class RedisDependency(ConfigBaseModel):
 
 @custom_validation_error()
 class Dependencies(ConfigBaseModel):
-    redis: Annotated[RedisDependency | None, Field(default=None, description="Redis is a required dependency for the API to store rate limiting counters and performance metrics. It is an optional dependency for the Playground to use as stage manage (see [Reflex documentation](https://reflex.dev/docs/api-reference/config/)).")]  # fmt: off
+    redis: Annotated[RedisDependency | None, Field(default=None, description="Redis is a required dependency for the API to store rate limiting counters and inflight gauges. It is an optional dependency for the Playground to use as stage manage (see [Reflex documentation](https://reflex.dev/docs/api-reference/config/)).")]  # fmt: off
 
 
 @custom_validation_error()
 class Settings(ConfigBaseModel):
     auth_key_max_expiration_days: Annotated[int | None, Field(default=None, ge=1, description="Maximum number of days for a new API key to be valid.")]  # fmt: off
     auth_login_session_duration: Annotated[int, Field(default=3600, ge=1, description="Duration of login session for the playground in seconds. Also used as oauth2-proxy cookie expiration when SSO is enabled.")]  # fmt: off
-    routing_max_priority: Annotated[int, Field(default=4, ge=0, description="Maximum allowed priority in routing tasks.")]  # fmt: off
     app_title: Annotated[str, Field(default=DEFAULT_APP_NAME, description="The title of the application (dsiplayed on Playground, Swagger and Redoc UI).")]  # fmt: off
 
     playground_opengatellm_url: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, pattern=r"^http[s]?://"), Field(default="http://localhost:8000", description="The URL of the OpenGateLLM API.")]  # fmt: off

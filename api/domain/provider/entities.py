@@ -13,18 +13,6 @@ _country_codes = [country.alpha_3 for country in pycountry.countries] + ["WOR"]
 HostingZone = StrEnum("HostingZone", {str(code).upper(): str(code) for code in sorted(set(_country_codes))})
 
 
-class Metric(StrEnum):
-    LATENCY = "latency"  # requests latency
-    TTFT = "ttft"  # time to first token
-
-
-class QoSMetric(StrEnum):
-    TTFT = "ttft"  # time to first token
-    LATENCY = "latency"  # requests latency
-    INFLIGHT = "inflight"  # requests concurrency
-    PERFORMANCE = "performance"  # custom performance metric
-
-
 class BasicAuth(BaseModel):
     username: str
     password: str
@@ -105,8 +93,6 @@ class Provider(BaseModel):
     model_hosting_zone: HostingZone = HostingZone.WOR
     model_total_params: int = 0
     model_active_params: int = 0
-    qos_metric: QoSMetric | None = None
-    qos_limit: float | None = None
     max_context_length: int | None = None
     vector_size: int | None = None
     created: UtcDatetime
@@ -126,12 +112,6 @@ class Provider(BaseModel):
 
     def with_model_active_params(self, model_active_params: int) -> "Provider":
         return self.model_copy(update={"model_active_params": model_active_params})
-
-    def with_qos_metric(self, qos_metric: QoSMetric | None) -> "Provider":
-        return self.model_copy(update={"qos_metric": qos_metric})
-
-    def with_qos_limit(self, qos_limit: float | None) -> "Provider":
-        return self.model_copy(update={"qos_limit": qos_limit})
 
     def with_max_context_length(self, max_context_length: int | None) -> "Provider":
         return self.model_copy(update={"max_context_length": max_context_length})
