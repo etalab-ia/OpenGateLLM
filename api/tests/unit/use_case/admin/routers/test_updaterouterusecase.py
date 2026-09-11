@@ -31,7 +31,7 @@ def full_command(router, **overrides) -> UpdateRouterCommand:
         router_type=router.type,
         aliases=router.aliases,
         load_balancing_strategy=router.load_balancing_strategy,
-        qos_mode=router.qos_mode,
+        qos_enable=router.qos_enable,
         qos_retry=router.qos_retry,
         qos_metric=router.qos_metric,
         qos_health_thresholds=router.qos_health_thresholds,

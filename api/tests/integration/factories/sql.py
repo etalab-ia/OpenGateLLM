@@ -147,7 +147,7 @@ class RouterSQLFactory(BaseSQLFactory):
     name = factory.Sequence(lambda n: f"router-{n}")  # not "router_<n>": several tests use explicit "router_1" … "router_7" names
     type = factory.Faker("random_element", elements=list(ModelType))
     load_balancing_strategy = factory.Faker("random_element", elements=list(RouterLoadBalancingStrategy))
-    qos_mode = "wait"
+    qos_enable = False
     qos_retry = 10
     qos_metric = "inflight"
     qos_health_thresholds = factory.LazyFunction(lambda: [0.9, 1.1])

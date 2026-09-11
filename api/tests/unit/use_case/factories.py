@@ -9,7 +9,7 @@ from api.domain.model.views import ModelView
 from api.domain.organization.entities import Organization
 from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderType
 from api.domain.role.entities import Limit, LimitType, PermissionType, Role
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterQosMetric, RouterQosMode, RouterType
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterQosMetric, RouterType
 from api.domain.user.entities import User
 from api.domain.user.views import AuthenticatedUserView
 from api.schemas.core.configuration import Model as ModelConfiguration
@@ -63,7 +63,7 @@ class RouterFactory(factory.Factory):
     type = factory.Faker("random_element", elements=list(RouterType))
     aliases = factory.LazyFunction(list)
     load_balancing_strategy = factory.Faker("random_element", elements=list(RouterLoadBalancingStrategy))
-    qos_mode = RouterQosMode.WAIT
+    qos_enable = True
     qos_retry = 10
     qos_metric = RouterQosMetric.INFLIGHT
     qos_health_thresholds = factory.LazyFunction(lambda: [0.9, 1.1])

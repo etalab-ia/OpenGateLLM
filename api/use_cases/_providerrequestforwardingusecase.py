@@ -29,7 +29,7 @@ from api.domain.provider.errors import (
     UnsupportedProviderEndpointError,
 )
 from api.domain.router import RouterRateLimiter, RouterRepository
-from api.domain.router.entities import Router, RouterQosMode, RouterRateLimitState, RouterType
+from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import Usage
@@ -189,7 +189,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
         request_id = str(uuid4())
 
-        if router.qos_mode == RouterQosMode.OFF:
+        if not router.qos_enable:
             provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
             admitted = False
         else:

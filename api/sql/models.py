@@ -10,7 +10,7 @@ from sqlalchemy.types import JSON
 
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.role.entities import LimitType, PermissionType
-from api.domain.router.entities import RouterQosMetric, RouterQosMode
+from api.domain.router.entities import RouterQosMetric
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.core.models import Metric
 from api.schemas.models import ModelType
@@ -175,7 +175,7 @@ class Router(Base):
     name: Mapped[str] = mapped_column(unique=True)
     type: Mapped[ModelType]
     load_balancing_strategy: Mapped[RouterLoadBalancingStrategy]
-    qos_mode: Mapped[RouterQosMode] = mapped_column(default=RouterQosMode.WAIT, server_default=RouterQosMode.WAIT.name)
+    qos_enable: Mapped[bool] = mapped_column(default=False, server_default="false")
     qos_retry: Mapped[int] = mapped_column(default=10, server_default="10")
     qos_metric: Mapped[RouterQosMetric] = mapped_column(default=RouterQosMetric.INFLIGHT, server_default=RouterQosMetric.INFLIGHT.name)
     qos_health_thresholds: Mapped[list[float]] = mapped_column(ARRAY(Float), default=lambda: [0.9, 1.1], server_default="{0.9,1.1}")

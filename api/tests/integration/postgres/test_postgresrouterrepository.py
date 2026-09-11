@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select
 
 from api.domain import SortField, SortOrder
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterQosMetric, RouterQosMode, RouterType
+from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterQosMetric, RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 from api.infrastructure.postgres import PostgresRouterRepository
 from api.sql.models import Provider as ProviderTable
@@ -21,7 +21,7 @@ def to_router_domain(router_sql, aliases: list[str] | None = None) -> Router:
         type=RouterType(router_sql.type),
         aliases=aliases or [],
         load_balancing_strategy=RouterLoadBalancingStrategy(router_sql.load_balancing_strategy),
-        qos_mode=RouterQosMode(router_sql.qos_mode),
+        qos_enable=router_sql.qos_enable,
         qos_retry=router_sql.qos_retry,
         qos_metric=RouterQosMetric(router_sql.qos_metric),
         qos_health_thresholds=list(router_sql.qos_health_thresholds),

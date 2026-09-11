@@ -148,7 +148,7 @@ class Model(ConfigBaseModel):
     type: ModelType = Field(..., description="Type of the model. It will be used to identify the model type.", examples=["text-generation"])  # fmt: off
     aliases: list[constr(strip_whitespace=True, min_length=1, max_length=64)] = Field(default_factory=list, description="Aliases of the model. It will be used to identify the model by users.", examples=[["model-alias", "model-alias-2"]], json_schema_extra={"default": []})  # fmt: off
     load_balancing_strategy: RouterLoadBalancingStrategy = Field(default=RouterLoadBalancingStrategy.SHUFFLE, description="Routing strategy for load balancing between providers of the model.", examples=["least_busy"])  # fmt: off
-    qos_mode: Literal["off", "wait"] = Field(default="wait", description="QoS admission mode.")  # fmt: off
+    qos_enable: bool = Field(default=False, description="Enable QoS admission.")  # fmt: off
     qos_retry: int = Field(default=10, ge=0, description="Max try_admit retries after the first FULL response.")  # fmt: off
     qos_metric: Literal["inflight"] = Field(default="inflight", description="QoS load metric.")  # fmt: off
     qos_health_thresholds: list[float] = Field(default_factory=lambda: [0.9, 1.1], min_length=2, max_length=2, description="Saturation thresholds [orange, red].")  # fmt: off

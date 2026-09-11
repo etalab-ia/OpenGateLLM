@@ -2,7 +2,12 @@ import reflex as rx
 
 from app.core.variables import SPACING_MEDIUM
 from app.features.routers.state import RoutersState
-from app.shared.components.forms import entity_create_form, entity_form_input_field, entity_form_select_field
+from app.shared.components.forms import (
+    entity_create_form,
+    entity_form_input_field,
+    entity_form_select_field,
+    entity_form_switch_field,
+)
 
 
 def router_settings_form_fields() -> rx.Component:
@@ -39,13 +44,12 @@ def router_settings_form_fields() -> rx.Component:
             tooltip="Strategy to use for load balancing between providers of the router",
             disable=RoutersState.edit_entity_loading,
         ),
-        entity_form_select_field(
-            label="QoS mode",
-            items=RoutersState.router_qos_modes_list,
-            value=RoutersState.entity.qos_mode,
-            on_change=lambda value: RoutersState.set_edit_entity_attribut("qos_mode", value),
-            tooltip="Admission mode under saturation: Wait retries, Off disables protection",
-            disable=RoutersState.edit_entity_loading,
+        entity_form_switch_field(
+            label="QoS",
+            value=RoutersState.entity.qos_enable,
+            on_change=lambda value: RoutersState.set_edit_entity_attribut("qos_enable", value),
+            description="Admit requests when providers are full; off disables protection",
+            disabled=RoutersState.edit_entity_loading,
         ),
         entity_form_input_field(
             label="QoS retry",
@@ -65,11 +69,23 @@ def router_settings_form_fields() -> rx.Component:
             disable=RoutersState.edit_entity_loading,
         ),
         entity_form_input_field(
-            label="QoS health thresholds",
-            value=RoutersState.entity.qos_health_thresholds,
-            on_change=lambda value: RoutersState.set_edit_entity_attribut("qos_health_thresholds", value),
-            tooltip="Orange and red saturation ratios, comma-separated (e.g. 0.9,1.1)",
-            type="list",
+            label="QoS health threshold (orange)",
+            value=RoutersState.entity.qos_health_threshold_start,
+            on_change=lambda value: RoutersState.set_edit_entity_attribut("qos_health_threshold_start", value),
+            tooltip="Orange saturation ratio (e.g. 0.9)",
+            type="number",
+            min=0,
+            step=0.1,
+            disable=RoutersState.edit_entity_loading,
+        ),
+        entity_form_input_field(
+            label="QoS health threshold (red)",
+            value=RoutersState.entity.qos_health_threshold_end,
+            on_change=lambda value: RoutersState.set_edit_entity_attribut("qos_health_threshold_end", value),
+            tooltip="Red saturation ratio (e.g. 1.1)",
+            type="number",
+            min=0,
+            step=0.1,
             disable=RoutersState.edit_entity_loading,
         ),
         entity_form_input_field(
@@ -131,13 +147,12 @@ def router_create_form_fields() -> rx.Component:
             tooltip="Strategy to use for load balancing between providers of the router",
             placeholder="Select strategy",
         ),
-        entity_form_select_field(
-            label="QoS mode",
-            items=RoutersState.router_qos_modes_list,
-            value=RoutersState.entity_to_create.qos_mode,
-            on_change=lambda value: RoutersState.set_new_entity_attribut("qos_mode", value),
-            tooltip="Admission mode under saturation: Wait retries, Off disables protection",
-            disable=RoutersState.create_entity_loading,
+        entity_form_switch_field(
+            label="QoS",
+            value=RoutersState.entity_to_create.qos_enable,
+            on_change=lambda value: RoutersState.set_new_entity_attribut("qos_enable", value),
+            description="Admit requests when providers are full; off disables protection",
+            disabled=RoutersState.create_entity_loading,
         ),
         entity_form_input_field(
             label="QoS retry",
@@ -157,11 +172,23 @@ def router_create_form_fields() -> rx.Component:
             disable=RoutersState.create_entity_loading,
         ),
         entity_form_input_field(
-            label="QoS health thresholds",
-            value=RoutersState.entity_to_create.qos_health_thresholds,
-            on_change=lambda value: RoutersState.set_new_entity_attribut("qos_health_thresholds", value),
-            tooltip="Orange and red saturation ratios, comma-separated (e.g. 0.9,1.1)",
-            type="list",
+            label="QoS health threshold (orange)",
+            value=RoutersState.entity_to_create.qos_health_threshold_start,
+            on_change=lambda value: RoutersState.set_new_entity_attribut("qos_health_threshold_start", value),
+            tooltip="Orange saturation ratio (e.g. 0.9)",
+            type="number",
+            min=0,
+            step=0.1,
+            disable=RoutersState.create_entity_loading,
+        ),
+        entity_form_input_field(
+            label="QoS health threshold (red)",
+            value=RoutersState.entity_to_create.qos_health_threshold_end,
+            on_change=lambda value: RoutersState.set_new_entity_attribut("qos_health_threshold_end", value),
+            tooltip="Red saturation ratio (e.g. 1.1)",
+            type="number",
+            min=0,
+            step=0.1,
             disable=RoutersState.create_entity_loading,
         ),
         entity_form_input_field(

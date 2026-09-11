@@ -19,7 +19,7 @@ def _valid_body(**overrides) -> dict:
         "type": "text-generation",
         "aliases": [],
         "load_balancing_strategy": "shuffle",
-        "qos_mode": "wait",
+        "qos_enable": False,
         "qos_retry": 10,
         "qos_metric": "inflight",
         "qos_health_thresholds": [0.9, 1.1],

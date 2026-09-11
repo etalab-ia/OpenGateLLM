@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from api.domain.router.entities import RouterLoadBalancingStrategy, RouterQosMetric, RouterQosMode, RouterType
+from api.domain.router.entities import RouterLoadBalancingStrategy, RouterQosMetric, RouterType
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError
 from api.tests.unit.use_case.factories import RouterFactory
 from api.use_cases.admin.routers import CreateRouterCommand, CreateRouterUseCase
@@ -47,7 +47,7 @@ class TestCreateRouterUseCase:
                 router_type=RouterType.TEXT_GENERATION,
                 aliases=["alias1", "alias2"],
                 load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
-                qos_mode=RouterQosMode.WAIT,
+                qos_enable=False,
                 qos_retry=10,
                 qos_metric=RouterQosMetric.INFLIGHT,
                 qos_health_thresholds=[0.9, 1.1],
@@ -63,7 +63,7 @@ class TestCreateRouterUseCase:
             name="test-model",
             router_type=RouterType.TEXT_GENERATION,
             load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
-            qos_mode=RouterQosMode.WAIT,
+            qos_enable=False,
             qos_retry=10,
             qos_metric=RouterQosMetric.INFLIGHT,
             qos_health_thresholds=[0.9, 1.1],
@@ -94,7 +94,7 @@ class TestCreateRouterUseCase:
                 router_type=RouterType.TEXT_GENERATION,
                 aliases=[],
                 load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
-                qos_mode=RouterQosMode.WAIT,
+                qos_enable=False,
                 qos_retry=10,
                 qos_metric=RouterQosMetric.INFLIGHT,
                 qos_health_thresholds=[0.9, 1.1],
@@ -109,7 +109,7 @@ class TestCreateRouterUseCase:
             name="model-no-alias",
             router_type=RouterType.TEXT_GENERATION,
             load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
-            qos_mode=RouterQosMode.WAIT,
+            qos_enable=False,
             qos_retry=10,
             qos_metric=RouterQosMetric.INFLIGHT,
             qos_health_thresholds=[0.9, 1.1],
@@ -132,7 +132,7 @@ class TestCreateRouterUseCase:
                 router_type=RouterType.TEXT_GENERATION,
                 aliases=["alias1", "alias2"],
                 load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
-                qos_mode=RouterQosMode.WAIT,
+                qos_enable=False,
                 qos_retry=10,
                 qos_metric=RouterQosMetric.INFLIGHT,
                 qos_health_thresholds=[0.9, 1.1],
@@ -146,7 +146,7 @@ class TestCreateRouterUseCase:
         router_repository.create_router.assert_called_once_with(
             aliases=["alias1", "alias2"],
             cost_completion_tokens=0.0,
-            qos_mode=RouterQosMode.WAIT,
+            qos_enable=False,
             qos_retry=10,
             qos_metric=RouterQosMetric.INFLIGHT,
             qos_health_thresholds=[0.9, 1.1],
@@ -170,7 +170,7 @@ class TestCreateRouterUseCase:
                 router_type=RouterType.TEXT_GENERATION,
                 aliases=["alias1", "alias2"],
                 load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
-                qos_mode=RouterQosMode.WAIT,
+                qos_enable=False,
                 qos_retry=10,
                 qos_metric=RouterQosMetric.INFLIGHT,
                 qos_health_thresholds=[0.9, 1.1],
@@ -186,7 +186,7 @@ class TestCreateRouterUseCase:
             name="test-model",
             router_type=RouterType.TEXT_GENERATION,
             load_balancing_strategy=RouterLoadBalancingStrategy.SHUFFLE,
-            qos_mode=RouterQosMode.WAIT,
+            qos_enable=False,
             qos_retry=10,
             qos_metric=RouterQosMetric.INFLIGHT,
             qos_health_thresholds=[0.9, 1.1],

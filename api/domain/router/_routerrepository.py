@@ -6,7 +6,6 @@ from api.domain.router.entities import (
     RouterLoadBalancingStrategy,
     RouterPage,
     RouterQosMetric,
-    RouterQosMode,
     RouterType,
 )
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
@@ -45,7 +44,7 @@ class RouterRepository(ABC):
         cost_completion_tokens: float,
         user_id: int,
         aliases: list[str] | None = None,
-        qos_mode: RouterQosMode = RouterQosMode.WAIT,
+        qos_enable: bool = False,
         qos_retry: int = 10,
         qos_metric: RouterQosMetric = RouterQosMetric.INFLIGHT,
         qos_health_thresholds: list[float] | None = None,

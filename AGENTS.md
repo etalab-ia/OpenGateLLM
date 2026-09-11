@@ -398,7 +398,7 @@ Autocommit wiring:
 
 ### QoS admission (model-forward)
 
-`ProviderRequestForwardingUseCase` admits requests through `ProviderQosAdmission` (`try_admit` / heartbeat / `release`) when the router `qos_mode` is `wait`. Selection and slot reservation happen atomically in Redis Lua (`ogl_qos:load:{provider_id}` ZSET). `qos_mode=off` skips admission and uses `ProviderLoadBalancer` only. Exhausted wait retries return `NoAvailableProviderError` with `retry_after` for the 503 `Retry-After` header. Spec: `adr/2026-09-02-qos.md`.
+`ProviderRequestForwardingUseCase` admits requests through `ProviderQosAdmission` (`try_admit` / heartbeat / `release`) when the router `qos_enable` is true. Selection and slot reservation happen atomically in Redis Lua (`ogl_qos:load:{provider_id}` ZSET). `qos_enable=false` skips admission and uses `ProviderLoadBalancer` only. Exhausted wait retries return `NoAvailableProviderError` with `retry_after` for the 503 `Retry-After` header. Spec: `adr/2026-09-02-qos.md`.
 
 ```python
 def create_embeddings_use_case_factory(

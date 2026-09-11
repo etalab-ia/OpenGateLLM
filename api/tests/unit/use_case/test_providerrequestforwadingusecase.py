@@ -24,7 +24,7 @@ from api.domain.provider.errors import (
 )
 from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
-from api.domain.router.entities import RouterQosMode, RouterRateLimitState, RouterType, RpmRateLimitState, TpmRateLimitState
+from api.domain.router.entities import RouterRateLimitState, RouterType, RpmRateLimitState, TpmRateLimitState
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.usage import UsageRecorder
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
@@ -463,7 +463,7 @@ class TestSendRequest:
     @pytest.mark.asyncio
     async def test_should_return_no_available_provider_without_forwarding_when_admission_is_full(self, use_case, router, provider, payload):
         # Arrange
-        router = router.model_copy(update={"qos_mode": RouterQosMode.WAIT, "qos_retry": 0})
+        router = router.model_copy(update={"qos_enable": True, "qos_retry": 0})
         use_case.provider_qos_admission.try_admit.return_value = QosAdmissionFull(depth=2)
 
         # Act
@@ -529,9 +529,9 @@ class TestSendRequest:
         )
 
     @pytest.mark.asyncio
-    async def test_should_use_load_balancer_without_admission_when_qos_mode_is_off(self, use_case, router, provider, sample_data, payload):
+    async def test_should_use_load_balancer_without_admission_when_qos_enable_is_false(self, use_case, router, provider, sample_data, payload):
         # Arrange
-        router = router.model_copy(update={"qos_mode": RouterQosMode.OFF})
+        router = router.model_copy(update={"qos_enable": False})
 
         # Act
         result = await use_case._send_request(router=router, prompt_tokens=1, payload=payload)

@@ -5,7 +5,7 @@ import pytest
 from api.domain.model.errors import InconsistentModelMaxContextLengthError, InconsistentModelVectorSizeError, ModelNotFoundError
 from api.domain.provider.entities import ProviderCapabilities
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
-from api.domain.router.entities import RouterQosMetric, RouterQosMode, RouterType
+from api.domain.router.entities import RouterQosMetric, RouterType
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.tests.unit.use_case.factories import (
     ModelConfigurationFactory,
@@ -83,7 +83,7 @@ class TestBootstrapModelsUseCase:
             name=model_configuration.name,
             router_type=model_configuration.type,
             load_balancing_strategy=model_configuration.load_balancing_strategy,
-            qos_mode=RouterQosMode(model_configuration.qos_mode),
+            qos_enable=model_configuration.qos_enable,
             qos_retry=model_configuration.qos_retry,
             qos_metric=RouterQosMetric(model_configuration.qos_metric),
             qos_health_thresholds=model_configuration.qos_health_thresholds,

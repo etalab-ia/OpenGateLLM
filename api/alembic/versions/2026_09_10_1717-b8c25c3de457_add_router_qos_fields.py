@@ -17,15 +17,13 @@ down_revision: Union[str, None] = 'a7f3c91b2e04'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-routerqosmode = postgresql.ENUM('OFF', 'WAIT', name='routerqosmode', create_type=False)
 routerqosmetric = postgresql.ENUM('INFLIGHT', name='routerqosmetric', create_type=False)
 
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.execute("CREATE TYPE routerqosmode AS ENUM ('OFF', 'WAIT')")
     op.execute("CREATE TYPE routerqosmetric AS ENUM ('INFLIGHT')")
-    op.add_column('router', sa.Column('qos_mode', routerqosmode, server_default='WAIT', nullable=False))
+    op.add_column('router', sa.Column('qos_enable', sa.Boolean(), server_default='false', nullable=False))
     op.add_column('router', sa.Column('qos_retry', sa.Integer(), server_default='10', nullable=False))
     op.add_column('router', sa.Column('qos_metric', routerqosmetric, server_default='INFLIGHT', nullable=False))
     op.add_column('router', sa.Column('qos_health_thresholds', postgresql.ARRAY(sa.Float()), server_default='{0.9,1.1}', nullable=False))
@@ -36,6 +34,5 @@ def downgrade() -> None:
     op.drop_column('router', 'qos_health_thresholds')
     op.drop_column('router', 'qos_metric')
     op.drop_column('router', 'qos_retry')
-    op.drop_column('router', 'qos_mode')
+    op.drop_column('router', 'qos_enable')
     op.execute('DROP TYPE routerqosmetric')
-    op.execute('DROP TYPE routerqosmode')

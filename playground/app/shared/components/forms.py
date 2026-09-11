@@ -138,6 +138,55 @@ def entity_form_checkbox_field(
     )
 
 
+def entity_form_switch_field(
+    label: str,
+    value: Any,
+    description: str | None = None,
+    on_change: Callable | None = None,
+    tooltip: str | None = None,
+    **kwargs: Any,
+) -> rx.Component:
+    normalized_checked: Any = False
+    if value is None:
+        normalized_checked = False
+    elif hasattr(value, "to"):
+        normalized_checked = rx.cond(value != None, value.to(bool), False)  # noqa: E711
+    else:
+        normalized_checked = value
+
+    return rx.hstack(
+        rx.switch(
+            checked=normalized_checked,
+            on_change=on_change,
+            **kwargs,
+        ),
+        rx.vstack(
+            rx.cond(
+                bool(tooltip),
+                rx.hstack(
+                    rx.text(label, size=TEXT_SIZE_LABEL, weight="bold"),
+                    rx.tooltip(
+                        rx.icon("info", size=ICON_SIZE_TINY, color=rx.color("mauve", 10)),
+                        content=tooltip,
+                    ),
+                    spacing=SPACING_TINY,
+                    align="center",
+                ),
+                rx.text(label, size=TEXT_SIZE_LABEL, weight="bold"),
+            ),
+            rx.cond(
+                bool(description),
+                rx.text(description, size=TEXT_SIZE_LABEL),
+            ),
+            align="start",
+            spacing="0",
+        ),
+        spacing=SPACING_MEDIUM,
+        width="100%",
+        align="center",
+    )
+
+
 def entity_settings_form(state: rx.State, title: str, fields: rx.grid) -> rx.Component:
     """Form to display information about an entity and edit it."""
     return rx.card(
