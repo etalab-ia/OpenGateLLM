@@ -1,11 +1,12 @@
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from fastapi import Depends
+from fastapi import Depends, Request
 import redis.asyncio as redis
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.domain import ClientConnection
 from api.domain.auth import AuthSsoSessionValidator
 from api.domain.key import KeyEncoder, KeyRepository
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelQuery, ModelTokenizer
@@ -14,6 +15,7 @@ from api.domain.provider import (
     ProviderClient,
     ProviderLoadBalancer,
     ProviderMetricsLogger,
+    ProviderQosAdmission,
     ProviderRepository,
 )
 from api.domain.role import LimitRepository, PermissionRepository
@@ -23,6 +25,7 @@ from api.domain.user import AuthenticatedUserQuery, UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
 from api.infrastructure.fastapi import RequestContextUsageRecorder
+from api.infrastructure.fastapi._starletteclientconnection import StarletteClientConnection
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.http import HttpAuthSsoSessionValidator, HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
@@ -40,7 +43,12 @@ from api.infrastructure.postgres import (
     PostgresUsageRepository,
     PostgresUserRepository,
 )
-from api.infrastructure.redis import RedisProviderLoadBalancer, RedisProviderMetricsLogger, RedisRouterRateLimiter
+from api.infrastructure.redis import (
+    RedisProviderLoadBalancer,
+    RedisProviderMetricsLogger,
+    RedisProviderQosAdmission,
+    RedisRouterRateLimiter,
+)
 from api.infrastructure.tiktoken import TiktokenModelTokenizer
 from api.use_cases.admin.keys import CreateKeyUseCase, DeleteKeyUseCase, GetKeysUseCase, GetOneKeyUseCase
 from api.use_cases.admin.organizations import (
@@ -142,6 +150,14 @@ def _provider_load_balancer(redis_client: Redis = Depends(get_redis_client)) -> 
     return RedisProviderLoadBalancer(redis_client=redis_client)
 
 
+def _provider_qos_admission(redis_client: Redis = Depends(get_redis_client)) -> ProviderQosAdmission:
+    return RedisProviderQosAdmission(redis_client=redis_client)
+
+
+def _client_connection(request: Request) -> ClientConnection:
+    return StarletteClientConnection(request=request)
+
+
 def _provider_capabilities_probe(
     provider_client: ProviderClient = Depends(_provider_client),
 ) -> ProviderCapabilitiesProbe:
@@ -211,6 +227,7 @@ def create_audio_transcriptions_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
+    client_connection: ClientConnection = Depends(_client_connection),
 ) -> CreateAudioTranscriptionsUseCase:
     return CreateAudioTranscriptionsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -218,10 +235,12 @@ def create_audio_transcriptions_use_case_factory(
         provider_client=provider_client,
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_qos_admission=_provider_qos_admission(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
         usage_recorder=_usage_recorder(),
+        client_connection=client_connection,
         audio_file_size_limit=configuration.settings.audio_file_size_limit,
     )
 
@@ -278,6 +297,7 @@ def create_embeddings_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
+    client_connection: ClientConnection = Depends(_client_connection),
 ) -> CreateEmbeddingsUseCase:
     return CreateEmbeddingsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -285,10 +305,12 @@ def create_embeddings_use_case_factory(
         provider_client=provider_client,
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_qos_admission=_provider_qos_admission(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
         usage_recorder=_usage_recorder(),
+        client_connection=client_connection,
     )
 
 
@@ -349,6 +371,7 @@ def create_ocr_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
+    client_connection: ClientConnection = Depends(_client_connection),
 ) -> CreateOCRUseCase:
     return CreateOCRUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -356,10 +379,12 @@ def create_ocr_use_case_factory(
         provider_client=provider_client,
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_qos_admission=_provider_qos_admission(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
         usage_recorder=_usage_recorder(),
+        client_connection=client_connection,
     )
 
 
@@ -412,6 +437,7 @@ def create_rerank_use_case_factory(
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
+    client_connection: ClientConnection = Depends(_client_connection),
 ) -> CreateRerankUseCase:
     return CreateRerankUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -419,10 +445,12 @@ def create_rerank_use_case_factory(
         provider_client=provider_client,
         provider_load_balancer=_provider_load_balancer(redis_client),
         provider_metrics_logger=_provider_metrics_logger(redis_client),
+        provider_qos_admission=_provider_qos_admission(redis_client),
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
         usage_recorder=_usage_recorder(),
+        client_connection=client_connection,
     )
 
 

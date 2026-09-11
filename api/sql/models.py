@@ -3,12 +3,14 @@ from enum import StrEnum
 from http import HTTPMethod
 from typing import Any, Optional
 
-from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
+from sqlalchemy import DateTime, Float, ForeignKey, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 from sqlalchemy.types import JSON
 
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.role.entities import LimitType, PermissionType
+from api.domain.router.entities import RouterQosMetric
 from api.schemas.admin.routers import RouterLoadBalancingStrategy
 from api.schemas.core.models import Metric
 from api.schemas.models import ModelType
@@ -173,6 +175,10 @@ class Router(Base):
     name: Mapped[str] = mapped_column(unique=True)
     type: Mapped[ModelType]
     load_balancing_strategy: Mapped[RouterLoadBalancingStrategy]
+    qos_enable: Mapped[bool] = mapped_column(default=False, server_default="false")
+    qos_retry: Mapped[int] = mapped_column(default=10, server_default="10")
+    qos_metric: Mapped[RouterQosMetric] = mapped_column(default=RouterQosMetric.INFLIGHT, server_default=RouterQosMetric.INFLIGHT.name)
+    qos_health_thresholds: Mapped[list[float]] = mapped_column(ARRAY(Float), default=lambda: [0.9, 1.1], server_default="{0.9,1.1}")
     cost_prompt_tokens: Mapped[float] = mapped_column(default=0.0)
     cost_completion_tokens: Mapped[float] = mapped_column(default=0.0)
     created: Mapped[dt.datetime] = mapped_column(UtcDateTime, insert_default=func.now())

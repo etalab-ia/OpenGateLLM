@@ -20,6 +20,10 @@ def _valid_body(**overrides) -> dict:
         "type": RouterType.TEXT_GENERATION,
         "aliases": [],
         "load_balancing_strategy": RouterLoadBalancingStrategy.SHUFFLE,
+        "qos_enable": False,
+        "qos_retry": 10,
+        "qos_metric": "inflight",
+        "qos_health_thresholds": [0.9, 1.1],
         "cost_prompt_tokens": 0.0,
         "cost_completion_tokens": 0.0,
     }

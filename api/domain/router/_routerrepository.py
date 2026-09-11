@@ -1,7 +1,13 @@
 from abc import ABC, abstractmethod
 
 from api.domain import SortField, SortOrder
-from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterPage, RouterType
+from api.domain.router.entities import (
+    Router,
+    RouterLoadBalancingStrategy,
+    RouterPage,
+    RouterQosMetric,
+    RouterType,
+)
 from api.domain.router.errors import RouterAliasAlreadyExistsError, RouterNameAlreadyExistsError, RouterNotFoundError
 
 
@@ -38,6 +44,10 @@ class RouterRepository(ABC):
         cost_completion_tokens: float,
         user_id: int,
         aliases: list[str] | None = None,
+        qos_enable: bool = False,
+        qos_retry: int = 10,
+        qos_metric: RouterQosMetric = RouterQosMetric.INFLIGHT,
+        qos_health_thresholds: list[float] | None = None,
     ) -> Router | RouterNameAlreadyExistsError | RouterAliasAlreadyExistsError:
         pass
 

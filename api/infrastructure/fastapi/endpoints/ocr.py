@@ -4,10 +4,12 @@ from typing import assert_never
 from fastapi import APIRouter, Body, Depends, HTTPException, Security
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
+from starlette.requests import ClientDisconnect
 
 from api.dependencies import create_ocr_use_case_factory, get_router_rate_limiter
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.errors import (
+    ClientDisconnectedError,
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
     ProviderAdapterValidationResponseError,
@@ -79,8 +81,10 @@ async def create_ocr(
     match result:
         case CreateOCRUseCaseSuccess(data=data, headers=headers):
             return JSONResponse(content=OCRResponse.model_validate(data.model_dump()).model_dump(), status_code=200, headers=headers)
-        case NoAvailableProviderError():
-            raise ModelIsTooBusyExceptionHTTPException()
+        case ClientDisconnectedError():
+            raise ClientDisconnect()
+        case NoAvailableProviderError(retry_after=retry_after):
+            raise ModelIsTooBusyExceptionHTTPException(retry_after=retry_after)
         case ProviderAdapterValidationRequestError(errors=errors):
             raise HTTPException(status_code=422, detail=jsonable_encoder(errors))
         case ProviderAdapterValidationResponseError(errors=errors):

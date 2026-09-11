@@ -6,6 +6,7 @@ from api.domain.model.errors import InconsistentModelMaxContextLengthError, Inco
 from api.domain.provider import ProviderRepository
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderInvalidResponseError, ProviderNotReachableError
 from api.domain.router import RouterRepository
+from api.domain.router.entities import RouterQosMetric
 from api.domain.router.errors import RouterNameAlreadyExistsError
 from api.schemas.core.configuration import Model as ModelConfiguration
 from api.use_cases.services import ProviderCapabilitiesProbe
@@ -80,6 +81,10 @@ class BootstrapModelsUseCase:
                 name=router_to_create.name,
                 router_type=router_to_create.type,
                 load_balancing_strategy=router_to_create.load_balancing_strategy,
+                qos_enable=router_to_create.qos_enable,
+                qos_retry=router_to_create.qos_retry,
+                qos_metric=RouterQosMetric(router_to_create.qos_metric),
+                qos_health_thresholds=router_to_create.qos_health_thresholds,
                 cost_prompt_tokens=router_to_create.cost_prompt_tokens,
                 cost_completion_tokens=router_to_create.cost_completion_tokens,
                 user_id=bootstrap_admin_user_id,

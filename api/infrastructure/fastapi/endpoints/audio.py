@@ -4,12 +4,14 @@ from typing import Annotated, assert_never
 from fastapi import APIRouter, Depends, HTTPException, Security
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, PlainTextResponse
+from starlette.requests import ClientDisconnect
 
 from api.dependencies import create_audio_transcriptions_use_case_factory, get_postgres_session, get_router_rate_limiter
 from api.domain.audio.entities import CreateAudioTranscriptionsFile
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.errors import (
+    ClientDisconnectedError,
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
     ProviderAdapterValidationResponseError,
@@ -101,8 +103,10 @@ async def create_audio_transcription(
             return PlainTextResponse(content=text, status_code=200, headers=headers, media_type=media_type)
         case AudioFileSizeLimitExceededError(size=size, expected_size=expected_size):
             raise FileSizeLimitExceededHTTPException(size=size, expected_size=expected_size)
-        case NoAvailableProviderError():
-            raise ModelIsTooBusyExceptionHTTPException()
+        case ClientDisconnectedError():
+            raise ClientDisconnect()
+        case NoAvailableProviderError(retry_after=retry_after):
+            raise ModelIsTooBusyExceptionHTTPException(retry_after=retry_after)
         case ProviderAdapterValidationRequestError(errors=errors):
             raise HTTPException(status_code=422, detail=jsonable_encoder(errors))
         case ProviderAdapterValidationResponseError(errors=errors):

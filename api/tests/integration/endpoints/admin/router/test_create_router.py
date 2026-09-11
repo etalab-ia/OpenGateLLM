@@ -19,6 +19,10 @@ def _valid_body(**overrides) -> dict:
         "type": "text-generation",
         "aliases": [],
         "load_balancing_strategy": "shuffle",
+        "qos_enable": False,
+        "qos_retry": 10,
+        "qos_metric": "inflight",
+        "qos_health_thresholds": [0.9, 1.1],
         "cost_prompt_tokens": 0.001,
         "cost_completion_tokens": 0.002,
     }

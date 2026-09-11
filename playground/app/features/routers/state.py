@@ -31,6 +31,11 @@ class RoutersState(EntityState):
         """Get list of router load balancing strategies."""
         return ["Shuffle", "Least Busy"]
 
+    @rx.var
+    def router_qos_metrics_list(self) -> list[str]:
+        """Get list of router QoS metrics."""
+        return ["Inflight"]
+
     ############################################################
     # Load entities
     ############################################################
@@ -44,6 +49,9 @@ class RoutersState(EntityState):
             "shuffle": "Shuffle",
             "least_busy": "Least Busy",
         }
+        _qos_metric_converter = {
+            "inflight": "Inflight",
+        }
         return Router(
             id=router["id"],
             name=router["name"],
@@ -51,6 +59,11 @@ class RoutersState(EntityState):
             type=router["type"],
             aliases=",".join(router["aliases"]) if router["aliases"] else "",
             load_balancing_strategy=_load_balancing_strategy_converter.get(router["load_balancing_strategy"]),
+            qos_enable=bool(router["qos_enable"]),
+            qos_retry=router["qos_retry"],
+            qos_metric=_qos_metric_converter.get(router["qos_metric"]),
+            qos_health_threshold_start=float(router["qos_health_thresholds"][0]),
+            qos_health_threshold_end=float(router["qos_health_thresholds"][1]),
             cost_prompt_tokens=router["cost_prompt_tokens"],
             cost_completion_tokens=router["cost_completion_tokens"],
             providers=router["providers"],
@@ -171,6 +184,11 @@ class RoutersState(EntityState):
     entity_to_create: Router = Router(
         type="text-generation",
         load_balancing_strategy="Shuffle",
+        qos_enable=False,
+        qos_retry=10,
+        qos_metric="Inflight",
+        qos_health_threshold_start=0.9,
+        qos_health_threshold_end=1.1,
         cost_prompt_tokens=0.0,
         cost_completion_tokens=0.0,
     )
@@ -199,6 +217,13 @@ class RoutersState(EntityState):
             "name": self.entity_to_create.name,
             "type": self.entity_to_create.type,
             "load_balancing_strategy": new_router_load_balancing_strategy,
+            "qos_enable": bool(self.entity_to_create.qos_enable),
+            "qos_retry": int(self.entity_to_create.qos_retry or 10),
+            "qos_metric": (self.entity_to_create.qos_metric or "Inflight").lower(),
+            "qos_health_thresholds": [
+                float(self.entity_to_create.qos_health_threshold_start),
+                float(self.entity_to_create.qos_health_threshold_end),
+            ],
             "cost_prompt_tokens": self.entity_to_create.cost_prompt_tokens,
             "cost_completion_tokens": self.entity_to_create.cost_completion_tokens,
         }
@@ -272,6 +297,13 @@ class RoutersState(EntityState):
             "type": self.entity.type,
             "aliases": router_aliases,
             "load_balancing_strategy": router_load_balancing_strategy,
+            "qos_enable": bool(self.entity.qos_enable),
+            "qos_retry": int(self.entity.qos_retry or 10),
+            "qos_metric": (self.entity.qos_metric or "Inflight").lower(),
+            "qos_health_thresholds": [
+                float(self.entity.qos_health_threshold_start),
+                float(self.entity.qos_health_threshold_end),
+            ],
             "cost_prompt_tokens": self.entity.cost_prompt_tokens,
             "cost_completion_tokens": self.entity.cost_completion_tokens,
         }
