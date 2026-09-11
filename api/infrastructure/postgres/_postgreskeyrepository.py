@@ -46,7 +46,7 @@ class PostgresKeyRepository(KeyRepository):
         offset: int = 0,
         sort_by: SortField = SortField.ID,
         sort_order: SortOrder = SortOrder.ASC,
-        exclude_expired: bool = True,
+        active: bool = False,
     ) -> KeyPage:
         sort_column = {SortField.ID: KeyTable.id, SortField.NAME: KeyTable.name, SortField.CREATED: KeyTable.created}[sort_by]
         order_fn = asc if sort_order == SortOrder.ASC else desc
@@ -54,7 +54,8 @@ class PostgresKeyRepository(KeyRepository):
         filters = []
         if user_id is not None:
             filters.append(KeyTable.user_id == user_id)
-        if exclude_expired:
+        # active=True returns every key; active=False narrows the page to the keys that are still usable
+        if not active:
             filters.append(or_(KeyTable.expires.is_(None), KeyTable.expires >= func.now()))
 
         key_query = select(KeyTable, func.count().over().label("total")).where(*filters).order_by(order_fn(sort_column)).offset(offset).limit(limit)

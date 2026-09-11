@@ -35,6 +35,7 @@ class TestGetKeysEndpoint:
             limit=10,
             sort_by=SortField.ID,
             sort_order=SortOrder.ASC,
+            active=False,
             get_keys_use_case=mock_use_case,
             authenticated_user=mock_authenticated_user,
         )
@@ -47,5 +48,25 @@ class TestGetKeysEndpoint:
         assert result.data[0].name == "my-key"
         assert result.data[0].user_id == 42
         mock_use_case.execute.assert_awaited_once_with(
-            GetKeysCommand(user_id=None, offset=0, limit=10, sort_by=SortField.ID, sort_order=SortOrder.ASC)
+            GetKeysCommand(user_id=None, offset=0, limit=10, sort_by=SortField.ID, sort_order=SortOrder.ASC, active=False)
+        )
+
+    @pytest.mark.asyncio
+    async def test_should_forward_active_to_the_use_case(self, mock_authenticated_user):
+        mock_use_case = MagicMock()
+        mock_use_case.execute = AsyncMock(return_value=GetKeysUseCaseSuccess(key_page=EntitiesPage(total=0, data=[])))
+
+        await get_keys(
+            user=None,
+            offset=0,
+            limit=10,
+            sort_by=SortField.ID,
+            sort_order=SortOrder.ASC,
+            active=True,
+            get_keys_use_case=mock_use_case,
+            authenticated_user=mock_authenticated_user,
+        )
+
+        mock_use_case.execute.assert_awaited_once_with(
+            GetKeysCommand(user_id=None, offset=0, limit=10, sort_by=SortField.ID, sort_order=SortOrder.ASC, active=True)
         )

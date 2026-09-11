@@ -12,6 +12,7 @@ class GetKeysCommand:
     limit: int
     sort_by: SortField
     sort_order: SortOrder
+    active: bool = False
 
 
 @dataclass
@@ -33,6 +34,7 @@ class GetKeysUseCase:
             offset=command.offset,
             sort_by=command.sort_by,
             sort_order=command.sort_order,
+            active=command.active,
         )
 
         return GetKeysUseCaseSuccess(key_page=key_page)
