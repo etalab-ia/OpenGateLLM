@@ -8,7 +8,7 @@ from api.domain import ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import ProviderRequest, ProviderResponse
+from api.domain.provider.entities import Provider, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import (
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
@@ -61,7 +61,7 @@ type ProviderRequestForwardingUseCaseError = (
 type ProviderRequestForwardingUseCaseResult[TData] = ProviderRequestForwardingUseCaseSuccess[TData] | ProviderRequestForwardingUseCaseError
 
 
-class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
+class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
     ROUTER_TYPE: ClassVar[RouterType]
     ENDPOINT: ClassVar[EndpointRoute]
 
@@ -145,6 +145,13 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
 
         return rate_limit_state
 
+    async def _select_provider(self, router: Router) -> Provider:
+        providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
+        provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
+        self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
+
+        return provider
+
     async def _send_request(
         self,
         router: Router,
@@ -159,10 +166,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         | ProviderAdapterValidationResponseError
         | UnsupportedProviderEndpointError
     ):
-        providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
-        provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
-        self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
-
+        provider = await self._select_provider(router=router)
         request = ProviderRequest(endpoint=self.ENDPOINT, payload=payload)
 
         inflight_is_incremented = await self.provider_metrics_logger.increment_inflight(provider_id=provider.id)
@@ -178,43 +182,58 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         match result:
             case ProviderResponse() as provider_response:
                 completion_tokens = self.model_tokenizer.compute_tokens(texts=provider_response.get_completions())
-
-                environmental_impacts = self.model_environmental_impacts_computer.compute(
-                    model_active_params=provider.model_active_params,
-                    model_total_params=provider.model_total_params,
-                    model_zone=provider.model_hosting_zone,
-                    completion_tokens=completion_tokens,
-                    request_latency=latency,
-                )
-                cost = Usage.compute_request_cost(
+                usage = self._build_usage(
+                    provider=provider,
+                    router=router,
                     prompt_tokens=prompt_tokens,
                     completion_tokens=completion_tokens,
-                    cost_prompt_tokens=router.cost_prompt_tokens,
-                    cost_completion_tokens=router.cost_completion_tokens,
+                    latency=latency,
                 )
 
                 if provider_response.data is not None:
-                    provider_response.data.usage = Usage(
-                        prompt_tokens=prompt_tokens,
-                        completion_tokens=completion_tokens,
-                        total_tokens=prompt_tokens + completion_tokens,
-                        cost=cost,
-                        impacts=environmental_impacts,
-                    )
+                    provider_response.data.usage = usage
+
             case error:
                 return error
 
-        self.usage_recorder.record_usage(
-            request_id=provider_response.id,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            cost=cost,
-        )
+        self.usage_recorder.record_usage(request_id=provider_response.id, usage=usage)
 
         return provider_response
 
-    async def execute(self, command: TCommand) -> ProviderRequestForwardingUseCaseResult[TData]:
+    def _build_usage(self, provider: Provider, router: Router, prompt_tokens: int, completion_tokens: int, latency: int) -> Usage:
+        environmental_impacts = self.model_environmental_impacts_computer.compute(
+            model_active_params=provider.model_active_params,
+            model_total_params=provider.model_total_params,
+            model_zone=provider.model_hosting_zone,
+            completion_tokens=completion_tokens,
+            request_latency=latency,
+        )
+        cost = Usage.compute_request_cost(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cost_prompt_tokens=router.cost_prompt_tokens,
+            cost_completion_tokens=router.cost_completion_tokens,
+        )
+
+        return Usage(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=prompt_tokens + completion_tokens,
+            cost=cost,
+            impacts=environmental_impacts,
+        )
+
+    def _check_command(self, command: TCommand) -> TResult | None:
+        return None
+
+    def _build_success(self, command: TCommand, response: ProviderResponse, headers: dict[str, str]) -> TResult:
+        return ProviderRequestForwardingUseCaseSuccess(data=response.data, headers=headers)
+
+    async def execute(self, command: TCommand) -> TResult:
         authenticated_user = command.authenticated_user
+
+        if error := self._check_command(command=command):
+            return error
 
         result = await self._resolve_router(authenticated_user=authenticated_user, model_name_or_alias=command.model)
         match result:
@@ -239,4 +258,4 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
             case error:
                 return error
 
-        return ProviderRequestForwardingUseCaseSuccess(data=provider_response.data, headers=rate_limit_state.build_limit_headers)
+        return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)

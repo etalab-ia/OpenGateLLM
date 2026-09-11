@@ -16,7 +16,7 @@ class RouterName(StrEnum):
     ADMIN = ("admin", "api.infrastructure.fastapi.endpoints.admin")
     AUDIO = ("audio", "api.infrastructure.fastapi.endpoints.audio")
     AUTH = ("auth", "api.infrastructure.fastapi.endpoints.auth")
-    CHAT = ("chat", "api.endpoints.chat")
+    CHAT = ("chat", "api.infrastructure.fastapi.endpoints.chat")
     EMBEDDINGS = ("embeddings", "api.infrastructure.fastapi.endpoints.embeddings")
     HEALTH = ("health", "api.infrastructure.fastapi.endpoints.health")
     KEYS = ("keys", "api.infrastructure.fastapi.endpoints.keys")

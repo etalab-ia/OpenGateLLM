@@ -25,6 +25,7 @@ from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL
 from api.tests.integration.factories import sql as sql_factories
 from api.tests.integration.factories.mistral import MistralOcrResponseFactory
 from api.tests.integration.factories.tei import TeiEmbeddingsResponseFactory, TeiRerankResponseFactory
+from api.tests.integration.factories.vllm import VllmChatCompletionsResponseFactory
 from api.utils.dependencies import get_model_registry
 from api.utils.dependencies import get_postgres_session as get_postgres_session_utils
 from api.utils.dependencies import get_redis_client as get_redis_client_utils
@@ -35,6 +36,12 @@ APP_NAME = "ogllm_idle_in_transaction_probe"
 PROBE_DSN = TEST_POSTGRES_URL.replace("+asyncpg", "")
 ROUTER_NAME = "forward-idle-probe"
 RERANK_DOCUMENTS = ["The weather is nice.", "The news is grim.", "The match was close."]
+CHAT_STREAM_BODY = "\n\n".join(
+    [
+        'data: {"id": "chatcmpl-1", "object": "chat.completion.chunk", "created": 1, "model": "m", "choices": [{"index": 0, "delta": {"content": "Hi"}}]}',  # noqa: E501
+        "data: [DONE]",
+    ]
+)
 
 
 @dataclass
@@ -50,6 +57,29 @@ class ForwardScenario:
 
 
 FORWARD_SCENARIOS = [
+    ForwardScenario(
+        name="chat",
+        url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}",
+        router_type=ModelType.TEXT_GENERATION,
+        provider_type=ProviderType.VLLM,
+        provider_path="/v1/chat/completions",
+        build_response=lambda: httpx.Response(
+            VllmChatCompletionsResponseFactory._status_code,
+            json=VllmChatCompletionsResponseFactory(),
+        ),
+        request_body={"model": ROUTER_NAME, "messages": [{"role": "user", "content": "Hello."}]},
+        provider_kwargs={"model_hosting_zone": HostingZone.FRA},
+    ),
+    ForwardScenario(
+        name="chat-stream",
+        url=f"/v1{EndpointRoute.CHAT_COMPLETIONS}",
+        router_type=ModelType.TEXT_GENERATION,
+        provider_type=ProviderType.VLLM,
+        provider_path="/v1/chat/completions",
+        build_response=lambda: httpx.Response(200, text=CHAT_STREAM_BODY, headers={"Content-Type": "text/event-stream"}),
+        request_body={"model": ROUTER_NAME, "messages": [{"role": "user", "content": "Hello."}], "stream": True},
+        provider_kwargs={"model_hosting_zone": HostingZone.FRA},
+    ),
     ForwardScenario(
         name="ocr",
         url=f"/v1{EndpointRoute.OCR}",

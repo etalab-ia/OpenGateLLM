@@ -6,7 +6,7 @@ from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
 from api.domain.provider.entities import ProviderResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
-from api.domain.router.entities import Router, RouterRateLimitState, RouterType
+from api.domain.router.entities import RouterType
 from api.domain.usage import UsageRecorder
 from api.use_cases._providerrequestforwardingusecase import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseError
 from api.utils.variables import EndpointRoute
@@ -36,14 +36,14 @@ class CreateAudioTranscriptionsTextUseCaseSuccess:
     media_type: str
 
 
-AudioTranscriptionsUseCaseError = AudioFileSizeLimitExceededError | ProviderRequestForwardingUseCaseError
+type AudioTranscriptionsUseCaseError = AudioFileSizeLimitExceededError | ProviderRequestForwardingUseCaseError
 
-CreateAudioTranscriptionsUseCaseResult = (
+type CreateAudioTranscriptionsUseCaseResult = (
     CreateAudioTranscriptionsJsonUseCaseSuccess | CreateAudioTranscriptionsTextUseCaseSuccess | AudioTranscriptionsUseCaseError
 )
 
 
-class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAudioTranscriptionsCommand, AudioTranscriptions]):
+class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAudioTranscriptionsCommand, CreateAudioTranscriptionsUseCaseResult]):
     ROUTER_TYPE = RouterType.AUTOMATIC_SPEECH_RECOGNITION
     ENDPOINT = EndpointRoute.AUDIO_TRANSCRIPTIONS
 
@@ -73,44 +73,19 @@ class CreateAudioTranscriptionsUseCase(ProviderRequestForwardingUseCase[CreateAu
         )
         self.audio_file_size_limit = audio_file_size_limit
 
-    async def execute(self, command: CreateAudioTranscriptionsCommand) -> CreateAudioTranscriptionsUseCaseResult:
-        authenticated_user = command.authenticated_user
-
+    def _check_command(self, command: CreateAudioTranscriptionsCommand) -> AudioFileSizeLimitExceededError | None:
         if self.audio_file_size_limit is not None and command.file_size > self.audio_file_size_limit:
             return AudioFileSizeLimitExceededError(size=command.file_size, expected_size=self.audio_file_size_limit)
 
-        result = await self._resolve_router(authenticated_user=authenticated_user, model_name_or_alias=command.model)
-        match result:
-            case Router() as router:
-                pass
-            case error:
-                return error
+        return None
 
-        prompt_tokens = self.model_tokenizer.compute_tokens(texts=command.get_prompts())
+    def _build_success(
+        self,
+        command: CreateAudioTranscriptionsCommand,
+        response: ProviderResponse,
+        headers: dict[str, str],
+    ) -> CreateAudioTranscriptionsJsonUseCaseSuccess | CreateAudioTranscriptionsTextUseCaseSuccess:
+        if response.data:
+            return CreateAudioTranscriptionsJsonUseCaseSuccess(data=response.data, headers=headers, media_type=command.media_type)
 
-        result = await self._check_rate_limits(authenticated_user=authenticated_user, router=router, prompt_tokens=prompt_tokens)
-        match result:
-            case RouterRateLimitState() as rate_limit_state:
-                pass
-            case error:
-                return error
-
-        result = await self._send_request(router=router, prompt_tokens=prompt_tokens, payload=command.payload)
-        match result:
-            case ProviderResponse() as provider_response:
-                pass
-            case error:
-                return error
-
-        if provider_response.data:
-            return CreateAudioTranscriptionsJsonUseCaseSuccess(
-                data=provider_response.data,
-                headers=rate_limit_state.build_limit_headers,
-                media_type=command.media_type,
-            )
-        else:
-            return CreateAudioTranscriptionsTextUseCaseSuccess(
-                text=provider_response.text,
-                headers=rate_limit_state.build_limit_headers,
-                media_type=command.media_type,
-            )
+        return CreateAudioTranscriptionsTextUseCaseSuccess(text=response.text, headers=headers, media_type=command.media_type)

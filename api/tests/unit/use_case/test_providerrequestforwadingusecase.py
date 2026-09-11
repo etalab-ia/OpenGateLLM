@@ -20,6 +20,7 @@ from api.tests.unit.use_case.factories import AuthenticatedUserFactory, Provider
 from api.use_cases._providerrequestforwardingusecase import (
     ForwardingCommand,
     ProviderRequestForwardingUseCase,
+    ProviderRequestForwardingUseCaseResult,
     ProviderRequestForwardingUseCaseSuccess,
 )
 from api.utils.variables import EndpointRoute
@@ -43,7 +44,7 @@ class ForwardingTestData(ProviderJsonResponse):
 class ForwardingTestCommand(ForwardingCommand[ForwardingTestPayload]): ...
 
 
-class ForwardingTestUseCase(ProviderRequestForwardingUseCase[ForwardingTestCommand, ForwardingTestData]):
+class ForwardingTestUseCase(ProviderRequestForwardingUseCase[ForwardingTestCommand, ProviderRequestForwardingUseCaseResult[ForwardingTestData]]):
     ROUTER_TYPE = RouterType.TEXT_GENERATION
     ENDPOINT = EndpointRoute.CHAT_COMPLETIONS
 
@@ -491,9 +492,13 @@ class TestSendRequest:
         )
         use_case.usage_recorder.record_usage.assert_called_once_with(
             request_id=sample_data.id,
-            prompt_tokens=1,
-            completion_tokens=1,
-            cost=0.03,
+            usage=Usage(
+                prompt_tokens=1,
+                completion_tokens=1,
+                total_tokens=2,
+                cost=0.03,
+                impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
+            ),
         )
 
     @pytest.mark.asyncio
@@ -511,9 +516,13 @@ class TestSendRequest:
         assert result.data is None
         use_case.usage_recorder.record_usage.assert_called_once_with(
             request_id="req-1",
-            prompt_tokens=1,
-            completion_tokens=1,
-            cost=0.03,
+            usage=Usage(
+                prompt_tokens=1,
+                completion_tokens=1,
+                total_tokens=2,
+                cost=0.03,
+                impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
+            ),
         )
 
 

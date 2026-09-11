@@ -8,6 +8,9 @@ from starlette.types import Send
 
 logger = logging.getLogger(__name__)
 
+# starlette types its own body_iterator as `str | bytes | memoryview`; the tuple form is what this response adds
+type StreamChunk = str | bytes | tuple[str | bytes, int]
+
 
 class StreamingResponseWithStatusCode(StreamingResponse):
     """
@@ -17,7 +20,7 @@ class StreamingResponseWithStatusCode(StreamingResponse):
     or else tuples of (`content`: `str`, `status_code`: `int`).
     """
 
-    body_iterator: AsyncIterator[str | bytes]
+    body_iterator: AsyncIterator[StreamChunk]
     response_started: bool = False
 
     async def stream_response(self, send: Send) -> None:
