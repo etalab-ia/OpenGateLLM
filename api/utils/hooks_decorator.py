@@ -8,7 +8,7 @@ from fastapi import HTTPException, Request, Response
 from sqlalchemy import func, select, update
 from starlette.responses import StreamingResponse
 
-from api.helpers._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
+from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 from api.sql.models import Usage, User
 from api.utils.configuration import configuration
 from api.utils.context import global_context, request_context

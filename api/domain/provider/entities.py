@@ -158,6 +158,11 @@ class ResponseMetrics(BaseModel):
     ttft: Annotated[int | None, Field(default=None, description="The time to first byte of the response.")]
 
 
+class ProviderStreamChunk(BaseModel):
+    content: Annotated[str, Field(description="One raw server-sent-event line as emitted by the provider.")]
+    status_code: Annotated[int, Field(description="The HTTP status code of the streamed response.")]
+
+
 class ProviderMetrics(ProviderJsonResponse):
     object: Literal["providerMetrics"] = "providerMetrics"
     waiting_requests: float

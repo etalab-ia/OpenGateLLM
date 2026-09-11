@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict
 
 from api.domain.key.entities import Key
+from api.domain.usage.entities import Usage
 from api.domain.user.views import AuthenticatedUserView
 
 
@@ -23,9 +24,5 @@ class RequestContext(BaseModel):
     router_name: str | None = None
     provider_model_name: str | None = None
 
-    # usage
-    prompt_tokens: int | None = None
-    completion_tokens: int | None = None
-    cost: float | None = None
-    kwh: float | None = None
-    kgco2eq: float | None = None
+    # usage — carried whole so the row builder reads one recorded object instead of a flat mirror that drifts
+    usage: Usage | None = None

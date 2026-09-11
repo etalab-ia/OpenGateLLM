@@ -15,6 +15,7 @@ from api.domain.provider.errors import (
     UnsupportedProviderEndpointError,
 )
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
+from api.infrastructure.http.adapters.chat.vllm import VllmChatCompletionsAdapter
 from api.infrastructure.http.adapters.models.vllm import VllmModelsAdapter
 from api.tests.integration.factories.mistral import MistralMetricsResponseFactory
 from api.tests.integration.factories.vllm import VllmEmbeddingsResponseFactory, VllmMetricsResponseFactory, VllmModelsResponseFactory
@@ -265,3 +266,21 @@ class TestHttpProviderClient:
         assert isinstance(result, ProviderAdapterValidationResponseError)
         assert result.provider_type == ProviderType.VLLM
         assert route.called is True
+
+    async def test_forward_stream_returns_unsupported_provider_endpoint_error_when_adapter_is_missing(self):
+        provider = provider_factory(type=ProviderType.ALBERT)
+        request = ProviderRequest(endpoint=EndpointRoute.METRICS)
+
+        result = await http_provider_client().forward_stream(provider=provider, request=request)
+
+        assert result == UnsupportedProviderEndpointError(endpoint=EndpointRoute.METRICS, provider_type=ProviderType.ALBERT)
+
+    async def test_forward_stream_returns_request_validation_error_when_adapter_rejects_request(self):
+        provider = provider_factory()
+        request = ProviderRequest(endpoint=EndpointRoute.CHAT_COMPLETIONS)
+        validation_error = ProviderAdapterValidationRequestError(provider_type=provider.type, errors=[{"msg": "invalid"}])
+
+        with patch.object(VllmChatCompletionsAdapter, "to_http_request", return_value=validation_error):
+            result = await http_provider_client().forward_stream(provider=provider, request=request)
+
+        assert result is validation_error

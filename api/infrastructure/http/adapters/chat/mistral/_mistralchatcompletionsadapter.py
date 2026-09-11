@@ -6,7 +6,7 @@ from api.infrastructure.http.adapters.chat import ChatCompletionsAdapter
 class MistralChatCompletionsAdapter(ChatCompletionsAdapter):
     def to_http_request(self, request: ProviderRequest) -> HttpProviderRequest:
         body = request.payload.model_dump(exclude_none=True)
-        body["random_seed"] = body["random_seed"] or body["seed"]
+        body["random_seed"] = body.get("random_seed") or body.get("seed")
         supported_fields = [
             "frequency_penalty",
             "max_tokens",

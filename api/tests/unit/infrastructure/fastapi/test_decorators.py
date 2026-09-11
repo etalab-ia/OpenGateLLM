@@ -5,6 +5,8 @@ import pytest
 
 from api.domain.key.entities import Key
 from api.domain.role.entities import Limit, LimitType, PermissionType
+from api.domain.usage.entities import EnvironmentalImpacts
+from api.domain.usage.entities import Usage as RecordedUsage
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi import RequestContext
 from api.infrastructure.fastapi.decorators import charge_router_limits, set_usage_from_context
@@ -57,9 +59,17 @@ def mock_router_rate_limiter():
 
 
 class TestSetUsageFromContext:
-    def test_should_sum_prompt_and_completion_tokens_into_total_tokens(self):
+    def test_should_carry_the_recorded_usage_into_the_row(self):
         # Arrange
-        _set_request_context(prompt_tokens=7, completion_tokens=3)
+        _set_request_context(
+            usage=RecordedUsage(
+                prompt_tokens=7,
+                completion_tokens=3,
+                total_tokens=10,
+                cost=0.02,
+                impacts=EnvironmentalImpacts(kWh=1.5, kgCO2eq=2.5),
+            )
+        )
 
         # Act
         usage = set_usage_from_context(usage=Usage())
@@ -68,16 +78,23 @@ class TestSetUsageFromContext:
         assert usage.prompt_tokens == 7
         assert usage.completion_tokens == 3
         assert usage.total_tokens == 10
+        assert usage.cost == 0.02
+        assert usage.kwh == 1.5
+        assert usage.kgco2eq == 2.5
 
-    def test_should_leave_total_tokens_none_when_no_token_was_recorded(self):
+    def test_should_leave_the_usage_columns_none_when_nothing_was_recorded(self):
         # Arrange: the request failed before the provider was called
-        _set_request_context(prompt_tokens=None, completion_tokens=None)
+        _set_request_context()
 
         # Act
         usage = set_usage_from_context(usage=Usage())
 
         # Assert
+        assert usage.prompt_tokens is None
         assert usage.total_tokens is None
+        assert usage.cost is None
+        assert usage.kwh is None
+        assert usage.kgco2eq is None
 
 
 @pytest.mark.asyncio
