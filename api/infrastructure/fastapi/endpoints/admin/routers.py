@@ -63,6 +63,7 @@ async def create_router(
         router_type=body.router_type,
         aliases=body.aliases,
         load_balancing_strategy=body.load_balancing_strategy,
+        qos_retries_before_reject=body.qos_retries_before_reject,
         cost_prompt_tokens=body.cost_prompt_tokens,
         cost_completion_tokens=body.cost_completion_tokens,
     )
@@ -217,6 +218,7 @@ async def update_router(
         router_type=body.router_type,
         aliases=body.aliases,
         load_balancing_strategy=body.load_balancing_strategy,
+        qos_retries_before_reject=body.qos_retries_before_reject,
         cost_prompt_tokens=body.cost_prompt_tokens,
         cost_completion_tokens=body.cost_completion_tokens,
     )

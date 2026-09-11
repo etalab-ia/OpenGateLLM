@@ -128,6 +128,7 @@ settings:
 #     # aliases: ["model-alias"]
 #     # owned_by: Me
 #     # load_balancing_strategy: shuffle
+#     # qos_retries_before_reject: 0
 #     # cost_prompt_tokens: 0.10
 #     # cost_completion_tokens: 0.10
 #     providers:
@@ -136,6 +137,7 @@ settings:
 #         # key: sk-xxx
 #         model_name: "gemma3:1b"
 #         # timeout: 60
+#         # qos_limit: 20
 #         # model_hosting_zone: FRA
 #         # model_total_params: 8
 #         # model_active_params: 8
@@ -175,6 +177,13 @@ For Plagroud deployment, some environment variables are required to be set, like
 
 In the model section, you define a list of models (routers and providers). These models are only used for the initial bootstrap of the API.
 The model section of the configuration is ignored if any models are already registered in the database.
+
+QoS is configured at both levels:
+
+- Provider `qos_limit` is an integer or `null`: `null` leaves the provider uncapped, `0` closes it, and a positive value is its concurrent-request cap when router enforcement is active.
+- Router `qos_retries_before_reject` is an integer or `null`: `null` disables the cap while retaining load tracking, `0` returns 503 as soon as every provider is full, and `n > 0` retries admission up to `n` times at 0.5-second intervals before returning 503.
+
+Redis ZSET load tracking is always active, including when `qos_retries_before_reject` is `null`. `shuffle` selects an eligible provider without considering load; `least_busy` selects the provider with the most available capacity (or the lowest raw load when an uncapped provider is eligible).
 
 <div class="config-table-wrapper">
 <table>
@@ -286,8 +295,10 @@ Only the `url` argument is required. The connection URL must use the asynchronou
 
 #### RedisDependency
 
-Redis is a required dependency of OpenGateLLM. Redis is used to store rate limiting counters and inflight gauges.
+Redis is a required dependency of OpenGateLLM. Redis stores rate-limiting counters and the per-provider QoS ZSETs used for admission, load balancing, and health saturation.
 Pass all `from_url()` method arguments of `redis.asyncio.connection.ConnectionPool` class, see https://redis.readthedocs.io/en/stable/connections.html#redis.asyncio.connection.ConnectionPool.from_url for more information.
+
+Configure the Redis server with `maxmemory-policy noeviction`. Evicting QoS keys would make active requests disappear from the load used for admission and health.
 
 <div class="config-table-wrapper">
 <table>

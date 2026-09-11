@@ -21,6 +21,7 @@ class CreateProviderResponse(BaseModel):
     key: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1), Field(default=None, description="Provider API key.")]  # fmt: off
     basic_auth: Annotated[BasicAuth | None, Field(default=None, description="Provider basic authentication.")]
     timeout: Annotated[int, Field(..., ge=1, le=3600, description="Timeout for the provider requests, after user receive an 500 error (model is too busy).")]  # fmt: off
+    qos_limit: Annotated[int | None, Field(default=None, ge=0, description="Maximum concurrent load for this provider. If omitted, admission is unlimited.")]  # fmt: off
     model_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(..., description="Model name from the model provider.")]  # fmt: off
     model_hosting_zone: Annotated[HostingZone, Field(default=HostingZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])]  # fmt: off
     model_total_params: Annotated[int, Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
@@ -35,6 +36,7 @@ class UpdateProviderBody(BaseModel):
     model_hosting_zone: Annotated[HostingZone, Field(..., description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai")]  # fmt: off
     model_total_params: Annotated[int, Field(..., ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If 0, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
     model_active_params: Annotated[int, Field(..., ge=0, description="Active params of the model in billions of parameters for carbon footprint computation. If 0, the total params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off
+    qos_limit: Annotated[int | None, Field(..., ge=0, description="Maximum concurrent load for this provider. Null disables the limit.")]  # fmt: off
 
 
 class ProviderResponse(BaseModel):
@@ -45,6 +47,7 @@ class ProviderResponse(BaseModel):
     provider_type: Annotated[ProviderType, Field(alias="type", description="Provider type.")]  # fmt: off
     url: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, to_lower=True), Field(default=None, description="provider API url. The url must only contain the domain name (without `/v1` suffix for example).")]  # fmt: off
     timeout: Annotated[int, Field(description="Timeout for the provider requests, after user receive an 500 error (model is too busy).")]
+    qos_limit: Annotated[int | None, Field(default=None, ge=0, description="Maximum concurrent load for this provider. Null disables the limit.")]  # fmt: off
     model_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1), Field(description="Model name from the model provider.")]
     model_hosting_zone: Annotated[HostingZone, Field(default=HostingZone.WOR, description="Model hosting zone using ISO 3166-1 alpha-3 code format (e.g., `WOR` for World, `FRA` for France, `USA` for United States). This determines the electricity mix used for carbon intensity calculations. For more information, see https://ecologits.ai", examples=["WOR"])]  # fmt: off
     model_total_params: Annotated[int, Field(default=0, ge=0, description="Total params of the model in billions of parameters for carbon footprint computation. If not provided, the active params will be used if provided, else carbon footprint will not be computed. For more information, see https://ecologits.ai")]  # fmt: off

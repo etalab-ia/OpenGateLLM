@@ -6,20 +6,15 @@ import respx
 from api.domain.provider.entities import ProviderType
 from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
-from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_metrics_responses
+from api.tests.integration.endpoints.utils import DEFAULT_PROVIDER_URL, mock_models_responses
 from api.tests.integration.factories.sql import LimitSQLFactory, ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
+from api.tests.integration.factories.vllm import VllmModelsResponseFactory
 from api.utils.variables import EndpointRoute
 
 HEALTH_URL = EndpointRoute.HEALTH
 HEALTH_MODELS_URL = EndpointRoute.HEALTH_MODELS
 
 HEALTH_MODEL_NAME = "health-model"
-METRICS_BODY = (
-    "# HELP vllm:num_requests_running\n"
-    "# TYPE vllm:num_requests_running gauge\n"
-    f'vllm:num_requests_running{{model_name="{HEALTH_MODEL_NAME}"}} 0.0\n'
-    f'vllm:num_requests_waiting{{model_name="{HEALTH_MODEL_NAME}"}} 0.0\n'
-)
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -62,7 +57,12 @@ class TestGetHealthModels:
         LimitSQLFactory(role=self.user.role, router=router)
         await db_session.flush()
 
-        mock_metrics_responses(respx, ProviderType.VLLM, METRICS_BODY, 200)
+        mock_models_responses(
+            respx,
+            ProviderType.VLLM,
+            VllmModelsResponseFactory(model_id=HEALTH_MODEL_NAME),
+            VllmModelsResponseFactory._status_code,
+        )
         response = await client.get(
             url=HEALTH_MODELS_URL,
             headers={"Authorization": f"Bearer {self.key.token}"},

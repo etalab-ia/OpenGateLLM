@@ -147,6 +147,7 @@ class RouterSQLFactory(BaseSQLFactory):
     name = factory.Sequence(lambda n: f"router-{n}")  # not "router_<n>": several tests use explicit "router_1" … "router_7" names
     type = factory.Faker("random_element", elements=list(ModelType))
     load_balancing_strategy = factory.Faker("random_element", elements=list(RouterLoadBalancingStrategy))
+    qos_retries_before_reject = None
     cost_prompt_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     cost_completion_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     created = factory.LazyFunction(lambda: datetime.now(tz=UTC))
@@ -198,6 +199,7 @@ class ProviderSQLFactory(BaseSQLFactory):
     key = factory.Faker("uuid4")
     basic_auth = None
     timeout = factory.Faker("random_int", min=1, max=300)
+    qos_limit = None
     model_name = factory.Faker("bothify", text="model-##-?????")
     model_hosting_zone = factory.Faker("random_element", elements=list(HostingZone))
     model_total_params = factory.Faker("random_int", min=1000000, max=2000000000)

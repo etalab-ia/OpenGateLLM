@@ -45,6 +45,7 @@ def full_command(provider, **overrides) -> UpdateProviderCommand:
         model_hosting_zone=provider.model_hosting_zone,
         model_total_params=provider.model_total_params,
         model_active_params=provider.model_active_params,
+        qos_limit=provider.qos_limit,
     )
     for field, value in overrides.items():
         setattr(command, field, value)
@@ -59,6 +60,7 @@ def provider_after_command(provider, command: UpdateProviderCommand):
         .with_model_hosting_zone(command.model_hosting_zone)
         .with_model_total_params(command.model_total_params)
         .with_model_active_params(command.model_active_params)
+        .with_qos_limit(command.qos_limit)
     )
 
 
@@ -203,6 +205,7 @@ class TestUpdateProviderUseCase:
             model_hosting_zone=None,
             model_total_params=None,
             model_active_params=None,
+            qos_limit=8,
         )
         updated_provider = provider_after_command(sample_provider, command)
 

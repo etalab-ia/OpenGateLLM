@@ -33,6 +33,7 @@ def full_command(router, **overrides) -> UpdateRouterCommand:
         load_balancing_strategy=router.load_balancing_strategy,
         cost_prompt_tokens=router.cost_prompt_tokens,
         cost_completion_tokens=router.cost_completion_tokens,
+        qos_retries_before_reject=router.qos_retries_before_reject,
     )
     for field, value in overrides.items():
         setattr(command, field, value)
@@ -49,6 +50,7 @@ class TestUpdateRouterUseCase:
             .with_load_balancing_strategy(RouterLoadBalancingStrategy.LEAST_BUSY)
             .with_cost_prompt_tokens(0.005)
             .with_cost_completion_tokens(0.010)
+            .with_qos_retries_before_reject(2)
             .with_aliases(["alias-a", "alias-b"])
         )
 
@@ -65,6 +67,7 @@ class TestUpdateRouterUseCase:
                 load_balancing_strategy=RouterLoadBalancingStrategy.LEAST_BUSY,
                 cost_prompt_tokens=0.005,
                 cost_completion_tokens=0.010,
+                qos_retries_before_reject=2,
                 aliases=["alias-a", "alias-b"],
             )
         )
