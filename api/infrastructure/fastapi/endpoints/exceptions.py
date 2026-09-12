@@ -43,6 +43,14 @@ class InsufficientBudgetHTTPException(HTTPException):
         super().__init__(status_code=self.status_code, detail=self.detail)
 
 
+class KeyNameReservedHTTPException(HTTPException):
+    status_code = 400
+    detail = "Key name {name} is reserved."
+
+    def __init__(self, name: str) -> None:
+        super().__init__(status_code=self.status_code, detail=f"Key name {name} is reserved.")
+
+
 class KeyExpirationInvalidHTTPException(HTTPException):
     status_code = 400
     detail = "Key expiration timestamp cannot be greater than {max_expiration_days} days from now."

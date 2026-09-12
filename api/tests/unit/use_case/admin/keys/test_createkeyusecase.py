@@ -1,17 +1,19 @@
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import create_autospec, patch
 
 import pytest
 
+from api.domain.key import KeyRepository
 from api.domain.key.entities import Key
-from api.domain.key.errors import KeyExpirationInvalidError
+from api.domain.key.errors import KeyExpirationInvalidError, KeyNameReservedError
 from api.domain.user.errors import UserNotFoundError
 from api.use_cases.admin.keys import CreateKeyCommand, CreateKeyUseCase, CreateKeyUseCaseSuccess
+from api.utils.variables import SYSTEM_PLAYGROUND_KEY_NAME, SYSTEM_SEARCH_TOOL_KEY_NAME
 
 
 @pytest.fixture
 def key_repository():
-    return AsyncMock()
+    return create_autospec(KeyRepository, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -117,4 +119,18 @@ class TestCreateKeyUseCase:
         # Assert
         assert isinstance(result, KeyExpirationInvalidError)
         assert result.max_expiration_days == 10
+        key_repository.create_key.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name", [SYSTEM_PLAYGROUND_KEY_NAME, SYSTEM_SEARCH_TOOL_KEY_NAME])
+    async def test_should_return_key_name_reserved_error(self, use_case, key_repository, name):
+        # Arrange
+        command = CreateKeyCommand(user_id=1, name=name, expire=None)
+
+        # Act
+        result = await use_case.execute(command)
+
+        # Assert
+        assert isinstance(result, KeyNameReservedError)
+        assert result.name == name
         key_repository.create_key.assert_not_awaited()
