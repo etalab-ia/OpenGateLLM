@@ -32,6 +32,7 @@ from api.schemas.core.models import RequestContent
 from api.schemas.usage import Usage
 from api.sql.models import Token as KeyTable
 from api.utils.exceptions import WrongSearchMethodException
+from api.utils.variables import SYSTEM_SEARCH_TOOL_KEY_NAME
 
 from ._identityaccessmanager import IdentityAccessManager
 
@@ -189,7 +190,7 @@ Output Format:
 - If none of the documents answer the query, state: "I do not know based on the provided documents."
 """
 
-    SYSTEM_KEY_NAME = "_system_search_tool"
+    SYSTEM_KEY_NAME = SYSTEM_SEARCH_TOOL_KEY_NAME
 
     def __init__(self, opengaterag_url: str, postgres_session: AsyncSession, user_id: int, secret_key: str):
         self.opengaterag_url = opengaterag_url

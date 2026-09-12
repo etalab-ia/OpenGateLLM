@@ -3,6 +3,8 @@ from enum import StrEnum
 DEFAULT_APP_NAME: str = "OpenGateLLM"
 DEFAULT_TIMEOUT: int = 300
 SYSTEM_PLAYGROUND_KEY_NAME: str = "_system_playground_key"
+SYSTEM_SEARCH_TOOL_KEY_NAME: str = "_system_search_tool"
+RESERVED_KEY_NAMES: frozenset[str] = frozenset({SYSTEM_PLAYGROUND_KEY_NAME, SYSTEM_SEARCH_TOOL_KEY_NAME})
 MIN_PASSWORD_LENGTH: int = 6
 MAX_PASSWORD_LENGTH: int = 72
 

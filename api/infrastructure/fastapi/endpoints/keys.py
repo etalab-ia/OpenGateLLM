@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, Path, Query, Security
 
 from api.dependencies import create_me_key_use_case_factory, delete_key_use_case_factory, get_keys_use_case_factory, get_one_key_use_case_factory
 from api.domain import SortField, SortOrder
-from api.domain.key.errors import KeyAlreadyExistsError, KeyExpirationInvalidError, KeyNotFoundError
+from api.domain.key.errors import KeyAlreadyExistsError, KeyExpirationInvalidError, KeyNameReservedError, KeyNotFoundError
 from api.domain.user.errors import UserNotFoundError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
@@ -14,6 +14,7 @@ from api.infrastructure.fastapi.endpoints.exceptions import (
     InternalServerHTTPException,
     KeyAlreadyExistsHTTPException,
     KeyExpirationInvalidHTTPException,
+    KeyNameReservedHTTPException,
     KeyNotFoundHTTPException,
     UserNotFoundHTTPException,
 )
@@ -44,14 +45,18 @@ router = APIRouter(prefix="/v1", tags=[RouterName.KEYS.title()])
     path="/me/keys",
     dependencies=[Security(dependency=AccessController())],
     status_code=201,
-    responses=get_documentation_responses([KeyAlreadyExistsHTTPException, KeyExpirationInvalidHTTPException, UserNotFoundHTTPException]),
+    responses=get_documentation_responses(
+        [KeyAlreadyExistsHTTPException, KeyExpirationInvalidHTTPException, KeyNameReservedHTTPException, UserNotFoundHTTPException]
+    ),
     deprecated=True,
 )
 @router.post(
     path=EndpointRoute.KEYS,
     dependencies=[Security(dependency=AccessController())],
     status_code=201,
-    responses=get_documentation_responses([KeyAlreadyExistsHTTPException, KeyExpirationInvalidHTTPException, UserNotFoundHTTPException]),
+    responses=get_documentation_responses(
+        [KeyAlreadyExistsHTTPException, KeyExpirationInvalidHTTPException, KeyNameReservedHTTPException, UserNotFoundHTTPException]
+    ),
 )
 async def create_key(
     body: CreateKeyBody = Body(description="The key creation request."),
@@ -83,6 +88,8 @@ async def create_key(
             raise KeyAlreadyExistsHTTPException(name)
         case KeyExpirationInvalidError(max_expiration_days=max_expiration_days):
             raise KeyExpirationInvalidHTTPException(max_expiration_days)
+        case KeyNameReservedError(name=name):
+            raise KeyNameReservedHTTPException(name)
         case UserNotFoundError(id=user_id):
             raise UserNotFoundHTTPException(user_id)
 
