@@ -112,11 +112,7 @@ class RedisProviderQoS(ProviderQoS):
             for attempt in range(self.HEARTBEAT_RETRIES):
                 try:
                     now_ms = self._milliseconds(await self.redis_client.time())
-                    await self.redis_client.zadd(
-                        key,
-                        {request_id: now_ms + self.HEARTBEAT_TTL_MILLISECONDS},
-                        xx=True,
-                    )
+                    await self.redis_client.zadd(key, {request_id: now_ms + self.HEARTBEAT_TTL_MILLISECONDS}, xx=True)
                     break
                 except RedisError:
                     if attempt < self.HEARTBEAT_RETRIES - 1:
