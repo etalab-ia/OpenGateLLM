@@ -8,18 +8,16 @@ from starlette.types import Send
 
 logger = logging.getLogger(__name__)
 
-# starlette types its own body_iterator as `str | bytes | memoryview`; the tuple form is what this response adds
+
+async def aclose_stream(iterator: object) -> None:
+    if (aclose := getattr(iterator, "aclose", None)) is not None:
+        await aclose()
+
+
 type StreamChunk = str | bytes | tuple[str | bytes, int]
 
 
 class StreamingResponseWithStatusCode(StreamingResponse):
-    """
-    Variation of StreamingResponse that can dynamically decide the HTTP status code,
-    based on the return value of the content iterator (parameter `content`).
-    Expects the content to yield either just str content as per the original `StreamingResponse`
-    or else tuples of (`content`: `str`, `status_code`: `int`).
-    """
-
     body_iterator: AsyncIterator[StreamChunk]
     response_started: bool = False
 
@@ -66,5 +64,7 @@ class StreamingResponseWithStatusCode(StreamingResponse):
             if not self.response_started:
                 await send({"type": "http.response.start", "status": 500, "headers": self.raw_headers})
             await send({"type": "http.response.body", "body": error_event, "more_body": more_body})
+        finally:
+            await aclose_stream(self.body_iterator)
         if more_body:
             await send({"type": "http.response.body", "body": b"", "more_body": False})
