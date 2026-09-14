@@ -64,7 +64,6 @@ def hooks(*, postgres_session_provider: PostgresSessionProvider, router_rate_lim
                 raise
 
             if isinstance(response, StreamingResponse):
-                # a stream has produced no token yet: its usage is only known once the iterator is exhausted
                 return _wrap_streaming_response(response=response, usage=usage, record=record)
 
             usage.status = response.status_code
@@ -103,7 +102,6 @@ def _wrap_streaming_response(
     usage: Usage,
     record: Callable[..., None],
 ) -> StreamingResponseWithStatusCode:
-    # a plain StreamingResponse may also reach this wrapper, so the tuple form is a union member, not the only shape
     original_stream: AsyncIterator[StreamChunk] = response.body_iterator
 
     async def stream_then_record():

@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 import json
 from json import JSONDecodeError
 from typing import Annotated, Any, Literal
@@ -121,5 +122,6 @@ class ChatCompletionChunk(ChatCompletionChunk):
 
     @staticmethod
     def build_usage_chunk(last_chunk: dict, request_id: str, model: str, usage: Usage) -> dict:
-        """Final chunk carrying the usage of the whole stream: same envelope as the last provider chunk, without choices."""
-        return {**last_chunk, "choices": [], "id": request_id, "model": model, "usage": usage.model_dump()}
+        fallback = {"object": "chat.completion.chunk", "created": int(datetime.now(tz=UTC).timestamp())}
+
+        return {**fallback, **last_chunk, "choices": [], "id": request_id, "model": model, "usage": usage.model_dump()}

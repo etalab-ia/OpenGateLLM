@@ -22,6 +22,9 @@ This file was introduced during the `0.7.0` cycle and only covers releases from 
 
 ### Changed
 
+- Streamed chat completions announce the **router** name in every chunk. Data chunks were relayed verbatim and carried the
+  provider's internal model id, while the final usage chunk already carried the router name — a single stream contradicted
+  itself. Clients reading `model` from a streamed delta now see the name they asked for.
 - `POST /v1/chat/completions` validates `messages` at the API boundary. An entry that is not an object is now rejected
   with `422` and a Pydantic error body, where it was previously forwarded to the model provider and surfaced as the
   provider's own `400`.

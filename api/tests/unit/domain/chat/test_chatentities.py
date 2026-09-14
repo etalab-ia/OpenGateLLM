@@ -69,7 +69,14 @@ class TestChatCompletionChunk:
     def test_should_extract_nothing_from_a_chunk_without_choices(self):
         assert ChatCompletionChunk.extract_chunk_content({"choices": []}) == ""
 
-    def test_should_build_a_usage_chunk_that_keeps_the_envelope_and_drops_the_choices(self):
+    def test_should_fall_back_to_valid_fields_when_the_provider_sent_no_parseable_chunk(self):
+        chunk = ChatCompletionChunk.build_usage_chunk(last_chunk={}, request_id="chat-1", model="chat-router", usage=Usage())
+
+        assert chunk["object"] == "chat.completion.chunk"
+        assert isinstance(chunk["created"], int)
+        assert chunk["choices"] == []
+
+    def test_should_build_a_usage_chunk_that_reuses_the_last_chunk_and_drops_the_choices(self):
         usage = Usage(prompt_tokens=1, completion_tokens=2, total_tokens=3, cost=0.5)
 
         chunk = ChatCompletionChunk.build_usage_chunk(

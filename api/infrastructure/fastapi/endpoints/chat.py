@@ -1,3 +1,4 @@
+from collections.abc import AsyncGenerator
 import logging
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Security
@@ -6,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from api.dependencies import create_chat_completions_use_case_factory, get_postgres_session, get_router_rate_limiter
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
+from api.domain.provider.entities import ProviderStreamChunk
 from api.domain.provider.errors import (
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
@@ -15,7 +17,7 @@ from api.domain.provider.errors import (
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
-from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
+from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamChunk, StreamingResponseWithStatusCode
 from api.infrastructure.fastapi.accesscontroller import AccessController
 from api.infrastructure.fastapi.decorators import hooks
 from api.infrastructure.fastapi.dependencies import get_authenticated_user
@@ -40,6 +42,11 @@ from api.utils.variables import EndpointRoute, RouterName
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=[RouterName.CHAT.title()])
+
+
+async def _as_stream_chunks(chunks: AsyncGenerator[ProviderStreamChunk]) -> AsyncGenerator[StreamChunk]:
+    async for chunk in chunks:
+        yield chunk.content, chunk.status_code
 
 
 @router.post(
@@ -81,7 +88,7 @@ async def create_chat_completions(
     match result:
         case CreateChatCompletionsStreamUseCaseSuccess(chunks=chunks, headers=headers):
             return StreamingResponseWithStatusCode(
-                content=((chunk.content, chunk.status_code) async for chunk in chunks),
+                content=_as_stream_chunks(chunks),
                 media_type="text/event-stream",
                 headers=headers,
             )

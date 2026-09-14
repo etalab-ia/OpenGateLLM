@@ -338,14 +338,37 @@ Prefer `match`/`case` over `isinstance` when branching on a repository result or
 
 Export `Command`, `UseCase`, `UseCaseSuccess` from `__init__.py`.
 
+### Method order — step down
+
+A class reads top to bottom, one level of abstraction at a time: a method is declared **before** the methods it calls, and right after the one that calls it.
+
+```
+ROUTER_TYPE, ENDPOINT      class attributes
+__init__                   wiring — it sets the stage, it is not part of the narrative
+execute                    the flow
+  _check_command             …in the order execute calls them
+  _resolve_router
+  _check_rate_limits
+  _send_request
+    _select_provider           one level below _send_request, its caller
+    _build_usage
+  _build_success
+```
+
+Reference: `api/use_cases/_providerrequestforwardingusecase.py`. When a helper has several callers, place it under the first one in the flow.
+
 ### Keep business logic inline in `execute()`
 
-Put the full business flow in a single `execute()` method so it can be read top-to-bottom in one pass. Do **not** extract private orchestration methods that hide control flow (`_sync_user`, `_create_user`, `_resolve_*`, etc.).
+Put the full business flow in a single `execute()` so it can be read top-to-bottom in one pass. A step may live in its own method **as long as its branch stays visible at the call site**: it returns `Value | Error` and `execute()` does the `match`. `_resolve_router` in the forwarding template qualifies — reading `execute()` alone tells you that resolving a router can abort the request. The method extracts the *how*, never the *whether*.
 
-Allowed outside `execute()`:
+What is forbidden is a helper that takes the decision away from `execute()`: one that aborts on its own behalf, or that hides a branch behind a neutral name — `_sync_user` choosing between create and update, `_handle_x` swallowing an error. **If you cannot tell, from `execute()` alone, which paths the request can take, the extraction is wrong.**
+
+This matters more here than in a codebase built on exceptions. Errors are *returned*, not raised: a `raise` buried in a helper propagates by language contract, a `return error` only aborts the request if the caller remembers to match on it.
+
+Also allowed outside `execute()`:
 - `__init__` (dependencies + config)
 - **`@staticmethod`** helpers on the use case class when they are pure/unit operations reused several times — not business orchestration
-- **Documented override hooks** — see below
+- **Override points** — see below
 
 Do **not** put helpers at module level; keep them as static methods on the use case class.
 
@@ -359,7 +382,7 @@ class CreateExampleUseCase:
         return value.strip() or None
 
     async def execute(self, command: CreateExampleCommand) -> CreateExampleUseCaseResult:
-        # bad — business steps hidden behind private methods
+        # bad — the create-vs-update decision is invisible from here
         # user = await self._sync_user(user, command)
 
         # good — full flow visible in execute(); call static helpers for repeated unit work
@@ -373,15 +396,15 @@ class CreateExampleUseCase:
                 ...
 ```
 
-### Override hooks
+### Override points
 
-Two deliberate exceptions, of different kinds.
+Two kinds, and neither is an exception to the rule above: both keep every branch visible in the `execute()` that runs.
 
 **Operator extension points.** `AuthSsoLoginUseCase` (`api/use_cases/auth/_authssologinusecase.py`) exposes four **public async** methods outside `execute()` — `has_access`, `get_user_name`, `get_role_id`, `get_organization_id` — with default implementations that operators replace to plug in their own SSO policy. They are a documented extension point (see `docs.opengatellm.org/features/users_management/sso`), not hidden orchestration.
 
 Do **not** inline them. Conversely, do not introduce new hooks of this kind unless the extension point is a published, documented contract.
 
-**Template steps.** `ProviderRequestForwardingUseCase` keeps one `execute()` for every model-forward use case and lets a subclass vary its two ends, so none of them copies the shared middle:
+**Template steps.** `ProviderRequestForwardingUseCase` keeps one `execute()` for every model-forward use case and lets a subclass vary its two ends, so none of them copies the shared middle. The steps it calls — `_resolve_router`, `_check_rate_limits`, `_send_request` — are extractions of the *how*: `execute()` still shows every branch. The two hooks below are its variation points:
 
 | Hook | Default | Override when |
 |------|---------|---------------|
