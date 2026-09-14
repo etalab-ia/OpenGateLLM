@@ -13,7 +13,6 @@ from api.domain.provider.errors import (
     UnsupportedProviderEndpointError,
 )
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.search.errors import SearchArgsValidationError, SearchStatusCodeError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
@@ -88,10 +87,6 @@ async def create_chat_completions(
             )
         case CreateChatCompletionsUseCaseSuccess(data=data, headers=headers):
             return JSONResponse(content=ChatCompletionResponse.model_validate(data.model_dump()).model_dump(), status_code=200, headers=headers)
-        case SearchArgsValidationError(errors=errors):
-            raise HTTPException(status_code=422, detail=jsonable_encoder(errors))
-        case SearchStatusCodeError(status_code=status_code, detail=detail):
-            raise HTTPException(status_code=status_code, detail=jsonable_encoder(detail))
         case NoAvailableProviderError():
             raise ModelIsTooBusyExceptionHTTPException()
         case ProviderAdapterValidationRequestError(errors=errors):

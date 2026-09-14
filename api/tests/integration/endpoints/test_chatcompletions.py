@@ -1,21 +1,19 @@
 import json
 from unittest.mock import AsyncMock, MagicMock
 
-from httpx import AsyncClient, Response
+from httpx import AsyncClient
 import pytest
 import pytest_asyncio
 import respx
 
-from api.dependencies import _search_client, create_chat_completions_use_case_factory
+from api.dependencies import create_chat_completions_use_case_factory
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider.entities import HostingZone, ProviderType
 from api.domain.provider.errors import NoAvailableProviderError, ProviderAdapterValidationRequestError, ProviderAdapterValidationResponseError
 from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.search.errors import SearchArgsValidationError, SearchStatusCodeError
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
-from api.infrastructure.http import HttpSearchClient
 from api.schemas.models import ModelType
 from api.tests.helpers import INVALID_API_KEY, create_key
 from api.tests.integration.conftest import override_global_context
@@ -25,7 +23,6 @@ from api.tests.integration.factories.vllm import VllmChatCompletionsResponseFact
 from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.CHAT_COMPLETIONS}"
-SEARCH_SERVICE_URL = "http://opengaterag:8000"
 
 DEFAULT_MODEL_NAME = "chat-router"
 SAMPLE_VALIDATION_ERRORS = [{"type": "missing", "loc": ["messages"], "msg": "Field required", "input": {}}]
@@ -92,7 +89,6 @@ class TestCreateChatCompletions:
         assert data["model"] == DEFAULT_MODEL_NAME
         assert data["choices"][0]["message"]["role"] == "assistant"
         assert data["usage"]["total_tokens"] == data["usage"]["prompt_tokens"] + data["usage"]["completion_tokens"]
-        assert data["search_results"] is None
 
     @respx.mock
     async def test_streamed_happy_path_appends_a_usage_chunk_before_done(self, client: AsyncClient, db_session):
@@ -132,70 +128,6 @@ class TestCreateChatCompletions:
         )
 
         assert response.status_code == 400, response.text
-
-    @respx.mock
-    async def test_search_tool_is_not_forwarded_to_the_provider(self, client: AsyncClient, db_session):
-        admin_key = await create_key(db_session, name="admin_chat_search_key", user=self.router_owner)
-        await self._create_router(db_session)
-
-        route = mock_chat_completions_responses(
-            respx_mock=respx,
-            provider_type=ProviderType.VLLM,
-            body=VllmChatCompletionsResponseFactory(),
-            status_code=VllmChatCompletionsResponseFactory._status_code,
-        )
-
-        response = await client.post(
-            url=URL,
-            headers={"Authorization": f"Bearer {admin_key.token}"},
-            json=_valid_body(tools=[{"type": "search", "limit": 3}]),
-        )
-
-        assert response.status_code == 200, response.text
-        provider_body = json.loads(route.calls[0].request.content)
-        assert provider_body["tools"] == []
-
-    @respx.mock
-    async def test_search_results_are_serialized_with_a_unix_timestamp(self, client: AsyncClient, db_session, app):
-        admin_key = await create_key(db_session, name="admin_chat_search_results_key", user=self.router_owner)
-        await self._create_router(db_session)
-
-        mock_chat_completions_responses(
-            respx_mock=respx,
-            provider_type=ProviderType.VLLM,
-            body=VllmChatCompletionsResponseFactory(),
-            status_code=VllmChatCompletionsResponseFactory._status_code,
-        )
-        respx.post(url=f"{SEARCH_SERVICE_URL}/v1/search").mock(
-            return_value=Response(
-                status_code=200,
-                json={
-                    "object": "list",
-                    "data": [
-                        {
-                            "method": "semantic",
-                            "score": 0.92,
-                            "chunk": {"object": "chunk", "id": 1, "collection_id": 2, "document_id": 3, "content": "Paris is the capital."},
-                        }
-                    ],
-                },
-            )
-        )
-        app.dependency_overrides[_search_client] = lambda: HttpSearchClient(url=SEARCH_SERVICE_URL)
-
-        try:
-            response = await client.post(
-                url=URL,
-                headers={"Authorization": f"Bearer {admin_key.token}"},
-                json=_valid_body(tools=[{"type": "search", "limit": 3}]),
-            )
-        finally:
-            app.dependency_overrides.pop(_search_client)
-
-        assert response.status_code == 200, response.text
-        chunk = response.json()["search_results"][0]["chunk"]
-        assert chunk["content"] == "Paris is the capital."
-        assert isinstance(chunk["created"], int)
 
     async def test_malformed_messages_returns_422_not_500(self, client: AsyncClient):
         response = await client.post(
@@ -240,7 +172,6 @@ class TestCreateChatCompletions:
             (RouterRateLimitExceededError(id=1, limit_type=LimitType.RPM, headers={}), 429, "Request limit per minute exceeded."),
             (StatusCodeModelError(status_code=400, detail="bad request"), 400, "bad request"),
             (UnknownModelError(status_code=500, detail="upstream failure"), 500, "upstream failure"),
-            (SearchStatusCodeError(status_code=403, detail="Forbidden"), 403, "Forbidden"),
         ],
     )
     async def test_error_maps_to_correct_http_status(self, client: AsyncClient, app, use_case_result, expected_status, expected_detail):
@@ -258,7 +189,6 @@ class TestCreateChatCompletions:
         [
             ProviderAdapterValidationRequestError(provider_type=ProviderType.VLLM, errors=SAMPLE_VALIDATION_ERRORS),
             ProviderAdapterValidationResponseError(provider_type=ProviderType.VLLM, errors=SAMPLE_VALIDATION_ERRORS),
-            SearchArgsValidationError(errors=SAMPLE_VALIDATION_ERRORS),
         ],
     )
     async def test_validation_error_returns_422_with_errors(self, client: AsyncClient, app, use_case_result):

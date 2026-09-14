@@ -4,6 +4,8 @@ Coding conventions for this repository. New and changed code follows clean archi
 
 **Git history is linear.** Never create merge commits (`git merge`, `git pull` without `--rebase`). Update a branch with `git pull --rebase origin main`. After rewriting already-pushed commits, update the remote with `git push --force-with-lease`. Full workflow: [`docs/src/content/docs/contributing/development_environment.mdx`](docs/src/content/docs/contributing/development_environment.mdx).
 
+**User-visible changes go in `CHANGELOG.md`.** Add the entry under `## [Unreleased]` in the same change, in [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) sections (`Added` / `Changed` / `Deprecated` / `Removed` / `Fixed` / `Security`). Prefix a breaking change with **Breaking —** and say what integrators must do instead. Describe the change against the **last released version**, never against an intermediate state of your own branch: a 500 you introduced and fixed within the branch is not a `Fixed` entry, and behaviour the previous stack already had is not an `Added` one.
+
 ---
 
 ## Architecture

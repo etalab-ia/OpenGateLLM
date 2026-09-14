@@ -319,9 +319,6 @@ class Settings(ConfigBaseModel):
     monitoring_postgres_enabled: bool = Field(default=True, description="If true, the log usage will be written in the PostgreSQL database.")  # fmt: off
     monitoring_prometheus_enabled: bool = Field(default=True, description="If true, Prometheus metrics will be exposed in the `/metrics` endpoint.")  # fmt: off
 
-    # search
-    search_opengaterag_url: Annotated[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None, Field(default=None, description="OpenGateRAG URL for search.", deprecated=True)]  # fmt: off
-
     # audio
     audio_file_size_limit: Annotated[int | None, Field(default=None, ge=0, description="Maximum size of the audio file in bytes. If not provided, the audio file size limit is not applied.", examples=[100_000_000])]  # fmt: off
 

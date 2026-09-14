@@ -18,14 +18,13 @@ from api.domain.provider import (
 )
 from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
-from api.domain.search import SearchClient
 from api.domain.usage import UsageRecorder, UsageRepository
 from api.domain.user import AuthenticatedUserQuery, UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
 from api.infrastructure.fastapi import RequestContextUsageRecorder
 from api.infrastructure.fastapi.dependencies import request_context
-from api.infrastructure.http import HttpAuthSsoSessionValidator, HttpProviderAdapterBuilder, HttpProviderClient, HttpSearchClient
+from api.infrastructure.http import HttpAuthSsoSessionValidator, HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
 from api.infrastructure.postgres import (
     AutocommitSession,
@@ -150,13 +149,6 @@ def _provider_capabilities_probe(
     return ProviderCapabilitiesProbe(provider_client=provider_client)
 
 
-def _search_client() -> SearchClient | None:
-    if configuration.settings.search_opengaterag_url is None:
-        return None
-
-    return HttpSearchClient(url=configuration.settings.search_opengaterag_url)
-
-
 def _user_password_encoder() -> UserPasswordEncoder:
     return BcryptUserPasswordEncoder()
 
@@ -239,11 +231,9 @@ def create_audio_transcriptions_use_case_factory(
 def create_chat_completions_use_case_factory(
     postgres_session: AutocommitSession = Depends(get_autocommit_postgres_session),
     redis_client: Redis = Depends(get_redis_client),
-    key_encoder: KeyEncoder = Depends(_key_encoder),
     model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer = Depends(_model_environmental_impacts_computer),
     model_tokenizer: ModelTokenizer = Depends(_model_tokenizer),
     provider_client: ProviderClient = Depends(_provider_client),
-    search_client: SearchClient | None = Depends(_search_client),
 ) -> CreateChatCompletionsUseCase:
     return CreateChatCompletionsUseCase(
         model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -255,8 +245,6 @@ def create_chat_completions_use_case_factory(
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
         usage_recorder=_usage_recorder(),
-        key_repository=_key_repository(key_encoder=key_encoder, session=postgres_session),
-        search_client=search_client,
     )
 
 
