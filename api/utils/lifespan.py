@@ -21,6 +21,7 @@ from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClie
 from api.infrastructure.postgres import (
     AutocommitSession,
     PostgresLimitRepository,
+    PostgresOrganizationRepository,
     PostgresPermissionRepository,
     PostgresProviderRepository,
     PostgresRolesRepository,
@@ -101,12 +102,14 @@ async def bootstrap_admin_role_and_user(configuration: Configuration, postgres_s
     role_repository = PostgresRolesRepository(postgres_session=postgres_session)
     limit_repository = PostgresLimitRepository(postgres_session=postgres_session)
     permission_repository = PostgresPermissionRepository(postgres_session=postgres_session)
+    organization_repository = PostgresOrganizationRepository(postgres_session=postgres_session)
 
     result = await BootstrapAdminUseCase(
         user_repository=user_repository,
         role_repository=role_repository,
         limit_repository=limit_repository,
         permission_repository=permission_repository,
+        organization_repository=organization_repository,
         user_password_encoder=BcryptUserPasswordEncoder(),
     ).execute(
         BootstrapAdminCommand(email=configuration.settings.auth_bootsrap_admin_username, password=configuration.settings.auth_bootsrap_admin_password)

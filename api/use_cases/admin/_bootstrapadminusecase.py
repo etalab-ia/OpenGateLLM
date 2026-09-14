@@ -1,12 +1,16 @@
 from dataclasses import dataclass
 import logging
 
+from api.domain.organization import OrganizationRepository
+from api.domain.organization.entities import Organization
+from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationNotFoundError
 from api.domain.role import LimitRepository, PermissionRepository, RoleRepository
 from api.domain.role.entities import PermissionType, Role
 from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 from api.domain.user import UserPasswordEncoder, UserRepository
 from api.domain.user.entities import User
 from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
+from api.utils.variables import DEFAULT_ORGANIZATION_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -44,12 +48,14 @@ class BootstrapAdminUseCase:
         permission_repository: PermissionRepository,
         limit_repository: LimitRepository,
         user_repository: UserRepository,
+        organization_repository: OrganizationRepository,
         user_password_encoder: UserPasswordEncoder,
     ):
         self.role_repository = role_repository
         self.permission_repository = permission_repository
         self.limit_repository = limit_repository
         self.user_repository = user_repository
+        self.organization_repository = organization_repository
         self.user_password_encoder = user_password_encoder
 
     async def execute(self, command: BootstrapAdminCommand) -> BootstrapAdminUseCaseResult:
@@ -77,10 +83,23 @@ class BootstrapAdminUseCase:
                 if user.role_id != role.id:
                     await self.user_repository.update_user(user=user.model_copy(update={"role_id": role.id}))
             case UserNotFoundError():
+                result = await self.organization_repository.get_organization_by_name(name=DEFAULT_ORGANIZATION_NAME)
+                match result:
+                    case Organization() as organization:
+                        pass
+                    case OrganizationNotFoundError():
+                        result = await self.organization_repository.create_organization(name=DEFAULT_ORGANIZATION_NAME)
+                        match result:
+                            case Organization() as organization:
+                                pass
+                            case OrganizationAlreadyExistsError():
+                                return BootstrapAdminUseCaseSkipped()
+
                 result = await self.user_repository.create_user(
                     email=command.email,
                     password=self.user_password_encoder.encode_password(password=command.password),
                     role_id=role.id,
+                    organization_id=organization.id,
                     name=self.BOOTSTRAP_ADMIN_USER_NAME,
                 )
                 match result:
