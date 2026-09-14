@@ -257,7 +257,7 @@ CreateKeyCommand(user_id=body.user, ...)
 `Update<Noun>Body` requires **every persisted field** — there is no partial update on clean-architecture endpoints.
 
 - No `default=None` meaning "skip this field". A missing field is a 422.
-- `| None` only where `null` is a valid stored value, and it then **sets** the column to `null` (clear the organization, the budget, the QoS policy…).
+- `| None` only where `null` is a valid stored value, and it then **sets** the column to `null` (clear the user name, the budget, the expiration…). Organization membership is **not** one of them: every user belongs to one, so `organization_id` is a required `int` everywhere (see `api/domain/user/entities.py`).
 - Lists replace the stored list; an empty list clears it (role `permissions` / `limits`, router `aliases`).
 - The use case applies the command as a replacement: `entity.with_x(command.x)` for every field, never `if command.x is not None`.
 - Exception: write-only secrets (`password`, `current_password`) stay optional — omitting them leaves the secret unchanged.
