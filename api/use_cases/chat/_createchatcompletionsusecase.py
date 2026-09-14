@@ -1,29 +1,18 @@
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
 from json import dumps
 import time
 from uuid import uuid4
 
-from pydantic import ValidationError
-
 from api.domain.chat.entities import ChatCompletion, ChatCompletionChunk, CreateChatCompletionsBody
-from api.domain.key import KeyRepository
-from api.domain.key.entities import Key
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
 from api.domain.provider.entities import Metric, Provider, ProviderRequest, ProviderResponse, ProviderStreamChunk
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
-from api.domain.search import SearchClient
-from api.domain.search.entities import Search, SearchArgs, Searches
-from api.domain.search.errors import SearchArgsValidationError, SearchStatusCodeError, SearchUnreachableError
 from api.domain.usage import UsageRecorder
 from api.use_cases._providerrequestforwardingusecase import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseError
 from api.utils.variables import EndpointRoute
-
-SEARCH_KEY_NAME = "_system_search_tool"
-SEARCH_KEY_TTL = timedelta(hours=1)
 
 
 class CreateChatCompletionsCommand(ForwardingCommand[CreateChatCompletionsBody]):
@@ -45,11 +34,7 @@ class CreateChatCompletionsStreamUseCaseSuccess:
 
 
 type CreateChatCompletionsUseCaseResult = (
-    CreateChatCompletionsUseCaseSuccess
-    | CreateChatCompletionsStreamUseCaseSuccess
-    | SearchArgsValidationError
-    | SearchStatusCodeError
-    | ProviderRequestForwardingUseCaseError
+    CreateChatCompletionsUseCaseSuccess | CreateChatCompletionsStreamUseCaseSuccess | ProviderRequestForwardingUseCaseError
 )
 
 
@@ -68,8 +53,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
         usage_recorder: UsageRecorder,
-        key_repository: KeyRepository,
-        search_client: SearchClient | None = None,
     ) -> None:
         super().__init__(
             model_environmental_impacts_computer=model_environmental_impacts_computer,
@@ -82,8 +65,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             router_repository=router_repository,
             usage_recorder=usage_recorder,
         )
-        self.key_repository = key_repository
-        self.search_client = search_client
 
     async def execute(self, command: CreateChatCompletionsCommand) -> CreateChatCompletionsUseCaseResult:
         authenticated_user = command.authenticated_user
@@ -95,34 +76,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             case error:
                 return error
 
-        payload, search_arguments = command.payload.pop_search_tool()
-        search_results: list[Search] | None = None
-
-        if self.search_client is not None and search_arguments is not None:
-            try:
-                search_args = SearchArgs(**search_arguments)
-            except ValidationError as e:
-                return SearchArgsValidationError(errors=e.errors())
-
-            search_results = []
-            query = payload.get_last_user_query()
-            key = await self.key_repository.upsert_key(
-                user_id=authenticated_user.id,
-                name=SEARCH_KEY_NAME,
-                expire=datetime.now(tz=UTC) + SEARCH_KEY_TTL,
-            )
-            # a user that vanished between authentication and here leaves the request ungrounded rather than failing it
-            if query and isinstance(key, Key):
-                match await self.search_client.search(key_value=key.value, query=query, args=search_args):
-                    case Searches() as searches:
-                        search_results = searches.data
-                        if searches.data:
-                            payload = payload.with_last_message_content(content=searches.build_grounded_prompt(query=query))
-                    case SearchStatusCodeError() as error:
-                        return error
-                    case SearchUnreachableError():
-                        pass
-
+        payload = command.payload
         prompt_tokens = self.model_tokenizer.compute_tokens(texts=payload.get_prompts())
 
         result = await self._check_rate_limits(authenticated_user=authenticated_user, router=router, prompt_tokens=prompt_tokens)
@@ -148,7 +102,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     provider=provider,
                     chunks=chunks,
                     prompt_tokens=prompt_tokens,
-                    search_results=search_results,
                 ),
                 headers=rate_limit_state.build_limit_headers,
             )
@@ -160,8 +113,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             case error:
                 return error
 
-        provider_response.data.search_results = search_results
-
         return CreateChatCompletionsUseCaseSuccess(data=provider_response.data, headers=rate_limit_state.build_limit_headers)
 
     async def _forward_stream(
@@ -170,7 +121,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         provider: Provider,
         chunks: AsyncGenerator[ProviderStreamChunk],
         prompt_tokens: int,
-        search_results: list[Search] | None,
     ) -> AsyncGenerator[ProviderStreamChunk]:
         inflight_is_incremented = await self.provider_metrics_logger.increment_inflight(provider_id=provider.id)
 
@@ -197,7 +147,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                             buffer=buffer,
                             prompt_tokens=prompt_tokens,
                             latency=latency,
-                            search_results=search_results,
                         ),
                         status_code=chunk.status_code,
                     )
@@ -221,7 +170,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                         buffer=buffer,
                         prompt_tokens=prompt_tokens,
                         latency=latency,
-                        search_results=search_results,
                     ),
                     status_code=200,
                 )
@@ -240,7 +188,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         buffer: list[dict],
         prompt_tokens: int,
         latency: int,
-        search_results: list[Search] | None,
     ) -> str:
         completions = [content for chunk in buffer if (content := ChatCompletionChunk.extract_chunk_content(chunk=chunk))]
         completion_tokens = self.model_tokenizer.compute_tokens(texts=completions)
@@ -262,9 +209,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             model=router.name,
             usage=usage,
         )
-        if search_results is not None:
-            usage_chunk["search_results"] = [result.model_dump(mode="json") for result in search_results]
-
         return f"data: {dumps(usage_chunk)}\n\n"
 
     @staticmethod

@@ -1,29 +1,15 @@
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import BeforeValidator, Field
 
 from api.domain import BaseModel
-from api.domain.search.entities import ChunkMetadata, ComparisonFilter, CompoundFilter, SearchMethod
 from api.domain.usage.entities import Usage
-from api.infrastructure.fastapi.schemas import UnixTimestamp
 
 
 def _false_when_null(value: bool | None) -> bool:
     """OpenAI-compatible clients send `stream: null` to mean "not set"; the use case branches on a real bool."""
     return False if value is None else value
-
-
-class SearchTool(BaseModel):
-    type: Annotated[Literal["search"], Field(description="The type of the tool. Set to `search` to ground the completion on your collections.")]  # fmt: off
-    collection_ids: Annotated[list[int], Field(default=[], min_length=0, max_length=100, description="List of collections ID to search in.")]  # fmt: off
-    document_ids: Annotated[list[int], Field(default=[], min_length=0, max_length=100, description="List of document IDs to search in.")]  # fmt: off
-    metadata_filters: Annotated[ComparisonFilter | CompoundFilter | None, Field(default=None, description="Metadata filters to apply to the search.")]  # fmt: off
-    limit: Annotated[int, Field(gt=0, le=100, default=10, description="Number of results to return.")]
-    offset: Annotated[int, Field(ge=0, default=0, description="Offset for pagination, specifying how many results to skip from the beginning.")]  # fmt: off
-    method: Annotated[SearchMethod, Field(default=SearchMethod.SEMANTIC, description="Search method to use.")]
-    rff_k: Annotated[int, Field(default=60, ge=0, le=16384, description="Smoothing constant for Reciprocal Rank Fusion (RRF) algorithm in hybrid search (recommended: from 10 to 100).")]  # fmt: off
-    score_threshold: Annotated[float, Field(default=0.0, ge=0.0, le=1.0, description="Score of cosine similarity threshold for filtering results, only available for semantic search method.")]  # fmt: off
 
 
 class CreateChatCompletionsBody(BaseModel):
@@ -44,34 +30,16 @@ class CreateChatCompletionsBody(BaseModel):
     stream_options: Annotated[Any | None, Field(default=None, description="Options for streaming response. Only set this when you set `stream: true`.")]  # fmt: off
     temperature: Annotated[float | None, Field(default=None, description="What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. We generally recommend altering this or `top_p` but not both.")]  # fmt: off
     top_p: Annotated[float | None, Field(default=None, description="An alternative to sampling with temperature, called nucleus sampling, where the model considers the results of the tokens with top_p probability mass. So 0.1 means only the tokens comprising the top 10% probability mass are considered.<br>We generally recommend altering this or `temperature` but not both.")]  # fmt: off
-    tools: Annotated[list[SearchTool | dict] | None, Field(default=None, description="A list of tools the model may call. Functions are supported, plus the OpenGateLLM `search` tool that grounds the completion on your collections.")]  # fmt: off
+    tools: Annotated[list[dict] | None, Field(default=None, description="A list of tools the model may call.")]  # fmt: off
     tool_choice: Annotated[Any, Field(default="none", description="Controls which (if any) tool is called by the model. `none` means the model will not call any tool and instead generates a message. `auto` means the model can pick between generating a message or calling one or more tools. `required` means the model must call one or more tools. Specifying a particular tool via `{\"type\": \"function\", \"function\": {\"name\": \"my_function\"}}` forces the model to call that tool.<br>`none` is the default when no tools are present. `auto` is the default if tools are present.")]  # fmt: off
     parallel_tool_calls: Annotated[bool | None, Field(default=False, description="Whether to call tools in parallel or sequentially. If true, the model will call tools in parallel. If false, the model will call tools sequentially. If None, the model will call tools in parallel if the model supports it, otherwise it will call tools sequentially.")]  # fmt: off
     user: Annotated[str | None, Field(default=None, description="A unique identifier representing the user.")]  # fmt: off
 
 
-class ChunkResponse(BaseModel):
-    object: Annotated[Literal["chunk"], Field(default="chunk", description="The type of the object.")]
-    id: Annotated[int, Field(description="A unique identifier for the chunk.")]
-    collection_id: Annotated[int, Field(description="The collection the chunk belongs to.")]
-    document_id: Annotated[int, Field(description="The document the chunk belongs to.")]
-    content: Annotated[str, Field(description="The chunk content used to ground the completion.")]
-    metadata: Annotated[ChunkMetadata | None, Field(default=None, description="The chunk metadata.")]
-    created: Annotated[UnixTimestamp, Field(description="Time of creation, as Unix timestamp.")]
-
-
-class SearchResponse(BaseModel):
-    method: Annotated[SearchMethod, Field(description="The search method that retrieved the chunk.")]
-    score: Annotated[float, Field(description="The relevance score of the chunk for the query.")]
-    chunk: Annotated[ChunkResponse, Field(description="The retrieved chunk.")]
-
-
 class ChatCompletionResponse(ChatCompletion):
     id: Annotated[str | None, Field(default=None, description="A unique identifier for the chat completion.")]
     usage: Annotated[Usage, Field(default_factory=Usage, description="Usage information for the request.")]
-    search_results: Annotated[list[SearchResponse] | None, Field(default=None, description="Chunks retrieved by the search tool, null when the tool was not requested.")]  # fmt: off
 
 
 class ChatCompletionChunkResponse(ChatCompletionChunk):
     usage: Annotated[Usage | None, Field(default=None, description="Usage information, sent on the last chunk of the stream.")]
-    search_results: Annotated[list[SearchResponse] | None, Field(default=None, description="Chunks retrieved by the search tool, sent on the last chunk of the stream.")]  # fmt: off

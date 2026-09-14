@@ -7,7 +7,6 @@ from pydantic import Field
 
 from api.domain import ForwardablePayload
 from api.domain.model.entities import ProviderJsonResponse
-from api.domain.search.entities import Search
 from api.domain.usage.entities import Usage
 
 
@@ -19,9 +18,6 @@ def _extract_text(content: Any) -> str:
         return "".join(part.get("text") or "" for part in content if isinstance(part, dict) and part.get("type") == "text")
 
     return ""
-
-
-SEARCH_TOOL_TYPE = "search"
 
 
 class CreateChatCompletionsBody(ForwardablePayload):
@@ -50,33 +46,10 @@ class CreateChatCompletionsBody(ForwardablePayload):
     def get_prompts(self) -> list[str]:
         return [text for message in self.messages if (text := _extract_text(message.get("content")))]
 
-    def get_last_user_query(self) -> str:
-        return _extract_text(self.messages[-1].get("content")) if self.messages else ""
-
-    def with_last_message_content(self, content: str) -> "CreateChatCompletionsBody":
-        messages = [dict(message) for message in self.messages]
-        messages[-1]["content"] = content
-
-        return self.model_copy(update={"messages": messages})
-
-    def pop_search_tool(self) -> tuple["CreateChatCompletionsBody", dict | None]:
-        """The search tool is an OpenGateLLM extension: it never reaches the provider, so it is removed from the forwarded tools."""
-        tools = self.tools or []
-        for index, tool in enumerate(tools):
-            if tool.get("type") != SEARCH_TOOL_TYPE:
-                continue
-            remaining_tools = [dict(other) for position, other in enumerate(tools) if position != index]
-            search_arguments = {key: value for key, value in tool.items() if key != "type"}
-
-            return self.model_copy(update={"tools": remaining_tools}), search_arguments
-
-        return self, None
-
 
 class ChatCompletion(ChatCompletion, ProviderJsonResponse):
     id: Annotated[str, Field(default=None, description="A unique identifier for the chat completion.")]
     usage: Annotated[Usage, Field(default_factory=Usage, description="Usage information for the request.")]
-    search_results: Annotated[list[Search] | None, Field(default=None, description="Chunks retrieved by the search tool, null when the tool was not requested.")]  # fmt: off
 
     def get_completions(self) -> list[str]:
         content = self.extract_response_content(self.model_dump())

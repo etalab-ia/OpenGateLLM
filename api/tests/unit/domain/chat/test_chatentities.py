@@ -24,41 +24,6 @@ class TestCreateChatCompletionsBody:
 
         assert body.get_prompts() == ["hello"]
 
-    def test_should_return_the_last_message_as_the_user_query(self):
-        body = _body(messages=[{"role": "user", "content": "first"}, {"role": "user", "content": "last"}])
-
-        assert body.get_last_user_query() == "last"
-
-    def test_should_replace_the_last_message_content_without_mutating_the_original(self):
-        body = _body(messages=[{"role": "user", "content": "first"}, {"role": "user", "content": "last"}])
-
-        grounded = body.with_last_message_content(content="grounded")
-
-        assert grounded.messages[-1]["content"] == "grounded"
-        assert body.messages[-1]["content"] == "last"
-
-    def test_should_pop_the_search_tool_and_keep_the_other_tools(self):
-        body = _body(tools=[{"type": "function", "function": {}}, {"type": "search", "limit": 5}])
-
-        stripped, search_arguments = body.pop_search_tool()
-
-        assert search_arguments == {"limit": 5}
-        assert stripped.tools == [{"type": "function", "function": {}}]
-
-    def test_should_return_no_search_arguments_when_no_search_tool_is_present(self):
-        body = _body(tools=[{"type": "function", "function": {}}])
-
-        stripped, search_arguments = body.pop_search_tool()
-
-        assert search_arguments is None
-        assert stripped is body
-
-    def test_should_return_no_search_arguments_when_tools_is_null(self):
-        stripped, search_arguments = _body().pop_search_tool()
-
-        assert search_arguments is None
-        assert stripped is not None
-
 
 class TestChatCompletion:
     def test_should_return_content_and_reasoning_as_completions(self):

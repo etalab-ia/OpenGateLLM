@@ -1,9 +1,8 @@
 from api.domain.chat.entities import CreateChatCompletionsBody as DomainChatCompletionsBody
 from api.infrastructure.fastapi.schemas.chat import CreateChatCompletionsBody as ApiChatCompletionsBody
-from api.infrastructure.fastapi.schemas.chat import SearchTool
 
-# `tools` is the one deliberate divergence: SearchTool documents the OpenGateLLM search tool in OpenAPI and dumps to a plain dict.
-KNOWN_DIVERGENCES = {"tools": (list[SearchTool | dict] | None, list[dict] | None)}
+# every shared field must declare the same type on both sides; a divergence here is a 500 waiting to happen
+KNOWN_DIVERGENCES = {}
 
 
 class TestCreateChatCompletionsBodyMatchesDomainPayload:
