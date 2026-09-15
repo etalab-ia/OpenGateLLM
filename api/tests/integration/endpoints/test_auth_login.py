@@ -10,7 +10,7 @@ from api.domain.user import UserPasswordEncoder
 from api.domain.user.errors import InvalidUserPasswordError, UserNotFoundError
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.postgres import PostgresKeyRepository, PostgresUserRepository
-from api.tests.integration.factories.sql import RoleSQLFactory
+from api.tests.integration.factories.sql import OrganizationSQLFactory, RoleSQLFactory
 from api.use_cases.auth import AuthLoginUseCase
 from api.utils.variables import SYSTEM_PLAYGROUND_KEY_NAME, EndpointRoute
 
@@ -44,11 +44,12 @@ class TestAuthLogin:
     @pytest_asyncio.fixture(autouse=True)
     async def setup(self, db_session, app):
         role = RoleSQLFactory()
+        organization = OrganizationSQLFactory()
         await db_session.flush()
         password_encoder = BcryptUserPasswordEncoder()
         repository = PostgresUserRepository(postgres_session=db_session)
         encoded_password = password_encoder.encode_password(password="s3cr3t")
-        await repository.create_user(email="login-user@test.com", password=encoded_password, role_id=role.id)
+        await repository.create_user(email="login-user@test.com", password=encoded_password, role_id=role.id, organization_id=organization.id)
         app.dependency_overrides[auth_login_use_case_factory] = _auth_login_use_case_factory
 
     async def test_happy_path(self, client: AsyncClient):

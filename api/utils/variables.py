@@ -1,6 +1,7 @@
 from enum import StrEnum
 
 DEFAULT_APP_NAME: str = "OpenGateLLM"
+DEFAULT_ORGANIZATION_NAME: str = "default"
 DEFAULT_TIMEOUT: int = 300
 SYSTEM_PLAYGROUND_KEY_NAME: str = "_system_playground_key"
 MIN_PASSWORD_LENGTH: int = 6

@@ -2,11 +2,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from api.domain.organization.errors import OrganizationAlreadyExistsError, OrganizationNotFoundError
 from api.domain.role.entities import PermissionType
 from api.domain.role.errors import RoleAlreadyExistsError, RoleNotFoundError
 from api.domain.user.errors import UserAlreadyExistsError, UserNotFoundError
-from api.tests.unit.use_case.factories import RoleFactory, UserFactory
+from api.tests.unit.use_case.factories import OrganizationFactory, RoleFactory, UserFactory
 from api.use_cases.admin import BootstrapAdminCommand, BootstrapAdminUseCase, BootstrapAdminUseCaseSkipped, BootstrapAdminUseCaseSuccess
+from api.utils.variables import DEFAULT_ORGANIZATION_NAME
 
 
 @pytest.fixture
@@ -30,6 +32,13 @@ def limit_repository():
 
 
 @pytest.fixture
+def organization_repository():
+    repository = AsyncMock()
+    repository.get_organization_by_name.return_value = OrganizationFactory(id=1, name=DEFAULT_ORGANIZATION_NAME)
+    return repository
+
+
+@pytest.fixture
 def user_password_encoder():
     encoder = MagicMock()
     encoder.encode_password.return_value = "$2b$12$encodedpasswordhash"
@@ -37,12 +46,13 @@ def user_password_encoder():
 
 
 @pytest.fixture
-def use_case(user_repository, role_repository, permission_repository, limit_repository, user_password_encoder):
+def use_case(user_repository, role_repository, permission_repository, limit_repository, organization_repository, user_password_encoder):
     return BootstrapAdminUseCase(
         user_repository=user_repository,
         role_repository=role_repository,
         limit_repository=limit_repository,
         permission_repository=permission_repository,
+        organization_repository=organization_repository,
         user_password_encoder=user_password_encoder,
     )
 
@@ -81,6 +91,7 @@ class TestBootstrapAdminUserUseCase:
             email=command.email,
             password="$2b$12$encodedpasswordhash",
             role_id=42,
+            organization_id=1,
             name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_USER_NAME,
         )
 
@@ -127,6 +138,7 @@ class TestBootstrapAdminUserUseCase:
             email=command.email,
             password="$2b$12$encodedpasswordhash",
             role_id=5,
+            organization_id=1,
             name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_USER_NAME,
         )
 
@@ -206,3 +218,64 @@ class TestBootstrapAdminUserUseCase:
         # Assert
         assert result == BootstrapAdminUseCaseSkipped()
         user_repository.update_user.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_should_create_the_default_organization_when_it_does_not_exist(
+        self, use_case, user_repository, role_repository, organization_repository, command
+    ):
+        # Arrange
+        role = RoleFactory(id=5, name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_ROLE_NAME, permissions=[PermissionType.ADMIN])
+        user_repository.get_first_admin_user.return_value = UserNotFoundError()
+        role_repository.get_role_with_permissions_and_limits_by_name.return_value = role
+        user_repository.get_user_by_email.return_value = UserNotFoundError(email=command.email)
+        organization_repository.get_organization_by_name.return_value = OrganizationNotFoundError(name=DEFAULT_ORGANIZATION_NAME)
+        organization_repository.create_organization.return_value = OrganizationFactory(id=3, name=DEFAULT_ORGANIZATION_NAME)
+        user_repository.create_user.return_value = UserFactory(id=11, email=command.email, role_id=5, organization_id=3)
+
+        # Act
+        result = await use_case.execute(command)
+
+        # Assert
+        assert result == BootstrapAdminUseCaseSuccess(user_id=11, email=command.email, role_id=5)
+        organization_repository.create_organization.assert_awaited_once_with(name=DEFAULT_ORGANIZATION_NAME)
+        assert user_repository.create_user.await_args.kwargs["organization_id"] == 3
+
+    @pytest.mark.asyncio
+    async def test_should_reuse_the_default_organization_when_it_already_exists(
+        self, use_case, user_repository, role_repository, organization_repository, command
+    ):
+        # Arrange
+        role = RoleFactory(id=5, name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_ROLE_NAME, permissions=[PermissionType.ADMIN])
+        user_repository.get_first_admin_user.return_value = UserNotFoundError()
+        role_repository.get_role_with_permissions_and_limits_by_name.return_value = role
+        user_repository.get_user_by_email.return_value = UserNotFoundError(email=command.email)
+        organization_repository.get_organization_by_name.return_value = OrganizationFactory(id=8, name=DEFAULT_ORGANIZATION_NAME)
+        user_repository.create_user.return_value = UserFactory(id=11, email=command.email, role_id=5, organization_id=8)
+
+        # Act
+        result = await use_case.execute(command)
+
+        # Assert
+        assert result == BootstrapAdminUseCaseSuccess(user_id=11, email=command.email, role_id=5)
+        organization_repository.get_organization_by_name.assert_awaited_once_with(name=DEFAULT_ORGANIZATION_NAME)
+        organization_repository.create_organization.assert_not_awaited()
+        assert user_repository.create_user.await_args.kwargs["organization_id"] == 8
+
+    @pytest.mark.asyncio
+    async def test_should_skip_when_create_organization_conflicts_because_another_worker_took_over(
+        self, use_case, user_repository, role_repository, organization_repository, command
+    ):
+        # Arrange
+        role = RoleFactory(id=5, name=BootstrapAdminUseCase.BOOTSTRAP_ADMIN_ROLE_NAME, permissions=[PermissionType.ADMIN])
+        user_repository.get_first_admin_user.return_value = UserNotFoundError()
+        role_repository.get_role_with_permissions_and_limits_by_name.return_value = role
+        user_repository.get_user_by_email.return_value = UserNotFoundError(email=command.email)
+        organization_repository.get_organization_by_name.return_value = OrganizationNotFoundError(name=DEFAULT_ORGANIZATION_NAME)
+        organization_repository.create_organization.return_value = OrganizationAlreadyExistsError(name=DEFAULT_ORGANIZATION_NAME)
+
+        # Act
+        result = await use_case.execute(command)
+
+        # Assert
+        assert result == BootstrapAdminUseCaseSkipped()
+        user_repository.create_user.assert_not_awaited()

@@ -35,7 +35,7 @@ class UsersState(EntityState):
         role_dict_reverse = {v: k for k, v in self.roles_dict.items()}
 
         role_name = role_dict_reverse[user["role_id"]]
-        organization_name = organization_dict_reverse.get(user["organization_id"], None)
+        organization_name = organization_dict_reverse[user["organization_id"]]
 
         return User(
             id=user["id"],
@@ -229,6 +229,10 @@ class UsersState(EntityState):
             yield rx.toast.warning("Role is required", position="bottom-right")
             return
 
+        if not self.entity_to_create.organization:
+            yield rx.toast.warning("Organization is required", position="bottom-right")
+            return
+
         for role in self.roles_list:
             if role["name"] == self.entity_to_create.role:
                 role_id = role["id"]
@@ -237,11 +241,13 @@ class UsersState(EntityState):
             yield rx.toast.warning("Role not found", position="bottom-right")
             return
 
-        organization_id = None
         for organization in self.organizations_list:
             if organization["name"] == self.entity_to_create.organization:
                 organization_id = organization["id"]
                 break
+        else:
+            yield rx.toast.warning("Organization not found", position="bottom-right")
+            return
 
         self.create_entity_loading = True
 
@@ -251,6 +257,7 @@ class UsersState(EntityState):
             "email": self.entity_to_create.email,
             "password": self.entity_to_create.password,
             "role_id": role_id,
+            "organization_id": organization_id,
             "priority": self.entity_to_create.priority,
         }
 
@@ -259,9 +266,6 @@ class UsersState(EntityState):
 
         if self.entity_to_create.budget:
             payload["budget"] = self.entity_to_create.budget
-
-        if organization_id:
-            payload["organization_id"] = organization_id
 
         response = None
         try:
@@ -323,7 +327,7 @@ class UsersState(EntityState):
             "email": self.entity.email,
             "name": self.entity.name or None,
             "role_id": self.roles_dict[self.entity.role],
-            "organization_id": self.organizations_dict.get(self.entity.organization),
+            "organization_id": self.organizations_dict[self.entity.organization],
             "budget": self.entity.budget if self.entity.budget != "" else None,
             "expires": date_to_timestamp(self.entity.expires) if self.entity.expires else None,
             "priority": self.entity.priority,

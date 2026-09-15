@@ -12,17 +12,18 @@ from api.domain.role.errors import RoleNotFoundError
 from api.domain.user.errors import UserAlreadyExistsError
 from api.sql.models import User as UserTable
 from api.tests.helpers import create_key
-from api.tests.integration.factories.sql import RoleSQLFactory, UserSQLFactory
+from api.tests.integration.factories.sql import OrganizationSQLFactory, RoleSQLFactory, UserSQLFactory
 from api.utils.variables import EndpointRoute
 
 URL = f"/v1{EndpointRoute.ADMIN_USERS}"
 
 
-def _valid_body(role_id: int, **overrides) -> dict:
+def _valid_body(role_id: int, organization_id: int = 1, **overrides) -> dict:
     body = {
         "email": "newuser@test.com",
         "password": "s3cr3tpw",
         "role_id": role_id,
+        "organization_id": organization_id,
     }
     body.update(overrides)
     return body
@@ -37,12 +38,13 @@ class TestCreateUser:
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         role = RoleSQLFactory()
+        organization = OrganizationSQLFactory()
         await db_session.flush()
 
         response = await client.post(
             url=URL,
             headers={"Authorization": f"Bearer {self.token.token}"},
-            json=_valid_body(role_id=role.id),
+            json=_valid_body(role_id=role.id, organization_id=organization.id),
         )
 
         assert response.status_code == 201, response.text
@@ -50,6 +52,7 @@ class TestCreateUser:
         assert data["email"] == "newuser@test.com"
         assert isinstance(data["id"], int)
         assert data["role_id"] == role.id
+        assert data["organization_id"] == organization.id
         assert data["expires"] is None
         assert isinstance(data["created"], int)
         assert isinstance(data["updated"], int)
@@ -63,13 +66,14 @@ class TestCreateUser:
     )
     async def test_round_trips_expires_as_unix_timestamp(self, client: AsyncClient, db_session, expires_delta):
         role = RoleSQLFactory()
+        organization = OrganizationSQLFactory()
         await db_session.flush()
         expires = int((datetime.now(tz=UTC) + expires_delta).timestamp())
 
         response = await client.post(
             url=URL,
             headers={"Authorization": f"Bearer {self.token.token}"},
-            json=_valid_body(role_id=role.id, expires=expires),
+            json=_valid_body(role_id=role.id, organization_id=organization.id, expires=expires),
         )
 
         assert response.status_code == 201, response.text
@@ -96,6 +100,19 @@ class TestCreateUser:
         password_errors = [error for error in response.json()["detail"] if error["loc"][-1] == "password"]
         assert len(password_errors) == 1
         assert password_errors[0]["msg"] == expected_msg
+
+    async def test_rejects_missing_organization(self, client: AsyncClient):
+        body = _valid_body(role_id=1)
+        del body["organization_id"]
+
+        response = await client.post(
+            url=URL,
+            headers={"Authorization": f"Bearer {self.token.token}"},
+            json=body,
+        )
+
+        assert response.status_code == 422, response.text
+        assert [error for error in response.json()["detail"] if error["loc"][-1] == "organization_id"]
 
     @pytest.mark.parametrize(
         "use_case_result,expected_status,expected_detail",

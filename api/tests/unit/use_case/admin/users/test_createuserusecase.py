@@ -32,6 +32,7 @@ def default_command():
         email="newuser@test.com",
         password="s3cr3t",
         role_id=10,
+        organization_id=5,
     )
 
 

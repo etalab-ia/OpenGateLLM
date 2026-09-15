@@ -37,6 +37,7 @@ You can use the [oauth2-proxy documentation](https://oauth2-proxy.github.io/oaut
 By default, every user authenticated by the identity provider can access the Playground. No extra email, organization, or role filters are applied.
 
 New users are created on first SSO login with the default role and organization from the [configuration file](/configuration/configuration_file/#settings) (`auth_sso_default_role_id`, `auth_sso_default_organization_id`).
+`auth_sso_default_organization_id` must point at an existing organization — every user belongs to one, see the [organizations documentation](/features/users_management/organizations/).
 
 On each login, the API also keeps the local user in sync with the identity provider:
 
@@ -139,7 +140,7 @@ The OAuth2 Proxy service validate the session cookie and forward the request to 
 5. The Reflex App will retrieve user claims (eg. user information, organization, role, etc.) from the identity provider (`/userinfo` endpoint of the identity provider).
 6. The Reflex App will call the OpenGateLLM API `/v1/auth/sso/login` endpoint with the session cookie and the user claims.
 7. The API will validate the session cookie by calling the OAuth2 Proxy service `/oauth2/auth` endpoint, then evaluate access.
-8. If the user passes the access filters, the API endpoint `/v1/auth/sso/login` creates the user and organization when needed, then returns a fresh API key for playground access (hidden in the playground).
+8. If the user passes the access filters, the API endpoint `/v1/auth/sso/login` creates the user when needed, then returns a fresh API key for playground access (hidden in the playground).
 
 ### Access policy evaluation
 

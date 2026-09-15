@@ -12,9 +12,9 @@ from api.domain.user.errors import UserAlreadyExistsError
 class CreateUserCommand:
     email: str
     role_id: int
+    organization_id: int
     password: str
     name: str | None = None
-    organization_id: int | None = None
     budget: float | None = None
     expires: UtcDatetime | None = None
     priority: int = 0

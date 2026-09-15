@@ -3,8 +3,59 @@ title: Organizations
 sidebar:
   label: "[lucide:building-2] Organizations"
 ---
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, LinkButton, Tabs, TabItem } from '@astrojs/starlight/components';
+
+An organization groups the users of a same entity (a company, an administration, a team). It is the unit OpenGateLLM uses to attribute
+models and to report usage: the models API exposes the organization of the user who registered a model router in the `owned_by` field.
+
+**Every user belongs to exactly one organization.** Membership is mandatory: a user cannot exist without an organization, and an
+organization cannot be removed while it still has users.
+
+## The `default` organization
+
+OpenGateLLM always provides an organization named `default`, so an installation is usable before you create your own organizations:
+
+- **Fresh installs** — the bootstrap admin user is created in the `default` organization, which is created if it does not exist yet.
+- **Existing installs** — the database migration that makes membership mandatory creates the `default` organization if needed and moves
+  every user that had no organization into it.
+
+The `default` organization is a regular organization: you can rename it, and you can move its users to another one.
+
+## Manage organizations
+
+<Tabs>
+  <TabItem value="playground" label="Playground UI" icon="lucide:laptop">
+
+  Go to the *Organizations* page to create, rename and delete organizations. The *Users* page lets you assign an organization to a user
+  and filter the user list by organization.
+  </TabItem>
+
+  <TabItem value="api" label="API" icon="lucide:code">
+
+  See the `/v1/admin/organizations` endpoints to create, list, rename and delete organizations. You need the `admin` permission.
+
+  <LinkButton href="/reference/" icon="external">API Reference</LinkButton>
+  </TabItem>
+</Tabs>
+
+Deleting an organization that still has users returns a `409`. Move its users to another organization first.
+
+## Assign an organization to a user
+
+`organization_id` is **required** when you create a user (`POST /v1/admin/users`) and when you update one (`PATCH /v1/admin/users/{user_id}`).
+A missing or `null` `organization_id` is rejected with a `422`.
 
 <Aside type="caution">
-🚧 This page is under construction. 🚧
+`organization_id` used to be optional, and sending `null` on an update removed the user from its organization. Update any client that
+relied on this: it now has to send the organization the user belongs to, along with the rest of the user fields.
 </Aside>
+
+See the POST and PATCH `/v1/admin/users` endpoints on the [API reference](/reference/) for the full request body.
+
+## SSO users
+
+Users created on their first SSO login are assigned the organization returned by `get_organization_id`, which defaults to the
+`auth_sso_default_organization_id` setting of the [configuration file](/configuration/configuration_file/#settings). Point it at the
+`default` organization or at any other one you created.
+
+<LinkButton href="/features/users_management/sso/" icon="external">Single Sign-On documentation</LinkButton>

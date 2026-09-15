@@ -2,7 +2,7 @@ import pytest
 
 from api.domain.user.errors import UserNotFoundError
 from api.infrastructure.postgres import PostgresUserRepository
-from api.tests.integration.factories.sql import RoleSQLFactory
+from api.tests.integration.factories.sql import OrganizationSQLFactory, RoleSQLFactory
 
 
 @pytest.fixture
@@ -15,8 +15,9 @@ class TestGetUserIdAndPasswordByEmail:
     async def test_returns_user_id_and_password_when_email_exists(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()
+        organization = OrganizationSQLFactory()
         await db_session.flush()
-        created = await repository.create_user(email="user@test.com", password="encoded:s3cr3t", role_id=role.id)
+        created = await repository.create_user(email="user@test.com", password="encoded:s3cr3t", role_id=role.id, organization_id=organization.id)
 
         # Act
         result = await repository.get_user_id_and_password_by_email(email="user@test.com")
@@ -35,8 +36,9 @@ class TestGetUserIdAndPasswordByEmail:
     async def test_returns_none_password_when_password_is_not_set(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()
+        organization = OrganizationSQLFactory()
         await db_session.flush()
-        created = await repository.create_user(email="nopassword@test.com", role_id=role.id, password=None)
+        created = await repository.create_user(email="nopassword@test.com", role_id=role.id, organization_id=organization.id, password=None)
 
         # Act
         result = await repository.get_user_id_and_password_by_email(email="nopassword@test.com")

@@ -41,9 +41,9 @@ def text_generation_router(client: TestClient) -> Router:
     yield router
 
 
-@pytest.mark.usefixtures("client", "clean_redis", "tokenizer", "roles", "text_generation_router")
+@pytest.mark.usefixtures("client", "clean_redis", "tokenizer", "roles", "organization", "text_generation_router")
 class TestAuth:
-    def test_user_account_expiration_format(self, client: TestClient, roles: tuple[dict, dict]):
+    def test_user_account_expiration_format(self, client: TestClient, roles: tuple[dict, dict], organization: dict):
         role_with_permissions, role_without_permissions = roles
 
         # Create a test user with no expiration
@@ -53,6 +53,7 @@ class TestAuth:
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
                 "role_id": role_without_permissions["id"],
+                "organization_id": organization["id"],
                 "password": "test-password",
             },
         )
@@ -73,6 +74,7 @@ class TestAuth:
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
                 "role_id": role_without_permissions["id"],
+                "organization_id": organization["id"],
                 "expires": past_expiration,
                 "password": "test-password",
             },
@@ -88,6 +90,7 @@ class TestAuth:
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
                 "role_id": role_without_permissions["id"],
+                "organization_id": organization["id"],
                 "expires": future_expiration,
                 "password": "test-password",
             },
@@ -139,7 +142,7 @@ class TestAuth:
         response = client.get_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}/{user_with_expiration_id}")
         assert response.json()["expires"] is None, response.text
 
-    def test_user_account_expiration_access(self, client: TestClient, roles: tuple[dict, dict]):
+    def test_user_account_expiration_access(self, client: TestClient, roles: tuple[dict, dict], organization: dict):
         role_with_permissions, role_without_permissions = roles
 
         # Create user with expiration set to 2 seconds in the future
@@ -152,6 +155,7 @@ class TestAuth:
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
                 "role_id": role_without_permissions["id"],
+                "organization_id": organization["id"],
                 "expires": future_expiration,
                 "password": "test-password",
             },
@@ -187,7 +191,7 @@ class TestAuth:
         response = client.get(url=f"/v1{EndpointRoute.ME}", headers=headers)
         assert response.status_code == 200, response.text
 
-    def test_create_token_after_key_max_expiration_days(self, client: TestClient, roles: tuple[dict, dict]):
+    def test_create_token_after_key_max_expiration_days(self, client: TestClient, roles: tuple[dict, dict], organization: dict):
         role_with_permissions, role_without_permissions = roles
 
         # Create a user with no expiration
@@ -197,6 +201,7 @@ class TestAuth:
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
                 "role_id": role_without_permissions["id"],
+                "organization_id": organization["id"],
                 "password": "test-password",
             },
         )
@@ -214,7 +219,7 @@ class TestAuth:
         )
         assert response.status_code == 400, response.text
 
-    def test_token_rate_limits(self, client: TestClient, tokenizer, text_generation_router: Router):
+    def test_token_rate_limits(self, client: TestClient, tokenizer, text_generation_router: Router, organization: dict):
         # Create a role with token limits
         response = client.post_with_permissions(
             url=f"/v1{EndpointRoute.ADMIN_ROLES}",
@@ -238,6 +243,7 @@ class TestAuth:
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
                 "role_id": role_id,
+                "organization_id": organization["id"],
                 "password": "test-password",
             },
         )
@@ -315,7 +321,7 @@ class TestAuth:
         )
         assert response.status_code == 429, response.text
 
-    def test_user_budget(self, client: TestClient, tokenizer, text_generation_router: Router):
+    def test_user_budget(self, client: TestClient, tokenizer, text_generation_router: Router, organization: dict):
         # Create a user
         initial_budget = 10
         response = client.post_with_permissions(
@@ -324,6 +330,7 @@ class TestAuth:
                 "email": f"test_user_{str(uuid4())}@example.com",
                 "name": f"test_user_{str(uuid4())}",
                 "role_id": 1,
+                "organization_id": organization["id"],
                 "budget": initial_budget,
                 "password": "test-password",
             },
@@ -394,7 +401,7 @@ class TestAuth:
         )
         assert response.status_code == 400, response.text
 
-    def test_token_name_collision(self, client: TestClient, roles: tuple[dict, dict]):
+    def test_token_name_collision(self, client: TestClient, roles: tuple[dict, dict], organization: dict):
         """Test that tokens with same name across different users don't interfere with each other"""
         role_with_permissions, role_without_permissions = roles
         token_name = f"shared_token_name_{str(uuid4())}"
@@ -406,6 +413,7 @@ class TestAuth:
                 "email": f"user1_{str(uuid4())}@example.com",
                 "name": f"user1_{str(uuid4())}",
                 "role_id": role_without_permissions["id"],
+                "organization_id": organization["id"],
                 "password": "test-password",
             },
         )
@@ -437,6 +445,7 @@ class TestAuth:
                 "email": f"user2_{str(uuid4())}@example.com",
                 "name": f"user2_{str(uuid4())}",
                 "role_id": role_without_permissions["id"],
+                "organization_id": organization["id"],
                 "password": "test-password",
             },
         )

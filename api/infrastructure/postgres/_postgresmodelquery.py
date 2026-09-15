@@ -14,9 +14,8 @@ from api.sql.models import User as UserTable
 
 
 class PostgresModelQuery(ModelQuery):
-    def __init__(self, postgres_session: AsyncSession, app_title: str):
+    def __init__(self, postgres_session: AsyncSession):
         self.postgres_session = postgres_session
-        self.app_title = app_title
 
     async def get_models(self) -> list[ModelView]:
         statement = self._build_statement().order_by(RouterTable.id)
@@ -69,12 +68,12 @@ class PostgresModelQuery(ModelQuery):
                 RouterTable.cost_completion_tokens,
                 aliases_subquery,
                 max_context_length_subquery,
-                func.coalesce(OrganizationTable.name, self.app_title).label("owned_by"),
+                OrganizationTable.name.label("owned_by"),
                 RouterTable.created,
             )
             .select_from(RouterTable)
-            .outerjoin(UserTable, UserTable.id == RouterTable.user_id)
-            .outerjoin(OrganizationTable, OrganizationTable.id == UserTable.organization_id)
+            .join(UserTable, UserTable.id == RouterTable.user_id)
+            .join(OrganizationTable, OrganizationTable.id == UserTable.organization_id)
             .where(has_providers)
         )
 
