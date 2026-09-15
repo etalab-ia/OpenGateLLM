@@ -106,7 +106,7 @@ def _authenticated_user_query(session: AutocommitSession = Depends(get_autocommi
 
 
 def _model_query(session: AsyncSession) -> ModelQuery:
-    return PostgresModelQuery(postgres_session=session, app_title=configuration.settings.app_title)
+    return PostgresModelQuery(postgres_session=session)
 
 
 # helpers

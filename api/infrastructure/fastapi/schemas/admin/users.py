@@ -13,7 +13,7 @@ class CreateUserBody(BaseModel):
     name: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=1, max_length=254), Field(default=None, description="The user name.")]  # fmt: off
     password: Annotated[str, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH), Field(description="The user password.")]  # fmt: off
     role_id: Annotated[int, Field(..., description="The role ID.")]
-    organization_id: Annotated[int | None, Field(default=None, description="The organization ID.")]
+    organization_id: Annotated[int, Field(..., description="The organization ID.")]
     budget: Annotated[float | None, Field(default=None, description="The budget.")]
     expires: Annotated[int | None, Field(default=None, description="The expiration timestamp.")]
     priority: Annotated[int, Field(default=0, ge=0, description="The user priority. Higher value means higher priority.")]
@@ -35,7 +35,7 @@ class UserResponse(BaseModel):
     sub: Annotated[str | None, Field(default=None, description="Subject identifier for SSO.")]
     iss: Annotated[str | None, Field(default=None, description="Issuer identifier for SSO.")]
     role_id: Annotated[int, Field(..., description="ID of the role assigned to the user.")]
-    organization_id: Annotated[int | None, Field(default=None, description="ID of the organization the user belongs to.")]
+    organization_id: Annotated[int, Field(..., description="ID of the organization the user belongs to.")]
     budget: Annotated[float | None, Field(default=None, description="Budget allocated to the user.")]
     expires: Annotated[UnixTimestamp | None, Field(default=None, description="Expiration time of the user, as Unix timestamp.")]
     created: Annotated[UnixTimestamp, Field(..., description="Time of creation, as Unix timestamp.")]
@@ -57,7 +57,7 @@ class UserUpdateRequest(BaseModel):
     current_password: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH), Field(default=None, description="The current user password. Only required to change the password.")]  # fmt: off
     password: Annotated[str | None, StringConstraints(strip_whitespace=True, min_length=MIN_PASSWORD_LENGTH, max_length=MAX_PASSWORD_LENGTH), Field(default=None, description="The new user password. If omitted, the user password is not changed.")]  # fmt: off
     role_id: Annotated[int, Field(..., description="The new role ID.")]
-    organization_id: Annotated[int | None, Field(..., description="The new organization ID. If null, the user is removed from the organization if he was in one.")]  # fmt: off
+    organization_id: Annotated[int, Field(..., description="The new organization ID.")]
     budget: Annotated[float | None, Field(..., description="The new budget. If null, the user will have no budget.")]
     expires: Annotated[int | None, Field(..., description="The new expiration timestamp. If null, the user will never expire.")]
     priority: Annotated[int, Field(..., ge=0, description="The new user priority. Higher value means higher priority.")]
