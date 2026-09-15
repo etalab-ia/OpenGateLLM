@@ -24,7 +24,7 @@ class User(BaseModel):
     iss: str | None
     claims: dict[str, Any] | None
     role_id: int
-    organization_id: int | None
+    organization_id: int
     budget: float | None
     expires: UtcDatetime | None
     created: UtcDatetime
@@ -39,7 +39,7 @@ class User(BaseModel):
         iss: str | None,
         sub: str | None,
         claims: dict[str, Any],
-        organization_id: int | None,
+        organization_id: int,
         role_id: int | None,
     ) -> bool:
         return (
