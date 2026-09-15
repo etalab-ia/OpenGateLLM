@@ -16,7 +16,7 @@ class UpdateUserCommand:
     email: str
     name: str | None
     role_id: int
-    organization_id: int | None
+    organization_id: int
     budget: float | None
     expires: UtcDatetime | None
     priority: int
