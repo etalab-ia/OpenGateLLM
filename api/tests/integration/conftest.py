@@ -228,6 +228,14 @@ async def app(model_registry, test_configuration, test_redis_pool):
         app.dependency_overrides.clear()
 
 
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def _reset_dependency_overrides_between_tests(app):
+    baseline = dict(app.dependency_overrides)
+    yield
+    app.dependency_overrides.clear()
+    app.dependency_overrides.update(baseline)
+
+
 @pytest_asyncio.fixture(scope="session")
 async def client(app) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
