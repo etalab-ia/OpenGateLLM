@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 import time
 from typing import ClassVar
@@ -7,8 +8,8 @@ from pydantic import BaseModel
 from api.domain import ForwardablePayload
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import ProviderRequest, ProviderResponse
+from api.domain.provider import ProviderAdmissionFull, ProviderClient, ProviderQoS, ProviderRepository
+from api.domain.provider.entities import Provider, ProviderRequest, ProviderResponse
 from api.domain.provider.errors import (
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
@@ -70,8 +71,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         model_environmental_impacts_computer: ModelEnvironmentalImpactsComputer,
         model_tokenizer: ModelTokenizer,
         provider_client: ProviderClient,
-        provider_load_balancer: ProviderLoadBalancer,
-        provider_metrics_logger: ProviderMetricsLogger,
+        provider_qos: ProviderQoS,
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
@@ -80,8 +80,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
         self.model_tokenizer = model_tokenizer
         self.provider_client = provider_client
-        self.provider_load_balancer = provider_load_balancer
-        self.provider_metrics_logger = provider_metrics_logger
+        self.provider_qos = provider_qos
         self.provider_repository = provider_repository
 
         self.router_rate_limiter = router_rate_limiter
@@ -158,22 +157,32 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
         | StatusCodeModelError
         | ProviderAdapterValidationResponseError
         | UnsupportedProviderEndpointError
+        | NoAvailableProviderError
     ):
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
-        provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
-        self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
-
         request = ProviderRequest(endpoint=self.ENDPOINT, payload=payload)
+        retries = router.qos_retries_before_reject
+        attempts = 1 if retries is None else retries + 1
 
-        inflight_is_incremented = await self.provider_metrics_logger.increment_inflight(provider_id=provider.id)
+        for attempt in range(attempts):
+            async with self.provider_qos.admit(
+                request_id=request.id,
+                providers=providers,
+                strategy=router.load_balancing_strategy,
+                enforce_limit=retries is not None,
+            ) as admission:
+                match admission:
+                    case ProviderAdmissionFull() as admission_full:
+                        if attempt == attempts - 1:
+                            return NoAvailableProviderError(router_id=router.id, retry_after=admission_full.retry_after(retries=retries))
+                    case Provider() as provider:
+                        self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
+                        start_time = time.perf_counter()
+                        result = await self.provider_client.forward(provider=provider, request=request)
+                        latency = time.perf_counter() - start_time
+                        break
 
-        start_time = time.perf_counter()
-        try:
-            result = await self.provider_client.forward(provider=provider, request=request)
-            latency = int((time.perf_counter() - start_time) * 1000)  # ms
-        finally:
-            if inflight_is_incremented:
-                await self.provider_metrics_logger.decrement_inflight(provider_id=provider.id)
+            await asyncio.sleep(0.5)
 
         match result:
             case ProviderResponse() as provider_response:

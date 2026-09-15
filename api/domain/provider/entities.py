@@ -1,5 +1,6 @@
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated
+from uuid import uuid4
 
 import pycountry
 from pydantic import Field, model_validator
@@ -11,11 +12,6 @@ from api.utils.variables import EndpointRoute
 # Add world as a country code, default value of the carbon footprint computation framework
 _country_codes = [country.alpha_3 for country in pycountry.countries] + ["WOR"]
 HostingZone = StrEnum("HostingZone", {str(code).upper(): str(code) for code in sorted(set(_country_codes))})
-
-
-class BasicAuth(BaseModel):
-    username: str
-    password: str
 
 
 class ProviderJsonResponse(BaseModel):
@@ -87,7 +83,6 @@ class Provider(BaseModel):
     type: ProviderType
     url: str
     key: str | None = None
-    basic_auth: BasicAuth | None = None
     timeout: int
     model_name: str
     model_hosting_zone: HostingZone = HostingZone.WOR
@@ -97,6 +92,7 @@ class Provider(BaseModel):
     vector_size: int | None = None
     created: UtcDatetime
     updated: UtcDatetime
+    qos_limit: Annotated[int | None, Field(ge=0)] = None
 
     def with_router_id(self, router_id: int) -> "Provider":
         return self.model_copy(update={"router_id": router_id})
@@ -119,6 +115,9 @@ class Provider(BaseModel):
     def with_vector_size(self, vector_size: int | None) -> "Provider":
         return self.model_copy(update={"vector_size": vector_size})
 
+    def with_qos_limit(self, qos_limit: int | None) -> "Provider":
+        return self.model_copy(update={"qos_limit": qos_limit})
+
     def is_compatible_with(self, router: Router) -> bool:
         return self.type.is_compatible_with(router.type)
 
@@ -129,6 +128,7 @@ class ProviderCapabilities(BaseModel):
 
 
 class ProviderRequest(BaseModel):
+    id: Annotated[str, Field(default_factory=lambda: f"request-{uuid4().hex}", description="The stable identifier used for QoS admission.")]
     endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
     payload: Annotated[ForwardablePayload | None, Field(default=None, description="The payload to use for the request.")]
 
@@ -136,12 +136,6 @@ class ProviderRequest(BaseModel):
 class ResponseMetrics(BaseModel):
     latency: Annotated[int, Field(default=0, description="The latency of the response.")]
     ttft: Annotated[int | None, Field(default=None, description="The time to first byte of the response.")]
-
-
-class ProviderMetrics(ProviderJsonResponse):
-    object: Literal["providerMetrics"] = "providerMetrics"
-    waiting_requests: float
-    running_requests: float
 
 
 class ProviderResponse(BaseModel):

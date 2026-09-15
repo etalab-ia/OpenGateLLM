@@ -1,7 +1,7 @@
 import logging
 from typing import assert_never
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Security
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Security
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
@@ -17,7 +17,7 @@ from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTy
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi.accesscontroller import AccessController
-from api.infrastructure.fastapi.decorators import hooks
+from api.infrastructure.fastapi.decorators import cancel_on_disconnect, hooks
 from api.infrastructure.fastapi.dependencies import get_authenticated_user
 from api.infrastructure.fastapi.documentation import get_documentation_responses
 from api.infrastructure.fastapi.endpoints.exceptions import (
@@ -53,7 +53,9 @@ router = APIRouter(prefix="/v1", tags=[RouterName.EMBEDDINGS.title()])
     response_model=EmbeddingsResponse,
 )
 @hooks(postgres_session_provider=get_postgres_session, router_rate_limiter_provider=get_router_rate_limiter)
+@cancel_on_disconnect
 async def create_embeddings(
+    request: Request,
     body: CreateEmbeddingsBody = Body(description="The embeddings creation request."),
     create_embeddings_use_case: CreateEmbeddingsUseCase = Depends(create_embeddings_use_case_factory),
     authenticated_user: AuthenticatedUserView = Depends(get_authenticated_user),
@@ -75,8 +77,8 @@ async def create_embeddings(
     match result:
         case CreateEmbeddingsUseCaseSuccess(data=data, headers=headers):
             return JSONResponse(content=EmbeddingsResponse.model_validate(data.model_dump()).model_dump(), status_code=200, headers=headers)
-        case NoAvailableProviderError():
-            raise ModelIsTooBusyExceptionHTTPException()
+        case NoAvailableProviderError(retry_after=retry_after):
+            raise ModelIsTooBusyExceptionHTTPException(retry_after=retry_after)
         case ProviderAdapterValidationRequestError(errors=errors):
             raise HTTPException(status_code=422, detail=jsonable_encoder(errors))
         case ProviderAdapterValidationResponseError(errors=errors):

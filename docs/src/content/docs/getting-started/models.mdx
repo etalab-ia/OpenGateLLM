@@ -92,6 +92,28 @@ sequenceDiagram
 3. (Optional) Apply a rate limiting policy to the router.
    See [rate limiting](/features/usage/rate_limiting/).
 
+### QoS and load balancing
+
+OpenGateLLM always records active provider requests in Redis, regardless of whether admission caps are enabled. `shuffle` selects an eligible provider without considering its load. `least_busy` selects the provider with the most available capacity; if an uncapped provider is eligible, it compares raw active-request counts instead.
+
+Configure provider capacity with `qos_limit`:
+
+- `null` (default): uncapped.
+- `0`: closed; the provider cannot receive requests.
+- Positive integer: concurrent-request cap when router enforcement is active.
+
+Configure enforcement on the router with `qos_retries_before_reject`:
+
+- `null` (default): do not enforce positive caps, but continue tracking load for `least_busy` and health. Closed providers remain ineligible.
+- `0`: return 503 immediately when no provider has capacity.
+- Positive integer `n`: retry admission `n` times, every 0.5 seconds, then return 503.
+
+Each admitted request refreshes a heartbeat while forwarding and releases its Redis reservation when forwarding ends. Expired reservations left by stopped workers are purged during the next admission.
+
+<Aside type="note" title="Current scope">
+QoS applies to the refactored embeddings, OCR, rerank, and audio transcription forwarding paths. Chat completions remain on the legacy forwarding path.
+</Aside>
+
 <Tabs>
   <TabItem value="playground" label="Playground UI" icon="lucide:laptop">
   <Steps>
@@ -102,6 +124,7 @@ sequenceDiagram
           <li><code>name</code>: model name shown to users.</li>
           <li><code>type</code>: model type (for example <code>text-generation</code>).</li>
           <li><code>load_balancing_strategy</code>: <code>shuffle</code> (default) or <code>least_busy</code>.</li>
+          <li><code>qos_retries_before_reject</code> (optional): <code>null</code>, <code>0</code>, or a positive retry count.</li>
           <li><code>aliases</code> (optional): additional names for the same router.</li>
         </ul>
       </li>
@@ -114,6 +137,7 @@ sequenceDiagram
           <li><code>url</code> (optional for some provider types): provider base URL (domain only, without <code>/v1</code>).</li>
           <li><code>key</code> (optional): API key.</li>
           <li><code>timeout</code> (optional): request timeout in seconds.</li>
+          <li><code>qos_limit</code> (optional): <code>null</code>, <code>0</code>, or a positive concurrent-request cap.</li>
         </ul>
       </li>
     </ol>

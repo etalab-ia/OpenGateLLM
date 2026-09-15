@@ -107,6 +107,29 @@ class TestEcologitModelEnvironmentalImpactsComputer:
         assert result_high.kWh > result_low.kWh
         assert result_high.kgCO2eq > result_low.kgCO2eq
 
+    def test_forwards_request_latency_in_seconds_without_conversion(self, computer, mocker):
+        # Arrange
+        mocker.patch(
+            "api.infrastructure.ecologit._ecologitmodelenvironmentalimpactscomputer.electricity_mixes.find_electricity_mix",
+            return_value=SimpleNamespace(adpe=1, pe=2, gwp=3, wue=4),
+        )
+        mock_compute_llm_impacts = mocker.patch(
+            "api.infrastructure.ecologit._ecologitmodelenvironmentalimpactscomputer.compute_llm_impacts",
+            return_value=SimpleNamespace(energy=SimpleNamespace(value=1.0), gwp=SimpleNamespace(value=2.0)),
+        )
+
+        # Act
+        computer.compute(
+            model_active_params=7,
+            model_total_params=7,
+            model_zone=HostingZone.WOR,
+            completion_tokens=1000,
+            request_latency=0.12,
+        )
+
+        # Assert
+        assert mock_compute_llm_impacts.call_args.kwargs["request_latency"] == 0.12
+
     def test_returns_zero_when_energy_or_gwp_values_are_none(self, computer, mocker):
         # Arrange
         mocker.patch(

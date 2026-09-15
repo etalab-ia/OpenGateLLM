@@ -1,6 +1,23 @@
+from pydantic import ValidationError
+import pytest
+
 from api.domain.role.entities import LimitType
 from api.domain.router.entities import RouterRateLimitState, TpdRateLimitState, TpmRateLimitState
 from api.tests.unit.use_case.factories import RouterFactory
+
+
+class TestRouterQoSRetriesBeforeReject:
+    def test_should_replace_qos_retries_before_reject(self):
+        router = RouterFactory(qos_retries_before_reject=None)
+
+        updated_router = router.with_qos_retries_before_reject(3)
+
+        assert updated_router.qos_retries_before_reject == 3
+        assert router.qos_retries_before_reject is None
+
+    def test_should_reject_negative_qos_retries_before_reject(self):
+        with pytest.raises(ValidationError):
+            RouterFactory(qos_retries_before_reject=-1)
 
 
 class TestRouterIsBillable:

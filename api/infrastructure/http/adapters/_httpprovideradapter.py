@@ -1,7 +1,6 @@
 from http import HTTPMethod
 from typing import Annotated
 from urllib.parse import urljoin
-from uuid import uuid4
 
 from pydantic import StringConstraints, ValidationError
 
@@ -39,25 +38,15 @@ class HttpProviderAdapter:
         http_response: HttpProviderResponse,
         request: ProviderRequest,
     ) -> ProviderResponse | ProviderAdapterValidationResponseError:
-        request_id = self._extract_request_id(http_response=http_response)
         try:
-            data = self.RESPONSE_TYPE(**{**http_response.data, "id": request_id, "model": request.payload.model})
+            data = self.RESPONSE_TYPE(**{**http_response.data, "id": request.id, "model": request.payload.model})
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 
-        return ProviderResponse(id=request_id, data=data)
+        return ProviderResponse(id=request.id, data=data)
 
     @staticmethod
     def _build_target_url(base_url: str, target_endpoint_route: str | None) -> str:
         base_url = base_url + "/" if not base_url.endswith("/") else base_url
         url = base_url if target_endpoint_route is None else urljoin(base=base_url, url=target_endpoint_route.lstrip("/"))
         return url
-
-    @staticmethod
-    def _extract_request_id(http_response: HttpProviderResponse) -> str:
-        default_request_id = f"request-{str(uuid4()).replace('-', '')}"
-
-        if isinstance(http_response.data, dict):
-            return http_response.data.get("id", default_request_id)
-
-        return default_request_id

@@ -7,7 +7,7 @@ from factory import fuzzy
 from api.domain.model.entities import ModelCosts
 from api.domain.model.views import ModelView
 from api.domain.organization.entities import Organization
-from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderType
+from api.domain.provider.entities import HostingZone, Provider, ProviderType
 from api.domain.role.entities import Limit, LimitType, PermissionType, Role
 from api.domain.router.entities import Router, RouterLoadBalancingStrategy, RouterType
 from api.domain.user.entities import User
@@ -63,6 +63,7 @@ class RouterFactory(factory.Factory):
     type = factory.Faker("random_element", elements=list(RouterType))
     aliases = factory.LazyFunction(list)
     load_balancing_strategy = factory.Faker("random_element", elements=list(RouterLoadBalancingStrategy))
+    qos_retries_before_reject = None
     cost_prompt_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     cost_completion_tokens = factory.Faker("pyfloat", left_digits=1, right_digits=4, min_value=0, max_value=1)
     providers = 0
@@ -92,8 +93,8 @@ class ProviderFactory(factory.Factory):
     type = factory.Faker("random_element", elements=list(ProviderType))
     url = factory.Faker("url")
     key = None
-    basic_auth = None
     timeout = 30
+    qos_limit = None
     model_name = factory.Faker("bothify", text="model-????")
     model_hosting_zone = HostingZone.WOR
     model_total_params = 0
@@ -167,8 +168,8 @@ class ModelProviderConfigurationFactory(factory.Factory):
     type = ProviderType.VLLM
     url = factory.Faker("url")
     key = None
-    basic_auth: BasicAuth | None = None
     timeout = 30
+    qos_limit = None
     model_name = factory.Faker("bothify", text="model-????")
     model_hosting_zone = HostingZone.WOR
     model_total_params = 0
@@ -188,6 +189,7 @@ class ModelConfigurationFactory(factory.Factory):
     type = RouterType.TEXT_GENERATION
     aliases = factory.LazyFunction(list)
     load_balancing_strategy = RouterLoadBalancingStrategy.SHUFFLE
+    qos_retries_before_reject = None
     cost_prompt_tokens = 0.0
     cost_completion_tokens = 0.0
     providers = factory.LazyFunction(lambda: [ModelProviderConfigurationFactory()])

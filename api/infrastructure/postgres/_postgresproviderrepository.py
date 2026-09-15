@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.domain import SortOrder
 from api.domain.provider import ProviderRepository
-from api.domain.provider.entities import BasicAuth, HostingZone, Provider, ProviderPage, ProviderSortField, ProviderType
+from api.domain.provider.entities import HostingZone, Provider, ProviderPage, ProviderSortField, ProviderType
 from api.domain.provider.errors import ProviderAlreadyExistsError, ProviderNotFoundError
 from api.infrastructure.postgres._pagination import fetch_page_with_total
 from api.infrastructure.postgres.decorators import with_lock
@@ -23,8 +23,8 @@ class PostgresProviderRepository(ProviderRepository):
             type=row.type,
             url=row.url,
             key=row.key,
-            basic_auth=BasicAuth(username=row.basic_auth["username"], password=row.basic_auth["password"]) if row.basic_auth else None,
             timeout=row.timeout,
+            qos_limit=row.qos_limit,
             model_name=row.model_name,
             model_hosting_zone=HostingZone[row.model_hosting_zone],
             model_total_params=row.model_total_params,
@@ -45,6 +45,7 @@ class PostgresProviderRepository(ProviderRepository):
                 .values(
                     router_id=provider.router_id,
                     timeout=provider.timeout,
+                    qos_limit=provider.qos_limit,
                     model_hosting_zone=provider.model_hosting_zone,
                     model_total_params=provider.model_total_params,
                     model_active_params=provider.model_active_params,
@@ -99,7 +100,6 @@ class PostgresProviderRepository(ProviderRepository):
         provider_type: ProviderType,
         url: str,
         key: str | None,
-        basic_auth: BasicAuth | None,
         timeout: int,
         model_name: str,
         model_hosting_zone: HostingZone,
@@ -107,6 +107,7 @@ class PostgresProviderRepository(ProviderRepository):
         model_active_params: int,
         vector_size: int,
         max_context_length: int,
+        qos_limit: int | None = None,
     ) -> Provider | ProviderAlreadyExistsError:
         try:
             query = (
@@ -117,8 +118,8 @@ class PostgresProviderRepository(ProviderRepository):
                     type=provider_type.value,
                     url=url,
                     key=key,
-                    basic_auth={"username": basic_auth.username, "password": basic_auth.password} if basic_auth else None,
                     timeout=timeout,
+                    qos_limit=qos_limit,
                     model_name=model_name,
                     model_hosting_zone=model_hosting_zone,
                     model_total_params=model_total_params,

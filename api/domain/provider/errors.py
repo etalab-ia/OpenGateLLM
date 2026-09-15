@@ -38,6 +38,7 @@ class ProviderNotFoundError:
 @dataclass
 class NoAvailableProviderError:
     router_id: int
+    retry_after: int = 1
 
 
 @dataclass

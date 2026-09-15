@@ -367,11 +367,11 @@ class ModelIsTooBusyExceptionHTTPException(HTTPException):
     status_code = 503
     detail = "Model is too busy, please try again later."
 
-    def __init__(self, error_type: str | None = None) -> None:
+    def __init__(self, retry_after: int = 10) -> None:
         super().__init__(
             status_code=self.status_code,
             detail="Model is too busy, please try again later.",
-            headers={"Retry-After": "10"},
+            headers={"Retry-After": str(retry_after)},
         )
 
 

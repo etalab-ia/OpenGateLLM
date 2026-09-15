@@ -1,6 +1,42 @@
 import logging
 
-from api.schemas.core.configuration import Settings
+from api.domain.provider.entities import ProviderType
+from api.schemas.core.configuration import Model, ModelProvider, Settings
+from api.schemas.models import ModelType
+
+
+class TestQoSConfiguration:
+    def test_defaults_to_unlimited_admission(self):
+        provider = ModelProvider(
+            type=ProviderType.VLLM,
+            url="https://provider.example.com",
+            model_name="model",
+        )
+        model = Model(
+            name="router",
+            type=ModelType.TEXT_GENERATION,
+            providers=[provider],
+        )
+
+        assert provider.qos_limit is None
+        assert model.qos_retries_before_reject is None
+
+    def test_accepts_zero_limits(self):
+        provider = ModelProvider(
+            type=ProviderType.VLLM,
+            url="https://provider.example.com",
+            model_name="model",
+            qos_limit=0,
+        )
+        model = Model(
+            name="router",
+            type=ModelType.TEXT_GENERATION,
+            providers=[provider],
+            qos_retries_before_reject=0,
+        )
+
+        assert provider.qos_limit == 0
+        assert model.qos_retries_before_reject == 0
 
 
 class TestSettingsDefaults:

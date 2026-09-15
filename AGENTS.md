@@ -420,6 +420,14 @@ When adding a model-forward use case, also add a `ForwardScenario` in `api/tests
 
 ---
 
+## Provider QoS
+
+Provider admission is a clean-architecture port: use cases depend on `ProviderQoS`; Redis behavior stays in `RedisProviderQoS`. Enter its async context for every forward so the atomic admission script selects and reserves the provider, the heartbeat keeps the ZSET member alive, and context exit releases it. Admission remains active when `qos_retries_before_reject is None` because `least_busy` and model health use the same load data.
+
+QoS applies only to the refactored model-forward paths (embeddings, OCR, rerank, and audio transcriptions). Chat remains on the legacy stack and is out of scope until it is migrated; do not add QoS logic to `api/endpoints/chat.py`.
+
+---
+
 ## Repository
 
 - **Port:** `api/domain/<context>/_<entity>repository.py` — ABC, returns `Entity | DomainError`

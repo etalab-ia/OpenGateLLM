@@ -11,7 +11,9 @@ Redis is a **required dependency** for OpenGateLLM to function.
 
 OpenGateLLM uses Redis as an in-memory data store. It has **two** main purposes:
 - **Rate limiting**: Tracks API usage limits (RPM, RPD, TPM, TPD)
-- **Inflight gauges**: Counts concurrent requests per provider (`INCR` / `DECR`) so `least_busy` load balancing can pick the least loaded provider
+- **Provider QoS**: Stores one ZSET per provider. Each active request is a member, so the member count supplies the load used for atomic admission, `least_busy` load balancing, and health saturation.
+
+QoS load tracking is always active, even when admission caps are disabled. An admitted request refreshes its member with a heartbeat while the provider call runs and removes it immediately on release. If a worker stops, the next admission purges the expired member.
 
 ## Configuration
 
@@ -27,6 +29,12 @@ dependencies:
 ```
 
 The Redis dependency accepts all parameters from the [`from_url()` method](https://redis.readthedocs.io/en/stable/connections.html#redis.asyncio.connection.ConnectionPool.from_url) of `redis.asyncio.connection.ConnectionPool` class. Only `url` parameter is required.
+
+The Redis server must use `maxmemory-policy noeviction`. Evicting a QoS ZSET would erase active load and could cause over-admission.
+
+```conf
+maxmemory-policy noeviction
+```
 
 <Aside type="note" title="Standard Redis">
 Standard Redis is enough. The RedisTimeSeries module is not required.

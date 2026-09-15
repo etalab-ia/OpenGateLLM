@@ -102,12 +102,12 @@ def default_command():
         provider_type=ProviderType.VLLM,
         url="https://example.com/",
         key=None,
-        basic_auth=None,
         timeout=30,
         model_name="my-model",
         model_hosting_zone=HostingZone.WOR,
         model_total_params=0,
         model_active_params=0,
+        qos_limit=7,
     )
 
 
@@ -161,12 +161,12 @@ def with_provider_type(command: CreateProviderCommand, provider_type: ProviderTy
         provider_type=provider_type,
         url=command.url,
         key=command.key,
-        basic_auth=command.basic_auth,
         timeout=command.timeout,
         model_name=command.model_name,
         model_hosting_zone=command.model_hosting_zone,
         model_total_params=command.model_total_params,
         model_active_params=command.model_active_params,
+        qos_limit=command.qos_limit,
     )
 
 
@@ -202,8 +202,8 @@ class TestCreateProviderUseCase:
             provider_type=ProviderType.VLLM,
             url="https://example.com/",
             key=None,
-            basic_auth=None,
             timeout=30,
+            qos_limit=7,
             model_name="my-model",
             model_hosting_zone=HostingZone.WOR,
             model_total_params=0,
@@ -243,8 +243,8 @@ class TestCreateProviderUseCase:
             provider_type=ProviderType.TEI,
             url="https://example.com/",
             key=None,
-            basic_auth=None,
             timeout=30,
+            qos_limit=7,
             model_name="my-model",
             model_hosting_zone=HostingZone.WOR,
             model_total_params=0,
@@ -314,8 +314,8 @@ class TestCreateProviderUseCase:
             provider_type=provider_type,
             url="https://example.com/",
             key=None,
-            basic_auth=None,
             timeout=30,
+            qos_limit=7,
             model_name="my-model",
             model_hosting_zone=HostingZone.WOR,
             model_total_params=0,

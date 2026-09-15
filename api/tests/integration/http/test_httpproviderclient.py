@@ -1,4 +1,3 @@
-import base64
 from unittest.mock import patch
 from urllib.parse import urljoin
 
@@ -16,8 +15,7 @@ from api.domain.provider.errors import (
 )
 from api.infrastructure.http import HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.http.adapters.models.vllm import VllmModelsAdapter
-from api.tests.integration.factories.mistral import MistralMetricsResponseFactory
-from api.tests.integration.factories.vllm import VllmEmbeddingsResponseFactory, VllmMetricsResponseFactory, VllmModelsResponseFactory
+from api.tests.integration.factories.vllm import VllmEmbeddingsResponseFactory, VllmModelsResponseFactory
 from api.tests.unit.use_case.factories import ProviderFactory
 from api.utils.variables import EndpointRoute
 
@@ -91,59 +89,6 @@ class TestHttpProviderClient:
         assert result.text is None
         assert route.called is True
         assert route.calls[0].request.headers.get("Authorization") is None
-
-    @respx.mock
-    async def test_forward_metrics_text_response(self):
-        provider = provider_factory()
-        request = ProviderRequest(endpoint=EndpointRoute.METRICS)
-
-        body = VllmMetricsResponseFactory(model_name=DEFAULT_MODEL_ID, running=2.0, waiting=1.0)
-        url = urljoin(DEFAULT_PROVIDER_URL, "/metrics")
-        route = respx.get(url=url).mock(
-            return_value=httpx.Response(
-                status_code=VllmMetricsResponseFactory._status_code,
-                text=body["text"],
-                headers={"Content-Type": "text/plain"},
-            )
-        )
-
-        result = await http_provider_client().forward(provider=provider, request=request)
-
-        assert isinstance(result, ProviderResponse)
-        assert result.data.running_requests == 2.0
-        assert result.data.waiting_requests == 1.0
-        assert route.called is True
-        assert route.calls[0].request.headers.get("Authorization") == "Bearer test-key"
-
-    @respx.mock
-    async def test_forward_uses_basic_auth_when_provider_has_basic_auth(self):
-        provider = ProviderFactory(
-            type=ProviderType.MISTRAL,
-            url=DEFAULT_PROVIDER_URL,
-            key=None,
-            timeout=1,
-            model_name=DEFAULT_MODEL_ID,
-            basic_auth={"username": "metrics", "password": "secret"},
-        )
-        request = ProviderRequest(endpoint=EndpointRoute.METRICS)
-
-        body = MistralMetricsResponseFactory(model_name=DEFAULT_MODEL_ID)
-        url = urljoin(DEFAULT_PROVIDER_URL, "/metrics")
-        route = respx.get(url=url).mock(
-            return_value=httpx.Response(
-                status_code=MistralMetricsResponseFactory._status_code,
-                text=body["text"],
-                headers={"Content-Type": "text/plain"},
-            )
-        )
-
-        result = await http_provider_client().forward(provider=provider, request=request)
-
-        assert isinstance(result, ProviderResponse)
-        assert result.data is not None
-        assert route.called is True
-        expected_auth = "Basic " + base64.b64encode(b"metrics:secret").decode()
-        assert route.calls[0].request.headers.get("Authorization") == expected_auth
 
     @pytest.mark.parametrize(
         ("exception", "expected_detail"),
@@ -226,12 +171,12 @@ class TestHttpProviderClient:
         assert route.called is True
 
     async def test_forward_returns_unsupported_provider_endpoint_error_when_adapter_is_missing(self):
-        provider = provider_factory(type=ProviderType.ALBERT)
-        request = ProviderRequest(endpoint=EndpointRoute.METRICS)
+        provider = provider_factory(type=ProviderType.VLLM)
+        request = ProviderRequest(endpoint=EndpointRoute.OCR)
 
         result = await http_provider_client().forward(provider=provider, request=request)
 
-        assert result == UnsupportedProviderEndpointError(endpoint=EndpointRoute.METRICS, provider_type=ProviderType.ALBERT)
+        assert result == UnsupportedProviderEndpointError(endpoint=EndpointRoute.OCR, provider_type=ProviderType.VLLM)
 
     async def test_forward_returns_request_validation_error_when_adapter_rejects_request(self):
         provider = provider_factory()

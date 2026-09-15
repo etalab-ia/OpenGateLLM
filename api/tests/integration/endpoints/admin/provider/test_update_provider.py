@@ -26,6 +26,7 @@ def _valid_body(**overrides) -> dict:
         "model_hosting_zone": HostingZone.FRA,
         "model_total_params": 8,
         "model_active_params": 2,
+        "qos_limit": 5,
     }
     body.update(overrides)
     return body
@@ -58,6 +59,7 @@ class TestUpdateProvider:
         assert data["model_hosting_zone"] == HostingZone.FRA
         assert data["model_total_params"] == 8
         assert data["model_active_params"] == 2
+        assert data["qos_limit"] == 5
 
     async def test_rejects_body_missing_a_required_field(self, client: AsyncClient, db_session):
         router = RouterSQLFactory(user=self.admin_user)

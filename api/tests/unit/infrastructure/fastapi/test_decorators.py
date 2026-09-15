@@ -1,4 +1,6 @@
+import asyncio
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -7,7 +9,7 @@ from api.domain.key.entities import Key
 from api.domain.role.entities import Limit, LimitType, PermissionType
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi import RequestContext
-from api.infrastructure.fastapi.decorators import charge_router_limits, set_usage_from_context
+from api.infrastructure.fastapi.decorators import cancel_on_disconnect, charge_router_limits, set_usage_from_context
 from api.infrastructure.fastapi.dependencies import request_context
 from api.sql.models import Usage
 
@@ -78,6 +80,38 @@ class TestSetUsageFromContext:
 
         # Assert
         assert usage.total_tokens is None
+
+
+@pytest.mark.asyncio
+async def test_cancel_on_disconnect_should_cancel_endpoint_task():
+    # Arrange
+    cancelled = False
+    started = asyncio.Event()
+
+    @cancel_on_disconnect
+    async def endpoint(request):
+        nonlocal cancelled
+        try:
+            started.set()
+            await asyncio.Event().wait()
+        finally:
+            cancelled = True
+
+    async def is_disconnected():
+        await started.wait()
+        return True
+
+    request = SimpleNamespace(
+        url=SimpleNamespace(path="/v1/ocr"),
+        is_disconnected=AsyncMock(side_effect=is_disconnected),
+    )
+
+    # Act
+    with pytest.raises(asyncio.CancelledError):
+        await endpoint(request=request)
+
+    # Assert
+    assert cancelled is True
 
 
 @pytest.mark.asyncio

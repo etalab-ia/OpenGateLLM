@@ -19,7 +19,7 @@ class TestGetProviders:
     async def test_happy_path_without_params(self, client: AsyncClient, db_session):
         router = RouterSQLFactory(user=self.admin_user)
         for i in range(1, 8):
-            ProviderSQLFactory(router=router, model_name=f"model_{i}", key="secret-key", basic_auth={"username": "u", "password": "p"})
+            ProviderSQLFactory(router=router, model_name=f"model_{i}", key="secret-key")
         await db_session.flush()
 
         response = await client.get(
@@ -35,7 +35,6 @@ class TestGetProviders:
         assert data["limit"] == 10
         assert len(data["data"]) == 7
         assert "key" not in data["data"][0]
-        assert "basic_auth" not in data["data"][0]
 
     async def test_happy_path_with_params(self, client: AsyncClient, db_session):
         router = RouterSQLFactory(user=self.admin_user)

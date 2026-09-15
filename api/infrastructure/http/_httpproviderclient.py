@@ -3,7 +3,6 @@ from json import JSONDecodeError, loads
 import logging
 
 import httpx
-from httpx import BasicAuth
 
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
 from api.domain.provider import ProviderClient, ProviderClientResponse
@@ -47,14 +46,10 @@ class HttpProviderClient(ProviderClient):
         provider: Provider,
         http_request: HttpProviderRequest,
     ) -> HttpProviderResponse | TooBusyModelError | UnknownModelError | StatusCodeModelError:
-        # TEMPORARY PATCH FOR MISTRAL METRICS ENDPOINT
-        auth = BasicAuth(username=http_request.auth.username, password=http_request.auth.password) if http_request.auth else None
-
         async with httpx.AsyncClient(timeout=provider.timeout) as async_client:
             try:
                 response = await async_client.request(
                     headers={"Authorization": f"Bearer {provider.key}"} if provider.key else {},
-                    auth=auth,
                     method=http_request.method,
                     url=http_request.url,
                     json=http_request.body,

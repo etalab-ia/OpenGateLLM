@@ -5,7 +5,7 @@ from api.domain import BaseModel
 
 class HealthStatus(StrEnum):
     GREEN = "green"
-    YELLOW = "yellow"
+    ORANGE = "orange"
     RED = "red"
 
 
