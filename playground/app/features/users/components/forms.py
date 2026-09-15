@@ -43,7 +43,7 @@ def user_settings_form_fields() -> rx.Component:
             items=UsersState.organizations_name_list,
             value=UsersState.entity.organization,
             on_change=lambda value: UsersState.set_edit_entity_attribut("organization", value),
-            placeholder="No organization",
+            placeholder="Select organization",
         ),
         entity_form_input_field(
             label="Budget",
@@ -107,11 +107,11 @@ def user_create_form_fields() -> rx.Component:
             placeholder="Select role",
         ),
         entity_form_select_field(
-            label="Organization",
+            label="Organization*",
             items=UsersState.organizations_name_list,
             value=UsersState.entity_to_create.organization,
             on_change=lambda value: UsersState.set_new_entity_attribut("organization", value),
-            placeholder="No organization",
+            placeholder="Select organization",
         ),
         entity_form_input_field(
             label="Budget",
