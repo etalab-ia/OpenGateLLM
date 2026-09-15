@@ -21,7 +21,7 @@ def _valid_body(**overrides) -> dict:
         "email": "updated@example.com",
         "name": "Updated Name",
         "role_id": 1,
-        "organization_id": None,
+        "organization_id": 1,
         "budget": None,
         "expires": None,
         "priority": 0,
@@ -39,12 +39,13 @@ class TestUpdateUser:
 
     async def test_happy_path(self, client: AsyncClient, db_session):
         user = UserSQLFactory()
+        organization = OrganizationSQLFactory()
         await db_session.flush()
 
         response = await client.patch(
             url=f"{URL}/{user.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(role_id=user.role_id, budget=50.5, priority=2),
+            json=_valid_body(role_id=user.role_id, organization_id=organization.id, budget=50.5, priority=2),
         )
 
         assert response.status_code == 200, response.text
@@ -55,24 +56,25 @@ class TestUpdateUser:
         assert data["budget"] == 50.5
         assert data["priority"] == 2
         assert data["role_id"] == user.role_id
+        assert data["organization_id"] == organization.id
 
     async def test_clears_nullable_fields_sent_as_null(self, client: AsyncClient, db_session):
-        organization = OrganizationSQLFactory()
-        user = UserSQLFactory(organization=organization, budget=100.0, expires=dt.datetime.now() + dt.timedelta(days=30))
+        user = UserSQLFactory(budget=100.0, expires=dt.datetime.now() + dt.timedelta(days=30))
         await db_session.flush()
 
         response = await client.patch(
             url=f"{URL}/{user.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(role_id=user.role_id, name=None, organization_id=None, budget=None, expires=None),
+            json=_valid_body(role_id=user.role_id, organization_id=user.organization_id, name=None, budget=None, expires=None),
         )
 
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["name"] is None
-        assert data["organization_id"] is None
         assert data["budget"] is None
         assert data["expires"] is None
+        # organization is not nullable: the membership survives the update.
+        assert data["organization_id"] == user.organization_id
 
     async def test_accepts_past_expiration_timestamp(self, client: AsyncClient, db_session):
         user = UserSQLFactory()
@@ -82,7 +84,7 @@ class TestUpdateUser:
         response = await client.patch(
             url=f"{URL}/{user.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(role_id=user.role_id, expires=expires),
+            json=_valid_body(role_id=user.role_id, organization_id=user.organization_id, expires=expires),
         )
 
         assert response.status_code == 200, response.text
@@ -96,7 +98,7 @@ class TestUpdateUser:
         response = await client.patch(
             url=f"{URL}/{user.id}",
             headers={"Authorization": f"Bearer {self.key.token}"},
-            json=_valid_body(role_id=user.role_id),
+            json=_valid_body(role_id=user.role_id, organization_id=user.organization_id),
         )
 
         assert response.status_code == 200, response.text
@@ -108,6 +110,8 @@ class TestUpdateUser:
         [
             pytest.param({key: value for key, value in _valid_body().items() if key != "email"}, id="missing-required-field"),
             pytest.param(_valid_body(email=None), id="null-on-non-nullable-field"),
+            pytest.param({key: value for key, value in _valid_body().items() if key != "organization_id"}, id="missing-organization"),
+            pytest.param(_valid_body(organization_id=None), id="null-organization"),
         ],
     )
     async def test_rejects_incomplete_body(self, client: AsyncClient, db_session, body):

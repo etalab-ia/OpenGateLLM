@@ -90,7 +90,18 @@ def roles(test_client: TestClient) -> tuple[dict, dict]:
 
 
 @pytest.fixture(scope="session")
-def users(test_client: TestClient, roles: tuple[dict, dict]) -> tuple[dict, dict]:
+def organization(test_client: TestClient) -> dict:
+    """Create the organization the test users belong to."""
+
+    response = test_client.post(url=f"/v1{EndpointRoute.ADMIN_ORGANIZATIONS}", json={"name": "test-organization"})
+    logging.debug(msg=f"create organization test-organization: {response.text}")
+    response.raise_for_status()
+
+    return response.json()
+
+
+@pytest.fixture(scope="session")
+def users(test_client: TestClient, roles: tuple[dict, dict], organization: dict) -> tuple[dict, dict]:
     """Create users for tests, one with admin role and one with user role."""
 
     # Use master key for authentication
@@ -100,7 +111,13 @@ def users(test_client: TestClient, roles: tuple[dict, dict]) -> tuple[dict, dict
     # create user admin
     response = test_client.post(
         url=f"/v1{EndpointRoute.ADMIN_USERS}",
-        json={"email": "test-user-admin@example.com", "name": "test-user-admin", "password": "test-password", "role_id": role_with_permissions["id"]},
+        json={
+            "email": "test-user-admin@example.com",
+            "name": "test-user-admin",
+            "password": "test-password",
+            "role_id": role_with_permissions["id"],
+            "organization_id": organization["id"],
+        },
         headers=test_client.headers,
     )
     logging.debug(msg=f"create user test-user-admin: {response.text}")
@@ -120,6 +137,7 @@ def users(test_client: TestClient, roles: tuple[dict, dict]) -> tuple[dict, dict
             "name": "test-user-user",
             "password": "test-password",
             "role_id": role_without_permissions["id"],
+            "organization_id": organization["id"],
         },
         headers=test_client.headers,
     )

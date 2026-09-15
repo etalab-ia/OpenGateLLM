@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 import httpx
 
 from api.domain.provider.entities import HostingZone, ProviderType
+from api.infrastructure.fastapi.schemas.admin.organizations import CreateOrganizationBody
 from api.infrastructure.fastapi.schemas.admin.providers import CreateProviderBody
 from api.infrastructure.fastapi.schemas.admin.roles import CreateRoleBody, Limit, LimitType
 from api.infrastructure.fastapi.schemas.admin.users import CreateUserBody
@@ -203,11 +204,22 @@ def create_role(router_id: int, client: TestClient) -> int:
     return role_id
 
 
-def create_user(role_id: int, client: TestClient) -> int:
+def create_organization(client: TestClient) -> int:
+    payload = CreateOrganizationBody(name=f"test-organization-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}")
+
+    response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_ORGANIZATIONS}", json=payload.model_dump())
+    assert response.status_code == 201, response.text
+    organization_id = response.json()["id"]
+
+    return organization_id
+
+
+def create_user(role_id: int, organization_id: int, client: TestClient) -> int:
     payload = CreateUserBody(
         name=f"test-user-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}",
         email=f"test-user-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}@example.com",
         role_id=role_id,
+        organization_id=organization_id,
         password="test-password",
     )
     response = client.post_with_permissions(url=f"/v1{EndpointRoute.ADMIN_USERS}", json=payload.model_dump())

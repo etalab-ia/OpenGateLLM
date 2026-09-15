@@ -9,6 +9,7 @@ from api.domain.provider.entities import ProviderType
 from api.infrastructure.fastapi.schemas.usage import UsagesResponse
 from api.schemas.models import ModelType
 from api.tests.integ.utils import (
+    create_organization,
     create_provider,
     create_role,
     create_router,
@@ -38,7 +39,8 @@ def setup_model_and_user(client: TestClient):
             client=client,
         )
         role_id = create_role(router_id=router_id, client=client)
-        user_id = create_user(role_id=role_id, client=client)
+        organization_id = create_organization(client=client)
+        user_id = create_user(role_id=role_id, organization_id=organization_id, client=client)
         _, key = create_token(user_id=user_id, token_name=f"test-token-{dt.datetime.now().strftime('%Y%m%d%H%M%S')}", client=client)
 
         yield key, process.model_name

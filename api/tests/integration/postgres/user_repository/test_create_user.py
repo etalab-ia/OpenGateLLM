@@ -20,10 +20,11 @@ class TestCreateUser:
     async def test_creates_user_and_returns_user_entity(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()
+        organization = OrganizationSQLFactory()
         await db_session.flush()
 
         # Act
-        result = await repository.create_user(email="user@test.com", password="s3cr3t", role_id=role.id)
+        result = await repository.create_user(email="user@test.com", password="s3cr3t", role_id=role.id, organization_id=organization.id)
 
         # Assert
         assert isinstance(result, User)
@@ -34,10 +35,11 @@ class TestCreateUser:
     async def test_creates_user_when_password_is_omitted_and_password_is_null_in_db(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()
+        organization = OrganizationSQLFactory()
         await db_session.flush()
 
         # Act
-        result = await repository.create_user(email="nopassword@test.com", role_id=role.id)
+        result = await repository.create_user(email="nopassword@test.com", role_id=role.id, organization_id=organization.id)
         await db_session.flush()
 
         # Assert
@@ -51,10 +53,11 @@ class TestCreateUser:
     async def test_password_is_stored_as_provided(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()
+        organization = OrganizationSQLFactory()
         await db_session.flush()
 
         # Act
-        await repository.create_user(email="hashed@test.com", password="encoded:s3cr3t", role_id=role.id)
+        await repository.create_user(email="hashed@test.com", password="encoded:s3cr3t", role_id=role.id, organization_id=organization.id)
         await db_session.flush()
 
         # Assert
@@ -64,11 +67,12 @@ class TestCreateUser:
     async def test_returns_user_already_exists_error_when_email_is_duplicate(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()
+        organization = OrganizationSQLFactory()
         await db_session.flush()
-        await repository.create_user(email="duplicate@test.com", password="s3cr3t", role_id=role.id)
+        await repository.create_user(email="duplicate@test.com", password="s3cr3t", role_id=role.id, organization_id=organization.id)
 
         # Act
-        result = await repository.create_user(email="duplicate@test.com", password="other", role_id=role.id)
+        result = await repository.create_user(email="duplicate@test.com", password="other", role_id=role.id, organization_id=organization.id)
 
         # Assert
         assert isinstance(result, UserAlreadyExistsError)
@@ -77,11 +81,13 @@ class TestCreateUser:
     async def test_returns_user_already_exists_error_when_sub_and_iss_are_duplicate(self, repository, db_session):
         # Arrange
         role = RoleSQLFactory()
+        organization = OrganizationSQLFactory()
         await db_session.flush()
         await repository.create_user(
             email="first@test.com",
             password="s3cr3t",
             role_id=role.id,
+            organization_id=organization.id,
             sub="sub-123",
             iss="https://issuer.example.com",
         )
@@ -91,6 +97,7 @@ class TestCreateUser:
             email="second@test.com",
             password="other",
             role_id=role.id,
+            organization_id=organization.id,
             sub="sub-123",
             iss="https://issuer.example.com",
         )
@@ -100,8 +107,12 @@ class TestCreateUser:
         assert result.email == "second@test.com"
 
     async def test_returns_role_not_found_error_when_role_does_not_exist(self, repository, db_session):
+        # Arrange
+        organization = OrganizationSQLFactory()
+        await db_session.flush()
+
         # Act
-        result = await repository.create_user(email="user@test.com", password="s3cr3t", role_id=999999)
+        result = await repository.create_user(email="user@test.com", password="s3cr3t", role_id=999999, organization_id=organization.id)
 
         # Assert
         assert isinstance(result, RoleNotFoundError)

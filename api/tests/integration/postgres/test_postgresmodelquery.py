@@ -8,12 +8,10 @@ from api.domain.router.entities import RouterType
 from api.infrastructure.postgres import PostgresModelQuery
 from api.tests.integration.factories.sql import OrganizationSQLFactory, ProviderSQLFactory, RouterSQLFactory, UserSQLFactory
 
-APP_TITLE = "Test App"
-
 
 @pytest.fixture
 def query(db_session):
-    return PostgresModelQuery(db_session, APP_TITLE)
+    return PostgresModelQuery(db_session)
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -73,17 +71,6 @@ class TestGetModels:
 
         # Assert
         assert result[0].max_context_length == first_provider.max_context_length
-
-    async def test_returns_the_app_title_as_owner_when_the_router_owner_has_no_organization(self, query, db_session):
-        # Arrange
-        RouterSQLFactory(name="orphan-router", user=UserSQLFactory(organization=None), providers=1)
-        await db_session.flush()
-
-        # Act
-        result = await query.get_models()
-
-        # Assert
-        assert result[0].owned_by == APP_TITLE
 
 
 @pytest.mark.asyncio(loop_scope="session")

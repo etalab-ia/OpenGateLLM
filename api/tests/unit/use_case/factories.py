@@ -156,7 +156,6 @@ class AuthenticatedUserFactory(factory.Factory):
         no_expiration = factory.Trait(expires=None)
         admin = factory.Trait(permissions=[PermissionType.ADMIN])
         without_permission = factory.Trait(permissions=[])
-        no_organization = factory.Trait(organization_id=None, name=None)
 
 
 # Configuration factories

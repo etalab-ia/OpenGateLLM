@@ -75,17 +75,17 @@ class TestUpdateUserUseCase:
         user_repository.update_user.side_effect = lambda user: user
 
         # Act
-        result = await use_case.execute(full_command(sample_user, name=None, organization_id=None, budget=None, expires=None))
+        result = await use_case.execute(full_command(sample_user, name=None, budget=None, expires=None))
 
         # Assert
         assert isinstance(result, UpdateUserUseCaseSuccess)
         assert result.user.name is None
-        assert result.user.organization_id is None
         assert result.user.budget is None
         assert result.user.expires is None
         # The other persisted fields keep the values sent by the command.
         assert result.user.email == sample_user.email
         assert result.user.role_id == sample_user.role_id
+        assert result.user.organization_id == sample_user.organization_id
         assert result.user.priority == sample_user.priority
         assert result.user.password == sample_user.password
 
