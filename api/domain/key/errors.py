@@ -7,6 +7,11 @@ class KeyAlreadyExistsError:
 
 
 @dataclass
+class KeyNameReservedError:
+    name: str
+
+
+@dataclass
 class KeyExpirationInvalidError:
     max_expiration_days: int
 
