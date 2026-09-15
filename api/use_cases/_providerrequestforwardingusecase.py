@@ -179,7 +179,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TData]:
                         self.usage_recorder.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
                         start_time = time.perf_counter()
                         result = await self.provider_client.forward(provider=provider, request=request)
-                        latency = int((time.perf_counter() - start_time) * 1000)  # ms
+                        latency = time.perf_counter() - start_time
                         break
 
             await asyncio.sleep(0.5)

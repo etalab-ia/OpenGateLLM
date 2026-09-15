@@ -118,11 +118,7 @@ class RedisProviderQoS(ProviderQoS):
                     if attempt < self.HEARTBEAT_RETRIES - 1:
                         await asyncio.sleep(self.HEARTBEAT_RETRY_BASE_SECONDS * (2**attempt))
             else:
-                logger.error(
-                    "Provider QoS heartbeat failed after %s attempts for request %s.",
-                    self.HEARTBEAT_RETRIES,
-                    request_id,
-                )
+                logger.error("Provider QoS heartbeat failed after %s attempts for request %s.", self.HEARTBEAT_RETRIES, request_id)
                 try:
                     await self.redis_client.zrem(key, request_id)
                 except RedisError:

@@ -531,7 +531,7 @@ class TestSendRequest:
             model_total_params=provider.model_total_params,
             model_zone=provider.model_hosting_zone,
             completion_tokens=1,
-            request_latency=120,
+            request_latency=0.12,
         )
         compute_request_cost.assert_called_once_with(
             prompt_tokens=1,
