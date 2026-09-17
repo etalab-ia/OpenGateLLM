@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from api.domain.model.entities import HealthStatus, ModelHealthStatus
-from api.domain.provider import ProviderClient, ProviderMetricsLogger, ProviderRepository
+from api.domain.provider import ProviderClient, ProviderRepository
 from api.domain.provider.entities import ProviderRequest, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationResponseError, UnsupportedProviderEndpointError
 from api.domain.router import RouterRepository
@@ -29,12 +29,10 @@ class GetHealthModelsUseCase:
     def __init__(
         self,
         provider_client: ProviderClient,
-        provider_metrics_logger: ProviderMetricsLogger,
         provider_repository: ProviderRepository,
         router_repository: RouterRepository,
     ):
         self.provider_client = provider_client
-        self.provider_metrics_logger = provider_metrics_logger
         self.provider_repository = provider_repository
         self.router_repository = router_repository
 

@@ -287,7 +287,6 @@ def get_health_models_use_case_factory(
 ) -> GetHealthModelsUseCase:
     return GetHealthModelsUseCase(
         provider_client=provider_client,
-        provider_metrics_logger=_provider_metrics_logger(redis_client),
         router_repository=_router_repository(postgres_session),
         provider_repository=_provider_repository(postgres_session),
     )
