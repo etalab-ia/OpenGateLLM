@@ -68,7 +68,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     return error
 
             return CreateChatCompletionsStreamUseCaseSuccess(
-                chunks=self._forward_stream(
+                chunks=self._format_stream(
                     router=router,
                     provider=provider,
                     chunks=chunks,
@@ -86,7 +86,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
 
         return self._build_success(command=command, response=provider_response, headers=rate_limit_state.build_limit_headers)
 
-    async def _forward_stream(
+    async def _format_stream(
         self,
         router: Router,
         provider: Provider,
