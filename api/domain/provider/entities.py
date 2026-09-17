@@ -135,11 +135,6 @@ class ProviderRequest(BaseModel):
     payload: Annotated[ForwardablePayload | None, Field(default=None, description="The payload to use for the request.")]
 
 
-class ResponseMetrics(BaseModel):
-    latency: Annotated[int, Field(default=0, description="The latency of the response.")]
-    ttft: Annotated[int | None, Field(default=None, description="The time to first byte of the response.")]
-
-
 class ProviderStreamChunk(BaseModel):
     content: Annotated[str, Field(description="One raw server-sent-event line as emitted by the provider.")]
     status_code: Annotated[int, Field(description="The HTTP status code of the streamed response.")]
