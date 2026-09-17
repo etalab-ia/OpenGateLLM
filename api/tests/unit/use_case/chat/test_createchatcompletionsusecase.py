@@ -26,6 +26,7 @@ from api.use_cases.chat import (
 from api.utils.variables import EndpointRoute
 
 MODEL_NAME = "chat-router"
+REQUEST_ID = "req-123"
 
 
 @pytest.fixture
@@ -102,6 +103,16 @@ async def _chunk_stream(*contents: str, status_code: int = 200) -> AsyncGenerato
         yield ProviderStreamChunk(content=content, status_code=status_code)
 
 
+def _format_stream(use_case, router, provider, chunks, prompt_tokens=1):
+    return use_case._format_stream(
+        router=router,
+        provider=provider,
+        chunks=chunks,
+        prompt_tokens=prompt_tokens,
+        request_id=REQUEST_ID,
+    )
+
+
 class TestCreateChatCompletionsUseCase:
     def test_should_use_text_generation_router_type(self):
         assert CreateChatCompletionsUseCase.ROUTER_TYPE == RouterType.TEXT_GENERATION
@@ -151,6 +162,28 @@ class TestCreateChatCompletionsUseCaseExecute:
         use_case.provider_metrics_logger.increment_inflight.assert_not_awaited()  # the generator is returned unconsumed
         forwarded_request = use_case.provider_client.forward_stream.call_args.kwargs["request"]
         assert forwarded_request.id.startswith("request-")
+
+    @pytest.mark.asyncio
+    async def test_should_stamp_streamed_chunks_with_the_generated_request_id(self, use_case, make_command, mock_usage_recorder):
+        # Arrange: the provider emits its own id; the gateway must replace it
+        use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
+        use_case.provider_client.forward_stream.return_value = _chunk_stream(
+            'data: {"id": "provider-id", "choices": [{"delta": {"content": "hi"}}]}',
+            "data: [DONE]",
+        )
+
+        # Act
+        result = await use_case.execute(command=make_command(stream=True))
+        chunks = [chunk async for chunk in result.chunks]
+
+        # Assert
+        request_id = use_case.provider_client.forward_stream.call_args.kwargs["request"].id
+        assert request_id.startswith("request-")
+        relayed = json.loads(chunks[0].content.removeprefix("data: "))
+        usage_chunk = json.loads(chunks[1].content.removeprefix("data: "))
+        assert relayed["id"] == request_id
+        assert usage_chunk["id"] == request_id
+        assert mock_usage_recorder.record_usage.call_args.kwargs["request_id"] == request_id
 
     @pytest.mark.asyncio
     async def test_should_return_the_error_when_the_router_cannot_be_resolved(self, use_case, make_command):
@@ -203,7 +236,7 @@ class TestCreateChatCompletionsUseCaseExecute:
         use_case.provider_metrics_logger.increment_inflight.assert_not_awaited()
 
 
-class TestCreateChatCompletionsUseCaseForwardStream:
+class TestCreateChatCompletionsUseCaseFormatStream:
     @staticmethod
     async def _collect(chunks) -> list[ProviderStreamChunk]:
         return [chunk async for chunk in chunks]
@@ -218,19 +251,20 @@ class TestCreateChatCompletionsUseCaseForwardStream:
         )
 
         # Act
-        chunks = await self._collect(use_case._forward_stream(router=router, provider=provider, chunks=chunks, prompt_tokens=3))
+        chunks = await self._collect(_format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=3))
 
         # Assert
         assert len(chunks) == 3
-        assert chunks[0].content.startswith('data: {"id": "chat-1"')
+        relayed = json.loads(chunks[0].content.removeprefix("data: "))
+        assert relayed["id"] == REQUEST_ID
         usage_chunk = json.loads(chunks[1].content.removeprefix("data: "))
-        assert usage_chunk["id"] == "chat-1"
+        assert usage_chunk["id"] == REQUEST_ID
         assert usage_chunk["choices"] == []
         assert usage_chunk["usage"]["prompt_tokens"] == 3
         assert usage_chunk["usage"]["completion_tokens"] == 1
         assert chunks[2].content == "data: [DONE]\n\n"
         mock_usage_recorder.record_usage.assert_called_once()
-        assert mock_usage_recorder.record_usage.call_args.kwargs["request_id"] == "chat-1"
+        assert mock_usage_recorder.record_usage.call_args.kwargs["request_id"] == REQUEST_ID
 
     @pytest.mark.asyncio
     async def test_should_append_usage_and_done_when_the_provider_emits_no_chunks(self, use_case, router, provider):
@@ -239,9 +273,11 @@ class TestCreateChatCompletionsUseCaseForwardStream:
         chunks = _chunk_stream()
 
         # Act
-        collected = await self._collect(use_case._forward_stream(router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+        collected = await self._collect(_format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
 
         # Assert
+        usage_chunk = json.loads(collected[0].content.removeprefix("data: "))
+        assert usage_chunk["id"] == REQUEST_ID
         assert collected[-1].content == "data: [DONE]\n\n"
         assert collected[-1].status_code == 200
 
@@ -252,7 +288,7 @@ class TestCreateChatCompletionsUseCaseForwardStream:
         chunks = _chunk_stream('data: {"id": "chat-1", "choices": [{"delta": {"content": "hi"}}]}')
 
         # Act
-        chunks = await self._collect(use_case._forward_stream(router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+        chunks = await self._collect(_format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
 
         # Assert
         assert len(chunks) == 3
@@ -265,7 +301,7 @@ class TestCreateChatCompletionsUseCaseForwardStream:
         chunks = _chunk_stream('{"detail": "Model is too busy"}', status_code=503)
 
         # Act
-        chunks = await self._collect(use_case._forward_stream(router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+        chunks = await self._collect(_format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
 
         # Assert
         assert len(chunks) == 1
@@ -280,10 +316,11 @@ class TestCreateChatCompletionsUseCaseForwardStream:
         chunks = _chunk_stream('data: {"id": "chat-1", "model": "provider-internal", "choices": [{"delta": {"content": "hi"}}]}', "data: [DONE]")
 
         # Act
-        collected = await self._collect(use_case._forward_stream(router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+        collected = await self._collect(_format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
 
         # Assert
         relayed = json.loads(collected[0].content.removeprefix("data: "))
+        assert relayed["id"] == REQUEST_ID
         assert relayed["model"] == router.name
         assert relayed["choices"] == [{"delta": {"content": "hi"}}]
 
@@ -294,7 +331,7 @@ class TestCreateChatCompletionsUseCaseForwardStream:
         chunks = _chunk_stream('data: {"id": "chat-1", "choices": []}', "data: [DONE]", "data: [DONE]")
 
         # Act
-        collected = await self._collect(use_case._forward_stream(router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+        collected = await self._collect(_format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
 
         # Assert
         assert [chunk.content for chunk in collected].count("data: [DONE]\n\n") == 1
@@ -307,7 +344,7 @@ class TestCreateChatCompletionsUseCaseForwardStream:
         chunks = _chunk_stream(": keep-alive", 'data: {"id": "chat-1", "choices": [{"delta": {"content": "hi"}}]}', "data: [DONE]")
 
         # Act
-        collected = await self._collect(use_case._forward_stream(router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+        collected = await self._collect(_format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
 
         # Assert
         assert collected[0].content == ": keep-alive\n\n"
@@ -318,7 +355,7 @@ class TestCreateChatCompletionsUseCaseForwardStream:
     async def test_should_release_the_inflight_counter_when_the_consumer_abandons_the_stream(self, use_case, router, provider):
         # Arrange
         chunks = _chunk_stream('data: {"id": "chat-1", "choices": []}', "data: [DONE]")
-        stream = use_case._forward_stream(router=router, provider=provider, chunks=chunks, prompt_tokens=1)
+        stream = _format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1)
 
         # Act: read one chunk, then drop the generator without exhausting it
         await stream.__anext__()
@@ -338,7 +375,7 @@ class TestCreateChatCompletionsUseCaseForwardStream:
         )
 
         # Act
-        await self._collect(use_case._forward_stream(router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+        await self._collect(_format_stream(use_case, router=router, provider=provider, chunks=chunks, prompt_tokens=1))
 
         # Assert
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)

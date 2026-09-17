@@ -2,7 +2,6 @@ from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from json import dumps
 import time
-from uuid import uuid4
 
 from api.domain.chat.entities import ChatCompletion, ChatCompletionChunk, CreateChatCompletionsBody
 from api.domain.provider.entities import Provider, ProviderRequest, ProviderResponse, ProviderStreamChunk
@@ -73,6 +72,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     provider=provider,
                     chunks=chunks,
                     prompt_tokens=prompt_tokens,
+                    request_id=request.id,
                 ),
                 headers=rate_limit_state.build_limit_headers,
             )
@@ -92,6 +92,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         provider: Provider,
         chunks: AsyncGenerator[ProviderStreamChunk],
         prompt_tokens: int,
+        request_id: str,
     ) -> AsyncGenerator[ProviderStreamChunk]:
         start_time = time.perf_counter()
         buffer: list[dict] = []
@@ -113,7 +114,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
 
                 buffer.append(parsed_chunk)
 
-                relayed = {**parsed_chunk, "model": router.name}
+                relayed = {**parsed_chunk, "model": router.name, "id": request_id}
                 yield ProviderStreamChunk(content=f"data: {dumps(relayed)}\n\n", status_code=chunk.status_code)
 
             latency = self._elapsed(start_time=start_time)
@@ -124,6 +125,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     buffer=buffer,
                     prompt_tokens=prompt_tokens,
                     latency=latency,
+                    request_id=request_id,
                 ),
                 status_code=200,
             )
@@ -136,6 +138,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         buffer: list[dict],
         prompt_tokens: int,
         latency: float,
+        request_id: str,
     ) -> str:
         completions = [content for chunk in buffer if (content := ChatCompletionChunk.extract_chunk_content(chunk=chunk))]
         completion_tokens = self.model_tokenizer.compute_tokens(texts=completions)
@@ -146,9 +149,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             completion_tokens=completion_tokens,
             latency=latency,
         )
-        request_id = buffer[0].get("id") if buffer else None
-        request_id = request_id or f"request-{uuid4().hex}"
-
         self.usage_recorder.record_usage(request_id=request_id, usage=usage)
 
         usage_chunk = ChatCompletionChunk.build_usage_chunk(

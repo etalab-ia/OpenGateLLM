@@ -82,7 +82,15 @@ def _provider_stream() -> AsyncGenerator[ProviderStreamChunk]:
 def _assemble(use_case, router, provider, outcome: list[str]) -> StreamingResponseWithStatusCode:
     """Stack the layers exactly as `@hooks` and the chat endpoint do — `_as_stream_chunks` is the endpoint's own adapter."""
     inner = StreamingResponseWithStatusCode(
-        content=_as_stream_chunks(use_case._forward_stream(router=router, provider=provider, chunks=_provider_stream(), prompt_tokens=1)),
+        content=_as_stream_chunks(
+            use_case._format_stream(
+                router=router,
+                provider=provider,
+                chunks=_provider_stream(),
+                prompt_tokens=1,
+                request_id="req-123",
+            )
+        ),
         media_type="text/event-stream",
     )
 
