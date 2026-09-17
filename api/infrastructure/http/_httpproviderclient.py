@@ -1,13 +1,14 @@
 import ast
-from json import JSONDecodeError, loads
+from collections.abc import AsyncGenerator
+from json import JSONDecodeError, dumps, loads
 import logging
 
 import httpx
 from httpx import BasicAuth
 
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider import ProviderClient, ProviderClientResponse
-from api.domain.provider.entities import Provider, ProviderRequest
+from api.domain.provider import ProviderClient, ProviderClientResponse, ProviderClientStream
+from api.domain.provider.entities import Provider, ProviderRequest, ProviderStreamChunk
 from api.domain.provider.errors import ProviderAdapterValidationRequestError, UnsupportedProviderEndpointError
 from api.infrastructure.http.adapters import HttpProviderAdapter
 
@@ -96,5 +97,54 @@ class HttpProviderClient(ProviderClient):
 
         return HttpProviderResponse(data=data, text=text)
 
-    async def forward_stream(self, provider: Provider, request: ProviderRequest):
-        raise NotImplementedError()
+    async def forward_stream(self, provider: Provider, request: ProviderRequest) -> ProviderClientStream:
+        match self.adapter_builder.build(endpoint=request.endpoint, provider=provider):
+            case HttpProviderAdapter() as adapter:
+                pass
+            case UnsupportedProviderEndpointError() as error:
+                return error
+
+        match adapter.to_http_request(request):
+            case HttpProviderRequest() as http_request:
+                pass
+            case ProviderAdapterValidationRequestError() as error:
+                return error
+
+        return self._stream(provider=provider, http_request=http_request)
+
+    async def _stream(self, provider: Provider, http_request: HttpProviderRequest) -> AsyncGenerator[ProviderStreamChunk]:
+        auth = BasicAuth(username=http_request.auth.username, password=http_request.auth.password) if http_request.auth else None
+
+        async with httpx.AsyncClient(timeout=provider.timeout) as async_client:
+            try:
+                async with async_client.stream(
+                    headers={"Authorization": f"Bearer {provider.key}"} if provider.key else {},
+                    auth=auth,
+                    method=http_request.method,
+                    url=http_request.url,
+                    json=http_request.body,
+                ) as response:
+                    if response.status_code // 100 != 2:
+                        await response.aread()
+                        yield ProviderStreamChunk(content=response.text, status_code=response.status_code)
+                        return
+
+                    async for line in response.aiter_lines():
+                        if line.strip():
+                            yield ProviderStreamChunk(content=line, status_code=response.status_code)
+            except (
+                httpx.TimeoutException,
+                httpx.ReadTimeout,
+                httpx.ConnectTimeout,
+                httpx.WriteTimeout,
+                httpx.PoolTimeout,
+                httpx.RemoteProtocolError,
+            ) as e:
+                yield ProviderStreamChunk(
+                    content=dumps({"detail": f"Model is too busy ({type(e).__name__}), please try again later."}), status_code=503
+                )
+            except httpx.ConnectError:
+                yield ProviderStreamChunk(content=dumps({"detail": "Model is temporarily unavailable, please try again later."}), status_code=503)
+            except Exception as e:
+                logger.exception(msg=f"Failed to forward stream request to {provider.model_name}.")
+                yield ProviderStreamChunk(content=dumps({"detail": type(e).__name__}), status_code=500)

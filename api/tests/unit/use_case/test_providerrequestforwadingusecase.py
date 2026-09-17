@@ -1,4 +1,5 @@
-from unittest.mock import AsyncMock, create_autospec, patch
+from dataclasses import dataclass
+from unittest.mock import AsyncMock, Mock, create_autospec, patch
 
 import pytest
 
@@ -20,6 +21,7 @@ from api.tests.unit.use_case.factories import AuthenticatedUserFactory, Provider
 from api.use_cases._providerrequestforwardingusecase import (
     ForwardingCommand,
     ProviderRequestForwardingUseCase,
+    ProviderRequestForwardingUseCaseResult,
     ProviderRequestForwardingUseCaseSuccess,
 )
 from api.utils.variables import EndpointRoute
@@ -43,7 +45,12 @@ class ForwardingTestData(ProviderJsonResponse):
 class ForwardingTestCommand(ForwardingCommand[ForwardingTestPayload]): ...
 
 
-class ForwardingTestUseCase(ProviderRequestForwardingUseCase[ForwardingTestCommand, ForwardingTestData]):
+@dataclass
+class ForwardingTestPreconditionError:
+    """Stands for the error a subclass returns from `_check_command` — `AudioFileSizeLimitExceededError` is the real one."""
+
+
+class ForwardingTestUseCase(ProviderRequestForwardingUseCase[ForwardingTestCommand, ProviderRequestForwardingUseCaseResult[ForwardingTestData]]):
     ROUTER_TYPE = RouterType.TEXT_GENERATION
     ENDPOINT = EndpointRoute.CHAT_COMPLETIONS
 
@@ -491,9 +498,13 @@ class TestSendRequest:
         )
         use_case.usage_recorder.record_usage.assert_called_once_with(
             request_id=sample_data.id,
-            prompt_tokens=1,
-            completion_tokens=1,
-            cost=0.03,
+            usage=Usage(
+                prompt_tokens=1,
+                completion_tokens=1,
+                total_tokens=2,
+                cost=0.03,
+                impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
+            ),
         )
 
     @pytest.mark.asyncio
@@ -511,9 +522,13 @@ class TestSendRequest:
         assert result.data is None
         use_case.usage_recorder.record_usage.assert_called_once_with(
             request_id="req-1",
-            prompt_tokens=1,
-            completion_tokens=1,
-            cost=0.03,
+            usage=Usage(
+                prompt_tokens=1,
+                completion_tokens=1,
+                total_tokens=2,
+                cost=0.03,
+                impacts=EnvironmentalImpacts(kgCO2eq=1.0, kWh=2.0),
+            ),
         )
 
 
@@ -528,6 +543,23 @@ class TestExecute:
     @pytest.fixture
     def command(self, admin_user):
         return ForwardingTestCommand(payload=ForwardingTestPayload(), authenticated_user=admin_user)
+
+    @pytest.mark.asyncio
+    async def test_should_return_check_command_error_without_resolving_the_router(self, use_case, command):
+        # Arrange
+        error = ForwardingTestPreconditionError()
+        use_case._check_command = Mock(return_value=error)
+
+        # Act
+        result = await use_case.execute(command=command)
+
+        # Assert
+        assert result is error
+        use_case._check_command.assert_called_once_with(command=command)
+        use_case._resolve_router.assert_not_awaited()
+        use_case.model_tokenizer.compute_tokens.assert_not_called()
+        use_case._check_rate_limits.assert_not_awaited()
+        use_case._send_request.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_should_return_resolve_router_error_without_checking_rate_limits_or_sending(self, use_case, command, admin_user):
