@@ -4,7 +4,7 @@ from json import dumps
 import time
 
 from api.domain.chat.entities import ChatCompletion, ChatCompletionChunk, CreateChatCompletionsBody
-from api.domain.provider.entities import Provider, ProviderRequest, ProviderResponse, ProviderStreamChunk
+from api.domain.provider.entities import Provider, ProviderChunkResponse, ProviderRequest, ProviderResponse
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.use_cases._providerrequestforwardingusecase import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseError
 from api.utils.variables import EndpointRoute
@@ -24,7 +24,7 @@ class CreateChatCompletionsUseCaseSuccess:
 
 @dataclass
 class CreateChatCompletionsStreamUseCaseSuccess:
-    chunks: AsyncGenerator[ProviderStreamChunk]
+    chunks: AsyncGenerator[ProviderChunkResponse]
     headers: dict[str, str]
 
 
@@ -90,10 +90,10 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         self,
         router: Router,
         provider: Provider,
-        chunks: AsyncGenerator[ProviderStreamChunk],
+        chunks: AsyncGenerator[ProviderChunkResponse],
         prompt_tokens: int,
         request_id: str,
-    ) -> AsyncGenerator[ProviderStreamChunk]:
+    ) -> AsyncGenerator[ProviderChunkResponse]:
         start_time = time.perf_counter()
         buffer: list[dict] = []
 
@@ -109,16 +109,16 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     break
 
                 if parsed_chunk is None:
-                    yield ProviderStreamChunk(content=f"{chunk.content}\n\n", status_code=chunk.status_code)
+                    yield ProviderChunkResponse(content=f"{chunk.content}\n\n", status_code=chunk.status_code)
                     continue
 
                 buffer.append(parsed_chunk)
 
                 relayed = {**parsed_chunk, "model": router.name, "id": request_id}
-                yield ProviderStreamChunk(content=f"data: {dumps(relayed)}\n\n", status_code=chunk.status_code)
+                yield ProviderChunkResponse(content=f"data: {dumps(relayed)}\n\n", status_code=chunk.status_code)
 
             latency = self._elapsed(start_time=start_time)
-            yield ProviderStreamChunk(
+            yield ProviderChunkResponse(
                 content=self._build_usage_event(
                     router=router,
                     provider=provider,
@@ -129,7 +129,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 ),
                 status_code=200,
             )
-            yield ProviderStreamChunk(content="data: [DONE]\n\n", status_code=200)
+            yield ProviderChunkResponse(content="data: [DONE]\n\n", status_code=200)
 
     def _build_usage_event(
         self,

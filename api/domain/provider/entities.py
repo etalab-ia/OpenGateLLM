@@ -135,7 +135,7 @@ class ProviderRequest(BaseModel):
     payload: Annotated[ForwardablePayload | None, Field(default=None, description="The payload to use for the request.")]
 
 
-class ProviderStreamChunk(BaseModel):
+class ProviderChunkResponse(BaseModel):
     content: Annotated[str, Field(description="One raw server-sent-event line as emitted by the provider.")]
     status_code: Annotated[int, Field(description="The HTTP status code of the streamed response.")]
 

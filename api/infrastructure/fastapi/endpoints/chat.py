@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from api.dependencies import create_chat_completions_use_case_factory, get_postgres_session, get_router_rate_limiter
 from api.domain.model.errors import StatusCodeModelError, TooBusyModelError, UnknownModelError
-from api.domain.provider.entities import ProviderStreamChunk
+from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.provider.errors import (
     NoAvailableProviderError,
     ProviderAdapterValidationRequestError,
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1", tags=[RouterName.CHAT.title()])
 
 
-async def _as_stream_chunks(chunks: AsyncGenerator[ProviderStreamChunk]) -> AsyncGenerator[StreamChunk]:
+async def _as_stream_chunks(chunks: AsyncGenerator[ProviderChunkResponse]) -> AsyncGenerator[StreamChunk]:
     async for chunk in chunks:
         yield chunk.content, chunk.status_code
 

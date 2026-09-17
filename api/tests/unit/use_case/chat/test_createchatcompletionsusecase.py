@@ -8,7 +8,7 @@ from api.domain.chat.entities import ChatCompletion, CreateChatCompletionsBody
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import TooBusyModelError
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import ProviderResponse, ProviderStreamChunk, ProviderType
+from api.domain.provider.entities import ProviderChunkResponse, ProviderResponse, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationRequestError
 from api.domain.role.entities import LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
@@ -98,9 +98,9 @@ def use_case(mock_model_tokenizer, mock_usage_recorder) -> CreateChatCompletions
     )
 
 
-async def _chunk_stream(*contents: str, status_code: int = 200) -> AsyncGenerator[ProviderStreamChunk]:
+async def _chunk_stream(*contents: str, status_code: int = 200) -> AsyncGenerator[ProviderChunkResponse]:
     for content in contents:
-        yield ProviderStreamChunk(content=content, status_code=status_code)
+        yield ProviderChunkResponse(content=content, status_code=status_code)
 
 
 def _format_stream(use_case, router, provider, chunks, prompt_tokens=1):
@@ -238,7 +238,7 @@ class TestCreateChatCompletionsUseCaseExecute:
 
 class TestCreateChatCompletionsUseCaseFormatStream:
     @staticmethod
-    async def _collect(chunks) -> list[ProviderStreamChunk]:
+    async def _collect(chunks) -> list[ProviderChunkResponse]:
         return [chunk async for chunk in chunks]
 
     @pytest.mark.asyncio
