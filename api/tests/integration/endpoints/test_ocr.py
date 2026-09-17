@@ -85,6 +85,7 @@ class TestCreateOCR:
 
         assert response.status_code == 200, response.text
         data = response.json()
+        assert data["id"].startswith("request-")
         assert data["model"] == DEFAULT_MODEL_NAME
         assert len(data["pages"]) == page_count
         assert all("markdown" in page and "index" in page for page in data["pages"])

@@ -89,7 +89,7 @@ class TestCreateAudioTranscriptions:
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["model"] == DEFAULT_MODEL_NAME
-        assert "id" in data
+        assert data["id"].startswith("request-")
         assert "text" in data
         assert data["usage"]["prompt_tokens"] == 0
         assert data["usage"]["completion_tokens"] == 10  # tokens of the transcription (mock tokenizer: 10 per non-empty text)

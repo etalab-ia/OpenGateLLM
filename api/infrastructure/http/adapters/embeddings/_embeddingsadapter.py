@@ -21,16 +21,15 @@ class EmbeddingsAdapter(HttpProviderAdapter):
         http_response: HttpProviderResponse,
         request: ProviderRequest,
     ) -> ProviderResponse | ProviderAdapterValidationResponseError:
-        request_id = self._extract_request_id(http_response=http_response)
         try:
             encoding_format = request.payload.encoding_format
             data = self.RESPONSE_TYPE._from_provider_response(
                 http_response.data,
                 encoding_format=encoding_format,
-                id=request_id,
+                id=request.id,
                 model=request.payload.model,
             )
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 
-        return ProviderResponse(id=request_id, data=data)
+        return ProviderResponse(id=request.id, data=data)

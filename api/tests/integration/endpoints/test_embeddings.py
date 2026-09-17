@@ -85,6 +85,7 @@ class TestCreateEmbeddings:
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["object"] == "list"
+        assert data["id"].startswith("request-")
         assert data["model"] == DEFAULT_MODEL_NAME
         assert len(data["data"]) >= 1
         assert all("embedding" in item and "index" in item for item in data["data"])

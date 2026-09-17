@@ -1,7 +1,6 @@
 import array
 import base64
 from http import HTTPMethod
-from unittest.mock import Mock, patch
 
 import pytest
 
@@ -122,37 +121,6 @@ class TestEmbeddingsAdapter:
         argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
         indirect=["adapter"],
     )
-    def test_extract_request_id_with_id(self, adapter):
-        # Arrange
-        original_response = HttpProviderResponse(data={"id": "abc"})
-
-        # Act
-        result = adapter._extract_request_id(original_response)
-
-        # Assert
-        assert result == "abc"
-
-    @pytest.mark.parametrize(
-        argnames=("adapter"),
-        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
-        indirect=["adapter"],
-    )
-    def test_extract_request_id_without_id(self, adapter):
-        # Arrange
-        original_response = HttpProviderResponse(data={})
-
-        # Act
-        with patch("api.infrastructure.http.adapters._httpprovideradapter.uuid4", return_value="123-456-789"):
-            result = adapter._extract_request_id(original_response)
-
-        # Assert
-        assert result == "request-123456789"
-
-    @pytest.mark.parametrize(
-        argnames=("adapter"),
-        argvalues=["tei_embeddings_adapter", "vllm_embeddings_adapter"],
-        indirect=["adapter"],
-    )
     def test_to_http_request_preserve_extra_fields(self, adapter):
         # Arrange
         original_request = ProviderRequestFactory(embeddings=True)
@@ -240,9 +208,8 @@ class TestEmbeddingsAdapter:
     )
     def test_to_provider_response_correctly(self, adapter, response_data):
         # Arrange
-        adapter._extract_request_id = Mock(return_value="req-123")
-        original_request = ProviderRequestFactory(embeddings=True)
-        original_response = HttpProviderResponse(data=response_data)
+        original_request = ProviderRequestFactory(embeddings=True, id="req-123")
+        original_response = HttpProviderResponse(data={**response_data, "id": "provider-id"})
 
         # Act
         result = adapter.to_provider_response(http_response=original_response, request=original_request)
@@ -252,6 +219,7 @@ class TestEmbeddingsAdapter:
         assert isinstance(result.data, Embeddings)
         assert len(result.data.data) == 1
         assert result.data.data[0].embedding == response_data["data"][0]["embedding"]
+        assert result.id == "req-123"
         assert result.data.id == "req-123"
         assert result.data.model == "openweight-embeddings"
 
@@ -266,7 +234,6 @@ class TestEmbeddingsAdapter:
         response_data = TeiEmbeddingsResponseFactory(dimensions=3)
         response_data["data"][0]["embedding"] = base64.b64encode(array.array("f", embedding).tobytes()).decode()
 
-        adapter._extract_request_id = Mock(return_value="req-123")
         original_request = ProviderRequestFactory(embeddings=True)
         original_request.payload.encoding_format = EncodingFormat.BASE64
         original_response = HttpProviderResponse(data=response_data)
@@ -289,7 +256,6 @@ class TestEmbeddingsAdapter:
     )
     def test_to_provider_response_preserve_extra_fields(self, adapter, response_data):
         # Arrange
-        adapter._extract_request_id = Mock(return_value="req-123")
         original_request = ProviderRequestFactory(embeddings=True)
         original_response = HttpProviderResponse(data=response_data)
 

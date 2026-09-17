@@ -149,6 +149,8 @@ class TestCreateChatCompletionsUseCaseExecute:
         assert isinstance(result, CreateChatCompletionsStreamUseCaseSuccess)
         use_case._send_request.assert_not_awaited()
         use_case.provider_metrics_logger.increment_inflight.assert_not_awaited()  # the generator is returned unconsumed
+        forwarded_request = use_case.provider_client.forward_stream.call_args.kwargs["request"]
+        assert forwarded_request.id.startswith("request-")
 
     @pytest.mark.asyncio
     async def test_should_return_the_error_when_the_router_cannot_be_resolved(self, use_case, make_command):

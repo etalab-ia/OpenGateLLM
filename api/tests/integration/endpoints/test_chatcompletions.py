@@ -86,6 +86,7 @@ class TestCreateChatCompletions:
         assert response.status_code == 200, response.text
         data = response.json()
         assert data["object"] == "chat.completion"
+        assert data["id"].startswith("request-")
         assert data["model"] == DEFAULT_MODEL_NAME
         assert data["choices"][0]["message"]["role"] == "assistant"
         assert data["usage"]["total_tokens"] == data["usage"]["prompt_tokens"] + data["usage"]["completion_tokens"]

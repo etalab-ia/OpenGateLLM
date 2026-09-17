@@ -1,5 +1,6 @@
 from enum import StrEnum
 from typing import Annotated, Literal
+from uuid import uuid4
 
 import pycountry
 from pydantic import Field, model_validator
@@ -129,6 +130,7 @@ class ProviderCapabilities(BaseModel):
 
 
 class ProviderRequest(BaseModel):
+    id: Annotated[str, Field(default_factory=lambda: f"request-{uuid4().hex}")]
     endpoint: Annotated[EndpointRoute, Field(description="The source endpoint (at the user side) of the request.")]
     payload: Annotated[ForwardablePayload | None, Field(default=None, description="The payload to use for the request.")]
 
