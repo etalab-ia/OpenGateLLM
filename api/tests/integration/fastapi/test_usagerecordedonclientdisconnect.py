@@ -66,7 +66,7 @@ def _request_context() -> RequestContext:
         endpoint="/v1/chat/completions",
         key=Key(id=7, name="my-key", user_id=USER_ID, value="sk-x", expires=None, created=now),
         user=AuthenticatedUserView(
-            id=USER_ID, email="alice@example.com", name="Alice", organization_id=None, budget=1.0, permissions=[], limits=[], expires=None
+            id=USER_ID, email="alice@example.com", name="Alice", organization_id=1, budget=1.0, permissions=[], limits=[], expires=None
         ),
     )
 
