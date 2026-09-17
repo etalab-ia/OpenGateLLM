@@ -95,7 +95,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
     ) -> AsyncGenerator[ProviderStreamChunk]:
         start_time = time.perf_counter()
         buffer: list[dict] = []
-        latency: int | None = None
+        latency: float | None = None
         usage_is_sent = False
 
         async with self._inflight(provider=provider):
@@ -107,7 +107,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 parsed_chunk = ChatCompletionChunk.parse_chunk(chunk=chunk.content)
 
                 if parsed_chunk == "[DONE]":
-                    latency = self._elapsed_ms(start_time=start_time)
+                    latency = self._elapsed(start_time=start_time)
                     yield ProviderStreamChunk(
                         content=self._build_usage_event(
                             router=router,
@@ -132,7 +132,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 yield ProviderStreamChunk(content=f"data: {dumps(relayed)}\n\n", status_code=chunk.status_code)
 
             if not usage_is_sent:
-                latency = self._elapsed_ms(start_time=start_time)
+                latency = self._elapsed(start_time=start_time)
                 yield ProviderStreamChunk(
                     content=self._build_usage_event(
                         router=router,
@@ -150,7 +150,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
         provider: Provider,
         buffer: list[dict],
         prompt_tokens: int,
-        latency: int,
+        latency: float,
     ) -> str:
         completions = [content for chunk in buffer if (content := ChatCompletionChunk.extract_chunk_content(chunk=chunk))]
         completion_tokens = self.model_tokenizer.compute_tokens(texts=completions)
