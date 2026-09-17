@@ -8,7 +8,7 @@ from api.domain.chat.entities import ChatCompletion, CreateChatCompletionsBody
 from api.domain.model import ModelEnvironmentalImpactsComputer, ModelTokenizer
 from api.domain.model.errors import TooBusyModelError
 from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMetricsLogger, ProviderRepository
-from api.domain.provider.entities import Metric, ProviderResponse, ProviderStreamChunk, ProviderType
+from api.domain.provider.entities import ProviderResponse, ProviderStreamChunk, ProviderType
 from api.domain.provider.errors import ProviderAdapterValidationRequestError
 from api.domain.role.entities import LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
@@ -312,7 +312,7 @@ class TestCreateChatCompletionsUseCaseForwardStream:
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
 
     @pytest.mark.asyncio
-    async def test_should_release_the_inflight_counter_and_log_metrics(self, use_case, router, provider):
+    async def test_should_release_the_inflight_counter_when_the_stream_completes(self, use_case, router, provider):
         # Arrange
         use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
         use_case.provider_metrics_logger.increment_inflight.return_value = True
@@ -326,5 +326,3 @@ class TestCreateChatCompletionsUseCaseForwardStream:
 
         # Assert
         use_case.provider_metrics_logger.decrement_inflight.assert_awaited_once_with(provider_id=provider.id)
-        logged_metrics = {call.kwargs["metric"] for call in use_case.provider_metrics_logger.log_metric.await_args_list}
-        assert logged_metrics == {Metric.LATENCY, Metric.TTFT}

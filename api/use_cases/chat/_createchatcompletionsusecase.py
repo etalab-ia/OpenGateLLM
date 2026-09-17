@@ -5,7 +5,7 @@ import time
 from uuid import uuid4
 
 from api.domain.chat.entities import ChatCompletion, ChatCompletionChunk, CreateChatCompletionsBody
-from api.domain.provider.entities import Metric, Provider, ProviderRequest, ProviderResponse, ProviderStreamChunk
+from api.domain.provider.entities import Provider, ProviderRequest, ProviderResponse, ProviderStreamChunk
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.use_cases._providerrequestforwardingusecase import ForwardingCommand, ProviderRequestForwardingUseCase, ProviderRequestForwardingUseCaseError
 from api.utils.variables import EndpointRoute
@@ -95,7 +95,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
     ) -> AsyncGenerator[ProviderStreamChunk]:
         start_time = time.perf_counter()
         buffer: list[dict] = []
-        ttft: int | None = None
         latency: int | None = None
         usage_is_sent = False
 
@@ -128,8 +127,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     continue
 
                 buffer.append(parsed_chunk)
-                if ttft is None and ChatCompletionChunk.extract_chunk_content(chunk=parsed_chunk):
-                    ttft = self._elapsed_ms(start_time=start_time)
 
                 relayed = {**parsed_chunk, "model": router.name}
                 yield ProviderStreamChunk(content=f"data: {dumps(relayed)}\n\n", status_code=chunk.status_code)
@@ -146,10 +143,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                     ),
                     status_code=200,
                 )
-
-            await self.provider_metrics_logger.log_metric(provider_id=provider.id, metric=Metric.LATENCY, value=latency)
-            if ttft is not None:
-                await self.provider_metrics_logger.log_metric(provider_id=provider.id, metric=Metric.TTFT, value=ttft)
 
     def _build_usage_event(
         self,
