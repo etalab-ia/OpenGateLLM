@@ -28,7 +28,7 @@ def setup_mistral_image_text_to_text(client: TestClient):
     test_id = generate_test_id(prefix="TestMistralTextImageToText")
     process = run_openmockllm(test_id=test_id, backend="mistral")
     try:
-        router_id = create_router(model_name=process.model_name, model_type=ModelType.IMAGE_TEXT_TO_TEXT, client=client)
+        router_id = create_router(model_name=process.model_name, model_type=ModelType.TEXT_GENERATION, client=client)
         create_provider(
             router_id=router_id,
             provider_url=process.url,
