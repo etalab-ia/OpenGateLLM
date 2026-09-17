@@ -95,8 +95,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
     ) -> AsyncGenerator[ProviderStreamChunk]:
         start_time = time.perf_counter()
         buffer: list[dict] = []
-        latency: float | None = None
-        usage_is_sent = False
 
         async with self._inflight(provider=provider):
             async for chunk in chunks:
@@ -107,19 +105,6 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 parsed_chunk = ChatCompletionChunk.parse_chunk(chunk=chunk.content)
 
                 if parsed_chunk == "[DONE]":
-                    latency = self._elapsed(start_time=start_time)
-                    yield ProviderStreamChunk(
-                        content=self._build_usage_event(
-                            router=router,
-                            provider=provider,
-                            buffer=buffer,
-                            prompt_tokens=prompt_tokens,
-                            latency=latency,
-                        ),
-                        status_code=chunk.status_code,
-                    )
-                    usage_is_sent = True
-                    yield ProviderStreamChunk(content=f"{chunk.content}\n\n", status_code=chunk.status_code)
                     break
 
                 if parsed_chunk is None:
@@ -131,18 +116,18 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
                 relayed = {**parsed_chunk, "model": router.name}
                 yield ProviderStreamChunk(content=f"data: {dumps(relayed)}\n\n", status_code=chunk.status_code)
 
-            if not usage_is_sent:
-                latency = self._elapsed(start_time=start_time)
-                yield ProviderStreamChunk(
-                    content=self._build_usage_event(
-                        router=router,
-                        provider=provider,
-                        buffer=buffer,
-                        prompt_tokens=prompt_tokens,
-                        latency=latency,
-                    ),
-                    status_code=200,
-                )
+            latency = self._elapsed(start_time=start_time)
+            yield ProviderStreamChunk(
+                content=self._build_usage_event(
+                    router=router,
+                    provider=provider,
+                    buffer=buffer,
+                    prompt_tokens=prompt_tokens,
+                    latency=latency,
+                ),
+                status_code=200,
+            )
+            yield ProviderStreamChunk(content="data: [DONE]\n\n", status_code=200)
 
     def _build_usage_event(
         self,

@@ -231,6 +231,19 @@ class TestCreateChatCompletionsUseCaseForwardStream:
         assert mock_usage_recorder.record_usage.call_args.kwargs["request_id"] == "chat-1"
 
     @pytest.mark.asyncio
+    async def test_should_append_usage_and_done_when_the_provider_emits_no_chunks(self, use_case, router, provider):
+        # Arrange
+        use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
+        chunks = _chunk_stream()
+
+        # Act
+        collected = await self._collect(use_case._forward_stream(router=router, provider=provider, chunks=chunks, prompt_tokens=1))
+
+        # Assert
+        assert collected[-1].content == "data: [DONE]\n\n"
+        assert collected[-1].status_code == 200
+
+    @pytest.mark.asyncio
     async def test_should_append_a_usage_chunk_when_the_provider_closes_without_a_done_chunk(self, use_case, router, provider):
         # Arrange
         use_case.model_environmental_impacts_computer.compute.return_value = EnvironmentalImpacts(kWh=1.0, kgCO2eq=2.0)
@@ -240,8 +253,9 @@ class TestCreateChatCompletionsUseCaseForwardStream:
         chunks = await self._collect(use_case._forward_stream(router=router, provider=provider, chunks=chunks, prompt_tokens=1))
 
         # Assert
-        assert len(chunks) == 2
+        assert len(chunks) == 3
         assert json.loads(chunks[1].content.removeprefix("data: "))["choices"] == []
+        assert chunks[2].content == "data: [DONE]\n\n"
 
     @pytest.mark.asyncio
     async def test_should_stop_the_stream_and_forward_the_error_when_the_provider_fails(self, use_case, router, provider):
