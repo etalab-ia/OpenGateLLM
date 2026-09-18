@@ -25,6 +25,12 @@ class Usage(BaseModel):
     cost: float = 0.0
     impacts: EnvironmentalImpacts = EnvironmentalImpacts()
 
+    @field_validator("prompt_tokens_details", mode="before")
+    @classmethod
+    def coerce_null_prompt_tokens_details(cls, value: object) -> object:
+        # vLLM and OpenAI send null when there are no cached tokens
+        return PromptTokensDetails() if value is None else value
+
     @staticmethod
     def compute_request_cost(prompt_tokens: int, completion_tokens: int, cost_prompt_tokens: float, cost_completion_tokens: float) -> float:
         cost_tokens_scale = 1_000_000

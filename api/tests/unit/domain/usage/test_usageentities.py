@@ -1,4 +1,4 @@
-from api.domain.usage.entities import EnvironmentalImpacts, Usage
+from api.domain.usage.entities import EnvironmentalImpacts, PromptTokensDetails, Usage
 
 
 class TestUsageComputeRequestCost:
@@ -6,6 +6,13 @@ class TestUsageComputeRequestCost:
         result = Usage.compute_request_cost(prompt_tokens=100, completion_tokens=100, cost_prompt_tokens=1.0, cost_completion_tokens=2.0)
 
         assert result == 0.0003
+
+
+class TestUsagePromptTokensDetails:
+    def test_should_coerce_null_prompt_tokens_details_to_the_default(self):
+        usage = Usage.model_validate({"prompt_tokens": 9, "completion_tokens": 56, "total_tokens": 65, "prompt_tokens_details": None})
+
+        assert usage.prompt_tokens_details == PromptTokensDetails()
 
 
 class TestEnvironmentalImpacts:
