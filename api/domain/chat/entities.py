@@ -11,14 +11,21 @@ from api.domain.model.entities import ProviderJsonResponse
 from api.domain.usage.entities import Usage
 
 
-def _extract_text(content: Any) -> str:
+def _extract_text(message: dict) -> str:
     """Content is either a plain string or, on Mistral, a list of typed parts."""
+    content = message.get("content") or ""
     if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        return "".join(part.get("text") or "" for part in content if isinstance(part, dict) and part.get("type") == "text")
+        content_text = content
+    elif isinstance(content, list):  # Mistral format
+        content_text = "".join(part.get("text") or "" for part in content if isinstance(part, dict) and part.get("type") == "text")
+    else:
+        content_text = ""
 
-    return ""
+    reasoning_text = message.get("reasoning_content") or message.get("reasoning") or ""
+    if not isinstance(reasoning_text, str):
+        reasoning_text = ""
+
+    return "\n".join(part for part in (content_text.strip(), reasoning_text.strip()) if part)
 
 
 class CreateChatCompletionsBody(ForwardablePayload):
@@ -45,7 +52,7 @@ class CreateChatCompletionsBody(ForwardablePayload):
     user: str | None = None
 
     def get_prompts(self) -> list[str]:
-        return [text for message in self.messages if (text := _extract_text(message.get("content")))]
+        return [text for message in self.messages if (text := _extract_text(message=message))]
 
 
 class ChatCompletion(ChatCompletion, ProviderJsonResponse):
@@ -67,18 +74,13 @@ class ChatCompletion(ChatCompletion, ProviderJsonResponse):
         Returns:
             str: The concatenated content and reasoning choices content.
         """
-        choices = response.get("choices") or []
-
         result = ""
-        for choice in choices:
+        for choice in response.get("choices") or []:
             message = choice.get("message") or {}
-            content = _extract_text(message.get("content"))
-            reasoning_content = message.get("reasoning_content") or ""
+            content = _extract_text(message=message)
+            result += content
 
-            result += f"{content.strip()}\n" if content else ""
-            result += f"{reasoning_content.strip()}\n" if isinstance(reasoning_content, str) and reasoning_content else ""
-
-        return result.strip()
+        return result
 
 
 class ChatCompletionChunk(ChatCompletionChunk):
@@ -107,18 +109,13 @@ class ChatCompletionChunk(ChatCompletionChunk):
         Returns:
             str: The concatenated content and reasoning choices content.
         """
-        choices = chunk.get("choices") or []
-
         result = ""
-        for choice in choices:
-            delta = choice.get("delta") or {}
-            content = _extract_text(delta.get("content"))
-            reasoning_content = delta.get("reasoning_content") or ""
+        for choice in chunk.get("choices") or []:
+            message = choice.get("delta") or {}
+            content = _extract_text(message=message)
+            result += content
 
-            result += f"{content.strip()}\n" if content else ""
-            result += f"{reasoning_content.strip()}\n" if isinstance(reasoning_content, str) and reasoning_content else ""
-
-        return result.strip()
+        return result
 
     @staticmethod
     def build_usage_chunk(last_chunk: dict, request_id: str, model: str, usage: Usage) -> dict:
