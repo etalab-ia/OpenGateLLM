@@ -141,7 +141,6 @@ class ProviderMetrics(ProviderJsonResponse):
 
 
 class ProviderResponse(BaseModel):
-    id: Annotated[str, Field(description="The request identifier.")]
     data: Annotated[ProviderJsonResponse | None, Field(default=None, description="The JSON data to use for the response.")]
     text: Annotated[str | None, Field(default=None, description="The text data to use for the response.")]
 

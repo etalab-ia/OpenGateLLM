@@ -31,4 +31,4 @@ class MistralMetricsAdapter(MetricsAdapter):
                 elif sample.name == "vllm:num_requests_waiting" and sample.labels.get("model_name") == self.provider.model_name:
                     waiting_requests += sample.value
 
-        return ProviderResponse(id=request.id, data=ProviderMetrics(waiting_requests=waiting_requests, running_requests=running_requests))
+        return ProviderResponse(data=ProviderMetrics(waiting_requests=waiting_requests, running_requests=running_requests))

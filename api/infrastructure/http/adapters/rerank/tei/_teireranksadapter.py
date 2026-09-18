@@ -56,4 +56,4 @@ class TeiRerankAdapter(RerankAdapter):
         except ValidationError as e:
             return ProviderAdapterValidationResponseError(provider_type=self.provider.type, errors=e.errors())
 
-        return ProviderResponse(id=request.id, data=data)
+        return ProviderResponse(data=data)

@@ -57,7 +57,7 @@ class MistralAudioTranscriptionsAdapter(AudioTranscriptionsAdapter):
     ) -> ProviderResponse:
         text = http_response.data["choices"][0]["message"]["content"]
         if request.payload.response_format == AudioTranscriptionsResponseFormat.TEXT:
-            return ProviderResponse(id=request.id, text=text)
+            return ProviderResponse(text=text)
 
         data = AudioTranscriptions(id=request.id, text=text, model=request.payload.model)
-        return ProviderResponse(id=request.id, data=data)
+        return ProviderResponse(data=data)

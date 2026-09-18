@@ -64,7 +64,6 @@ class TestAudioTranscriptionsAdapter:
         result = adapter.to_provider_response(request=original_request, http_response=original_response)
 
         # Assert
-        assert result.id == "req-123"
         assert result.data.id == "req-123"
         assert result.data.text == "hello world"
         assert result.data.model == "audio-router"

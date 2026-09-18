@@ -14,7 +14,6 @@ class TeiModelsAdapter(ModelsAdapter):
         request: ProviderRequest,
     ) -> ProviderResponse:
         return ProviderResponse(
-            id=request.id,
             data=Models(
                 data=[
                     Model(

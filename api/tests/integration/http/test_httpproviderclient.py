@@ -62,7 +62,6 @@ class TestHttpProviderClient:
         result = await http_provider_client().forward(provider=provider, request=request)
 
         assert isinstance(result, ProviderResponse)
-        assert result.id == request.id
         assert [model.id for model in result.data.data] == [DEFAULT_MODEL_ID]
         assert result.text is None
         assert route.called is True
@@ -90,7 +89,6 @@ class TestHttpProviderClient:
         result = await http_provider_client().forward(provider=provider, request=request)
 
         assert isinstance(result, ProviderResponse)
-        assert result.id == request.id
         assert result.data.id == request.id
         assert len(result.data.data[0].embedding) == 8
         assert result.text is None
@@ -115,7 +113,6 @@ class TestHttpProviderClient:
         result = await http_provider_client().forward(provider=provider, request=request)
 
         assert isinstance(result, ProviderResponse)
-        assert result.id == request.id
         assert result.data.running_requests == 2.0
         assert result.data.waiting_requests == 1.0
         assert route.called is True

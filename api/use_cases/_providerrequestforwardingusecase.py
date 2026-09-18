@@ -234,7 +234,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             case error:
                 return error
 
-        self.usage_context_manager.record_usage(request_id=provider_response.id, usage=usage)
+        self.usage_context_manager.record_usage(request_id=request_id, usage=usage)
         self.usage_recorder.update_record(usage=usage, provider_id=provider.id)
 
         return provider_response

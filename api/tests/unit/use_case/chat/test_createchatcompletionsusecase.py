@@ -136,7 +136,7 @@ class TestCreateChatCompletionsUseCaseExecute:
     def mock_collaborator_methods(self, use_case, router, sample_completion, provider):
         use_case._resolve_router = AsyncMock(return_value=router)
         use_case._check_rate_limits = AsyncMock(return_value=RouterRateLimitState.admin_rate_limit_state())
-        use_case._send_request = AsyncMock(return_value=ProviderResponse(id=sample_completion.id, data=sample_completion))
+        use_case._send_request = AsyncMock(return_value=ProviderResponse(data=sample_completion))
         use_case._select_provider = AsyncMock(return_value=provider)
         use_case.provider_client.forward_stream = AsyncMock(return_value=_chunk_stream())
 

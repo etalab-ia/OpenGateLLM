@@ -401,7 +401,7 @@ class TestSendRequest:
         use_case.provider_repository.get_all_providers_of_router.return_value = [provider]
         use_case.provider_load_balancer.find_best_provider.return_value = provider
         use_case.provider_metrics_logger.increment_inflight.return_value = True
-        use_case.provider_client.forward.return_value = ProviderResponse(id=sample_data.id, data=sample_data)
+        use_case.provider_client.forward.return_value = ProviderResponse(data=sample_data)
 
     @pytest.mark.asyncio
     async def test_should_return_request_validation_error_when_provider_call_rejects_request(self, use_case, router, provider, payload):
@@ -509,8 +509,8 @@ class TestSendRequest:
             cost_prompt_tokens=router.cost_prompt_tokens,
             cost_completion_tokens=router.cost_completion_tokens,
         )
-        use_case.usage_recorder.record_usage.assert_called_once_with(
-            request_id=sample_data.id,
+        use_case.usage_context_manager.record_usage.assert_called_once_with(
+            request_id=TRACE_ID,
             usage=Usage(
                 prompt_tokens=1,
                 completion_tokens=1,
@@ -533,7 +533,7 @@ class TestSendRequest:
     @pytest.mark.asyncio
     async def test_should_record_usage_without_attaching_it_when_formatted_response_has_no_data(self, use_case, router, provider, payload):
         # Arrange
-        use_case.provider_client.forward.return_value = ProviderResponse(id="req-1", text="hello world")
+        use_case.provider_client.forward.return_value = ProviderResponse(text="hello world")
 
         # Act
         with patch("api.use_cases._providerrequestforwardingusecase.time.perf_counter", side_effect=[0, 12]):
@@ -543,8 +543,8 @@ class TestSendRequest:
         # Assert
         assert isinstance(result, ProviderResponse)
         assert result.data is None
-        use_case.usage_recorder.record_usage.assert_called_once_with(
-            request_id="req-1",
+        use_case.usage_context_manager.record_usage.assert_called_once_with(
+            request_id=TRACE_ID,
             usage=Usage(
                 prompt_tokens=1,
                 completion_tokens=1,
@@ -558,7 +558,7 @@ class TestSendRequest:
 class TestExecute:
     @pytest.fixture(autouse=True)
     def mock_collaborator_methods(self, use_case, router, sample_data):
-        formatted_response = ProviderResponse(id=sample_data.id, data=sample_data)
+        formatted_response = ProviderResponse(data=sample_data)
         use_case._resolve_router = AsyncMock(return_value=router)
         use_case._check_rate_limits = AsyncMock(return_value=RouterRateLimitState.admin_rate_limit_state())
         use_case._send_request = AsyncMock(return_value=formatted_response)
