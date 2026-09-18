@@ -1,3 +1,5 @@
+from http import HTTPMethod
+
 from api.domain import BaseModel, EntitiesPage, UtcDatetime
 
 
@@ -33,3 +35,40 @@ class UsageBucket(BaseModel):
 
 
 UsageBucketPage = EntitiesPage["UsageBucket"]
+
+
+class UsageRecord(BaseModel):
+    id: int | None = None
+    created: UtcDatetime
+
+    # request
+    endpoint: str
+    method: HTTPMethod | None = None
+
+    # user identifiers
+    user_id: int | None = None
+    user_email: str | None = None
+    key_id: int | None = None
+    key_name: str | None = None
+
+    # model identifiers
+    router_id: int | None = None
+    router_name: str | None = None
+    provider_id: int | None = None
+    provider_model_name: str | None = None
+
+    # response
+    status: int | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    cost: float | None = None
+    kwh: float | None = None
+    kgco2eq: float | None = None
+    latency: int | None = None
+    ttft: int | None = None
+
+    @property
+    def total_tokens(self) -> int | None:
+        if self.prompt_tokens is None and self.completion_tokens is None:
+            return None
+        return (self.prompt_tokens or 0) + (self.completion_tokens or 0)

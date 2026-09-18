@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from api.domain.usage.entities import UsageBucketPage
+from api.domain.usage.entities import UsageBucketPage, UsageRecord
 
 
 class UsageRepository(ABC):
@@ -17,4 +17,8 @@ class UsageRepository(ABC):
         models: list[str] | None = None,
         key_id: int | None = None,
     ) -> UsageBucketPage:
+        pass
+
+    @abstractmethod
+    async def create_usage_record(self, usage_record: UsageRecord) -> UsageRecord:
         pass
