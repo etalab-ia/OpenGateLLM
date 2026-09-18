@@ -1,0 +1,23 @@
+model
+  schema 1.1
+
+type user
+
+type platform
+  relations
+    define superadmin: [user]
+    define admin: [user] or superadmin
+
+    define can_create_organization: admin
+
+type organization
+  relations
+    define platform: [platform]
+
+    define member: [user]
+
+    define can_read: member or admin from platform
+    define can_update: admin from platform
+    define can_delete: admin from platform
+    define can_add_member: admin from platform
+    define can_remove_member: admin from platform
