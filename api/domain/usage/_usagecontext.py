@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from api.domain.usage.entities import Usage
 
 
-class UsageContextManager(ABC):
+class UsageContext(ABC):
     @abstractmethod
     def record_router(self, router_id: int, router_name: str) -> None:
         pass

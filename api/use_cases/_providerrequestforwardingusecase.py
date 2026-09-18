@@ -20,7 +20,7 @@ from api.domain.provider.errors import (
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.usage import UsageContextManager, UsageRecorder
+from api.domain.usage import UsageContext, UsageRecorder
 from api.domain.usage.entities import Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
@@ -77,7 +77,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
-        usage_context_manager: UsageContextManager,
+        usage_context: UsageContext,
         usage_recorder: UsageRecorder,
     ) -> None:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
@@ -90,7 +90,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         self.router_rate_limiter = router_rate_limiter
         self.router_repository = router_repository
 
-        self.usage_context_manager = usage_context_manager
+        self.usage_context = usage_context
         self.usage_recorder = usage_recorder
 
     async def execute(self, command: TCommand) -> TResult:
@@ -150,7 +150,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             case error:
                 return error
 
-        self.usage_context_manager.record_router(router_id=router.id, router_name=router.name)
+        self.usage_context.record_router(router_id=router.id, router_name=router.name)
 
         if router.has_no_providers:
             return RouterHasNoProvidersError(id=router.id)
@@ -234,7 +234,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
             case error:
                 return error
 
-        self.usage_context_manager.record_usage(request_id=request_id, usage=usage)
+        self.usage_context.record_usage(request_id=request_id, usage=usage)
         self.usage_recorder.update_record(usage=usage, provider_id=provider.id)
 
         return provider_response
@@ -242,7 +242,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
     async def _select_provider(self, router: Router) -> Provider:
         providers = await self.provider_repository.get_all_providers_of_router(router_id=router.id)
         provider = await self.provider_load_balancer.find_best_provider(strategy=router.load_balancing_strategy, providers=providers)
-        self.usage_context_manager.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
+        self.usage_context.record_provider(provider_id=provider.id, provider_model_name=provider.model_name)
 
         return provider
 

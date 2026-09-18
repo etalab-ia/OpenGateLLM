@@ -11,7 +11,7 @@ from api.domain.audio.entities import (
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.provider.entities import ProviderResponse
 from api.domain.router.entities import RouterRateLimitState, RouterType
-from api.domain.usage import UsageContextManager, UsageRecorder
+from api.domain.usage import UsageContext, UsageRecorder
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, RouterFactory
 from api.use_cases.audio import (
     CreateAudioTranscriptionsCommand,
@@ -33,7 +33,7 @@ def model_tokenizer():
 
 @pytest.fixture
 def usage_recorder():
-    return create_autospec(UsageContextManager, instance=True, spec_set=True)
+    return create_autospec(UsageContext, instance=True, spec_set=True)
 
 
 @pytest.fixture
@@ -102,7 +102,7 @@ def use_case(model_tokenizer, usage_recorder, trace_recorder) -> CreateAudioTran
         provider_repository=AsyncMock(),
         router_rate_limiter=AsyncMock(),
         router_repository=AsyncMock(),
-        usage_context_manager=usage_recorder,
+        usage_context=usage_recorder,
         usage_recorder=trace_recorder,
         audio_file_size_limit=None,
     )
@@ -139,7 +139,7 @@ class TestCreateAudioTranscriptionsUseCaseExecute:
         use_case.model_tokenizer.compute_tokens.assert_not_called()
         use_case._check_rate_limits.assert_not_awaited()
         use_case._send_request.assert_not_awaited()
-        use_case.trace_recorder.start_record.assert_not_called()
+        use_case.usage_recorder.start_record.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_should_call_parent_methods_and_return_json_success_when_formatted_response_has_data(

@@ -164,7 +164,7 @@ class CreateChatCompletionsUseCase(ProviderRequestForwardingUseCase[CreateChatCo
             completion_tokens=completion_tokens,
             latency=latency,
         )
-        self.usage_context_manager.record_usage(request_id=request_id, usage=usage)
+        self.usage_context.record_usage(request_id=request_id, usage=usage)
         self.usage_recorder.update_record(usage=usage, provider_id=provider.id, first_token_at=first_token_at)
 
         usage_chunk = ChatCompletionChunk.build_usage_chunk(

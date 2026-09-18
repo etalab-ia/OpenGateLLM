@@ -1,12 +1,11 @@
 from contextvars import ContextVar
 
-from api.domain.usage import UsageContextManager
+from api.domain.usage import UsageContext
 from api.domain.usage.entities import Usage
+from api.infrastructure.fastapi import RequestContext
 
-from ._requestcontext import RequestContext
 
-
-class FastapiUsageContextManager(UsageContextManager):
+class ContextVarsUsageContext(UsageContext):
     def __init__(self, request_context: ContextVar[RequestContext]) -> None:
         self.request_context = request_context
 

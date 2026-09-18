@@ -18,11 +18,11 @@ from api.domain.provider import (
 )
 from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
-from api.domain.usage import DummyUsageRecorder, UsageContextManager, UsageRecorder, UsageRepository
+from api.domain.usage import DummyUsageRecorder, UsageContext, UsageRecorder, UsageRepository
 from api.domain.user import AuthenticatedUserQuery, UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
+from api.infrastructure.contextvars import ContextVarsUsageContext
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
-from api.infrastructure.fastapi import FastapiUsageContextManager
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.http import HttpAuthSsoSessionValidator, HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
@@ -158,8 +158,8 @@ def get_router_rate_limiter() -> RouterRateLimiter:
     return RedisRouterRateLimiter(redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy)
 
 
-def _usage_context_manager() -> UsageContextManager:
-    return FastapiUsageContextManager(request_context=request_context)
+def _usage_context() -> UsageContext:
+    return ContextVarsUsageContext(request_context=request_context)
 
 
 def _usage_recorder() -> UsageRecorder:
@@ -229,7 +229,7 @@ def create_audio_transcriptions_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
-        usage_context_manager=_usage_context_manager(),
+        usage_context=_usage_context(),
         usage_recorder=_usage_recorder(),
         audio_file_size_limit=configuration.settings.audio_file_size_limit,
     )
@@ -252,7 +252,7 @@ def create_chat_completions_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
-        usage_context_manager=_usage_context_manager(),
+        usage_context=_usage_context(),
         usage_recorder=_usage_recorder(),
     )
 
@@ -318,7 +318,7 @@ def create_embeddings_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
-        usage_context_manager=_usage_context_manager(),
+        usage_context=_usage_context(),
         usage_recorder=_usage_recorder(),
     )
 
@@ -390,7 +390,7 @@ def create_ocr_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
-        usage_context_manager=_usage_context_manager(),
+        usage_context=_usage_context(),
         usage_recorder=_usage_recorder(),
     )
 
@@ -454,7 +454,7 @@ def create_rerank_use_case_factory(
         provider_repository=_provider_repository(postgres_session),
         router_rate_limiter=get_router_rate_limiter(),
         router_repository=_router_repository(postgres_session),
-        usage_context_manager=_usage_context_manager(),
+        usage_context=_usage_context(),
         usage_recorder=_usage_recorder(),
     )
 
