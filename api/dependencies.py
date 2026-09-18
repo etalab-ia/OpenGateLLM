@@ -1,4 +1,5 @@
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import Depends
@@ -69,7 +70,7 @@ from api.use_cases.models import GetModelsUseCase, GetOneModelUseCase
 from api.use_cases.ocr import CreateOCRUseCase
 from api.use_cases.reranks import CreateRerankUseCase
 from api.use_cases.services import ProviderCapabilitiesProbe
-from api.use_cases.usage import GetUsagesUseCase
+from api.use_cases.usage import CreateUsageRecordUseCase, GetUsagesUseCase
 from api.utils.configuration import configuration
 from api.utils.context import global_context
 
@@ -331,6 +332,15 @@ def update_me_info_use_case_factory(postgres_session: AsyncSession = Depends(get
 # usage use cases
 def get_usages_use_case_factory(usage_repository: UsageRepository = Depends(_usage_repository)) -> GetUsagesUseCase:
     return GetUsagesUseCase(usage_repository=usage_repository)
+
+
+# The post response hooks run once the request scope is closed, so this factory owns the session instead of receiving it from Depends.
+# It opens an autocommit session: the insert is a single statement, and the connection returns to the pool as soon as it commits.
+@asynccontextmanager
+async def create_usage_record_use_case_factory() -> AsyncGenerator[CreateUsageRecordUseCase]:
+    session_factory = global_context.autocommit_postgres_session_factory
+    async with session_factory() as postgres_session:
+        yield CreateUsageRecordUseCase(usage_repository=_usage_repository(postgres_session))
 
 
 # models use cases
