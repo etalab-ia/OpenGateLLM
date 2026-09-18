@@ -1,12 +1,12 @@
 from contextvars import ContextVar
 
-from api.domain.usage import UsageRecorder
+from api.domain.usage import UsageContextManager
 from api.domain.usage.entities import Usage
 
 from ._requestcontext import RequestContext
 
 
-class RequestContextUsageRecorder(UsageRecorder):
+class FastapiUsageContextManager(UsageContextManager):
     def __init__(self, request_context: ContextVar[RequestContext]) -> None:
         self.request_context = request_context
 

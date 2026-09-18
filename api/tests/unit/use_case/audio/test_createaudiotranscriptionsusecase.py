@@ -11,7 +11,7 @@ from api.domain.audio.entities import (
 from api.domain.audio.errors import AudioFileSizeLimitExceededError
 from api.domain.provider.entities import ProviderResponse
 from api.domain.router.entities import RouterRateLimitState, RouterType
-from api.domain.usage import UsageRecorder
+from api.domain.usage import UsageContextManager
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, RouterFactory
 from api.use_cases.audio import (
     CreateAudioTranscriptionsCommand,
@@ -31,7 +31,7 @@ def model_tokenizer():
 
 @pytest.fixture
 def usage_recorder():
-    return create_autospec(UsageRecorder, instance=True, spec_set=True)
+    return create_autospec(UsageContextManager, instance=True, spec_set=True)
 
 
 @pytest.fixture

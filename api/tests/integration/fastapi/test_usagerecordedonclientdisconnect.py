@@ -12,7 +12,7 @@ from api.domain.provider import ProviderClient, ProviderLoadBalancer, ProviderMe
 from api.domain.provider.entities import ProviderChunkResponse
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterType
-from api.domain.usage import UsageRecorder
+from api.domain.usage import UsageContextManager
 from api.domain.usage.entities import EnvironmentalImpacts
 from api.domain.user.views import AuthenticatedUserView
 from api.infrastructure.fastapi import RequestContext
@@ -54,7 +54,7 @@ def use_case() -> CreateChatCompletionsUseCase:
         provider_repository=create_autospec(ProviderRepository, instance=True, spec_set=True),
         router_rate_limiter=create_autospec(RouterRateLimiter, instance=True, spec_set=True),
         router_repository=create_autospec(RouterRepository, instance=True, spec_set=True),
-        usage_recorder=create_autospec(UsageRecorder, instance=True, spec_set=True),
+        usage_recorder=create_autospec(UsageContextManager, instance=True, spec_set=True),
     )
 
 

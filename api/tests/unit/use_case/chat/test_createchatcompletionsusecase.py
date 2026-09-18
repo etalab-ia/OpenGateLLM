@@ -14,7 +14,7 @@ from api.domain.role.entities import LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.usage import UsageRecorder
+from api.domain.usage import UsageContextManager
 from api.domain.usage.entities import EnvironmentalImpacts
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, ProviderFactory, RouterFactory
 from api.use_cases.chat import (
@@ -38,7 +38,7 @@ def mock_model_tokenizer():
 
 @pytest.fixture
 def mock_usage_recorder():
-    return create_autospec(UsageRecorder, instance=True, spec_set=True)
+    return create_autospec(UsageContextManager, instance=True, spec_set=True)
 
 
 @pytest.fixture

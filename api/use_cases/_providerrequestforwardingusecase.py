@@ -20,7 +20,7 @@ from api.domain.provider.errors import (
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import Router, RouterRateLimitState, RouterType
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.usage import UsageRecorder
+from api.domain.usage import UsageContextManager
 from api.domain.usage.entities import Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.domain.user.views import AuthenticatedUserView
@@ -77,7 +77,7 @@ class ProviderRequestForwardingUseCase[TCommand: ForwardingCommand, TResult]:
         provider_repository: ProviderRepository,
         router_rate_limiter: RouterRateLimiter,
         router_repository: RouterRepository,
-        usage_recorder: UsageRecorder,
+        usage_recorder: UsageContextManager,
     ) -> None:
         self.model_environmental_impacts_computer = model_environmental_impacts_computer
         self.model_tokenizer = model_tokenizer

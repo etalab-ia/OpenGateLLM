@@ -8,8 +8,8 @@ that it imports back, and the app would stop booting with
 The modules below are safe to re-export: they depend on the domain only, never on the composition root.
 """
 
+from ._fastapiusagecontextmanager import FastapiUsageContextManager
 from ._requestcontext import RequestContext
-from ._requestcontextusagerecorder import RequestContextUsageRecorder
 from ._streamingresponsewithstatuscode import StreamingResponseWithStatusCode
 
-__all__ = ["RequestContext", "RequestContextUsageRecorder", "StreamingResponseWithStatusCode"]
+__all__ = ["RequestContext", "FastapiUsageContextManager", "StreamingResponseWithStatusCode"]

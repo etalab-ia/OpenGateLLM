@@ -14,7 +14,7 @@ from api.domain.role.entities import Limit, LimitType
 from api.domain.router import RouterRateLimiter, RouterRepository
 from api.domain.router.entities import RouterRateLimitState, RouterType, RpmRateLimitState, TpmRateLimitState
 from api.domain.router.errors import RouterHasNoProvidersError, RouterHasWrongTypeError, RouterNotFoundError, RouterRateLimitExceededError
-from api.domain.usage import UsageRecorder
+from api.domain.usage import UsageContextManager
 from api.domain.usage.entities import EnvironmentalImpacts, Usage
 from api.domain.user.errors import UserHasInsufficientBudgetError, UserHasNoAccessToRouterError
 from api.tests.unit.use_case.factories import AuthenticatedUserFactory, ProviderFactory, RouterFactory
@@ -101,7 +101,7 @@ def router_repository():
 
 @pytest.fixture
 def usage_recorder():
-    return create_autospec(UsageRecorder, instance=True, spec_set=True)
+    return create_autospec(UsageContextManager, instance=True, spec_set=True)
 
 
 @pytest.fixture

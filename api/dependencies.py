@@ -18,11 +18,11 @@ from api.domain.provider import (
 )
 from api.domain.role import LimitRepository, PermissionRepository
 from api.domain.router import RouterRateLimiter
-from api.domain.usage import UsageRecorder, UsageRepository
+from api.domain.usage import UsageContextManager, UsageRepository
 from api.domain.user import AuthenticatedUserQuery, UserPasswordEncoder
 from api.infrastructure.bcrypt import BcryptUserPasswordEncoder
 from api.infrastructure.ecologit import EcologitModelEnvironmentalImpactsComputer
-from api.infrastructure.fastapi import RequestContextUsageRecorder
+from api.infrastructure.fastapi import FastapiUsageContextManager
 from api.infrastructure.fastapi.dependencies import request_context
 from api.infrastructure.http import HttpAuthSsoSessionValidator, HttpProviderAdapterBuilder, HttpProviderClient
 from api.infrastructure.jwt import JwtKeyEncoder
@@ -157,8 +157,8 @@ def get_router_rate_limiter() -> RouterRateLimiter:
     return RedisRouterRateLimiter(redis_pool=global_context.redis_pool, strategy=configuration.settings.rate_limiting_strategy)
 
 
-def _usage_recorder() -> UsageRecorder:
-    return RequestContextUsageRecorder(request_context=request_context)
+def _usage_recorder() -> UsageContextManager:
+    return FastapiUsageContextManager(request_context=request_context)
 
 
 # repositories
